@@ -78,6 +78,7 @@ final class EmbeddedZooKeeper extends QuorumPeer {
         setLearnerType(zkCfg.getPeerType());
         setSyncEnabled(zkCfg.getSyncEnabled());
         setQuorumListenOnAllIPs(zkCfg.getQuorumListenOnAllIPs());
+        setMultiAddressEnabled(false);
 
         configureSasl();
 

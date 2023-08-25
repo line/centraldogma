@@ -1,0 +1,3 @@
+centraldogma:
+  # Disable the endpoints initialization
+  initialization-timeout-millis: 0

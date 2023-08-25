@@ -28,6 +28,8 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.prometheus.client.exporter.common.TextFormat;
 
@@ -48,7 +50,10 @@ class MetricsTest {
 
     @Test
     void metrics() {
-        assertThat(dogma.dogma().meterRegistry()).containsInstanceOf(PrometheusMeterRegistry.class);
+        final MeterRegistry meterRegistry = dogma.dogma().meterRegistry().get();
+        assertThat(meterRegistry).isInstanceOf(CompositeMeterRegistry.class);
+        assertThat(((CompositeMeterRegistry) meterRegistry).getRegistries())
+                .hasAtLeastOneElementOfType(PrometheusMeterRegistry.class);
 
         AggregatedHttpResponse res = dogma.httpClient().get("/monitor/metrics").aggregate().join();
         String content = res.contentUtf8();

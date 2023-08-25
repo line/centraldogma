@@ -8,6 +8,8 @@ DOGMA_BIN="$(dirname "$0")/native"
 if [[ "${OS}" == 'Darwin' ]]; then
   if [[ "${MACH}" == 'x86_64' ]]; then
     DOGMA_BIN="${DOGMA_BIN}/dogma.darwin-amd64"
+  elif [[ "${MACH}" == 'arm64' ]]; then
+    DOGMA_BIN="${DOGMA_BIN}/dogma.darwin-arm64"
   else
     echo "32-bit OS is not supported by default: ${OS}-${MACH}"
     exit 1

@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
@@ -85,11 +86,17 @@ public final class CommitRetentionManagementPlugin implements Plugin {
             return;
         }
 
-        final Duration nextExecution = ExecutionTime.forCron(config.schedule())
-                                                    .timeToNextExecution(ZonedDateTime.now());
+        final ZonedDateTime now = ZonedDateTime.now();
+        final Optional<Duration> duration = ExecutionTime.forCron(config.schedule())
+                                                         .timeToNextExecution(now);
+        if (!duration.isPresent()) {
+            logger.warn("Failed to calculate the next execution time of the commit retention scheduler. " +
+                        " config: {}, now: {}", config, now);
+            return;
+        }
         final ListeningScheduledExecutorService worker = this.worker;
         assert worker != null;
-        scheduledFuture = worker.schedule(() -> createRollingRepository(context, config), nextExecution);
+        scheduledFuture = worker.schedule(() -> createRollingRepository(context, config), duration.get());
 
         Futures.addCallback(scheduledFuture, new FutureCallback<Object>() {
             @Override

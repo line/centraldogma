@@ -43,7 +43,6 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
 
     [
       {
-        "type": "single",
         "enabled": true,
         "schedule": "0 * * * * ?",
         "direction": "REMOTE_TO_LOCAL",
@@ -57,10 +56,6 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
         ]
       }
     ]
-
-- ``type`` (string)
-
-  - the type of the mirroring task. Use ``single``.
 
 - ``enabled`` (boolean, optional)
 
@@ -100,7 +95,7 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
     the Git repository ``/foo.git`` If you want to mirror the whole content of the repository, you can simply
     end the URI with ``.git``. e.g. ``git+ssh://git.example.com/foo.git``
   - Fragment represents a branch name. e.g. ``#release`` will mirror the branch ``release``. If unspecified,
-    the branch ``master`` is mirrored.
+    the repository's default branch is mirrored.
 
 - ``credentialId`` (string, optional)
 
@@ -142,9 +137,14 @@ repositories defined in ``/mirrors.json``:
           "^.*\.secure\.com$"
         ],
         "username": "git",
-        "publicKey": "ssh-rsa ... user@host",
-        "privateKey": "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n",
+        "publicKey": "ssh-ed25519 ... user@host",
+        "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----\n",
         "passphrase": null
+      },
+      {
+        "id": "my_access_token",
+        "type": "access_token",
+        "accessToken": "github_pat_..."
       }
     ]
 
@@ -155,7 +155,7 @@ repositories defined in ``/mirrors.json``:
 
 - ``type`` (string)
 
-  - the type of authentication mechanism: ``none``, ``password`` or ``public_key``.
+  - the type of authentication mechanism: ``none``, ``password``, ``public_key`` or ``access_token``.
 
 - ``hostnamePatterns`` (array of strings, optional)
 
@@ -165,7 +165,8 @@ repositories defined in ``/mirrors.json``:
 
 - ``username`` (string)
 
-  - the user name
+  - the user name. You must specify this field if you use a credential whose type is ``password`` or
+    ``public_key``.
 
 - ``password`` (string)
 
@@ -173,27 +174,12 @@ repositories defined in ``/mirrors.json``:
 
 - ``publicKey`` (string)
 
-  - the OpenSSH RSA public key which is used for SSH public key authentication.
+  - the OpenSSH RSA, ECDSA or EdDSA public key which is used for SSH public key authentication.
 
 - ``privateKey`` (string)
 
-  - the OpenSSH RSA private key in PEM format which is used for SSH public key authentication.
-
-    .. note::
-
-        Note that the private key must be an RSA key formatted in PEM format, which starts with
-        ``-----BEGIN RSA PRIVATE KEY-----``. If your private key starts with
-        ``-----BEGIN OPENSSH PRIVATE KEY-----``, you must convert it into PEM format first:
-
-        .. code-block:: shell
-
-            $ ssh-keygen -p -m PEM -f ~/.ssh/id_rsa
-
-        Alternatively, you can regenerate the key pair with the ``-m PEM`` option:
-
-        .. code-block:: shell
-
-            $ ssh-keygen -m PEM -t rsa -b 4096 -C "your_email@example.com"
+  - the OpenSSH RSA, ECDSA or EdDSA private key which is used for SSH public key authentication.
+    The PEM format is also supported.
 
     .. tip::
 
@@ -208,6 +194,11 @@ repositories defined in ``/mirrors.json``:
   - the passphrase of ``privateKey`` if the private key is encrypted.
     If unspecified or ``null``, the private key should not be encrypted.
 
+- ``accessToken`` (string)
+
+  - the access token which is used for access token-based authentication such as
+    `GitHub Personal Access Token <https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token>`_.
+
 If everything was configured correctly, the repository you specified in ``localRepo`` will have a file named
 ``mirror_state.json`` on a successful run, which contains the commit ID of the Git repository:
 
@@ -216,6 +207,11 @@ If everything was configured correctly, the repository you specified in ``localR
     {
       "sourceRevision": "22fb176e4d8096d709d34ffe985c5f3acea83ef2"
     }
+
+Setting up a CD-to-Git mirror
+-----------------------------
+It's exactly the same as setting up a Git-to-CD mirror which is described above, except you need to specify
+``direction`` with ``LOCAL_TO_REMOTE``.
 
 Mirror limit settings
 ---------------------

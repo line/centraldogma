@@ -66,9 +66,11 @@ import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.Flags;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
+import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
@@ -90,11 +92,13 @@ import com.linecorp.armeria.server.ServiceNaming;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.armeria.server.auth.Authorizer;
+import com.linecorp.armeria.server.cors.CorsService;
 import com.linecorp.armeria.server.docs.DocService;
 import com.linecorp.armeria.server.encoding.EncodingService;
 import com.linecorp.armeria.server.file.FileService;
 import com.linecorp.armeria.server.file.HttpFile;
 import com.linecorp.armeria.server.healthcheck.HealthCheckService;
+import com.linecorp.armeria.server.healthcheck.SettableHealthChecker;
 import com.linecorp.armeria.server.logging.AccessLogWriter;
 import com.linecorp.armeria.server.metric.MetricCollectingService;
 import com.linecorp.armeria.server.metric.PrometheusExpositionService;
@@ -155,6 +159,7 @@ import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
 import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics;
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.core.instrument.binder.system.UptimeMetrics;
+import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.GlobalEventExecutor;
@@ -179,9 +184,11 @@ public class CentralDogma implements AutoCloseable {
      */
     public static CentralDogma forConfig(File configFile) throws IOException {
         requireNonNull(configFile, "configFile");
-        return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class));
+        return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class),
+                                Flags.meterRegistry());
     }
 
+    private final SettableHealthChecker serverHealth = new SettableHealthChecker(false);
     private final CentralDogmaStartStop startStop;
 
     private final AtomicInteger numPendingStopRequests = new AtomicInteger();
@@ -202,18 +209,20 @@ public class CentralDogma implements AutoCloseable {
     private ScheduledExecutorService purgeWorker;
     @Nullable
     private CommandExecutor executor;
+    private final MeterRegistry meterRegistry;
     @Nullable
-    private PrometheusMeterRegistry meterRegistry;
+    MeterRegistry meterRegistryToBeClosed;
     @Nullable
     private SessionManager sessionManager;
 
-    CentralDogma(CentralDogmaConfig cfg) {
+    CentralDogma(CentralDogmaConfig cfg, MeterRegistry meterRegistry) {
         this.cfg = requireNonNull(cfg, "cfg");
         pluginsForAllReplicas = PluginGroup.loadPlugins(
                 CentralDogma.class.getClassLoader(), PluginTarget.ALL_REPLICAS, cfg);
         pluginsForLeaderOnly = PluginGroup.loadPlugins(
                 CentralDogma.class.getClassLoader(), PluginTarget.LEADER_ONLY, cfg);
         startStop = new CentralDogmaStartStop(pluginsForAllReplicas);
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -302,6 +311,7 @@ public class CentralDogma implements AutoCloseable {
      * Stops the server. This method does nothing if the server is stopped already.
      */
     public CompletableFuture<Void> stop() {
+        serverHealth.setHealthy(false);
         numPendingStopRequests.incrementAndGet();
         return startStop.stop().thenRun(numPendingStopRequests::decrementAndGet);
     }
@@ -317,13 +327,11 @@ public class CentralDogma implements AutoCloseable {
         ScheduledExecutorService purgeWorker = null;
         ProjectManager pm = null;
         CommandExecutor executor = null;
-        PrometheusMeterRegistry meterRegistry = null;
         Server server = null;
         SessionManager sessionManager = null;
         try {
-            meterRegistry = PrometheusMeterRegistries.newRegistry();
-
             logger.info("Starting the Central Dogma ..");
+
             final ThreadPoolExecutor repositoryWorkerImpl = new ThreadPoolExecutor(
                     cfg.numRepositoryWorkers(), cfg.numRepositoryWorkers(),
                     60, TimeUnit.SECONDS, new LinkedTransferQueue<>(),
@@ -362,11 +370,11 @@ public class CentralDogma implements AutoCloseable {
             success = true;
         } finally {
             if (success) {
+                serverHealth.setHealthy(true);
                 this.repositoryWorker = repositoryWorker;
                 this.purgeWorker = purgeWorker;
                 this.pm = pm;
                 this.executor = executor;
-                this.meterRegistry = meterRegistry;
                 this.server = server;
                 this.sessionManager = sessionManager;
             } else {
@@ -481,7 +489,7 @@ public class CentralDogma implements AutoCloseable {
     }
 
     private Server startServer(ProjectManager pm, CommandExecutor executor,
-                               PrometheusMeterRegistry meterRegistry, @Nullable SessionManager sessionManager) {
+                               MeterRegistry meterRegistry, @Nullable SessionManager sessionManager) {
         final ServerBuilder sb = Server.builder();
         sb.verboseResponses(true);
         cfg.ports().forEach(sb::port);
@@ -504,6 +512,8 @@ public class CentralDogma implements AutoCloseable {
         sb.clientAddressSources(cfg.clientAddressSourceList());
         sb.clientAddressTrustedProxyFilter(cfg.trustedProxyAddressPredicate());
 
+        configCors(sb, config().corsConfig());
+
         cfg.numWorkers().ifPresent(
                 numWorkers -> sb.workerGroup(EventLoopGroups.newEventLoopGroup(numWorkers), true));
         cfg.maxNumConnections().ifPresent(sb::maxNumConnections);
@@ -521,7 +531,9 @@ public class CentralDogma implements AutoCloseable {
 
         sb.service("/title", webAppTitleFile(cfg.webAppTitle(), SystemInfo.hostname()).asService());
 
-        sb.service(HEALTH_CHECK_PATH, HealthCheckService.of());
+        sb.service(HEALTH_CHECK_PATH, HealthCheckService.builder()
+                                                        .checkers(serverHealth)
+                                                        .build());
 
         sb.serviceUnder("/docs/",
                         DocService.builder()
@@ -743,6 +755,8 @@ public class CentralDogma implements AutoCloseable {
 
                 sb.serviceUnder(BUILTIN_WEB_BASE_PATH, new OrElseDefaultHttpFileService(
                         FileService.builder(CentralDogma.class.getClassLoader(), "auth-webapp")
+                                   .autoDecompress(true)
+                                   .serveCompressedFiles(true)
                                    .cacheControl(ServerCacheControl.REVALIDATED)
                                    .build(),
                         "/index.html"));
@@ -752,6 +766,19 @@ public class CentralDogma implements AutoCloseable {
                                        .cacheControl(ServerCacheControl.REVALIDATED)
                                        .build());
         }
+    }
+
+    private static void configCors(ServerBuilder sb, @Nullable CorsConfig corsConfig) {
+        if (corsConfig == null) {
+            return;
+        }
+
+        sb.decorator(CorsService.builder(corsConfig.allowedOrigins())
+                                .allowRequestMethods(HttpMethod.knownMethods())
+                                .allowAllRequestHeaders(true)
+                                .allowCredentials()
+                                .maxAge(corsConfig.maxAgeSeconds())
+                                .newDecorator());
     }
 
     private static Function<? super HttpService, EncodingService> contentEncodingDecorator() {
@@ -776,9 +803,25 @@ public class CentralDogma implements AutoCloseable {
                 .build(delegate);
     }
 
-    private void configureMetrics(ServerBuilder sb, PrometheusMeterRegistry registry) {
+    private void configureMetrics(ServerBuilder sb, MeterRegistry registry) {
         sb.meterRegistry(registry);
-        sb.service(METRICS_PATH, new PrometheusExpositionService(registry.getPrometheusRegistry()));
+
+        // expose the prometheus endpoint if the registry is either a PrometheusMeterRegistry or
+        // CompositeMeterRegistry
+        if (registry instanceof PrometheusMeterRegistry) {
+            final PrometheusMeterRegistry prometheusMeterRegistry = (PrometheusMeterRegistry) registry;
+            sb.service(METRICS_PATH,
+                       PrometheusExpositionService.of(prometheusMeterRegistry.getPrometheusRegistry()));
+        } else if (registry instanceof CompositeMeterRegistry) {
+            final PrometheusMeterRegistry prometheusMeterRegistry = PrometheusMeterRegistries.newRegistry();
+            ((CompositeMeterRegistry) registry).add(prometheusMeterRegistry);
+            sb.service(METRICS_PATH,
+                       PrometheusExpositionService.of(prometheusMeterRegistry.getPrometheusRegistry()));
+            meterRegistryToBeClosed = prometheusMeterRegistry;
+        } else {
+            logger.info("Not exposing a prometheus endpoint for the type: {}", registry.getClass());
+        }
+
         sb.decorator(MetricCollectingService.newDecorator(MeterIdPrefixFunction.ofDefault("api")));
 
         // Bind system metrics.
@@ -812,9 +855,11 @@ public class CentralDogma implements AutoCloseable {
         this.pm = null;
         this.repositoryWorker = null;
         this.sessionManager = null;
-        if (meterRegistry != null) {
-            meterRegistry.close();
-            meterRegistry = null;
+        if (meterRegistryToBeClosed != null) {
+            assert meterRegistry instanceof CompositeMeterRegistry;
+            ((CompositeMeterRegistry) meterRegistry).remove(meterRegistryToBeClosed);
+            meterRegistryToBeClosed.close();
+            meterRegistryToBeClosed = null;
         }
 
         logger.info("Stopping the Central Dogma ..");

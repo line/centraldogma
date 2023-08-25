@@ -19,34 +19,33 @@ package com.linecorp.centraldogma.server.internal.mirror.credential;
 import static java.util.Objects.requireNonNull;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 import javax.annotation.Nullable;
-
-import com.google.common.io.BaseEncoding;
 
 final class MirrorCredentialUtil {
     private static final String BASE64_PREFIX = "base64:";
 
-    private static final BaseEncoding base64 = BaseEncoding.base64();
-
     static byte[] decodeBase64(String value, String name) {
         requireNonNull(value, name);
-        return base64.decode(value);
+        return Base64.getDecoder().decode(value);
     }
 
     @Nullable
-    static byte[] decodeBase64OrUtf8(@Nullable String value, String name) {
+    static String maybeDecodeBase64(@Nullable String value, String name) {
         if (value == null) {
             return null;
-        } else if (value.startsWith(BASE64_PREFIX)) {
-            return decodeBase64(value.substring(BASE64_PREFIX.length()), name);
-        } else {
-            return value.getBytes(StandardCharsets.UTF_8);
         }
+        if (value.startsWith(BASE64_PREFIX)) {
+            return new String(decodeBase64(value.substring(BASE64_PREFIX.length()), name),
+                              StandardCharsets.UTF_8);
+        }
+        return value;
     }
 
     static String requireNonEmpty(String value, String name) {
         requireNonNull(value, name);
+        value = value.trim();
         if (value.isEmpty()) {
             throw new IllegalArgumentException(name + " is empty.");
         }

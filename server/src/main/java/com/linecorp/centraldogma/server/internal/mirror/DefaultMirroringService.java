@@ -25,6 +25,7 @@ import java.time.ZonedDateTime;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -50,6 +51,8 @@ import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 public final class DefaultMirroringService implements MirroringService {
@@ -72,12 +75,14 @@ public final class DefaultMirroringService implements MirroringService {
     private volatile ListeningExecutorService worker;
 
     private ZonedDateTime lastExecutionTime;
+    private final MeterRegistry meterRegistry;
 
-    public DefaultMirroringService(File workDir, ProjectManager projectManager,
-                                   int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror) {
+    DefaultMirroringService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
+                            int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror) {
 
         this.workDir = requireNonNull(workDir, "workDir");
         this.projectManager = requireNonNull(projectManager, "projectManager");
+        this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
 
         checkArgument(numThreads > 0, "numThreads: %s (expected: > 0)", numThreads);
         checkArgument(maxNumFilesPerMirror > 0,
@@ -100,8 +105,11 @@ public final class DefaultMirroringService implements MirroringService {
 
         this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
 
-        scheduler = MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory("mirroring-scheduler", true)));
+        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("mirroring-scheduler", true));
+        executorService = ExecutorServiceMetrics.monitor(meterRegistry, executorService,
+                                                         "mirroringScheduler");
+        scheduler = MoreExecutors.listeningDecorator(executorService);
 
         // Use SynchronousQueue to prevent the work queue from growing infinitely
         // when the workers cannot handle the mirroring tasks fast enough.
@@ -130,7 +138,7 @@ public final class DefaultMirroringService implements MirroringService {
 
             @Override
             public void onFailure(Throwable cause) {
-                logger.error("Git-to-CD mirroring scheduler stopped due to an unexpected exception:", cause);
+                logger.error("Git mirroring scheduler stopped due to an unexpected exception:", cause);
             }
         }, MoreExecutors.directExecutor());
     }
@@ -190,7 +198,14 @@ public final class DefaultMirroringService implements MirroringService {
                               return Stream.empty();
                           }
                       })
-                      .filter(m -> m.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0)
+                      .filter(m -> {
+                          try {
+                              return m.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0;
+                          } catch (Exception e) {
+                              logger.warn("Failed to calculate the next execution time of: {}", m, e);
+                              return false;
+                          }
+                      })
                       .forEach(m -> {
                           final ListenableFuture<?> future = worker.submit(() -> run(m, true));
                           Futures.addCallback(future, new FutureCallback<Object>() {
@@ -199,7 +214,7 @@ public final class DefaultMirroringService implements MirroringService {
 
                               @Override
                               public void onFailure(Throwable cause) {
-                                  logger.warn("Unexpected Git-to-CD mirroring failure: {}", m, cause);
+                                  logger.warn("Unexpected Git mirroring failure: {}", m, cause);
                               }
                           }, MoreExecutors.directExecutor());
                       });
@@ -221,7 +236,8 @@ public final class DefaultMirroringService implements MirroringService {
     private void run(Mirror m, boolean logOnFailure) {
         logger.info("Mirroring: {}", m);
         try {
-            m.mirror(workDir, commandExecutor, maxNumFilesPerMirror, maxNumBytesPerMirror);
+            new MirroringTask(m, meterRegistry)
+                    .run(workDir, commandExecutor, maxNumFilesPerMirror, maxNumBytesPerMirror);
         } catch (Exception e) {
             if (logOnFailure) {
                 logger.warn("Unexpected exception while mirroring: {}", m, e);

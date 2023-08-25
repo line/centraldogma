@@ -20,8 +20,10 @@ import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 
-final class MirrorState {
+@VisibleForTesting
+public final class MirrorState {
 
     private final String sourceRevision;
 
@@ -30,7 +32,8 @@ final class MirrorState {
         this.sourceRevision = requireNonNull(sourceRevision, "sourceRevision");
     }
 
-    String sourceRevision() {
+    @JsonProperty("sourceRevision")
+    public String sourceRevision() {
         return sourceRevision;
     }
 }

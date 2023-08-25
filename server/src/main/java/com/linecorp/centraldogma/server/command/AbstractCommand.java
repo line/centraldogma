@@ -54,12 +54,11 @@ abstract class AbstractCommand<T> implements Command<T> {
     }
 
     @Override
-    @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
         }
-        if (!(this instanceof AbstractCommand)) {
+        if (!(obj instanceof AbstractCommand)) {
             return false;
         }
 

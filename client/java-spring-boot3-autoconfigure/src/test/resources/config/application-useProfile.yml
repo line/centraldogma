@@ -1,0 +1,4 @@
+centraldogma:
+  profile: myprofile
+  # Disable the endpoints initialization
+  initialization-timeout-millis: 0

@@ -436,6 +436,7 @@ public final class ZooKeeperCommandExecutor
             copyZkProperty(zkProps, "syncEnabled", "true");
             copyZkProperty(zkProps, "autopurge.snapRetainCount", "3");
             copyZkProperty(zkProps, "autopurge.purgeInterval", "1");
+            copyZkProperty(zkProps, "quorumListenOnAllIPs", "false");
 
             // Set the properties that must be set in System properties.
             System.setProperty("zookeeper.fsync.warningthresholdms",
@@ -901,7 +902,7 @@ public final class ZooKeeperCommandExecutor
         final QuotaConfig writeQuota = writeLock.writeQuota;
         if (lease == null) {
             safeRelease(mtx);
-            throw new TooManyRequestsException("commits", executionPath, writeQuota.requestQuota());
+            throw new TooManyRequestsException("commits", executionPath, writeQuota.permitsPerSecond());
         } else {
             quotaExecutor.schedule(() -> writeLock.semaphore.returnLease(lease),
                                    writeQuota.timeWindowSeconds(), TimeUnit.SECONDS);

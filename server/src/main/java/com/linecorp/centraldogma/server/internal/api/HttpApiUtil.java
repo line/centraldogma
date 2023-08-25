@@ -165,6 +165,7 @@ public final class HttpApiUtil {
 
         final ObjectNode node = JsonNodeFactory.instance.objectNode();
         if (cause != null) {
+            cause = Exceptions.peel(cause);
             node.put("exception", cause.getClass().getName());
             if (message == null) {
                 message = cause.getMessage();

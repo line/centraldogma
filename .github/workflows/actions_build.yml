@@ -1,0 +1,149 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+    tags-ignore:
+      # The release versions will be verified by 'publish-release.yml'
+      - centraldogma-*
+  pull_request:
+
+concurrency:
+  # Cancel the previous builds in the same PR.
+  # Allow running concurrently for all non-PR commits.
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  LC_ALL: "en_US.UTF-8"
+  BUILD_JDK_VERSION: "17"
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      GRADLE_OPTS: -Xmx1280m
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-12, windows-latest]
+        java: [17]
+        include:
+          - java: 8
+            os: ubuntu-latest
+          - java: 11
+            os: ubuntu-latest
+          - java: 17
+            os: ubuntu-latest
+            coverage: true
+          - java: 17
+            os: ubuntu-latest
+            min-java: 11
+          - java: 19
+            os: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - id: setup-build-jdk
+      name: Set up build JDK ${{ env.BUILD_JDK_VERSION }}
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: ${{ env.BUILD_JDK_VERSION }}
+
+    - id: setup-test-jdk
+      if: ${{ matrix.java != env.BUILD_JDK_VERSION }}
+      name: Set up test JDK ${{ matrix.java }}
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: ${{ matrix.java }}
+
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+
+    - name: Build with Gradle
+      run: |
+        ./gradlew --no-daemon --stacktrace -Pleak -PnoLint build \
+        ${{ matrix.coverage && '-Pcoverage' || '' }} \
+        -PflakyTests=false \
+        -PbuildJdkVersion=${{ env.BUILD_JDK_VERSION }} \
+        -PtestJavaVersion=${{ matrix.java }} \
+        ${{ matrix.min-java && format('-PminimumJavaVersion={0}', matrix.min-java) || '' }} \
+        -Porg.gradle.java.installations.paths=${{ steps.setup-build-jdk.outputs.path }},${{ steps.setup-test-jdk.outputs.path }}
+      shell: bash
+
+    - name: Upload coverage to Codecov
+      if: ${{ matrix.coverage }}
+      uses: codecov/codecov-action@v3
+
+    - name: Collecting the test reports ..
+      if: failure()
+      run: |
+        find . '(' \
+        -name 'hs_err_*.log' -or \
+        -path '*/build/reports/tests' ')' \
+        -exec tar rf "reports-JVM-${{ matrix.on }}-${{ matrix.java }}${{ matrix.min-java && format('-{0}', matrix.min-java) || '' }}.tar" {} ';'
+      shell: bash
+
+    - name: Upload Artifact
+      if: failure()
+      uses: actions/upload-artifact@v2
+      with:
+        name: reports-JVM-${{ matrix.java }}
+        path: reports-JVM-${{ matrix.java }}.tar
+        retention-days: 3
+
+    - name: Dump stuck threads
+      if: always()
+      run: jps | grep -vi "jps" | awk '{ print $1 }' | xargs -I'{}' jstack -l {} || true
+      shell: bash
+
+  lint:
+    if: github.repository == 'line/centraldogma'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GRADLE_OPTS: -Xmx1280m
+    steps:
+      - uses: actions/checkout@v3
+
+      - id: setup-jdk
+        name: Set up JDK ${{ env.BUILD_JDK_VERSION }}
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.BUILD_JDK_VERSION }}
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: Build with Gradle
+        run: |
+          ./gradlew --no-daemon --stacktrace lint
+        shell: bash
+
+  flaky-tests:
+    if: github.repository == 'line/centraldogma'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GRADLE_OPTS: -Xmx1280m
+    steps:
+      - uses: actions/checkout@v3
+
+      - id: setup-jdk
+        name: Set up JDK ${{ env.BUILD_JDK_VERSION }}
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.BUILD_JDK_VERSION }}
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: Run flaky tests
+        run: |
+          ./gradlew --no-daemon --stacktrace check -PnoLint -PflakyTests=true
+        shell: bash

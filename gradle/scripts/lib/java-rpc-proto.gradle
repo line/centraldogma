@@ -14,6 +14,22 @@ configure(projectsWithFlags('java')) {
     if (project.ext.hasSourceDirectory('proto')) {
         apply plugin: com.google.protobuf.gradle.ProtobufPlugin
 
+        configurations {
+            // A workaround for "Could not resolve all files for configuration ':grpc:compileProtoPath'"
+            // - https://github.com/gradle/gradle/issues/12126
+            // - https://github.com/google/protobuf-gradle-plugin/issues/391
+            compileProtoPath {
+                attributes {
+                    attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(Usage, Usage.JAVA_API))
+                }
+            }
+            testCompileProtoPath {
+                attributes {
+                    attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(Usage, Usage.JAVA_API))
+                }
+            }
+        }
+
         protobuf {
             generatedFilesBaseDir = project.ext.genSrcDir
             if (managedVersions.containsKey('com.google.protobuf:protoc')) {
@@ -40,7 +56,13 @@ configure(projectsWithFlags('java')) {
                     }
                     if (project.ext.hasFlag('kotlin-grpc')) {
                         kotlinGrpc {
-                            artifact = "io.grpc:protoc-gen-grpc-kotlin:${managedVersions['io.grpc:protoc-gen-grpc-kotlin']}:jdk7@jar"
+                            artifact = "io.grpc:protoc-gen-grpc-kotlin:${managedVersions['io.grpc:protoc-gen-grpc-kotlin']}:jdk8@jar"
+                        }
+                    }
+
+                    if (project.ext.hasFlag('krotodc-grpc')) {
+                        krotodcGrpc {
+                            artifact = "io.github.mscheong01:protoc-gen-krotoDC:${managedVersions['io.github.mscheong01:protoc-gen-krotoDC']}:jdk8@jar"
                         }
                     }
 
@@ -80,6 +102,9 @@ configure(projectsWithFlags('java')) {
                             if (project.ext.hasFlag('kotlin-grpc') && managedVersions.containsKey('io.grpc:grpc-kotlin-stub')) {
                                 kotlinGrpc {}
                             }
+                            if (project.ext.hasFlag('krotodc-grpc') && managedVersions.containsKey('io.github.mscheong01:protoc-gen-krotoDC')) {
+                                krotodcGrpc {}
+                            }
                             if (project.ext.hasFlag('akka-grpc_2.13') && managedVersions.containsKey('com.lightbend.akka.grpc:akka-grpc-runtime_2.13')) {
                                 akkaGrpc {}
                             }
@@ -98,11 +123,6 @@ configure(projectsWithFlags('java')) {
             }
         }
 
-        // Add the generated 'grpc' directories to the source sets.
-        project.sourceSets.all { sourceSet ->
-            sourceSet.java.srcDir file("${project.ext.genSrcDir}/${sourceSet.name}/grpc")
-        }
-
         // Make sure protoc runs before the resources are copied so that .dsc files are included.
         project.afterEvaluate {
             project.sourceSets.each { sourceSet ->
@@ -111,6 +131,21 @@ configure(projectsWithFlags('java')) {
                 if (processResourcesTask != null) {
                     processResourcesTask.dependsOn(task)
                 }
+
+                def sourcesJarTask = tasks.findByName(sourceSet.getTaskName('sources', 'jar'))
+                if (sourcesJarTask) {
+                    // A workaround for 'sourcesJar' uses this output of task ':generateProto' without
+                    // declaring an explicit or implicit dependency.
+                    sourcesJarTask.dependsOn(task)
+                }
+
+                def kotlinSourcesJar = tasks.findByName('kotlinSourcesJar')
+                if (kotlinSourcesJar) {
+                    // A workaround for  ':grpc-kotlin:kotlinSourcesJar' uses this output of task
+                    // ':grpc-kotlin:generateProto' without declaring an explicit or implicit dependency.
+                    kotlinSourcesJar.dependsOn(task)
+                }
+
                 project.ext.getGenerateSourcesTask().dependsOn(task)
             }
         }

@@ -53,11 +53,12 @@ defaults:
         "schedule": "0 0 * * * ?"
       },
       "writeQuotaPerRepository": {
-        "requestQuota" : 5,
+        "requestQuota": 5,
         "timeWindowSeconds": 1
       },
       "accessLogFormat": "common",
-      "authentication": null
+      "authentication": null,
+      "cors": null
     }
 
 Core properties
@@ -187,7 +188,7 @@ Core properties
 
 - ``mirroringEnabled`` (boolean)
 
-  - whether to enable Git-to-CD mirroring. It's enabled by default. For more information about mirroring,
+  - whether to enable Git mirroring. It's enabled by default. For more information about mirroring,
     refer to :ref:`mirroring`.
 
 - ``numMirroringThreads`` (integer)
@@ -258,6 +259,19 @@ Core properties
 
   - the authentication configuration. If ``null``, the authentication is disabled.
     See :ref:`auth` to learn how to configure the authentication layer.
+
+- ``cors``
+
+  - specify ``null`` to disable CORS entirely.
+  - ``allowedOrigins`` (string or string array)
+
+    - the list of origins which are allowed a lenient CORS policy. If the literal value ``*`` is specified then
+      all origins are allowed.
+
+  - ``maxAgeSeconds`` (integer)
+
+    - how long in seconds the results of a preflight request can be cached. If not specified then the default
+      value ``7200`` is applied.
 
 .. _replication:
 
@@ -378,8 +392,10 @@ example shows the configuration of the first replica in a 3-replica cluster:
 
 - ``additionalProperties`` (map of string key-value pairs)
 
-  - ZooKeeper configuration properties such as ``initLimit`` and ``syncLimit``. It is recommended to
-    leave this property empty because Central Dogma sets the sensible defaults.
+  - ZooKeeper `configuration properties <https://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_configuration>`_.
+    Currently, ``initLimit``, ``syncLimit``, ``tickTime``, ``syncEnabled``, ``autopurge.snapRetainCount``,
+    ``autopurge.purgeInterval``, and ``quorumListenOnAllIPs`` can be set.
+    It is recommended to leave this properties empty because Central Dogma sets the sensible defaults.
 
 - ``timeoutMillis`` (integer)
 

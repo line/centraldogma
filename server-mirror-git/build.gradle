@@ -1,0 +1,12 @@
+dependencies {
+    implementation project(':server')
+
+    implementation libs.bouncycastle.bcpg
+    implementation libs.bouncycastle.bcpkix
+    implementation libs.bouncycastle.bcprov
+    implementation libs.eddsa
+    implementation libs.jgit6
+    implementation libs.jgit.ssh.jsch6
+    implementation libs.mina.sshd.core
+    implementation libs.mina.sshd.git
+}

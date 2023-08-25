@@ -24,7 +24,6 @@ def load_yaml(filepath):
 # Load the gradle.properties and dependencies.yml.
 rootDir = os.path.dirname(os.path.abspath(__file__)) + '/../../..'
 properties = load_properties(rootDir + '/gradle.properties')
-managed_versions = load_yaml(rootDir + '/build/managed_versions.yml')
 
 # Set the basic project information.
 project = 'Central Dogma'
@@ -48,9 +47,6 @@ for k in properties.keys():
     if k in [ 'release', 'version' ]:
         continue
     rst_epilog += '.. |' + k + '| replace:: ' + v + '\n'
-for k in managed_versions.keys():
-    v = managed_versions[k]
-    rst_epilog += '.. |' + k + ':version| replace:: ' + v + '\n'
 
 rst_epilog += '\n'
 

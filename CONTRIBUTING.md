@@ -2,7 +2,7 @@
 
 First of all, thank you so much for taking your time to contribute! Central Dogma is not very different from any other open source projects you are aware of. It will be amazing if you could help us by doing any of the following:
 
-- Join [our Slack workspace](https://join.slack.com/t/central-dogma/shared_invite/enQtNjA5NDk5MTExODQzLWFhOWU2NGZhNDk3MjBmNzczZDYyZjRmMTI1MzdiNGI3OTcwNWZlOTkyY2U3Nzk4YTM2NzQ2NGJhMjQ1NzJlNzQ) to chat with us.
+- Join [our Discord Server](https://armeria.dev/s/discord) to chat with us.
 - File an issue in [the issue tracker](https://github.com/line/centraldogma/issues) to report bugs and propose new features and improvements.
 - Ask a question by creating a new issue in [the issue tracker](https://github.com/line/centraldogma/issues).
   - Browse [the list of previously answered questions](https://github.com/line/centraldogma/issues?q=label%3Aquestion-answered).
@@ -20,7 +20,7 @@ Please [contact us](dl_oss_dev@linecorp.com) if you need the CCLA (corporate con
 
 ### Code of conduct
 
-We expect contributors to follow [our code of conduct](https://github.com/line/centraldogma/blob/master/CODE_OF_CONDUCT.md).
+We expect contributors to follow [our code of conduct](https://github.com/line/centraldogma/blob/main/CODE_OF_CONDUCT.md).
 
 ### Setting up your IDE
 
@@ -33,7 +33,7 @@ After importing the project, import the IDE settings as well.
 
 #### IntelliJ IDEA
 
-- [`settings.jar`](https://raw.githubusercontent.com/line/centraldogma/master/settings/intellij_idea/settings.jar) -
+- [`settings.jar`](https://raw.githubusercontent.com/line/centraldogma/main/settings/intellij_idea/settings.jar) -
   See [Import settings from a ZIP archive](https://www.jetbrains.com/help/idea/sharing-your-ide-settings.html#7a4f08b8).
 - Make sure to use 'LINE OSS' code style and inspection profile.
   - Go to `Preferences` > `Editors` > `Code Style` and set `Scheme` option to `LINE OSS`.
@@ -47,15 +47,15 @@ After importing the project, import the IDE settings as well.
 
 #### Eclipse
 
-- [`formatter.xml`](https://raw.githubusercontent.com/line/centraldogma/master/settings/eclipse/formatter.xml) -
+- [`formatter.xml`](https://raw.githubusercontent.com/line/centraldogma/main/settings/eclipse/formatter.xml) -
   See [Code Formatter Preferences](https://help.eclipse.org/neon/index.jsp?topic=%2Forg.eclipse.jdt.doc.user%2Freference%2Fpreferences%2Fjava%2Fcodestyle%2Fref-preferences-formatter.htm).
-- [`formatter.importorder`](https://raw.githubusercontent.com/line/centraldogma/master/settings/eclipse/formatter.importorder) -
+- [`formatter.importorder`](https://raw.githubusercontent.com/line/centraldogma/main/settings/eclipse/formatter.importorder) -
   See [Organize Imports Preferences](https://help.eclipse.org/neon/index.jsp?topic=%2Forg.eclipse.jdt.doc.user%2Freference%2Fpreferences%2Fjava%2Fcodestyle%2Fref-preferences-organize-imports.htm).
-- [`cleanup.xml`](https://raw.githubusercontent.com/line/centraldogma/master/settings/eclipse/cleanup.xml) -
+- [`cleanup.xml`](https://raw.githubusercontent.com/line/centraldogma/main/settings/eclipse/cleanup.xml) -
   See [Clean Up Preferences](https://help.eclipse.org/neon/index.jsp?topic=%2Forg.eclipse.jdt.doc.user%2Freference%2Fpreferences%2Fjava%2Fcodestyle%2Fref-preferences-cleanup.htm).
 - Configure [Java Save Actions Preferences](https://help.eclipse.org/neon/index.jsp?topic=%2Forg.eclipse.jdt.doc.user%2Freference%2Fpreferences%2Fjava%2Feditor%2Fref-preferences-save-actions.htm).
   <details><summary>Click here to see the screenshot.</summary>
-    <img src="https://raw.githubusercontent.com/line/centraldogma/master/settings/eclipse/save_actions.png">
+    <img src="https://raw.githubusercontent.com/line/centraldogma/main/settings/eclipse/save_actions.png">
   </details>
 - Although optional, if you want to run Checkstyle from Eclipse, install the
   [Eclipse Checkstyle Plugin](https://eclipse-cs.sourceforge.net/), import and activate

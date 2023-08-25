@@ -28,11 +28,13 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
+import com.linecorp.centraldogma.testing.internal.FlakyTest;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 /**
  * Makes sure that we can stop a replica that's waiting for the initial quorum.
  */
+@FlakyTest
 class StartStopWithoutInitialQuorumTest {
 
     @RegisterExtension

@@ -141,6 +141,9 @@ public final class CentralDogmaConfig {
     @Nullable
     private final CommitRetentionConfig commitRetentionConfig;
 
+    @Nullable
+    private final CorsConfig corsConfig;
+
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
             @JsonProperty(value = "ports", required = true)
@@ -169,8 +172,8 @@ public final class CentralDogmaConfig {
             @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
             @JsonProperty("authentication") @Nullable AuthConfig authConfig,
             @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository,
-            @JsonProperty("commitRetention") @Nullable CommitRetentionConfig commitRetentionConfig) {
-
+            @JsonProperty("commitRetention") @Nullable CommitRetentionConfig commitRetentionConfig,
+            @JsonProperty("cors") @Nullable CorsConfig corsConfig) {
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
         checkArgument(!ports.isEmpty(), "ports must have at least one port.");
@@ -224,6 +227,7 @@ public final class CentralDogmaConfig {
 
         this.writeQuotaPerRepository = writeQuotaPerRepository;
         this.commitRetentionConfig = commitRetentionConfig;
+        this.corsConfig = corsConfig;
     }
 
     /**
@@ -468,6 +472,15 @@ public final class CentralDogmaConfig {
     @JsonProperty("commitRetention")
     public CommitRetentionConfig commitRetentionConfig() {
         return commitRetentionConfig;
+    }
+
+    /**
+     * Returns the {@link CorsConfig}.
+     */
+    @Nullable
+    @JsonProperty("cors")
+    public CorsConfig corsConfig() {
+        return corsConfig;
     }
 
     @Override

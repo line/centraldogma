@@ -150,13 +150,15 @@ class CommitIdDatabaseTest {
         }
 
         assertThat(commitIdDatabaseFile).exists();
+        assertThat(repo.creationTimeMillis()).isEqualTo(1000);
+        assertThat(repo.author()).isEqualTo(Author.SYSTEM);
         assertThat(Files.size(commitIdDatabaseFile.toPath())).isEqualTo((numCommits + 1) * 24L);
     }
 
     private static GitRepositoryV2 createRepoWithFirstRevision(File repoDir, int startRevision) {
         final GitRepositoryV2 repo = new GitRepositoryV2(mock(Project.class), repoDir,
                                                          commonPool(),
-                                                         0, Author.SYSTEM, null);
+                                                         1000, Author.SYSTEM, null);
         if (startRevision == 1) {
             addCommit(repo, startRevision);
             addCommit(repo, startRevision + 1);

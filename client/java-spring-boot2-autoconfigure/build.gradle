@@ -1,0 +1,33 @@
+dependencies {
+    api project(':client:java-armeria')
+    compileOnly libs.javax.validation
+    api libs.spring.boot2.autoconfigure
+    annotationProcessor libs.spring.boot2.configuration.processor
+
+    testImplementation libs.spring.boot2.starter.test
+    testRuntimeOnly libs.hibernate.validator6
+}
+
+// Use the sources from 'client-spring-boot3-autoconfigure'.
+// NB: We should not add these in the 'sourceSets' directive because that will make the directories mentioned
+//     below are added to two projects and having a source directory with two output directories will confuse
+//     the IDE.
+def autoconfigureProjectDir = "${rootProject.projectDir}/client/java-spring-boot3-autoconfigure"
+tasks.compileJava.source "${autoconfigureProjectDir}/src/main/java"
+tasks.compileTestJava.source "${autoconfigureProjectDir}/src/test/java", "${autoconfigureProjectDir}/gen-src/test/java"
+tasks.processTestResources.from "${autoconfigureProjectDir}/src/test/resources"
+tasks.sourcesJar.from "${autoconfigureProjectDir}/src/main/java"
+tasks.sourcesJar.from "${autoconfigureProjectDir}/src/main/resources"
+tasks.javadoc.source "${autoconfigureProjectDir}/src/main/java"
+
+// Disable checkstyle because it's checked by 'client-spring-boot-autoconfigure'
+tasks.withType(Checkstyle) {
+    onlyIf { false }
+}
+
+// allows illegal access by cglib
+if (project.ext.testJavaVersion >= 16) {
+    tasks.withType(Test) {
+        jvmArgs '--add-opens=java.base/java.lang=ALL-UNNAMED'
+    }
+}

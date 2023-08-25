@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.command;
 
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
@@ -77,5 +78,19 @@ class CreateSessionCommandTest {
             oos.writeObject(object);
             return Base64.getEncoder().encodeToString(baos.toByteArray());
         }
+    }
+
+    @Test
+    void testEquals() {
+        final Session session =
+                new Session("session-id-12345",
+                        "foo",
+                        Instant.EPOCH,
+                        Instant.EPOCH.plus(1, ChronoUnit.MINUTES),
+                        "abc");
+        final CreateSessionCommand command = new CreateSessionCommand(1234L,
+                new Author("foo", "bar@baz.com"),
+                session);
+        assertThat(command).isNotEqualTo("string");
     }
 }

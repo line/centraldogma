@@ -21,9 +21,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOError;
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 import com.linecorp.centraldogma.internal.Jackson;
 
@@ -47,7 +50,16 @@ public final class TestUtil {
     }
 
     public static String normalizedDisplayName(TestInfo testInfo) {
-        return DISALLOWED_CHARS.matcher(testInfo.getDisplayName()).replaceAll("");
+        return normalizedDisplayName(testInfo.getDisplayName(), testInfo.getTestMethod());
+    }
+
+    public static String normalizedDisplayName(ExtensionContext context) {
+        return normalizedDisplayName(context.getDisplayName(), context.getTestMethod());
+    }
+
+    private static String normalizedDisplayName(String displayName, Optional<Method> method) {
+        return DISALLOWED_CHARS.matcher(displayName + method.map(Method::getName).orElse(""))
+                               .replaceAll("");
     }
 
     private TestUtil() {}
