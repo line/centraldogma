@@ -110,6 +110,7 @@ version.ref = "checkstyle"
 [libraries.cron-utils]
 module = "com.cronutils:cron-utils"
 version.ref = "cron-utils"
+exclusions = 'org.slf4j:slf4j-api'
 relocations = { from = "com.cronutils", to = "com.linecorp.centraldogma.internal.shaded.cronutils" }
 
 # Ensure that we use the same ZooKeeper version as what Curator depends on.
