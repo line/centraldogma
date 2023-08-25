@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Better configuration change workflow with Git-to-CD mirroring &mdash; Central Dogma 0.61.5 documentation</title>
+  <title>Better configuration change workflow with Git-to-CD mirroring &mdash; Central Dogma 0.62.0 documentation</title>
   
 
   
@@ -72,7 +72,7 @@
             
             
               <div class="version">
-                0.61
+                0.62
               </div>
             
           
@@ -225,7 +225,6 @@ applications access Central Dogma repositories instead:</p>
 <p><code class="docutils literal notranslate"><span class="pre">/mirrors.json</span></code> contains an array of periodic mirroring tasks. For example:</p>
 <div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">[
   {
-    &quot;type&quot;: &quot;single&quot;,
     &quot;enabled&quot;: true,
     &quot;schedule&quot;: &quot;0 * * * * ?&quot;,
     &quot;direction&quot;: &quot;REMOTE_TO_LOCAL&quot;,
@@ -241,11 +240,6 @@ applications access Central Dogma repositories instead:</p>
 ]</pre></div>
 </div>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (string)</p>
-<ul>
-<li><p>the type of the mirroring task. Use <code class="docutils literal notranslate"><span class="pre">single</span></code>.</p></li>
-</ul>
-</li>
 <li><p><code class="docutils literal notranslate"><span class="pre">enabled</span></code> (boolean, optional)</p>
 <ul>
 <li><p>whether the mirroring task is enabled. Enabled by default if unspecified.</p></li>
@@ -333,8 +327,8 @@ repositories defined in <code class="docutils literal notranslate"><span class="
       &quot;^.*\.secure\.com$&quot;
     ],
     &quot;username&quot;: &quot;git&quot;,
-    &quot;publicKey&quot;: &quot;ssh-rsa ... user@host&quot;,
-    &quot;privateKey&quot;: &quot;-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n&quot;,
+    &quot;publicKey&quot;: &quot;ssh-ed25519 ... user@host&quot;,
+    &quot;privateKey&quot;: &quot;-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----\n&quot;,
     &quot;passphrase&quot;: null
   },
   {
@@ -376,23 +370,13 @@ selected automatically, i.e. a mirror has to specify the <code class="docutils l
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">publicKey</span></code> (string)</p>
 <ul class="simple">
-<li><p>the OpenSSH RSA public key which is used for SSH public key authentication.</p></li>
+<li><p>the OpenSSH RSA, ECDSA or EdDSA public key which is used for SSH public key authentication.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">privateKey</span></code> (string)</p>
 <ul>
-<li><p>the OpenSSH RSA private key in PEM format which is used for SSH public key authentication.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Note that the private key must be an RSA key formatted in PEM format, which starts with
-<code class="docutils literal notranslate"><span class="pre">-----BEGIN</span> <span class="pre">RSA</span> <span class="pre">PRIVATE</span> <span class="pre">KEY-----</span></code>. If your private key starts with
-<code class="docutils literal notranslate"><span class="pre">-----BEGIN</span> <span class="pre">OPENSSH</span> <span class="pre">PRIVATE</span> <span class="pre">KEY-----</span></code>, you must convert it into PEM format first:</p>
-<div class="highlight-shell notranslate"><div class="highlight hljs"><pre class="shell">$ ssh-keygen -p -m PEM -f ~/.ssh/id_rsa</pre></div>
-</div>
-<p>Alternatively, you can regenerate the key pair with the <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">PEM</span></code> option:</p>
-<div class="highlight-shell notranslate"><div class="highlight hljs"><pre class="shell">$ ssh-keygen -m PEM -t rsa -b 4096 -C &quot;your_email@example.com&quot;</pre></div>
-</div>
-</div>
+<li><p>the OpenSSH RSA, ECDSA or EdDSA private key which is used for SSH public key authentication.
+The PEM format is also supported.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p>You can convert your private key into a JSON string using a <code class="docutils literal notranslate"><span class="pre">perl</span></code> command:</p>
