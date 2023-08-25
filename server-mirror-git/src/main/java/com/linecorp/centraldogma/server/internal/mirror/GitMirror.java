@@ -323,7 +323,7 @@ public final class GitMirror extends AbstractMirror {
         final String jGitUri;
         if (scheme.startsWith("git+")) {
             if (scheme.equals(SCHEME_GIT_SSH)) {
-                // JSch requires the username to be included in the URI.
+                // Requires the username to be included in the URI.
                 final String username;
                 if (credential() instanceof PasswordMirrorCredential) {
                     username = ((PasswordMirrorCredential) credential()).username();

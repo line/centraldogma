@@ -32,6 +32,8 @@ import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import javax.annotation.Nullable;
+
 import org.apache.sshd.client.ClientBuilder;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.config.hosts.HostConfigEntryResolver;
@@ -64,17 +66,9 @@ import org.eclipse.jgit.transport.RemoteSession;
 import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
-import org.eclipse.jgit.transport.ssh.jsch.JschConfigSessionFactory;
-import org.eclipse.jgit.transport.ssh.jsch.OpenSshConfig;
-import org.eclipse.jgit.transport.ssh.jsch.OpenSshConfig.Host;
 import org.eclipse.jgit.util.FS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.jcraft.jsch.HostKey;
-import com.jcraft.jsch.HostKeyRepository;
-import com.jcraft.jsch.Session;
-import com.jcraft.jsch.UserInfo;
 
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.internal.IsolatedSystemReader;
@@ -87,8 +81,6 @@ import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 final class GitWithAuth extends Git {
 
     private static final Logger logger = LoggerFactory.getLogger(GitWithAuth.class);
-
-    private static final OpenSshConfig EMPTY_CONFIG = emptySshConfig();
 
     private static final KeyPairResourceParser keyPairResourceParser = KeyPairResourceParser.aggregate(
             // Use BouncyCastle resource parser to support non-standard formats as well.
@@ -213,48 +205,18 @@ final class GitWithAuth extends Git {
         final Collection<KeyPair> keyPairs;
         try {
             keyPairs = keyPairResourceParser.loadKeyPairs(null, NamedResource.ofName(cred.username()),
-                                                          passwordProvider(cred), cred.privateKey());
+                                                          passwordProvider(cred.passphrase()),
+                                                          cred.privateKey());
         } catch (IOException | GeneralSecurityException e) {
             throw new MirrorException("Unexpected exception while loading private key. username: " +
                                       cred.username() + ", publicKey: " +
                                       publicKeyPreview(cred.publicKey()), e);
         }
         cmd.setTransportConfigCallback(transport -> {
-            final GitSshdSessionFactory factory = new GitSshdSessionFactory() {
+            final GitSshdSessionFactory factory = new DefaultGitSshdSessionFactory() {
                 @Override
-                public RemoteSession getSession(URIish uri, CredentialsProvider credentialsProvider,
-                                                FS fs, int tms) throws TransportException {
-                    try {
-                        return new GitSshdSession(uri, NoopCredentialsProvider.INSTANCE, fs, tms) {
-                            @Override
-                            protected SshClient createClient() {
-                                // Not an Armeria but an SSHD client.
-                                final ClientBuilder builder = ClientBuilder.builder();
-                                // Do not use local file system.
-                                builder.hostConfigEntryResolver(HostConfigEntryResolver.EMPTY);
-                                builder.fileSystemFactory(NoneFileSystemFactory.INSTANCE);
-                                // Do not verify the server key.
-                                builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> true);
-                                final SshClient client = builder.build();
-                                client.setKeyIdentityProvider(KeyIdentityProvider.wrapKeyPairs(keyPairs));
-                                return client;
-                            }
-
-                            @Override
-                            protected ClientSession createClientSession(
-                                    SshClient clientInstance, String host, String username, int port,
-                                    String... passwords) throws IOException, InterruptedException {
-                                if (port <= 0) {
-                                    port = 22; // Use the SSH default port it unspecified.
-                                }
-                                return super.createClientSession(clientInstance, host, username,
-                                                                 port, passwords);
-                            }
-                        };
-                    } catch (Exception e) {
-                        throw new TransportException("Unable to connect to: " + uri +
-                                                     " CredentialsProvider: " + credentialsProvider, e);
-                    }
+                void onClientCreated(SshClient client) {
+                    client.setKeyIdentityProvider(KeyIdentityProvider.wrapKeyPairs(keyPairs));
                 }
             };
             final SshTransport sshTransport = (SshTransport) transport;
@@ -262,32 +224,20 @@ final class GitWithAuth extends Git {
         });
     }
 
-    // TODO remove jsch dependency completely.
     private static <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred) {
         cmd.setTransportConfigCallback(transport -> {
-            final SshTransport sshTransport = (SshTransport) transport;
-            final JschConfigSessionFactory sessionFactory = new JschConfigSessionFactory() {
+            final GitSshdSessionFactory factory = new DefaultGitSshdSessionFactory() {
                 @Override
-                protected void configure(Host host, Session session) {
-                    try {
-                        session.setHostKeyRepository(new MirrorHostKeyRepository());
-                        session.setPassword(cred.password());
-                    } catch (MirrorException e) {
-                        throw e;
-                    } catch (Exception e) {
-                        throw new MirrorException(e);
-                    }
+                void onClientCreated(SshClient client) {
+                    client.setFilePasswordProvider(passwordProvider(cred.password()));
                 }
             };
-
-            // Disable the default SSH config file lookup.
-            sessionFactory.setConfig(EMPTY_CONFIG);
-            sshTransport.setSshSessionFactory(sessionFactory);
+            final SshTransport sshTransport = (SshTransport) transport;
+            sshTransport.setSshSessionFactory(factory);
         });
     }
 
-    private static FilePasswordProvider passwordProvider(PublicKeyMirrorCredential cred) {
-        final String passphrase = cred.passphrase();
+    private static FilePasswordProvider passwordProvider(@Nullable String passphrase) {
         if (passphrase == null) {
             return FilePasswordProvider.EMPTY;
         }
@@ -320,43 +270,44 @@ final class GitWithAuth extends Git {
         }
     }
 
-    protected static final class MirrorHostKeyRepository implements HostKeyRepository {
+    private static class DefaultGitSshdSessionFactory extends GitSshdSessionFactory {
+        @Override
+        public RemoteSession getSession(URIish uri, CredentialsProvider credentialsProvider,
+                                        FS fs, int tms) throws TransportException {
+            try {
+                return new GitSshdSession(uri, NoopCredentialsProvider.INSTANCE, fs, tms) {
+                    @Override
+                    protected SshClient createClient() {
+                        // Not an Armeria but an SSHD client.
+                        final ClientBuilder builder = ClientBuilder.builder();
+                        // Do not use local file system.
+                        builder.hostConfigEntryResolver(HostConfigEntryResolver.EMPTY);
+                        builder.fileSystemFactory(NoneFileSystemFactory.INSTANCE);
+                        // Do not verify the server key.
+                        builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> true);
+                        final SshClient client = builder.build();
+                        onClientCreated(client);
+                        return client;
+                    }
 
-        private static final HostKey[] EMPTY_HOST_KEYS = new HostKey[0];
-
-        MirrorHostKeyRepository() {
-            // TODO(trustin): Store the hostkeys in the meta repository.
+                    @Override
+                    protected ClientSession createClientSession(
+                            SshClient clientInstance, String host, String username, int port,
+                            String... passwords) throws IOException, InterruptedException {
+                        if (port <= 0) {
+                            port = 22; // Use the SSH default port it unspecified.
+                        }
+                        return super.createClientSession(clientInstance, host, username,
+                                                         port, passwords);
+                    }
+                };
+            } catch (Exception e) {
+                throw new TransportException("Unable to connect to: " + uri +
+                                             " CredentialsProvider: " + credentialsProvider, e);
+            }
         }
 
-        @Override
-        public int check(String host, byte[] key) {
-            return OK;
-        }
-
-        @Override
-        public void add(HostKey hostkey, UserInfo ui) {}
-
-        @Override
-        public void remove(String host, String type) {}
-
-        @Override
-        public void remove(String host, String type, byte[] key) {}
-
-        @Override
-        public String getKnownHostsRepositoryID() {
-            return getClass().getSimpleName();
-        }
-
-        @Override
-        public HostKey[] getHostKey() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public HostKey[] getHostKey(String host, String type) {
-            // TODO(trustin): Store the hostkeys in the meta repository.
-            return EMPTY_HOST_KEYS;
-        }
+        void onClientCreated(SshClient client) {}
     }
 
     private static final class NoopCredentialsProvider extends CredentialsProvider {
@@ -377,25 +328,5 @@ final class GitWithAuth extends Git {
         public boolean get(URIish uri, CredentialItem... items) throws UnsupportedCredentialItem {
             return false;
         }
-    }
-
-    /**
-     * Returns an empty {@link OpenSshConfig}.
-     *
-     * <p>The default {@link OpenSshConfig} reads the SSH config in `~/.ssh/config` and converts the identity
-     * files into {@code com.jcraft.jsch.KeyPair}. Since JSch does not support Ed25519, `KeyPair.load()`
-     * raise an exception if Ed25519 is used locally. Plus, Central Dogma uses
-     * {@link PublicKeyMirrorCredential}, we need to provide an empty config for an isolated environment.
-     */
-    private static OpenSshConfig emptySshConfig() {
-        final File emptyConfigFile;
-        try {
-            emptyConfigFile = File.createTempFile("dogma", "empty-ssh-config");
-            emptyConfigFile.deleteOnExit();
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
-
-        return new OpenSshConfig(emptyConfigFile.getParentFile(), emptyConfigFile);
     }
 }

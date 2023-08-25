@@ -26,9 +26,6 @@ dependencies {
     api libs.armeria.thrift09
     testImplementation libs.armeria.junit5
 
-    // JSch
-    implementation libs.jsch
-
     // Caffeine
     implementation libs.caffeine
 
