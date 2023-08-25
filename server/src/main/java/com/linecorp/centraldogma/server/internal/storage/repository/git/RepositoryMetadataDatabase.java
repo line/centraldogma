@@ -55,26 +55,27 @@ final class RepositoryMetadataDatabase implements AutoCloseable {
 
     @VisibleForTesting
     final File rootDir;
-    private final Path path;
-    private final FileChannel channel;
+    private final Path metadataPath;
+    private final FileChannel metadataFileChannel;
     private String primarySuffix;
 
     RepositoryMetadataDatabase(File rootDir, boolean create) {
         this.rootDir = rootDir;
-        path = new File(rootDir, "metadata.dat").toPath();
+        metadataPath = new File(rootDir, "metadata.dat").toPath();
         try {
             if (create) {
-                channel = FileChannel.open(path,
-                                           StandardOpenOption.CREATE,
-                                           StandardOpenOption.READ,
-                                           StandardOpenOption.WRITE);
+                metadataFileChannel = FileChannel.open(metadataPath,
+                                                       StandardOpenOption.CREATE,
+                                                       StandardOpenOption.READ,
+                                                       StandardOpenOption.WRITE);
             } else {
-                channel = FileChannel.open(path,
-                                           StandardOpenOption.READ,
-                                           StandardOpenOption.WRITE);
+                metadataFileChannel = FileChannel.open(metadataPath,
+                                                       StandardOpenOption.READ,
+                                                       StandardOpenOption.WRITE);
             }
         } catch (IOException e) {
-            throw new StorageException("failed to open a repository database: " + path, e);
+            throw new StorageException("failed to " + (create ? "create" : "open") +
+                                       " a repository database: " + metadataPath, e);
         }
 
         if (create) {
@@ -83,20 +84,13 @@ final class RepositoryMetadataDatabase implements AutoCloseable {
         } else {
             boolean success = false;
             try {
-                final long size;
-                try {
-                    size = channel.size();
-                } catch (IOException e) {
-                    throw new StorageException("failed to get the file length: " + path, e);
-                }
-
-                if (size != PRIMARY_SUFFIX_LEN) {
-                    throw new StorageException("incorrect file length: " + path + " (" + size + " bytes)");
-                }
-
                 final ByteBuffer buf = threadLocalBuffer.get();
                 buf.clear();
-                readTo(buf);
+                final long read = readTo(buf);
+                if (read != PRIMARY_SUFFIX_LEN) {
+                    throw new StorageException("incorrect prefix length for " + metadataPath +
+                                               ", length: " + read + " (expected: " + PRIMARY_SUFFIX_LEN + ')');
+                }
                 buf.flip();
                 primarySuffix = StandardCharsets.UTF_8.decode(buf).toString();
                 // To check if the suffix is a correct integer value.
@@ -120,27 +114,30 @@ final class RepositoryMetadataDatabase implements AutoCloseable {
         long pos = 0;
         try {
             do {
-                pos += channel.write(buf, pos);
+                pos += metadataFileChannel.write(buf, pos);
             } while (buf.hasRemaining());
-            channel.force(true);
+            metadataFileChannel.force(true);
         } catch (IOException e) {
-            throw new StorageException("failed to write the suffix (" +  suffix +
-                                       ") of the primary repository: " + path, e);
+            close();
+            throw new StorageException("failed to write the suffix (" + suffix +
+                                       ") of the primary repository: " + metadataPath, e);
         }
     }
 
-    private void readTo(ByteBuffer buf) {
+    private long readTo(ByteBuffer buf) {
         long pos = 0;
         try {
             do {
-                final int readBytes = channel.read(buf, pos);
+                final int readBytes = metadataFileChannel.read(buf, pos);
                 if (readBytes < 0) {
                     throw new EOFException();
                 }
                 pos += readBytes;
             } while (buf.hasRemaining());
+            return pos;
         } catch (IOException e) {
-            throw new StorageException("failed to read the primary repository database: " + path, e);
+            throw new StorageException("failed to read the suffix of the primary repository database: " +
+                                       metadataPath, e);
         }
     }
 
@@ -157,7 +154,7 @@ final class RepositoryMetadataDatabase implements AutoCloseable {
         final String newPrimarySuffix = increment(primarySuffix);
         // e.g. secondary: /foo_0000123457
         final File secondary = new File(rootDir, rootDir.getName() + '_' + newPrimarySuffix);
-        assert newRepoDir.equals(secondary);
+        assert newRepoDir.equals(secondary) : newRepoDir + " != " + secondary;
         primarySuffix = newPrimarySuffix;
         writeSuffix(newPrimarySuffix);
     }
@@ -165,9 +162,9 @@ final class RepositoryMetadataDatabase implements AutoCloseable {
     @Override
     public void close() {
         try {
-            channel.close();
+            metadataFileChannel.close();
         } catch (IOException e) {
-            logger.warn("Failed to close the commit ID database: {}", path, e);
+            logger.warn("Failed to close the commit ID database: {}", metadataPath, e);
         }
     }
 

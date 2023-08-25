@@ -124,6 +124,7 @@ public class Revision implements Comparable<Revision> {
      * {@link Revision}.
      */
     public boolean isLowerThan(Revision other) {
+        requireNonNull(other, "other");
         return major < other.major();
     }
 

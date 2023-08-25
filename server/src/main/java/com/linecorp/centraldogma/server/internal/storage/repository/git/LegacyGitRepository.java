@@ -126,6 +126,7 @@ import difflib.Patch;
 
 /**
  * A {@link Repository} based on Git.
+ * This class will be removed after all migration to GitRepositoryV2 is done.
  */
 class LegacyGitRepository implements Repository {
 

@@ -35,6 +35,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
  */
 public final class CommitRetentionConfig {
 
+    // TODO(minwoox): Make this configurable.
     // The minimum of minRetentionCommits
     private static final int MINIMUM_MINIMUM_RETENTION_COMMITS = 5000;
 
@@ -64,18 +65,15 @@ public final class CommitRetentionConfig {
     }
 
     /**
-     * Returns the minimum number of commits that a {@link Repository} should retain. 0 means that
-     * the number of commits are not taken into account when
-     * {@link Repository#shouldCreateRollingRepository(int, int)} is called.
+     * Returns the minimum number of commits that a {@link Repository} should retain. {@code 0} means that
+     * commits are not removed.
      */
     public int minRetentionCommits() {
         return minRetentionCommits;
     }
 
     /**
-     * Returns the minimum number of days of a commit that a {@link Repository} should retain. 0 means that
-     * the number of retention days of commits are not taken into account when
-     * {@link Repository#shouldCreateRollingRepository(int, int)} is called.
+     * Returns the minimum number of days of a commit that a {@link Repository} should retain.
      */
     public int minRetentionDays() {
         return minRetentionDays;

@@ -35,6 +35,7 @@ import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.CommitRetentionConfig;
@@ -73,12 +74,20 @@ public final class CommitRetentionManagementPlugin implements Plugin {
     public CompletionStage<Void> start(PluginContext context) {
         final CommitRetentionConfig commitRetentionConfig = context.config().commitRetentionConfig();
         assert commitRetentionConfig != null;
+        final int minRetentionCommits = commitRetentionConfig.minRetentionCommits();
+        final int minRetentionDays = commitRetentionConfig.minRetentionDays();
+        if (minRetentionCommits == 0 ||
+            minRetentionCommits == Integer.MAX_VALUE || minRetentionDays == Integer.MAX_VALUE) {
+            // Disabled.
+            return UnmodifiableFuture.completedFuture(null);
+        }
+
         worker = MoreExecutors.listeningDecorator(
                 Executors.newSingleThreadScheduledExecutor(
                         new DefaultThreadFactory("commit-retention-worker", true)));
         scheduleRemovingOldCommits(context, commitRetentionConfig);
 
-        return CompletableFuture.completedFuture(null);
+        return UnmodifiableFuture.completedFuture(null);
     }
 
     private void scheduleRemovingOldCommits(PluginContext context, CommitRetentionConfig config) {
@@ -105,13 +114,13 @@ public final class CommitRetentionManagementPlugin implements Plugin {
             @Override
             public void onFailure(Throwable cause) {
                 if (!stopping) {
-                    logger.warn("Commit retention scheduler stopped due to an unexpected exception:",
-                                cause);
+                    logger.warn("Commit retention scheduler stopped due to an unexpected exception:", cause);
                 }
             }
         }, worker);
     }
 
+    // TODO(minwoox): Add metrics.
     private void createRollingRepository(PluginContext context, CommitRetentionConfig config) {
         if (stopping) {
             return;
@@ -123,15 +132,16 @@ public final class CommitRetentionManagementPlugin implements Plugin {
                 if (stopping) {
                     return;
                 }
-                final Revision revision = repo.shouldCreateRollingRepository(config.minRetentionCommits(),
-                                                                             config.minRetentionDays());
+                final int minRetentionCommits = config.minRetentionCommits();
+                final int minRetentionDays = config.minRetentionDays();
+                final Revision revision =
+                        repo.shouldCreateRollingRepository(minRetentionCommits, minRetentionDays);
                 if (revision != null) {
                     try {
                         context.commandExecutor().execute(
                                 Command.createRollingRepository(project.name(), repo.name(), revision,
-                                                                config.minRetentionCommits(),
-                                                                config.minRetentionDays()))
-                               .get(100, TimeUnit.SECONDS);
+                                                                minRetentionCommits, minRetentionDays))
+                               .get(10, TimeUnit.MINUTES);
                     } catch (Throwable t) {
                         logger.warn("Failed to create a rolling repository for {}/{} with revision: {}",
                                     project.name(), repo.name(), revision, t);

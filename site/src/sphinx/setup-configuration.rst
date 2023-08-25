@@ -48,7 +48,7 @@ defaults:
       "maxNumFilesPerMirror": null,
       "maxNumBytesPerMirror": null,
       "commitRetentionConfig": {
-        "minRetentionCommits" : 2000,
+        "minRetentionCommits" : 5000,
         "minRetentionDays": 14,
         "schedule": "0 0 * * * ?"
       },
@@ -225,23 +225,18 @@ Core properties
 
 -  ``commitRetention``
 
-  - the configuration for retaining commits in a repository. The repository retains at least the number of
-    ``minRetentionCommits`` when more than ``minRetentionCommits`` are made. The repository also retains
-    commits at least ``minRetentionDays``. If both conditions are not satisfied, the commits are not removed.
-    For example, when ``minRetentionCommits`` is set to 2000 and ``minRetentionDays`` is set to 14,
-    the commits that are created more than 2000 will be removed after 14 days have passed.
-    If ``minRetentionCommits`` is set to 2000 and ``minRetentionDays`` is set to 0,
-    the commits that are created more than 2000 will be removed no matter how young the commits are.
-    Set both 0 to retain all commits.
+  - the configuration for retaining commits in a repository. Commits are retained for at least
+    ``minRetentionDays``. If the number of commits is less than ``minRetentionCommits``, commits are
+    not removed even after ``minRetentionDays`` have passed.
 
   - ``minRetentionCommits`` (integer)
 
      - a minimum number of commits that a repository should retain. The number should be greater than or
-       equal to 1000. Specify 0 to disable it.
+       equal to 5000. Specify ``0`` to retain all commits.
 
   - ``minRetentionDays`` (integer)
 
-     - a minimum number of days of a commit that a repository should retain. Specify 0 to disable it.
+     - a minimum number of days of a commit that a repository should retain.
 
   - ``schedule`` (string)
 

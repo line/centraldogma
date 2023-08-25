@@ -17,6 +17,8 @@ package com.linecorp.centraldogma.server.command;
 
 import static java.util.Objects.requireNonNull;
 
+import com.google.common.base.Objects;
+
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.CommitRetentionConfig;
@@ -49,7 +51,7 @@ public final class CreateRollingRepositoryCommand extends RepositoryCommand<Void
     }
 
     /**
-     * Returns the minimum number of commits that a {@link Repository} should retain. 0 means that
+     * Returns the minimum number of commits that a {@link Repository} should retain. {@code 0} means that
      * the number of commits are not taken into account when
      * {@link Repository#shouldCreateRollingRepository(int, int)} is called.
      */
@@ -58,11 +60,31 @@ public final class CreateRollingRepositoryCommand extends RepositoryCommand<Void
     }
 
     /**
-     * Returns the minimum number of days of a commit that a {@link Repository} should retain. 0 means that
-     * the number of retention days of commits are not taken into account when
-     * {@link Repository#shouldCreateRollingRepository(int, int)} is called.
+     * Returns the minimum number of days of a commit that a {@link Repository} should retain.
      */
     public int minRetentionDays() {
         return minRetentionDays;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof CreateRollingRepositoryCommand)) {
+            return false;
+        }
+        final CreateRollingRepositoryCommand that = (CreateRollingRepositoryCommand) o;
+        return super.equals(o) &&
+               minRetentionCommits == that.minRetentionCommits &&
+               minRetentionDays == that.minRetentionDays &&
+               Objects.equal(initialRevision, that.initialRevision);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(super.hashCode(), initialRevision, minRetentionCommits, minRetentionDays);
+    }
+
+    //TODO(minwoox): Add toString() after removing ToStringHelper from public API
 }

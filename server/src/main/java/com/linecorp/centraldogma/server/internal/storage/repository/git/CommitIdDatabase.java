@@ -142,7 +142,6 @@ final class CommitIdDatabase implements AutoCloseable {
         readTo(buf, 0);
         buf.flip();
         return new Revision(buf.getInt());
-        // Do not have to call buf.clear() because clear method is called before the buffer is used.
     }
 
     private void readTo(ByteBuffer buf, long startPosition) {
@@ -203,8 +202,9 @@ final class CommitIdDatabase implements AutoCloseable {
         put(revision, commitId, true);
     }
 
-    private synchronized void put(Revision revision, ObjectId commitId, boolean isNewHeadRevision) {
-        if (isNewHeadRevision) {
+    // TODO(minwoox) Use lock instead of synchronized.
+    private synchronized void put(Revision revision, ObjectId commitId, boolean newHead) {
+        if (newHead) {
             final Revision headRevision = this.headRevision;
             if (headRevision != null) {
                 final Revision expected = headRevision.forward(1);
@@ -229,7 +229,7 @@ final class CommitIdDatabase implements AutoCloseable {
                 pos += channel.write(buf, pos);
             } while (buf.hasRemaining());
 
-            if (isNewHeadRevision && fsync) {
+            if (newHead && fsync) {
                 channel.force(true);
             }
         } catch (IOException e) {
@@ -237,7 +237,7 @@ final class CommitIdDatabase implements AutoCloseable {
         }
 
         final Revision headRevision = this.headRevision;
-        if (isNewHeadRevision ||
+        if (newHead ||
             headRevision == null ||
             headRevision.major() < revision.major()) {
             this.headRevision = revision;
@@ -269,7 +269,10 @@ final class CommitIdDatabase implements AutoCloseable {
             // NB: We did not store the last commit ID until all commit IDs are stored,
             //     so that the partially built database always has mismatching head revision.
 
+            // Find firstRevision while validating whether the commitIds are stored correctly in the file.
+            // This won't change the file but update the firstRevision field.
             findFirstRevisionOrRebuild(gitRepo, revWalk, headRevision, revCommit, true);
+            // Now we know it's validated so rebuild the database.
             findFirstRevisionOrRebuild(gitRepo, revWalk, headRevision, revCommit, false);
 
             // All commit IDs except the head have been stored. Store the head finally.

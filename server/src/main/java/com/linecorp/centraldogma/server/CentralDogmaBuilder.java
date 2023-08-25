@@ -532,14 +532,9 @@ public final class CentralDogmaBuilder {
 
     /**
      * Sets the configuration for retaining commits in a {@link Repository}.
-     * The {@link Repository} <b>retains at least</b> the number of {@code minRetentionCommits} when more than
-     * {@code minRetentionCommits} are made. The {@link Repository} also <b>retains commits at least</b>
-     * {@code minRetentionDays}. If both conditions are not satisfied, the commits are not removed.
-     * For example, when {@code minRetentionCommits} is set to 2000 and {@code minRetentionDays} is set to 14,
-     * the commits that are created more than 2000 will be removed after 14 days have passed.
-     * If {@code minRetentionCommits} is set to 2000 and {@code minRetentionDays} is set to 0,
-     * the commits that are created more than 2000 will be removed no matter how young the commits are.
-     * Set both 0 to retain all commits.
+     * Commits are retained for at least {@code minRetentionDays}. If the number of commits is less than
+     * {@code minRetentionCommits}, commits are not removed even after {@code minRetentionDays} have passed.
+     * Specify {@code minRetentionCommits} to {@code 0} to retain all commits.
      */
     public CentralDogmaBuilder commitRetention(int minRetentionCommits, int minRetentionDays,
                                                @Nullable String schedule) {
