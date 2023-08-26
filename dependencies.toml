@@ -10,7 +10,8 @@ bouncycastle = "1.76"
 caffeine = "2.9.3"
 checkstyle = "10.3.3"
 curator = "5.5.0"
-cron-utils = "9.2.1"
+# Do not upgrade cron-utils until there's another CVE or Armeria's SLF4J and Logback are upgraded.
+cron-utils = "9.2.0"
 diffutils = "1.3.0"
 docker = "9.3.2"
 download = "5.4.0"
@@ -110,7 +111,6 @@ version.ref = "checkstyle"
 [libraries.cron-utils]
 module = "com.cronutils:cron-utils"
 version.ref = "cron-utils"
-exclusions = 'org.slf4j:slf4j-api' # cron-utils brings in slf4j2
 relocations = { from = "com.cronutils", to = "com.linecorp.centraldogma.internal.shaded.cronutils" }
 
 # Ensure that we use the same ZooKeeper version as what Curator depends on.
