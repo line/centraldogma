@@ -8,7 +8,7 @@ dependencies {
     testRuntimeOnly libs.hibernate.validator8
 }
 
-configurations.all {
+configurations.configureEach {
     resolutionStrategy {
         force libs.slf4j2.api.get()
         force libs.slf4j2.jul.to.slf4j.get()

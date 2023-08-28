@@ -3,7 +3,7 @@ dependencies {
     api libs.spring.boot3.starter
 }
 
-configurations.all {
+configurations.configureEach {
     resolutionStrategy {
         force libs.slf4j2.api.get()
         force libs.slf4j2.jul.to.slf4j.get()
