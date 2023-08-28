@@ -62,8 +62,8 @@ dependencies {
     // Mockito for mocking a Project
     jmh libs.mockito.core
     // Logging
-    optionalImplementation libs.logback
-    optionalImplementation libs.slf4j.jul.to.slf4j
+    optionalImplementation libs.logback12
+    optionalImplementation libs.slf4j1.jul.to.slf4j
 }
 
 // allows illegal access by ExecutorServiceMetrics of Micrometer

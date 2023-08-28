@@ -70,11 +70,19 @@ configure(projectsWithFlags('java')) {
         compileOnly libs.jetty.alpn.api
 
         // Logging
-        implementation libs.slf4j.api
-        testImplementation libs.slf4j.jul.to.slf4j
-        testImplementation libs.slf4j.jcl.over.slf4j
-        testImplementation libs.slf4j.log4j.over.slf4j
-        testRuntimeOnly libs.logback
+        if (project.name.startsWith("java-spring-boot3")) {
+            implementation libs.slf4j2.api
+            testImplementation libs.slf4j2.jul.to.slf4j
+            testImplementation libs.slf4j2.jcl.over.slf4j
+            testImplementation libs.slf4j2.log4j.over.slf4j
+            testRuntimeOnly libs.logback14
+        } else {
+            implementation libs.slf4j1.api
+            testImplementation libs.slf4j1.jul.to.slf4j
+            testImplementation libs.slf4j1.jcl.over.slf4j
+            testImplementation libs.slf4j1.log4j.over.slf4j
+            testRuntimeOnly libs.logback12
+        }
 
         // Test-time dependencies
         testImplementation libs.json.unit.fluent

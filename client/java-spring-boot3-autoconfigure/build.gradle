@@ -7,3 +7,11 @@ dependencies {
     testImplementation libs.spring.boot3.starter.test
     testRuntimeOnly libs.hibernate.validator8
 }
+
+configurations.all {
+    resolutionStrategy {
+        force libs.slf4j2.api.get()
+        force libs.slf4j2.jul.to.slf4j.get()
+        force libs.logback14.get()
+    }
+}
