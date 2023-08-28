@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.checkUnremoveArgument;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
@@ -28,9 +29,11 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.logging.RequestLog;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
@@ -57,6 +60,8 @@ import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+
+import io.micrometer.core.instrument.Tag;
 
 /**
  * Annotated service object for managing repositories.
@@ -186,8 +191,41 @@ public class RepositoryServiceV1 extends AbstractService {
      */
     @Get("/projects/{projectName}/repos/{repoName}/revision/{revision}")
     @RequiresReadPermission
-    public Map<String, Integer> normalizeRevision(Repository repository, @Param String revision) {
+    public Map<String, Integer> normalizeRevision(ServiceRequestContext ctx,
+                                                  Repository repository, @Param String revision) {
         final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));
+        final Revision head = repository.normalizeNow(Revision.HEAD);
+        increaseCounterIfOldRevisionUsed(ctx, repository.parent().name(), repository.name(),
+                                         normalizedRevision, head);
         return ImmutableMap.of("revision", normalizedRevision.major());
+    }
+
+    static void increaseCounterIfOldRevisionUsed(ServiceRequestContext ctx, Repository repository,
+                                                 Revision revision) {
+        final Revision normalized = repository.normalizeNow(revision);
+        final Revision head = repository.normalizeNow(Revision.HEAD);
+        increaseCounterIfOldRevisionUsed(ctx, repository.parent().name(), repository.name(), normalized, head);
+    }
+
+    public static void increaseCounterIfOldRevisionUsed(
+            ServiceRequestContext ctx, String projectName, String repoName,
+            Revision normalized, Revision head) {
+        if (normalized.major() == 1 || head.major() - normalized.major() >= 5000) {
+            ctx.log().whenComplete().thenAccept(log -> {
+                ctx.meterRegistry().counter("dogma.old.revision",
+                                            generateTags(projectName, repoName, log, normalized, head))
+                   .increment();
+            });
+        }
+    }
+
+    private static List<Tag> generateTags(String projectName, String repoName,
+                                          RequestLog log, Revision normalized, Revision head) {
+        return ImmutableList.of(Tag.of("project", projectName),
+                                Tag.of("repo", repoName),
+                                Tag.of("service", firstNonNull(log.serviceName(), "none")),
+                                Tag.of("method", log.name()),
+                                Tag.of("normalized", Integer.toString(normalized.major())),
+                                Tag.of("head", Integer.toString(head.major())));
     }
 }
