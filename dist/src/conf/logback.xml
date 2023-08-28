@@ -37,7 +37,7 @@
   <logger name="com.github.benmanes.caffeine.cache" level="ERROR" />
   <logger name="com.linecorp" level="INFO" />
   <logger name="com.linecorp.centraldogma" level="DEBUG" />
-  <logger name="com.linecorp.centraldogma.server.internal.mirror" level="INFO" />
+  <logger name="com.linecorp.centraldogma.server.internal.mirror.GitWithAuth$DefaultGitSshdSessionFactory" level="INFO" />
   <logger name="com.linecorp.armeria.logging.access" level="INFO" additivity="false">
     <appender-ref ref="ACCESS"/>
   </logger>
