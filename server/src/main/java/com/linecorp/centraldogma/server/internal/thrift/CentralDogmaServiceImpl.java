@@ -359,6 +359,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void mergeFiles(String projectName, String repositoryName, Revision revision,
                            MergeQuery mergeQuery, AsyncMethodCallback resultHandler) {
+        // Call normalizeRevision() first to check if the specified revision needs to be recorded.
+        normalizeRevision(projectName, repositoryName, revision);
         handle(projectManager.get(projectName).repos().get(repositoryName)
                              .mergeFiles(convert(revision), convert(mergeQuery))
                              .thenApply(merged -> new MergedEntry(convert(merged.revision()),

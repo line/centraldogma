@@ -75,11 +75,11 @@ class MetricsTest {
         jsonNodeWatchRequest.start().join();
         content = dogma.httpClient().get("/monitor/metrics").aggregate().join().contentUtf8();
         assertThat(content).contains("com.linecorp.centraldogma.server.internal.api.WatchContentServiceV1");
-        assertThat(content).doesNotContain("dogma_old_revision");
+        assertThat(content).doesNotContain("init_revisions");
 
         // Trigger old revision recording
         jsonNodeWatchRequest.start(Revision.INIT).join();
         content = dogma.httpClient().get("/monitor/metrics").aggregate().join().contentUtf8();
-        assertThat(content).contains("dogma_old_revision");
+        assertThat(content).contains("init_revisions");
     }
 }

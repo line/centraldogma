@@ -210,22 +210,26 @@ public class RepositoryServiceV1 extends AbstractService {
     public static void increaseCounterIfOldRevisionUsed(
             ServiceRequestContext ctx, String projectName, String repoName,
             Revision normalized, Revision head) {
-        if (normalized.major() == 1 || head.major() - normalized.major() >= 5000) {
+        if (normalized.major() == 1) {
             ctx.log().whenComplete().thenAccept(log -> {
-                ctx.meterRegistry().counter("dogma.old.revision",
-                                            generateTags(projectName, repoName, log, normalized, head))
+                ctx.meterRegistry()
+                   .counter("init.revisions", generateTags(projectName, repoName, log))
                    .increment();
+            });
+        }
+        if (head.major() - normalized.major() >= 5000) {
+            ctx.log().whenComplete().thenAccept(log -> {
+                ctx.meterRegistry()
+                   .summary("old.revisions", generateTags(projectName, repoName, log))
+                   .record(head.major() - normalized.major());
             });
         }
     }
 
-    private static List<Tag> generateTags(String projectName, String repoName,
-                                          RequestLog log, Revision normalized, Revision head) {
+    private static List<Tag> generateTags(String projectName, String repoName, RequestLog log) {
         return ImmutableList.of(Tag.of("project", projectName),
                                 Tag.of("repo", repoName),
                                 Tag.of("service", firstNonNull(log.serviceName(), "none")),
-                                Tag.of("method", log.name()),
-                                Tag.of("normalized", Integer.toString(normalized.major())),
-                                Tag.of("head", Integer.toString(head.major())));
+                                Tag.of("method", log.name()));
     }
 }
