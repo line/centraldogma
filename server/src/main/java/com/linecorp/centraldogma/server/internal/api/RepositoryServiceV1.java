@@ -211,25 +211,28 @@ public class RepositoryServiceV1 extends AbstractService {
             ServiceRequestContext ctx, String projectName, String repoName,
             Revision normalized, Revision head) {
         if (normalized.major() == 1) {
-            ctx.log().whenComplete().thenAccept(log -> {
-                ctx.meterRegistry()
-                   .counter("init.revisions", generateTags(projectName, repoName, log))
-                   .increment();
-            });
+            ctx.log().whenComplete().thenAccept(
+                    log -> ctx.meterRegistry()
+                              .counter("init.revisions", generateTags(projectName, repoName, log).build())
+                              .increment());
         }
         if (head.major() - normalized.major() >= 5000) {
-            ctx.log().whenComplete().thenAccept(log -> {
-                ctx.meterRegistry()
-                   .summary("old.revisions", generateTags(projectName, repoName, log))
-                   .record(head.major() - normalized.major());
-            });
+            ctx.log().whenComplete().thenAccept(
+                    log -> ctx.meterRegistry()
+                              .summary("old.revisions",
+                                       generateTags(projectName, repoName, log)
+                                               .add(Tag.of("init", Boolean.toString(normalized.major() == 1)))
+                                               .build())
+                              .record(head.major() - normalized.major()));
         }
     }
 
-    private static List<Tag> generateTags(String projectName, String repoName, RequestLog log) {
-        return ImmutableList.of(Tag.of("project", projectName),
-                                Tag.of("repo", repoName),
-                                Tag.of("service", firstNonNull(log.serviceName(), "none")),
-                                Tag.of("method", log.name()));
+    private static ImmutableList.Builder<Tag> generateTags(
+            String projectName, String repoName, RequestLog log) {
+        final ImmutableList.Builder<Tag> builder = ImmutableList.builder();
+        return builder.add(Tag.of("project", projectName),
+                           Tag.of("repo", repoName),
+                           Tag.of("service", firstNonNull(log.serviceName(), "none")),
+                           Tag.of("method", log.name()));
     }
 }
