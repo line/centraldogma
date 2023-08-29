@@ -22,5 +22,7 @@ if (tasks.findByName('trimShadedJar')) {
         keep "class com.linecorp.centraldogma.internal.shaded.caffeine.** { *; }"
         // Prevent ProGuard from removing all enum values from Option because otherwise it becomes a non-enum class.
         keep "class com.linecorp.centraldogma.internal.shaded.jsonpath.Option { *; }"
+
+        dontnote
     }
 }
