@@ -224,8 +224,7 @@ public final class DefaultMirroringService implements MirroringService {
     }
 
     private void run(Project project, Mirror m) {
-        final ListenableFuture<?> future =
-                worker.submit(() -> run(m, project.name(), true));
+        final ListenableFuture<?> future = worker.submit(() -> run(m, project.name(), true));
         Futures.addCallback(future, new FutureCallback<Object>() {
             @Override
             public void onSuccess(@Nullable Object result) {}
