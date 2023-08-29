@@ -213,13 +213,13 @@ public class RepositoryServiceV1 extends AbstractService {
         if (normalized.major() == 1) {
             ctx.log().whenComplete().thenAccept(
                     log -> ctx.meterRegistry()
-                              .counter("init.revisions", generateTags(projectName, repoName, log).build())
+                              .counter("revisions.init", generateTags(projectName, repoName, log).build())
                               .increment());
         }
         if (head.major() - normalized.major() >= 5000) {
             ctx.log().whenComplete().thenAccept(
                     log -> ctx.meterRegistry()
-                              .summary("old.revisions",
+                              .summary("revisions.old",
                                        generateTags(projectName, repoName, log)
                                                .add(Tag.of("init", Boolean.toString(normalized.major() == 1)))
                                                .build())
