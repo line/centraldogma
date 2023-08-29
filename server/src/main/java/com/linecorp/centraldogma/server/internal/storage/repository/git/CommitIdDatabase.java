@@ -17,7 +17,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.R_HEADS_MASTER;
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryV2.R_HEADS_MASTER;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_CORE_SECTION;
 
 import java.io.EOFException;
@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
@@ -75,7 +76,10 @@ final class CommitIdDatabase implements AutoCloseable {
     private final Path path;
     private final FileChannel channel;
     private final boolean fsync;
+    @Nullable
     private volatile Revision headRevision;
+    @Nullable
+    private volatile Revision firstRevision;
 
     CommitIdDatabase(Repository repo) {
         // NB: We enable fsync only when our Git repository has been configured so,
@@ -115,7 +119,14 @@ final class CommitIdDatabase implements AutoCloseable {
             }
 
             final int numRecords = (int) (size / RECORD_LEN);
-            headRevision = numRecords > 0 ? new Revision(numRecords) : null;
+            if (numRecords > 0) {
+                final Revision firstRevision = retrieveFirstRevision();
+                this.firstRevision = firstRevision;
+                headRevision = new Revision(numRecords + firstRevision.major() - 1);
+            } else {
+                firstRevision = null;
+                headRevision = null;
+            }
             success = true;
         } finally {
             if (!success) {
@@ -124,21 +135,17 @@ final class CommitIdDatabase implements AutoCloseable {
         }
     }
 
-    @Nullable Revision headRevision() {
-        return headRevision;
-    }
-
-    ObjectId get(Revision revision) {
-        final Revision headRevision = this.headRevision;
-        checkState(headRevision != null, "initial commit not available yet: %s", path);
-        checkArgument(!revision.isRelative(), "revision: %s (expected: an absolute revision)", revision);
-        if (revision.major() > headRevision.major()) {
-            throw new RevisionNotFoundException(revision);
-        }
-
+    private Revision retrieveFirstRevision() {
         final ByteBuffer buf = threadLocalBuffer.get();
         buf.clear();
-        long pos = (long) (revision.major() - 1) * RECORD_LEN;
+        buf.limit(4);
+        readTo(buf, 0);
+        buf.flip();
+        return new Revision(buf.getInt());
+    }
+
+    private void readTo(ByteBuffer buf, long startPosition) {
+        long pos = startPosition;
         try {
             do {
                 final int readBytes = channel.read(buf, pos);
@@ -150,6 +157,35 @@ final class CommitIdDatabase implements AutoCloseable {
         } catch (IOException e) {
             throw new StorageException("failed to read the commit ID database: " + path, e);
         }
+    }
+
+    @Nullable
+    Revision headRevision() {
+        return headRevision;
+    }
+
+    @Nullable
+    Revision firstRevision() {
+        return firstRevision;
+    }
+
+    ObjectId get(Revision revision) {
+        checkArgument(!revision.isRelative(), "revision: %s (expected: an absolute revision)", revision);
+        final Revision headRevision = this.headRevision;
+        final Revision firstRevision = this.firstRevision;
+        if (headRevision == null || firstRevision == null) {
+            throw new IllegalStateException("initial commit not available yet: " + path);
+        }
+
+        if (!(firstRevision.major() <= revision.major() && revision.major() <= headRevision.major())) {
+            throw new RevisionNotFoundException(
+                    "revision: " + revision +
+                    " (expected: " + firstRevision.major() + " <= revision <= " + headRevision.major() + ')');
+        }
+
+        final ByteBuffer buf = threadLocalBuffer.get();
+        buf.clear();
+        readTo(buf, (long) (revision.major() - firstRevision.major()) * RECORD_LEN);
 
         buf.flip();
 
@@ -166,15 +202,17 @@ final class CommitIdDatabase implements AutoCloseable {
         put(revision, commitId, true);
     }
 
-    private synchronized void put(Revision revision, ObjectId commitId, boolean safeMode) {
-        if (safeMode) {
-            final Revision expected;
-            if (headRevision == null) {
-                expected = Revision.INIT;
+    // TODO(minwoox) Use lock instead of synchronized.
+    private synchronized void put(Revision revision, ObjectId commitId, boolean newHead) {
+        if (newHead) {
+            final Revision headRevision = this.headRevision;
+            if (headRevision != null) {
+                final Revision expected = headRevision.forward(1);
+                checkState(revision.equals(expected), "incorrect revision: %s (expected: %s)",
+                           revision, expected);
             } else {
-                expected = headRevision.forward(1);
+                firstRevision = revision;
             }
-            checkState(revision.equals(expected), "incorrect revision: %s (expected: %s)", revision, expected);
         }
 
         // Build a record.
@@ -184,24 +222,25 @@ final class CommitIdDatabase implements AutoCloseable {
         commitId.copyRawTo(buf);
         buf.flip();
 
-        // Append a record to the file.
-        long pos = (long) (revision.major() - 1) * RECORD_LEN;
+        // Append or overwrite a record in the file.
+        long pos = (long) (revision.major() - firstRevision.major()) * RECORD_LEN;
         try {
             do {
                 pos += channel.write(buf, pos);
             } while (buf.hasRemaining());
 
-            if (safeMode && fsync) {
+            if (newHead && fsync) {
                 channel.force(true);
             }
         } catch (IOException e) {
             throw new StorageException("failed to update the commit ID database: " + path, e);
         }
 
-        if (safeMode ||
+        final Revision headRevision = this.headRevision;
+        if (newHead ||
             headRevision == null ||
             headRevision.major() < revision.major()) {
-            headRevision = revision;
+            this.headRevision = revision;
         }
     }
 
@@ -224,40 +263,17 @@ final class CommitIdDatabase implements AutoCloseable {
                 throw new StorageException("failed to determine the HEAD: " + gitRepo.getDirectory());
             }
 
-            RevCommit revCommit = revWalk.parseCommit(headCommitId);
+            final RevCommit revCommit = revWalk.parseCommit(headCommitId);
             headRevision = CommitUtil.extractRevision(revCommit.getFullMessage());
 
             // NB: We did not store the last commit ID until all commit IDs are stored,
             //     so that the partially built database always has mismatching head revision.
 
-            ObjectId currentId;
-            Revision previousRevision = headRevision;
-            loop: for (;;) {
-                switch (revCommit.getParentCount()) {
-                    case 0:
-                        // End of the history
-                        break loop;
-                    case 1:
-                        currentId = revCommit.getParent(0);
-                        break;
-                    default:
-                        throw new StorageException("found more than one parent: " +
-                                                   gitRepo.getDirectory());
-                }
-
-                revCommit = revWalk.parseCommit(currentId);
-
-                final Revision currentRevision = CommitUtil.extractRevision(revCommit.getFullMessage());
-                final Revision expectedRevision = previousRevision.backward(1);
-                if (!currentRevision.equals(expectedRevision)) {
-                    throw new StorageException("mismatching revision: " + gitRepo.getDirectory() +
-                                               " (actual: " + currentRevision.major() +
-                                               ", expected: " + expectedRevision.major() + ')');
-                }
-
-                put(currentRevision, currentId, false);
-                previousRevision = currentRevision;
-            }
+            // Find firstRevision while validating whether the commitIds are stored correctly in the file.
+            // This won't change the file but update the firstRevision field.
+            findFirstRevisionOrRebuild(gitRepo, revWalk, headRevision, revCommit, true);
+            // Now we know it's validated so rebuild the database.
+            findFirstRevisionOrRebuild(gitRepo, revWalk, headRevision, revCommit, false);
 
             // All commit IDs except the head have been stored. Store the head finally.
             put(headRevision, headCommitId);
@@ -265,7 +281,47 @@ final class CommitIdDatabase implements AutoCloseable {
             throw new StorageException("failed to rebuild the commit ID database", e);
         }
 
-        logger.info("Rebuilt the commit ID database.");
+        logger.info("Rebuilt the commit ID database. firstRevision: {}, headRevision: {}",
+                    firstRevision, headRevision);
+    }
+
+    private void findFirstRevisionOrRebuild(Repository gitRepo, RevWalk revWalk,
+                                            Revision headRevision, RevCommit revCommit,
+                                            boolean findingFirstRevision) throws IOException {
+        ObjectId currentId;
+        Revision previousRevision = headRevision;
+        loop: for (;;) {
+            switch (revCommit.getParentCount()) {
+                case 0:
+                    // End of the history
+                    break loop;
+                case 1:
+                    currentId = revCommit.getParent(0);
+                    break;
+                default:
+                    throw new StorageException("found more than one parent: " + gitRepo.getDirectory());
+            }
+
+            revCommit = revWalk.parseCommit(currentId);
+
+            final Revision currentRevision;
+            if (findingFirstRevision) {
+                currentRevision = CommitUtil.extractRevision(revCommit.getFullMessage());
+                final Revision expectedRevision = previousRevision.backward(1);
+                if (!currentRevision.equals(expectedRevision)) {
+                    throw new StorageException("mismatching revision: " + gitRepo.getDirectory() +
+                                               " (actual: " + currentRevision.major() +
+                                               ", expected: " + expectedRevision.major() + ')');
+                }
+            } else {
+                currentRevision = previousRevision.backward(1);
+                put(currentRevision, currentId, false);
+            }
+            previousRevision = currentRevision;
+        }
+        if (findingFirstRevision) {
+            firstRevision = previousRevision;
+        }
     }
 
     @Override
@@ -275,5 +331,14 @@ final class CommitIdDatabase implements AutoCloseable {
         } catch (IOException e) {
             logger.warn("Failed to close the commit ID database: {}", path, e);
         }
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this).omitNullValues()
+                          .add("path", path)
+                          .add("headRevision", headRevision)
+                          .add("firstRevision", firstRevision)
+                          .toString();
     }
 }

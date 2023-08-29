@@ -38,7 +38,7 @@ public abstract class CacheableCall<T> {
         }
     }
 
-    final Repository repo;
+    private final Repository repo;
 
     protected CacheableCall(Repository repo) {
         this.repo = requireNonNull(repo, "repo");

@@ -126,12 +126,13 @@ import difflib.Patch;
 
 /**
  * A {@link Repository} based on Git.
+ * This class will be removed after all migration to GitRepositoryV2 is done.
  */
-class GitRepository implements Repository {
+class LegacyGitRepository implements Repository {
 
-    private static final Logger logger = LoggerFactory.getLogger(GitRepository.class);
+    private static final Logger logger = LoggerFactory.getLogger(LegacyGitRepository.class);
 
-    static final String R_HEADS_MASTER = Constants.R_HEADS + Constants.MASTER;
+    private static final String R_HEADS_MASTER = Constants.R_HEADS + Constants.MASTER;
 
     private static final byte[] EMPTY_BYTE = new byte[0];
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
@@ -202,8 +203,8 @@ class GitRepository implements Repository {
      * @throws StorageException if failed to create a new repository
      */
     @VisibleForTesting
-    GitRepository(Project parent, File repoDir, Executor repositoryWorker,
-                  long creationTimeMillis, Author author) {
+    LegacyGitRepository(Project parent, File repoDir, Executor repositoryWorker,
+                        long creationTimeMillis, Author author) {
         this(parent, repoDir, repositoryWorker, creationTimeMillis, author, null);
     }
 
@@ -217,8 +218,8 @@ class GitRepository implements Repository {
      *
      * @throws StorageException if failed to create a new repository
      */
-    GitRepository(Project parent, File repoDir, Executor repositoryWorker,
-                  long creationTimeMillis, Author author, @Nullable RepositoryCache cache) {
+    LegacyGitRepository(Project parent, File repoDir, Executor repositoryWorker,
+                        long creationTimeMillis, Author author, @Nullable RepositoryCache cache) {
 
         this.parent = requireNonNull(parent, "parent");
         name = requireNonNull(repoDir, "repoDir").getName();
@@ -279,7 +280,8 @@ class GitRepository implements Repository {
      *
      * @throws StorageException if failed to open the repository at the specified location
      */
-    GitRepository(Project parent, File repoDir, Executor repositoryWorker, @Nullable RepositoryCache cache) {
+    LegacyGitRepository(Project parent, File repoDir, Executor repositoryWorker,
+                        @Nullable RepositoryCache cache) {
         this.parent = requireNonNull(parent, "parent");
         name = requireNonNull(repoDir, "repoDir").getName();
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
@@ -1584,8 +1586,8 @@ class GitRepository implements Repository {
         requireNonNull(progressListener, "progressListener");
 
         final Revision endRevision = normalizeNow(Revision.HEAD);
-        final GitRepository newRepo = new GitRepository(parent, newRepoDir, repositoryWorker,
-                                                        creationTimeMillis(), author(), cache);
+        final LegacyGitRepository newRepo = new LegacyGitRepository(parent, newRepoDir, repositoryWorker,
+                                                                    creationTimeMillis(), author(), cache);
 
         progressListener.accept(1, endRevision.major());
         boolean success = false;
@@ -1645,6 +1647,17 @@ class GitRepository implements Repository {
         } catch (IOException e) {
             logger.error("Failed to delete a half-created repository at: {}", repoDir, e);
         }
+    }
+
+    @Override
+    public Revision shouldCreateRollingRepository(int minRetentionCommits, int minRetentionDays) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void createRollingRepository(Revision initialRevision, int minRetentionCommits,
+                                        int minRetentionDays) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

@@ -308,6 +308,17 @@ final class CachingRepository implements Repository {
     }
 
     @Override
+    public Revision shouldCreateRollingRepository(int minRetentionCommits, int minRetentionDays) {
+        return repo.shouldCreateRollingRepository(minRetentionCommits, minRetentionDays);
+    }
+
+    @Override
+    public void createRollingRepository(Revision initialRevision, int minRetentionCommits,
+                                        int minRetentionDays) {
+        repo.createRollingRepository(initialRevision, minRetentionCommits, minRetentionDays);
+    }
+
+    @Override
     public String toString() {
         return toStringHelper(this)
                 .add("repo", repo)

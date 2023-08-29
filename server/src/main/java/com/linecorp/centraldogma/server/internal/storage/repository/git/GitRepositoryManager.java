@@ -19,23 +19,15 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.linecorp.armeria.common.util.TextFormatter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
-import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -44,8 +36,6 @@ import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 public class GitRepositoryManager extends DirectoryBasedStorageManager<Repository>
         implements RepositoryManager {
-
-    private static final Logger logger = LoggerFactory.getLogger(GitRepositoryManager.class);
 
     private final Project parent;
     private final Executor repositoryWorker;
@@ -69,25 +59,19 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
 
     @Override
     protected Repository openChild(File childDir) throws Exception {
-        return new GitRepository(parent, childDir, repositoryWorker, cache);
-    }
-
-    private static void deleteCruft(File dir) throws IOException {
-        logger.info("Deleting the cruft from previous migration: {}", dir);
-        Util.deleteFileTree(dir);
-        logger.info("Deleted the cruft from previous migration: {}", dir);
+        return GitRepositoryV2.open(parent, childDir, repositoryWorker, cache);
     }
 
     @Override
     protected Repository createChild(File childDir, Author author, long creationTimeMillis) throws Exception {
-        return new GitRepository(parent, childDir, repositoryWorker,
-                                 creationTimeMillis, author, cache);
+        return new GitRepositoryV2(parent, childDir, repositoryWorker,
+                                   creationTimeMillis, author, cache);
     }
 
     @Override
     protected void closeChild(File childDir, Repository child,
                               Supplier<CentralDogmaException> failureCauseSupplier) {
-        ((GitRepository) child).close(failureCauseSupplier);
+        ((GitRepositoryV2) child).close(failureCauseSupplier);
     }
 
     @Override
@@ -98,38 +82,5 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
     @Override
     protected CentralDogmaException newStorageNotFoundException(String name) {
         return new RepositoryNotFoundException(parent().name() + '/' + name);
-    }
-
-    /**
-     * Logs the migration progress periodically.
-     */
-    private static class MigrationProgressLogger implements BiConsumer<Integer, Integer> {
-
-        private static final long REPORT_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(10);
-
-        private final String name;
-        private final long startTimeNanos;
-        private long lastReportTimeNanos;
-
-        MigrationProgressLogger(Repository repo) {
-            name = repo.parent().name() + '/' + repo.name();
-            startTimeNanos = lastReportTimeNanos = System.nanoTime();
-        }
-
-        @Override
-        public void accept(Integer current, Integer total) {
-            final long currentTimeNanos = System.nanoTime();
-            final long elapsedTimeNanos = currentTimeNanos - startTimeNanos;
-            if (currentTimeNanos - lastReportTimeNanos > REPORT_INTERVAL_NANOS) {
-                logger.info("{}: {}% ({}/{}) - took {}",
-                            name, (int) ((double) current / total * 100),
-                            current, total, TextFormatter.elapsed(elapsedTimeNanos));
-                lastReportTimeNanos = currentTimeNanos;
-            } else if (current.equals(total)) {
-                logger.info("{}: 100% ({}/{}) - took {}",
-                            name, current, total,
-                            TextFormatter.elapsed(elapsedTimeNanos));
-            }
-        }
     }
 }

@@ -23,6 +23,7 @@ import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class FailFastUtil {
 
@@ -39,7 +40,7 @@ final class FailFastUtil {
     }
 
     @SuppressWarnings("MethodParameterNamingConvention")
-    static void failFastIfTimedOut(GitRepository repo, Logger logger, @Nullable ServiceRequestContext ctx,
+    static void failFastIfTimedOut(Repository repo, Logger logger, @Nullable ServiceRequestContext ctx,
                                    String methodName, Object arg1) {
         if (ctx != null && ctx.isTimedOut()) {
             logger.info("{} Rejecting a request timed out already: repo={}/{}, method={}, args={}",
@@ -49,7 +50,7 @@ final class FailFastUtil {
     }
 
     @SuppressWarnings("MethodParameterNamingConvention")
-    static void failFastIfTimedOut(GitRepository repo, Logger logger, @Nullable ServiceRequestContext ctx,
+    static void failFastIfTimedOut(Repository repo, Logger logger, @Nullable ServiceRequestContext ctx,
                                    String methodName, Object arg1, Object arg2) {
         if (ctx != null && ctx.isTimedOut()) {
             logger.info("{} Rejecting a request timed out already: repo={}/{}, method={}, args=[{}, {}]",
@@ -59,7 +60,7 @@ final class FailFastUtil {
     }
 
     @SuppressWarnings("MethodParameterNamingConvention")
-    static void failFastIfTimedOut(GitRepository repo, Logger logger, @Nullable ServiceRequestContext ctx,
+    static void failFastIfTimedOut(Repository repo, Logger logger, @Nullable ServiceRequestContext ctx,
                                    String methodName, Object arg1, Object arg2, Object arg3) {
         if (ctx != null && ctx.isTimedOut()) {
             logger.info("{} Rejecting a request timed out already: repo={}/{}, method={}, args=[{}, {}, {}]",
@@ -69,7 +70,7 @@ final class FailFastUtil {
     }
 
     @SuppressWarnings("MethodParameterNamingConvention")
-    static void failFastIfTimedOut(GitRepository repo, Logger logger, @Nullable ServiceRequestContext ctx,
+    static void failFastIfTimedOut(Repository repo, Logger logger, @Nullable ServiceRequestContext ctx,
                                    String methodName, Object arg1, Object arg2, Object arg3, int arg4) {
         if (ctx != null && ctx.isTimedOut()) {
             logger.info(

@@ -129,6 +129,9 @@ public final class CentralDogmaBuilder {
     @Nullable
     private CorsConfig corsConfig;
 
+    @Nullable
+    private CommitRetentionConfig commitRetentionConfig;
+
     /**
      * Creates a new builder with the specified data directory.
      */
@@ -528,6 +531,18 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Sets the configuration for retaining commits in a {@link Repository}.
+     * Commits are retained for at least {@code minRetentionDays}. If the number of commits is less than
+     * {@code minRetentionCommits}, commits are not removed even after {@code minRetentionDays} have passed.
+     * Specify {@code minRetentionCommits} to {@code 0} to retain all commits.
+     */
+    public CentralDogmaBuilder commitRetention(int minRetentionCommits, int minRetentionDays,
+                                               @Nullable String schedule) {
+        commitRetentionConfig = new CommitRetentionConfig(minRetentionCommits, minRetentionDays, schedule);
+        return this;
+    }
+
+    /**
      * Sets the {@link MeterRegistry} used to collect metrics.
      */
     public CentralDogmaBuilder meterRegistry(MeterRegistry meterRegistry) {
@@ -577,6 +592,6 @@ public final class CentralDogmaBuilder {
                                       webAppEnabled, webAppTitle, mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
                                       null, accessLogFormat, authCfg, quotaConfig,
-                                      corsConfig);
+                                      commitRetentionConfig, corsConfig);
     }
 }

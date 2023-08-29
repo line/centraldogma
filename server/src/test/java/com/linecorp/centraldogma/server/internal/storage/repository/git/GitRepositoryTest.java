@@ -18,15 +18,14 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static com.linecorp.centraldogma.common.Revision.INIT;
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.RepositoryMetadataDatabase.initialPrimaryRepoDir;
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.awaitility.Awaitility.await;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -47,11 +46,6 @@ import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
-import org.eclipse.jgit.lib.Constants;
-import org.eclipse.jgit.lib.ObjectId;
-import org.eclipse.jgit.lib.Ref;
-import org.eclipse.jgit.lib.RefUpdate;
-import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileBasedConfig;
 import org.eclipse.jgit.util.FS;
 import org.junit.jupiter.api.AfterAll;
@@ -78,7 +72,6 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.JGitUtil;
-import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
@@ -92,7 +85,7 @@ class GitRepositoryTest {
     @TempDir
     static File repoDir;
 
-    private static GitRepository repo;
+    private static GitRepositoryV2 repo;
 
     /**
      * Used by {@link GitRepositoryTest#testWatchWithQueryCancellation()}.
@@ -102,8 +95,8 @@ class GitRepositoryTest {
 
     @BeforeAll
     static void init() {
-        repo = new GitRepository(mock(Project.class), new File(repoDir, "test_repo"),
-                                 commonPool(), 0L, Author.SYSTEM) {
+        repo = new GitRepositoryV2(mock(Project.class), new File(repoDir, "test_repo"),
+                                   commonPool(), 0L, Author.SYSTEM, null) {
             /**
              * Used by {@link GitRepositoryTest#testWatchWithQueryCancellation()}.
              */
@@ -167,7 +160,9 @@ class GitRepositoryTest {
     @Test
     void defaultSettings() throws Exception {
         // Make sure the Git config file has been created.
-        final File configFile = repoDir.toPath().resolve("test_repo").resolve("config").toFile();
+        final File configFile = initialPrimaryRepoDir(repoDir.toPath().resolve("test_repo").toFile())
+                .toPath()
+                .resolve("config").toFile();
         assertThat(configFile).exists();
 
         // Load the Git config file.
@@ -574,20 +569,17 @@ class GitRepositoryTest {
         assertThat(repo.diff(revision1, revision2, "non_existing_path").join()).isEmpty();
 
         assertThatThrownBy(() -> repo.diff(revision1, revision2, (String) null).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(NullPointerException.class);
+                .isInstanceOf(NullPointerException.class);
 
         assertThatThrownBy(() -> repo.diff(null, revision2, path).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(NullPointerException.class);
+                .isInstanceOf(NullPointerException.class);
 
         assertThatThrownBy(() -> repo.diff(revision1, new Revision(revision2.major() + 1), path).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(RevisionNotFoundException.class);
+                .hasRootCauseInstanceOf(RevisionNotFoundException.class);
 
         assertThatThrownBy(() -> repo.diff(new Revision(revision2.major() + 1), revision2, path).join())
                 .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(RevisionNotFoundException.class);
+                .hasRootCauseInstanceOf(RevisionNotFoundException.class);
     }
 
     @Test
@@ -907,12 +899,10 @@ class GitRepositoryTest {
                 .hasCauseInstanceOf(RevisionNotFoundException.class);
 
         assertThatThrownBy(() -> repo.history(null, HEAD, "non_existing_path").join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(NullPointerException.class);
+                .isInstanceOf(NullPointerException.class);
 
         assertThatThrownBy(() -> repo.history(HEAD, null, "non_existing_path").join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(NullPointerException.class);
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -1293,47 +1283,11 @@ class GitRepositoryTest {
     }
 
     @Test
-    void testDoUpdateRef() throws Exception {
-        final ObjectId commitId = mock(ObjectId.class);
-
-        // A commit on the mainlane
-        testDoUpdateRef(Constants.R_TAGS + '1', commitId, false);
-        testDoUpdateRef(Constants.R_HEADS + Constants.MASTER, commitId, false);
-    }
-
-    private static void testDoUpdateRef(String ref, ObjectId commitId, boolean tagExists) throws Exception {
-        final org.eclipse.jgit.lib.Repository jGitRepo = mock(org.eclipse.jgit.lib.Repository.class);
-        final RevWalk revWalk = mock(RevWalk.class);
-        final RefUpdate refUpdate = mock(RefUpdate.class);
-
-        lenient().when(jGitRepo.exactRef(ref)).thenReturn(tagExists ? mock(Ref.class) : null);
-        lenient().when(jGitRepo.updateRef(ref)).thenReturn(refUpdate);
-
-        lenient().when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.NEW);
-        GitRepository.doRefUpdate(jGitRepo, revWalk, ref, commitId);
-
-        when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.FAST_FORWARD);
-        GitRepository.doRefUpdate(jGitRepo, revWalk, ref, commitId);
-
-        when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.LOCK_FAILURE);
-        assertThatThrownBy(() -> GitRepository.doRefUpdate(jGitRepo, revWalk, ref, commitId))
-                .isInstanceOf(StorageException.class);
-    }
-
-    @Test
-    void testDoUpdateRefOnExistingTag() {
-        final ObjectId commitId = mock(ObjectId.class);
-
-        assertThatThrownBy(() -> testDoUpdateRef(Constants.R_TAGS + "01/1.0", commitId, true))
-                .isInstanceOf(StorageException.class);
-    }
-
-    @Test
     void operationOnClosedRepository() {
         final CentralDogmaException expectedException = new CentralDogmaException();
-        final GitRepository repo = new GitRepository(mock(Project.class),
-                                                     new File(repoDir, "close_test_repo"),
-                                                     commonPool(), 0L, Author.SYSTEM);
+        final GitRepositoryV2 repo = new GitRepositoryV2(mock(Project.class),
+                                                         new File(repoDir, "close_test_repo"),
+                                                         commonPool(), 0L, Author.SYSTEM, null);
         repo.close(() -> expectedException);
 
         assertThatThrownBy(() -> repo.find(INIT, "/**").join()).hasCause(expectedException);

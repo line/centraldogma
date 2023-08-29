@@ -139,6 +139,9 @@ public final class CentralDogmaConfig {
     private final QuotaConfig writeQuotaPerRepository;
 
     @Nullable
+    private final CommitRetentionConfig commitRetentionConfig;
+
+    @Nullable
     private final CorsConfig corsConfig;
 
     CentralDogmaConfig(
@@ -169,11 +172,10 @@ public final class CentralDogmaConfig {
             @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
             @JsonProperty("authentication") @Nullable AuthConfig authConfig,
             @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository,
+            @JsonProperty("commitRetention") @Nullable CommitRetentionConfig commitRetentionConfig,
             @JsonProperty("cors") @Nullable CorsConfig corsConfig) {
-
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
-        this.corsConfig = corsConfig;
         checkArgument(!ports.isEmpty(), "ports must have at least one port.");
         this.tls = tls;
         this.trustedProxyAddresses = trustedProxyAddresses;
@@ -224,6 +226,8 @@ public final class CentralDogmaConfig {
                                           ports.stream().anyMatch(ServerPort::hasProxyProtocol));
 
         this.writeQuotaPerRepository = writeQuotaPerRepository;
+        this.commitRetentionConfig = commitRetentionConfig;
+        this.corsConfig = corsConfig;
     }
 
     /**
@@ -456,9 +460,18 @@ public final class CentralDogmaConfig {
      * Returns the maximum allowed write quota per {@link Repository}.
      */
     @Nullable
-    @JsonProperty("writeQuotaPerRepository")
+    @JsonProperty
     public QuotaConfig writeQuotaPerRepository() {
         return writeQuotaPerRepository;
+    }
+
+    /**
+     * Returns the {@link CommitRetentionConfig}.
+     */
+    @Nullable
+    @JsonProperty("commitRetention")
+    public CommitRetentionConfig commitRetentionConfig() {
+        return commitRetentionConfig;
     }
 
     /**

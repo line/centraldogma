@@ -78,6 +78,7 @@ abstract class AbstractCommand<T> implements Command<T> {
         return toStringHelper().toString();
     }
 
+    // TODO(minwoox): Do not expose ToStringHelper to public.
     MoreObjects.ToStringHelper toStringHelper() {
         return MoreObjects.toStringHelper(this)
                           .add("type", type)

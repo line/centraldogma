@@ -31,6 +31,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -521,4 +523,19 @@ public interface Repository {
 
         return future;
     }
+
+    /**
+     * Returns the head {@link Revision} of this repository if this repository needs to create a
+     * rolling repository. The head {@link Revision} is returned when following conditions are met:
+     * - The last created rolling repository has more than {@code minRetentionCommits}.
+     * - The last created rolling repository has commits that are older than {@code minRetentionDays}.
+     */
+    @Nullable
+    Revision shouldCreateRollingRepository(int minRetentionCommits, int minRetentionDays);
+
+    /**
+     * Creates the rolling repository. The specified {@code initialRevision} of the current repository will be
+     * the initial revision of the created rolling repository.
+     */
+    void createRollingRepository(Revision initialRevision, int minRetentionCommits, int minRetentionDays);
 }
