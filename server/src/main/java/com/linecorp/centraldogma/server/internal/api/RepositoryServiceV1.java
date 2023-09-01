@@ -33,7 +33,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.common.logging.RequestLog;
+import com.linecorp.armeria.common.logging.RequestOnlyLog;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
@@ -195,8 +195,7 @@ public class RepositoryServiceV1 extends AbstractService {
                                                   Repository repository, @Param String revision) {
         final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));
         final Revision head = repository.normalizeNow(Revision.HEAD);
-        increaseCounterIfOldRevisionUsed(ctx, repository.parent().name(), repository.name(),
-                                         normalizedRevision, head);
+        increaseCounterIfOldRevisionUsed(ctx, repository, normalizedRevision, head);
         return ImmutableMap.of("revision", normalizedRevision.major());
     }
 
@@ -204,20 +203,21 @@ public class RepositoryServiceV1 extends AbstractService {
                                                  Revision revision) {
         final Revision normalized = repository.normalizeNow(revision);
         final Revision head = repository.normalizeNow(Revision.HEAD);
-        increaseCounterIfOldRevisionUsed(ctx, repository.parent().name(), repository.name(), normalized, head);
+        increaseCounterIfOldRevisionUsed(ctx, repository, normalized, head);
     }
 
     public static void increaseCounterIfOldRevisionUsed(
-            ServiceRequestContext ctx, String projectName, String repoName,
-            Revision normalized, Revision head) {
+            ServiceRequestContext ctx, Repository repository, Revision normalized, Revision head) {
+        final String projectName = repository.parent().name();
+        final String repoName = repository.name();
         if (normalized.major() == 1) {
-            ctx.log().whenComplete().thenAccept(
+            ctx.log().whenRequestComplete().thenAccept(
                     log -> ctx.meterRegistry()
                               .counter("revisions.init", generateTags(projectName, repoName, log).build())
                               .increment());
         }
         if (head.major() - normalized.major() >= 5000) {
-            ctx.log().whenComplete().thenAccept(
+            ctx.log().whenRequestComplete().thenAccept(
                     log -> ctx.meterRegistry()
                               .summary("revisions.old",
                                        generateTags(projectName, repoName, log)
@@ -228,7 +228,7 @@ public class RepositoryServiceV1 extends AbstractService {
     }
 
     private static ImmutableList.Builder<Tag> generateTags(
-            String projectName, String repoName, RequestLog log) {
+            String projectName, String repoName, RequestOnlyLog log) {
         final ImmutableList.Builder<Tag> builder = ImmutableList.builder();
         return builder.add(Tag.of("project", projectName),
                            Tag.of("repo", repoName),

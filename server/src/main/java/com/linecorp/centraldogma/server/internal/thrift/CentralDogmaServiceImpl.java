@@ -232,8 +232,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
         final com.linecorp.centraldogma.common.Revision normalized =
                 repository.normalizeNow(convert(revision));
         final com.linecorp.centraldogma.common.Revision head = repository.normalizeNow(HEAD);
-        increaseCounterIfOldRevisionUsed(RequestContext.current(), projectName, repositoryName,
-                                         normalized, head);
+        increaseCounterIfOldRevisionUsed(RequestContext.current(), repository, normalized, head);
         return normalized;
     }
 
