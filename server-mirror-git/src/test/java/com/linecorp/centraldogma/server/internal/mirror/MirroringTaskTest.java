@@ -45,10 +45,10 @@ class MirroringTaskTest {
         Mirror mirror = newMirror("git://a.com/b.git", GitMirror.class, "foo", "bar");
         mirror = spy(mirror);
         doNothing().when(mirror).mirror(any(), any(), anyInt(), anyLong());
-        new MirroringTask(mirror, meterRegistry).run(null, null, 0, 0L);
+        new MirroringTask(mirror, "foo", meterRegistry).run(null, null, 0, 0L);
         assertThat(MoreMeters.measureAll(meterRegistry))
                 .contains(entry("mirroring.result#count{direction=LOCAL_TO_REMOTE,localPath=/," +
-                                "localRepo=bar,remoteBranch=,remotePath=/,success=true}", 1.0));
+                                "localRepo=bar,project=foo,remoteBranch=,remotePath=/,success=true}", 1.0));
     }
 
     @Test
@@ -58,12 +58,12 @@ class MirroringTaskTest {
         mirror = spy(mirror);
         final RuntimeException e = new RuntimeException();
         doThrow(e).when(mirror).mirror(any(), any(), anyInt(), anyLong());
-        final MirroringTask task = new MirroringTask(mirror, meterRegistry);
+        final MirroringTask task = new MirroringTask(mirror, "foo", meterRegistry);
         assertThatThrownBy(() -> task.run(null, null, 0, 0L))
                 .isSameAs(e);
         assertThat(MoreMeters.measureAll(meterRegistry))
                 .contains(entry("mirroring.result#count{direction=LOCAL_TO_REMOTE,localPath=/," +
-                                "localRepo=bar,remoteBranch=main,remotePath=/," +
+                                "localRepo=bar,project=foo,remoteBranch=main,remotePath=/," +
                                 "success=false}", 1.0));
     }
 
@@ -76,11 +76,11 @@ class MirroringTaskTest {
             Thread.sleep(1000);
             return null;
         }).when(mirror).mirror(any(), any(), anyInt(), anyLong());
-        new MirroringTask(mirror, meterRegistry).run(null, null, 0, 0L);
+        new MirroringTask(mirror, "foo", meterRegistry).run(null, null, 0, 0L);
         assertThat(MoreMeters.measureAll(meterRegistry))
                 .hasEntrySatisfying(
                         "mirroring.task#total{direction=LOCAL_TO_REMOTE,localPath=/," +
-                        "localRepo=bar,remoteBranch=,remotePath=/}",
+                        "localRepo=bar,project=foo,remoteBranch=,remotePath=/}",
                         v -> assertThat(v).isCloseTo(1, withPercentage(30)));
     }
 }
