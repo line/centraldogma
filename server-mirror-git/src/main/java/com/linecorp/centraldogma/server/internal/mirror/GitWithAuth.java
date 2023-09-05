@@ -46,6 +46,7 @@ import org.apache.sshd.common.config.keys.loader.pem.PKCS8PEMResourceKeyPairPars
 import org.apache.sshd.common.file.nonefs.NoneFileSystemFactory;
 import org.apache.sshd.common.keyprovider.KeyIdentityProvider;
 import org.apache.sshd.common.util.security.SecurityUtils;
+import org.apache.sshd.common.util.security.bouncycastle.BouncyCastleRandom;
 import org.apache.sshd.git.transport.GitSshdSession;
 import org.apache.sshd.git.transport.GitSshdSessionFactory;
 import org.eclipse.jgit.api.FetchCommand;
@@ -87,6 +88,12 @@ final class GitWithAuth extends Git {
             SecurityUtils.getBouncycastleKeyPairResourceParser(),
             PKCS8PEMResourceKeyPairParser.INSTANCE,
             OpenSSHKeyPairResourceParser.INSTANCE);
+
+    // Creates BouncyCastleRandom once and reuses it.
+    // Otherwise, BouncyCastleRandom is created whenever the SSH client is created that leads to
+    // blocking the thread to get enough entropy for SecureRandom.
+    // We might create multiple BouncyCastleRandom later and poll them, if necessary.
+    private static final BouncyCastleRandom bounceCastleRandom = new BouncyCastleRandom();
 
     /**
      * One of the Locks in this array is locked while a Git repository is accessed so that other GitMirrors
@@ -285,6 +292,7 @@ final class GitWithAuth extends Git {
                         builder.fileSystemFactory(NoneFileSystemFactory.INSTANCE);
                         // Do not verify the server key.
                         builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> true);
+                        builder.randomFactory(() -> bounceCastleRandom);
                         final SshClient client = builder.build();
                         onClientCreated(client);
                         return client;
