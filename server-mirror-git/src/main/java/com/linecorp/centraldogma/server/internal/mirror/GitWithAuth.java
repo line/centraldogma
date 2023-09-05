@@ -38,7 +38,6 @@ import org.apache.sshd.client.ClientBuilder;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.config.hosts.HostConfigEntryResolver;
 import org.apache.sshd.client.session.ClientSession;
-import org.apache.sshd.common.Factory;
 import org.apache.sshd.common.NamedResource;
 import org.apache.sshd.common.config.keys.FilePasswordProvider;
 import org.apache.sshd.common.config.keys.loader.KeyPairResourceParser;
@@ -46,7 +45,6 @@ import org.apache.sshd.common.config.keys.loader.openssh.OpenSSHKeyPairResourceP
 import org.apache.sshd.common.config.keys.loader.pem.PKCS8PEMResourceKeyPairParser;
 import org.apache.sshd.common.file.nonefs.NoneFileSystemFactory;
 import org.apache.sshd.common.keyprovider.KeyIdentityProvider;
-import org.apache.sshd.common.random.Random;
 import org.apache.sshd.common.util.security.SecurityUtils;
 import org.apache.sshd.common.util.security.bouncycastle.BouncyCastleRandom;
 import org.apache.sshd.git.transport.GitSshdSession;
@@ -96,8 +94,6 @@ final class GitWithAuth extends Git {
     // blocking the thread to get enough entropy for SecureRandom.
     // We might create multiple BouncyCastleRandom later and poll them, if necessary.
     private static final BouncyCastleRandom bounceCastleRandom = new BouncyCastleRandom();
-
-    private static final Factory<Random> randomFactory = () -> bounceCastleRandom;
 
     /**
      * One of the Locks in this array is locked while a Git repository is accessed so that other GitMirrors
@@ -296,7 +292,7 @@ final class GitWithAuth extends Git {
                         builder.fileSystemFactory(NoneFileSystemFactory.INSTANCE);
                         // Do not verify the server key.
                         builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> true);
-                        builder.randomFactory(randomFactory);
+                        builder.randomFactory(() -> bounceCastleRandom);
                         final SshClient client = builder.build();
                         onClientCreated(client);
                         return client;
