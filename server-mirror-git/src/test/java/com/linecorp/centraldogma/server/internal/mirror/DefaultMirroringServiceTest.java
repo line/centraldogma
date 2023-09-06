@@ -67,10 +67,10 @@ class DefaultMirroringServiceTest {
         when(r.parent()).thenReturn(p);
         when(r.name()).thenReturn("bar");
 
-        final Mirror mirror = new AbstractMirror("my-mirror-1", EVERY_SECOND,
+        final Mirror mirror = new AbstractMirror("my-mirror-1", true, EVERY_SECOND,
                                                  MirrorDirection.REMOTE_TO_LOCAL,
                                                  MirrorCredential.FALLBACK, r, "/",
-                                                 URI.create("unused://uri"), "/", null, null, true) {
+                                                 URI.create("unused://uri"), "/", null, null) {
             @Override
             protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) {}
 

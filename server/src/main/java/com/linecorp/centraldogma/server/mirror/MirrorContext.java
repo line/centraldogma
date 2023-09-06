@@ -32,6 +32,9 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
  */
 public final class MirrorContext {
 
+    @Nullable
+    private final String id;
+    private final boolean enabled;
     private final Cron schedule;
     private final MirrorDirection direction;
     private final MirrorCredential credential;
@@ -44,8 +47,11 @@ public final class MirrorContext {
     /**
      * Creates a new instance.
      */
-    public MirrorContext(Cron schedule, MirrorDirection direction, MirrorCredential credential,
-                         Repository localRepo, String localPath, URI remoteUri, @Nullable String gitignore) {
+    public MirrorContext(@Nullable String id, boolean enabled, Cron schedule, MirrorDirection direction,
+                         MirrorCredential credential, Repository localRepo, String localPath, URI remoteUri,
+                         @Nullable String gitignore) {
+        this.id = id;
+        this.enabled = enabled;
         this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");
         this.credential = requireNonNull(credential, "credential");
@@ -53,6 +59,21 @@ public final class MirrorContext {
         this.localPath = requireNonNull(localPath, "localPath");
         this.remoteUri = requireNonNull(remoteUri, "remoteUri");
         this.gitignore = gitignore;
+    }
+
+    /**
+     * Returns the ID of this mirror.
+     */
+    @Nullable
+    public String id() {
+        return id;
+    }
+
+    /**
+     * Returns whether this mirror is enabled or not.
+     */
+    public boolean enabled() {
+        return enabled;
     }
 
     /**
@@ -108,6 +129,8 @@ public final class MirrorContext {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).omitNullValues()
+                          .add("id", id)
+                          .add("enabled", enabled)
                           .add("schedule", schedule)
                           .add("direction", direction)
                           .add("credential", credential)

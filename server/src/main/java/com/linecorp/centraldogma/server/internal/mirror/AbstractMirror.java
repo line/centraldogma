@@ -51,6 +51,7 @@ public abstract class AbstractMirror implements Mirror {
 
     @Nullable
     private final String id;
+    private final boolean enabled;
     private final Cron schedule;
     private final MirrorDirection direction;
     private final MirrorCredential credential;
@@ -64,13 +65,13 @@ public abstract class AbstractMirror implements Mirror {
     private final String gitignore;
     private final ExecutionTime executionTime;
     private final long jitterMillis;
-    private final boolean enabled;
 
-    protected AbstractMirror(@Nullable String id, Cron schedule, MirrorDirection direction,
+    protected AbstractMirror(@Nullable String id, boolean enabled, Cron schedule, MirrorDirection direction,
                              MirrorCredential credential, Repository localRepo, String localPath,
                              URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
-                             @Nullable String gitignore, boolean enabled) {
+                             @Nullable String gitignore) {
         this.id = id;
+        this.enabled = enabled;
         this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");
         this.credential = requireNonNull(credential, "credential");
@@ -80,7 +81,6 @@ public abstract class AbstractMirror implements Mirror {
         this.remotePath = normalizePath(requireNonNull(remotePath, "remotePath"));
         this.remoteBranch = remoteBranch;
         this.gitignore = gitignore;
-        this.enabled = enabled;
 
         executionTime = ExecutionTime.forCron(this.schedule);
 

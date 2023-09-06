@@ -59,7 +59,7 @@ public final class MirrorConfig {
 
     private static final String DEFAULT_SCHEDULE = "0 * * * * ?"; // Every minute
 
-    private static final CronParser CRON_PARSER = new CronParser(
+    public static final CronParser CRON_PARSER = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
 
     private static final List<MirrorProvider> MIRROR_PROVIDERS;
@@ -123,9 +123,8 @@ public final class MirrorConfig {
             return null;
         }
 
-        // TODO(ikhoon): Set id to MirrorContext
         final MirrorContext mirrorContext = new MirrorContext(
-                schedule, direction, findCredential(credentials, remoteUri, credentialId),
+                id, enabled, schedule, direction, findCredential(credentials, remoteUri, credentialId),
                 parent.repos().get(localRepo), localPath, remoteUri, gitignore);
         for (MirrorProvider mirrorProvider : MIRROR_PROVIDERS) {
             final Mirror mirror = mirrorProvider.newMirror(mirrorContext);

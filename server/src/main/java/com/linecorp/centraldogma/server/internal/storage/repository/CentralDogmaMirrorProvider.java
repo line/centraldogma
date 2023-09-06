@@ -59,7 +59,7 @@ public final class CentralDogmaMirrorProvider implements MirrorProvider {
         final String remoteProject = matcher.group(1);
         final String remoteRepo = matcher.group(2);
 
-        return new CentralDogmaMirror(context.schedule(), context.direction(), context.credential(),
+        return new CentralDogmaMirror(context.id(), context.enabled(), context.schedule(), context.direction(), context.credential(),
                                       context.localRepo(), context.localPath(),
                                       remoteRepoUri, remoteProject, remoteRepo, components[1],
                                       context.gitignore());

@@ -22,7 +22,7 @@ import static java.util.Objects.requireNonNull;
 import java.io.File;
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.Set;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -200,7 +200,7 @@ public final class DefaultMirroringService implements MirroringService {
         projectManager.list()
                       .values()
                       .forEach(project -> {
-                          final Set<Mirror> mirrors;
+                          final List<Mirror> mirrors;
                           try {
                               mirrors = project.metaRepo().mirrors().join();
                           } catch (Exception e) {

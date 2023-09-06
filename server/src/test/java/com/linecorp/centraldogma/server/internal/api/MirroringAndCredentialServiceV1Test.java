@@ -126,8 +126,8 @@ class MirroringAndCredentialServiceV1Test {
             } else if ("public_key".equals(credentialType)) {
                 final PublicKeyMirrorCredential actual = (PublicKeyMirrorCredential) credentialDto;
                 assertThat(actual.username()).isEqualTo(credential.get("username"));
-                assertThat(actual.publicKeyString()).isEqualTo(credential.get("publicKey"));
-                assertThat(actual.privateKeyString()).isEqualTo(credential.get("privateKey"));
+                assertThat(actual.publicKey()).isEqualTo(credential.get("publicKey"));
+                assertThat(actual.privateKey()).isEqualTo(credential.get("privateKey"));
                 assertThat(actual.passphraseString()).isEqualTo(credential.get("passphrase"));
             } else if ("none".equals(credentialType)) {
                 assertThat(credentialDto).isInstanceOf(NoneMirrorCredential.class);
@@ -170,8 +170,8 @@ class MirroringAndCredentialServiceV1Test {
         assertThat(actual.id()).hasValue((String) credential.get("id"));
         assertThat(actual.hostnamePatterns().stream().map(Pattern::pattern)).isEqualTo(hostnamePatterns);
         assertThat(actual.username()).isEqualTo(credential.get("username"));
-        assertThat(actual.publicKeyString()).isEqualTo(credential.get("publicKey"));
-        assertThat(actual.privateKeyString()).isEqualTo(credential.get("privateKey"));
+        assertThat(actual.publicKey()).isEqualTo(credential.get("publicKey"));
+        assertThat(actual.privateKey()).isEqualTo(credential.get("privateKey"));
         assertThat(actual.passphraseString()).isEqualTo(credential.get("passphrase"));
     }
 
