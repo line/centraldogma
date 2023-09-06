@@ -28,7 +28,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 public final class NoneMirrorCredential extends AbstractMirrorCredential {
 
     @JsonCreator
-    public NoneMirrorCredential(@JsonProperty("id") @Nullable String id,
+    public NoneMirrorCredential(@JsonProperty("id") String id,
                                 @JsonProperty("hostnamePatterns") @Nullable
                                 @JsonDeserialize(contentAs = Pattern.class)
                                 Iterable<Pattern> hostnamePatterns,

@@ -35,7 +35,7 @@ public final class CentralDogmaMirror extends AbstractMirror {
     private final String remoteProject;
     private final String remoteRepo;
 
-    public CentralDogmaMirror(@Nullable String id, boolean enabled, Cron schedule, MirrorDirection direction,
+    public CentralDogmaMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
                               MirrorCredential credential, Repository localRepo, String localPath,
                               URI remoteRepoUri, String remoteProject, String remoteRepo, String remotePath,
                               @Nullable String gitignore) {

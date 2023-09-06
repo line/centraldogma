@@ -112,7 +112,7 @@ class MirroringAndCredentialServiceV1Test {
                           .asJson(MirrorCredential.class)
                           .execute();
             final MirrorCredential credentialDto = fetchResponse.content();
-            assertThat(credentialDto.id()).hasValue((String) credential.get("id"));
+            assertThat(credentialDto.id()).isEqualTo((String) credential.get("id"));
             assertThat(credentialDto.hostnamePatterns().stream().map(Pattern::pattern)).isEqualTo(
                     credential.get("hostnamePatterns"));
             final String credentialType = (String) credential.get("type");
@@ -167,7 +167,7 @@ class MirroringAndCredentialServiceV1Test {
                       .asJson(MirrorCredential.class)
                       .execute();
         final PublicKeyMirrorCredential actual = (PublicKeyMirrorCredential) fetchResponse.content();
-        assertThat(actual.id()).hasValue((String) credential.get("id"));
+        assertThat(actual.id()).isEqualTo((String) credential.get("id"));
         assertThat(actual.hostnamePatterns().stream().map(Pattern::pattern)).isEqualTo(hostnamePatterns);
         assertThat(actual.username()).isEqualTo(credential.get("username"));
         assertThat(actual.publicKey()).isEqualTo(credential.get("publicKey"));

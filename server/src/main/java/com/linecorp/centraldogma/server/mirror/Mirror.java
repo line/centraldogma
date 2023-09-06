@@ -35,7 +35,6 @@ public interface Mirror {
     /**
      * Returns the ID of the mirroring task.
      */
-    @Nullable
     String id();
 
     /**

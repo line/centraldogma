@@ -20,11 +20,13 @@ node {
 
 dependencies {
     implementation project(':common-legacy')
+    testImplementation project(":server-mirror-git")
 
     // Armeria
     api libs.armeria
     api libs.armeria.thrift09
     testImplementation libs.armeria.junit5
+
 
     // Caffeine
     implementation libs.caffeine

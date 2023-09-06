@@ -17,23 +17,18 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.armeria.server.annotation.ConsumesJson;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
-import com.linecorp.armeria.server.annotation.MatchesParam;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
@@ -41,6 +36,7 @@ import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 
 /**
  * Annotated service object for managing credential service.
@@ -50,11 +46,8 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class CredentialServiceV1 extends AbstractService {
 
-    private final MetadataService mds;
-
     public CredentialServiceV1(ProjectManager pm, CommandExecutor executor, MetadataService mds) {
         super(pm, executor);
-        this.mds = mds;
     }
 
     /**
@@ -64,33 +57,17 @@ public class CredentialServiceV1 extends AbstractService {
      */
     @Get("/projects/{projectName}/credentials")
     public CompletableFuture<List<MirrorCredential>> listCredentials(@Param String projectName) {
-        return projectManager()
-                .get(projectName)
-                .metaRepo()
-                .credentials();
+        return metaRepo(projectName).credentials();
     }
 
     /**
-     * GET /projects/{projectName}/credentials?id={id}
+     * GET /projects/{projectName}/credentials/{id}
      *
      * <p>Returns the credential for the ID in the project.
      */
-    // TODO(ikhoon): Automatically inject the non-optional query parameters to Route.matchesParam().
-    @MatchesParam("id")
-    @Get("/projects/{projectName}/credentials")
+    @Get("/projects/{projectName}/credentials/{id}")
     public CompletableFuture<MirrorCredential> getCredentialById(@Param String projectName, @Param String id) {
-        return projectManager().get(projectName).metaRepo().credentials().thenApply(credentials -> {
-            for (MirrorCredential credential : credentials) {
-                final Optional<String> credentialId = credential.id();
-                if (!credentialId.isPresent()) {
-                    continue;
-                }
-                if (credentialId.get().equals(id)) {
-                    return credential;
-                }
-            }
-            throw new EntryNotFoundException("Credential not found. ID: " + id);
-        });
+        return metaRepo(projectName).credential(id);
     }
 
     /**
@@ -103,36 +80,22 @@ public class CredentialServiceV1 extends AbstractService {
     @StatusCode(201)
     public CompletableFuture<Revision> createCredential(@Param String projectName,
                                                         MirrorCredential credential, Author author) {
-        return mds.createCredential(projectName, credential, author);
+        return metaRepo(projectName).saveCredential(credential, author);
     }
 
     /**
-     * GET /projects/{projectName}/credentials/{index}
-     *
-     * <p>Returns the credential at the specified index in the project credential list.
-     */
-    @Get("/projects/{projectName}/credentials/{index}")
-    public CompletableFuture<MirrorCredential> getCredential(@Param String projectName, @Param int index) {
-        checkArgument(index >= 0, "index: %s (expected: >= 0)", index);
-
-        return projectManager().get(projectName).metaRepo().credentials().thenApply(credentials -> {
-            if (index >= credentials.size()) {
-                throw new EntryNotFoundException(
-                        "No such credential at the index " + index + " in " + projectName);
-            }
-            return credentials.get(index);
-        });
-    }
-
-    /**
-     * PUT /projects/{projectName}/credentials/{index}
+     * PUT /projects/{projectName}/credentials
      *
      * <p>Update the existing credential.
      */
-    @Put("/projects/{projectName}/credentials/{index}")
+    @Put("/projects/{projectName}/credentials")
     @ConsumesJson
-    public CompletableFuture<Revision> updateCredential(@Param String projectName, @Param int index,
+    public CompletableFuture<Revision> updateCredential(@Param String projectName,
                                                         MirrorCredential credential, Author author) {
-        return mds.updateCredential(projectName, index, credential, author);
+        return metaRepo(projectName).updateCredential(credential, author);
+    }
+
+    private MetaRepository metaRepo(String projectName) {
+        return projectManager().get(projectName).metaRepo();
     }
 }

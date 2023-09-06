@@ -49,7 +49,6 @@ public abstract class AbstractMirror implements Mirror {
 
     protected static final Author MIRROR_AUTHOR = new Author("Mirror", "mirror@localhost.localdomain");
 
-    @Nullable
     private final String id;
     private final boolean enabled;
     private final Cron schedule;
@@ -66,11 +65,11 @@ public abstract class AbstractMirror implements Mirror {
     private final ExecutionTime executionTime;
     private final long jitterMillis;
 
-    protected AbstractMirror(@Nullable String id, boolean enabled, Cron schedule, MirrorDirection direction,
+    protected AbstractMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
                              MirrorCredential credential, Repository localRepo, String localPath,
                              URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
                              @Nullable String gitignore) {
-        this.id = id;
+        this.id = requireNonNull(id, "id");
         this.enabled = enabled;
         this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");

@@ -33,7 +33,6 @@ import com.google.common.base.MoreObjects;
 @JsonInclude(Include.NON_NULL)
 public final class MirrorDto {
 
-    @Nullable
     private final String id;
     private final boolean enabled;
     private final String projectName;
@@ -47,11 +46,10 @@ public final class MirrorDto {
     private final String remoteBranch;
     @Nullable
     private final String gitignore;
-    @Nullable
     private final String credentialId;
 
     @JsonCreator
-    public MirrorDto(@JsonProperty("id") @Nullable String id,
+    public MirrorDto(@JsonProperty("id") String id,
                      @JsonProperty("enabled") @Nullable Boolean enabled,
                      @JsonProperty("projectName") String projectName,
                      @JsonProperty("schedule") String schedule,
@@ -63,7 +61,7 @@ public final class MirrorDto {
                      @JsonProperty("remotePath") String remotePath,
                      @JsonProperty("remoteBranch") String remoteBranch,
                      @JsonProperty("gitignore") @Nullable String gitignore,
-                     @JsonProperty("credentialId") @Nullable String credentialId) {
+                     @JsonProperty("credentialId") String credentialId) {
         this.id = id;
         this.enabled = firstNonNull(enabled, true);
         this.projectName = requireNonNull(projectName, "projectName");
@@ -76,11 +74,10 @@ public final class MirrorDto {
         this.remotePath = requireNonNull(remotePath, "remotePath");
         this.remoteBranch = requireNonNull(remoteBranch, "remoteBranch");
         this.gitignore = gitignore;
-        this.credentialId = credentialId;
+        this.credentialId = requireNonNull(credentialId, "credentialId");
     }
 
     @JsonProperty("id")
-    @Nullable
     public String id() {
         return id;
     }
@@ -135,12 +132,12 @@ public final class MirrorDto {
         return remoteBranch;
     }
 
+    @Nullable
     @JsonProperty("gitignore")
     public String gitignore() {
         return gitignore;
     }
 
-    @Nullable
     @JsonProperty("credentialId")
     public String credentialId() {
         return credentialId;
@@ -155,7 +152,7 @@ public final class MirrorDto {
             return false;
         }
         final MirrorDto mirrorDto = (MirrorDto) o;
-        return Objects.equals(id, mirrorDto.id) &&
+        return id.equals(mirrorDto.id) &&
                enabled == mirrorDto.enabled &&
                projectName.equals(mirrorDto.projectName) &&
                schedule.equals(mirrorDto.schedule) &&
@@ -167,7 +164,7 @@ public final class MirrorDto {
                remotePath.equals(mirrorDto.remotePath) &&
                remoteBranch.equals(mirrorDto.remoteBranch) &&
                Objects.equals(gitignore, mirrorDto.gitignore) &&
-               Objects.equals(credentialId, mirrorDto.credentialId);
+               credentialId.equals(mirrorDto.credentialId);
     }
 
     @Override

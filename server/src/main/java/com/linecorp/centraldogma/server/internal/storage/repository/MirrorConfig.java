@@ -22,7 +22,6 @@ import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Optional;
 import java.util.ServiceLoader;
 
 import javax.annotation.Nullable;
@@ -69,8 +68,6 @@ public final class MirrorConfig {
         logger.debug("Available {}s: {}", MirrorProvider.class.getSimpleName(), MIRROR_PROVIDERS);
     }
 
-
-    @Nullable
     private final String id;
     private final boolean enabled;
     private final MirrorDirection direction;
@@ -85,7 +82,7 @@ public final class MirrorConfig {
     private final Cron schedule;
 
     @JsonCreator
-    public MirrorConfig(@JsonProperty("id") @Nullable String id,
+    public MirrorConfig(@JsonProperty("id") String id,
                         @JsonProperty("enabled") @Nullable Boolean enabled,
                         @JsonProperty("schedule") @Nullable String schedule,
                         @JsonProperty(value = "direction", required = true) MirrorDirection direction,
@@ -94,7 +91,7 @@ public final class MirrorConfig {
                         @JsonProperty(value = "remoteUri", required = true) URI remoteUri,
                         @JsonProperty("gitignore") @Nullable Object gitignore,
                         @JsonProperty("credentialId") @Nullable String credentialId) {
-        this.id = id;
+        this.id = requireNonNull(id, "id");
         this.enabled = firstNonNull(enabled, true);
         this.schedule = CRON_PARSER.parse(firstNonNull(schedule, DEFAULT_SCHEDULE));
         this.direction = requireNonNull(direction, "direction");
@@ -136,13 +133,13 @@ public final class MirrorConfig {
         throw new IllegalArgumentException("could not find a mirror provider for " + mirrorContext);
     }
 
-    private static MirrorCredential findCredential(Iterable<MirrorCredential> credentials, URI remoteUri,
-                                                   @Nullable String credentialId) {
+    public static MirrorCredential findCredential(Iterable<MirrorCredential> credentials, URI remoteUri,
+                                                  @Nullable String credentialId) {
         if (credentialId != null) {
             // Find by credential ID.
             for (MirrorCredential c : credentials) {
-                final Optional<String> id = c.id();
-                if (id.isPresent() && credentialId.equals(id.get())) {
+                final String id = c.id();
+                if (credentialId.equals(id)) {
                     return c;
                 }
             }
@@ -159,7 +156,6 @@ public final class MirrorConfig {
     }
 
     @JsonProperty("id")
-    @Nullable
     public String id() {
         return id;
     }

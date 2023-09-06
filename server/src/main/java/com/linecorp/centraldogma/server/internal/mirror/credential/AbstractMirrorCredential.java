@@ -21,7 +21,6 @@ import static com.linecorp.centraldogma.internal.Util.requireNonNullElements;
 import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
-import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -38,21 +37,15 @@ import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
 public abstract class AbstractMirrorCredential implements MirrorCredential {
 
-    /**
-     * The index should be updated by {@link #setIndex(int)} before use.
-     */
-    private int index = -1;
-
-    @Nullable
     private final String id;
     private final String type;
     private final Set<Pattern> hostnamePatterns;
     private final Set<String> hostnamePatternStrings;
     private final boolean enabled;
 
-    AbstractMirrorCredential(@Nullable String id, String type, @Nullable Iterable<Pattern> hostnamePatterns,
+    AbstractMirrorCredential(String id, String type, @Nullable Iterable<Pattern> hostnamePatterns,
                              @Nullable Boolean enabled) {
-        this.id = id;
+        this.id = requireNonNull(id, "id");
         // JsonTypeInfo is ignored when serializing collections.
         // As a workaround, manually set the type hint to serialize.
         this.type = requireNonNull(type, "type");
@@ -77,17 +70,8 @@ public abstract class AbstractMirrorCredential implements MirrorCredential {
     }
 
     @Override
-    public int index() {
-        return index;
-    }
-
-    public void setIndex(int index) {
-        this.index = index;
-    }
-
-    @Override
-    public final Optional<String> id() {
-        return Optional.ofNullable(id);
+    public final String id() {
+        return id;
     }
 
     @JsonProperty("type")

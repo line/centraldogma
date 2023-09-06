@@ -32,7 +32,6 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
  */
 public final class MirrorContext {
 
-    @Nullable
     private final String id;
     private final boolean enabled;
     private final Cron schedule;
@@ -47,10 +46,10 @@ public final class MirrorContext {
     /**
      * Creates a new instance.
      */
-    public MirrorContext(@Nullable String id, boolean enabled, Cron schedule, MirrorDirection direction,
+    public MirrorContext(String id, boolean enabled, Cron schedule, MirrorDirection direction,
                          MirrorCredential credential, Repository localRepo, String localPath, URI remoteUri,
                          @Nullable String gitignore) {
-        this.id = id;
+        this.id = requireNonNull(id, "id");
         this.enabled = enabled;
         this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");
@@ -64,7 +63,6 @@ public final class MirrorContext {
     /**
      * Returns the ID of this mirror.
      */
-    @Nullable
     public String id() {
         return id;
     }

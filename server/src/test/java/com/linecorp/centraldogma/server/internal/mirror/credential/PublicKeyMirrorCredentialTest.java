@@ -27,7 +27,7 @@ import com.google.common.base.Splitter;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
-class PublicKeyMirrorCredentialTest {
+public class PublicKeyMirrorCredentialTest {
 
     private static final String USERNAME = "trustin";
 
@@ -35,12 +35,12 @@ class PublicKeyMirrorCredentialTest {
     //
     //   ssh-keygen -t rsa -b 768 -N sesame
     //
-    private static final String PUBLIC_KEY =
+    public static final String PUBLIC_KEY =
             "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQCmkW9HjZE5q0EM06MUWXYFTNTi" +
             "KkfYD/pH2GwJw6yi20Gi0TzjJ6YBLueU48vxkwWmw6sTOEuBxtzefTxs4kQuatev" +
             "uXn7tWX9fhSIAEp+zdyQY7InyCqfHFwRwswemCM= trustin@localhost";
 
-    private static final String PRIVATE_KEY =
+    public static final String PRIVATE_KEY =
             "-----BEGIN RSA PRIVATE KEY-----\n" +
             "Proc-Type: 4,ENCRYPTED\n" +
             "DEK-Info: AES-128-CBC,C35856D3C524AA2FD32D878F4409B97E\n" +
@@ -57,7 +57,7 @@ class PublicKeyMirrorCredentialTest {
             "zmB/ey0dZ8WBCazCp9OX3dYgNkVR1yYNlJWOGJS8Cwc=\n" +
             "-----END RSA PRIVATE KEY-----";
 
-    private static final String PASSPHRASE = "sesame";
+    public static final String PASSPHRASE = "sesame";
     private static final String PASSPHRASE_BASE64 = "base64:c2VzYW1l"; // 'sesame'
 
     @Test

@@ -25,7 +25,7 @@ import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1.increaseCounterIfOldRevisionUsed;
-import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.metaRepoFiles;
+import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMetaFile;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -83,7 +83,6 @@ import com.linecorp.centraldogma.server.internal.api.converter.MergeQueryRequest
 import com.linecorp.centraldogma.server.internal.api.converter.QueryRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
-import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
@@ -432,30 +431,30 @@ public class ContentServiceV1 extends AbstractService {
     public static void checkPush(String repoName, Iterable<Change<?>> changes) {
         if (Project.REPO_META.equals(repoName)) {
             final boolean hasChangesOtherThanMetaRepoFiles =
-                    Streams.stream(changes).anyMatch(change -> !metaRepoFiles.contains(change.path()));
+                    Streams.stream(changes).anyMatch(change -> !isMetaFile(change.path()));
             if (hasChangesOtherThanMetaRepoFiles) {
                 throw new InvalidPushException(
                         "The " + Project.REPO_META + " repository is reserved for internal usage.");
             }
 
+            // TODO(ikhoon): Disallow creating a mirror with the commit API. Mirroring REST API should be used
+            //               to validate the input.
             final Optional<String> notAllowedLocalRepo =
                     Streams.stream(changes)
-                           .filter(change -> DefaultMetaRepository.PATH_MIRRORS.equals(change.path()))
+                           .filter(change -> isMetaFile(change.path()))
                            .filter(change -> change.content() != null)
                            .map(change -> {
                                final Object content = change.content();
                                if (content instanceof JsonNode) {
                                    final JsonNode node = (JsonNode) content;
-                                   if (!node.isArray()) {
+                                   if (!node.isObject()) {
                                        return null;
                                    }
-                                   for (JsonNode jsonNode : node) {
-                                       final JsonNode localRepoNode = jsonNode.get(MIRROR_LOCAL_REPO);
-                                       if (localRepoNode != null) {
-                                           final String localRepo = localRepoNode.textValue();
-                                           if (Project.isReservedRepoName(localRepo)) {
-                                               return localRepo;
-                                           }
+                                   final JsonNode localRepoNode = node.get(MIRROR_LOCAL_REPO);
+                                   if (localRepoNode != null) {
+                                       final String localRepo = localRepoNode.textValue();
+                                       if (Project.isReservedRepoName(localRepo)) {
+                                           return localRepo;
                                        }
                                    }
                                }

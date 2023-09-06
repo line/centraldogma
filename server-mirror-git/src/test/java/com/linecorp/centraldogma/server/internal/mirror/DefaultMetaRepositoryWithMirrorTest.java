@@ -16,8 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.PATH_CREDENTIALS;
-import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.PATH_MIRRORS;
+import static com.linecorp.centraldogma.server.internal.mirror.MirroringMigrationService.PATH_LEGACY_CREDENTIALS;
+import static com.linecorp.centraldogma.server.internal.mirror.MirroringMigrationService.PATH_LEGACY_MIRRORS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -59,7 +59,7 @@ import com.linecorp.centraldogma.testing.internal.TestUtil;
 class DefaultMetaRepositoryWithMirrorTest {
 
     private static final Change<JsonNode> UPSERT_CREDENTIALS = Change.ofJsonUpsert(
-            PATH_CREDENTIALS,
+            PATH_LEGACY_CREDENTIALS,
             "[{" +
             "  \"type\": \"password\"," +
             "  \"id\": \"alice\"," +
@@ -123,17 +123,17 @@ class DefaultMetaRepositoryWithMirrorTest {
     void testInvalidMirrors() {
         // not an array but an object
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
-                        Change.ofJsonUpsert(PATH_MIRRORS, "{}")).join();
+                        Change.ofJsonUpsert(PATH_LEGACY_MIRRORS, "{}")).join();
         assertThatThrownBy(() -> metaRepo.mirrors()).isInstanceOf(RepositoryMetadataException.class);
 
         // not an array but a value
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
-                        Change.ofJsonUpsert(PATH_MIRRORS, "\"oops\"")).join();
+                        Change.ofJsonUpsert(PATH_LEGACY_MIRRORS, "\"oops\"")).join();
         assertThatThrownBy(() -> metaRepo.mirrors()).isInstanceOf(RepositoryMetadataException.class);
 
         // an array that contains null.
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
-                        Change.ofJsonUpsert(PATH_MIRRORS, "[ null ]")).join();
+                        Change.ofJsonUpsert(PATH_LEGACY_MIRRORS, "[ null ]")).join();
         assertThatThrownBy(() -> metaRepo.mirrors()).isInstanceOf(RepositoryMetadataException.class);
     }
 
@@ -141,7 +141,7 @@ class DefaultMetaRepositoryWithMirrorTest {
     void testMirror() {
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
                         Change.ofJsonUpsert(
-                                PATH_MIRRORS,
+                                PATH_LEGACY_MIRRORS,
                                 "[{" +
                                 "  \"enabled\": true," +
                                 "  \"direction\": \"LOCAL_TO_REMOTE\"," +
@@ -228,7 +228,7 @@ class DefaultMetaRepositoryWithMirrorTest {
     void testMirrorWithCredentialId() {
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
                         Change.ofJsonUpsert(
-                                PATH_MIRRORS,
+                                PATH_LEGACY_MIRRORS,
                                 "[{" +
                                 // type isn't used from https://github.com/line/centraldogma/pull/836 but
                                 // left for backward compatibility check.
