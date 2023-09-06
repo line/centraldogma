@@ -1,8 +1,9 @@
 name: Publish Docker image
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - centraldogma-*
 
 env:
   LC_ALL: 'en_US.UTF-8'
@@ -15,10 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: 17

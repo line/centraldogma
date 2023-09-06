@@ -42,10 +42,11 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.mirror.credential.AbstractMirrorCredential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepository {
+public final class DefaultMetaRepository extends RepositoryWrapper implements MetaRepository {
 
     public static final String PATH_CREDENTIALS = "/credentials.json";
 
@@ -153,7 +154,6 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
 
         final ImmutableList.Builder<Mirror> mirrors = ImmutableList.builder();
 
-        int index = 0;
         for (JsonNode m : mirrorsJson) {
             final MirrorConfig c = Jackson.treeToValue(m, MirrorConfig.class);
             if (c == null) {

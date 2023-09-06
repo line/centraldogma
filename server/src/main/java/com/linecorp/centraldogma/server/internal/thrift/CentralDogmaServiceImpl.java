@@ -17,7 +17,9 @@ package com.linecorp.centraldogma.server.internal.thrift;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
+import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static com.linecorp.centraldogma.server.internal.api.ContentServiceV1.checkPush;
+import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1.increaseCounterIfOldRevisionUsed;
 import static com.linecorp.centraldogma.server.internal.thrift.Converter.convert;
 import static com.linecorp.centraldogma.server.storage.project.Project.isReservedRepoName;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
@@ -36,6 +38,7 @@ import org.apache.thrift.async.AsyncMethodCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.internal.thrift.Author;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaConstants;
@@ -218,15 +221,26 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                                   AsyncMethodCallback resultHandler) {
 
         final com.linecorp.centraldogma.common.Revision normalized =
-                projectManager.get(projectName).repos().get(repositoryName)
-                              .normalizeNow(convert(revision));
+                normalizeRevision(projectName, repositoryName, revision);
+
         resultHandler.onComplete(convert(normalized));
+    }
+
+    private com.linecorp.centraldogma.common.Revision normalizeRevision(
+            String projectName, String repositoryName, Revision revision) {
+        final Repository repository = projectManager.get(projectName).repos().get(repositoryName);
+        final com.linecorp.centraldogma.common.Revision normalized =
+                repository.normalizeNow(convert(revision));
+        final com.linecorp.centraldogma.common.Revision head = repository.normalizeNow(HEAD);
+        increaseCounterIfOldRevisionUsed(RequestContext.current(), repository, normalized, head);
+        return normalized;
     }
 
     @Override
     public void listFiles(String projectName, String repositoryName, Revision revision, String pathPattern,
                           AsyncMethodCallback resultHandler) {
-
+        // Call normalizeRevision() first to check if the specified revision needs to be recorded.
+        normalizeRevision(projectName, repositoryName, revision);
         handle(projectManager.get(projectName).repos().get(repositoryName)
                              .find(convert(revision), pathPattern, FIND_ALL_WITHOUT_CONTENT)
                              .thenApply(entries -> {
@@ -241,7 +255,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void getFiles(String projectName, String repositoryName, Revision revision, String pathPattern,
                          AsyncMethodCallback resultHandler) {
-
+        // Call normalizeRevision() first to check if the specified revision needs to be recorded.
+        normalizeRevision(projectName, repositoryName, revision);
         handle(projectManager.get(projectName).repos().get(repositoryName)
                              .find(convert(revision), pathPattern)
                              .thenApply(entries -> {
@@ -257,7 +272,9 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void getHistory(String projectName, String repositoryName, Revision from, Revision to,
                            String pathPattern, AsyncMethodCallback resultHandler) {
-
+        // Call normalizeRevision() first to check if the specified revision needs to be recorded.
+        normalizeRevision(projectName, repositoryName, from);
+        normalizeRevision(projectName, repositoryName, to);
         handle(projectManager.get(projectName).repos().get(repositoryName)
                              .history(convert(from), convert(to), pathPattern)
                              .thenApply(commits -> commits.stream()
@@ -269,7 +286,9 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void getDiffs(String projectName, String repositoryName, Revision from, Revision to,
                          String pathPattern, AsyncMethodCallback resultHandler) {
-
+        // Call normalizeRevision() first to check if the specified revision needs to be recorded.
+        normalizeRevision(projectName, repositoryName, from);
+        normalizeRevision(projectName, repositoryName, to);
         handle(projectManager.get(projectName).repos().get(repositoryName)
                              .diff(convert(from), convert(to), pathPattern)
                              .thenApply(diffs -> convert(diffs.values(), Converter::convert)),
@@ -279,7 +298,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void getPreviewDiffs(String projectName, String repositoryName, Revision baseRevision,
                                 List<Change> changes, AsyncMethodCallback resultHandler) {
-
+        // Call normalizeRevision() first to check if the specified revision needs to be recorded.
+        normalizeRevision(projectName, repositoryName, baseRevision);
         handle(projectManager.get(projectName).repos().get(repositoryName)
                              .previewDiff(convert(baseRevision), convert(changes, Converter::convert))
                              .thenApply(diffs -> convert(diffs.values(), Converter::convert)),
@@ -313,7 +333,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void getFile(String projectName, String repositoryName, Revision revision, Query query,
                         AsyncMethodCallback resultHandler) {
-
+        // Call normalizeRevision() first to check if the specified revision needs to be recorded.
+        normalizeRevision(projectName, repositoryName, revision);
         handle(projectManager.get(projectName).repos().get(repositoryName)
                              .get(convert(revision), convert(query))
                              .thenApply(res -> new GetFileResult(convert(res.type()), res.contentAsText())),
@@ -323,7 +344,9 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void diffFile(String projectName, String repositoryName, Revision from, Revision to, Query query,
                          AsyncMethodCallback resultHandler) {
-
+        // Call normalizeRevision() first to check if the specified revision needs to be recorded.
+        normalizeRevision(projectName, repositoryName, from);
+        normalizeRevision(projectName, repositoryName, to);
         // FIXME(trustin): Remove the firstNonNull() on the change content once we make it optional.
         handle(projectManager.get(projectName).repos().get(repositoryName)
                              .diff(convert(from), convert(to), convert(query))
@@ -335,6 +358,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void mergeFiles(String projectName, String repositoryName, Revision revision,
                            MergeQuery mergeQuery, AsyncMethodCallback resultHandler) {
+        // Call normalizeRevision() first to check if the specified revision needs to be recorded.
+        normalizeRevision(projectName, repositoryName, revision);
         handle(projectManager.get(projectName).repos().get(repositoryName)
                              .mergeFiles(convert(revision), convert(mergeQuery))
                              .thenApply(merged -> new MergedEntry(convert(merged.revision()),
@@ -348,7 +373,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     public void watchRepository(
             String projectName, String repositoryName, Revision lastKnownRevision,
             String pathPattern, long timeoutMillis, AsyncMethodCallback resultHandler) {
-
+        // Call normalizeRevision() first to check if the specified revision needs to be recorded.
+        normalizeRevision(projectName, repositoryName, lastKnownRevision);
         if (timeoutMillis <= 0) {
             rejectInvalidWatchTimeout("watchRepository", resultHandler);
             return;
@@ -384,7 +410,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     public void watchFile(
             String projectName, String repositoryName, Revision lastKnownRevision,
             Query query, long timeoutMillis, AsyncMethodCallback resultHandler) {
-
+        // Call normalizeRevision() first to check if the specified revision needs to be recorded.
+        normalizeRevision(projectName, repositoryName, lastKnownRevision);
         if (timeoutMillis <= 0) {
             rejectInvalidWatchTimeout("watchFile", resultHandler);
             return;

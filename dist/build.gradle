@@ -1,6 +1,3 @@
-import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
-import com.google.common.base.CaseFormat
-
 buildscript {
     repositories {
         mavenCentral()
@@ -12,14 +9,24 @@ buildscript {
 }
 
 plugins {
-    alias libs.plugins.docker
+    alias libs.plugins.docker apply false
     alias libs.plugins.download
 }
+
+if (JavaVersion.current() < JavaVersion.VERSION_11 || project.ext.testJavaVersion < 11) {
+    // Gradle Docker plugin requires Java >= 11
+    return
+}
+
+apply plugin: 'com.bmuschko.docker-remote-api'
+
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+import com.google.common.base.CaseFormat
 
 evaluationDependsOn(':server')
 evaluationDependsOn(':server-auth:saml')
 evaluationDependsOn(':server-auth:shiro')
-evaluationDependsOn(':server-jgit6')
+evaluationDependsOn(':server-mirror-git')
 
 ext {
     distDir = "${project.buildDir}/dist"
@@ -61,21 +68,32 @@ task copyLib(group: 'Build',
     }
     from project(':server').tasks.jar
     from project.configurations.runtimeClasspath
-    from project(':server-auth:saml').configurations.runtimeClasspath  {
+    from project(':server-auth:saml').configurations.runtimeClasspath {
         exclude group: 'org.eclipse.jgit'
     }
     from project(':server-auth:saml').tasks.jar
-    from project(':server-auth:shiro').configurations.runtimeClasspath  {
+    from project(':server-auth:shiro').configurations.runtimeClasspath {
         exclude group: 'org.eclipse.jgit'
     }
     from project(':server-auth:shiro').tasks.jar
-    from project(':server-jgit6').configurations.runtimeClasspath
-    from project(':server-jgit6').tasks.jar
-    into "${project.ext.distDir}/lib"
+    from project(':server-mirror-git').configurations.runtimeClasspath
+    from project(':server-mirror-git').tasks.jar
+
+    File libDir = new File("${project.ext.distDir}/lib")
+    into libDir
 
     doLast {
         // Create an empty directory for keeping external JARs such as authentication module.
-        project.mkdir("${project.ext.distDir}/lib/ext")
+        project.mkdir("${libDir}/ext")
+
+        // Check if only JGit 6.x JARs are included.
+        FileCollection jgits = layout.files { libDir.listFiles() }.filter { File file ->
+            file.name.contains("jgit")
+        }
+        // org.eclipse.jgit-6.x is required.
+        if (jgits.size() != 1 || !jgits.first().name.startsWith("org.eclipse.jgit-6")) {
+            throw new IllegalStateException("Unexpected JGit JARs: $jgits.files")
+        }
     }
 }
 
@@ -142,13 +160,18 @@ task tarball(group: 'Build',
              dependsOn: tasks.distDir,
              type: Tar) {
 
-    baseName = rootProject.name
-    destinationDir = project.file("${project.buildDir}")
+    archiveBaseName = rootProject.name
+    destinationDirectory = project.file("${project.buildDir}")
     compression = Compression.GZIP
     includeEmptyDirs = true
 
+    def copyAlpnAgentTask = tasks.findByName("copyAlpnAgent")
+    if (copyAlpnAgentTask) {
+        dependsOn(copyAlpnAgentTask)
+    }
+
     from "${project.ext.distDir}"
-    into baseName + '-' + project.version
+    into archiveBaseName.get() + '-' + project.version
 }
 
 tasks.assemble.dependsOn(tasks.tarball)

@@ -24,6 +24,7 @@ import java.net.URI;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
+import java.util.Optional;
 
 import javax.annotation.Nullable;
 
@@ -43,6 +44,8 @@ import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public abstract class AbstractMirror implements Mirror {
+
+    private static final CronDescriptor CRON_DESCRIPTOR = CronDescriptor.instance();
 
     protected static final Author MIRROR_AUTHOR = new Author("Mirror", "mirror@localhost.localdomain");
 
@@ -107,9 +110,14 @@ public abstract class AbstractMirror implements Mirror {
     @VisibleForTesting
     ZonedDateTime nextExecutionTime(ZonedDateTime lastExecutionTime, long jitterMillis) {
         requireNonNull(lastExecutionTime, "lastExecutionTime");
-        final ZonedDateTime next =
-                executionTime.nextExecution(lastExecutionTime.minus(jitterMillis, ChronoUnit.MILLIS));
-        return next.plus(jitterMillis, ChronoUnit.MILLIS);
+        final Optional<ZonedDateTime> next = executionTime.nextExecution(
+                lastExecutionTime.minus(jitterMillis, ChronoUnit.MILLIS));
+        if (next.isPresent()) {
+            return next.get().plus(jitterMillis, ChronoUnit.MILLIS);
+        }
+        throw new IllegalArgumentException(
+                "no next execution time for " + CRON_DESCRIPTOR.describe(schedule) + ", lastExecutionTime: " +
+                lastExecutionTime);
     }
 
     @Override

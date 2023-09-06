@@ -52,14 +52,14 @@ public interface Project {
      * Returns the creation time of this project, in milliseconds.
      */
     default long creationTimeMillis() {
-        return metaRepo().creationTimeMillis();
+        return repos().get(REPO_DOGMA).creationTimeMillis();
     }
 
     /**
      * Returns the author who initially created this project.
      */
     default Author author() {
-        return metaRepo().author();
+        return repos().get(REPO_DOGMA).author();
     }
 
     /**

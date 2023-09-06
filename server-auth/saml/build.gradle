@@ -1,6 +1,8 @@
 dependencies {
     implementation project(':server')
-    implementation libs.armeria.saml
+    implementation(libs.armeria.saml) {
+        exclude group: 'org.bouncycastle', module: 'bcprov-jdk15on'
+    }
 
-    testImplementation project(':testing-internal')
+    implementation libs.bouncycastle.bcprov
 }

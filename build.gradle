@@ -104,7 +104,7 @@ configure(projectsWithFlags('java')) {
         forceGC = true
         includeTests = false
         duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-        jmhVersion = libs.versions.jmh.get()
+        jmhVersion = libs.versions.jmh.core.get()
 
         if (rootProject.hasProperty('jmh.fork')) {
             fork = Integer.parseInt(String.valueOf(rootProject.findProperty('jmh.fork')))

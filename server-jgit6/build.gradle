@@ -1,5 +1,0 @@
-dependencies {
-    implementation project(':server')
-    implementation libs.jgit6
-    implementation libs.jgit.ssh.jsch6
-}

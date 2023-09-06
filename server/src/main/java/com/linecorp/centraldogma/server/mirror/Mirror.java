@@ -28,7 +28,6 @@ import static java.util.Objects.requireNonNull;
 import java.io.File;
 import java.net.URI;
 import java.time.ZonedDateTime;
-import java.util.regex.Matcher;
 
 import javax.annotation.Nullable;
 
@@ -36,8 +35,6 @@ import com.cronutils.model.Cron;
 
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.mirror.CentralDogmaMirror;
-import com.linecorp.centraldogma.server.internal.mirror.GitMirror;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -58,6 +55,7 @@ public interface Mirror {
      * @param gitignore the file pattern for the files in {@code remoteUri} which will not be mirrored.
      *                  It follows the same format to <a href="https://git-scm.com/docs/gitignore">gitignore</a>
      */
+    // TODO(ikhoon): Remove this constructor?
     static Mirror of(@Nullable String id, Cron schedule, MirrorDirection direction,
                      MirrorCredential credential, Repository localRepo, String localPath, URI remoteUri,
                      @Nullable String gitignore, boolean enabled) {

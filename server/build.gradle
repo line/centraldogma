@@ -1,3 +1,6 @@
+import static org.gradle.internal.os.OperatingSystem.WINDOWS
+import static org.gradle.internal.os.OperatingSystem.current
+
 plugins {
     alias libs.plugins.node.gradle
 }
@@ -23,9 +26,6 @@ dependencies {
     api libs.armeria.thrift09
     testImplementation libs.armeria.junit5
 
-    // JSch
-    implementation libs.jsch
-
     // Caffeine
     implementation libs.caffeine
 
@@ -40,9 +40,14 @@ dependencies {
     // jCommander
     optionalImplementation libs.jcommander
 
-    // jGit
-    implementation libs.jgit
-    implementation libs.jgit.ssh.jsch
+    // Because the default targetJavaVersion is 8, jgit5 is chosen and published with the server artifact.
+    // It's inevitable because users who use JDK8 cannot use jgit6 when implementing IT tests.
+    // We will switch to jgit6 completely when we drop JDK8 support.
+    if (project.ext.targetJavaVersion >= 11) {
+        implementation libs.jgit6
+    } else {
+        implementation libs.jgit
+    }
 
     // Micrometer
     implementation libs.micrometer.core
@@ -51,19 +56,18 @@ dependencies {
     // Quartz
     implementation libs.quartz
 
+    // Snappy
+    implementation libs.snappy
+
     // Mockito for mocking a Project
     jmh libs.mockito.core
     // Logging
     optionalImplementation libs.logback
     optionalImplementation libs.slf4j.jul.to.slf4j
-
-    if (rootProject.ext.testJavaVersion >= 11) {
-        testImplementation project(path: ':server-jgit6')
-    }
 }
 
 // allows illegal access by ExecutorServiceMetrics of Micrometer
-if (rootProject.ext.testJavaVersion >= 16) {
+if (project.ext.testJavaVersion >= 16) {
     tasks.withType(Test) {
         jvmArgs '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED'
     }
@@ -125,6 +129,11 @@ task copyWebApp(type: Copy) {
 
     doFirst {
         delete(dst)
+    }
+
+    // gradle holds a lock even after the buildWebapp task is completed
+    if (current() == WINDOWS) {
+        exclude("**/tmp/.cache/expanded/expanded.lock")
     }
 }
 tasks.sourcesJar.dependsOn(tasks.copyWebApp)

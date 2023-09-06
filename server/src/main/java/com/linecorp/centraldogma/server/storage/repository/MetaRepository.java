@@ -26,6 +26,7 @@ import com.linecorp.centraldogma.server.mirror.MirrorCredential;
  * A Revision-controlled filesystem-like repository which is named {@code "meta"}.
  */
 public interface MetaRepository extends Repository {
+
     /**
      * Returns active mirroring tasks.
      */

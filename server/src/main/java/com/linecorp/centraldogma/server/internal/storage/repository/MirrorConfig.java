@@ -21,9 +21,14 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Optional;
+import java.util.ServiceLoader;
 
 import javax.annotation.Nullable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cronutils.model.Cron;
 import com.cronutils.model.CronType;
@@ -34,11 +39,15 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorContext;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.mirror.MirrorProvider;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
 // ignoreUnknown = true for backward compatibility since `type` field is removed.
@@ -46,32 +55,20 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 @JsonInclude(Include.NON_NULL)
 public final class MirrorConfig {
 
+    private static final Logger logger = LoggerFactory.getLogger(MirrorConfig.class);
+
     private static final String DEFAULT_SCHEDULE = "0 * * * * ?"; // Every minute
 
-    public static final CronParser cronParser = new CronParser(
+    private static final CronParser CRON_PARSER = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
 
-    private static MirrorCredential findCredential(Iterable<MirrorCredential> credentials, URI remoteUri,
-                                                   @Nullable String credentialId) {
-        if (credentialId != null) {
-            // Find by credential ID.
-            for (MirrorCredential c : credentials) {
-                final Optional<String> id = c.id();
-                if (id.isPresent() && credentialId.equals(id.get())) {
-                    return c;
-                }
-            }
-        } else {
-            // Find by host name.
-            for (MirrorCredential c : credentials) {
-                if (c.matches(remoteUri)) {
-                    return c;
-                }
-            }
-        }
+    private static final List<MirrorProvider> MIRROR_PROVIDERS;
 
-        return MirrorCredential.FALLBACK;
+    static {
+        MIRROR_PROVIDERS = ImmutableList.copyOf(ServiceLoader.load(MirrorProvider.class));
+        logger.debug("Available {}s: {}", MirrorProvider.class.getSimpleName(), MIRROR_PROVIDERS);
     }
+
 
     @Nullable
     private final String id;
@@ -97,10 +94,9 @@ public final class MirrorConfig {
                         @JsonProperty(value = "remoteUri", required = true) URI remoteUri,
                         @JsonProperty("gitignore") @Nullable Object gitignore,
                         @JsonProperty("credentialId") @Nullable String credentialId) {
-
         this.id = id;
         this.enabled = firstNonNull(enabled, true);
-        this.schedule = cronParser.parse(firstNonNull(schedule, DEFAULT_SCHEDULE));
+        this.schedule = CRON_PARSER.parse(firstNonNull(schedule, DEFAULT_SCHEDULE));
         this.direction = requireNonNull(direction, "direction");
         this.localRepo = requireNonNull(localRepo, "localRepo");
         this.localPath = firstNonNull(localPath, "/");
@@ -127,8 +123,40 @@ public final class MirrorConfig {
             return null;
         }
 
-        return Mirror.of(id, schedule, direction, findCredential(credentials, remoteUri, credentialId),
-                         parent.repos().get(localRepo), localPath, remoteUri, gitignore, enabled);
+        // TODO(ikhoon): Set id to MirrorContext
+        final MirrorContext mirrorContext = new MirrorContext(
+                schedule, direction, findCredential(credentials, remoteUri, credentialId),
+                parent.repos().get(localRepo), localPath, remoteUri, gitignore);
+        for (MirrorProvider mirrorProvider : MIRROR_PROVIDERS) {
+            final Mirror mirror = mirrorProvider.newMirror(mirrorContext);
+            if (mirror != null) {
+                return mirror;
+            }
+        }
+
+        throw new IllegalArgumentException("could not find a mirror provider for " + mirrorContext);
+    }
+
+    private static MirrorCredential findCredential(Iterable<MirrorCredential> credentials, URI remoteUri,
+                                                   @Nullable String credentialId) {
+        if (credentialId != null) {
+            // Find by credential ID.
+            for (MirrorCredential c : credentials) {
+                final Optional<String> id = c.id();
+                if (id.isPresent() && credentialId.equals(id.get())) {
+                    return c;
+                }
+            }
+        } else {
+            // Find by host name.
+            for (MirrorCredential c : credentials) {
+                if (c.matches(remoteUri)) {
+                    return c;
+                }
+            }
+        }
+
+        return MirrorCredential.FALLBACK;
     }
 
     @JsonProperty("id")
@@ -178,5 +206,19 @@ public final class MirrorConfig {
     @JsonProperty("schedule")
     public String schedule() {
         return schedule.asString();
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this).omitNullValues()
+                          .add("enabled", enabled)
+                          .add("direction", direction)
+                          .add("localRepo", localRepo)
+                          .add("localPath", localPath)
+                          .add("remoteUri", remoteUri)
+                          .add("gitignore", gitignore)
+                          .add("credentialId", credentialId)
+                          .add("schedule", schedule)
+                          .toString();
     }
 }

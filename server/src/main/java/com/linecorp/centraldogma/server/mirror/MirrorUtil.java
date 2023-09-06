@@ -69,6 +69,7 @@ public final class MirrorUtil {
      * - remotePath:    / (default)
      * - remoteBranch:  {@code defaultBranch}
      */
+    // TODO(ikhoon) Check usage of this API
     public static String[] splitRemoteUri(URI remoteUri, String suffix, @Nullable String defaultBranch) {
         final String host = remoteUri.getHost();
         if (host == null && !remoteUri.getScheme().endsWith("+file")) {
