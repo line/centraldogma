@@ -206,6 +206,7 @@ class MirroringAndCredentialServiceV1Test {
 
     private void updateMirror() {
         final MirrorDto mirror = new MirrorDto("mirror-2",
+                                               true,
                                                FOO_PROJ,
                                                "5 * * * * ?",
                                                "REMOTE_TO_LOCAL",
@@ -216,8 +217,7 @@ class MirroringAndCredentialServiceV1Test {
                                                "/updated/remote-path/",
                                                "updated-mirror-branch",
                                                ".updated-env",
-                                               "access-token-credential",
-                                               true);
+                                               "access-token-credential");
         // TODO(ikhoon): Migrate index to id.
         final ResponseEntity<Revision> updateResponse =
                 client.prepare()
@@ -246,6 +246,7 @@ class MirroringAndCredentialServiceV1Test {
 
     private static MirrorDto newMirror(String id) {
         return new MirrorDto(id,
+                             true,
                              FOO_PROJ,
                              "5 * * * * ?",
                              "REMOTE_TO_LOCAL",
@@ -256,7 +257,6 @@ class MirroringAndCredentialServiceV1Test {
                              "/remote-path/" + id + '/',
                              "mirror-branch",
                              ".my-env0\n.my-env1",
-                             "public-key-credential",
-                             true);
+                             "public-key-credential");
     }
 }

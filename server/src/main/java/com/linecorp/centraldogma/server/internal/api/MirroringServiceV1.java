@@ -135,7 +135,7 @@ public class MirroringServiceV1 extends AbstractService {
     private static MirrorDto convertToMirrorDto(String projectName, Mirror mirror) {
         final URI remoteRepoUri = mirror.remoteRepoUri();
         return new MirrorDto(mirror.id(),
-                             projectName,
+                             mirror.enabled(), projectName,
                              mirror.schedule().asString(),
                              mirror.direction().name(),
                              mirror.localRepo().name(),
@@ -145,7 +145,7 @@ public class MirroringServiceV1 extends AbstractService {
                              mirror.remotePath(),
                              firstNonNull(mirror.remoteBranch(), "master"),
                              mirror.gitignore(),
-                             mirror.credential().id().orElse(null),
-                             mirror.enabled());
+                             mirror.credential().id().orElse(null)
+        );
     }
 }

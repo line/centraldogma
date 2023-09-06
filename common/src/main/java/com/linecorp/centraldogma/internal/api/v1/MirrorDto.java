@@ -35,6 +35,7 @@ public final class MirrorDto {
 
     @Nullable
     private final String id;
+    private final boolean enabled;
     private final String projectName;
     private final String schedule;
     private final String direction;
@@ -48,10 +49,10 @@ public final class MirrorDto {
     private final String gitignore;
     @Nullable
     private final String credentialId;
-    private final boolean enabled;
 
     @JsonCreator
     public MirrorDto(@JsonProperty("id") @Nullable String id,
+                     @JsonProperty("enabled") @Nullable Boolean enabled,
                      @JsonProperty("projectName") String projectName,
                      @JsonProperty("schedule") String schedule,
                      @JsonProperty("direction") String direction,
@@ -62,9 +63,9 @@ public final class MirrorDto {
                      @JsonProperty("remotePath") String remotePath,
                      @JsonProperty("remoteBranch") String remoteBranch,
                      @JsonProperty("gitignore") @Nullable String gitignore,
-                     @JsonProperty("credentialId") @Nullable String credentialId,
-                     @JsonProperty("enabled") @Nullable Boolean enabled) {
+                     @JsonProperty("credentialId") @Nullable String credentialId) {
         this.id = id;
+        this.enabled = firstNonNull(enabled, true);
         this.projectName = requireNonNull(projectName, "projectName");
         this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");
@@ -76,13 +77,17 @@ public final class MirrorDto {
         this.remoteBranch = requireNonNull(remoteBranch, "remoteBranch");
         this.gitignore = gitignore;
         this.credentialId = credentialId;
-        this.enabled = firstNonNull(enabled, true);
     }
 
     @JsonProperty("id")
     @Nullable
     public String id() {
         return id;
+    }
+
+    @JsonProperty("enabled")
+    public boolean enabled() {
+        return enabled;
     }
 
     @JsonProperty("projectName")
@@ -141,11 +146,6 @@ public final class MirrorDto {
         return credentialId;
     }
 
-    @JsonProperty("enabled")
-    public boolean enabled() {
-        return enabled;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -155,8 +155,8 @@ public final class MirrorDto {
             return false;
         }
         final MirrorDto mirrorDto = (MirrorDto) o;
-        return enabled == mirrorDto.enabled &&
-               Objects.equals(id, mirrorDto.id) &&
+        return Objects.equals(id, mirrorDto.id) &&
+               enabled == mirrorDto.enabled &&
                projectName.equals(mirrorDto.projectName) &&
                schedule.equals(mirrorDto.schedule) &&
                direction.equals(mirrorDto.direction) &&
@@ -181,6 +181,7 @@ public final class MirrorDto {
         return MoreObjects.toStringHelper(this)
                           .omitNullValues()
                           .add("id", id)
+                          .add("enabled", enabled)
                           .add("projectName", projectName)
                           .add("schedule", schedule)
                           .add("direction", direction)
@@ -191,7 +192,6 @@ public final class MirrorDto {
                           .add("remotePath", remotePath)
                           .add("gitignore", gitignore)
                           .add("credentialId", credentialId)
-                          .add("enabled", enabled)
                           .toString();
     }
 }
