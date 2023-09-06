@@ -237,7 +237,6 @@ public final class DefaultMirroringService implements MirroringService {
     }
 
     private void run(Mirror m, String projectName, boolean logOnFailure) {
-        logger.info("Mirroring: {}", m);
         try {
             new MirroringTask(m, projectName, meterRegistry)
                     .run(workDir, commandExecutor, maxNumFilesPerMirror, maxNumBytesPerMirror);

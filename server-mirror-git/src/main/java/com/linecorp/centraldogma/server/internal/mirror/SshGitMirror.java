@@ -1,0 +1,223 @@
+/*
+ * Copyright 2017 LINE Corporation
+ *
+ * LINE Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+
+package com.linecorp.centraldogma.server.internal.mirror;
+
+import static com.linecorp.centraldogma.server.internal.mirror.GitWithAuth.bounceCastleRandom;
+import static com.linecorp.centraldogma.server.internal.mirror.GitWithAuth.keyPairResourceParser;
+import static com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential.publicKeyPreview;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.security.GeneralSecurityException;
+import java.security.KeyPair;
+import java.util.Collection;
+import java.util.function.Consumer;
+
+import javax.annotation.Nullable;
+
+import org.apache.sshd.client.ClientBuilder;
+import org.apache.sshd.client.SshClient;
+import org.apache.sshd.client.config.hosts.HostConfigEntryResolver;
+import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.common.NamedResource;
+import org.apache.sshd.common.config.keys.FilePasswordProvider;
+import org.apache.sshd.common.file.nonefs.NoneFileSystemFactory;
+import org.apache.sshd.common.keyprovider.KeyIdentityProvider;
+import org.apache.sshd.git.GitModuleProperties;
+import org.apache.sshd.git.transport.GitSshdSessionFactory;
+import org.eclipse.jgit.api.TransportCommand;
+import org.eclipse.jgit.transport.SshTransport;
+import org.eclipse.jgit.transport.URIish;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.cronutils.model.Cron;
+
+import com.linecorp.centraldogma.server.MirrorException;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.mirror.GitWithAuth.NoopCredentialsProvider;
+import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
+import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
+
+final class SshGitMirror extends AbstractGitMirror {
+
+    private static final Logger logger = LoggerFactory.getLogger(SshGitMirror.class);
+
+    // We are going to hide this file from CD UI after we implement UI for mirroring.
+    private static final String MIRROR_STATE_FILE_NAME = "mirror_state.json";
+
+    SshGitMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
+                 Repository localRepo, String localPath,
+                 URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
+                 @Nullable String gitignore) {
+        super(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, remoteBranch,
+              gitignore);
+    }
+
+    @Override
+    protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) throws Exception {
+        SshClient sshClient = null;
+        ClientSession session = null;
+        try (GitWithAuth git = openGit(workDir)) {
+            sshClient = createSshClient();
+            session = createSession(sshClient, git);
+            final GitSshdSessionFactory sessionFactory = new DefaultGitSshdSessionFactory(sshClient, session);
+            mirrorLocalToRemote(git, maxNumFiles, maxNumBytes, transportCommandConfigurator(sessionFactory));
+        } finally {
+            try {
+                if (session != null) {
+                    session.close();
+                }
+            } finally {
+                if (sshClient != null) {
+                    sshClient.close();
+                }
+            }
+        }
+    }
+
+    @Override
+    protected void mirrorRemoteToLocal(File workDir, CommandExecutor executor,
+                                       int maxNumFiles, long maxNumBytes) throws Exception {
+        SshClient sshClient = null;
+        ClientSession session = null;
+        try (GitWithAuth git = openGit(workDir)) {
+            sshClient = createSshClient();
+            session = createSession(sshClient, git);
+            final GitSshdSessionFactory sessionFactory = new DefaultGitSshdSessionFactory(sshClient, session);
+            mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes,
+                                transportCommandConfigurator(sessionFactory));
+        } finally {
+            try {
+                if (session != null) {
+                    session.close();
+                }
+            } finally {
+                if (sshClient != null) {
+                    sshClient.close();
+                }
+            }
+        }
+    }
+
+    private GitWithAuth openGit(File workDir) throws Exception {
+        // Requires the username to be included in the URI.
+        final String username;
+        if (credential() instanceof PasswordMirrorCredential) {
+            username = ((PasswordMirrorCredential) credential()).username();
+        } else if (credential() instanceof PublicKeyMirrorCredential) {
+            username = ((PublicKeyMirrorCredential) credential()).username();
+        } else {
+            username = null;
+        }
+
+        assert !remoteRepoUri().getRawAuthority().contains("@") : remoteRepoUri().getRawAuthority();
+        final String jGitUri;
+        if (username != null) {
+            jGitUri = "ssh://" + username + '@' + remoteRepoUri().getRawAuthority() +
+                      remoteRepoUri().getRawPath();
+        } else {
+            jGitUri = "ssh://" + remoteRepoUri().getRawAuthority() + remoteRepoUri().getRawPath();
+        }
+        return openGit(workDir, jGitUri, new URIish(jGitUri));
+    }
+
+    private SshClient createSshClient() {
+        final ClientBuilder builder = ClientBuilder.builder();
+        // Do not use local file system.
+        builder.hostConfigEntryResolver(HostConfigEntryResolver.EMPTY);
+        builder.fileSystemFactory(NoneFileSystemFactory.INSTANCE);
+        // Do not verify the server key.
+        builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> true);
+        builder.randomFactory(() -> bounceCastleRandom);
+        final SshClient client = builder.build();
+        configureCredential(client);
+        client.start();
+        return client;
+    }
+
+    private static ClientSession createSession(SshClient sshClient, GitWithAuth git) {
+        try {
+            final URIish uri = git.remoteUri();
+            int port = uri.getPort();
+            if (port <= 0) {
+                port = 22; // Use the SSH default port it unspecified.
+            }
+            logger.trace("Connecting to {}:{}", uri.getHost(), port);
+            final ClientSession session = sshClient.connect(uri.getUser(), uri.getHost(), port)
+                                                   .verify(GitModuleProperties.CONNECT_TIMEOUT.getRequired(
+                                                           sshClient))
+                                                   .getSession();
+            session.auth().verify(GitModuleProperties.AUTH_TIMEOUT.getRequired(session));
+            logger.trace("The session established: {}", session);
+            return session;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void configureCredential(SshClient client) {
+        final MirrorCredential c = credential();
+        if (c instanceof PasswordMirrorCredential) {
+            client.setFilePasswordProvider(passwordProvider(((PasswordMirrorCredential) c).password()));
+        } else if (c instanceof PublicKeyMirrorCredential) {
+            final PublicKeyMirrorCredential cred = (PublicKeyMirrorCredential) credential();
+            final Collection<KeyPair> keyPairs;
+            try {
+                keyPairs = keyPairResourceParser.loadKeyPairs(null, NamedResource.ofName(cred.username()),
+                                                              passwordProvider(cred.passphrase()),
+                                                              cred.privateKey());
+                client.setKeyIdentityProvider(KeyIdentityProvider.wrapKeyPairs(keyPairs));
+            } catch (IOException | GeneralSecurityException e) {
+                throw new MirrorException("Unexpected exception while loading private key. username: " +
+                                          cred.username() + ", publicKey: " +
+                                          publicKeyPreview(cred.publicKey()), e);
+            }
+        }
+    }
+
+    private static FilePasswordProvider passwordProvider(@Nullable String passphrase) {
+        if (passphrase == null) {
+            return FilePasswordProvider.EMPTY;
+        }
+
+        return FilePasswordProvider.of(passphrase);
+    }
+
+    private static Consumer<TransportCommand<?, ?>> transportCommandConfigurator(
+            GitSshdSessionFactory sessionFactory) {
+        return command -> {
+            // Need to set the credentials provider, otherwise NPE is raised when creating GitSshdSession.
+            command.setCredentialsProvider(NoopCredentialsProvider.INSTANCE);
+            command.setTransportConfigCallback(transport -> {
+                final SshTransport sshTransport = (SshTransport) transport;
+                sshTransport.setSshSessionFactory(sessionFactory);
+            });
+        };
+    }
+
+    private static final class DefaultGitSshdSessionFactory extends GitSshdSessionFactory {
+        DefaultGitSshdSessionFactory(SshClient client, ClientSession session) {
+            // The constructor is protected, so we should inherit the class.
+            super(client, session);
+        }
+    }
+}

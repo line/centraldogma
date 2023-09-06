@@ -200,7 +200,7 @@ class GitMirrorAuthTest {
 
         builder.add(Arguments.of(
                 privateKeyFile, // Use privateKeyFile as the project name.
-                "git+ssh://github.com/line/centraldogma-authtest.git",
+                "git+ssh://github.com:22/line/centraldogma-authtest.git",
                 Jackson.readTree(
                         '{' +
                         "  \"type\": \"public_key\"," +

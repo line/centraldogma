@@ -83,7 +83,7 @@ final class GitWithAuth extends Git {
 
     private static final Logger logger = LoggerFactory.getLogger(GitWithAuth.class);
 
-    private static final KeyPairResourceParser keyPairResourceParser = KeyPairResourceParser.aggregate(
+    static final KeyPairResourceParser keyPairResourceParser = KeyPairResourceParser.aggregate(
             // Use BouncyCastle resource parser to support non-standard formats as well.
             SecurityUtils.getBouncycastleKeyPairResourceParser(),
             PKCS8PEMResourceKeyPairParser.INSTANCE,
@@ -93,7 +93,7 @@ final class GitWithAuth extends Git {
     // Otherwise, BouncyCastleRandom is created whenever the SSH client is created that leads to
     // blocking the thread to get enough entropy for SecureRandom.
     // We might create multiple BouncyCastleRandom later and poll them, if necessary.
-    private static final BouncyCastleRandom bounceCastleRandom = new BouncyCastleRandom();
+    static final BouncyCastleRandom bounceCastleRandom = new BouncyCastleRandom();
 
     /**
      * One of the Locks in this array is locked while a Git repository is accessed so that other GitMirrors
@@ -117,14 +117,20 @@ final class GitWithAuth extends Git {
         return locks[Math.abs((h ^ h >>> 16) % locks.length)];
     }
 
-    private final GitMirror mirror;
+    private final AbstractGitMirror mirror;
     private final Lock lock;
+    private final URIish remoteUri;
     private final Map<String, ProgressMonitor> progressMonitors = new HashMap<>();
 
-    GitWithAuth(GitMirror mirror, File repoDir) throws IOException {
+    GitWithAuth(AbstractGitMirror mirror, File repoDir, URIish remoteUri) throws IOException {
         super(repo(repoDir));
         this.mirror = mirror;
         lock = getLock(repoDir);
+        this.remoteUri = remoteUri;
+    }
+
+    URIish remoteUri() {
+        return remoteUri;
     }
 
     private static Repository repo(File repoDir) throws IOException {
@@ -197,11 +203,7 @@ final class GitWithAuth extends Git {
                 }
                 break;
             case SCHEME_GIT_SSH:
-                if (c instanceof PasswordMirrorCredential) {
-                    configureSsh(command, (PasswordMirrorCredential) c);
-                } else if (c instanceof PublicKeyMirrorCredential) {
-                    configureSsh(command, (PublicKeyMirrorCredential) c);
-                }
+                command.setCredentialsProvider(NoopCredentialsProvider.INSTANCE);
                 break;
         }
 
@@ -244,7 +246,7 @@ final class GitWithAuth extends Git {
         });
     }
 
-    private static FilePasswordProvider passwordProvider(@Nullable String passphrase) {
+    static FilePasswordProvider passwordProvider(@Nullable String passphrase) {
         if (passphrase == null) {
             return FilePasswordProvider.EMPTY;
         }
@@ -318,7 +320,7 @@ final class GitWithAuth extends Git {
         void onClientCreated(SshClient client) {}
     }
 
-    private static final class NoopCredentialsProvider extends CredentialsProvider {
+    static final class NoopCredentialsProvider extends CredentialsProvider {
 
         static final CredentialsProvider INSTANCE = new NoopCredentialsProvider();
 
