@@ -16,8 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.server.internal.mirror.GitWithAuth.bounceCastleRandom;
-import static com.linecorp.centraldogma.server.internal.mirror.GitWithAuth.keyPairResourceParser;
 import static com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential.publicKeyPreview;
 
 import java.io.File;
@@ -36,11 +34,19 @@ import org.apache.sshd.client.config.hosts.HostConfigEntryResolver;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.NamedResource;
 import org.apache.sshd.common.config.keys.FilePasswordProvider;
+import org.apache.sshd.common.config.keys.loader.KeyPairResourceParser;
+import org.apache.sshd.common.config.keys.loader.openssh.OpenSSHKeyPairResourceParser;
+import org.apache.sshd.common.config.keys.loader.pem.PKCS8PEMResourceKeyPairParser;
 import org.apache.sshd.common.file.nonefs.NoneFileSystemFactory;
 import org.apache.sshd.common.keyprovider.KeyIdentityProvider;
+import org.apache.sshd.common.util.security.SecurityUtils;
+import org.apache.sshd.common.util.security.bouncycastle.BouncyCastleRandom;
 import org.apache.sshd.git.GitModuleProperties;
 import org.apache.sshd.git.transport.GitSshdSessionFactory;
 import org.eclipse.jgit.api.TransportCommand;
+import org.eclipse.jgit.errors.UnsupportedCredentialItem;
+import org.eclipse.jgit.transport.CredentialItem;
+import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.transport.URIish;
 import org.slf4j.Logger;
@@ -50,7 +56,6 @@ import com.cronutils.model.Cron;
 
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.mirror.GitWithAuth.NoopCredentialsProvider;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
@@ -61,8 +66,17 @@ final class SshGitMirror extends AbstractGitMirror {
 
     private static final Logger logger = LoggerFactory.getLogger(SshGitMirror.class);
 
-    // We are going to hide this file from CD UI after we implement UI for mirroring.
-    private static final String MIRROR_STATE_FILE_NAME = "mirror_state.json";
+    private static final KeyPairResourceParser keyPairResourceParser = KeyPairResourceParser.aggregate(
+            // Use BouncyCastle resource parser to support non-standard formats as well.
+            SecurityUtils.getBouncycastleKeyPairResourceParser(),
+            PKCS8PEMResourceKeyPairParser.INSTANCE,
+            OpenSSHKeyPairResourceParser.INSTANCE);
+
+    // Creates BouncyCastleRandom once and reuses it.
+    // Otherwise, BouncyCastleRandom is created whenever the SSH client is created that leads to
+    // blocking the thread to get enough entropy for SecureRandom.
+    // We might create multiple BouncyCastleRandom later and poll them, if necessary.
+    private static final BouncyCastleRandom bounceCastleRandom = new BouncyCastleRandom();
 
     SshGitMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                  Repository localRepo, String localPath,
@@ -218,6 +232,26 @@ final class SshGitMirror extends AbstractGitMirror {
         DefaultGitSshdSessionFactory(SshClient client, ClientSession session) {
             // The constructor is protected, so we should inherit the class.
             super(client, session);
+        }
+    }
+
+    static final class NoopCredentialsProvider extends CredentialsProvider {
+
+        static final CredentialsProvider INSTANCE = new NoopCredentialsProvider();
+
+        @Override
+        public boolean isInteractive() {
+            return true; // Hacky way in order not to use username and password.
+        }
+
+        @Override
+        public boolean supports(CredentialItem... items) {
+            return false;
+        }
+
+        @Override
+        public boolean get(URIish uri, CredentialItem... items) throws UnsupportedCredentialItem {
+            return false;
         }
     }
 }
