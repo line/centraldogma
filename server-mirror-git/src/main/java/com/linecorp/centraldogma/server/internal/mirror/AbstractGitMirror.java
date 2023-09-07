@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.mirror;
 
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.eclipse.jgit.lib.Constants.OBJECT_ID_ABBREV_STRING_LENGTH;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -73,8 +74,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.cronutils.model.Cron;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.common.Change;
@@ -173,7 +176,9 @@ abstract class AbstractGitMirror extends AbstractMirror {
     void mirrorLocalToRemote(
             GitWithAuth git, int maxNumFiles, long maxNumBytes,
             Consumer<TransportCommand<?, ?>> configurator) throws GitAPIException, IOException {
-        final String headBranchRefName = getHeadBranchRefName(git, configurator);
+        // TODO(minwoox): Early return if the remote does not have any updates.
+        final Ref headBranchRef = getHeadBranchRef(git, configurator);
+        final String headBranchRefName = headBranchRef.getName();
         final ObjectId headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRefName, configurator);
 
         final org.eclipse.jgit.lib.Repository gitRepository = git.getRepository();
@@ -236,33 +241,24 @@ abstract class AbstractGitMirror extends AbstractMirror {
         final String summary;
         final String detail;
         final Map<String, Change<?>> changes = new HashMap<>();
-        final String headBranchRefName = getHeadBranchRefName(git, configurator);
-        final ObjectId headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRefName, configurator);
+        final Ref headBranchRef = getHeadBranchRef(git, configurator);
+
+        final String mirrorStatePath = localPath() + MIRROR_STATE_FILE_NAME;
         final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
+        if (!needsFetch(headBranchRef, mirrorStatePath, localRev)) {
+            return;
+        }
+
+        // Update the head commit ID again because there's a chance a commit is pushed between the
+        // getHeadBranchRefName and fetchRemoteHeadAndGetCommitId calls.
+        final ObjectId headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName(), configurator);
         try (ObjectReader reader = git.getRepository().newObjectReader();
              TreeWalk treeWalk = new TreeWalk(reader);
              RevWalk revWalk = new RevWalk(reader)) {
 
             // Prepare to traverse the tree.
             treeWalk.addTree(revWalk.parseTree(headCommitId).getId());
-
-            // Check if local repository needs update.
-            final String mirrorStatePath = localPath() + MIRROR_STATE_FILE_NAME;
-            final Entry<?> mirrorState = localRepo().getOrNull(localRev, mirrorStatePath).join();
-            final String localSourceRevision;
-            if (mirrorState == null || mirrorState.type() != EntryType.JSON) {
-                localSourceRevision = null;
-            } else {
-                localSourceRevision = Jackson.treeToValue((TreeNode) mirrorState.content(),
-                                                          MirrorState.class).sourceRevision();
-            }
-
             final String abbrId = reader.abbreviate(headCommitId).name();
-            if (headCommitId.name().equals(localSourceRevision)) {
-                logger.info("Repository '{}' already at {}, {}#{}", localRepo().name(), abbrId,
-                            remoteRepoUri(), remoteBranch());
-                return;
-            }
 
             // Add mirror_state.json.
             changes.put(mirrorStatePath, Change.ofJsonUpsert(
@@ -352,34 +348,73 @@ abstract class AbstractGitMirror extends AbstractMirror {
                 Revision.HEAD, summary, detail, Markup.PLAINTEXT, changes.values())).join();
     }
 
-    private String getHeadBranchRefName(
+    private boolean needsFetch(Ref headBranchRef, String mirrorStatePath, Revision localRev)
+            throws JsonParseException, JsonMappingException {
+        final Entry<?> mirrorState = localRepo().getOrNull(localRev, mirrorStatePath).join();
+        final String localSourceRevision;
+        if (mirrorState == null || mirrorState.type() != EntryType.JSON) {
+            localSourceRevision = null;
+        } else {
+            localSourceRevision = Jackson.treeToValue((TreeNode) mirrorState.content(),
+                                                      MirrorState.class).sourceRevision();
+        }
+
+        final ObjectId headCommitId = headBranchRef.getObjectId();
+        if (headCommitId.name().equals(localSourceRevision)) {
+            final String abbrId = headCommitId.abbreviate(OBJECT_ID_ABBREV_STRING_LENGTH).name();
+            logger.info("Repository '{}' already at {}, {}#{}", localRepo().name(), abbrId,
+                        remoteRepoUri(), remoteBranch());
+            return false;
+        }
+        return true;
+    }
+
+    private Ref getHeadBranchRef(
             GitWithAuth git, Consumer<TransportCommand<?,?>> configurator) throws GitAPIException {
-        // Use the given branch if available.
         if (remoteBranch() != null) {
-            return Constants.R_HEADS + remoteBranch();
+            final String headBranchRefName = Constants.R_HEADS + remoteBranch();
+            final Collection<Ref> refs = lsRemote(git, configurator, true);
+            return findHeadBranchRef(git, headBranchRefName, refs);
         }
 
         // Otherwise, we need to figure out which branch we should fetch.
         // Fetch the remote reference list to determine the default branch.
-        final LsRemoteCommand lsRemoteCommand = git.lsRemote();
-        configurator.accept(lsRemoteCommand);
-        final Collection<Ref> refs = lsRemoteCommand.setTags(false)
-                                                    .setTimeout(GIT_TIMEOUT_SECS)
-                                                    .call();
+        final Collection<Ref> refs = lsRemote(git, configurator, false);
 
         // Find and resolve 'HEAD' reference, which leads us to the default branch.
-        final Optional<String> headRefName = refs.stream()
-                                                 .filter(ref -> Constants.HEAD.equals(ref.getName()))
-                                                 .map(ref -> ref.getTarget().getName())
-                                                 .findFirst();
-
-        // Use the default branch if found.
-        if (headRefName.isPresent()) {
-            return headRefName.get();
+        final Optional<String> headRefNameOptional = refs.stream()
+                                                         .filter(ref -> Constants.HEAD.equals(ref.getName()))
+                                                         .map(ref -> ref.getTarget().getName())
+                                                         .findFirst();
+        final String headBranchRefName;
+        if (headRefNameOptional.isPresent()) {
+            headBranchRefName = headRefNameOptional.get();
+        } else {
+            // We should not reach here, but if we do, fall back to 'refs/heads/master'.
+            headBranchRefName = HEAD_REF_MASTER;
         }
+        return findHeadBranchRef(git, headBranchRefName, refs);
+    }
 
-        // We should not reach here, but if we do, fall back to 'refs/heads/master'.
-        return HEAD_REF_MASTER;
+    private static Collection<Ref> lsRemote(GitWithAuth git, Consumer<TransportCommand<?, ?>> configurator,
+                                           boolean setHeads) throws GitAPIException {
+        final LsRemoteCommand lsRemoteCommand = git.lsRemote();
+        configurator.accept(lsRemoteCommand);
+        return lsRemoteCommand.setTags(false)
+                              .setTimeout(GIT_TIMEOUT_SECS)
+                              .setHeads(setHeads)
+                              .call();
+    }
+
+    private static Ref findHeadBranchRef(GitWithAuth git, String headBranchRefName, Collection<Ref> refs) {
+        final Optional<Ref> headBranchRef = refs.stream()
+                                                .filter(ref -> headBranchRefName.equals(ref.getName()))
+                                                .findFirst();
+        if (headBranchRef.isPresent()) {
+            return headBranchRef.get();
+        }
+        throw new MirrorException("Remote does not have " + headBranchRefName + " branch. remote: " +
+                                  git.remoteUri());
     }
 
     private static String generateCommitDetail(RevCommit headCommit) {
