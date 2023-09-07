@@ -98,11 +98,11 @@ final class SshGitMirror extends AbstractGitMirror {
         } finally {
             try {
                 if (session != null) {
-                    session.close();
+                    session.close(true);
                 }
             } finally {
                 if (sshClient != null) {
-                    sshClient.close();
+                    sshClient.stop();
                 }
             }
         }
