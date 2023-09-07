@@ -82,7 +82,6 @@ public interface Mirror {
     /**
      * Returns the name of the branch in the Git repository where is supposed to be mirrored.
      */
-    @Nullable
     String remoteBranch();
 
     /**

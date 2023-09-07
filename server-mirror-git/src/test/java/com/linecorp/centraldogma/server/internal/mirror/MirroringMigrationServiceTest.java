@@ -19,9 +19,6 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.linecorp.centraldogma.server.internal.mirror.MirroringMigrationService.PATH_LEGACY_CREDENTIALS;
 import static com.linecorp.centraldogma.server.internal.mirror.MirroringMigrationService.PATH_LEGACY_MIRRORS;
-import static com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredentialTest.PASSPHRASE;
-import static com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredentialTest.PRIVATE_KEY;
-import static com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredentialTest.PUBLIC_KEY;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -53,6 +50,34 @@ class MirroringMigrationServiceTest {
     private static final String TEST_REPO0 = "repo0";
     private static final String TEST_REPO1 = "repo1";
     private static final String TEST_REPO2 = "repo2";
+
+    // The real key pair generated using:
+    //
+    //   ssh-keygen -t rsa -b 768 -N sesame
+    //
+    private static final String PUBLIC_KEY =
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQCmkW9HjZE5q0EM06MUWXYFTNTi" +
+            "KkfYD/pH2GwJw6yi20Gi0TzjJ6YBLueU48vxkwWmw6sTOEuBxtzefTxs4kQuatev" +
+            "uXn7tWX9fhSIAEp+zdyQY7InyCqfHFwRwswemCM= trustin@localhost";
+
+    private static final String PRIVATE_KEY =
+            "-----BEGIN RSA PRIVATE KEY-----\n" +
+            "Proc-Type: 4,ENCRYPTED\n" +
+            "DEK-Info: AES-128-CBC,C35856D3C524AA2FD32D878F4409B97E\n" +
+            '\n' +
+            "X3HRmqg2bUqfqxkWjHsr4KeN1UyN5QbypGd7Jov/nDSyiIWe4zPJD/3oji0xOK+h\n" +
+            "Lxq+c8DDu7ItpC6dwe5WexcyIKGF7WqlkqeEhVM3VOkQtbpbdnb7bA8mLja2unMW\n" +
+            "bFLgQiTF1Y8SlG4Q70N0iY638AeIG/ZUU14LSBFSQDkrtZ+f7bhIhVDDavANMF+B\n" +
+            "+eiQ4u3W59Cpbm83AfzqotrPXuBusfyBjH7Wfj0XRvOGRjTQT0jXIWWpLqnIy5ms\n" +
+            "HNGlMoJElUQuPpbQUiFvmqiMj40r9V/Wx/8+GciADOs4FsTvGFKIcouWDhjIWg0b\n" +
+            "DKFqV/Hw/AjkAafkySxxmk1+EIen4XfkghtlWLwT2Xp4RtJXYiVC9q9483jDv3+Z\n" +
+            "iTa5rjFuro4WJkDZp6/N6l+/HcbBXL8L6y66xsJwP+6GLuDLpXjGZrneV1ip2dtG\n" +
+            "BQzvlgCOr9pTAa4Ar7MC3E2C6+qPhOwO4B/f1cigwRaEB92MHz5gJsITU3xVfTjV\n" +
+            "yf4THKipBDxqnET6F2FMZJFolVzFEXDaCFNC1TjBqS0+A8KaMcO/lXjJxtfvV37l\n" +
+            "zmB/ey0dZ8WBCazCp9OX3dYgNkVR1yYNlJWOGJS8Cwc=\n" +
+            "-----END RSA PRIVATE KEY-----";
+
+    private static final String PASSPHRASE = "sesame";
 
     @RegisterExtension
     static ProjectManagerExtension projectManagerExtension = new ProjectManagerExtension() {

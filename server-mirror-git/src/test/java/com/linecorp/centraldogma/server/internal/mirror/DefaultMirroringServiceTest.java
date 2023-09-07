@@ -17,6 +17,9 @@
 package com.linecorp.centraldogma.server.internal.mirror;
 
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -35,6 +38,8 @@ import com.cronutils.parser.CronParser;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
@@ -64,13 +69,16 @@ class DefaultMirroringServiceTest {
         when(pm.list()).thenReturn(ImmutableMap.of("foo", p));
         when(p.name()).thenReturn("foo");
         when(p.metaRepo()).thenReturn(mr);
+        when(mr.find(eq(Revision.HEAD), anyString(), anyMap()))
+                .thenReturn(UnmodifiableFuture.completedFuture(ImmutableMap.of()));
+        when(mr.credentials()).thenReturn(UnmodifiableFuture.completedFuture(ImmutableList.of()));
         when(r.parent()).thenReturn(p);
         when(r.name()).thenReturn("bar");
 
         final Mirror mirror = new AbstractMirror("my-mirror-1", true, EVERY_SECOND,
                                                  MirrorDirection.REMOTE_TO_LOCAL,
                                                  MirrorCredential.FALLBACK, r, "/",
-                                                 URI.create("unused://uri"), "/", null, null) {
+                                                 URI.create("unused://uri"), "/", "", null) {
             @Override
             protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) {}
 

@@ -38,21 +38,21 @@ import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 public abstract class AbstractMirrorCredential implements MirrorCredential {
 
     private final String id;
+    private final boolean enabled;
     private final String type;
     private final Set<Pattern> hostnamePatterns;
     private final Set<String> hostnamePatternStrings;
-    private final boolean enabled;
 
-    AbstractMirrorCredential(String id, String type, @Nullable Iterable<Pattern> hostnamePatterns,
-                             @Nullable Boolean enabled) {
+    AbstractMirrorCredential(String id, @Nullable Boolean enabled, String type,
+                             @Nullable Iterable<Pattern> hostnamePatterns) {
         this.id = requireNonNull(id, "id");
+        this.enabled = firstNonNull(enabled, true);
         // JsonTypeInfo is ignored when serializing collections.
         // As a workaround, manually set the type hint to serialize.
         this.type = requireNonNull(type, "type");
         this.hostnamePatterns = validateHostnamePatterns(hostnamePatterns);
         hostnamePatternStrings = this.hostnamePatterns.stream().map(Pattern::pattern)
                                                       .collect(Collectors.toSet());
-        this.enabled = firstNonNull(enabled, true);
     }
 
     private static Set<Pattern> validateHostnamePatterns(@Nullable Iterable<Pattern> hostnamePatterns) {

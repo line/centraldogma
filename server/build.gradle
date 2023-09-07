@@ -20,7 +20,6 @@ node {
 
 dependencies {
     implementation project(':common-legacy')
-    testImplementation project(":server-mirror-git")
 
     // Armeria
     api libs.armeria

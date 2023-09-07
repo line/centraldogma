@@ -17,7 +17,6 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository;
 
-import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorUtil.split;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_DOGMA;
 import static java.util.Objects.requireNonNull;
 
@@ -47,21 +46,22 @@ public final class CentralDogmaMirrorProvider implements MirrorProvider {
         if (!SCHEME_DOGMA.equals(scheme)) {
             return null;
         }
-        final String[] components = split(remoteUri, "dogma");
-        final URI remoteRepoUri = URI.create(components[0]);
-        final Matcher matcher = DOGMA_PATH_PATTERN.matcher(remoteRepoUri.getPath());
-        if (!matcher.find()) {
+        final RepositoryUri repositoryUri = RepositoryUri.parse(remoteUri, "dogma");
+        final Matcher pathMatcher = DOGMA_PATH_PATTERN.matcher(repositoryUri.uri().getPath());
+        if (!pathMatcher.find()) {
+            // TODO(ikhoon): Should we use the same resource URI format with Git?
+            //               e.g. dogma://<host>[:<port>].dogma/<project>/<repository>[/<remotePath>]
             throw new IllegalArgumentException(
                     "cannot determine project name and repository name: " + remoteUri +
                     " (expected: dogma://<host>[:<port>]/<project>/<repository>.dogma[<remotePath>])");
         }
 
-        final String remoteProject = matcher.group(1);
-        final String remoteRepo = matcher.group(2);
-
+        final String remoteProject = pathMatcher.group(1);
+        final String remoteRepo = pathMatcher.group(2);
+        final String remotePath = repositoryUri.path();
         return new CentralDogmaMirror(context.id(), context.enabled(), context.schedule(), context.direction(), context.credential(),
                                       context.localRepo(), context.localPath(),
-                                      remoteRepoUri, remoteProject, remoteRepo, components[1],
+                                      repositoryUri.uri(), remoteProject, remoteRepo, remotePath,
                                       context.gitignore());
     }
 }

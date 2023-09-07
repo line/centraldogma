@@ -100,6 +100,7 @@ import com.linecorp.armeria.server.file.HttpFile;
 import com.linecorp.armeria.server.healthcheck.HealthCheckService;
 import com.linecorp.armeria.server.healthcheck.SettableHealthChecker;
 import com.linecorp.armeria.server.logging.AccessLogWriter;
+import com.linecorp.armeria.server.logging.LoggingService;
 import com.linecorp.armeria.server.metric.MetricCollectingService;
 import com.linecorp.armeria.server.metric.PrometheusExpositionService;
 import com.linecorp.armeria.server.thrift.THttpService;
@@ -175,8 +176,18 @@ public class CentralDogma implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogma.class);
 
+    private static final boolean ENABLE_GIT_MIRROR;
     static {
         Jackson.registerModules(new SimpleModule().addSerializer(CacheStats.class, new CacheStatsSerializer()));
+
+        boolean enableGitMirror = false;
+        try {
+            Class.forName(CentralDogma.class.getPackage().getName() + ".internal.mirror.git.GitMirror");
+            enableGitMirror = true;
+        } catch (ClassNotFoundException e) {
+            logger.info("GitMirror is not available. Git mirroring will be disabled.");
+        }
+        ENABLE_GIT_MIRROR = enableGitMirror;
     }
 
     /**
@@ -511,6 +522,7 @@ public class CentralDogma implements AutoCloseable {
             }
         }
 
+        sb.decorator(LoggingService.newDecorator());
         sb.clientAddressSources(cfg.clientAddressSourceList());
         sb.clientAddressTrustedProxyFilter(cfg.trustedProxyAddressPredicate());
 
@@ -696,12 +708,16 @@ public class CentralDogma implements AutoCloseable {
         sb.annotatedService(API_V1_PATH_PREFIX,
                             new RepositoryServiceV1(safePm, executor, mds), decorator,
                             v1RequestConverter, v1ResponseConverter);
-        sb.annotatedService(API_V1_PATH_PREFIX,
-                            new MirroringServiceV1(safePm, executor, mds), decorator,
-                            v1RequestConverter, v1RequestConverter);
-        sb.annotatedService(API_V1_PATH_PREFIX,
-                            new CredentialServiceV1(safePm, executor, mds), decorator,
-                            v1RequestConverter, v1RequestConverter);
+
+        if (ENABLE_GIT_MIRROR) {
+            sb.annotatedService(API_V1_PATH_PREFIX,
+                                new MirroringServiceV1(safePm, executor), decorator,
+                                v1RequestConverter, v1RequestConverter);
+            sb.annotatedService(API_V1_PATH_PREFIX,
+                                new CredentialServiceV1(safePm, executor), decorator,
+                                v1RequestConverter, v1RequestConverter);
+        }
+
         sb.annotatedService()
           .pathPrefix(API_V1_PATH_PREFIX)
           .defaultServiceNaming(new ServiceNaming() {

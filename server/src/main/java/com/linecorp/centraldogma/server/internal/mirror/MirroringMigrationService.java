@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.mirror;
 
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.credentialFile;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.mirrorFile;
+import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig.DEFAULT_SCHEDULE;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -122,6 +123,9 @@ class MirroringMigrationService {
         mirror.put("id", id);
 
         fillCredentialId(mirror, credentials);
+        if (mirror.get("schedule") == null) {
+            mirror.put("schedule", DEFAULT_SCHEDULE);
+        }
         mirrorIds.add(id);
 
         final String jsonFile = mirrorFile(id);

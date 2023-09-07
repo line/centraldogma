@@ -19,7 +19,6 @@ package com.linecorp.centraldogma.server.internal.mirror.credential;
 import static com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredentialUtil.maybeDecodeBase64;
 import static com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredentialUtil.requireNonEmpty;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -31,7 +30,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableList;
 
 public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
 
@@ -50,17 +48,17 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
     private final String passphraseString;
 
     @JsonCreator
-    public PublicKeyMirrorCredential(@JsonProperty("id") @Nullable String id,
+    public PublicKeyMirrorCredential(@JsonProperty("id") String id,
+                                     @JsonProperty("enabled") @Nullable Boolean enabled,
                                      @JsonProperty("hostnamePatterns") @Nullable
                                      @JsonDeserialize(contentAs = Pattern.class)
                                      Iterable<Pattern> hostnamePatterns,
                                      @JsonProperty("username") String username,
                                      @JsonProperty("publicKey") String publicKey,
                                      @JsonProperty("privateKey") String privateKey,
-                                     @JsonProperty("passphrase") @Nullable String passphrase,
-                                     @JsonProperty("enabled") @Nullable Boolean enabled) {
+                                     @JsonProperty("passphrase") @Nullable String passphrase) {
 
-        super(id, "public_key", hostnamePatterns, enabled);
+        super(id, enabled, "public_key", hostnamePatterns);
 
         this.username = requireNonEmpty(username, "username");
         this.publicKey = requireNonEmpty(publicKey, "publicKey");

@@ -31,8 +31,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
 import com.google.common.io.Resources;
@@ -42,6 +40,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
+import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -105,19 +104,21 @@ class GitMirrorAuthTest {
         client.createProject(projName).join();
         client.createRepository(projName, "main").join();
 
-        // Add /credentials.json and /mirrors.json
-        final ArrayNode credentials = JsonNodeFactory.instance.arrayNode().add(credential);
+        // Add /credentials/{id}.json and /mirrors/{id}.json
+        final String credentialId = credential.get("id").asText();
         client.forRepo(projName, Project.REPO_META)
               .commit("Add a mirror",
-                      Change.ofJsonUpsert("/credentials.json", credentials),
-                      Change.ofJsonUpsert("/mirrors.json",
-                                          "[{" +
+                      Change.ofJsonUpsert(DefaultMetaRepository.credentialFile(credentialId), credential),
+                      Change.ofJsonUpsert("/mirrors/main.json",
+                                          '{' +
+                                          "  \"id\": \"main\"," +
+                                          "  \"enabled\": true," +
                                           "  \"type\": \"single\"," +
                                           "  \"direction\": \"REMOTE_TO_LOCAL\"," +
                                           "  \"localRepo\": \"main\"," +
                                           "  \"localPath\": \"/\"," +
                                           "  \"remoteUri\": \"" + gitUri + '"' +
-                                          "}]"))
+                                          '}'))
               .push().join();
 
         // Try to perform mirroring to see if authentication works as expected.
@@ -133,6 +134,8 @@ class GitMirrorAuthTest {
                     "git+https://github.com/line/centraldogma-authtest.git",
                     Jackson.readTree(
                             '{' +
+                            "  \"id\": \"password-id\"," +
+                            "  \"enabled\": true," +
                             "  \"type\": \"password\"," +
                             "  \"hostnamePatterns\": [ \"^.*$\" ]," +
                             "  \"username\": \"" + GITHUB_USERNAME + "\"," +
@@ -146,6 +149,8 @@ class GitMirrorAuthTest {
                     "git+https://github.com/line/centraldogma-authtest.git",
                     Jackson.readTree(
                             '{' +
+                            "  \"id\": \"access-token-id\"," +
+                            "  \"enabled\": true," +
                             "  \"type\": \"access_token\"," +
                             "  \"hostnamePatterns\": [ \"^.*$\" ]," +
                             "  \"accessToken\": \"" + Jackson.escapeText(GITHUB_ACCESS_TOKEN) + '"' +
@@ -203,6 +208,8 @@ class GitMirrorAuthTest {
                 "git+ssh://github.com/line/centraldogma-authtest.git",
                 Jackson.readTree(
                         '{' +
+                        "  \"id\": \"" + privateKeyFile +"\"," +
+                        "  \"enabled\": true," +
                         "  \"type\": \"public_key\"," +
                         "  \"hostnamePatterns\": [ \"^.*$\" ]," +
                         "  \"username\": \"git\"," +

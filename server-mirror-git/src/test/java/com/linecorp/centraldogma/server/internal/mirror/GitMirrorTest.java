@@ -25,8 +25,6 @@ import static org.mockito.Mockito.when;
 
 import java.time.ZonedDateTime;
 
-import javax.annotation.Nullable;
-
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.server.mirror.Mirror;
@@ -39,15 +37,15 @@ class GitMirrorTest {
     void testGitMirror() {
         // Simplest possible form
         assertMirror("git://a.com/b.git", GitMirror.class,
-                     "git://a.com/b.git", "/", null);
+                     "git://a.com/b.git", "/", "");
 
         // Non-default port number
         assertMirror("git+ssh://a.com:8022/b.git", GitMirror.class,
-                     "git+ssh://a.com:8022/b.git", "/", null);
+                     "git+ssh://a.com:8022/b.git", "/", "");
 
         // Non-default remotePath
         assertMirror("git+http://a.com/b.git/c", GitMirror.class,
-                     "git+http://a.com/b.git", "/c/", null);
+                     "git+http://a.com/b.git", "/c/", "");
 
         // Non-default remoteBranch
         assertMirror("git+https://a.com/b.git#develop", GitMirror.class,
@@ -73,7 +71,7 @@ class GitMirrorTest {
     @Test
     void jitter() {
         final AbstractMirror mirror = assertMirror("git://a.com/b.git", AbstractMirror.class,
-                                                   "git://a.com/b.git", "/", null);
+                                                   "git://a.com/b.git", "/", "");
 
         assertThat(mirror.schedule()).isSameAs(EVERY_MINUTE);
 
@@ -99,7 +97,7 @@ class GitMirrorTest {
     private static <T extends Mirror> T assertMirror(String remoteUri, Class<T> mirrorType,
                                                      String expectedRemoteRepoUri,
                                                      String expectedRemotePath,
-                                                     @Nullable String expectedRemoteBranch) {
+                                                     String expectedRemoteBranch) {
         final Repository repository = mock(Repository.class);
         final Project project = mock(Project.class);
         when(repository.parent()).thenReturn(project);

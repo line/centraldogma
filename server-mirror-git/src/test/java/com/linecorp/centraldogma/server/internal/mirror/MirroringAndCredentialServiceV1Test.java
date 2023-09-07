@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.api;
+package com.linecorp.centraldogma.server.internal.mirror;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -90,6 +90,7 @@ class MirroringAndCredentialServiceV1Test {
 
         for (int i = 0; i < credentials.size(); i++) {
             final Map<String, Object> credential = credentials.get(i);
+            final String credentialId = (String) credential.get("id");
             final ResponseEntity<Revision> creationResponse =
                     client.prepare()
                           .post("/api/v1/projects/{proj}/credentials")
@@ -104,15 +105,15 @@ class MirroringAndCredentialServiceV1Test {
 
             final ResponseEntity<MirrorCredential> fetchResponse =
                     client.prepare()
-                          .get("/api/v1/projects/{proj}/credentials/{index}")
+                          .get("/api/v1/projects/{proj}/credentials/{id}")
                           .pathParam("proj", FOO_PROJ)
-                          .pathParam("index", i)
+                          .pathParam("id", credentialId)
                           .responseTimeoutMillis(0)
                           .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                           .asJson(MirrorCredential.class)
                           .execute();
             final MirrorCredential credentialDto = fetchResponse.content();
-            assertThat(credentialDto.id()).isEqualTo((String) credential.get("id"));
+            assertThat(credentialDto.id()).isEqualTo(credentialId);
             assertThat(credentialDto.hostnamePatterns().stream().map(Pattern::pattern)).isEqualTo(
                     credential.get("hostnamePatterns"));
             final String credentialType = (String) credential.get("type");
@@ -139,9 +140,10 @@ class MirroringAndCredentialServiceV1Test {
 
     private void updateCredential() {
         final List<String> hostnamePatterns = ImmutableList.of("gitlab.com");
+        final String credentialId = "public-key-credential";
         final Map<String, Object> credential =
                 ImmutableMap.of("type", "public_key",
-                                "id", "public-key-credential",
+                                "id", credentialId,
                                 "hostnamePatterns", hostnamePatterns,
                                 "username", "updated-username-2",
                                 "publicKey", "updated-public-key-2",
@@ -149,9 +151,8 @@ class MirroringAndCredentialServiceV1Test {
                                 "passphrase", "updated-password-0");
         final ResponseEntity<Revision> creationResponse =
                 client.prepare()
-                      .put("/api/v1/projects/{proj}/credentials/{index}")
+                      .put("/api/v1/projects/{proj}/credentials")
                       .pathParam("proj", FOO_PROJ)
-                      .pathParam("index", 2)
                       .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                       .contentJson(credential)
                       .asJson(Revision.class)
@@ -160,9 +161,9 @@ class MirroringAndCredentialServiceV1Test {
 
         final ResponseEntity<MirrorCredential> fetchResponse =
                 client.prepare()
-                      .get("/api/v1/projects/{proj}/credentials/{index}")
+                      .get("/api/v1/projects/{proj}/credentials/{id}")
                       .pathParam("proj", FOO_PROJ)
-                      .pathParam("index", 2)
+                      .pathParam("id", credentialId)
                       .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                       .asJson(MirrorCredential.class)
                       .execute();
@@ -190,16 +191,14 @@ class MirroringAndCredentialServiceV1Test {
             // TODO(ikhoon): Migrate to using id instead of index.
             final ResponseEntity<MirrorDto> response1 =
                     client.prepare()
-                          .get("/api/v1/projects/{proj}/mirrors/{index}")
+                          .get("/api/v1/projects/{proj}/mirrors/{id}")
                           .pathParam("proj", FOO_PROJ)
-                          .pathParam("index", i)
+                          .pathParam("id", newMirror.id())
                           .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                           .asJson(MirrorDto.class)
                           .execute();
             final MirrorDto savedMirror = response1.content();
             assertThat(savedMirror)
-                    .usingRecursiveComparison()
-                    .ignoringFields("index")
                     .isEqualTo(newMirror);
         }
     }
@@ -221,9 +220,8 @@ class MirroringAndCredentialServiceV1Test {
         // TODO(ikhoon): Migrate index to id.
         final ResponseEntity<Revision> updateResponse =
                 client.prepare()
-                      .put("/api/v1/projects/{proj}/mirrors/{index}")
+                      .put("/api/v1/projects/{proj}/mirrors")
                       .pathParam("proj", FOO_PROJ)
-                      .pathParam("index", 2)
                       .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                       .contentJson(mirror)
                       .asJson(Revision.class)
@@ -231,9 +229,9 @@ class MirroringAndCredentialServiceV1Test {
         assertThat(updateResponse.status()).isEqualTo(HttpStatus.OK);
         final ResponseEntity<MirrorDto> fetchResponse =
                 client.prepare()
-                      .get("/api/v1/projects/{proj}/mirrors/{index}")
+                      .get("/api/v1/projects/{proj}/mirrors/{id}")
                       .pathParam("proj", FOO_PROJ)
-                      .pathParam("index", 2)
+                      .pathParam("id", mirror.id())
                       .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                       .asJson(MirrorDto.class)
                       .execute();

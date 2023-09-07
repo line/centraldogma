@@ -16,15 +16,17 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.server.internal.mirror.MirroringMigrationService.PATH_LEGACY_CREDENTIALS;
-import static com.linecorp.centraldogma.server.internal.mirror.MirroringMigrationService.PATH_LEGACY_MIRRORS;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig.DEFAULT_SCHEDULE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.File;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.AfterAll;
@@ -33,11 +35,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.cronutils.model.CronType;
 import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.parser.CronParser;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.armeria.common.metric.NoopMeterRegistry;
@@ -45,11 +49,13 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.ShuttingDownException;
+import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.server.internal.mirror.credential.NoneMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -58,20 +64,33 @@ import com.linecorp.centraldogma.testing.internal.TestUtil;
 
 class DefaultMetaRepositoryWithMirrorTest {
 
-    private static final Change<JsonNode> UPSERT_CREDENTIALS = Change.ofJsonUpsert(
-            PATH_LEGACY_CREDENTIALS,
-            "[{" +
-            "  \"type\": \"password\"," +
-            "  \"id\": \"alice\"," +
-            "  \"hostnamePatterns\": [ \"^foo\\\\.com$\" ]," +
-            "  \"username\": \"alice\"," +
-            "  \"password\": \"secret_a\"" +
-            "},{" +
-            "  \"type\": \"password\"," +
-            "  \"hostnamePatterns\": [ \"^.*\\\\.com$\" ]," +
-            "  \"username\": \"bob\"," +
-            "  \"password\": \"secret_b\"" +
-            "}]");
+    private static final List<Change<?>> UPSERT_RAW_CREDENTIALS = ImmutableList.of(
+            Change.ofJsonUpsert(
+                    "/credentials/alice.json",
+                    '{' +
+                    "  \"id\": \"alice\"," +
+                    "  \"type\": \"password\"," +
+                    "  \"hostnamePatterns\": [ \"^foo\\\\.com$\" ]," +
+                    "  \"username\": \"alice\"," +
+                    "  \"password\": \"secret_a\"" +
+                    '}'),
+            Change.ofJsonUpsert(
+                    "/credentials/bob.json",
+                    '{' +
+                    "  \"id\": \"bob\"," +
+                    "  \"type\": \"password\"," +
+                    "  \"hostnamePatterns\": [ \"^.*\\\\.com$\" ]," +
+                    "  \"username\": \"bob\"," +
+                    "  \"password\": \"secret_b\"" +
+                    '}'));
+
+    private static final List<MirrorCredential> CREDENTIALS = ImmutableList.of(
+            new PasswordMirrorCredential(
+                    "alice", true, ImmutableList.of(Pattern.compile("^foo\\.com$")),
+                    "alice", "secret_a"),
+            new PasswordMirrorCredential(
+                    "bob", true, ImmutableList.of(Pattern.compile("^.*\\.com$")),
+                    "bob", "secret_b"));
 
     private static final CronParser cronParser = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
@@ -104,15 +123,7 @@ class DefaultMetaRepositoryWithMirrorTest {
 
     @Test
     void testEmptyMirrors() {
-        // should return an empty result when both /credentials.json and /mirrors.json are non-existent.
-        assertThat(metaRepo.mirrors().join()).isEmpty();
-
-        // should return an empty result when /credentials.json exists and /mirrors.json does not.
-        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", Change.ofJsonUpsert("/credentials.json", "[]"));
-        assertThat(metaRepo.mirrors().join()).isEmpty();
-
-        // should return an empty result when both /credentials.json and /mirrors.json exist.
-        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", Change.ofJsonUpsert("/mirrors.json", "[]"));
+        // should return an empty result when both /credentials/ and /mirrors/ are non-existent.
         assertThat(metaRepo.mirrors().join()).isEmpty();
     }
 
@@ -121,50 +132,94 @@ class DefaultMetaRepositoryWithMirrorTest {
      */
     @Test
     void testInvalidMirrors() {
-        // not an array but an object
+        // not an object but an array
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
-                        Change.ofJsonUpsert(PATH_LEGACY_MIRRORS, "{}")).join();
-        assertThatThrownBy(() -> metaRepo.mirrors()).isInstanceOf(RepositoryMetadataException.class);
+                        Change.ofJsonUpsert("/mirrors/foo.json", "[]")).join();
+        assertThatThrownBy(() -> metaRepo.mirror("foo").join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RepositoryMetadataException.class);
 
-        // not an array but a value
+        // not an object but a value
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
-                        Change.ofJsonUpsert(PATH_LEGACY_MIRRORS, "\"oops\"")).join();
-        assertThatThrownBy(() -> metaRepo.mirrors()).isInstanceOf(RepositoryMetadataException.class);
+                        Change.ofJsonUpsert("/mirrors/bar.json", "\"oops\"")).join();
+        assertThatThrownBy(() -> metaRepo.mirror("bar").join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RepositoryMetadataException.class);
 
-        // an array that contains null.
+        // an empty object
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
-                        Change.ofJsonUpsert(PATH_LEGACY_MIRRORS, "[ null ]")).join();
-        assertThatThrownBy(() -> metaRepo.mirrors()).isInstanceOf(RepositoryMetadataException.class);
+                        Change.ofJsonUpsert("/mirrors/qux.json", "{}")).join();
+        assertThatThrownBy(() -> metaRepo.mirror("qux").join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RepositoryMetadataException.class);
     }
 
-    @Test
-    void testMirror() {
-        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
-                        Change.ofJsonUpsert(
-                                PATH_LEGACY_MIRRORS,
-                                "[{" +
-                                "  \"enabled\": true," +
-                                "  \"direction\": \"LOCAL_TO_REMOTE\"," +
-                                "  \"localRepo\": \"foo\"," +
-                                "  \"localPath\": \"/mirrors/foo\"," +
-                                "  \"remoteUri\": \"git+ssh://foo.com/foo.git\"" +
-                                "},{" +
-                                "  \"enabled\": true," +
-                                "  \"schedule\": \"*/10 * * * * ?\"," +
-                                "  \"direction\": \"REMOTE_TO_LOCAL\"," +
-                                "  \"localRepo\": \"bar\"," +
-                                "  \"remoteUri\": \"git+ssh://bar.com/bar.git/some-path\"" +
-                                "}, {" +
-                                "  \"direction\": \"LOCAL_TO_REMOTE\"," +
-                                "  \"localRepo\": \"qux\"," +
-                                "  \"remoteUri\": \"git+ssh://qux.net/qux.git#develop\"" +
-                                "}, {" +
-                                "  \"enabled\": false," + // Disabled
-                                "  \"direction\": \"LOCAL_TO_REMOTE\"," +
-                                "  \"localRepo\": \"foo\"," +
-                                "  \"localPath\": \"/mirrors/bar\"," +
-                                "  \"remoteUri\": \"git+ssh://bar.com/bar.git\"" +
-                                "}]"), UPSERT_CREDENTIALS).join();
+    @ValueSource(booleans = { true, false })
+    @ParameterizedTest
+    void testMirror(boolean useRawApi) {
+        if (useRawApi) {
+            final List<Change<?>> mirrors = ImmutableList.of(
+                    Change.ofJsonUpsert(
+                            "/mirrors/foo.json",
+                            '{' +
+                            "  \"id\": \"foo\"," +
+                            "  \"enabled\": true," +
+                            "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                            "  \"localRepo\": \"foo\"," +
+                            "  \"localPath\": \"/mirrors/foo\"," +
+                            "  \"remoteUri\": \"git+ssh://foo.com/foo.git\"," +
+                            "  \"credentialId\": \"alice\"" +
+                            '}'),
+                    Change.ofJsonUpsert(
+                            "/mirrors/bar.json",
+                            '{' +
+                            "  \"id\": \"bar\"," +
+                            "  \"enabled\": true," +
+                            "  \"schedule\": \"0 */10 * * * ?\"," +
+                            "  \"direction\": \"REMOTE_TO_LOCAL\"," +
+                            "  \"localRepo\": \"bar\"," +
+                            "  \"remoteUri\": \"git+ssh://bar.com/bar.git/some-path\"," +
+                            " \"credentialId\": \"bob\"" +
+                            '}'),
+                    Change.ofJsonUpsert(
+                            "/mirrors/qux.json",
+                            '{' +
+                            "  \"id\": \"qux\"," +
+                            "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                            "  \"localRepo\": \"qux\"," +
+                            "  \"remoteUri\": \"git+ssh://qux.net/qux.git#develop\"" +
+                            // No credential will be chosen.
+                            '}'),
+                    Change.ofJsonUpsert(
+                            "/mirrors/foo-bar.json",
+                            '{' +
+                            "  \"id\": \"foo-bar\"," +
+                            "  \"enabled\": false," + // Disabled
+                            "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                            "  \"localRepo\": \"foo\"," +
+                            "  \"localPath\": \"/mirrors/bar\"," +
+                            "  \"remoteUri\": \"git+ssh://bar.com/bar.git\"" +
+                            // credentialId 'bob' will be chosen.
+                            '}'));
+            metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", mirrors).join();
+            metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", UPSERT_RAW_CREDENTIALS).join();
+        } else {
+            final List<MirrorDto> mirrors = ImmutableList.of(
+                    new MirrorDto("foo", true, project.name(), DEFAULT_SCHEDULE, "LOCAL_TO_REMOTE", "foo",
+                                  "/mirrors/foo", "git+ssh", "foo.com/foo.git", "", "", null, "alice"),
+                    new MirrorDto("bar", true, project.name(), "0 */10 * * * ?", "REMOTE_TO_LOCAL", "bar",
+                                  "", "git+ssh", "bar.com/bar.git", "/some-path", "", null, "bob"),
+                    new MirrorDto("qux", true, project.name(), DEFAULT_SCHEDULE, "LOCAL_TO_REMOTE", "qux",
+                                  "", "git+ssh", "qux.net/qux.git", "", "develop", null, ""),
+                    new MirrorDto("foo-bar", false, project.name(), DEFAULT_SCHEDULE, "LOCAL_TO_REMOTE", "foo",
+                                  "/mirrors/bar", "git+ssh", "bar.com/bar.git", "", "", null, "bob"));
+            for (MirrorCredential credential : CREDENTIALS) {
+                metaRepo.saveCredential(credential, Author.SYSTEM);
+            }
+            for (MirrorDto mirror : mirrors) {
+                metaRepo.saveMirror(mirror, Author.SYSTEM);
+            }
+        }
 
         // When the mentioned repositories (foo and bar) do not exist,
         assertThat(metaRepo.mirrors().join()).isEmpty();
@@ -187,7 +242,7 @@ class DefaultMetaRepositoryWithMirrorTest {
         assertThat(qux.direction()).isEqualTo(MirrorDirection.LOCAL_TO_REMOTE);
 
         assertThat(foo.schedule().equivalent(cronParser.parse("0 * * * * ?"))).isTrue();
-        assertThat(bar.schedule().equivalent(cronParser.parse("*/10 * * * * ?"))).isTrue();
+        assertThat(bar.schedule().equivalent(cronParser.parse("0 */10 * * * ?"))).isTrue();
         assertThat(qux.schedule().equivalent(cronParser.parse("0 * * * * ?"))).isTrue();
 
         assertThat(foo.localPath()).isEqualTo("/mirrors/foo/");
@@ -202,8 +257,8 @@ class DefaultMetaRepositoryWithMirrorTest {
         assertThat(bar.remotePath()).isEqualTo("/some-path/");
         assertThat(qux.remotePath()).isEqualTo("/");
 
-        assertThat(foo.remoteBranch()).isNull();
-        assertThat(bar.remoteBranch()).isNull();
+        assertThat(foo.remoteBranch()).isEmpty();
+        assertThat(bar.remoteBranch()).isEmpty();
         assertThat(qux.remoteBranch()).isEqualTo("develop");
 
         // Ensure the credentials are loaded correctly.
@@ -226,18 +281,23 @@ class DefaultMetaRepositoryWithMirrorTest {
 
     @Test
     void testMirrorWithCredentialId() {
-        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
-                        Change.ofJsonUpsert(
-                                PATH_LEGACY_MIRRORS,
-                                "[{" +
-                                // type isn't used from https://github.com/line/centraldogma/pull/836 but
-                                // left for backward compatibility check.
-                                "  \"type\": \"single\"," +
-                                "  \"direction\": \"LOCAL_TO_REMOTE\"," +
-                                "  \"localRepo\": \"qux\"," +
-                                "  \"remoteUri\": \"git+ssh://qux.net/qux.git\"," +
-                                "  \"credentialId\": \"alice\"" +
-                                "}]"), UPSERT_CREDENTIALS).join();
+        final List<Change<?>> changes =
+                ImmutableList.<Change<?>>builder()
+                             .add(Change.ofJsonUpsert(
+                                     "/mirrors/foo.json",
+                                     '{' +
+                                     "  \"id\": \"foo\"," +
+                                     // type isn't used from https://github.com/line/centraldogma/pull/836 but
+                                     // left for backward compatibility check.
+                                     "  \"type\": \"single\"," +
+                                     "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                                     "  \"localRepo\": \"qux\"," +
+                                     "  \"remoteUri\": \"git+ssh://qux.net/qux.git\"," +
+                                     "  \"credentialId\": \"alice\"" +
+                                     '}'))
+                             .addAll(UPSERT_RAW_CREDENTIALS)
+                             .build();
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", changes).join();
 
         project.repos().create("qux", Author.SYSTEM);
 
@@ -254,6 +314,6 @@ class DefaultMetaRepositoryWithMirrorTest {
         // Get the mirror list and sort it by localRepo name alphabetically for easier testing.
         return metaRepo.mirrors().join().stream()
                        .sorted(Comparator.comparing(m -> m.localRepo().name()))
-                       .collect(Collectors.toList());
+                       .collect(toImmutableList());
     }
 }

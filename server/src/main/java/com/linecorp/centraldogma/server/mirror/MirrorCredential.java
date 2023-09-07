@@ -46,7 +46,7 @@ import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirr
 public interface MirrorCredential {
 
     MirrorCredential FALLBACK =
-            new NoneMirrorCredential("", Collections.singleton(Pattern.compile("^.*$")), true);
+            new NoneMirrorCredential("", true, Collections.singleton(Pattern.compile("^.*$")));
 
     /**
      * Returns the ID of the credential.

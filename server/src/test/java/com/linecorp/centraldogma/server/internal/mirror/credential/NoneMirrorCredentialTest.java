@@ -33,20 +33,21 @@ class NoneMirrorCredentialTest {
     void testDeserialization() throws Exception {
         // With hostnamePatterns
         assertThat(Jackson.readValue('{' +
+                                     "  \"id\": \"none\"," +
                                      "  \"type\": \"none\"," +
                                      "  \"hostnamePatterns\": [" +
                                      "    \"^foo\\\\.com$\"" +
                                      "  ]," +
                                      "  \"enabled\": true" +
                                      '}', MirrorCredential.class))
-                .isEqualTo(new NoneMirrorCredential(null,
-                                                    ImmutableSet.of(Pattern.compile("^foo\\.com$")),
-                                                    true));
-        // With ID
+                .isEqualTo(new NoneMirrorCredential("none", true,
+                                                    ImmutableSet.of(Pattern.compile("^foo\\.com$"))
+                ));
+        // Without hostnamePatterns
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"none\"," +
                                      "  \"id\": \"foo\"" +
                                      '}', MirrorCredential.class))
-                .isEqualTo(new NoneMirrorCredential("foo", null, true));
+                .isEqualTo(new NoneMirrorCredential("foo", true, null));
     }
 }

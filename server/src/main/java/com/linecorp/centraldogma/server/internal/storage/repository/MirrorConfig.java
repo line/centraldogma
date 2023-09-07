@@ -39,6 +39,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 
@@ -56,7 +57,7 @@ public final class MirrorConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(MirrorConfig.class);
 
-    private static final String DEFAULT_SCHEDULE = "0 * * * * ?"; // Every minute
+    public static final String DEFAULT_SCHEDULE = "0 * * * * ?"; // Every minute
 
     public static final CronParser CRON_PARSER = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
@@ -111,7 +112,7 @@ public final class MirrorConfig {
         } else {
             this.gitignore = null;
         }
-        this.credentialId = credentialId;
+        this.credentialId = Strings.emptyToNull(credentialId);
     }
 
     @Nullable

@@ -59,7 +59,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     private static final String PATH_MIRRORS = "/mirrors/";
 
     public static boolean isMetaFile(String path) {
-        return path.startsWith(PATH_CREDENTIALS) || path.startsWith(PATH_MIRRORS);
+        return path.endsWith(".json") && (path.startsWith(PATH_CREDENTIALS) || path.startsWith(PATH_MIRRORS));
     }
 
     public static String credentialFile(String credentialId) {

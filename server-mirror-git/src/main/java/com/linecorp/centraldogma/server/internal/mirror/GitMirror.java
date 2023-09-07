@@ -384,7 +384,7 @@ public final class GitMirror extends AbstractMirror {
 
     private String getHeadBranchRefName(GitWithAuth git) throws GitAPIException {
         // Use the given branch if available.
-        if (remoteBranch() != null) {
+        if (!remoteBranch().isEmpty()) {
             return Constants.R_HEADS + remoteBranch();
         }
 

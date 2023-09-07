@@ -58,7 +58,6 @@ public abstract class AbstractMirror implements Mirror {
     private final String localPath;
     private final URI remoteRepoUri;
     private final String remotePath;
-    @Nullable
     private final String remoteBranch;
     @Nullable
     private final String gitignore;
@@ -67,7 +66,7 @@ public abstract class AbstractMirror implements Mirror {
 
     protected AbstractMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
                              MirrorCredential credential, Repository localRepo, String localPath,
-                             URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
+                             URI remoteRepoUri, String remotePath, String remoteBranch,
                              @Nullable String gitignore) {
         this.id = requireNonNull(id, "id");
         this.enabled = enabled;
