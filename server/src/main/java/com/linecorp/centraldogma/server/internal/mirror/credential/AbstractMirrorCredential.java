@@ -59,12 +59,6 @@ public abstract class AbstractMirrorCredential implements MirrorCredential {
         if (hostnamePatterns == null || Iterables.isEmpty(hostnamePatterns)) {
             return ImmutableSet.of();
         }
-        if (Iterables.size(hostnamePatterns) == 1 && Iterables.getFirst(hostnamePatterns, null) == null) {
-            // Web browsers may send an empty array `[]` as a value of hostnamePatterns
-            // which is converted into `[null]`.
-            return ImmutableSet.of();
-        }
-
         return ImmutableSet.copyOf(
                 requireNonNullElements(hostnamePatterns, "hostnamePatterns"));
     }
