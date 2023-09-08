@@ -176,18 +176,22 @@ public class CentralDogma implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogma.class);
 
-    private static final boolean ENABLE_GIT_MIRROR;
+    private static final boolean GIT_MIRROR_ENABLED;
+
     static {
         Jackson.registerModules(new SimpleModule().addSerializer(CacheStats.class, new CacheStatsSerializer()));
 
-        boolean enableGitMirror = false;
+        boolean gitMirrorEnabled = false;
         try {
-            Class.forName(CentralDogma.class.getPackage().getName() + ".internal.mirror.git.GitMirror");
-            enableGitMirror = true;
+            Class.forName(CentralDogma.class.getPackage().getName() + ".internal.mirror.GitMirror");
+            gitMirrorEnabled = true;
         } catch (ClassNotFoundException e) {
-            logger.info("GitMirror is not available. Git mirroring will be disabled.");
+            // GitMirror is not available.
         }
-        ENABLE_GIT_MIRROR = enableGitMirror;
+        logger.info("Git mirroring: {}",
+                    gitMirrorEnabled ? "enabled"
+                                    : "disabled ('centraldogma-server-mirror-git' module is not available)");
+        GIT_MIRROR_ENABLED = gitMirrorEnabled;
     }
 
     /**
@@ -406,13 +410,13 @@ public class CentralDogma implements AutoCloseable {
                 logger.info("Starting plugins on the leader replica ..");
                 pluginsForLeaderOnly
                         .start(cfg, pm, exec, meterRegistry, purgeWorker).handle((unused, cause) -> {
-                    if (cause == null) {
-                        logger.info("Started plugins on the leader replica.");
-                    } else {
-                        logger.error("Failed to start plugins on the leader replica..", cause);
-                    }
-                    return null;
-                });
+                            if (cause == null) {
+                                logger.info("Started plugins on the leader replica.");
+                            } else {
+                                logger.error("Failed to start plugins on the leader replica..", cause);
+                            }
+                            return null;
+                        });
             }
         };
 
@@ -709,7 +713,7 @@ public class CentralDogma implements AutoCloseable {
                             new RepositoryServiceV1(safePm, executor, mds), decorator,
                             v1RequestConverter, v1ResponseConverter);
 
-        if (ENABLE_GIT_MIRROR) {
+        if (GIT_MIRROR_ENABLED) {
             sb.annotatedService(API_V1_PATH_PREFIX,
                                 new MirroringServiceV1(safePm, executor), decorator,
                                 v1RequestConverter, v1RequestConverter);

@@ -208,7 +208,7 @@ class GitMirrorAuthTest {
                 "git+ssh://github.com/line/centraldogma-authtest.git",
                 Jackson.readTree(
                         '{' +
-                        "  \"id\": \"" + privateKeyFile +"\"," +
+                        "  \"id\": \"" + privateKeyFile + "\"," +
                         "  \"enabled\": true," +
                         "  \"type\": \"public_key\"," +
                         "  \"hostnamePatterns\": [ \"^.*$\" ]," +

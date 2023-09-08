@@ -100,7 +100,8 @@ public class MirroringServiceV1 extends AbstractService {
      */
     @Put("/projects/{projectName}/mirrors")
     @ConsumesJson
-    public CompletableFuture<Revision> updateMirror(@Param String projectName, MirrorDto mirror, Author author) {
+    public CompletableFuture<Revision> updateMirror(@Param String projectName, MirrorDto mirror,
+                                                    Author author) {
         return metaRepo(projectName).updateMirror(mirror, author);
     }
 

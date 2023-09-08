@@ -34,28 +34,37 @@ applications access Central Dogma repositories instead:
 
 Setting up a Git-to-CD mirror
 -----------------------------
-You need to put two files into the ``meta`` repository of your Central Dogma project: ``/mirrors.json`` and
-``/credentials.json``.
+You need to put two files into the ``meta`` repository of your Central Dogma project:
+``/mirrors/{mirror-id}.json`` and ``/credentials/{credential-id}.json``.
 
-``/mirrors.json`` contains an array of periodic mirroring tasks. For example:
+Setting up a mirroring task
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``/mirrors/{mirror-id}.json`` contains an object of a periodic mirroring task. For example:
 
 .. code-block:: json
+   :caption: foo-settings-mirror.json
 
-    [
-      {
-        "enabled": true,
-        "schedule": "0 * * * * ?",
-        "direction": "REMOTE_TO_LOCAL",
-        "localRepo": "foo",
-        "localPath": "/",
-        "remoteUri": "git+ssh://git.example.com/foo.git/settings#release",
-        "credentialId": "my_private_key",
-        "gitignore": [
-            "/credential.txt",
-            "private_dir"
-        ]
-      }
-    ]
+   {
+     "id": "foo-settings-mirror",
+     "enabled": true,
+     "schedule": "0 * * * * ?",
+     "direction": "REMOTE_TO_LOCAL",
+     "localRepo": "foo",
+     "localPath": "/",
+     "remoteUri": "git+ssh://git.example.com/foo.git/settings#release",
+     "credentialId": "my_private_key",
+     "gitignore": [
+         "/credential.txt",
+         "private_dir"
+     ]
+   }
+
+- ``id`` (string)
+
+  - the ID of the mirroring task. You should set the same value specified in the file name.
+    For example, if the file name is ``/mirrors/foo-settings-mirror.json``, the value of this field should be
+    ``foo-settings-mirror``.
 
 - ``enabled`` (boolean, optional)
 
@@ -99,9 +108,9 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
 
 - ``credentialId`` (string, optional)
 
-  - the ID of the credential to use for authentication, as defined in ``/credentials.json``. If unspecified,
-    the credential whose ``hostnamePattern`` is matched by the host name part of the ``remoteUri`` value will
-    be selected automatically.
+  - the ID of the credential to use for authentication, as defined in ``/credentials/{credential-id}.json``.
+    If unspecified, the credential whose ``hostnamePattern`` is matched by the host name part of the
+    ``remoteUri`` value will be selected automatically.
 
 - ``gitignore`` (string or array of strings, optional)
 
@@ -110,48 +119,70 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
     of strings where each line represents a single pattern. The file pattern expressed in gitignore is relative to the
     path of ``remoteUri``.
 
-``/credentials.json`` contains the authentication credentials which are required when accessing the Git
-repositories defined in ``/mirrors.json``:
+Setting up a credential
+^^^^^^^^^^^^^^^^^^^^^^^
 
+``/credentials/{credential-id}.json`` contains the authentication credential which is required when accessing
+the Git repositories defined in ``/mirrors/{mirror-id}.json``:
+
+* No authentication
 .. code-block:: json
+   :caption: no_auth.json
 
-    [
-      {
-        "type": "none",
-        "hostnamePatterns": [
-          "^git\.insecure\.com$"
-        ]
-      },
-      {
-        "type": "password",
-        "hostnamePatterns": [
-          "^git\.password-protected\.com$"
-        ],
-        "username": "alice",
-        "password": "secret!"
-      },
-      {
-        "id": "my_private_key",
-        "type": "public_key",
-        "hostnamePatterns": [
-          "^.*\.secure\.com$"
-        ],
-        "username": "git",
-        "publicKey": "ssh-ed25519 ... user@host",
-        "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----\n",
-        "passphrase": null
-      },
-      {
-        "id": "my_access_token",
-        "type": "access_token",
-        "accessToken": "github_pat_..."
-      }
-    ]
+   {
+     "id": "no_auth",
+     "type": "none",
+     "hostnamePatterns": [
+       "^git\.insecure\.com$"
+     ]
+   }
 
-- ``id`` (string, optional)
+* Password-based authentication
+.. code-block:: json
+   :caption: my_password.json
 
-  - the ID of the credential. You can specify the value of this field in the ``credentialId`` field of the
-    mirror definitions in ``/mirrors.json``.
+   {
+     "id": "my_password",
+     "type": "password",
+     "hostnamePatterns": [
+       "^git\.password-protected\.com$"
+     ],
+     "username": "alice",
+     "password": "secret!"
+   }
+
+* SSH public key authentication
+.. code-block:: json
+   :caption: my_private_key.json
+
+   {
+     "id": "my_private_key",
+     "type": "public_key",
+     "hostnamePatterns": [
+       "^.*\.secure\.com$"
+     ],
+     "username": "git",
+     "publicKey": "ssh-ed25519 ... user@host",
+     "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----\n",
+     "passphrase": null
+   }
+
+* Access token-based authentication
+.. code-block:: json
+   :caption: my_access_token.json
+
+   {
+     "id": "my_access_token",
+     "type": "access_token",
+     "accessToken": "github_pat_..."
+   }
+
+- ``id`` (string)
+
+  - the ID of the credential. You should set the same value specified in the file name. For example, if the file
+    name is ``/credentials/my_private_key.json``, the value of this field should be ``my_private_key``.
+    You can specify the value of this field in the ``credentialId`` field of the mirror definitions in
+    ``/mirrors/{mirror-id}.json``.
 
 - ``type`` (string)
 
