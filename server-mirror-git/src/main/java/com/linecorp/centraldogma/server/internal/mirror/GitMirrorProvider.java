@@ -55,10 +55,10 @@ public final class GitMirrorProvider implements MirrorProvider {
             case SCHEME_GIT:
             case SCHEME_GIT_FILE: {
                 final String[] components = split(remoteUri, "git");
-                return new GitMirror(context.schedule(), context.direction(), context.credential(),
-                                     context.localRepo(), context.localPath(),
-                                     URI.create(components[0]), components[1], components[2],
-                                     context.gitignore());
+                return new DefaultGitMirror(context.schedule(), context.direction(), context.credential(),
+                                            context.localRepo(), context.localPath(),
+                                            URI.create(components[0]), components[1], components[2],
+                                            context.gitignore());
             }
         }
 

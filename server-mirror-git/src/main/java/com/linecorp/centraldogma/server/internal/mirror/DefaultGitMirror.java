@@ -38,14 +38,14 @@ import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-final class GitMirror extends AbstractGitMirror {
+final class DefaultGitMirror extends AbstractGitMirror {
 
     private static final Consumer<TransportCommand<?, ?>> NOOP_CONFIGURATOR = command -> {};
 
-    GitMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
-              Repository localRepo, String localPath,
-              URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
-              @Nullable String gitignore) {
+    DefaultGitMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
+                     Repository localRepo, String localPath,
+                     URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
+                     @Nullable String gitignore) {
         super(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, remoteBranch,
               gitignore);
     }

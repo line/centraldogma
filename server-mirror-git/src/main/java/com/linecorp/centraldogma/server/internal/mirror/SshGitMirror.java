@@ -24,7 +24,6 @@ import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.util.Collection;
-import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
@@ -93,8 +92,9 @@ final class SshGitMirror extends AbstractGitMirror {
         try (GitWithAuth git = openGit(workDir)) {
             sshClient = createSshClient();
             session = createSession(sshClient, git);
-            final GitSshdSessionFactory sessionFactory = new DefaultGitSshdSessionFactory(sshClient, session);
-            mirrorLocalToRemote(git, maxNumFiles, maxNumBytes, transportCommandConfigurator(sessionFactory));
+            final DefaultGitSshdSessionFactory sessionFactory =
+                    new DefaultGitSshdSessionFactory(sshClient, session);
+            mirrorLocalToRemote(git, maxNumFiles, maxNumBytes, sessionFactory::configureCommand);
         } finally {
             try {
                 if (session != null) {
@@ -116,9 +116,9 @@ final class SshGitMirror extends AbstractGitMirror {
         try (GitWithAuth git = openGit(workDir)) {
             sshClient = createSshClient();
             session = createSession(sshClient, git);
-            final GitSshdSessionFactory sessionFactory = new DefaultGitSshdSessionFactory(sshClient, session);
-            mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes,
-                                transportCommandConfigurator(sessionFactory));
+            final DefaultGitSshdSessionFactory sessionFactory =
+                    new DefaultGitSshdSessionFactory(sshClient, session);
+            mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes, sessionFactory::configureCommand);
         } finally {
             try {
                 if (session != null) {
@@ -216,22 +216,19 @@ final class SshGitMirror extends AbstractGitMirror {
         return FilePasswordProvider.of(passphrase);
     }
 
-    private static Consumer<TransportCommand<?, ?>> transportCommandConfigurator(
-            GitSshdSessionFactory sessionFactory) {
-        return command -> {
-            // Need to set the credentials provider, otherwise NPE is raised when creating GitSshdSession.
-            command.setCredentialsProvider(NoopCredentialsProvider.INSTANCE);
-            command.setTransportConfigCallback(transport -> {
-                final SshTransport sshTransport = (SshTransport) transport;
-                sshTransport.setSshSessionFactory(sessionFactory);
-            });
-        };
-    }
-
     private static final class DefaultGitSshdSessionFactory extends GitSshdSessionFactory {
         DefaultGitSshdSessionFactory(SshClient client, ClientSession session) {
             // The constructor is protected, so we should inherit the class.
             super(client, session);
+        }
+
+        private void configureCommand(TransportCommand<?, ?> command) {
+            // Need to set the credentials provider, otherwise NPE is raised when creating GitSshdSession.
+            command.setCredentialsProvider(NoopCredentialsProvider.INSTANCE);
+            command.setTransportConfigCallback(transport -> {
+                final SshTransport sshTransport = (SshTransport) transport;
+                sshTransport.setSshSessionFactory(this);
+            });
         }
     }
 
