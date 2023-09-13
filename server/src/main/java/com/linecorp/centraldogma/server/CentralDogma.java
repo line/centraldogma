@@ -38,6 +38,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -173,7 +174,13 @@ public class CentralDogma implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogma.class);
 
+    static final List<ArmeriaServerConfigurator> ARMERIA_SERVER_CONFIGURATORS =
+            ImmutableList.copyOf(ServiceLoader.load(
+                    ArmeriaServerConfigurator.class, CentralDogma.class.getClassLoader()));
+
     static {
+        logger.debug("Available {}s: {}", ArmeriaServerConfigurator.class.getSimpleName(),
+                     ARMERIA_SERVER_CONFIGURATORS);
         Jackson.registerModules(new SimpleModule().addSerializer(CacheStats.class, new CacheStatsSerializer()));
     }
 
@@ -557,6 +564,7 @@ public class CentralDogma implements AutoCloseable {
         } else {
             sb.accessLogFormat(accessLogFormat);
         }
+        ARMERIA_SERVER_CONFIGURATORS.forEach(c -> c.configure(sb));
 
         final Server s = sb.build();
         s.start().join();
