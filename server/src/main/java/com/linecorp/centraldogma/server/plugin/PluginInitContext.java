@@ -41,8 +41,7 @@ public final class PluginInitContext extends PluginContext {
                              ProjectManager projectManager,
                              CommandExecutor commandExecutor,
                              MeterRegistry meterRegistry,
-                             ScheduledExecutorService purgeWorker,
-                             ServerBuilder serverBuilder) {
+                             ScheduledExecutorService purgeWorker, ServerBuilder serverBuilder) {
         super(config, projectManager, commandExecutor, meterRegistry, purgeWorker);
         this.serverBuilder = requireNonNull(serverBuilder, "serverBuilder");
     }

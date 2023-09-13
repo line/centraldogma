@@ -22,6 +22,7 @@ includeWithFlags ':server-mirror-git',                      'java11', 'publish',
 includeWithFlags ':testing:testing-common',                 'java', 'publish', 'relocate'
 includeWithFlags ':testing:junit',                          'java', 'publish', 'relocate'
 includeWithFlags ':testing:junit4',                         'java', 'publish', 'relocate'
+includeWithFlags ':xds',                                    'java', 'publish', 'relocate'
 // Set correct directory names
 project(':testing:testing-common').projectDir = file('testing/common')
 

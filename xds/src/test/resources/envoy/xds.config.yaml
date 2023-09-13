@@ -1,0 +1,39 @@
+admin:
+  access_log_path: /dev/null
+  address:
+    socket_address: { address: 0.0.0.0, port_value: 9901 }
+dynamic_resources:
+  cds_config:
+    api_config_source:
+      api_type: GRPC
+      grpc_services:
+        envoy_grpc:
+          cluster_name: xds_cluster
+      transport_api_version: V3
+    resource_api_version: V3
+  lds_config:
+    api_config_source:
+      api_type: GRPC
+      grpc_services:
+        envoy_grpc:
+          cluster_name: xds_cluster
+      transport_api_version: V3
+    resource_api_version: V3
+node:
+  cluster: test-cluster
+  id: test-id
+static_resources:
+  clusters:
+  - connect_timeout: 1s
+    type: STRICT_DNS
+    load_assignment:
+      cluster_name: xds_cluster
+      endpoints:
+        - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: host.docker.internal
+                    port_value: HOST_PORT
+    http2_protocol_options: {}
+    name: xds_cluster
