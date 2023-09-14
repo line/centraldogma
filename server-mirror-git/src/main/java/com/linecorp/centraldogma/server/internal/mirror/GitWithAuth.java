@@ -24,11 +24,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 
 import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.GarbageCollectCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.LsRemoteCommand;
 import org.eclipse.jgit.api.PushCommand;
+import org.eclipse.jgit.api.TransportCommand;
 import org.eclipse.jgit.lib.EmptyProgressMonitor;
 import org.eclipse.jgit.lib.ProgressMonitor;
 import org.eclipse.jgit.lib.Repository;
@@ -70,12 +73,15 @@ final class GitWithAuth extends Git {
     private final Lock lock;
     private final URIish remoteUri;
     private final Map<String, ProgressMonitor> progressMonitors = new HashMap<>();
+    private final Consumer<TransportCommand<?, ?>> configurator;
 
-    GitWithAuth(AbstractGitMirror mirror, File repoDir, URIish remoteUri) throws IOException {
+    GitWithAuth(AbstractGitMirror mirror, File repoDir, URIish remoteUri,
+                Consumer<TransportCommand<?, ?>> configurator) throws IOException {
         super(repo(repoDir));
         this.mirror = mirror;
         lock = getLock(repoDir);
         this.remoteUri = remoteUri;
+        this.configurator = configurator;
     }
 
     URIish remoteUri() {
@@ -122,12 +128,23 @@ final class GitWithAuth extends Git {
 
     @Override
     public FetchCommand fetch() {
-        return super.fetch().setProgressMonitor(progressMonitor("fetch"));
+        final FetchCommand command = super.fetch();
+        configurator.accept(command);
+        return command.setProgressMonitor(progressMonitor("fetch"));
     }
 
     @Override
     public PushCommand push() {
-        return super.push().setProgressMonitor(progressMonitor("push"));
+        final PushCommand command = super.push();
+        configurator.accept(command);
+        return command.setProgressMonitor(progressMonitor("push"));
+    }
+
+    @Override
+    public LsRemoteCommand lsRemote() {
+        final LsRemoteCommand command = super.lsRemote();
+        configurator.accept(command);
+        return command;
     }
 
     @Override

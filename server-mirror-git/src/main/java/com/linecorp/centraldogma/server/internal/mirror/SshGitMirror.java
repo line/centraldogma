@@ -21,6 +21,7 @@ import static com.linecorp.centraldogma.server.internal.mirror.credential.Public
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.util.Collection;
@@ -87,23 +88,18 @@ final class SshGitMirror extends AbstractGitMirror {
 
     @Override
     protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) throws Exception {
-        SshClient sshClient = null;
-        ClientSession session = null;
-        try (GitWithAuth git = openGit(workDir)) {
-            sshClient = createSshClient();
-            session = createSession(sshClient, git);
-            final DefaultGitSshdSessionFactory sessionFactory =
-                    new DefaultGitSshdSessionFactory(sshClient, session);
-            mirrorLocalToRemote(git, maxNumFiles, maxNumBytes, sessionFactory::configureCommand);
+        final SshClient sshClient = createSshClient();
+        final URIish remoteUri = remoteUri();
+        final ClientSession session = createSession(sshClient, remoteUri);
+        final DefaultGitSshdSessionFactory sessionFactory =
+                new DefaultGitSshdSessionFactory(sshClient, session);
+        try (GitWithAuth git = openGit(workDir, remoteUri, sessionFactory::configureCommand)) {
+            mirrorLocalToRemote(git, maxNumFiles, maxNumBytes);
         } finally {
             try {
-                if (session != null) {
-                    session.close(true);
-                }
+                session.close(true);
             } finally {
-                if (sshClient != null) {
-                    sshClient.stop();
-                }
+                sshClient.stop();
             }
         }
     }
@@ -111,28 +107,23 @@ final class SshGitMirror extends AbstractGitMirror {
     @Override
     protected void mirrorRemoteToLocal(File workDir, CommandExecutor executor,
                                        int maxNumFiles, long maxNumBytes) throws Exception {
-        SshClient sshClient = null;
-        ClientSession session = null;
-        try (GitWithAuth git = openGit(workDir)) {
-            sshClient = createSshClient();
-            session = createSession(sshClient, git);
-            final DefaultGitSshdSessionFactory sessionFactory =
-                    new DefaultGitSshdSessionFactory(sshClient, session);
-            mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes, sessionFactory::configureCommand);
+        final SshClient sshClient = createSshClient();
+        final URIish remoteUri = remoteUri();
+        final ClientSession session = createSession(sshClient, remoteUri);
+        final DefaultGitSshdSessionFactory sessionFactory =
+                new DefaultGitSshdSessionFactory(sshClient, session);
+        try (GitWithAuth git = openGit(workDir, remoteUri, sessionFactory::configureCommand)) {
+            mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes);
         } finally {
             try {
-                if (session != null) {
-                    session.close(true);
-                }
+                session.close(true);
             } finally {
-                if (sshClient != null) {
-                    sshClient.stop();
-                }
+                sshClient.stop();
             }
         }
     }
 
-    private GitWithAuth openGit(File workDir) throws Exception {
+    private URIish remoteUri() throws URISyntaxException {
         // Requires the username to be included in the URI.
         final String username;
         if (credential() instanceof PasswordMirrorCredential) {
@@ -151,7 +142,7 @@ final class SshGitMirror extends AbstractGitMirror {
         } else {
             jGitUri = "ssh://" + remoteRepoUri().getRawAuthority() + remoteRepoUri().getRawPath();
         }
-        return openGit(workDir, jGitUri, new URIish(jGitUri));
+        return new URIish(jGitUri);
     }
 
     private SshClient createSshClient() {
@@ -168,9 +159,8 @@ final class SshGitMirror extends AbstractGitMirror {
         return client;
     }
 
-    private static ClientSession createSession(SshClient sshClient, GitWithAuth git) {
+    private static ClientSession createSession(SshClient sshClient, URIish uri) {
         try {
-            final URIish uri = git.remoteUri();
             int port = uri.getPort();
             if (port <= 0) {
                 port = 22; // Use the SSH default port it unspecified.
