@@ -88,18 +88,13 @@ final class SshGitMirror extends AbstractGitMirror {
 
     @Override
     protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) throws Exception {
-        final SshClient sshClient = createSshClient();
         final URIish remoteUri = remoteUri();
-        final ClientSession session = createSession(sshClient, remoteUri);
-        final DefaultGitSshdSessionFactory sessionFactory =
-                new DefaultGitSshdSessionFactory(sshClient, session);
-        try (GitWithAuth git = openGit(workDir, remoteUri, sessionFactory::configureCommand)) {
-            mirrorLocalToRemote(git, maxNumFiles, maxNumBytes);
-        } finally {
-            try {
-                session.close(true);
-            } finally {
-                sshClient.stop();
+        try (SshClient sshClient = createSshClient();
+             ClientSession session = createSession(sshClient, remoteUri)) {
+            final DefaultGitSshdSessionFactory sessionFactory =
+                    new DefaultGitSshdSessionFactory(sshClient, session);
+            try (GitWithAuth git = openGit(workDir, remoteUri, sessionFactory::configureCommand)) {
+                mirrorLocalToRemote(git, maxNumFiles, maxNumBytes);
             }
         }
     }
@@ -107,18 +102,13 @@ final class SshGitMirror extends AbstractGitMirror {
     @Override
     protected void mirrorRemoteToLocal(File workDir, CommandExecutor executor,
                                        int maxNumFiles, long maxNumBytes) throws Exception {
-        final SshClient sshClient = createSshClient();
         final URIish remoteUri = remoteUri();
-        final ClientSession session = createSession(sshClient, remoteUri);
-        final DefaultGitSshdSessionFactory sessionFactory =
-                new DefaultGitSshdSessionFactory(sshClient, session);
-        try (GitWithAuth git = openGit(workDir, remoteUri, sessionFactory::configureCommand)) {
-            mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes);
-        } finally {
-            try {
-                session.close(true);
-            } finally {
-                sshClient.stop();
+        try (SshClient sshClient = createSshClient();
+             ClientSession session = createSession(sshClient, remoteUri)) {
+            final DefaultGitSshdSessionFactory sessionFactory =
+                    new DefaultGitSshdSessionFactory(sshClient, session);
+            try (GitWithAuth git = openGit(workDir, remoteUri, sessionFactory::configureCommand)) {
+                mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes);
             }
         }
     }

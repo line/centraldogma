@@ -37,9 +37,6 @@ import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
-import org.eclipse.jgit.api.FetchCommand;
-import org.eclipse.jgit.api.LsRemoteCommand;
-import org.eclipse.jgit.api.PushCommand;
 import org.eclipse.jgit.api.RemoteSetUrlCommand;
 import org.eclipse.jgit.api.RemoteSetUrlCommand.UriType;
 import org.eclipse.jgit.api.TransportCommand;
@@ -225,11 +222,11 @@ abstract class AbstractGitMirror extends AbstractMirror {
             updateRef(gitRepository, revWalk, headBranchRefName, nextCommitId);
         }
 
-        final PushCommand push = git.push();
-        push.setRefSpecs(new RefSpec(headBranchRefName))
-            .setAtomic(true)
-            .setTimeout(GIT_TIMEOUT_SECS)
-            .call();
+        git.push()
+           .setRefSpecs(new RefSpec(headBranchRefName))
+           .setAtomic(true)
+           .setTimeout(GIT_TIMEOUT_SECS)
+           .call();
     }
 
     void mirrorRemoteToLocal(
@@ -393,11 +390,11 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
     private static Collection<Ref> lsRemote(GitWithAuth git,
                                            boolean setHeads) throws GitAPIException {
-        final LsRemoteCommand lsRemoteCommand = git.lsRemote();
-        return lsRemoteCommand.setTags(false)
-                              .setTimeout(GIT_TIMEOUT_SECS)
-                              .setHeads(setHeads)
-                              .call();
+        return git.lsRemote()
+                  .setTags(false)
+                  .setTimeout(GIT_TIMEOUT_SECS)
+                  .setHeads(setHeads)
+                  .call();
     }
 
     private static Ref findHeadBranchRef(GitWithAuth git, String headBranchRefName, Collection<Ref> refs) {
@@ -456,12 +453,13 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
     private static ObjectId fetchRemoteHeadAndGetCommitId(
             GitWithAuth git, String headBranchRefName) throws GitAPIException, IOException {
-        final FetchCommand fetch = git.fetch().setDepth(1);
-        final FetchResult fetchResult = fetch.setRefSpecs(new RefSpec(headBranchRefName))
-                                             .setRemoveDeletedRefs(true)
-                                             .setTagOpt(TagOpt.NO_TAGS)
-                                             .setTimeout(GIT_TIMEOUT_SECS)
-                                             .call();
+        final FetchResult fetchResult = git.fetch()
+                                           .setDepth(1)
+                                           .setRefSpecs(new RefSpec(headBranchRefName))
+                                           .setRemoveDeletedRefs(true)
+                                           .setTagOpt(TagOpt.NO_TAGS)
+                                           .setTimeout(GIT_TIMEOUT_SECS)
+                                           .call();
         final ObjectId commitId = fetchResult.getAdvertisedRef(headBranchRefName).getObjectId();
         final RefUpdate refUpdate = git.getRepository().updateRef(headBranchRefName);
         refUpdate.setNewObjectId(commitId);
