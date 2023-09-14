@@ -32,6 +32,7 @@ final class AllReplicasPluginTest {
 
     @Test
     void hello() {
+        // hello service is registered by TestAllReplicasPlugin.
         final AggregatedHttpResponse res = dogma.httpClient().get("/hello").aggregate().join();
         assertThat(res.status()).isSameAs(HttpStatus.OK);
     }

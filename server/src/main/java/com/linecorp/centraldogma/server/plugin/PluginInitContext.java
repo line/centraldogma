@@ -22,7 +22,7 @@ import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 
 /**
- * A contest that is used to pass when calling {@link AllReplicasPlugin#init(PluginInitContext)}.
+ * A context that is used to pass when calling {@link AllReplicasPlugin#init(PluginInitContext)}.
  */
 public final class PluginInitContext {
 
