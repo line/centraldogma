@@ -89,12 +89,25 @@ final class SshGitMirror extends AbstractGitMirror {
     @Override
     protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) throws Exception {
         final URIish remoteUri = remoteUri();
-        try (SshClient sshClient = createSshClient();
-             ClientSession session = createSession(sshClient, remoteUri)) {
+        SshClient sshClient = null;
+        ClientSession session = null;
+        try {
+            sshClient = createSshClient();
+            session = createSession(sshClient, remoteUri);
             final DefaultGitSshdSessionFactory sessionFactory =
                     new DefaultGitSshdSessionFactory(sshClient, session);
             try (GitWithAuth git = openGit(workDir, remoteUri, sessionFactory::configureCommand)) {
                 mirrorLocalToRemote(git, maxNumFiles, maxNumBytes);
+            }
+        } finally {
+            try {
+                if (session != null) {
+                    session.close(true);
+                }
+            } finally {
+                if (sshClient != null) {
+                    sshClient.stop();
+                }
             }
         }
     }
@@ -103,12 +116,25 @@ final class SshGitMirror extends AbstractGitMirror {
     protected void mirrorRemoteToLocal(File workDir, CommandExecutor executor,
                                        int maxNumFiles, long maxNumBytes) throws Exception {
         final URIish remoteUri = remoteUri();
-        try (SshClient sshClient = createSshClient();
-             ClientSession session = createSession(sshClient, remoteUri)) {
+        SshClient sshClient = null;
+        ClientSession session = null;
+        try {
+            sshClient = createSshClient();
+            session = createSession(sshClient, remoteUri);
             final DefaultGitSshdSessionFactory sessionFactory =
                     new DefaultGitSshdSessionFactory(sshClient, session);
             try (GitWithAuth git = openGit(workDir, remoteUri, sessionFactory::configureCommand)) {
                 mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes);
+            }
+        } finally {
+            try {
+                if (session != null) {
+                    session.close(true);
+                }
+            } finally {
+                if (sshClient != null) {
+                    sshClient.stop();
+                }
             }
         }
     }

@@ -29,11 +29,31 @@ import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
 
+import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 class GitMirrorTest {
+
+    class SimpleClass implements SafeCloseable {
+
+        SimpleClass() {
+            throw new RuntimeException();
+        }
+
+        @Override
+        public void close() {
+            System.out.println("close");
+        }
+    }
+
+    @Test
+    void asdf() {
+        try (SimpleClass sc = new SimpleClass()) {
+            System.out.println("Hello");
+        }
+    }
 
     @Test
     void testGitMirror() {
