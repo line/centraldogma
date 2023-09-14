@@ -18,30 +18,33 @@ package com.linecorp.centraldogma.server.plugin;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.concurrent.ScheduledExecutorService;
+
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+
+import io.micrometer.core.instrument.MeterRegistry;
 
 /**
  * A context that is used to pass when calling {@link AllReplicasPlugin#init(PluginInitContext)}.
  */
-public final class PluginInitContext {
+public final class PluginInitContext extends PluginContext {
 
-    private final CentralDogmaConfig config;
     private final ServerBuilder serverBuilder;
 
     /**
      * Creates a new instance.
      */
-    public PluginInitContext(CentralDogmaConfig config, ServerBuilder serverBuilder) {
-        this.config = requireNonNull(config, "config");
+    public PluginInitContext(CentralDogmaConfig config,
+                             ProjectManager projectManager,
+                             CommandExecutor commandExecutor,
+                             MeterRegistry meterRegistry,
+                             ScheduledExecutorService purgeWorker,
+                             ServerBuilder serverBuilder) {
+        super(config, projectManager, commandExecutor, meterRegistry, purgeWorker);
         this.serverBuilder = requireNonNull(serverBuilder, "serverBuilder");
-    }
-
-    /**
-     * Returns the {@link CentralDogmaConfig}.
-     */
-    public CentralDogmaConfig config() {
-        return config;
     }
 
     /**

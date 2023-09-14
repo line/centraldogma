@@ -366,7 +366,7 @@ public class CentralDogma implements AutoCloseable {
             }
 
             logger.info("Starting the RPC server.");
-            server = startServer(pm, executor, meterRegistry, sessionManager);
+            server = startServer(pm, executor, purgeWorker, meterRegistry, sessionManager);
             logger.info("Started the RPC server at: {}", server.activePorts());
             logger.info("Started the Central Dogma successfully.");
             success = true;
@@ -491,7 +491,8 @@ public class CentralDogma implements AutoCloseable {
     }
 
     private Server startServer(ProjectManager pm, CommandExecutor executor,
-                               MeterRegistry meterRegistry, @Nullable SessionManager sessionManager) {
+                               ScheduledExecutorService purgeWorker, MeterRegistry meterRegistry,
+                               @Nullable SessionManager sessionManager) {
         final ServerBuilder sb = Server.builder();
         sb.verboseResponses(true);
         cfg.ports().forEach(sb::port);
@@ -561,7 +562,8 @@ public class CentralDogma implements AutoCloseable {
         }
 
         if (pluginsForAllReplicas != null) {
-            final PluginInitContext pluginInitContext = new PluginInitContext(config(), sb);
+            final PluginInitContext pluginInitContext =
+                    new PluginInitContext(config(), pm, executor, meterRegistry, purgeWorker, sb);
             pluginsForAllReplicas.plugins()
                                  .forEach(p -> {
                                      if (!(p instanceof AllReplicasPlugin)) {
