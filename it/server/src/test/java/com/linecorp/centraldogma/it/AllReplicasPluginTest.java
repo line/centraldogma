@@ -16,14 +16,23 @@
 
 package com.linecorp.centraldogma.it;
 
-import com.linecorp.armeria.common.HttpResponse;
-import com.linecorp.armeria.server.ServerBuilder;
-import com.linecorp.centraldogma.server.ArmeriaServerConfigurator;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public final class TestArmeriaServerConfigurator implements ArmeriaServerConfigurator {
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-    @Override
-    public void configure(ServerBuilder serverBuilder) {
-        serverBuilder.service("/hello", (ctx, req) -> HttpResponse.of("Hello, world!"));
+import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
+
+final class AllReplicasPluginTest {
+
+    @RegisterExtension
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension();
+
+    @Test
+    void hello() {
+        final AggregatedHttpResponse res = dogma.httpClient().get("/hello").aggregate().join();
+        assertThat(res.status()).isSameAs(HttpStatus.OK);
     }
 }

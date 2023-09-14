@@ -13,19 +13,20 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
-package com.linecorp.centraldogma.server;
-
-import com.linecorp.armeria.server.ServerBuilder;
+package com.linecorp.centraldogma.server.plugin;
 
 /**
- * An interface that configures Armeria server.
- * It is loaded dynamically via Java SPI (Service Provider Interface).
+ * A Base class for {@link Plugin} whose {@link #target()} is {@link PluginTarget#ALL_REPLICAS}.
  */
-@FunctionalInterface
-public interface ArmeriaServerConfigurator {
+public abstract class AllReplicasPlugin implements Plugin {
+
     /**
-     * Configures the server using the specified {@link ServerBuilder}.
+     * Overrides this method to initialize the plugin using the {@link PluginInitContext}.
      */
-    void configure(ServerBuilder serverBuilder);
+    public void init(PluginInitContext pluginInitContext) {}
+
+    @Override
+    public final PluginTarget target() {
+        return PluginTarget.ALL_REPLICAS;
+    }
 }

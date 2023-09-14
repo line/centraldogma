@@ -38,7 +38,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -146,7 +145,9 @@ import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutSched
 import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
+import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.Plugin;
+import com.linecorp.centraldogma.server.plugin.PluginInitContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -174,13 +175,7 @@ public class CentralDogma implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogma.class);
 
-    static final List<ArmeriaServerConfigurator> ARMERIA_SERVER_CONFIGURATORS =
-            ImmutableList.copyOf(ServiceLoader.load(
-                    ArmeriaServerConfigurator.class, CentralDogma.class.getClassLoader()));
-
     static {
-        logger.debug("Available {}s: {}", ArmeriaServerConfigurator.class.getSimpleName(),
-                     ARMERIA_SERVER_CONFIGURATORS);
         Jackson.registerModules(new SimpleModule().addSerializer(CacheStats.class, new CacheStatsSerializer()));
     }
 
@@ -564,7 +559,18 @@ public class CentralDogma implements AutoCloseable {
         } else {
             sb.accessLogFormat(accessLogFormat);
         }
-        ARMERIA_SERVER_CONFIGURATORS.forEach(c -> c.configure(sb));
+
+        if (pluginsForAllReplicas != null) {
+            final PluginInitContext pluginInitContext = new PluginInitContext(config(), sb);
+            pluginsForAllReplicas.plugins()
+                                 .forEach(p -> {
+                                     if (!(p instanceof AllReplicasPlugin)) {
+                                         return;
+                                     }
+                                     final AllReplicasPlugin plugin = (AllReplicasPlugin) p;
+                                     plugin.init(pluginInitContext);
+                                 });
+        }
 
         final Server s = sb.build();
         s.start().join();
