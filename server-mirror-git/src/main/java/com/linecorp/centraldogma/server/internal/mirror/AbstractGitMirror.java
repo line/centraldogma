@@ -24,7 +24,6 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -38,9 +37,6 @@ import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
-import org.eclipse.jgit.api.FetchCommand;
-import org.eclipse.jgit.api.LsRemoteCommand;
-import org.eclipse.jgit.api.PushCommand;
 import org.eclipse.jgit.api.RemoteSetUrlCommand;
 import org.eclipse.jgit.api.RemoteSetUrlCommand.UriType;
 import org.eclipse.jgit.api.TransportCommand;
@@ -136,21 +132,21 @@ abstract class AbstractGitMirror extends AbstractMirror {
         }
     }
 
-    GitWithAuth openGit(File workDir, String jGitUri,
-                        URIish remoteUri) throws IOException, URISyntaxException, GitAPIException {
+    GitWithAuth openGit(File workDir,
+                        URIish remoteUri,
+                        Consumer<TransportCommand<?, ?>> configurator) throws IOException, GitAPIException {
         // Now create and open the repository.
         final File repoDir = new File(
                 workDir,
                 CONSECUTIVE_UNDERSCORES.matcher(DISALLOWED_CHARS.matcher(
                         remoteRepoUri().toASCIIString()).replaceAll("_")).replaceAll("_"));
-        final GitWithAuth git = new GitWithAuth(this, repoDir, remoteUri);
+        final GitWithAuth git = new GitWithAuth(this, repoDir, remoteUri, configurator);
         boolean success = false;
         try {
             // Set the remote URLs.
-            final URIish uri = new URIish(jGitUri);
             final RemoteSetUrlCommand remoteSetUrl = git.remoteSetUrl();
             remoteSetUrl.setRemoteName(Constants.DEFAULT_REMOTE_NAME);
-            remoteSetUrl.setRemoteUri(uri);
+            remoteSetUrl.setRemoteUri(remoteUri);
 
             remoteSetUrl.setUriType(UriType.FETCH);
             remoteSetUrl.call();
@@ -174,12 +170,11 @@ abstract class AbstractGitMirror extends AbstractMirror {
     }
 
     void mirrorLocalToRemote(
-            GitWithAuth git, int maxNumFiles, long maxNumBytes,
-            Consumer<TransportCommand<?, ?>> configurator) throws GitAPIException, IOException {
+            GitWithAuth git, int maxNumFiles, long maxNumBytes) throws GitAPIException, IOException {
         // TODO(minwoox): Early return if the remote does not have any updates.
-        final Ref headBranchRef = getHeadBranchRef(git, configurator);
+        final Ref headBranchRef = getHeadBranchRef(git);
         final String headBranchRefName = headBranchRef.getName();
-        final ObjectId headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRefName, configurator);
+        final ObjectId headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRefName);
 
         final org.eclipse.jgit.lib.Repository gitRepository = git.getRepository();
         try (ObjectReader reader = gitRepository.newObjectReader();
@@ -227,21 +222,19 @@ abstract class AbstractGitMirror extends AbstractMirror {
             updateRef(gitRepository, revWalk, headBranchRefName, nextCommitId);
         }
 
-        final PushCommand push = git.push();
-        configurator.accept(push);
-        push.setRefSpecs(new RefSpec(headBranchRefName))
-            .setAtomic(true)
-            .setTimeout(GIT_TIMEOUT_SECS)
-            .call();
+        git.push()
+           .setRefSpecs(new RefSpec(headBranchRefName))
+           .setAtomic(true)
+           .setTimeout(GIT_TIMEOUT_SECS)
+           .call();
     }
 
     void mirrorRemoteToLocal(
-            GitWithAuth git, CommandExecutor executor, int maxNumFiles, long maxNumBytes,
-            Consumer<TransportCommand<?,?>> configurator) throws Exception {
+            GitWithAuth git, CommandExecutor executor, int maxNumFiles, long maxNumBytes) throws Exception {
         final String summary;
         final String detail;
         final Map<String, Change<?>> changes = new HashMap<>();
-        final Ref headBranchRef = getHeadBranchRef(git, configurator);
+        final Ref headBranchRef = getHeadBranchRef(git);
 
         final String mirrorStatePath = localPath() + MIRROR_STATE_FILE_NAME;
         final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
@@ -251,7 +244,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
         // Update the head commit ID again because there's a chance a commit is pushed between the
         // getHeadBranchRefName and fetchRemoteHeadAndGetCommitId calls.
-        final ObjectId headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName(), configurator);
+        final ObjectId headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName());
         try (ObjectReader reader = git.getRepository().newObjectReader();
              TreeWalk treeWalk = new TreeWalk(reader);
              RevWalk revWalk = new RevWalk(reader)) {
@@ -369,17 +362,16 @@ abstract class AbstractGitMirror extends AbstractMirror {
         return true;
     }
 
-    private Ref getHeadBranchRef(
-            GitWithAuth git, Consumer<TransportCommand<?,?>> configurator) throws GitAPIException {
+    private Ref getHeadBranchRef(GitWithAuth git) throws GitAPIException {
         if (remoteBranch() != null) {
             final String headBranchRefName = Constants.R_HEADS + remoteBranch();
-            final Collection<Ref> refs = lsRemote(git, configurator, true);
+            final Collection<Ref> refs = lsRemote(git, true);
             return findHeadBranchRef(git, headBranchRefName, refs);
         }
 
         // Otherwise, we need to figure out which branch we should fetch.
         // Fetch the remote reference list to determine the default branch.
-        final Collection<Ref> refs = lsRemote(git, configurator, false);
+        final Collection<Ref> refs = lsRemote(git, false);
 
         // Find and resolve 'HEAD' reference, which leads us to the default branch.
         final Optional<String> headRefNameOptional = refs.stream()
@@ -396,14 +388,13 @@ abstract class AbstractGitMirror extends AbstractMirror {
         return findHeadBranchRef(git, headBranchRefName, refs);
     }
 
-    private static Collection<Ref> lsRemote(GitWithAuth git, Consumer<TransportCommand<?, ?>> configurator,
+    private static Collection<Ref> lsRemote(GitWithAuth git,
                                            boolean setHeads) throws GitAPIException {
-        final LsRemoteCommand lsRemoteCommand = git.lsRemote();
-        configurator.accept(lsRemoteCommand);
-        return lsRemoteCommand.setTags(false)
-                              .setTimeout(GIT_TIMEOUT_SECS)
-                              .setHeads(setHeads)
-                              .call();
+        return git.lsRemote()
+                  .setTags(false)
+                  .setTimeout(GIT_TIMEOUT_SECS)
+                  .setHeads(setHeads)
+                  .call();
     }
 
     private static Ref findHeadBranchRef(GitWithAuth git, String headBranchRefName, Collection<Ref> refs) {
@@ -461,15 +452,14 @@ abstract class AbstractGitMirror extends AbstractMirror {
     }
 
     private static ObjectId fetchRemoteHeadAndGetCommitId(
-            GitWithAuth git, String headBranchRefName,
-            Consumer<TransportCommand<?,?>> configurator) throws GitAPIException, IOException {
-        final FetchCommand fetch = git.fetch().setDepth(1);
-        configurator.accept(fetch);
-        final FetchResult fetchResult = fetch.setRefSpecs(new RefSpec(headBranchRefName))
-                                             .setRemoveDeletedRefs(true)
-                                             .setTagOpt(TagOpt.NO_TAGS)
-                                             .setTimeout(GIT_TIMEOUT_SECS)
-                                             .call();
+            GitWithAuth git, String headBranchRefName) throws GitAPIException, IOException {
+        final FetchResult fetchResult = git.fetch()
+                                           .setDepth(1)
+                                           .setRefSpecs(new RefSpec(headBranchRefName))
+                                           .setRemoveDeletedRefs(true)
+                                           .setTagOpt(TagOpt.NO_TAGS)
+                                           .setTimeout(GIT_TIMEOUT_SECS)
+                                           .call();
         final ObjectId commitId = fetchResult.getAdvertisedRef(headBranchRefName).getObjectId();
         final RefUpdate refUpdate = git.getRepository().updateRef(headBranchRefName);
         refUpdate.setNewObjectId(commitId);

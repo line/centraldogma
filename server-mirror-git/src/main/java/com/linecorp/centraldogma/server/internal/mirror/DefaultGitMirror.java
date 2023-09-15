@@ -52,8 +52,8 @@ final class DefaultGitMirror extends AbstractGitMirror {
 
     @Override
     protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) throws Exception {
-        try (GitWithAuth git = openGit(workDir)) {
-            mirrorLocalToRemote(git, maxNumFiles, maxNumBytes, transportCommandConfigurator());
+        try (GitWithAuth git = openGit(workDir, transportCommandConfigurator())) {
+            mirrorLocalToRemote(git, maxNumFiles, maxNumBytes);
         }
     }
 
@@ -80,12 +80,12 @@ final class DefaultGitMirror extends AbstractGitMirror {
     @Override
     protected void mirrorRemoteToLocal(File workDir, CommandExecutor executor,
                                        int maxNumFiles, long maxNumBytes) throws Exception {
-        try (GitWithAuth git = openGit(workDir)) {
-            mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes, transportCommandConfigurator());
+        try (GitWithAuth git = openGit(workDir, transportCommandConfigurator())) {
+            mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes);
         }
     }
 
-    private GitWithAuth openGit(File workDir) throws Exception {
+    private GitWithAuth openGit(File workDir, Consumer<TransportCommand<?, ?>> configurator) throws Exception {
         final String scheme = remoteRepoUri().getScheme();
         final String jGitUri;
         if (scheme.startsWith("git+")) {
@@ -94,6 +94,6 @@ final class DefaultGitMirror extends AbstractGitMirror {
         } else {
             jGitUri = remoteRepoUri().toASCIIString();
         }
-        return openGit(workDir, jGitUri, new URIish(jGitUri));
+        return openGit(workDir, new URIish(jGitUri), configurator);
     }
 }
