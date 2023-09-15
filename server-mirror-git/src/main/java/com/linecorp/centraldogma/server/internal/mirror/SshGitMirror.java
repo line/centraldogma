@@ -53,6 +53,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.cronutils.model.Cron;
+import com.google.common.annotations.VisibleForTesting;
 
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -89,25 +90,12 @@ final class SshGitMirror extends AbstractGitMirror {
     @Override
     protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) throws Exception {
         final URIish remoteUri = remoteUri();
-        SshClient sshClient = null;
-        ClientSession session = null;
-        try {
-            sshClient = createSshClient();
-            session = createSession(sshClient, remoteUri);
+        try (SshClient sshClient = createSshClient();
+             ClientSession session = createSession(sshClient, remoteUri)) {
             final DefaultGitSshdSessionFactory sessionFactory =
                     new DefaultGitSshdSessionFactory(sshClient, session);
             try (GitWithAuth git = openGit(workDir, remoteUri, sessionFactory::configureCommand)) {
                 mirrorLocalToRemote(git, maxNumFiles, maxNumBytes);
-            }
-        } finally {
-            try {
-                if (session != null) {
-                    session.close(true);
-                }
-            } finally {
-                if (sshClient != null) {
-                    sshClient.stop();
-                }
             }
         }
     }
@@ -116,25 +104,12 @@ final class SshGitMirror extends AbstractGitMirror {
     protected void mirrorRemoteToLocal(File workDir, CommandExecutor executor,
                                        int maxNumFiles, long maxNumBytes) throws Exception {
         final URIish remoteUri = remoteUri();
-        SshClient sshClient = null;
-        ClientSession session = null;
-        try {
-            sshClient = createSshClient();
-            session = createSession(sshClient, remoteUri);
+        try (SshClient sshClient = createSshClient();
+             ClientSession session = createSession(sshClient, remoteUri)) {
             final DefaultGitSshdSessionFactory sessionFactory =
                     new DefaultGitSshdSessionFactory(sshClient, session);
             try (GitWithAuth git = openGit(workDir, remoteUri, sessionFactory::configureCommand)) {
                 mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes);
-            }
-        } finally {
-            try {
-                if (session != null) {
-                    session.close(true);
-                }
-            } finally {
-                if (sshClient != null) {
-                    sshClient.stop();
-                }
             }
         }
     }
@@ -170,27 +145,37 @@ final class SshGitMirror extends AbstractGitMirror {
         builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> true);
         builder.randomFactory(() -> bounceCastleRandom);
         final SshClient client = builder.build();
-        configureCredential(client);
-        client.start();
-        return client;
+        try {
+            configureCredential(client);
+            client.start();
+            return client;
+        } catch (Throwable t) {
+            client.stop();
+            throw t;
+        }
     }
 
-    private static ClientSession createSession(SshClient sshClient, URIish uri) {
+    @VisibleForTesting
+    static ClientSession createSession(SshClient sshClient, URIish uri) {
+        int port = uri.getPort();
+        if (port <= 0) {
+            port = 22; // Use the SSH default port it unspecified.
+        }
+        logger.trace("Connecting to {}:{}", uri.getHost(), port);
+        ClientSession session = null;
         try {
-            int port = uri.getPort();
-            if (port <= 0) {
-                port = 22; // Use the SSH default port it unspecified.
-            }
-            logger.trace("Connecting to {}:{}", uri.getHost(), port);
-            final ClientSession session = sshClient.connect(uri.getUser(), uri.getHost(), port)
-                                                   .verify(GitModuleProperties.CONNECT_TIMEOUT.getRequired(
-                                                           sshClient))
-                                                   .getSession();
+            session = sshClient.connect(uri.getUser(), uri.getHost(), port)
+                               .verify(GitModuleProperties.CONNECT_TIMEOUT.getRequired(
+                                       sshClient))
+                               .getSession();
             session.auth().verify(GitModuleProperties.AUTH_TIMEOUT.getRequired(session));
             logger.trace("The session established: {}", session);
             return session;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (Throwable t) {
+            if (session != null) {
+                session.close(true);
+            }
+            throw new RuntimeException("failed to create a session for " + uri + " from " + sshClient, t);
         }
     }
 
