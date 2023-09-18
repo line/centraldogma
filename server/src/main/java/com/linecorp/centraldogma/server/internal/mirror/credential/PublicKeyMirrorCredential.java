@@ -27,15 +27,9 @@ import javax.annotation.Nullable;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.base.CharMatcher;
 import com.google.common.base.MoreObjects.ToStringHelper;
-import com.google.common.base.Splitter;
 
 public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
-
-    private static final Splitter NEWLINE_SPLITTER = Splitter.on(CharMatcher.anyOf("\n\r"))
-                                                             .omitEmptyStrings()
-                                                             .trimResults();
 
     private static final int PUBLIC_KEY_PREVIEW_LEN = 40;
 
@@ -67,7 +61,7 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
         // KeyPairResourceLoader.loadKeyPairs(...)
         this.privateKey = privateKey;
         this.passphrase = maybeDecodeBase64(passphrase, "passphrase");
-        this.passphraseString = passphrase;
+        passphraseString = passphrase;
     }
 
     @JsonProperty("username")

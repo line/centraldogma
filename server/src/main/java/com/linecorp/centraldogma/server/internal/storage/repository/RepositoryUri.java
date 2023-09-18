@@ -26,8 +26,6 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.MoreObjects;
 
 public final class RepositoryUri {
@@ -93,9 +91,7 @@ public final class RepositoryUri {
     }
 
     private final URI uri;
-
     private final String path;
-    @Nullable
     private final String branch;
 
     private RepositoryUri(URI uri, String path, String branch) {
@@ -112,7 +108,6 @@ public final class RepositoryUri {
         return path;
     }
 
-    @Nullable
     public String branch() {
         return branch;
     }
@@ -129,7 +124,7 @@ public final class RepositoryUri {
         final RepositoryUri that = (RepositoryUri) o;
         return uri.equals(that.uri) &&
                path.equals(that.path) &&
-               Objects.equals(branch, that.branch);
+               branch.equals(that.branch);
     }
 
     @Override

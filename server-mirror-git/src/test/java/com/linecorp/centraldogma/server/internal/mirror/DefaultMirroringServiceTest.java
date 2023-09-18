@@ -71,7 +71,6 @@ class DefaultMirroringServiceTest {
         when(p.metaRepo()).thenReturn(mr);
         when(mr.find(eq(Revision.HEAD), anyString(), anyMap()))
                 .thenReturn(UnmodifiableFuture.completedFuture(ImmutableMap.of()));
-        when(mr.credentials()).thenReturn(UnmodifiableFuture.completedFuture(ImmutableList.of()));
         when(r.parent()).thenReturn(p);
         when(r.name()).thenReturn("bar");
 

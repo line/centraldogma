@@ -24,12 +24,14 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import javax.annotation.Nullable;
 
@@ -173,7 +175,7 @@ public final class DefaultMirroringService implements MirroringService {
         }
 
         boolean interrupted = false;
-        for (;;) {
+        for (; ; ) {
             executor.shutdownNow();
             try {
                 if (executor.awaitTermination(1, TimeUnit.MINUTES)) {
@@ -202,7 +204,11 @@ public final class DefaultMirroringService implements MirroringService {
                       .forEach(project -> {
                           final List<Mirror> mirrors;
                           try {
-                              mirrors = project.metaRepo().mirrors().join();
+                              mirrors = project.metaRepo().mirrors().get(5, TimeUnit.SECONDS);
+                          } catch (TimeoutException e) {
+                              logger.warn("Failed to load the mirror list within 5 seconds. project: {}",
+                                          project.name(), e);
+                              return;
                           } catch (Exception e) {
                               logger.warn("Failed to load the mirror list from: {}", project.name(), e);
                               return;
@@ -226,9 +232,15 @@ public final class DefaultMirroringService implements MirroringService {
         }
 
         return CompletableFuture.runAsync(
-                () -> projectManager.list().values()
-                                    .forEach(p -> p.metaRepo().mirrors().join()
-                                                   .forEach(m -> run(m, p.name(), false))),
+                () -> projectManager.list().values().forEach(p -> {
+                    try {
+                        p.metaRepo().mirrors().get(5, TimeUnit.SECONDS)
+                         .forEach(m -> run(m, p.name(), false));
+                    } catch (InterruptedException | TimeoutException | ExecutionException e) {
+                        throw new IllegalStateException(
+                                "Failed to load mirror list with in 5 seconds. project: " + p.name(), e);
+                    }
+                }),
                 worker);
     }
 

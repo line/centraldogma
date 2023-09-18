@@ -95,12 +95,30 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                                                  parent().name() + '/' + name());
             }
 
-            return credentials().thenApply(credentials -> {
-                try {
-                    return parseMirror(mirrorFile, entry, credentials);
-                } catch (Exception e) {
-                    throw new RepositoryMetadataException("failed to load the credential configuration", e);
+            final JsonNode mirrorJson = entry.content();
+            if (!mirrorJson.isObject()) {
+                throw newInvalidJsonTypeException(mirrorFile, mirrorJson);
+            }
+            final MirrorConfig c;
+            try {
+                c = Jackson.treeToValue(mirrorJson, MirrorConfig.class);
+            } catch (JsonProcessingException e) {
+                throw new RepositoryMetadataException("failed to load the mirror configuration", e);
+            }
+
+            final CompletableFuture<List<MirrorCredential>> credentials;
+            if (Strings.isNullOrEmpty(c.credentialId())) {
+                credentials = credentials();
+            } else {
+                credentials = credential(c.credentialId()).thenApply(ImmutableList::of);
+            }
+            return credentials.thenApply(credentials0 -> {
+                final Mirror mirror = c.toMirror(parent(), credentials0);
+                if (mirror == null) {
+                    throw new EntryNotFoundException("failed to find a mirror config for '" + mirrorFile +
+                                                     "' in " + parent().name() + '/' + name());
                 }
+                return mirror;
             });
         });
     }
@@ -110,11 +128,13 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         validateMirror(mirrorDto);
         final String summary;
         if (MirrorDirection.valueOf(mirrorDto.direction()) == MirrorDirection.REMOTE_TO_LOCAL) {
-            summary = "Create a new mirror from " + mirrorDto.remoteUrl() + mirrorDto.remotePath() + '#' +
-                      mirrorDto.remoteBranch() + " into " + mirrorDto.localRepo() + mirrorDto.localPath();
+            summary = "[Remote-to-local] Create a new mirror from " + mirrorDto.remoteUrl() +
+                      mirrorDto.remotePath() + '#' + mirrorDto.remoteBranch() + " into " +
+                      mirrorDto.localRepo() + mirrorDto.localPath();
         } else {
-            summary = "Create a new mirror from " + mirrorDto.localRepo() + mirrorDto.localPath() + " into " +
-                      mirrorDto.remoteUrl() + mirrorDto.remotePath() + '#' + mirrorDto.remoteBranch();
+            summary = "[Local-to-remote] Create a new mirror from " + mirrorDto.localRepo() +
+                      mirrorDto.localPath() + " into " + mirrorDto.remoteUrl() + mirrorDto.remotePath() + '#' +
+                      mirrorDto.remoteBranch();
         }
         return commitMirror(mirrorDto, author, summary);
     }
@@ -122,8 +142,12 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     @Override
     public CompletableFuture<Revision> updateMirror(MirrorDto mirrorDto, Author author) {
         validateMirror(mirrorDto);
-        final String summary = "Update the mirror '" + mirrorDto.id() + '\'';
-        return commitMirror(mirrorDto, author, summary);
+        return mirror(mirrorDto.id()).thenCompose(mirror -> {
+            assert mirror.id().equals(mirrorDto.id());
+            // Perform the update operation only if the mirror exists.
+            final String summary = "Update the mirror '" + mirrorDto.id() + '\'';
+            return commitMirror(mirrorDto, author, summary);
+        });
     }
 
     private CompletableFuture<Revision> commitMirror(MirrorDto mirrorDto, Author author, String summary) {
@@ -195,26 +219,6 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                       .collect(toImmutableList());
     }
 
-    private Mirror parseMirror(String fileName, Entry<?> entry, List<MirrorCredential> credentials)
-            throws JsonProcessingException {
-        final JsonNode mirrorJson = (JsonNode) entry.content();
-        if (!mirrorJson.isObject()) {
-            throw newInvalidJsonTypeException(fileName, mirrorJson);
-        }
-        final MirrorConfig c;
-        try {
-            c = Jackson.treeToValue(mirrorJson, MirrorConfig.class);
-        } catch (JsonProcessingException e) {
-            return Exceptions.throwUnsafely(e);
-        }
-        final Mirror mirror = c.toMirror(parent(), credentials);
-        if (mirror == null) {
-            throw new EntryNotFoundException("failed to find a mirror config for '" + fileName + "' in " +
-                                             parent().name() + '/' + name());
-        }
-        return mirror;
-    }
-
     @Override
     public CompletableFuture<List<MirrorCredential>> credentials() {
         return find(PATH_CREDENTIALS + "*.json").thenApply(entries -> {
@@ -260,8 +264,12 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     public CompletableFuture<Revision> updateCredential(MirrorCredential credential, Author author) {
         checkArgument(!credential.id().isEmpty(), "Credential ID should not be empty");
 
-        final String summary = "Update the mirror credential '" + credential.id() + '\'';
-        return commitCredential(credential, author, summary);
+        return credential(credential.id()).thenCompose(c -> {
+            assert c.id().equals(credential.id());
+            // Perform the update operation only if the credential exists.
+            final String summary = "Update the mirror credential '" + credential.id() + '\'';
+            return commitCredential(credential, author, summary);
+        });
     }
 
     private CompletableFuture<Revision> commitCredential(MirrorCredential credential, Author author,

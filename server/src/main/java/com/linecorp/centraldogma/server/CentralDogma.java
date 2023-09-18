@@ -100,7 +100,6 @@ import com.linecorp.armeria.server.file.HttpFile;
 import com.linecorp.armeria.server.healthcheck.HealthCheckService;
 import com.linecorp.armeria.server.healthcheck.SettableHealthChecker;
 import com.linecorp.armeria.server.logging.AccessLogWriter;
-import com.linecorp.armeria.server.logging.LoggingService;
 import com.linecorp.armeria.server.metric.MetricCollectingService;
 import com.linecorp.armeria.server.metric.PrometheusExpositionService;
 import com.linecorp.armeria.server.thrift.THttpService;
@@ -190,7 +189,7 @@ public class CentralDogma implements AutoCloseable {
         }
         logger.info("Git mirroring: {}",
                     gitMirrorEnabled ? "enabled"
-                                    : "disabled ('centraldogma-server-mirror-git' module is not available)");
+                                     : "disabled ('centraldogma-server-mirror-git' module is not available)");
         GIT_MIRROR_ENABLED = gitMirrorEnabled;
     }
 
@@ -526,7 +525,6 @@ public class CentralDogma implements AutoCloseable {
             }
         }
 
-        sb.decorator(LoggingService.newDecorator());
         sb.clientAddressSources(cfg.clientAddressSourceList());
         sb.clientAddressTrustedProxyFilter(cfg.trustedProxyAddressPredicate());
 

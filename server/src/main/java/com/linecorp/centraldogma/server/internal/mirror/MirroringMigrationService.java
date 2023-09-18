@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -78,35 +79,48 @@ class MirroringMigrationService {
 
     void migrate() throws Exception {
         for (Project project : projectManager.list().values()) {
-            migrateCredentials(project);
+            logger.info("Migrating mirrors and credentials in the project: {} ...", project.name());
+            boolean processed = false;
+            processed |= migrateCredentials(project);
             // Update the credential IDs in the mirrors.json file.
-            migrateMirrors(project);
+            processed |= migrateMirrors(project);
+            if (processed) {
+                logger.info("Mirrors and credentials in the project: {} have been migrated.", project.name());
+            } else {
+                logger.info("No legacy configurations of mirrors and credentials found in the project: {}.",
+                            project.name());
+            }
+
         }
         shortWords = null;
     }
 
-    private void migrateMirrors(Project project) throws Exception {
-        final List<MirrorCredential> credentials = project.metaRepo().credentials().join();
+    private boolean migrateMirrors(Project project) throws Exception {
+
         final ArrayNode mirrors = getMetaData(project, PATH_LEGACY_MIRRORS);
         if (mirrors == null) {
-            return;
+            return false;
         }
 
+        // Back up the old mirrors.json file and don't use it anymore.
+        rename(project, PATH_LEGACY_MIRRORS, PATH_LEGACY_MIRRORS_BACKUP);
+
+        final List<MirrorCredential> credentials = project.metaRepo().credentials()
+                                                          .get(5, TimeUnit.SECONDS);
         final Set<String> mirrorIds = new HashSet<>();
         for (JsonNode mirror : mirrors) {
             if (!mirror.isObject()) {
-                logger.warn("A mirror config must be an object: " + mirror);
+                logger.warn("A mirror config must be an object: {} (project: {})", mirror, project.name());
                 continue;
             }
             try {
                 migrateMirror(project, (ObjectNode) mirror, mirrorIds, credentials);
             } catch (Exception e) {
-                logger.warn("Failed to migrate a mirror config: " + mirror, e);
+                logger.warn("Failed to migrate a mirror config: {} (project: {})", mirror, project.name(), e);
             }
         }
 
-        // Back up the old mirrors.json file and don't use it anymore.
-        rename(project, PATH_LEGACY_MIRRORS, PATH_LEGACY_MIRRORS_BACKUP);
+        return true;
     }
 
     private void migrateMirror(Project project, ObjectNode mirror, Set<String> mirrorIds,
@@ -122,7 +136,7 @@ class MirroringMigrationService {
         id = uniquify(id, mirrorIds);
         mirror.put("id", id);
 
-        fillCredentialId(mirror, credentials);
+        fillCredentialId(mirror, credentials, project);
         if (mirror.get("schedule") == null) {
             mirror.put("schedule", DEFAULT_SCHEDULE);
         }
@@ -137,7 +151,8 @@ class MirroringMigrationService {
                .get();
     }
 
-    private static void fillCredentialId(ObjectNode mirror, List<MirrorCredential> credentials) {
+    private static void fillCredentialId(ObjectNode mirror, List<MirrorCredential> credentials,
+                                         Project project) {
         final JsonNode credentialId = mirror.get("credentialId");
         if (credentialId != null) {
             return;
@@ -151,6 +166,10 @@ class MirroringMigrationService {
         final String remoteUriText = remoteUri.asText();
         final MirrorCredential credential = MirrorConfig.findCredential(credentials, URI.create(remoteUriText),
                                                                         null);
+        if (credential == MirrorCredential.FALLBACK) {
+            logger.warn("Failed to find a credential for the mirror: {}, project: {}. " +
+                        "Using the fallback credential.", mirror, project.name());
+        }
         mirror.put("credentialId", credential.id());
     }
 
@@ -158,11 +177,14 @@ class MirroringMigrationService {
      * Migrate the legacy {@code credentials.json} file into the {@code /credentials/<id>.json} directory.
      * While migrating, the {@code id} field of each credential is filled with a random value if absent.
      */
-    private void migrateCredentials(Project project) throws Exception {
+    private boolean migrateCredentials(Project project) throws Exception {
         final ArrayNode credentials = getMetaData(project, PATH_LEGACY_CREDENTIALS);
         if (credentials == null) {
-            return;
+            return false;
         }
+
+        // Back up the old credentials.json file and don't use it anymore.
+        rename(project, PATH_LEGACY_CREDENTIALS, PATH_LEGACY_CREDENTIALS_BACKUP);
 
         final Set<String> credentialIds = new HashSet<>();
         for (JsonNode credential : credentials) {
@@ -173,8 +195,7 @@ class MirroringMigrationService {
             migrateCredential(project, (ObjectNode) credential, credentialIds);
         }
 
-        // Back up the old credentials.json file and don't use it anymore.
-        rename(project, PATH_LEGACY_CREDENTIALS, PATH_LEGACY_CREDENTIALS_BACKUP);
+        return true;
     }
 
     private void migrateCredential(Project project, ObjectNode credential, Set<String> credentialIds)

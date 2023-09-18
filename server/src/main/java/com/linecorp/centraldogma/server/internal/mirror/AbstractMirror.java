@@ -77,7 +77,7 @@ public abstract class AbstractMirror implements Mirror {
         this.localPath = normalizePath(requireNonNull(localPath, "localPath"));
         this.remoteRepoUri = requireNonNull(remoteRepoUri, "remoteRepoUri");
         this.remotePath = normalizePath(requireNonNull(remotePath, "remotePath"));
-        this.remoteBranch = remoteBranch;
+        this.remoteBranch = requireNonNull(remoteBranch, "remoteBranch");
         this.gitignore = gitignore;
 
         executionTime = ExecutionTime.forCron(this.schedule);

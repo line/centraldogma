@@ -79,6 +79,93 @@ class MirroringMigrationServiceTest {
 
     private static final String PASSPHRASE = "sesame";
 
+    // A mirror config without ID
+    private static final String REPO0_MIRROR =
+            "{\n" +
+            "  \"type\": \"single\",\n" +
+            "  \"enabled\": true,\n" +
+            "  \"schedule\": \"0 * * * * ?\",\n" +
+            "  \"direction\": \"REMOTE_TO_LOCAL\",\n" +
+            "  \"localRepo\": \"" + TEST_REPO0 + "\",\n" +
+            "  \"localPath\": \"/\",\n" +
+            "  \"remoteUri\": \"git+ssh://git.foo.com/foo.git/settings#release\",\n" +
+            "  \"gitignore\": [\n" +
+            "      \"/credential.txt\",\n" +
+            "      \"private_dir\"\n" +
+            "  ]\n" +
+            '}';
+
+    // A mirror config with ID
+    private static final String REPO1_MIRROR =
+            "{\n" +
+            "  \"id\": \"mirror-1\",\n" +
+            "  \"type\": \"single\",\n" +
+            "  \"enabled\": true,\n" +
+            "  \"schedule\": \"0 * * * * ?\",\n" +
+            "  \"direction\": \"REMOTE_TO_LOCAL\",\n" +
+            "  \"localRepo\": \"" + TEST_REPO1 + "\",\n" +
+            "  \"localPath\": \"/\",\n" +
+            "  \"remoteUri\": \"git+ssh://git.bar.com/foo.git/settings#release\",\n" +
+            "  \"credentialId\": \"credential-1\",\n" +
+            "  \"gitignore\": [\n" +
+            "      \"/credential.txt\",\n" +
+            "      \"private_dir\"\n" +
+            "  ]\n" +
+            '}';
+
+    // A mirror config with duplicate ID
+    private static final String REPO2_MIRROR =
+            "{\n" +
+            "  \"id\": \"mirror-1\",\n" +
+            "  \"type\": \"single\",\n" +
+            "  \"enabled\": true,\n" +
+            "  \"schedule\": \"0 * * * * ?\",\n" +
+            "  \"direction\": \"REMOTE_TO_LOCAL\",\n" +
+            "  \"localRepo\": \"" + TEST_REPO2 + "\",\n" +
+            "  \"localPath\": \"/\",\n" +
+            "  \"remoteUri\": \"git+ssh://git.qux.com/foo.git/settings#release\",\n" +
+            "  \"gitignore\": [\n" +
+            "      \"/credential.txt\",\n" +
+            "      \"private_dir\"\n" +
+            "  ]\n" +
+            '}';
+
+    // A credential without ID
+    private static final String PUBLIC_KEY_CREDENTIAL =
+            '{' +
+            "  \"type\": \"public_key\"," +
+            "  \"hostnamePatterns\": [" +
+            "    \"^git\\\\.foo\\\\.com$\"" +
+            "  ]," +
+            "  \"username\": \"trustin\"," +
+            "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
+            "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
+            "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE) + '"' +
+            '}';
+
+    // A credential with ID
+    private static final String PASSWORD_CREDENTIAL =
+            '{' +
+            "  \"id\": \"credential-1\"," +
+            "  \"type\": \"password\"," +
+            "  \"hostnamePatterns\": [" +
+            "    \".*.bar\\\\.com$\"" +
+            "  ]," +
+            "  \"username\": \"trustin\"," +
+            "  \"password\": \"sesame\"" +
+            '}';
+
+    // A credential with duplicate ID
+    private static final String ACCESS_TOKEN_CREDENTIAL =
+            '{' +
+            "  \"id\": \"credential-1\"," +
+            "  \"type\": \"access_token\"," +
+            "  \"hostnamePatterns\": [" +
+            "    \"^bar\\\\.com$\"" +
+            "  ]," +
+            "  \"accessToken\": \"sesame\"" +
+            '}';
+
     @RegisterExtension
     static ProjectManagerExtension projectManagerExtension = new ProjectManagerExtension() {
         @Override
@@ -97,96 +184,12 @@ class MirroringMigrationServiceTest {
         }
     };
 
-    // A mirror config without ID
-    private final String repo0Mirror = "{\n" +
-                               "  \"type\": \"single\",\n" +
-                               "  \"enabled\": true,\n" +
-                               "  \"schedule\": \"0 * * * * ?\",\n" +
-                               "  \"direction\": \"REMOTE_TO_LOCAL\",\n" +
-                               "  \"localRepo\": \"" + TEST_REPO0 + "\",\n" +
-                               "  \"localPath\": \"/\",\n" +
-                               "  \"remoteUri\": \"git+ssh://git.foo.com/foo.git/settings#release\",\n" +
-                               "  \"gitignore\": [\n" +
-                               "      \"/credential.txt\",\n" +
-                               "      \"private_dir\"\n" +
-                               "  ]\n" +
-                               '}';
-
-    // A mirror config with ID
-    private final String repo1Mirror = "{\n" +
-                               "  \"id\": \"mirror-1\",\n" +
-                               "  \"type\": \"single\",\n" +
-                               "  \"enabled\": true,\n" +
-                               "  \"schedule\": \"0 * * * * ?\",\n" +
-                               "  \"direction\": \"REMOTE_TO_LOCAL\",\n" +
-                               "  \"localRepo\": \"" + TEST_REPO1 + "\",\n" +
-                               "  \"localPath\": \"/\",\n" +
-                               "  \"remoteUri\": \"git+ssh://git.bar.com/foo.git/settings#release\",\n" +
-                               "  \"credentialId\": \"credential-1\",\n" +
-                               "  \"gitignore\": [\n" +
-                               "      \"/credential.txt\",\n" +
-                               "      \"private_dir\"\n" +
-                               "  ]\n" +
-                               '}';
-
-    // A mirror config with duplicate ID
-    private final String repo2Mirror = "{\n" +
-                               "  \"id\": \"mirror-1\",\n" +
-                               "  \"type\": \"single\",\n" +
-                               "  \"enabled\": true,\n" +
-                               "  \"schedule\": \"0 * * * * ?\",\n" +
-                               "  \"direction\": \"REMOTE_TO_LOCAL\",\n" +
-                               "  \"localRepo\": \"" + TEST_REPO2 + "\",\n" +
-                               "  \"localPath\": \"/\",\n" +
-                               "  \"remoteUri\": \"git+ssh://git.qux.com/foo.git/settings#release\",\n" +
-                               "  \"gitignore\": [\n" +
-                               "      \"/credential.txt\",\n" +
-                               "      \"private_dir\"\n" +
-                               "  ]\n" +
-                               '}';
-
-    // A credential without ID
-    private final String publicKeyCredential =
-            '{' +
-            "  \"type\": \"public_key\"," +
-            "  \"hostnamePatterns\": [" +
-            "    \"^git\\\\.foo\\\\.com$\"" +
-            "  ]," +
-            "  \"username\": \"trustin\"," +
-            "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
-            "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
-            "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE) + '"' +
-            '}';
-
-    // A credential with ID
-    private final String passwordCredential =
-            '{' +
-            "  \"id\": \"credential-1\"," +
-            "  \"type\": \"password\"," +
-            "  \"hostnamePatterns\": [" +
-            "    \".*.bar\\\\.com$\"" +
-            "  ]," +
-            "  \"username\": \"trustin\"," +
-            "  \"password\": \"sesame\"" +
-            '}';
-
-    // A credential with duplicate ID
-    private final String accessTokenCredential =
-            '{' +
-            "  \"id\": \"credential-1\"," +
-            "  \"type\": \"access_token\"," +
-            "  \"hostnamePatterns\": [" +
-            "    \"^bar\\\\.com$\"" +
-            "  ]," +
-            "  \"accessToken\": \"sesame\"" +
-            '}';
-
     @Test
     void shouldMigrateMirrorsJson() throws Exception {
         final ProjectManager projectManager = projectManagerExtension.projectManager();
         final Project project = projectManager.get(TEST_PROJ);
 
-        final String mirrorsJson = '[' + repo0Mirror + ',' + repo1Mirror + ',' + repo2Mirror + ']';
+        final String mirrorsJson = '[' + REPO0_MIRROR + ',' + REPO1_MIRROR + ',' + REPO2_MIRROR + ']';
         project.metaRepo().commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
                                   "Create a new mirrors.json",
                                   Change.ofJsonUpsert(PATH_LEGACY_MIRRORS, mirrorsJson)).join();
@@ -209,9 +212,9 @@ class MirroringMigrationServiceTest {
                        }, Function.identity()));
 
         assertMirrorConfig(mirrors.get(TEST_REPO0), "mirror-" + TEST_PROJ + '-' + TEST_REPO0 + "-[a-z]+",
-                           repo0Mirror);
-        assertMirrorConfig(mirrors.get(TEST_REPO1), "mirror-1", repo1Mirror);
-        assertMirrorConfig(mirrors.get(TEST_REPO2), "mirror-1-[0-9a-f]+", repo2Mirror);
+                           REPO0_MIRROR);
+        assertMirrorConfig(mirrors.get(TEST_REPO1), "mirror-1", REPO1_MIRROR);
+        assertMirrorConfig(mirrors.get(TEST_REPO2), "mirror-1-[0-9a-f]+", REPO2_MIRROR);
     }
 
     private static void assertMirrorConfig(Map.Entry<String, Entry<?>> actualMirrorConfig, String mirrorId,
@@ -228,8 +231,8 @@ class MirroringMigrationServiceTest {
         final ProjectManager projectManager = projectManagerExtension.projectManager();
         final Project project = projectManager.get(TEST_PROJ);
 
-        final String credentialJson = '[' + publicKeyCredential + ',' + passwordCredential + ',' +
-                                      accessTokenCredential + ']';
+        final String credentialJson = '[' + PUBLIC_KEY_CREDENTIAL + ',' + PASSWORD_CREDENTIAL + ',' +
+                                      ACCESS_TOKEN_CREDENTIAL + ']';
 
         project.metaRepo().commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
                                   "Create a new credentials.json",
@@ -253,22 +256,22 @@ class MirroringMigrationServiceTest {
                        }, Function.identity()));
 
         assertCredential(credentials.get("public_key"), "credential-" + TEST_PROJ + "-[a-z]+",
-                           publicKeyCredential);
-        assertCredential(credentials.get("password"), "credential-1", passwordCredential);
-        assertCredential(credentials.get("access_token"), "credential-1-[0-9a-f]+", accessTokenCredential);
+                         PUBLIC_KEY_CREDENTIAL);
+        assertCredential(credentials.get("password"), "credential-1", PASSWORD_CREDENTIAL);
+        assertCredential(credentials.get("access_token"), "credential-1-[0-9a-f]+", ACCESS_TOKEN_CREDENTIAL);
     }
 
     @Test
     void shouldUpdateCredentialIdToMirrorConfig() throws Exception {
         final ProjectManager projectManager = projectManagerExtension.projectManager();
         final Project project = projectManager.get(TEST_PROJ);
-        final String mirrorsJson = '[' + repo0Mirror + ',' + repo1Mirror + ',' + repo2Mirror + ']';
+        final String mirrorsJson = '[' + REPO0_MIRROR + ',' + REPO1_MIRROR + ',' + REPO2_MIRROR + ']';
         project.metaRepo().commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
                                   "Create a new mirrors.json",
                                   Change.ofJsonUpsert(PATH_LEGACY_MIRRORS, mirrorsJson)).join();
 
-        final String credentialJson = '[' + publicKeyCredential + ',' + passwordCredential + ',' +
-                                      accessTokenCredential + ']';
+        final String credentialJson = '[' + PUBLIC_KEY_CREDENTIAL + ',' + PASSWORD_CREDENTIAL + ',' +
+                                      ACCESS_TOKEN_CREDENTIAL + ']';
 
         project.metaRepo().commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
                                   "Create a new credentials.json",
@@ -295,11 +298,11 @@ class MirroringMigrationServiceTest {
     }
 
     private static void assertCredential(Map.Entry<String, Entry<?>> actualCredential, String credentialId,
-                                           String expectedCredential) throws JsonParseException {
+                                         String expectedCredential) throws JsonParseException {
         assertThat(actualCredential.getKey()).matches("/credentials/" + credentialId + "\\.json");
         final JsonNode credential = actualCredential.getValue().contentAsJson();
         assertThat(credential.get("id").asText()).matches(credentialId);
         assertThatJson(credential).whenIgnoringPaths("id")
-                                    .isEqualTo(expectedCredential);
+                                  .isEqualTo(expectedCredential);
     }
 }

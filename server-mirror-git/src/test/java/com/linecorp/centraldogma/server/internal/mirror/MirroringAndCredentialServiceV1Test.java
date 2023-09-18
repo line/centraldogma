@@ -169,7 +169,8 @@ class MirroringAndCredentialServiceV1Test {
                       .execute();
         final PublicKeyMirrorCredential actual = (PublicKeyMirrorCredential) fetchResponse.content();
         assertThat(actual.id()).isEqualTo((String) credential.get("id"));
-        assertThat(actual.hostnamePatterns().stream().map(Pattern::pattern)).isEqualTo(hostnamePatterns);
+        assertThat(actual.hostnamePatterns().stream().map(Pattern::pattern))
+                .containsExactlyElementsOf(hostnamePatterns);
         assertThat(actual.username()).isEqualTo(credential.get("username"));
         assertThat(actual.publicKey()).isEqualTo(credential.get("publicKey"));
         assertThat(actual.privateKey()).isEqualTo(credential.get("privateKey"));
@@ -188,7 +189,6 @@ class MirroringAndCredentialServiceV1Test {
                           .asJson(Revision.class)
                           .execute();
             assertThat(response0.status()).isEqualTo(HttpStatus.CREATED);
-            // TODO(ikhoon): Migrate to using id instead of index.
             final ResponseEntity<MirrorDto> response1 =
                     client.prepare()
                           .get("/api/v1/projects/{proj}/mirrors/{id}")
@@ -198,8 +198,7 @@ class MirroringAndCredentialServiceV1Test {
                           .asJson(MirrorDto.class)
                           .execute();
             final MirrorDto savedMirror = response1.content();
-            assertThat(savedMirror)
-                    .isEqualTo(newMirror);
+            assertThat(savedMirror).isEqualTo(newMirror);
         }
     }
 
@@ -217,7 +216,6 @@ class MirroringAndCredentialServiceV1Test {
                                                "updated-mirror-branch",
                                                ".updated-env",
                                                "access-token-credential");
-        // TODO(ikhoon): Migrate index to id.
         final ResponseEntity<Revision> updateResponse =
                 client.prepare()
                       .put("/api/v1/projects/{proj}/mirrors")
@@ -236,10 +234,7 @@ class MirroringAndCredentialServiceV1Test {
                       .asJson(MirrorDto.class)
                       .execute();
         final MirrorDto savedMirror = fetchResponse.content();
-        assertThat(savedMirror)
-                .usingRecursiveComparison()
-                .ignoringFields("index")
-                .isEqualTo(mirror);
+        assertThat(savedMirror).isEqualTo(mirror);
     }
 
     private static MirrorDto newMirror(String id) {

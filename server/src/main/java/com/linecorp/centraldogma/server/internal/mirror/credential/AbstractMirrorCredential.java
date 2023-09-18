@@ -39,6 +39,7 @@ public abstract class AbstractMirrorCredential implements MirrorCredential {
 
     private final String id;
     private final boolean enabled;
+    // TODO(ikhoon): Consider changing 'type' to an enum.
     private final String type;
     private final Set<Pattern> hostnamePatterns;
     private final Set<String> hostnamePatternStrings;
