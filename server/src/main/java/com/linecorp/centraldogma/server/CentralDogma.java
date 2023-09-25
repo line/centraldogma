@@ -558,6 +558,10 @@ public class CentralDogma implements AutoCloseable {
             sb.accessLogFormat(accessLogFormat);
         }
 
+        // Configure the uncaught exception handler just before starting the server so that override the
+        // default exception handler set by third-party libraries such as NIOServerCnxnFactory.
+        Thread.setDefaultUncaughtExceptionHandler((t, e) -> logger.warn("Uncaught exception: {}", t, e));
+
         final Server s = sb.build();
         s.start().join();
         return s;
