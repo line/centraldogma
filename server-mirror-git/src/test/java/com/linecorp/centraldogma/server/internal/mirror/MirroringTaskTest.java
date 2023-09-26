@@ -42,7 +42,7 @@ class MirroringTaskTest {
     @Test
     void testSuccessMetrics() {
         final MeterRegistry meterRegistry = new SimpleMeterRegistry();
-        Mirror mirror = newMirror("git://a.com/b.git", GitMirror.class, "foo", "bar");
+        Mirror mirror = newMirror("git://a.com/b.git", DefaultGitMirror.class, "foo", "bar");
         mirror = spy(mirror);
         doNothing().when(mirror).mirror(any(), any(), anyInt(), anyLong());
         new MirroringTask(mirror, "foo", meterRegistry).run(null, null, 0, 0L);
@@ -54,7 +54,7 @@ class MirroringTaskTest {
     @Test
     void testFailureMetrics() {
         final MeterRegistry meterRegistry = new SimpleMeterRegistry();
-        Mirror mirror = newMirror("git://a.com/b.git#main", GitMirror.class, "foo", "bar");
+        Mirror mirror = newMirror("git://a.com/b.git#main", DefaultGitMirror.class, "foo", "bar");
         mirror = spy(mirror);
         final RuntimeException e = new RuntimeException();
         doThrow(e).when(mirror).mirror(any(), any(), anyInt(), anyLong());
@@ -70,7 +70,7 @@ class MirroringTaskTest {
     @Test
     void testTimerMetrics() {
         final MeterRegistry meterRegistry = new SimpleMeterRegistry();
-        Mirror mirror = newMirror("git://a.com/b.git", GitMirror.class, "foo", "bar");
+        Mirror mirror = newMirror("git://a.com/b.git", DefaultGitMirror.class, "foo", "bar");
         mirror = spy(mirror);
         doAnswer(invocation -> {
             Thread.sleep(1000);
