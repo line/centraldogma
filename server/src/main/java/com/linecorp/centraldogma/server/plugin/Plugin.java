@@ -20,7 +20,8 @@ import java.util.concurrent.CompletionStage;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 
 /**
- * An interface which defines callbacks for a plug-in.
+ * An interface which defines callbacks for a plug-in. If you want to initialize a {@link Plugin} by configuring
+ * the Central Dogma server (e.g. adding a service for your plugin), use {@link AllReplicasPlugin}.
  */
 public interface Plugin {
     /**
