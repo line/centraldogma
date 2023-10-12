@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.zookeeper.Op.Create;
+
 import com.cronutils.model.Cron;
 import com.cronutils.model.field.CronField;
 import com.cronutils.model.field.CronFieldName;
@@ -41,9 +43,12 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
@@ -124,38 +129,34 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     @Override
-    public CompletableFuture<Revision> saveMirror(MirrorDto mirrorDto, Author author) {
+    public CompletableFuture<Command<CommitResult>> createCommand(MirrorDto mirrorDto, Author author,
+                                                                  boolean update) {
         validateMirror(mirrorDto);
-        final String summary;
-        if (MirrorDirection.valueOf(mirrorDto.direction()) == MirrorDirection.REMOTE_TO_LOCAL) {
-            summary = "[Remote-to-local] Create a new mirror from " + mirrorDto.remoteUrl() +
-                      mirrorDto.remotePath() + '#' + mirrorDto.remoteBranch() + " into " +
-                      mirrorDto.localRepo() + mirrorDto.localPath();
-        } else {
-            summary = "[Local-to-remote] Create a new mirror from " + mirrorDto.localRepo() +
-                      mirrorDto.localPath() + " into " + mirrorDto.remoteUrl() + mirrorDto.remotePath() + '#' +
-                      mirrorDto.remoteBranch();
-        }
-        return commitMirror(mirrorDto, author, summary);
-    }
-
-    @Override
-    public CompletableFuture<Revision> updateMirror(MirrorDto mirrorDto, Author author) {
-        validateMirror(mirrorDto);
-        return mirror(mirrorDto.id()).thenCompose(mirror -> {
-            assert mirror.id().equals(mirrorDto.id());
-            // Perform the update operation only if the mirror exists.
+        if (update) {
             final String summary = "Update the mirror '" + mirrorDto.id() + '\'';
-            return commitMirror(mirrorDto, author, summary);
-        });
+            return mirror(mirrorDto.id()).thenApply(mirror -> {
+                // Perform the update operation only if the mirror exists.
+                return commitMirror(mirrorDto, author, summary);
+            });
+        } else {
+            String summary = "Create a new mirror from " + mirrorDto.remoteUrl() +
+                                    mirrorDto.remotePath() + '#' + mirrorDto.remoteBranch() + " into " +
+                                    mirrorDto.localRepo() + mirrorDto.localPath();
+            if (MirrorDirection.valueOf(mirrorDto.direction()) == MirrorDirection.REMOTE_TO_LOCAL) {
+                summary = "[Remote-to-local] " + summary;
+            } else {
+                summary = "[Local-to-remote] " + summary;
+            }
+            return UnmodifiableFuture.completedFuture(commitMirror(mirrorDto, author, summary));
+        }
     }
 
-    private CompletableFuture<Revision> commitMirror(MirrorDto mirrorDto, Author author, String summary) {
+    private Command<CommitResult> commitMirror(MirrorDto mirrorDto, Author author, String summary) {
         final MirrorConfig mirrorConfig = converterToMirrorConfig(mirrorDto);
         final JsonNode jsonNode = Jackson.valueToTree(mirrorConfig);
         final Change<JsonNode> change = Change.ofJsonUpsert(mirrorFile(mirrorConfig.id()), jsonNode);
-        return commit(Revision.HEAD, System.currentTimeMillis(), author, summary, change)
-                .thenApply(CommitResult::revision);
+        return Command.push(author, parent().name(), name(), Revision.HEAD, summary, "", Markup.PLAINTEXT,
+                            change);
     }
 
     private static void validateMirror(MirrorDto mirror) {

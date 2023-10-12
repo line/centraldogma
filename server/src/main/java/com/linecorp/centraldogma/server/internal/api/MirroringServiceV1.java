@@ -32,8 +32,8 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
 import com.linecorp.centraldogma.server.metadata.ProjectRole;
@@ -75,9 +75,9 @@ public class MirroringServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/mirrors")
     @ConsumesJson
     @StatusCode(201)
-    public CompletableFuture<Revision> createMirror(@Param String projectName, MirrorDto newMirror,
-                                                    Author author) {
-        return metaRepo(projectName).saveMirror(newMirror, author);
+    public CompletableFuture<PushResultDto> createMirror(@Param String projectName, MirrorDto newMirror,
+                                                         Author author) {
+        return createOrUpdate(projectName, newMirror, author, false);
     }
 
     /**
@@ -100,9 +100,19 @@ public class MirroringServiceV1 extends AbstractService {
      */
     @Put("/projects/{projectName}/mirrors")
     @ConsumesJson
-    public CompletableFuture<Revision> updateMirror(@Param String projectName, MirrorDto mirror,
-                                                    Author author) {
-        return metaRepo(projectName).updateMirror(mirror, author);
+    public CompletableFuture<PushResultDto> updateMirror(@Param String projectName, MirrorDto mirror,
+                                                         Author author) {
+        return createOrUpdate(projectName, mirror, author, true);
+    }
+
+    private CompletableFuture<PushResultDto> createOrUpdate(String projectName,
+                                                            MirrorDto newMirror,
+                                                            Author author, boolean update) {
+        return metaRepo(projectName).createCommand(newMirror, author, update).thenCompose(command -> {
+            return executor().execute(command).thenApply(result -> {
+                return new PushResultDto(result.revision(), command.timestamp());
+            });
+        });
     }
 
     private static MirrorDto convertToMirrorDto(String projectName, Mirror mirror) {

@@ -49,13 +49,17 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 
 class MirroringMigrationService {
 
@@ -69,21 +73,24 @@ class MirroringMigrationService {
     private static final String PATH_LEGACY_CREDENTIALS_BACKUP = PATH_LEGACY_CREDENTIALS + ".bak";
 
     private final ProjectManager projectManager;
+    private final CommandExecutor commandExecutor;
 
     @Nullable
     private List<String> shortWords;
 
-    MirroringMigrationService(ProjectManager projectManager) {
+    MirroringMigrationService(ProjectManager projectManager, CommandExecutor commandExecutor) {
         this.projectManager = projectManager;
+        this.commandExecutor = commandExecutor;
     }
 
     void migrate() throws Exception {
         for (Project project : projectManager.list().values()) {
             logger.info("Migrating mirrors and credentials in the project: {} ...", project.name());
             boolean processed = false;
-            processed |= migrateCredentials(project);
+            final MetaRepository repository = project.metaRepo();
+            processed |= migrateCredentials(repository);
             // Update the credential IDs in the mirrors.json file.
-            processed |= migrateMirrors(project);
+            processed |= migrateMirrors(repository);
             if (processed) {
                 logger.info("Mirrors and credentials in the project: {} have been migrated.", project.name());
             } else {
@@ -95,64 +102,64 @@ class MirroringMigrationService {
         shortWords = null;
     }
 
-    private boolean migrateMirrors(Project project) throws Exception {
-
-        final ArrayNode mirrors = getMetaData(project, PATH_LEGACY_MIRRORS);
+    private boolean migrateMirrors(MetaRepository repository) throws Exception {
+        final ArrayNode mirrors = getMetaData(repository, PATH_LEGACY_MIRRORS);
         if (mirrors == null) {
             return false;
         }
 
-        // Back up the old mirrors.json file and don't use it anymore.
-        rename(project, PATH_LEGACY_MIRRORS, PATH_LEGACY_MIRRORS_BACKUP);
+        final List<MirrorCredential> credentials = repository.credentials()
+                                                             .get(30, TimeUnit.SECONDS);
 
-        final List<MirrorCredential> credentials = project.metaRepo().credentials()
-                                                          .get(5, TimeUnit.SECONDS);
+        // Back up the old mirrors.json file and don't use it anymore.
+        rename(repository, PATH_LEGACY_MIRRORS, PATH_LEGACY_MIRRORS_BACKUP);
         final Set<String> mirrorIds = new HashSet<>();
         for (JsonNode mirror : mirrors) {
             if (!mirror.isObject()) {
-                logger.warn("A mirror config must be an object: {} (project: {})", mirror, project.name());
+                logger.warn("A mirror config must be an object: {} (project: {})", mirror,
+                            repository.parent().name());
                 continue;
             }
             try {
-                migrateMirror(project, (ObjectNode) mirror, mirrorIds, credentials);
+                migrateMirror(repository, (ObjectNode) mirror, mirrorIds, credentials);
             } catch (Exception e) {
-                logger.warn("Failed to migrate a mirror config: {} (project: {})", mirror, project.name(), e);
+                logger.warn("Failed to migrate a mirror config: {} (project: {})", mirror,
+                            repository.parent().name(), e);
             }
         }
 
         return true;
     }
 
-    private void migrateMirror(Project project, ObjectNode mirror, Set<String> mirrorIds,
+    private void migrateMirror(MetaRepository repository, ObjectNode mirror, Set<String> mirrorIds,
                                List<MirrorCredential> credentials) throws Exception {
         String id;
         final JsonNode idNode = mirror.get("id");
         if (idNode == null) {
             // Fill the 'id' field with a random value if not exists.
-            id = generateRandomIdForMirror(project.name(), mirror);
+            id = generateIdForMirror(repository.parent().name(), mirror);
         } else {
             id = idNode.asText();
         }
         id = uniquify(id, mirrorIds);
         mirror.put("id", id);
 
-        fillCredentialId(mirror, credentials, project);
+        fillCredentialId(repository, mirror, credentials);
         if (mirror.get("schedule") == null) {
             mirror.put("schedule", DEFAULT_SCHEDULE);
         }
         mirrorIds.add(id);
 
         final String jsonFile = mirrorFile(id);
-        project.metaRepo()
-               .commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
-                       "Migrate the mirror " + id + " in '" + PATH_LEGACY_MIRRORS + "' into '" + jsonFile +
-                       "'.",
-                       Change.ofJsonUpsert(jsonFile, mirror))
-               .get();
+        final Command<CommitResult> command =
+                Command.push(Author.SYSTEM, repository.parent().name(), repository.name(), Revision.HEAD,
+                             "Migrate the mirror " + id + " in '" + PATH_LEGACY_MIRRORS + "' into '" +
+                             jsonFile + "'.", "", Markup.PLAINTEXT, Change.ofJsonUpsert(jsonFile, mirror));
+        commandExecutor.execute(command).get(30, TimeUnit.SECONDS);
     }
 
-    private static void fillCredentialId(ObjectNode mirror, List<MirrorCredential> credentials,
-                                         Project project) {
+    private static void fillCredentialId(MetaRepository repository, ObjectNode mirror,
+                                         List<MirrorCredential> credentials) {
         final JsonNode credentialId = mirror.get("credentialId");
         if (credentialId != null) {
             return;
@@ -168,7 +175,7 @@ class MirroringMigrationService {
                                                                         null);
         if (credential == MirrorCredential.FALLBACK) {
             logger.warn("Failed to find a credential for the mirror: {}, project: {}. " +
-                        "Using the fallback credential.", mirror, project.name());
+                        "Using the fallback credential.", mirror, repository.parent().name());
         }
         mirror.put("credentialId", credential.id());
     }
@@ -177,14 +184,14 @@ class MirroringMigrationService {
      * Migrate the legacy {@code credentials.json} file into the {@code /credentials/<id>.json} directory.
      * While migrating, the {@code id} field of each credential is filled with a random value if absent.
      */
-    private boolean migrateCredentials(Project project) throws Exception {
-        final ArrayNode credentials = getMetaData(project, PATH_LEGACY_CREDENTIALS);
+    private boolean migrateCredentials(MetaRepository repository) throws Exception {
+        final ArrayNode credentials = getMetaData(repository, PATH_LEGACY_CREDENTIALS);
         if (credentials == null) {
             return false;
         }
 
         // Back up the old credentials.json file and don't use it anymore.
-        rename(project, PATH_LEGACY_CREDENTIALS, PATH_LEGACY_CREDENTIALS_BACKUP);
+        rename(repository, PATH_LEGACY_CREDENTIALS, PATH_LEGACY_CREDENTIALS_BACKUP);
 
         final Set<String> credentialIds = new HashSet<>();
         for (JsonNode credential : credentials) {
@@ -192,19 +199,19 @@ class MirroringMigrationService {
                 throw new RepositoryMetadataException(
                         "A credential config must be an object: " + credential.getNodeType());
             }
-            migrateCredential(project, (ObjectNode) credential, credentialIds);
+            migrateCredential(repository, (ObjectNode) credential, credentialIds);
         }
 
         return true;
     }
 
-    private void migrateCredential(Project project, ObjectNode credential, Set<String> credentialIds)
+    private void migrateCredential(MetaRepository repository, ObjectNode credential, Set<String> credentialIds)
             throws Exception {
         String id;
         final JsonNode idNode = credential.get("id");
         if (idNode == null) {
             // Fill the 'id' field with a random value if not exists.
-            id = generateRandomIdForCredential(project.name());
+            id = generateIdForCredential(repository.name());
         } else {
             id = idNode.asText();
         }
@@ -213,20 +220,17 @@ class MirroringMigrationService {
         credentialIds.add(id);
 
         final String jsonFile = credentialFile(id);
-        project.metaRepo()
-               .commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
-                       "Migrate the credential '" + id + "' in '" + PATH_LEGACY_CREDENTIALS +
-                       "' into '" + jsonFile + "'.",
-                       Change.ofJsonUpsert(jsonFile, credential))
-               .get();
+        repository.commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
+                          "Migrate the credential '" + id + "' in '" + PATH_LEGACY_CREDENTIALS +
+                          "' into '" + jsonFile + "'.", Change.ofJsonUpsert(jsonFile, credential))
+                  .get();
     }
 
     @Nullable
-    private static ArrayNode getMetaData(Project project, String path)
+    private static ArrayNode getMetaData(MetaRepository repository, String path)
             throws InterruptedException, ExecutionException {
-        final Map<String, Entry<?>> entries = project.metaRepo()
-                                                     .find(Revision.HEAD, path, ImmutableMap.of())
-                                                     .get();
+        final Map<String, Entry<?>> entries = repository.find(Revision.HEAD, path, ImmutableMap.of())
+                                                        .get();
         final Entry<?> entry = entries.get(path);
         if (entry == null) {
             return null;
@@ -240,44 +244,46 @@ class MirroringMigrationService {
         return (ArrayNode) credentialJson;
     }
 
-    private static CommitResult rename(Project project, String oldPath, String newPath) throws Exception {
-        return project.metaRepo()
-                      .commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
-                              "Rename " + oldPath + " into " + newPath,
-                              Change.ofRename(oldPath, newPath))
-                      .get();
+    private CommitResult rename(MetaRepository repository, String oldPath, String newPath)
+            throws Exception {
+        final Command<CommitResult> command = Command.push(Author.SYSTEM, repository.parent().name(),
+                                                           repository.name(), Revision.HEAD,
+                                                           "Rename " + oldPath + " into " + newPath, "",
+                                                           Markup.PLAINTEXT,
+                                                           Change.ofRemoval(oldPath));
+        return commandExecutor.execute(command).get(30, TimeUnit.SECONDS);
     }
 
     /**
-     * Generates a random ID for the given mirror.
+     * Generates a reproducible ID for the given mirror.
      * Pattern: {@code mirror-<projectName>-<localRepo>-<shortWord>}.
      */
-    private String generateRandomIdForMirror(String projectName, ObjectNode mirror) {
+    private String generateIdForMirror(String projectName, ObjectNode mirror) {
+        final String id = "mirror-" + projectName + '-' + mirror.get("localRepo").asText();
+        return id + '-' + getShortWord(id);
+    }
+
+    private String getShortWord(String id) {
         if (shortWords == null) {
             shortWords = buildShortWords();
         }
-        final int rand = ThreadLocalRandom.current().nextInt(shortWords.size());
-        final String shortWord = shortWords.get(rand);
-        return "mirror-" + projectName + '-' + mirror.get("localRepo").asText() + '-' +
-               shortWord;
+        final int index = Math.abs(id.hashCode()) % shortWords.size();
+        final String shortWord = shortWords.get(index);
+        return shortWord;
     }
 
     /**
-     * Generates a random ID for the given credential.
+     * Generates a reproducible ID for the given credential.
      * Pattern: {@code credential-<projectName>-<shortWord>}.
      */
-    private String generateRandomIdForCredential(String projectName) {
-        if (shortWords == null) {
-            shortWords = buildShortWords();
-        }
-        final int rand = ThreadLocalRandom.current().nextInt(shortWords.size());
-        final String shortWord = shortWords.get(rand);
-        return "credential-" + projectName + '-' + shortWord;
+    private String generateIdForCredential(String projectName) {
+        final String id = "credential-" + projectName;
+        final String shortWord = getShortWord(ThreadLocalRandom.current().nextInt(shortWords.size()));
     }
 
     private static String uniquify(String id, Set<String> existingIds) {
-        while (existingIds.contains(id)) {
-            id += '-' + Integer.toHexString(ThreadLocalRandom.current().nextInt());
+        if (existingIds.contains(id)) {
+            id += '-' + existingIds.size();
         }
         return id;
     }

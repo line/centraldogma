@@ -25,11 +25,9 @@ import java.io.File;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ForkJoinPool;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,17 +40,15 @@ import com.cronutils.model.CronType;
 import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.parser.CronParser;
 import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.MoreExecutors;
 
-import com.linecorp.armeria.common.metric.NoopMeterRegistry;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.mirror.credential.NoneMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
-import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
@@ -60,6 +56,7 @@ import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
+import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 
 class DefaultMetaRepositoryWithMirrorTest {
@@ -102,16 +99,11 @@ class DefaultMetaRepositoryWithMirrorTest {
 
     private Project project;
     private MetaRepository metaRepo;
+    static final ProjectManagerExtension pmExtension = new ProjectManagerExtension();
 
     @BeforeAll
     static void init() {
-        pm = new DefaultProjectManager(rootDir, ForkJoinPool.commonPool(),
-                                       MoreExecutors.directExecutor(), NoopMeterRegistry.get(), null);
-    }
-
-    @AfterAll
-    static void destroy() {
-        pm.close(ShuttingDownException::new);
+        pm = pmExtension.projectManager();
     }
 
     @BeforeEach
@@ -217,7 +209,9 @@ class DefaultMetaRepositoryWithMirrorTest {
                 metaRepo.saveCredential(credential, Author.SYSTEM);
             }
             for (MirrorDto mirror : mirrors) {
-                metaRepo.saveMirror(mirror, Author.SYSTEM);
+                final Command<CommitResult> command = metaRepo.createCommand(mirror, Author.SYSTEM, false)
+                                                              .join();
+                pmExtension.executor().execute(command).join();
             }
         }
 

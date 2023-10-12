@@ -132,7 +132,7 @@ public final class DefaultMirroringService implements MirroringService {
 
         // Migrate the old mirrors.json to the new format if exists.
         try {
-            new MirroringMigrationService(projectManager).migrate();
+            new MirroringMigrationService(projectManager, commandExecutor).migrate();
         } catch (Throwable e) {
             logger.error("Git mirroring stopped due to an unexpected exception while migrating mirrors.json:",
                          e);
@@ -204,7 +204,8 @@ public final class DefaultMirroringService implements MirroringService {
                       .forEach(project -> {
                           final List<Mirror> mirrors;
                           try {
-                              mirrors = project.metaRepo().mirrors().get(5, TimeUnit.SECONDS);
+                              mirrors = project.metaRepo().mirrors()
+                                               .get(5, TimeUnit.SECONDS);
                           } catch (TimeoutException e) {
                               logger.warn("Failed to load the mirror list within 5 seconds. project: {}",
                                           project.name(), e);

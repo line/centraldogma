@@ -22,6 +22,8 @@ import java.util.concurrent.CompletableFuture;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
@@ -49,14 +51,9 @@ public interface MetaRepository extends Repository {
     CompletableFuture<Mirror> mirror(String id);
 
     /**
-     * Saves the {@link MirrorDto}.
+     * Create a push {@link Command} for the {@link MirrorDto}.
      */
-    CompletableFuture<Revision> saveMirror(MirrorDto mirrorDto, Author author);
-
-    /**
-     * Updates the {@link MirrorDto}.
-     */
-    CompletableFuture<Revision> updateMirror(MirrorDto mirrorDto, Author author);
+    CompletableFuture<Command<CommitResult>> createCommand(MirrorDto mirrorDto, Author author, boolean update);
 
     /**
      * Returns a list of mirroring credentials.
