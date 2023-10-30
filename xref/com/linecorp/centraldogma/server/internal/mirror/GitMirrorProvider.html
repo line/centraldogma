@@ -51,22 +51,28 @@
 <a class="jxr_linenumber" name="L43" href="#L43">43</a>          }
 <a class="jxr_linenumber" name="L44" href="#L44">44</a>  
 <a class="jxr_linenumber" name="L45" href="#L45">45</a>          <strong class="jxr_keyword">switch</strong> (scheme) {
-<a class="jxr_linenumber" name="L46" href="#L46">46</a>              <strong class="jxr_keyword">case</strong> SCHEME_GIT:
-<a class="jxr_linenumber" name="L47" href="#L47">47</a>              <strong class="jxr_keyword">case</strong> SCHEME_GIT_SSH:
-<a class="jxr_linenumber" name="L48" href="#L48">48</a>              <strong class="jxr_keyword">case</strong> SCHEME_GIT_HTTP:
-<a class="jxr_linenumber" name="L49" href="#L49">49</a>              <strong class="jxr_keyword">case</strong> SCHEME_GIT_HTTPS:
-<a class="jxr_linenumber" name="L50" href="#L50">50</a>              <strong class="jxr_keyword">case</strong> SCHEME_GIT_FILE: {
-<a class="jxr_linenumber" name="L51" href="#L51">51</a>                  <strong class="jxr_keyword">final</strong> String[] components = split(remoteUri, <span class="jxr_string">"git"</span>);
-<a class="jxr_linenumber" name="L52" href="#L52">52</a>                  <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/server/internal/mirror/GitMirror.html">GitMirror</a>(context.schedule(), context.direction(), context.credential(),
-<a class="jxr_linenumber" name="L53" href="#L53">53</a>                                       context.localRepo(), context.localPath(),
-<a class="jxr_linenumber" name="L54" href="#L54">54</a>                                       URI.create(components[0]), components[1], components[2],
-<a class="jxr_linenumber" name="L55" href="#L55">55</a>                                       context.gitignore());
-<a class="jxr_linenumber" name="L56" href="#L56">56</a>              }
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>          }
-<a class="jxr_linenumber" name="L58" href="#L58">58</a>  
-<a class="jxr_linenumber" name="L59" href="#L59">59</a>          <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L60" href="#L60">60</a>      }
-<a class="jxr_linenumber" name="L61" href="#L61">61</a>  }
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>              <strong class="jxr_keyword">case</strong> SCHEME_GIT_SSH: {
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>                  <strong class="jxr_keyword">final</strong> String[] components = split(remoteUri, <span class="jxr_string">"git"</span>);
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>                  <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/server/internal/mirror/SshGitMirror.html">SshGitMirror</a>(context.schedule(), context.direction(), context.credential(),
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>                                          context.localRepo(), context.localPath(),
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>                                          URI.create(components[0]), components[1], components[2],
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>                                          context.gitignore());
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>              }
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>              <strong class="jxr_keyword">case</strong> SCHEME_GIT_HTTP:
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>              <strong class="jxr_keyword">case</strong> SCHEME_GIT_HTTPS:
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>              <strong class="jxr_keyword">case</strong> SCHEME_GIT:
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>              <strong class="jxr_keyword">case</strong> SCHEME_GIT_FILE: {
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>                  <strong class="jxr_keyword">final</strong> String[] components = split(remoteUri, <span class="jxr_string">"git"</span>);
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>                  <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/server/internal/mirror/DefaultGitMirror.html">DefaultGitMirror</a>(context.schedule(), context.direction(), context.credential(),
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>                                              context.localRepo(), context.localPath(),
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>                                              URI.create(components[0]), components[1], components[2],
+<a class="jxr_linenumber" name="L61" href="#L61">61</a>                                              context.gitignore());
+<a class="jxr_linenumber" name="L62" href="#L62">62</a>              }
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>          }
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>  
+<a class="jxr_linenumber" name="L65" href="#L65">65</a>          <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>      }
+<a class="jxr_linenumber" name="L67" href="#L67">67</a>  }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2023 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

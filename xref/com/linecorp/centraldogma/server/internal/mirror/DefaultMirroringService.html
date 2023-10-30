@@ -30,14 +30,14 @@
 <a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> java.io.File;
 <a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> java.time.Duration;
 <a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> java.time.ZonedDateTime;
-<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.CompletableFuture;
-<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.ExecutorService;
-<a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.Executors;
-<a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.ScheduledExecutorService;
-<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.SynchronousQueue;
-<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.ThreadPoolExecutor;
-<a class="jxr_linenumber" name="L31" href="#L31">31</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.TimeUnit;
-<a class="jxr_linenumber" name="L32" href="#L32">32</a>  <strong class="jxr_keyword">import</strong> java.util.stream.Stream;
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> java.util.Set;
+<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.CompletableFuture;
+<a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.ExecutorService;
+<a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.Executors;
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.ScheduledExecutorService;
+<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.SynchronousQueue;
+<a class="jxr_linenumber" name="L31" href="#L31">31</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.ThreadPoolExecutor;
+<a class="jxr_linenumber" name="L32" href="#L32">32</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.TimeUnit;
 <a class="jxr_linenumber" name="L33" href="#L33">33</a>  
 <a class="jxr_linenumber" name="L34" href="#L34">34</a>  <strong class="jxr_keyword">import</strong> javax.annotation.Nullable;
 <a class="jxr_linenumber" name="L35" href="#L35">35</a>  
@@ -196,69 +196,72 @@
 <a class="jxr_linenumber" name="L188" href="#L188">188</a>         <strong class="jxr_keyword">final</strong> ZonedDateTime currentLastExecutionTime = lastExecutionTime;
 <a class="jxr_linenumber" name="L189" href="#L189">189</a>         lastExecutionTime = now;
 <a class="jxr_linenumber" name="L190" href="#L190">190</a> 
-<a class="jxr_linenumber" name="L191" href="#L191">191</a>         projectManager.list().values().stream()
-<a class="jxr_linenumber" name="L192" href="#L192">192</a>                       .map(Project::metaRepo)
-<a class="jxr_linenumber" name="L193" href="#L193">193</a>                       .flatMap(r -&gt; {
-<a class="jxr_linenumber" name="L194" href="#L194">194</a>                           <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L195" href="#L195">195</a>                               <strong class="jxr_keyword">return</strong> r.mirrors().stream();
-<a class="jxr_linenumber" name="L196" href="#L196">196</a>                           } <strong class="jxr_keyword">catch</strong> (Exception e) {
-<a class="jxr_linenumber" name="L197" href="#L197">197</a>                               logger.warn(<span class="jxr_string">"Failed to load the mirror list from: {}"</span>, r.parent().name(), e);
-<a class="jxr_linenumber" name="L198" href="#L198">198</a>                               <strong class="jxr_keyword">return</strong> Stream.empty();
-<a class="jxr_linenumber" name="L199" href="#L199">199</a>                           }
-<a class="jxr_linenumber" name="L200" href="#L200">200</a>                       })
-<a class="jxr_linenumber" name="L201" href="#L201">201</a>                       .filter(m -&gt; {
-<a class="jxr_linenumber" name="L202" href="#L202">202</a>                           <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L203" href="#L203">203</a>                               <strong class="jxr_keyword">return</strong> m.nextExecutionTime(currentLastExecutionTime).compareTo(now) &lt; 0;
-<a class="jxr_linenumber" name="L204" href="#L204">204</a>                           } <strong class="jxr_keyword">catch</strong> (Exception e) {
-<a class="jxr_linenumber" name="L205" href="#L205">205</a>                               logger.warn(<span class="jxr_string">"Failed to calculate the next execution time of: {}"</span>, m, e);
-<a class="jxr_linenumber" name="L206" href="#L206">206</a>                               <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L207" href="#L207">207</a>                           }
-<a class="jxr_linenumber" name="L208" href="#L208">208</a>                       })
-<a class="jxr_linenumber" name="L209" href="#L209">209</a>                       .forEach(m -&gt; {
-<a class="jxr_linenumber" name="L210" href="#L210">210</a>                           <strong class="jxr_keyword">final</strong> ListenableFuture&lt;?&gt; future = worker.submit(() -&gt; run(m, <strong class="jxr_keyword">true</strong>));
-<a class="jxr_linenumber" name="L211" href="#L211">211</a>                           Futures.addCallback(future, <strong class="jxr_keyword">new</strong> FutureCallback&lt;Object&gt;() {
-<a class="jxr_linenumber" name="L212" href="#L212">212</a>                               @Override
-<a class="jxr_linenumber" name="L213" href="#L213">213</a>                               <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onSuccess(@Nullable Object result) {}
-<a class="jxr_linenumber" name="L214" href="#L214">214</a> 
-<a class="jxr_linenumber" name="L215" href="#L215">215</a>                               @Override
-<a class="jxr_linenumber" name="L216" href="#L216">216</a>                               <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onFailure(Throwable cause) {
-<a class="jxr_linenumber" name="L217" href="#L217">217</a>                                   logger.warn(<span class="jxr_string">"Unexpected Git mirroring failure: {}"</span>, m, cause);
-<a class="jxr_linenumber" name="L218" href="#L218">218</a>                               }
-<a class="jxr_linenumber" name="L219" href="#L219">219</a>                           }, MoreExecutors.directExecutor());
-<a class="jxr_linenumber" name="L220" href="#L220">220</a>                       });
-<a class="jxr_linenumber" name="L221" href="#L221">221</a>     }
-<a class="jxr_linenumber" name="L222" href="#L222">222</a> 
-<a class="jxr_linenumber" name="L223" href="#L223">223</a>     @Override
-<a class="jxr_linenumber" name="L224" href="#L224">224</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; mirror() {
-<a class="jxr_linenumber" name="L225" href="#L225">225</a>         <strong class="jxr_keyword">if</strong> (commandExecutor == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L226" href="#L226">226</a>             <strong class="jxr_keyword">return</strong> CompletableFuture.completedFuture(<strong class="jxr_keyword">null</strong>);
-<a class="jxr_linenumber" name="L227" href="#L227">227</a>         }
-<a class="jxr_linenumber" name="L228" href="#L228">228</a> 
-<a class="jxr_linenumber" name="L229" href="#L229">229</a>         <strong class="jxr_keyword">return</strong> CompletableFuture.runAsync(
-<a class="jxr_linenumber" name="L230" href="#L230">230</a>                 () -&gt; projectManager.list().values()
-<a class="jxr_linenumber" name="L231" href="#L231">231</a>                                     .forEach(p -&gt; p.metaRepo().mirrors()
-<a class="jxr_linenumber" name="L232" href="#L232">232</a>                                                    .forEach(m -&gt; run(m, false))),
-<a class="jxr_linenumber" name="L233" href="#L233">233</a>                 worker);
-<a class="jxr_linenumber" name="L234" href="#L234">234</a>     }
-<a class="jxr_linenumber" name="L235" href="#L235">235</a> 
-<a class="jxr_linenumber" name="L236" href="#L236">236</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> run(<a href="../../../../../../com/linecorp/centraldogma/server/mirror/Mirror.html">Mirror</a> m, <strong class="jxr_keyword">boolean</strong> logOnFailure) {
-<a class="jxr_linenumber" name="L237" href="#L237">237</a>         logger.info(<span class="jxr_string">"Mirroring: {}"</span>, m);
-<a class="jxr_linenumber" name="L238" href="#L238">238</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L239" href="#L239">239</a>             <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/server/internal/mirror/MirroringTask.html">MirroringTask</a>(m, meterRegistry)
-<a class="jxr_linenumber" name="L240" href="#L240">240</a>                     .run(workDir, commandExecutor, maxNumFilesPerMirror, maxNumBytesPerMirror);
-<a class="jxr_linenumber" name="L241" href="#L241">241</a>         } <strong class="jxr_keyword">catch</strong> (Exception e) {
-<a class="jxr_linenumber" name="L242" href="#L242">242</a>             <strong class="jxr_keyword">if</strong> (logOnFailure) {
-<a class="jxr_linenumber" name="L243" href="#L243">243</a>                 logger.warn(<span class="jxr_string">"Unexpected exception while mirroring: {}"</span>, m, e);
-<a class="jxr_linenumber" name="L244" href="#L244">244</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L245" href="#L245">245</a>                 <strong class="jxr_keyword">if</strong> (e instanceof MirrorException) {
-<a class="jxr_linenumber" name="L246" href="#L246">246</a>                     <strong class="jxr_keyword">throw</strong> (MirrorException) e;
-<a class="jxr_linenumber" name="L247" href="#L247">247</a>                 } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L248" href="#L248">248</a>                     <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/server/MirrorException.html">MirrorException</a>(e);
-<a class="jxr_linenumber" name="L249" href="#L249">249</a>                 }
-<a class="jxr_linenumber" name="L250" href="#L250">250</a>             }
-<a class="jxr_linenumber" name="L251" href="#L251">251</a>         }
-<a class="jxr_linenumber" name="L252" href="#L252">252</a>     }
-<a class="jxr_linenumber" name="L253" href="#L253">253</a> }
+<a class="jxr_linenumber" name="L191" href="#L191">191</a>         projectManager.list()
+<a class="jxr_linenumber" name="L192" href="#L192">192</a>                       .values()
+<a class="jxr_linenumber" name="L193" href="#L193">193</a>                       .forEach(project -&gt; {
+<a class="jxr_linenumber" name="L194" href="#L194">194</a>                           <strong class="jxr_keyword">final</strong> Set&lt;Mirror&gt; mirrors;
+<a class="jxr_linenumber" name="L195" href="#L195">195</a>                           <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L196" href="#L196">196</a>                               mirrors = project.metaRepo().mirrors();
+<a class="jxr_linenumber" name="L197" href="#L197">197</a>                           } <strong class="jxr_keyword">catch</strong> (Exception e) {
+<a class="jxr_linenumber" name="L198" href="#L198">198</a>                               logger.warn(<span class="jxr_string">"Failed to load the mirror list from: {}"</span>, project.name(), e);
+<a class="jxr_linenumber" name="L199" href="#L199">199</a>                               <strong class="jxr_keyword">return</strong>;
+<a class="jxr_linenumber" name="L200" href="#L200">200</a>                           }
+<a class="jxr_linenumber" name="L201" href="#L201">201</a>                           mirrors.forEach(m -&gt; {
+<a class="jxr_linenumber" name="L202" href="#L202">202</a>                               <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L203" href="#L203">203</a>                                   <strong class="jxr_keyword">if</strong> (m.nextExecutionTime(currentLastExecutionTime).compareTo(now) &lt; 0) {
+<a class="jxr_linenumber" name="L204" href="#L204">204</a>                                       run(project, m);
+<a class="jxr_linenumber" name="L205" href="#L205">205</a>                                   }
+<a class="jxr_linenumber" name="L206" href="#L206">206</a>                               } <strong class="jxr_keyword">catch</strong> (Exception e) {
+<a class="jxr_linenumber" name="L207" href="#L207">207</a>                                   logger.warn(<span class="jxr_string">"Unexpected exception while mirroring: {}"</span>, m, e);
+<a class="jxr_linenumber" name="L208" href="#L208">208</a>                               }
+<a class="jxr_linenumber" name="L209" href="#L209">209</a>                           });
+<a class="jxr_linenumber" name="L210" href="#L210">210</a>                       });
+<a class="jxr_linenumber" name="L211" href="#L211">211</a>     }
+<a class="jxr_linenumber" name="L212" href="#L212">212</a> 
+<a class="jxr_linenumber" name="L213" href="#L213">213</a>     @Override
+<a class="jxr_linenumber" name="L214" href="#L214">214</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; mirror() {
+<a class="jxr_linenumber" name="L215" href="#L215">215</a>         <strong class="jxr_keyword">if</strong> (commandExecutor == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L216" href="#L216">216</a>             <strong class="jxr_keyword">return</strong> CompletableFuture.completedFuture(<strong class="jxr_keyword">null</strong>);
+<a class="jxr_linenumber" name="L217" href="#L217">217</a>         }
+<a class="jxr_linenumber" name="L218" href="#L218">218</a> 
+<a class="jxr_linenumber" name="L219" href="#L219">219</a>         <strong class="jxr_keyword">return</strong> CompletableFuture.runAsync(
+<a class="jxr_linenumber" name="L220" href="#L220">220</a>                 () -&gt; projectManager.list().values()
+<a class="jxr_linenumber" name="L221" href="#L221">221</a>                                     .forEach(p -&gt; p.metaRepo().mirrors()
+<a class="jxr_linenumber" name="L222" href="#L222">222</a>                                                    .forEach(m -&gt; run(m, p.name(), false))),
+<a class="jxr_linenumber" name="L223" href="#L223">223</a>                 worker);
+<a class="jxr_linenumber" name="L224" href="#L224">224</a>     }
+<a class="jxr_linenumber" name="L225" href="#L225">225</a> 
+<a class="jxr_linenumber" name="L226" href="#L226">226</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> run(<a href="../../../../../../com/linecorp/centraldogma/server/storage/project/Project.html">Project</a> project, <a href="../../../../../../com/linecorp/centraldogma/server/mirror/Mirror.html">Mirror</a> m) {
+<a class="jxr_linenumber" name="L227" href="#L227">227</a>         <strong class="jxr_keyword">final</strong> ListenableFuture&lt;?&gt; future = worker.submit(() -&gt; run(m, project.name(), <strong class="jxr_keyword">true</strong>));
+<a class="jxr_linenumber" name="L228" href="#L228">228</a>         Futures.addCallback(future, <strong class="jxr_keyword">new</strong> FutureCallback&lt;Object&gt;() {
+<a class="jxr_linenumber" name="L229" href="#L229">229</a>             @Override
+<a class="jxr_linenumber" name="L230" href="#L230">230</a>             <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onSuccess(@Nullable Object result) {}
+<a class="jxr_linenumber" name="L231" href="#L231">231</a> 
+<a class="jxr_linenumber" name="L232" href="#L232">232</a>             @Override
+<a class="jxr_linenumber" name="L233" href="#L233">233</a>             <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onFailure(Throwable cause) {
+<a class="jxr_linenumber" name="L234" href="#L234">234</a>                 logger.warn(<span class="jxr_string">"Unexpected Git mirroring failure: {}"</span>, m, cause);
+<a class="jxr_linenumber" name="L235" href="#L235">235</a>             }
+<a class="jxr_linenumber" name="L236" href="#L236">236</a>         }, MoreExecutors.directExecutor());
+<a class="jxr_linenumber" name="L237" href="#L237">237</a>     }
+<a class="jxr_linenumber" name="L238" href="#L238">238</a> 
+<a class="jxr_linenumber" name="L239" href="#L239">239</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> run(<a href="../../../../../../com/linecorp/centraldogma/server/mirror/Mirror.html">Mirror</a> m, String projectName, <strong class="jxr_keyword">boolean</strong> logOnFailure) {
+<a class="jxr_linenumber" name="L240" href="#L240">240</a>         logger.info(<span class="jxr_string">"Mirroring: {}"</span>, m);
+<a class="jxr_linenumber" name="L241" href="#L241">241</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L242" href="#L242">242</a>             <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/server/internal/mirror/MirroringTask.html">MirroringTask</a>(m, projectName, meterRegistry)
+<a class="jxr_linenumber" name="L243" href="#L243">243</a>                     .run(workDir, commandExecutor, maxNumFilesPerMirror, maxNumBytesPerMirror);
+<a class="jxr_linenumber" name="L244" href="#L244">244</a>         } <strong class="jxr_keyword">catch</strong> (Exception e) {
+<a class="jxr_linenumber" name="L245" href="#L245">245</a>             <strong class="jxr_keyword">if</strong> (logOnFailure) {
+<a class="jxr_linenumber" name="L246" href="#L246">246</a>                 logger.warn(<span class="jxr_string">"Unexpected exception while mirroring: {}"</span>, m, e);
+<a class="jxr_linenumber" name="L247" href="#L247">247</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L248" href="#L248">248</a>                 <strong class="jxr_keyword">if</strong> (e instanceof MirrorException) {
+<a class="jxr_linenumber" name="L249" href="#L249">249</a>                     <strong class="jxr_keyword">throw</strong> (MirrorException) e;
+<a class="jxr_linenumber" name="L250" href="#L250">250</a>                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L251" href="#L251">251</a>                     <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/server/MirrorException.html">MirrorException</a>(e);
+<a class="jxr_linenumber" name="L252" href="#L252">252</a>                 }
+<a class="jxr_linenumber" name="L253" href="#L253">253</a>             }
+<a class="jxr_linenumber" name="L254" href="#L254">254</a>         }
+<a class="jxr_linenumber" name="L255" href="#L255">255</a>     }
+<a class="jxr_linenumber" name="L256" href="#L256">256</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2023 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>
