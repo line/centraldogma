@@ -228,9 +228,6 @@ version.ref = "jgit6"
 [libraries.jmh-core]
 module = "org.openjdk.jmh:jmh-core"
 version.ref = "jmh-core"
-[libraries.jmh-generator-annprocess]
-module = "org.openjdk.jmh:jmh-generator-annproces"
-version.ref = "jmh-core"
 
 [libraries.jsch]
 module = "com.jcraft:jsch"
