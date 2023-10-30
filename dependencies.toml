@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 [versions]
-armeria = "1.26.0"
+armeria = "1.26.1"
 assertj = "3.24.2"
 awaitility = "4.2.0"
 bouncycastle = "1.76"
@@ -61,7 +61,7 @@ spring-boot2 = "2.7.16"
 spring-boot3 = "3.1.4"
 spring-test-junit5 = "1.5.0"
 thrift09 = { strictly = "0.9.3-1" }
-zookeeper = "3.9.1"
+zookeeper = "3.7.1"
 
 [boms]
 armeria = { module = "com.linecorp.armeria:armeria-bom", version.ref = "armeria" }
