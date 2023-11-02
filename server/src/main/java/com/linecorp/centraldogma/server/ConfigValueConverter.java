@@ -20,7 +20,7 @@ import java.util.List;
 /**
  * A converter that converts a value of certain configuration properties in {@link CentralDogmaConfig}.
  * Currently, it is used to convert a value of {@code replication.secret},
- * {@code tls.keyCertChain} and {@code tls.key} properties.
+ * {@code tls.keyCertChain}, {@code tls.key} and {@code tls.keyPassword} properties.
  * Implement this interface and register it via SPI to convert a value of the properties.
  */
 public interface ConfigValueConverter {

@@ -54,7 +54,7 @@ class ConfigDeserializationTest {
         final String jsonConfig = String.format("{\"tls\": {" +
                                                 "\"keyCertChainFile\": \"%s\", " +
                                                 "\"keyFile\": \"%s\", " +
-                                                "\"keyPassword\": null " +
+                                                "\"keyPassword\": \"sesame\"" +
                                                 "}}", cert, key);
         checkContent(jsonConfig);
     }
@@ -63,26 +63,22 @@ class ConfigDeserializationTest {
     void tlsConfigFilePrefix() throws Exception {
         final Path certFile = createTempFile(tempDir, "", "");
         Files.write(certFile, "foo".getBytes(StandardCharsets.UTF_8));
-        final Path keyFile = createTempFile(tempDir, "", "");
-        Files.write(keyFile, "bar".getBytes(StandardCharsets.UTF_8));
 
         final String cert = Jackson.escapeText("file:" + certFile.toAbsolutePath());
-        final String key = Jackson.escapeText("file:" + keyFile.toAbsolutePath());
-
         final String jsonConfig = String.format("{\"tls\": {" +
                                                 "\"keyCertChain\": \"%s\", " +
-                                                "\"key\": \"%s\", " +
-                                                "\"keyPassword\": null " +
-                                                "}}", cert, key);
+                                                "\"key\": \"plain:bar\", " +
+                                                "\"keyPassword\": \"sesame\"" +
+                                                "}}", cert);
         checkContent(jsonConfig);
     }
 
     @Test
-    void tlsConfigConvigValueConverter() throws Exception {
+    void tlsConfigConfigValueConverter() throws Exception {
         final String jsonConfig = "{\"tls\": {" +
                                   "\"keyCertChain\": \"encryption:chain\", " +
                                   "\"key\": \"encryption:key\", " +
-                                  "\"keyPassword\": null " +
+                                  "\"keyPassword\": \"encryption:password\"" +
                                   "}}";
         checkContent(jsonConfig);
     }
@@ -92,7 +88,7 @@ class ConfigDeserializationTest {
 
         readStream(tlsConfig.keyCertChainInputStream(), "foo");
         readStream(tlsConfig.keyInputStream(), "bar");
-        assertThat(tlsConfig.keyPassword()).isNull();
+        assertThat(tlsConfig.keyPassword()).isEqualTo("sesame");
     }
 
     private static void readStream(InputStream inputStream, String content) throws IOException {
@@ -116,6 +112,9 @@ class ConfigDeserializationTest {
             }
             if ("key".equals(value)) {
                 return "bar";
+            }
+            if ("password".equals(value)) {
+                return "sesame";
             }
             throw new IllegalArgumentException("unsupported prefix: " + prefix + ", value: " + value);
         }

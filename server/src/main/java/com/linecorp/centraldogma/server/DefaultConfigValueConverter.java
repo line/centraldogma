@@ -26,10 +26,11 @@ import com.google.common.collect.ImmutableList;
 enum DefaultConfigValueConverter implements ConfigValueConverter {
     INSTANCE;
 
+    private static final String PLAIN = "plain";
     private static final String FILE = "file";
 
     // TODO(minwoox): Add more prefixes such as classpath, url, etc.
-    private static final List<String> SUPPORTED_PREFIX = ImmutableList.of(FILE);
+    private static final List<String> SUPPORTED_PREFIX = ImmutableList.of(PLAIN, FILE);
 
     @Override
     public List<String> supportedPrefixes() {
@@ -38,10 +39,10 @@ enum DefaultConfigValueConverter implements ConfigValueConverter {
 
     @Override
     public String convert(String prefix, String value) {
-        if (!FILE.equals(prefix)) {
-            throw new IllegalArgumentException("unsupported prefix: " + prefix + ", value: " + value);
+        if (PLAIN.equals(prefix)) {
+            return value;
         }
-
+        assert FILE.equals(prefix);
         try {
             return new String(Files.readAllBytes(Paths.get(value)), StandardCharsets.UTF_8);
         } catch (IOException e) {

@@ -29,6 +29,7 @@ import javax.annotation.Nullable;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.io.ByteStreams;
 import com.google.errorprone.annotations.MustBeClosed;
 
 /**
@@ -52,20 +53,30 @@ public final class TlsConfig {
      * {@code keyPassword}.
      */
     @JsonCreator
-    public TlsConfig(@JsonProperty(value = "keyCertChainFile") @Nullable File keyCertChainFile,
-                     @JsonProperty(value = "keyFile") @Nullable File keyFile,
-                     @JsonProperty(value = "keyCertChain") @Nullable String keyCertChain,
-                     @JsonProperty(value = "key") @Nullable String key,
+    public TlsConfig(@JsonProperty("keyCertChainFile") @Nullable File keyCertChainFile,
+                     @JsonProperty("keyFile") @Nullable File keyFile,
+                     @JsonProperty("keyCertChain") @Nullable String keyCertChain,
+                     @JsonProperty("key") @Nullable String key,
                      @JsonProperty("keyPassword") @Nullable String keyPassword) {
-        checkArgument(keyCertChainFile != null || keyCertChain != null,
-                      "keyCertChainFile and keyCertChain cannot be null at the same time.");
-        checkArgument(keyFile != null || key != null,
-                      "keyFile and key cannot be null at the same time.");
+        validate(keyCertChainFile, keyCertChain, "keyCertChainFile", "keyCertChain");
+        validate(keyFile, key, "keyFile", "key");
+
         this.keyCertChainFile = keyCertChainFile;
         this.keyFile = keyFile;
+        // keyCertChain and key are converted later when it's used.
         this.keyCertChain = keyCertChain;
         this.key = key;
-        this.keyPassword = keyPassword;
+        this.keyPassword = convertValue(keyPassword, "tls.keyPassword");
+    }
+
+    private static void validate(@Nullable File fileName, @Nullable String name,
+                                 String first, String second) {
+        checkArgument(fileName != null || name != null,
+                      "%s and %s cannot be null at the same time.", first, second);
+        if (fileName != null && name != null) {
+            throw new IllegalArgumentException(
+                    String.format("%s and %s cannot be specified at the same time.", first, second));
+        }
     }
 
     /**
@@ -111,15 +122,16 @@ public final class TlsConfig {
     private static InputStream inputStream(@Nullable File file,
                                            @Nullable String property, String propertyName) {
         if (file != null) {
-            try {
-                return Files.newInputStream(file.toPath());
+            try (InputStream inputStream = Files.newInputStream(file.toPath())) {
+                // Use byte array to avoid file descriptor leak.
+                return new ByteArrayInputStream(ByteStreams.toByteArray(inputStream));
             } catch (IOException e) {
                 throw new RuntimeException("failed to create an input stream from " + file, e);
             }
         }
 
         assert property != null;
-        final String converted = convertValue(property);
+        final String converted = convertValue(property, "tls." + propertyName);
         if (converted == null) {
             throw new NullPointerException(propertyName + '(' + property + ") is converted to null.");
         }
@@ -140,8 +152,6 @@ public final class TlsConfig {
         return MoreObjects.toStringHelper(this).omitNullValues()
                           .add("keyCertChainFile", keyCertChainFile)
                           .add("keyFile", keyFile)
-                          .add("keyCertChain", keyCertChain)
-                          .add("key", key)
                           .toString();
     }
 }

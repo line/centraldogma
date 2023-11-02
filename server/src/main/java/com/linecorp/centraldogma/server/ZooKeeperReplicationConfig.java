@@ -98,7 +98,7 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
         this.serverId = serverId != null ? serverId : findServerId(servers);
         checkArgument(this.serverId > 0, "serverId: %s (expected: > 0)", serverId);
 
-        this.secret = firstNonNull(convertValue(secret), DEFAULT_SECRET);
+        this.secret = firstNonNull(convertValue(secret, "replication.secret"), DEFAULT_SECRET);
         checkArgument(!this.secret.isEmpty(), "secret is empty.");
 
         servers.forEach((id, server) -> {

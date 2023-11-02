@@ -94,14 +94,14 @@ public final class CentralDogmaConfig {
     }
 
     @Nullable
-    static String convertValue(@Nullable String value) {
+    static String convertValue(@Nullable String value, String propertyName) {
         if (value == null) {
             return null;
         }
 
         final int index = value.indexOf(':');
-        if (index < 0) {
-            // no prefix
+        if (index <= 0) {
+            // no prefix or starts with ':'.
             return value;
         }
 
@@ -114,9 +114,7 @@ public final class CentralDogmaConfig {
             }
         }
 
-        // return the value as is instead of rest because the value might contain ':' without prefix.
-        // e.g. "@#$:@#$_is_not_prefix"
-        return value;
+        throw new IllegalArgumentException("failed to convert " + propertyName + ". value: " + value);
     }
 
     private final File dataDir;
