@@ -36,11 +36,16 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -59,6 +64,7 @@ import com.fasterxml.jackson.databind.util.StdConverter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Streams;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.SessionProtocol;
@@ -74,6 +80,44 @@ import io.netty.util.NetUtil;
  * {@link CentralDogma} server configuration.
  */
 public final class CentralDogmaConfig {
+
+    private static final Logger logger = LoggerFactory.getLogger(CentralDogmaConfig.class);
+
+    private static final List<ConfigValueConverter> CONFIG_VALUE_CONVERTERS;
+
+    static {
+        final ArrayList<ConfigValueConverter> configValueConverters = new ArrayList<>();
+        Streams.stream(ServiceLoader.load(ConfigValueConverter.class)).forEach(configValueConverters::add);
+        configValueConverters.add(DefaultConfigValueConverter.INSTANCE);
+        CONFIG_VALUE_CONVERTERS = ImmutableList.copyOf(configValueConverters);
+        logger.debug("Available {}s: {}", ConfigValueConverter.class.getName(), CONFIG_VALUE_CONVERTERS);
+    }
+
+    @Nullable
+    static String convertValue(@Nullable String value) {
+        if (value == null) {
+            return null;
+        }
+
+        final int index = value.indexOf(':');
+        if (index < 0) {
+            // no prefix
+            return value;
+        }
+
+        final String prefix = value.substring(0, index);
+        final String rest = value.substring(index + 1);
+
+        for (ConfigValueConverter converter : CONFIG_VALUE_CONVERTERS) {
+            if (converter.supportedPrefixes().contains(prefix)) {
+                return converter.convert(prefix, rest);
+            }
+        }
+
+        // return the value as is instead of rest because the value might contain ':' without prefix.
+        // e.g. "@#$:@#$_is_not_prefix"
+        return value;
+    }
 
     private final File dataDir;
 

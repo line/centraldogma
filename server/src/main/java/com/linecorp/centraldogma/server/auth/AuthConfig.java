@@ -101,6 +101,7 @@ public final class AuthConfig {
              firstNonNull(sessionCacheSpec, DEFAULT_SESSION_CACHE_SPEC),
              firstNonNull(sessionTimeoutMillis, DEFAULT_SESSION_TIMEOUT_MILLIS),
              firstNonNull(sessionValidationSchedule, DEFAULT_SESSION_VALIDATION_SCHEDULE),
+             // TODO(minwoox): Refactor properties to a type to use ConfigValueConverter for secrets.
              properties);
     }
 

@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 import static java.util.Objects.requireNonNull;
 
 import java.net.InetAddress;
@@ -97,7 +98,7 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
         this.serverId = serverId != null ? serverId : findServerId(servers);
         checkArgument(this.serverId > 0, "serverId: %s (expected: > 0)", serverId);
 
-        this.secret = firstNonNull(secret, DEFAULT_SECRET);
+        this.secret = firstNonNull(convertValue(secret), DEFAULT_SECRET);
         checkArgument(!this.secret.isEmpty(), "secret is empty.");
 
         servers.forEach((id, server) -> {
