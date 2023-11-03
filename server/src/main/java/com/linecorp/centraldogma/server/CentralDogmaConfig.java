@@ -103,7 +103,7 @@ public final class CentralDogmaConfig {
         CONFIG_VALUE_CONVERTERS.entrySet().stream().sorted(Entry.comparingByKey()).forEach(
                 entry -> sb.append(entry.getKey())
                            .append('=')
-                           .append(entry.getValue().getClass().getSimpleName()).append(", "));
+                           .append(entry.getValue().getClass().getName()).append(", "));
         sb.setLength(sb.length() - 2);
         sb.append('}');
 
