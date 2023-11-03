@@ -30,23 +30,27 @@ enum DefaultConfigValueConverter implements ConfigValueConverter {
     private static final String FILE = "file";
 
     // TODO(minwoox): Add more prefixes such as classpath, url, etc.
-    private static final List<String> SUPPORTED_PREFIX = ImmutableList.of(PLAIN, FILE);
+    private static final List<String> SUPPORTED_PREFIXES = ImmutableList.of(PLAIN, FILE);
 
     @Override
     public List<String> supportedPrefixes() {
-        return SUPPORTED_PREFIX;
+        return SUPPORTED_PREFIXES;
     }
 
     @Override
     public String convert(String prefix, String value) {
-        if (PLAIN.equals(prefix)) {
-            return value;
-        }
-        assert FILE.equals(prefix);
-        try {
-            return new String(Files.readAllBytes(Paths.get(value)), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new RuntimeException("failed to read a file: " + value, e);
+        switch (prefix) {
+            case PLAIN:
+                return value;
+            case FILE:
+                try {
+                    return new String(Files.readAllBytes(Paths.get(value)), StandardCharsets.UTF_8);
+                } catch (IOException e) {
+                    throw new RuntimeException("failed to read a file: " + value, e);
+                }
+            default:
+                // Should never reach here.
+                throw new Error();
         }
     }
 }

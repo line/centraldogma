@@ -38,6 +38,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.function.Predicate;
@@ -63,6 +65,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.util.StdConverter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
 
@@ -83,14 +86,28 @@ public final class CentralDogmaConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaConfig.class);
 
-    private static final List<ConfigValueConverter> CONFIG_VALUE_CONVERTERS;
+    private static final Map<String, ConfigValueConverter> CONFIG_VALUE_CONVERTERS;
 
     static {
         final ArrayList<ConfigValueConverter> configValueConverters = new ArrayList<>();
         Streams.stream(ServiceLoader.load(ConfigValueConverter.class)).forEach(configValueConverters::add);
         configValueConverters.add(DefaultConfigValueConverter.INSTANCE);
-        CONFIG_VALUE_CONVERTERS = ImmutableList.copyOf(configValueConverters);
-        logger.debug("Available {}s: {}", ConfigValueConverter.class.getName(), CONFIG_VALUE_CONVERTERS);
+        final ImmutableMap.Builder<String, ConfigValueConverter> builder = ImmutableMap.builder();
+        for (ConfigValueConverter configValueConverter : configValueConverters) {
+            configValueConverter.supportedPrefixes()
+                                .forEach(prefix -> builder.put(prefix, configValueConverter));
+        }
+        CONFIG_VALUE_CONVERTERS = ImmutableMap.copyOf(builder.buildOrThrow());
+        final StringBuilder sb = new StringBuilder();
+        sb.append('{');
+        CONFIG_VALUE_CONVERTERS.entrySet().stream().sorted(Entry.comparingByKey()).forEach(
+                entry -> sb.append(entry.getKey())
+                           .append('=')
+                           .append(entry.getValue().getClass().getSimpleName()).append(", "));
+        sb.setLength(sb.length() - 2);
+        sb.append('}');
+
+        logger.debug("Available {}s: {}", ConfigValueConverter.class.getName(), sb);
     }
 
     @Nullable
@@ -108,10 +125,9 @@ public final class CentralDogmaConfig {
         final String prefix = value.substring(0, index);
         final String rest = value.substring(index + 1);
 
-        for (ConfigValueConverter converter : CONFIG_VALUE_CONVERTERS) {
-            if (converter.supportedPrefixes().contains(prefix)) {
-                return converter.convert(prefix, rest);
-            }
+        final ConfigValueConverter converter = CONFIG_VALUE_CONVERTERS.get(prefix);
+        if (converter != null) {
+            return converter.convert(prefix, rest);
         }
 
         throw new IllegalArgumentException("failed to convert " + propertyName + ". value: " + value);
