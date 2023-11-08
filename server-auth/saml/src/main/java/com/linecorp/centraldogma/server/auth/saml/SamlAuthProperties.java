@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server.auth.saml;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
@@ -210,7 +211,7 @@ final class SamlAuthProperties {
                  @JsonProperty("signatureAlgorithm") @Nullable String signatureAlgorithm) {
             this.type = firstNonNull(type, java.security.KeyStore.getDefaultType());
             this.path = requireNonNull(path, "path");
-            this.password = password;
+            this.password = convertValue(password, "keyStore.password");
             this.keyPasswords = sanitizePasswords(keyPasswords);
             this.signatureAlgorithm = firstNonNull(signatureAlgorithm, DEFAULT_SIGNATURE_ALGORITHM);
         }
@@ -220,7 +221,8 @@ final class SamlAuthProperties {
                 return ImmutableMap.of();
             }
             final ImmutableMap.Builder<String, String> builder = new Builder<>();
-            keyPasswords.forEach((key, password) -> builder.put(key, firstNonNull(password, "")));
+            keyPasswords.forEach((key, password) -> builder.put(key, firstNonNull(
+                    convertValue(password, "keyStore.keyPasswords"), "")));
             return builder.build();
         }
 

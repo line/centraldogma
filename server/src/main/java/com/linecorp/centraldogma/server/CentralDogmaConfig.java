@@ -110,8 +110,12 @@ public final class CentralDogmaConfig {
         logger.debug("Available {}s: {}", ConfigValueConverter.class.getName(), sb);
     }
 
+    /**
+     * Converts the specified {@code value} using {@link ConfigValueConverter} if the specified {@code value}
+     * starts with a prefix followed by a colon {@code ':'}.
+     */
     @Nullable
-    static String convertValue(@Nullable String value, String propertyName) {
+    public static String convertValue(@Nullable String value, String propertyName) {
         if (value == null) {
             return null;
         }

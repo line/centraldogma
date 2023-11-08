@@ -19,8 +19,14 @@ import java.util.List;
 
 /**
  * A converter that converts a value of certain configuration properties in {@link CentralDogmaConfig}.
- * Currently, it is used to convert a value of {@code replication.secret},
- * {@code tls.keyCertChain}, {@code tls.key} and {@code tls.keyPassword} properties.
+ * Here is the list of the properties that this converter supports:
+ * <ul>
+ *     <li>{@code replication.secret}</li>
+ *     <li>{@code tls.keyCertChain}</li>
+ *     <li>{@code tls.key}</li>
+ *     <li>{@code authentication.properties.keyStore.password} (when SAML is used)</li>
+ *     <li>{@code authentication.properties.keyStore.keyPasswords} (when SAML is used)</li>
+ * </ul>
  * Implement this interface and register it via SPI to convert a value of the properties.
  */
 public interface ConfigValueConverter {

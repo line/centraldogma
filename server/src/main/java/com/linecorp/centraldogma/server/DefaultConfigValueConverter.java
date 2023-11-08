@@ -26,11 +26,11 @@ import com.google.common.collect.ImmutableList;
 enum DefaultConfigValueConverter implements ConfigValueConverter {
     INSTANCE;
 
-    private static final String PLAIN = "plain";
+    private static final String PLAINTEXT = "plaintext";
     private static final String FILE = "file";
 
     // TODO(minwoox): Add more prefixes such as classpath, url, etc.
-    private static final List<String> SUPPORTED_PREFIXES = ImmutableList.of(PLAIN, FILE);
+    private static final List<String> SUPPORTED_PREFIXES = ImmutableList.of(PLAINTEXT, FILE);
 
     @Override
     public List<String> supportedPrefixes() {
@@ -40,7 +40,7 @@ enum DefaultConfigValueConverter implements ConfigValueConverter {
     @Override
     public String convert(String prefix, String value) {
         switch (prefix) {
-            case PLAIN:
+            case PLAINTEXT:
                 return value;
             case FILE:
                 try {

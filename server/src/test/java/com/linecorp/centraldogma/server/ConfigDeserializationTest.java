@@ -67,7 +67,7 @@ class ConfigDeserializationTest {
         final String cert = Jackson.escapeText("file:" + certFile.toAbsolutePath());
         final String jsonConfig = String.format("{\"tls\": {" +
                                                 "\"keyCertChain\": \"%s\", " +
-                                                "\"key\": \"plain:bar\", " +
+                                                "\"key\": \"plaintext:bar\", " +
                                                 "\"keyPassword\": \"sesame\"" +
                                                 "}}", cert);
         checkContent(jsonConfig);
