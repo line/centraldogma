@@ -66,7 +66,7 @@ public final class TlsConfig {
         // keyCertChain and key are converted later when it's used.
         this.keyCertChain = keyCertChain;
         this.key = key;
-        this.keyPassword = convertValue(keyPassword, "tls.keyPassword");
+        this.keyPassword = keyPassword;
     }
 
     private static void validate(@Nullable File fileName, @Nullable String name,
@@ -144,7 +144,7 @@ public final class TlsConfig {
     @JsonProperty
     @Nullable
     public String keyPassword() {
-        return keyPassword;
+        return convertValue(keyPassword, "tls.keyPassword");
     }
 
     @Override
