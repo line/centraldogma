@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Configuration &mdash; Central Dogma 0.63.0 documentation</title>
+  <title>Configuration &mdash; Central Dogma 0.63.1 documentation</title>
   
 
   
@@ -660,8 +660,8 @@ in <code class="docutils literal notranslate"><span class="pre">dogma.json</span
     }
   ],
   &quot;tls&quot;: {
-    &quot;keyCertChainFile&quot;: &quot;./cert/centraldogma.crt&quot;,
-    &quot;keyFile&quot;: &quot;./cert/centraldogma.key&quot;,
+    &quot;keyCertChain&quot;: &quot;file:./cert/centraldogma.crt&quot;,
+    &quot;key&quot;: &quot;file:./cert/centraldogma.key&quot;,
     &quot;keyPassword&quot;: null
   },
   &quot;trustedProxyAddresses&quot;: null,
@@ -695,14 +695,14 @@ in <code class="docutils literal notranslate"><span class="pre">dogma.json</span
 <ul>
 <li><p>the configuration for TLS support. It will be applied to the port which is configured with <code class="docutils literal notranslate"><span class="pre">https</span></code>
 protocol. If <code class="docutils literal notranslate"><span class="pre">null</span></code>, a self-signed certificate will be generated for <code class="docutils literal notranslate"><span class="pre">https</span></code> protocol.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">keyCertChainFile</span></code> (string)</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">keyCertChain</span></code> (string)</p>
 <ul>
-<li><p>the path to the certificate chain file.</p></li>
+<li><p>the content of the certificate chain. If you want to use a file, specify <code class="docutils literal notranslate"><span class="pre">file:&lt;path&gt;</span></code>.</p></li>
 </ul>
 </li>
-<li><p><code class="docutils literal notranslate"><span class="pre">keyFile</span></code> (string)</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">key</span></code> (string)</p>
 <ul>
-<li><p>the path to the private key file.</p></li>
+<li><p>the content of the private key. If you want to use a file, specify <code class="docutils literal notranslate"><span class="pre">file:&lt;path&gt;</span></code>.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">keyPassword</span></code> (string)</p>

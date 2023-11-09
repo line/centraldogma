@@ -411,8 +411,8 @@ in ``dogma.json`` as follows.
         }
       ],
       "tls": {
-        "keyCertChainFile": "./cert/centraldogma.crt",
-        "keyFile": "./cert/centraldogma.key",
+        "keyCertChain": "file:./cert/centraldogma.crt",
+        "key": "file:./cert/centraldogma.key",
         "keyPassword": null
       },
       "trustedProxyAddresses": null,
@@ -445,13 +445,13 @@ in ``dogma.json`` as follows.
 
   - the configuration for TLS support. It will be applied to the port which is configured with ``https``
     protocol. If ``null``, a self-signed certificate will be generated for ``https`` protocol.
-  - ``keyCertChainFile`` (string)
+  - ``keyCertChain`` (string)
 
-    - the path to the certificate chain file.
+    - the content of the certificate chain. If you want to use a file, specify ``file:<path>``.
 
-  - ``keyFile`` (string)
+  - ``key`` (string)
 
-    - the path to the private key file.
+    - the content of the private key. If you want to use a file, specify ``file:<path>``.
 
   - ``keyPassword`` (string)
 
