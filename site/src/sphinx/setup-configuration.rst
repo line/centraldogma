@@ -476,7 +476,7 @@ Java client, call the ``useTls()`` method when building a ``CentralDogma`` insta
 
 Hiding sensitive property values
 --------------------------------
-Central Dogma supports for property value substitution through the use of
+Central Dogma supports property value substitution through the use of
 :api:`com.linecorp.centraldogma.server.ConfigValueConverter`.
 If you want to hide sensitive information such as ``tls.keyPasswords``, you can implement the converting logic
 with your own :api:`com.linecorp.centraldogma.server.ConfigValueConverter` and register it via
