@@ -142,12 +142,14 @@ import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServiceP
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
+import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTranslator;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutScheduler;
 import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
+import com.linecorp.centraldogma.server.mirror.MirrorProvider;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
@@ -184,11 +186,12 @@ public class CentralDogma implements AutoCloseable {
         Jackson.registerModules(new SimpleModule().addSerializer(CacheStats.class, new CacheStatsSerializer()));
 
         boolean gitMirrorEnabled = false;
-        try {
-            Class.forName(CentralDogma.class.getPackage().getName() + ".internal.mirror.GitMirror");
-            gitMirrorEnabled = true;
-        } catch (ClassNotFoundException e) {
-            // GitMirror is not available.
+        for (MirrorProvider mirrorProvider : MirrorConfig.MIRROR_PROVIDERS) {
+            if ("com.linecorp.centraldogma.server.internal.mirror.GitMirrorProvider"
+                    .equals(mirrorProvider.getClass().getName())) {
+                gitMirrorEnabled = true;
+                break;
+            }
         }
         logger.info("Git mirroring: {}",
                     gitMirrorEnabled ? "enabled"

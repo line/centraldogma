@@ -62,7 +62,7 @@ public final class MirrorConfig {
     public static final CronParser CRON_PARSER = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
 
-    private static final List<MirrorProvider> MIRROR_PROVIDERS;
+    public static final List<MirrorProvider> MIRROR_PROVIDERS;
 
     static {
         MIRROR_PROVIDERS = ImmutableList.copyOf(ServiceLoader.load(MirrorProvider.class));
