@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.mirror.credential;
 
-import static com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredentialUtil.maybeDecodeBase64;
+import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 import static com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredentialUtil.requireNonEmpty;
 
 import java.util.List;
@@ -24,6 +24,9 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -35,6 +38,8 @@ import com.google.common.collect.ImmutableList;
 
 public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
 
+    private static final Logger logger = LoggerFactory.getLogger(PublicKeyMirrorCredential.class);
+
     private static final Splitter NEWLINE_SPLITTER = Splitter.on(CharMatcher.anyOf("\n\r"))
                                                              .omitEmptyStrings()
                                                              .trimResults();
@@ -43,7 +48,7 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
 
     private final String username;
     private final String publicKey;
-    private final List<String> privateKey;
+    private final String privateKey;
     @Nullable
     private final String passphrase;
 
@@ -61,11 +66,8 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
 
         this.username = requireNonEmpty(username, "username");
         this.publicKey = requireNonEmpty(publicKey, "publicKey");
-        requireNonEmpty(privateKey, "privateKey");
-        // privateKey is converted into a list of Strings that will be used as an input of
-        // KeyPairResourceLoader.loadKeyPairs(...)
-        this.privateKey = ImmutableList.copyOf(NEWLINE_SPLITTER.splitToList(privateKey));
-        this.passphrase = maybeDecodeBase64(passphrase, "passphrase");
+        this.privateKey = requireNonEmpty(privateKey, "privateKey");
+        this.passphrase = passphrase;
     }
 
     public String username() {
@@ -77,12 +79,31 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
     }
 
     public List<String> privateKey() {
-        return privateKey;
+        String converted;
+        try {
+            converted = convertValue(privateKey, "credentials.privateKey");
+        } catch (Throwable t) {
+            // Just use it as is for backward compatibility.
+            logger.debug("Failed to convert the key of the credential. username: {}, id: {}",
+                         username, id(), t);
+            converted = privateKey;
+        }
+        assert converted != null;
+        // privateKey is converted into a list of Strings that will be used as an input of
+        // KeyPairResourceLoader.loadKeyPairs(...)
+        return ImmutableList.copyOf(NEWLINE_SPLITTER.splitToList(converted));
     }
 
     @Nullable
     public String passphrase() {
-        return passphrase;
+        try {
+            return convertValue(passphrase, "credentials.passphrase");
+        } catch (Throwable t) {
+            // The passphrase probably has `:` without prefix. Just return it as is for backward compatibility.
+            logger.debug("Failed to convert the passphrase of the credential. username: {}, id: {}",
+                         username, id(), t);
+            return passphrase;
+        }
     }
 
     @Override
