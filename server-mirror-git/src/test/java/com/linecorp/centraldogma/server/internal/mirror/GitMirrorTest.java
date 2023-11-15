@@ -36,29 +36,58 @@ class GitMirrorTest {
     @Test
     void testGitMirror() {
         // Simplest possible form
-        assertMirror("git://a.com/b.git", GitMirror.class,
+        assertMirror("git://a.com/b.git", DefaultGitMirror.class,
                      "git://a.com/b.git", "/", "");
 
         // Non-default port number
-        assertMirror("git+ssh://a.com:8022/b.git", GitMirror.class,
+        assertMirror("git+ssh://a.com:8022/b.git", DefaultGitMirror.class,
                      "git+ssh://a.com:8022/b.git", "/", "");
 
         // Non-default remotePath
-        assertMirror("git+http://a.com/b.git/c", GitMirror.class,
+        assertMirror("git+http://a.com/b.git/c", DefaultGitMirror.class,
                      "git+http://a.com/b.git", "/c/", "");
 
         // Non-default remoteBranch
-        assertMirror("git+https://a.com/b.git#develop", GitMirror.class,
+        assertMirror("git+https://a.com/b.git#develop", DefaultGitMirror.class,
                      "git+https://a.com/b.git", "/", "develop");
 
         // Non-default remotePath and remoteBranch
-        assertMirror("git+ssh://a.com/b.git/c#develop", GitMirror.class,
+        assertMirror("git://a.com/b.git/c#develop", DefaultGitMirror.class,
+                     "git://a.com/b.git", "/c/", "develop");
+
+        // remoteUri must contain the '.git' suffix.
+        assertThatThrownBy(() -> newMirror("git://a.com/b", DefaultGitMirror.class))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> newMirror("git://a.com/b.dogma", DefaultGitMirror.class))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testSshGitMirror() {
+        // Simplest possible form
+        assertMirror("git+ssh://a.com/b.git", SshGitMirror.class,
+                     "git+ssh://a.com/b.git", "/", null);
+
+        // Non-default port number
+        assertMirror("git+ssh://a.com:8022/b.git", SshGitMirror.class,
+                     "git+ssh://a.com:8022/b.git", "/", null);
+
+        // Non-default remotePath
+        assertMirror("git+ssh://a.com/b.git/c", SshGitMirror.class,
+                     "git+ssh://a.com/b.git", "/c/", null);
+
+        // Non-default remoteBranch
+        assertMirror("git+ssh://a.com/b.git#develop", SshGitMirror.class,
+                     "git+ssh://a.com/b.git", "/", "develop");
+
+        // Non-default remotePath and remoteBranch
+        assertMirror("git+ssh://a.com/b.git/c#develop", SshGitMirror.class,
                      "git+ssh://a.com/b.git", "/c/", "develop");
 
         // remoteUri must contain the '.git' suffix.
-        assertThatThrownBy(() -> newMirror("git://a.com/b", GitMirror.class))
+        assertThatThrownBy(() -> newMirror("git+ssh://a.com/b", DefaultGitMirror.class))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> newMirror("git://a.com/b.dogma", GitMirror.class))
+        assertThatThrownBy(() -> newMirror("git+ssh://a.com/b.dogma", DefaultGitMirror.class))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

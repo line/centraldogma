@@ -43,16 +43,24 @@ public final class GitMirrorProvider implements MirrorProvider {
         }
 
         switch (scheme) {
-            case SCHEME_GIT:
-            case SCHEME_GIT_SSH:
+            case SCHEME_GIT_SSH: {
+                final RepositoryUri repositoryUri = RepositoryUri.parse(remoteUri, "git");
+                return new SshGitMirror(context.id(), context.enabled(), context.schedule(),
+                                        context.direction(), context.credential(),
+                                        context.localRepo(), context.localPath(),
+                                        repositoryUri.uri(), repositoryUri.path(), repositoryUri.branch(),
+                                        context.gitignore());
+            }
             case SCHEME_GIT_HTTP:
             case SCHEME_GIT_HTTPS:
+            case SCHEME_GIT:
             case SCHEME_GIT_FILE: {
                 final RepositoryUri repositoryUri = RepositoryUri.parse(remoteUri, "git");
-                return new GitMirror(context.id(), context.enabled(), context.schedule(), context.direction(),
-                                     context.credential(), context.localRepo(), context.localPath(),
-                                     repositoryUri.uri(), repositoryUri.path(), repositoryUri.branch(),
-                                     context.gitignore());
+                return new DefaultGitMirror(context.id(), context.enabled(), context.schedule(),
+                                            context.direction(), context.credential(),
+                                            context.localRepo(), context.localPath(),
+                                            repositoryUri.uri(), repositoryUri.path(), repositoryUri.branch(),
+                                            context.gitignore());
             }
         }
 

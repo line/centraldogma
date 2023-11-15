@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
@@ -268,8 +267,7 @@ class MirroringMigrationService {
             shortWords = buildShortWords();
         }
         final int index = Math.abs(id.hashCode()) % shortWords.size();
-        final String shortWord = shortWords.get(index);
-        return shortWord;
+        return shortWords.get(index);
     }
 
     /**
@@ -278,14 +276,16 @@ class MirroringMigrationService {
      */
     private String generateIdForCredential(String projectName) {
         final String id = "credential-" + projectName;
-        final String shortWord = getShortWord(ThreadLocalRandom.current().nextInt(shortWords.size()));
+        return id + '-' + getShortWord(projectName);
     }
 
     private static String uniquify(String id, Set<String> existingIds) {
-        if (existingIds.contains(id)) {
-            id += '-' + existingIds.size();
+        int suffix = 1;
+        String maybeUnique = id;
+        while (existingIds.contains(maybeUnique)) {
+            maybeUnique = id + suffix++;
         }
-        return id;
+        return maybeUnique;
     }
 
     private static List<String> buildShortWords() {

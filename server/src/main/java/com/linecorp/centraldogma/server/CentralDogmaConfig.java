@@ -36,11 +36,18 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -58,7 +65,9 @@ import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.util.StdConverter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Streams;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.SessionProtocol;
@@ -74,6 +83,59 @@ import io.netty.util.NetUtil;
  * {@link CentralDogma} server configuration.
  */
 public final class CentralDogmaConfig {
+
+    private static final Logger logger = LoggerFactory.getLogger(CentralDogmaConfig.class);
+
+    private static final Map<String, ConfigValueConverter> CONFIG_VALUE_CONVERTERS;
+
+    static {
+        final ArrayList<ConfigValueConverter> configValueConverters = new ArrayList<>();
+        Streams.stream(ServiceLoader.load(ConfigValueConverter.class)).forEach(configValueConverters::add);
+        configValueConverters.add(DefaultConfigValueConverter.INSTANCE);
+        final ImmutableMap.Builder<String, ConfigValueConverter> builder = ImmutableMap.builder();
+        for (ConfigValueConverter configValueConverter : configValueConverters) {
+            configValueConverter.supportedPrefixes()
+                                .forEach(prefix -> builder.put(prefix, configValueConverter));
+        }
+        CONFIG_VALUE_CONVERTERS = ImmutableMap.copyOf(builder.buildOrThrow());
+        final StringBuilder sb = new StringBuilder();
+        sb.append('{');
+        CONFIG_VALUE_CONVERTERS.entrySet().stream().sorted(Entry.comparingByKey()).forEach(
+                entry -> sb.append(entry.getKey())
+                           .append('=')
+                           .append(entry.getValue().getClass().getName()).append(", "));
+        sb.setLength(sb.length() - 2);
+        sb.append('}');
+
+        logger.debug("Available {}s: {}", ConfigValueConverter.class.getName(), sb);
+    }
+
+    /**
+     * Converts the specified {@code value} using {@link ConfigValueConverter} if the specified {@code value}
+     * starts with a prefix followed by a colon {@code ':'}.
+     */
+    @Nullable
+    public static String convertValue(@Nullable String value, String propertyName) {
+        if (value == null) {
+            return null;
+        }
+
+        final int index = value.indexOf(':');
+        if (index <= 0) {
+            // no prefix or starts with ':'.
+            return value;
+        }
+
+        final String prefix = value.substring(0, index);
+        final String rest = value.substring(index + 1);
+
+        final ConfigValueConverter converter = CONFIG_VALUE_CONVERTERS.get(prefix);
+        if (converter != null) {
+            return converter.convert(prefix, rest);
+        }
+
+        throw new IllegalArgumentException("failed to convert " + propertyName + ". value: " + value);
+    }
 
     private final File dataDir;
 

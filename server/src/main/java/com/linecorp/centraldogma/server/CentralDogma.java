@@ -33,6 +33,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.List;
@@ -147,7 +148,9 @@ import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutSched
 import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
+import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.Plugin;
+import com.linecorp.centraldogma.server.plugin.PluginInitContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -380,7 +383,7 @@ public class CentralDogma implements AutoCloseable {
             }
 
             logger.info("Starting the RPC server.");
-            server = startServer(pm, executor, meterRegistry, sessionManager);
+            server = startServer(pm, executor, purgeWorker, meterRegistry, sessionManager);
             logger.info("Started the RPC server at: {}", server.activePorts());
             logger.info("Started the Central Dogma successfully.");
             success = true;
@@ -505,7 +508,8 @@ public class CentralDogma implements AutoCloseable {
     }
 
     private Server startServer(ProjectManager pm, CommandExecutor executor,
-                               MeterRegistry meterRegistry, @Nullable SessionManager sessionManager) {
+                               ScheduledExecutorService purgeWorker, MeterRegistry meterRegistry,
+                               @Nullable SessionManager sessionManager) {
         final ServerBuilder sb = Server.builder();
         sb.verboseResponses(true);
         cfg.ports().forEach(sb::port);
@@ -514,7 +518,10 @@ public class CentralDogma implements AutoCloseable {
             try {
                 final TlsConfig tlsConfig = cfg.tls();
                 if (tlsConfig != null) {
-                    sb.tls(tlsConfig.keyCertChainFile(), tlsConfig.keyFile(), tlsConfig.keyPassword());
+                    try (InputStream keyCertChainInputStream = tlsConfig.keyCertChainInputStream();
+                         InputStream keyInputStream = tlsConfig.keyInputStream()) {
+                        sb.tls(keyCertChainInputStream, keyInputStream, tlsConfig.keyPassword());
+                    }
                 } else {
                     logger.warn(
                             "Missing TLS configuration. Generating a self-signed certificate for TLS support.");
@@ -573,6 +580,22 @@ public class CentralDogma implements AutoCloseable {
         } else {
             sb.accessLogFormat(accessLogFormat);
         }
+
+        if (pluginsForAllReplicas != null) {
+            final PluginInitContext pluginInitContext =
+                    new PluginInitContext(config(), pm, executor, meterRegistry, purgeWorker, sb);
+            pluginsForAllReplicas.plugins()
+                                 .forEach(p -> {
+                                     if (!(p instanceof AllReplicasPlugin)) {
+                                         return;
+                                     }
+                                     final AllReplicasPlugin plugin = (AllReplicasPlugin) p;
+                                     plugin.init(pluginInitContext);
+                                 });
+        }
+        // Configure the uncaught exception handler just before starting the server so that override the
+        // default exception handler set by third-party libraries such as NIOServerCnxnFactory.
+        Thread.setDefaultUncaughtExceptionHandler((t, e) -> logger.warn("Uncaught exception: {}", t, e));
 
         final Server s = sb.build();
         s.start().join();

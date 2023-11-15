@@ -95,7 +95,8 @@ public class CentralDogmaRuleDelegate {
         if (useTls) {
             try {
                 final SelfSignedCertificate ssc = new SelfSignedCertificate();
-                builder.tls(new TlsConfig(ssc.certificate(), ssc.privateKey(), null));
+                builder.tls(new TlsConfig(null, null,
+                                          "file:" + ssc.certificate(), "file:" + ssc.privateKey(), null));
             } catch (Exception e) {
                 Exceptions.throwUnsafely(e);
             }
