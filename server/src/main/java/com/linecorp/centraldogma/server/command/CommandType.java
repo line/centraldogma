@@ -37,7 +37,9 @@ public enum CommandType {
     CREATE_SESSION(Void.class),
     REMOVE_SESSION(Void.class),
     PURGE_PROJECT(Void.class),
-    PURGE_REPOSITORY(Void.class);
+    PURGE_REPOSITORY(Void.class),
+    UPDATE_SERVER_STATUS(Void.class),
+    FORCE_PUSH(Void.class);
 
     /**
      * The type of an object which is returned as a result after executing the command.

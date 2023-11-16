@@ -37,6 +37,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -50,6 +51,7 @@ class MirroringMigrationServiceTest {
     private static final String TEST_REPO0 = "repo0";
     private static final String TEST_REPO1 = "repo1";
     private static final String TEST_REPO2 = "repo2";
+    private static final String TEST_REPO3 = "repo3";
 
     // The real key pair generated using:
     //
@@ -130,6 +132,23 @@ class MirroringMigrationServiceTest {
             "  ]\n" +
             '}';
 
+    // A mirror config with duplicate ID
+    private static final String REPO3_MIRROR =
+            "{\n" +
+            "  \"id\": \"mirror-1\",\n" +
+            "  \"type\": \"single\",\n" +
+            "  \"enabled\": true,\n" +
+            "  \"schedule\": \"0 * * * * ?\",\n" +
+            "  \"direction\": \"REMOTE_TO_LOCAL\",\n" +
+            "  \"localRepo\": \"" + TEST_REPO3 + "\",\n" +
+            "  \"localPath\": \"/\",\n" +
+            "  \"remoteUri\": \"git+ssh://git.qux.com/foo.git/settings#release\",\n" +
+            "  \"gitignore\": [\n" +
+            "      \"/credential.txt\",\n" +
+            "      \"private_dir\"\n" +
+            "  ]\n" +
+            '}';
+
     // A credential without ID
     private static final String PUBLIC_KEY_CREDENTIAL =
             '{' +
@@ -181,6 +200,13 @@ class MirroringMigrationServiceTest {
             repoManager.create(TEST_REPO0, Author.SYSTEM);
             repoManager.create(TEST_REPO1, Author.SYSTEM);
             repoManager.create(TEST_REPO2, Author.SYSTEM);
+            repoManager.create(TEST_REPO3, Author.SYSTEM);
+
+            final MetadataService mds = new MetadataService(projectManager, projectManagerExtension.executor());
+            mds.addRepo(Author.SYSTEM, TEST_PROJ, TEST_REPO0).join();
+            mds.addRepo(Author.SYSTEM, TEST_PROJ, TEST_REPO1).join();
+            mds.addRepo(Author.SYSTEM, TEST_PROJ, TEST_REPO2).join();
+            mds.addRepo(Author.SYSTEM, TEST_PROJ, TEST_REPO3).join();
         }
     };
 
@@ -189,7 +215,8 @@ class MirroringMigrationServiceTest {
         final ProjectManager projectManager = projectManagerExtension.projectManager();
         final Project project = projectManager.get(TEST_PROJ);
 
-        final String mirrorsJson = '[' + REPO0_MIRROR + ',' + REPO1_MIRROR + ',' + REPO2_MIRROR + ']';
+        final String mirrorsJson =
+                '[' + REPO0_MIRROR + ',' + REPO1_MIRROR + ',' + REPO2_MIRROR + ',' + REPO3_MIRROR + ']';
         project.metaRepo().commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
                                   "Create a new mirrors.json",
                                   Change.ofJsonUpsert(PATH_LEGACY_MIRRORS, mirrorsJson)).join();
@@ -201,7 +228,7 @@ class MirroringMigrationServiceTest {
                                                      .find(Revision.HEAD, "/mirrors/*.json")
                                                      .join();
 
-        assertThat(entries).hasSize(3);
+        assertThat(entries).hasSize(4);
         final Map<String, Map.Entry<String, Entry<?>>> mirrors =
                 entries.entrySet().stream()
                        .collect(toImmutableMap(e -> {
@@ -215,7 +242,10 @@ class MirroringMigrationServiceTest {
         assertMirrorConfig(mirrors.get(TEST_REPO0), "mirror-" + TEST_PROJ + '-' + TEST_REPO0 + "-[a-z]+",
                            REPO0_MIRROR);
         assertMirrorConfig(mirrors.get(TEST_REPO1), "mirror-1", REPO1_MIRROR);
-        assertMirrorConfig(mirrors.get(TEST_REPO2), "mirror-1-[0-9a-f]+", REPO2_MIRROR);
+        // "-1" suffix is added because the mirror ID is duplicated.
+        assertMirrorConfig(mirrors.get(TEST_REPO2), "mirror-1-1", REPO2_MIRROR);
+        // "-2" suffix is added because the mirror ID is duplicated.
+        assertMirrorConfig(mirrors.get(TEST_REPO3), "mirror-1-2", REPO3_MIRROR);
     }
 
     private static void assertMirrorConfig(Map.Entry<String, Entry<?>> actualMirrorConfig, String mirrorId,
@@ -260,7 +290,8 @@ class MirroringMigrationServiceTest {
         assertCredential(credentials.get("public_key"), "credential-" + TEST_PROJ + "-[a-z]+",
                          PUBLIC_KEY_CREDENTIAL);
         assertCredential(credentials.get("password"), "credential-1", PASSWORD_CREDENTIAL);
-        assertCredential(credentials.get("access_token"), "credential-1-[0-9a-f]+", ACCESS_TOKEN_CREDENTIAL);
+        // "-1" suffix is added because the credential ID is duplicated.
+        assertCredential(credentials.get("access_token"), "credential-1-1", ACCESS_TOKEN_CREDENTIAL);
     }
 
     @Test

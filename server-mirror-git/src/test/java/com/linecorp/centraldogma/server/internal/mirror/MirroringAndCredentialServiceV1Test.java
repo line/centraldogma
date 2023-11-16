@@ -35,8 +35,8 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.internal.mirror.credential.AccessTokenMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.NoneMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
@@ -91,17 +91,17 @@ class MirroringAndCredentialServiceV1Test {
         for (int i = 0; i < credentials.size(); i++) {
             final Map<String, Object> credential = credentials.get(i);
             final String credentialId = (String) credential.get("id");
-            final ResponseEntity<Revision> creationResponse =
+            final ResponseEntity<PushResultDto> creationResponse =
                     client.prepare()
                           .post("/api/v1/projects/{proj}/credentials")
                           .pathParam("proj", FOO_PROJ)
                           .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                           .contentJson(credential)
                           .responseTimeoutMillis(0)
-                          .asJson(Revision.class)
+                          .asJson(PushResultDto.class)
                           .execute();
             assertThat(creationResponse.status()).isEqualTo(HttpStatus.CREATED);
-            assertThat(creationResponse.content().major()).isEqualTo(i + 2);
+            assertThat(creationResponse.content().revision().major()).isEqualTo(i + 2);
 
             final ResponseEntity<MirrorCredential> fetchResponse =
                     client.prepare()
@@ -149,13 +149,13 @@ class MirroringAndCredentialServiceV1Test {
                                 "publicKey", "updated-public-key-2",
                                 "privateKey", "updated-private-key-2",
                                 "passphrase", "updated-password-0");
-        final ResponseEntity<Revision> creationResponse =
+        final ResponseEntity<PushResultDto> creationResponse =
                 client.prepare()
                       .put("/api/v1/projects/{proj}/credentials")
                       .pathParam("proj", FOO_PROJ)
                       .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                       .contentJson(credential)
-                      .asJson(Revision.class)
+                      .asJson(PushResultDto.class)
                       .execute();
         assertThat(creationResponse.status()).isEqualTo(HttpStatus.OK);
 
@@ -180,13 +180,13 @@ class MirroringAndCredentialServiceV1Test {
     private void createAndReadMirror() throws JsonParseException {
         for (int i = 0; i < 3; i++) {
             final MirrorDto newMirror = newMirror("mirror-" + i);
-            final ResponseEntity<Revision> response0 =
+            final ResponseEntity<PushResultDto> response0 =
                     client.prepare()
                           .post("/api/v1/projects/{proj}/mirrors")
                           .pathParam("proj", FOO_PROJ)
                           .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                           .contentJson(newMirror)
-                          .asJson(Revision.class)
+                          .asJson(PushResultDto.class)
                           .execute();
             assertThat(response0.status()).isEqualTo(HttpStatus.CREATED);
             final ResponseEntity<MirrorDto> response1 =
@@ -216,13 +216,13 @@ class MirroringAndCredentialServiceV1Test {
                                                "updated-mirror-branch",
                                                ".updated-env",
                                                "access-token-credential");
-        final ResponseEntity<Revision> updateResponse =
+        final ResponseEntity<PushResultDto> updateResponse =
                 client.prepare()
                       .put("/api/v1/projects/{proj}/mirrors")
                       .pathParam("proj", FOO_PROJ)
                       .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                       .contentJson(mirror)
-                      .asJson(Revision.class)
+                      .asJson(PushResultDto.class)
                       .execute();
         assertThat(updateResponse.status()).isEqualTo(HttpStatus.OK);
         final ResponseEntity<MirrorDto> fetchResponse =

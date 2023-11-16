@@ -26,6 +26,9 @@ import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.Exceptions;
@@ -35,6 +38,8 @@ import com.linecorp.armeria.common.util.StartStopSupport;
  * Helps to implement a concrete {@link CommandExecutor}.
  */
 public abstract class AbstractCommandExecutor implements CommandExecutor {
+
+    private static final Logger logger = LoggerFactory.getLogger(AbstractCommandExecutor.class);
 
     @Nullable
     private final Consumer<CommandExecutor> onTakeLeadership;
@@ -97,8 +102,28 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     @Override
     public final <T> CompletableFuture<T> execute(Command<T> command) {
         requireNonNull(command, "command");
-        if (!isWritable()) {
+        if (!isWritable() && !(command instanceof AdministrativeCommand)) {
+            // Reject all commands except for AdministrativeCommand when the replica is in read-only mode.
+            // AdministrativeCommand is allowed because it is used to change the read-only mode or migrate
+            // metadata under maintenance mode.
             throw new IllegalStateException("running in read-only mode");
+        }
+
+        if (command.type() == CommandType.FORCE_PUSH) {
+            command = ((ForcePushCommand<T>) command).unwrap();
+        }
+        if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
+            final UpdateServerStatusCommand command0 = (UpdateServerStatusCommand) command;
+            final boolean writable0 = command0.writable();
+            if (writable0 != writable) {
+                setWritable(writable0);
+                if (writable0) {
+                    logger.warn("Left read-only mode.");
+                } else {
+                    logger.warn("Entered read-only mode.");
+                }
+            }
+            return CompletableFuture.completedFuture(null);
         }
 
         try {

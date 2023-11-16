@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
@@ -51,11 +50,6 @@ public interface MetaRepository extends Repository {
     CompletableFuture<Mirror> mirror(String id);
 
     /**
-     * Create a push {@link Command} for the {@link MirrorDto}.
-     */
-    CompletableFuture<Command<CommitResult>> createCommand(MirrorDto mirrorDto, Author author, boolean update);
-
-    /**
      * Returns a list of mirroring credentials.
      */
     CompletableFuture<List<MirrorCredential>> credentials();
@@ -66,12 +60,14 @@ public interface MetaRepository extends Repository {
     CompletableFuture<MirrorCredential> credential(String id);
 
     /**
-     * Saves the {@link MirrorCredential}.
+     * Create a push {@link Command} for the {@link MirrorDto}.
      */
-    CompletableFuture<Revision> saveCredential(MirrorCredential credential, Author author);
+    CompletableFuture<Command<CommitResult>> createPushCommand(MirrorDto mirrorDto, Author author,
+                                                               boolean update);
 
     /**
-     * Updates the {@link MirrorCredential}.
+     * Create a push {@link Command} for the {@link MirrorCredential}.
      */
-    CompletableFuture<Revision> updateCredential(MirrorCredential credential, Author author);
+    CompletableFuture<Command<CommitResult>> createPushCommand(MirrorCredential credential, Author author,
+                                                               boolean update);
 }

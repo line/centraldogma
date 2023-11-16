@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import javax.annotation.Nullable;
 
@@ -53,6 +54,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
@@ -83,6 +85,20 @@ class MirroringMigrationService {
     }
 
     void migrate() throws Exception {
+        if (wasMigrated()) {
+            logger.debug("Mirrors and credentials have already been migrated.");
+            return;
+        }
+
+        // Enter read-only mode.
+        commandExecutor.execute(Command.updateServerStatus(false)).get(1, TimeUnit.MINUTES);
+        logger.info("Starting Mirrors and credentials migration ...");
+        if (commandExecutor instanceof ZooKeeperCommandExecutor) {
+            logger.debug("Waiting for 30 seconds to make sure that all cluster have been notified of the " +
+                         "read-only mode ...");
+            Thread.sleep(30000);
+        }
+
         for (Project project : projectManager.list().values()) {
             logger.info("Migrating mirrors and credentials in the project: {} ...", project.name());
             boolean processed = false;
@@ -98,7 +114,24 @@ class MirroringMigrationService {
             }
 
         }
+
+        // Exit read-only mode.
+        commandExecutor.execute(Command.updateServerStatus(true)).get(1, TimeUnit.MINUTES);
+
         shortWords = null;
+    }
+
+    private boolean wasMigrated() throws Exception {
+        for (Project project : projectManager.list().values()) {
+            final MetaRepository repository = project.metaRepo();
+            if (getMetaData(repository, PATH_LEGACY_MIRRORS) != null) {
+                return false;
+            }
+            if (getMetaData(repository, PATH_LEGACY_CREDENTIALS) != null) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean migrateMirrors(MetaRepository repository) throws Exception {
@@ -154,7 +187,13 @@ class MirroringMigrationService {
                 Command.push(Author.SYSTEM, repository.parent().name(), repository.name(), Revision.HEAD,
                              "Migrate the mirror " + id + " in '" + PATH_LEGACY_MIRRORS + "' into '" +
                              jsonFile + "'.", "", Markup.PLAINTEXT, Change.ofJsonUpsert(jsonFile, mirror));
-        commandExecutor.execute(command).get(30, TimeUnit.SECONDS);
+
+        executeCommand(command);
+    }
+
+    private CommitResult executeCommand(Command<CommitResult> command)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        return commandExecutor.execute(Command.forcePush(command)).get(1, TimeUnit.MINUTES);
     }
 
     private static void fillCredentialId(MetaRepository repository, ObjectNode mirror,
@@ -189,8 +228,6 @@ class MirroringMigrationService {
             return false;
         }
 
-        // Back up the old credentials.json file and don't use it anymore.
-        rename(repository, PATH_LEGACY_CREDENTIALS, PATH_LEGACY_CREDENTIALS_BACKUP);
 
         final Set<String> credentialIds = new HashSet<>();
         for (JsonNode credential : credentials) {
@@ -201,6 +238,8 @@ class MirroringMigrationService {
             migrateCredential(repository, (ObjectNode) credential, credentialIds);
         }
 
+        // Back up the old credentials.json file and don't use it anymore.
+        rename(repository, PATH_LEGACY_CREDENTIALS, PATH_LEGACY_CREDENTIALS_BACKUP);
         return true;
     }
 
@@ -208,9 +247,10 @@ class MirroringMigrationService {
             throws Exception {
         String id;
         final JsonNode idNode = credential.get("id");
+        final String projectName = repository.parent().name();
         if (idNode == null) {
             // Fill the 'id' field with a random value if not exists.
-            id = generateIdForCredential(repository.name());
+            id = generateIdForCredential(projectName);
         } else {
             id = idNode.asText();
         }
@@ -219,10 +259,12 @@ class MirroringMigrationService {
         credentialIds.add(id);
 
         final String jsonFile = credentialFile(id);
-        repository.commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
-                          "Migrate the credential '" + id + "' in '" + PATH_LEGACY_CREDENTIALS +
-                          "' into '" + jsonFile + "'.", Change.ofJsonUpsert(jsonFile, credential))
-                  .get();
+        final Command<CommitResult> command =
+                Command.push(Author.SYSTEM, projectName, repository.name(), Revision.HEAD,
+                             "Migrate the credential '" + id + "' in '" + PATH_LEGACY_CREDENTIALS +
+                             "' into '" + jsonFile + "'.", "", Markup.PLAINTEXT,
+                             Change.ofJsonUpsert(jsonFile, credential));
+        executeCommand(command);
     }
 
     @Nullable
@@ -250,7 +292,7 @@ class MirroringMigrationService {
                                                            "Rename " + oldPath + " into " + newPath, "",
                                                            Markup.PLAINTEXT,
                                                            Change.ofRemoval(oldPath));
-        return commandExecutor.execute(command).get(30, TimeUnit.SECONDS);
+        return executeCommand(command);
     }
 
     /**
@@ -283,7 +325,7 @@ class MirroringMigrationService {
         int suffix = 1;
         String maybeUnique = id;
         while (existingIds.contains(maybeUnique)) {
-            maybeUnique = id + suffix++;
+            maybeUnique = id + '-' + suffix++;
         }
         return maybeUnique;
     }

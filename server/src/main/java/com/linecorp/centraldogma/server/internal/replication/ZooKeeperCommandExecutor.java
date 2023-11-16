@@ -106,6 +106,7 @@ import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.RemoveRepositoryCommand;
+import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -1095,6 +1096,13 @@ public final class ZooKeeperCommandExecutor
 
             // Store the command execution log to ZooKeeper.
             final long revision = storeLog(log);
+
+            if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
+                final UpdateServerStatusCommand statusCommand = (UpdateServerStatusCommand) command;
+                if (!statusCommand.writable()) {
+                    setWritable(false);
+                }
+            }
 
             logger.debug("logging OK. revision = {}, log = {}", revision, log);
             return result;

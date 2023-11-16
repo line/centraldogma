@@ -187,6 +187,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return (CompletableFuture<T>) removeSession((RemoveSessionCommand) command);
         }
 
+        if (command instanceof UpdateServerStatusCommand) {
+            return (CompletableFuture<T>) updateServerStatus((UpdateServerStatusCommand) command);
+        }
+
         throw new UnsupportedOperationException(command.toString());
     }
 
@@ -349,5 +353,11 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             logger.warn("Failed to replicate a session removal: {}", sessionId, cause);
             return null;
         });
+    }
+
+    private CompletableFuture<Void> updateServerStatus(UpdateServerStatusCommand c) {
+        setWritable(c.writable());
+        // Ignore c.replicating() because StandaloneCommandExecutor does not support replication.
+        return CompletableFuture.completedFuture(null);
     }
 }

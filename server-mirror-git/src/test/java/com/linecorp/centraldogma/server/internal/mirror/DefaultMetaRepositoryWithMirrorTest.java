@@ -32,6 +32,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -46,6 +47,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.mirror.credential.NoneMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
@@ -97,9 +99,11 @@ class DefaultMetaRepositoryWithMirrorTest {
 
     private static ProjectManager pm;
 
+    @RegisterExtension
+    static final ProjectManagerExtension pmExtension = new ProjectManagerExtension();
+
     private Project project;
     private MetaRepository metaRepo;
-    static final ProjectManagerExtension pmExtension = new ProjectManagerExtension();
 
     @BeforeAll
     static void init() {
@@ -196,6 +200,7 @@ class DefaultMetaRepositoryWithMirrorTest {
             metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", mirrors).join();
             metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", UPSERT_RAW_CREDENTIALS).join();
         } else {
+            final CommandExecutor commandExecutor = pmExtension.executor();
             final List<MirrorDto> mirrors = ImmutableList.of(
                     new MirrorDto("foo", true, project.name(), DEFAULT_SCHEDULE, "LOCAL_TO_REMOTE", "foo",
                                   "/mirrors/foo", "git+ssh", "foo.com/foo.git", "", "", null, "alice"),
@@ -206,11 +211,13 @@ class DefaultMetaRepositoryWithMirrorTest {
                     new MirrorDto("foo-bar", false, project.name(), DEFAULT_SCHEDULE, "LOCAL_TO_REMOTE", "foo",
                                   "/mirrors/bar", "git+ssh", "bar.com/bar.git", "", "", null, "bob"));
             for (MirrorCredential credential : CREDENTIALS) {
-                metaRepo.saveCredential(credential, Author.SYSTEM);
+                final Command<CommitResult> command =
+                        metaRepo.createPushCommand(credential, Author.SYSTEM, false).join();
+                pmExtension.executor().execute(command).join();
             }
             for (MirrorDto mirror : mirrors) {
-                final Command<CommitResult> command = metaRepo.createCommand(mirror, Author.SYSTEM, false)
-                                                              .join();
+                final Command<CommitResult> command =
+                        metaRepo.createPushCommand(mirror, Author.SYSTEM, false).join();
                 pmExtension.executor().execute(command).join();
             }
         }

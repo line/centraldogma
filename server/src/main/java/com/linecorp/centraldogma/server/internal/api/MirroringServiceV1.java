@@ -67,19 +67,6 @@ public class MirroringServiceV1 extends AbstractService {
     }
 
     /**
-     * POST /projects/{projectName}/mirrors
-     *
-     * <p>Creates a new mirror.
-     */
-    @Post("/projects/{projectName}/mirrors")
-    @ConsumesJson
-    @StatusCode(201)
-    public CompletableFuture<PushResultDto> createMirror(@Param String projectName, MirrorDto newMirror,
-                                                         Author author) {
-        return createOrUpdate(projectName, newMirror, author, false);
-    }
-
-    /**
      * GET /projects/{projectName}/mirrors/{id}
      *
      * <p>Returns the mirror of the ID in the project mirror list.
@@ -90,6 +77,19 @@ public class MirroringServiceV1 extends AbstractService {
         return metaRepo(projectName).mirror(id).thenApply(mirror -> {
             return convertToMirrorDto(projectName, mirror);
         });
+    }
+
+    /**
+     * POST /projects/{projectName}/mirrors
+     *
+     * <p>Creates a new mirror.
+     */
+    @Post("/projects/{projectName}/mirrors")
+    @ConsumesJson
+    @StatusCode(201)
+    public CompletableFuture<PushResultDto> createMirror(@Param String projectName, MirrorDto newMirror,
+                                                         Author author) {
+        return createOrUpdate(projectName, newMirror, author, false);
     }
 
     /**
@@ -107,7 +107,7 @@ public class MirroringServiceV1 extends AbstractService {
     private CompletableFuture<PushResultDto> createOrUpdate(String projectName,
                                                             MirrorDto newMirror,
                                                             Author author, boolean update) {
-        return metaRepo(projectName).createCommand(newMirror, author, update).thenCompose(command -> {
+        return metaRepo(projectName).createPushCommand(newMirror, author, update).thenCompose(command -> {
             return executor().execute(command).thenApply(result -> {
                 return new PushResultDto(result.revision(), command.timestamp());
             });

@@ -40,8 +40,8 @@ class GitMirrorTest {
                      "git://a.com/b.git", "/", "");
 
         // Non-default port number
-        assertMirror("git+ssh://a.com:8022/b.git", DefaultGitMirror.class,
-                     "git+ssh://a.com:8022/b.git", "/", "");
+        assertMirror("git://a.com:8022/b.git", DefaultGitMirror.class,
+                     "git://a.com:8022/b.git", "/", "");
 
         // Non-default remotePath
         assertMirror("git+http://a.com/b.git/c", DefaultGitMirror.class,
@@ -66,15 +66,15 @@ class GitMirrorTest {
     void testSshGitMirror() {
         // Simplest possible form
         assertMirror("git+ssh://a.com/b.git", SshGitMirror.class,
-                     "git+ssh://a.com/b.git", "/", null);
+                     "git+ssh://a.com/b.git", "/", "");
 
         // Non-default port number
         assertMirror("git+ssh://a.com:8022/b.git", SshGitMirror.class,
-                     "git+ssh://a.com:8022/b.git", "/", null);
+                     "git+ssh://a.com:8022/b.git", "/", "");
 
         // Non-default remotePath
         assertMirror("git+ssh://a.com/b.git/c", SshGitMirror.class,
-                     "git+ssh://a.com/b.git", "/c/", null);
+                     "git+ssh://a.com/b.git", "/c/", "");
 
         // Non-default remoteBranch
         assertMirror("git+ssh://a.com/b.git#develop", SshGitMirror.class,

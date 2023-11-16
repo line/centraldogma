@@ -28,7 +28,7 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
 import com.linecorp.centraldogma.server.metadata.ProjectRole;
@@ -76,9 +76,9 @@ public class CredentialServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/credentials")
     @ConsumesJson
     @StatusCode(201)
-    public CompletableFuture<Revision> createCredential(@Param String projectName,
+    public CompletableFuture<PushResultDto> createCredential(@Param String projectName,
                                                         MirrorCredential credential, Author author) {
-        return metaRepo(projectName).saveCredential(credential, author);
+        return createOrUpdate(projectName, credential, author, false);
     }
 
     /**
@@ -88,9 +88,19 @@ public class CredentialServiceV1 extends AbstractService {
      */
     @Put("/projects/{projectName}/credentials")
     @ConsumesJson
-    public CompletableFuture<Revision> updateCredential(@Param String projectName,
+    public CompletableFuture<PushResultDto> updateCredential(@Param String projectName,
                                                         MirrorCredential credential, Author author) {
-        return metaRepo(projectName).updateCredential(credential, author);
+        return createOrUpdate(projectName, credential, author, true);
+    }
+
+    private CompletableFuture<PushResultDto> createOrUpdate(String projectName,
+                                                            MirrorCredential credential,
+                                                            Author author, boolean update) {
+        return metaRepo(projectName).createPushCommand(credential, author, update).thenCompose(command -> {
+            return executor().execute(command).thenApply(result -> {
+                return new PushResultDto(result.revision(), command.timestamp());
+            });
+        });
     }
 
     private MetaRepository metaRepo(String projectName) {

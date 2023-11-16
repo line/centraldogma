@@ -52,6 +52,8 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = PushAsIsCommand.class, name = "PUSH"),
         @Type(value = CreateSessionCommand.class, name = "CREATE_SESSIONS"),
         @Type(value = RemoveSessionCommand.class, name = "REMOVE_SESSIONS"),
+        @Type(value = UpdateServerStatusCommand.class, name = "UPDATE_SERVER_STATUS"),
+        @Type(value = ForcePushCommand.class, name = "FORCE_PUSH_COMMAND"),
 })
 public interface Command<T> {
 
@@ -353,6 +355,21 @@ public interface Command<T> {
      */
     static Command<Void> removeSession(String sessionId) {
         return new RemoveSessionCommand(null, null, sessionId);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to update the status of the servers in cluster.
+     */
+    static Command<Void> updateServerStatus(boolean writable) {
+        return new UpdateServerStatusCommand(null, null, writable);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to force-push {@code delegate} even the server is in
+     * read-only mode. This command is useful for the migration the repository content during maintenance mode.
+     */
+    static <T> Command<T> forcePush(Command<T> delegate) {
+        return new ForcePushCommand<>(delegate);
     }
 
     /**
