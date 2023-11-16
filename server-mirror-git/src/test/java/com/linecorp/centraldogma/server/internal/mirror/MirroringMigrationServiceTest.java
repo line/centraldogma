@@ -185,6 +185,8 @@ class MirroringMigrationServiceTest {
             "  \"accessToken\": \"sesame\"" +
             '}';
 
+    // TODO(ikhoon): Add integration tests with a ZooKeeper cluster.
+
     @RegisterExtension
     static ProjectManagerExtension projectManagerExtension = new ProjectManagerExtension() {
         @Override
