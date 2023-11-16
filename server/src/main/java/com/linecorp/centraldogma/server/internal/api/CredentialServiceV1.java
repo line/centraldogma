@@ -77,7 +77,7 @@ public class CredentialServiceV1 extends AbstractService {
     @ConsumesJson
     @StatusCode(201)
     public CompletableFuture<PushResultDto> createCredential(@Param String projectName,
-                                                        MirrorCredential credential, Author author) {
+                                                             MirrorCredential credential, Author author) {
         return createOrUpdate(projectName, credential, author, false);
     }
 
@@ -89,7 +89,7 @@ public class CredentialServiceV1 extends AbstractService {
     @Put("/projects/{projectName}/credentials")
     @ConsumesJson
     public CompletableFuture<PushResultDto> updateCredential(@Param String projectName,
-                                                        MirrorCredential credential, Author author) {
+                                                             MirrorCredential credential, Author author) {
         return createOrUpdate(projectName, credential, author, true);
     }
 

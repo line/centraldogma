@@ -358,7 +358,7 @@ public interface Command<T> {
     }
 
     /**
-     * Returns a new {@link Command} which is used to update the status of the servers in cluster.
+     * Returns a new {@link Command} which is used to update the status of the server.
      */
     static Command<Void> updateServerStatus(boolean writable) {
         return new UpdateServerStatusCommand(null, null, writable);
@@ -366,7 +366,7 @@ public interface Command<T> {
 
     /**
      * Returns a new {@link Command} which is used to force-push {@code delegate} even the server is in
-     * read-only mode. This command is useful for the migration the repository content during maintenance mode.
+     * read-only mode. This command is useful for migrating the repository content during maintenance mode.
      */
     static <T> Command<T> forcePush(Command<T> delegate) {
         return new ForcePushCommand<>(delegate);

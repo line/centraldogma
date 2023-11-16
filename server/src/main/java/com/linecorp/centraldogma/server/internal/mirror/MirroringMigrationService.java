@@ -43,6 +43,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -99,6 +100,7 @@ class MirroringMigrationService {
             Thread.sleep(30000);
         }
 
+        final Stopwatch stopwatch = Stopwatch.createStarted();
         for (Project project : projectManager.list().values()) {
             logger.info("Migrating mirrors and credentials in the project: {} ...", project.name());
             boolean processed = false;
@@ -116,6 +118,8 @@ class MirroringMigrationService {
 
         // Exit read-only mode.
         commandExecutor.execute(Command.updateServerStatus(true)).get(1, TimeUnit.MINUTES);
+        logger.info("Mirrors and credentials migration has been completed. (took: {} ms.)",
+                    stopwatch.elapsed().toMillis());
 
         shortWords = null;
     }
@@ -142,8 +146,6 @@ class MirroringMigrationService {
         final List<MirrorCredential> credentials = repository.credentials()
                                                              .get(30, TimeUnit.SECONDS);
 
-        // Back up the old mirrors.json file and don't use it anymore.
-        rename(repository, PATH_LEGACY_MIRRORS, PATH_LEGACY_MIRRORS_BACKUP);
         final Set<String> mirrorIds = new HashSet<>();
         for (JsonNode mirror : mirrors) {
             if (!mirror.isObject()) {
@@ -158,6 +160,8 @@ class MirroringMigrationService {
                             repository.parent().name(), e);
             }
         }
+        // Back up the old mirrors.json file and don't use it anymore.
+        rename(repository, PATH_LEGACY_MIRRORS, PATH_LEGACY_MIRRORS_BACKUP);
 
         return true;
     }
@@ -228,12 +232,21 @@ class MirroringMigrationService {
         }
 
         final Set<String> credentialIds = new HashSet<>();
+        int index = 0;
         for (JsonNode credential : credentials) {
             if (!credential.isObject()) {
-                throw new RepositoryMetadataException(
-                        "A credential config must be an object: " + credential.getNodeType());
+                logger.warn("A credential config at {} must be an object: {} (project: {})", index,
+                            credential.getNodeType(),
+                            repository.parent().name());
+            } else {
+                try {
+                    migrateCredential(repository, (ObjectNode) credential, credentialIds);
+                } catch (Exception e) {
+                    logger.warn("Failed to migrate the credential config in project {}",
+                                repository.parent().name(), e);
+                }
             }
-            migrateCredential(repository, (ObjectNode) credential, credentialIds);
+            index++;
         }
 
         // Back up the old credentials.json file and don't use it anymore.

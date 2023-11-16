@@ -115,10 +115,10 @@ abstract class AbstractGitMirror extends AbstractMirror {
     @Nullable
     private IgnoreNode ignoreNode;
 
-    protected AbstractGitMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
-                                MirrorCredential credential, Repository localRepo, String localPath,
-                                URI remoteRepoUri, String remotePath, String remoteBranch,
-                                @Nullable String gitignore) {
+    AbstractGitMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
+                      MirrorCredential credential, Repository localRepo, String localPath,
+                      URI remoteRepoUri, String remotePath, String remoteBranch,
+                      @Nullable String gitignore) {
         super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath,
               remoteBranch, gitignore);
 

@@ -34,7 +34,8 @@ public final class UpdateServerStatusCommand extends AdministrativeCommand<Void>
     private final boolean writable;
 
     @JsonCreator
-    UpdateServerStatusCommand(@Nullable Long timestamp, @Nullable Author author,
+    UpdateServerStatusCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                              @JsonProperty("author") @Nullable Author author,
                               @JsonProperty("writable") boolean writable) {
         super(CommandType.UPDATE_SERVER_STATUS, timestamp, author);
         this.writable = writable;
@@ -43,7 +44,7 @@ public final class UpdateServerStatusCommand extends AdministrativeCommand<Void>
     /**
      * Returns whether the cluster is writable.
      */
-    @JsonProperty
+    @JsonProperty("writable")
     public boolean writable() {
         return writable;
     }

@@ -109,9 +109,6 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
             throw new IllegalStateException("running in read-only mode");
         }
 
-        if (command.type() == CommandType.FORCE_PUSH) {
-            command = ((ForcePushCommand<T>) command).unwrap();
-        }
         if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
             final UpdateServerStatusCommand command0 = (UpdateServerStatusCommand) command;
             final boolean writable0 = command0.writable();
@@ -123,7 +120,6 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
                     logger.warn("Entered read-only mode.");
                 }
             }
-            return CompletableFuture.completedFuture(null);
         }
 
         try {

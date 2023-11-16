@@ -16,16 +16,46 @@
 
 package com.linecorp.centraldogma.server.command;
 
-class ForcePushCommand<T> extends AdministrativeCommand<T> {
+import static java.util.Objects.requireNonNull;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.MoreObjects.ToStringHelper;
+
+public final class ForcePushCommand<T> extends AdministrativeCommand<T> {
 
     private final Command<T> delegate;
 
-    ForcePushCommand(Command<T> delegate) {
-        super(CommandType.FORCE_PUSH, delegate.timestamp(), delegate.author());
+    @JsonCreator
+    ForcePushCommand(@JsonProperty("delegate") Command<T> delegate) {
+        super(CommandType.FORCE_PUSH, requireNonNull(delegate, "delegate").timestamp(), delegate.author());
         this.delegate = delegate;
     }
 
-    Command<T> unwrap() {
+    @JsonProperty("delegate")
+    public Command<T> delegate() {
         return delegate;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof ForcePushCommand)) {
+            return false;
+        }
+        final ForcePushCommand<?> that = (ForcePushCommand<?>) o;
+        return super.equals(that) && delegate.equals(that.delegate);
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode() * 31 + delegate.hashCode();
+    }
+
+    @Override
+    ToStringHelper toStringHelper() {
+        return super.toStringHelper().add("delegate", delegate);
     }
 }
