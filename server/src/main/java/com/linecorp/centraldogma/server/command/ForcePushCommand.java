@@ -22,6 +22,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
+/**
+ * A {@link Command} which is used to force-push {@code delegate} even the server is in read-only mode.
+ * This command is useful for migrating the repository content during maintenance mode.
+ */
 public final class ForcePushCommand<T> extends AdministrativeCommand<T> {
 
     private final Command<T> delegate;
@@ -32,6 +36,9 @@ public final class ForcePushCommand<T> extends AdministrativeCommand<T> {
         this.delegate = delegate;
     }
 
+    /**
+     * Returns the {@link Command} to be force-pushed.
+     */
     @JsonProperty("delegate")
     public Command<T> delegate() {
         return delegate;
