@@ -175,7 +175,7 @@ public final class DefaultMirroringService implements MirroringService {
         }
 
         boolean interrupted = false;
-        for (; ; ) {
+        for (;;) {
             executor.shutdownNow();
             try {
                 if (executor.awaitTermination(1, TimeUnit.MINUTES)) {

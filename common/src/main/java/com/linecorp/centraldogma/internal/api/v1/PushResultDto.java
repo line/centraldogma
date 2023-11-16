@@ -36,14 +36,14 @@ public class PushResultDto {
     private final String pushedAt;
 
     @JsonCreator
-    public PushResultDto(@JsonProperty("revision") Revision revision, @JsonProperty("pushedAt") Instant pushedAt) {
+    public PushResultDto(@JsonProperty("revision") Revision revision,
+                         @JsonProperty("pushedAt") Instant pushedAt) {
         this.revision = requireNonNull(revision, "revision");
         this.pushedAt = ISO_INSTANT.format(pushedAt);
     }
 
     public PushResultDto(Revision revision, long commitTimeMillis) {
-        this.revision = requireNonNull(revision, "revision");
-        pushedAt = ISO_INSTANT.format(Instant.ofEpochMilli(commitTimeMillis));
+        this(revision, Instant.ofEpochMilli(commitTimeMillis));
     }
 
     @JsonProperty("revision")

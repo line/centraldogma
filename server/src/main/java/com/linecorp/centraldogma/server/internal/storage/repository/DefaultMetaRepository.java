@@ -124,7 +124,6 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         });
     }
 
-
     private CompletableFuture<List<Mirror>> allMirrors() {
         return find(PATH_MIRRORS + "*.json").thenCompose(entries -> {
             if (entries.isEmpty()) {
@@ -193,7 +192,6 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             }
         });
     }
-
 
     private List<MirrorCredential> parseCredentials(Map<String, Entry<?>> entries)
             throws JsonProcessingException {

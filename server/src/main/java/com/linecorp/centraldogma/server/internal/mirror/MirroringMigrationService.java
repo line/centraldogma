@@ -112,7 +112,6 @@ class MirroringMigrationService {
                 logger.info("No legacy configurations of mirrors and credentials found in the project: {}.",
                             project.name());
             }
-
         }
 
         // Exit read-only mode.
@@ -227,7 +226,6 @@ class MirroringMigrationService {
         if (credentials == null) {
             return false;
         }
-
 
         final Set<String> credentialIds = new HashSet<>();
         for (JsonNode credential : credentials) {

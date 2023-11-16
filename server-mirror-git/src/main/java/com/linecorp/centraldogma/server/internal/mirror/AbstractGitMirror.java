@@ -271,7 +271,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
                 if (ignoreNode != null && path.startsWith(remotePath())) {
                     assert ignoreNode != null;
                     if (ignoreNode.isIgnored('/' + path.substring(remotePath().length()),
-                                         fileMode == FileMode.TREE) == MatchResult.IGNORED) {
+                                             fileMode == FileMode.TREE) == MatchResult.IGNORED) {
                         continue;
                     }
                 }
@@ -363,7 +363,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
     }
 
     private Ref getHeadBranchRef(GitWithAuth git) throws GitAPIException {
-        if (!remoteBranch().isEmpty()){
+        if (!remoteBranch().isEmpty()) {
             final String headBranchRefName = Constants.R_HEADS + remoteBranch();
             final Collection<Ref> refs = lsRemote(git, true);
             return findHeadBranchRef(git, headBranchRefName, refs);
@@ -389,7 +389,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
     }
 
     private static Collection<Ref> lsRemote(GitWithAuth git,
-                                           boolean setHeads) throws GitAPIException {
+                                            boolean setHeads) throws GitAPIException {
         return git.lsRemote()
                   .setTags(false)
                   .setTimeout(GIT_TIMEOUT_SECS)
