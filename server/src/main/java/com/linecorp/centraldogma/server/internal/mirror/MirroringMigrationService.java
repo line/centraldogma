@@ -56,6 +56,7 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer;
 import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
@@ -71,8 +72,10 @@ class MirroringMigrationService {
     static final String PATH_LEGACY_MIRRORS = "/mirrors.json";
     @VisibleForTesting
     static final String PATH_LEGACY_CREDENTIALS = "/credentials.json";
-    private static final String PATH_LEGACY_MIRRORS_BACKUP = PATH_LEGACY_MIRRORS + ".bak";
-    private static final String PATH_LEGACY_CREDENTIALS_BACKUP = PATH_LEGACY_CREDENTIALS + ".bak";
+    @VisibleForTesting
+    static final String PATH_LEGACY_MIRRORS_BACKUP = PATH_LEGACY_MIRRORS + ".bak";
+    @VisibleForTesting
+    static final String PATH_LEGACY_CREDENTIALS_BACKUP = PATH_LEGACY_CREDENTIALS + ".bak";
 
     private final ProjectManager projectManager;
     private final CommandExecutor commandExecutor;
@@ -86,6 +89,9 @@ class MirroringMigrationService {
     }
 
     void migrate() throws Exception {
+        // Wait until the internal project is initialized.
+        ProjectInitializer.whenInternalProjectInitialized().get();
+
         if (wasMigrated()) {
             logger.debug("Mirrors and credentials have already been migrated.");
             return;
@@ -300,9 +306,10 @@ class MirroringMigrationService {
             throws Exception {
         final Command<CommitResult> command = Command.push(Author.SYSTEM, repository.parent().name(),
                                                            repository.name(), Revision.HEAD,
-                                                           "Rename " + oldPath + " into " + newPath, "",
+                                                           "Back up the legacy " + oldPath + " into " + newPath,
+                                                           "",
                                                            Markup.PLAINTEXT,
-                                                           Change.ofRemoval(oldPath));
+                                                           Change.ofRename(oldPath, newPath));
         return executeCommand(command);
     }
 

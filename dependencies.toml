@@ -15,6 +15,7 @@ cron-utils = "9.2.0"
 diffutils = "1.3.0"
 docker = "9.3.5"
 download = "5.5.0"
+dropwizard-metrics = "4.2.21"
 eddsa = "0.3.0"
 findbugs = "3.0.2"
 futures-completable = "0.3.5"
@@ -129,6 +130,11 @@ exclusions = "org.apache.zookeeper:zookeeper"
 module = "com.googlecode.java-diff-utils:diffutils"
 version.ref = "diffutils"
 relocations = { from = "difflib", to = "com.linecorp.centraldogma.internal.shaded.difflib" }
+
+# Used for testing only.
+[libraries.dropwizard-metrics-core]
+module = "io.dropwizard.metrics:metrics-core"
+version.ref = "dropwizard-metrics"
 
 [libraries.eddsa]
 module = "net.i2p.crypto:eddsa"

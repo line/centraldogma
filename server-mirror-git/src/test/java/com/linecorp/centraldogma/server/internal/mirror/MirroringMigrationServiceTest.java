@@ -47,22 +47,23 @@ import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
 class MirroringMigrationServiceTest {
 
-    private static final String TEST_PROJ = "fooProj";
-    private static final String TEST_REPO0 = "repo0";
-    private static final String TEST_REPO1 = "repo1";
-    private static final String TEST_REPO2 = "repo2";
-    private static final String TEST_REPO3 = "repo3";
+    // The static fields are shared with MirroringMigrationServiceClusterTest.
+    static final String TEST_PROJ = "fooProj";
+    static final String TEST_REPO0 = "repo0";
+    static final String TEST_REPO1 = "repo1";
+    static final String TEST_REPO2 = "repo2";
+    static final String TEST_REPO3 = "repo3";
 
     // The real key pair generated using:
     //
     //   ssh-keygen -t rsa -b 768 -N sesame
     //
-    private static final String PUBLIC_KEY =
+    static final String PUBLIC_KEY =
             "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQCmkW9HjZE5q0EM06MUWXYFTNTi" +
             "KkfYD/pH2GwJw6yi20Gi0TzjJ6YBLueU48vxkwWmw6sTOEuBxtzefTxs4kQuatev" +
             "uXn7tWX9fhSIAEp+zdyQY7InyCqfHFwRwswemCM= trustin@localhost";
 
-    private static final String PRIVATE_KEY =
+    static final String PRIVATE_KEY =
             "-----BEGIN RSA PRIVATE KEY-----\n" +
             "Proc-Type: 4,ENCRYPTED\n" +
             "DEK-Info: AES-128-CBC,C35856D3C524AA2FD32D878F4409B97E\n" +
@@ -79,10 +80,10 @@ class MirroringMigrationServiceTest {
             "zmB/ey0dZ8WBCazCp9OX3dYgNkVR1yYNlJWOGJS8Cwc=\n" +
             "-----END RSA PRIVATE KEY-----";
 
-    private static final String PASSPHRASE = "sesame";
+    static final String PASSPHRASE = "sesame";
 
     // A mirror config without ID
-    private static final String REPO0_MIRROR =
+    static final String REPO0_MIRROR =
             "{\n" +
             "  \"type\": \"single\",\n" +
             "  \"enabled\": true,\n" +
@@ -98,7 +99,7 @@ class MirroringMigrationServiceTest {
             '}';
 
     // A mirror config with ID
-    private static final String REPO1_MIRROR =
+    static final String REPO1_MIRROR =
             "{\n" +
             "  \"id\": \"mirror-1\",\n" +
             "  \"type\": \"single\",\n" +
@@ -116,7 +117,7 @@ class MirroringMigrationServiceTest {
             '}';
 
     // A mirror config with duplicate ID
-    private static final String REPO2_MIRROR =
+    static final String REPO2_MIRROR =
             "{\n" +
             "  \"id\": \"mirror-1\",\n" +
             "  \"type\": \"single\",\n" +
@@ -133,7 +134,7 @@ class MirroringMigrationServiceTest {
             '}';
 
     // A mirror config with duplicate ID
-    private static final String REPO3_MIRROR =
+    static final String REPO3_MIRROR =
             "{\n" +
             "  \"id\": \"mirror-1\",\n" +
             "  \"type\": \"single\",\n" +
@@ -150,7 +151,7 @@ class MirroringMigrationServiceTest {
             '}';
 
     // A credential without ID
-    private static final String PUBLIC_KEY_CREDENTIAL =
+    static final String PUBLIC_KEY_CREDENTIAL =
             '{' +
             "  \"type\": \"public_key\"," +
             "  \"hostnamePatterns\": [" +
@@ -163,7 +164,7 @@ class MirroringMigrationServiceTest {
             '}';
 
     // A credential with ID
-    private static final String PASSWORD_CREDENTIAL =
+    static final String PASSWORD_CREDENTIAL =
             '{' +
             "  \"id\": \"credential-1\"," +
             "  \"type\": \"password\"," +
@@ -175,7 +176,7 @@ class MirroringMigrationServiceTest {
             '}';
 
     // A credential with duplicate ID
-    private static final String ACCESS_TOKEN_CREDENTIAL =
+    static final String ACCESS_TOKEN_CREDENTIAL =
             '{' +
             "  \"id\": \"credential-1\"," +
             "  \"type\": \"access_token\"," +
@@ -250,7 +251,7 @@ class MirroringMigrationServiceTest {
         assertMirrorConfig(mirrors.get(TEST_REPO3), "mirror-1-2", REPO3_MIRROR);
     }
 
-    private static void assertMirrorConfig(Map.Entry<String, Entry<?>> actualMirrorConfig, String mirrorId,
+    static void assertMirrorConfig(Map.Entry<String, Entry<?>> actualMirrorConfig, String mirrorId,
                                            String expectedMirrorConfig) throws JsonParseException {
         assertThat(actualMirrorConfig.getKey()).matches("/mirrors/" + mirrorId + "\\.json");
         final JsonNode mirrorConfig = actualMirrorConfig.getValue().contentAsJson();
@@ -333,7 +334,7 @@ class MirroringMigrationServiceTest {
         }
     }
 
-    private static void assertCredential(Map.Entry<String, Entry<?>> actualCredential, String credentialId,
+    static void assertCredential(Map.Entry<String, Entry<?>> actualCredential, String credentialId,
                                          String expectedCredential) throws JsonParseException {
         assertThat(actualCredential.getKey()).matches("/credentials/" + credentialId + "\\.json");
         final JsonNode credential = actualCredential.getValue().contentAsJson();

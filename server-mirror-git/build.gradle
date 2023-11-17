@@ -8,4 +8,7 @@ dependencies {
     implementation libs.jgit6
     implementation libs.mina.sshd.core
     implementation libs.mina.sshd.git
+
+    testImplementation libs.zookeeper
+    testImplementation libs.dropwizard.metrics.core
 }

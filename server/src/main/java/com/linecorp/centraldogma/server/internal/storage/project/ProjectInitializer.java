@@ -20,6 +20,8 @@ import static com.linecorp.centraldogma.server.command.Command.createProject;
 import static com.linecorp.centraldogma.server.command.Command.createRepository;
 import static com.linecorp.centraldogma.server.command.Command.push;
 
+import java.util.concurrent.CompletableFuture;
+
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.util.Exceptions;
@@ -40,10 +42,20 @@ public final class ProjectInitializer {
 
     public static final String INTERNAL_PROJECT_DOGMA = "dogma";
 
+    private static CompletableFuture<Void> whenInternalProjectInitialized = new CompletableFuture<>();
+
+    public static CompletableFuture<Void> whenInternalProjectInitialized() {
+        return whenInternalProjectInitialized;
+    }
+
     /**
      * Creates an internal project and repositories such as a token storage.
      */
     public static void initializeInternalProject(CommandExecutor executor) {
+        if (whenInternalProjectInitialized.isDone()) {
+            return;
+        }
+
         final long creationTimeMillis = System.currentTimeMillis();
         try {
             executor.execute(createProject(creationTimeMillis, Author.SYSTEM, INTERNAL_PROJECT_DOGMA))
@@ -84,6 +96,7 @@ public final class ProjectInitializer {
                 throw new Error("failed to initialize the token list file", cause);
             }
         }
+        whenInternalProjectInitialized.complete(null);
     }
 
     private ProjectInitializer() {}

@@ -30,6 +30,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommandType;
+import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 
 public final class ReplicationLog<T> {
@@ -58,6 +60,9 @@ public final class ReplicationLog<T> {
             result = null;
         }
 
+        if (command.type() == CommandType.FORCE_PUSH) {
+            command = ((ForcePushCommand<T>) command).delegate();
+        }
         final Class<T> resultType = Util.unsafeCast(command.type().resultType());
         if (resultType == Void.class) {
             if (result != null) {
@@ -77,7 +82,14 @@ public final class ReplicationLog<T> {
                 : NormalizingPushCommand.class.getSimpleName() + " cannot be replicated.";
         this.command = requireNonNull(command, "command");
 
-        final Class<?> resultType = command.type().resultType();
+        final Class<?> resultType;
+        // TODO(ikhoon): Create ForcePushCommand as a separate PR and it should be deployed before migrating
+        //               mirror configs in order to avoid the compatibility issue.
+        if (command.type() == CommandType.FORCE_PUSH) {
+            resultType = ((ForcePushCommand<?>) command).delegate().type().resultType();
+        } else {
+            resultType = command.type().resultType();
+        }
         if (resultType == Void.class) {
             if (result != null) {
                 rejectIncompatibleResult(result, Void.class);
