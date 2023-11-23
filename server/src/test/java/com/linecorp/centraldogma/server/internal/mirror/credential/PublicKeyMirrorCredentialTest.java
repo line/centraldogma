@@ -20,11 +20,15 @@ import static com.linecorp.centraldogma.server.internal.mirror.credential.Mirror
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.ConfigValueConverter;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
 class PublicKeyMirrorCredentialTest {
@@ -129,6 +133,9 @@ class PublicKeyMirrorCredentialTest {
                                                          PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
 
         // base64 passphrase
+        final PublicKeyMirrorCredential base64Expected =
+                new PublicKeyMirrorCredential(null, HOSTNAME_PATTERNS, USERNAME,
+                                              PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE_BASE64);
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"public_key\"," +
                                      "  \"hostnamePatterns\": [" +
@@ -139,8 +146,8 @@ class PublicKeyMirrorCredentialTest {
                                      "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
                                      "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE_BASE64) + '"' +
                                      '}', MirrorCredential.class))
-                .isEqualTo(new PublicKeyMirrorCredential(null, HOSTNAME_PATTERNS, USERNAME,
-                                                         PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
+                .isEqualTo(base64Expected);
+        assertThat(base64Expected.passphrase()).isEqualTo(PASSPHRASE);
 
         // ID
         assertThat(Jackson.readValue('{' +
@@ -153,5 +160,35 @@ class PublicKeyMirrorCredentialTest {
                                      '}', MirrorCredential.class))
                 .isEqualTo(new PublicKeyMirrorCredential("foo", null, USERNAME,
                                                          PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
+
+        final PublicKeyMirrorCredential conveterExpected =
+                new PublicKeyMirrorCredential("foo", null, USERNAME,
+                                              PUBLIC_KEY, PRIVATE_KEY, "mirror_encryption:foo");
+        assertThat(Jackson.readValue('{' +
+                                     "  \"type\": \"public_key\"," +
+                                     "  \"id\": \"foo\"," +
+                                     "  \"username\": \"trustin\"," +
+                                     "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
+                                     "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
+                                     "  \"passphrase\": \"mirror_encryption:foo\"" +
+                                     '}', MirrorCredential.class))
+                .isEqualTo(conveterExpected);
+        assertThat(conveterExpected.passphrase()).isEqualTo("bar");
+    }
+
+    public static class PasswordConfigValueConverter implements ConfigValueConverter {
+
+        @Override
+        public List<String> supportedPrefixes() {
+            return ImmutableList.of("mirror_encryption");
+        }
+
+        @Override
+        public String convert(String prefix, String value) {
+            if ("foo".equals(value)) {
+                return "bar";
+            }
+            throw new IllegalArgumentException("unsupported prefix: " + prefix + ", value: " + value);
+        }
     }
 }

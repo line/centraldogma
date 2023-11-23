@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Base64;
 import java.util.List;
 
 import com.google.common.collect.ImmutableList;
@@ -28,9 +29,10 @@ enum DefaultConfigValueConverter implements ConfigValueConverter {
 
     private static final String PLAINTEXT = "plaintext";
     private static final String FILE = "file";
+    private static final String BASE64 = "base64";
 
     // TODO(minwoox): Add more prefixes such as classpath, url, etc.
-    private static final List<String> SUPPORTED_PREFIXES = ImmutableList.of(PLAINTEXT, FILE);
+    private static final List<String> SUPPORTED_PREFIXES = ImmutableList.of(PLAINTEXT, FILE, BASE64);
 
     @Override
     public List<String> supportedPrefixes() {
@@ -48,6 +50,8 @@ enum DefaultConfigValueConverter implements ConfigValueConverter {
                 } catch (IOException e) {
                     throw new RuntimeException("failed to read a file: " + value, e);
                 }
+            case BASE64:
+                return new String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8).trim();
             default:
                 // Should never reach here.
                 throw new Error();
