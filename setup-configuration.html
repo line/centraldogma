@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Configuration &mdash; Central Dogma 0.63.1 documentation</title>
+  <title>Configuration &mdash; Central Dogma 0.63.2 documentation</title>
   
 
   
@@ -104,6 +104,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#core-properties">Core properties</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#configuring-replication">Configuring replication</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#configuring-tls">Configuring TLS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#hiding-sensitive-property-values">Hiding sensitive property values</a></li>
 </ul>
 </li>
 </ul>
@@ -604,7 +605,7 @@ curious why odd number of replicas are preferred over even number of replicas.</
 <ul class="simple">
 <li><p>the secret string which is used for replicas to authenticate each other. The replicas in the same
 cluster must have the same secret. If <code class="docutils literal notranslate"><span class="pre">null</span></code> or unspecified, the default value of <code class="docutils literal notranslate"><span class="pre">ch4n63m3</span></code>
-is used.</p></li>
+is used. You can secure this property by <a class="reference internal" href="#hiding-sensitive-property-values"><span class="std std-ref">Hiding sensitive property values</span></a>.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">additionalProperties</span></code> (map of string key-value pairs)</p>
@@ -697,18 +698,21 @@ in <code class="docutils literal notranslate"><span class="pre">dogma.json</span
 protocol. If <code class="docutils literal notranslate"><span class="pre">null</span></code>, a self-signed certificate will be generated for <code class="docutils literal notranslate"><span class="pre">https</span></code> protocol.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">keyCertChain</span></code> (string)</p>
 <ul>
-<li><p>the content of the certificate chain. If you want to use a file, specify <code class="docutils literal notranslate"><span class="pre">file:&lt;path&gt;</span></code>.</p></li>
+<li><p>the content of the certificate chain. If you want to use a file, specify <code class="docutils literal notranslate"><span class="pre">file:&lt;path&gt;</span></code>.
+You can secure this property by <a class="reference internal" href="#hiding-sensitive-property-values"><span class="std std-ref">Hiding sensitive property values</span></a>.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">key</span></code> (string)</p>
 <ul>
-<li><p>the content of the private key. If you want to use a file, specify <code class="docutils literal notranslate"><span class="pre">file:&lt;path&gt;</span></code>.</p></li>
+<li><p>the content of the private key. If you want to use a file, specify <code class="docutils literal notranslate"><span class="pre">file:&lt;path&gt;</span></code>.
+You can secure this property by <a class="reference internal" href="#hiding-sensitive-property-values"><span class="std std-ref">Hiding sensitive property values</span></a>.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">keyPassword</span></code> (string)</p>
 <ul>
 <li><p>the password of the private key file. Specify <code class="docutils literal notranslate"><span class="pre">null</span></code> if no password is set. Note that <code class="docutils literal notranslate"><span class="pre">null</span></code>
-(no password) and <code class="docutils literal notranslate"><span class="pre">&quot;null&quot;</span></code> (password is ‘null’) are different.</p></li>
+(no password) and <code class="docutils literal notranslate"><span class="pre">&quot;null&quot;</span></code> (password is ‘null’) are different.
+You can secure this property by <a class="reference internal" href="#hiding-sensitive-property-values"><span class="std std-ref">Hiding sensitive property values</span></a>.</p></li>
 </ul>
 </li>
 </ul>
@@ -722,6 +726,56 @@ Java client, call the <code class="docutils literal notranslate"><span class="pr
         .useTls()
         .build();</pre></div>
 </div>
+</div>
+<div class="section" id="hiding-sensitive-property-values">
+<span id="id2"></span><h2>Hiding sensitive property values<a class="headerlink" href="#hiding-sensitive-property-values" title="Permalink to this headline">¶</a></h2>
+<p>Central Dogma supports property value substitution through the use of
+<code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/server/ConfigValueConverter.html">ConfigValueConverter</a></code>.
+If you want to hide sensitive information such as <code class="docutils literal notranslate"><span class="pre">tls.keyPasswords</span></code>, you can implement the converting logic
+with your own <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/server/ConfigValueConverter.html">ConfigValueConverter</a></code> and register it via
+<a class="reference external" href="https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html">SPI</a>:</p>
+<ul class="simple">
+<li><p>Your configuration file:</p></li>
+</ul>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;tls&quot;: {
+    &quot;keyCertChain&quot;: &quot;file:./cert/centraldogma.crt&quot;,
+    &quot;key&quot;: &quot;file:./cert/centraldogma.key&quot;,
+    &quot;keyPassword&quot;: &quot;encryption:encrypted-password&quot;
+  }
+}</pre></div>
+</div>
+<ul class="simple">
+<li><p>Your converter:</p></li>
+</ul>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">import com.linecorp.centraldogma.server.ConfigValueConverter;
+
+public class MyConfigValueConverter implements ConfigValueConverter {
+    @Override
+    public List&lt;String&gt; supportedPrefixes() {
+        return List.of(&quot;encryption&quot;);
+    }
+
+    @Override
+    public String convert(String prefix, String value) {
+        assert &quot;encryption&quot;.equals(prefix);
+        if (&quot;encrypted-password&quot;.equals(value)) {
+            // return the decrypted password that is stored in a safe place such as Vault.
+        }
+        ...
+    }
+}</pre></div>
+</div>
+<p>This feature enables you to enhance the security of your Central Dogma configuration by avoiding the
+exposure of sensitive information. Below is a list of properties that can be substituted:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">replication.secret</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tls.keyCertChain</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tls.key</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tls.keyPassword</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">authentication.properties.keyStore.password</span></code> (when SAML is used.)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">authentication.properties.keyStore.keyPasswords</span></code> (when SAML is used.)</p></li>
+</ul>
 </div>
 </div>
 
