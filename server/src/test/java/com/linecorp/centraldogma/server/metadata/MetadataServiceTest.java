@@ -44,6 +44,7 @@ import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
 class MetadataServiceTest {
 
+    @SuppressWarnings("JUnitMalformedDeclaration")
     @RegisterExtension
     final ProjectManagerExtension manager = new ProjectManagerExtension() {
         @Override
@@ -199,8 +200,9 @@ class MetadataServiceTest {
 
         for (String internalRepo : Project.internalRepos()) {
             assertThatThrownBy(() -> mds.updatePerRolePermissions(
-                    author, project1, internalRepo, PerRolePermissions.ofDefault()).join())
-                    .isInstanceOf(UnsupportedOperationException.class);
+                    author, project1, internalRepo, PerRolePermissions.ofPublic()).join())
+                    .isInstanceOf(UnsupportedOperationException.class)
+                    .hasMessageContaining("can't give a permission to guest for internal repository");
         }
     }
 

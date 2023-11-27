@@ -407,8 +407,11 @@ public class MetadataService {
         requireNonNull(perRolePermissions, "perRolePermissions");
 
         if (Project.isReservedRepoName(repoName)) {
-            throw new UnsupportedOperationException(
-                    "can't update the per role permission for internal repository: " + repoName);
+            final Set<Permission> guest = perRolePermissions.guest();
+            if (!guest.isEmpty()) {
+                throw new UnsupportedOperationException(
+                        "can't give a permission to guest for internal repository: " + repoName);
+            }
         }
 
         final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) +
