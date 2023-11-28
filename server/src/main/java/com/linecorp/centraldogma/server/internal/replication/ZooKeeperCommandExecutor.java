@@ -104,6 +104,7 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.RemoveRepositoryCommand;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
@@ -1089,6 +1090,13 @@ public final class ZooKeeperCommandExecutor
                 final CommitResult commitResult = (CommitResult) result;
                 final Command<Revision> pushAsIsCommand = normalizingPushCommand.asIs(commitResult);
                 log = new ReplicationLog<>(replicaId(), pushAsIsCommand, commitResult.revision());
+            } else if (command.type() == CommandType.FORCE_PUSH &&
+                       ((ForcePushCommand<?>) command).delegate().type() == CommandType.NORMALIZING_PUSH) {
+                final NormalizingPushCommand delegated =
+                        (NormalizingPushCommand) ((ForcePushCommand<?>) command).delegate();
+                final CommitResult commitResult = (CommitResult) result;
+                final Command<Revision> command0 = Command.forcePush(delegated.asIs(commitResult));
+                log = new ReplicationLog<>(replicaId(), command0, commitResult.revision());
             } else {
                 log = new ReplicationLog<>(replicaId(), command, result);
             }
@@ -1099,6 +1107,12 @@ public final class ZooKeeperCommandExecutor
             logger.debug("logging OK. revision = {}, log = {}", revision, log);
             return result;
         }
+    }
+
+    private <T> ReplicationLog<?> newReplicationLogForPush(NormalizingPushCommand command, CommitResult
+            result) {
+        final Command<Revision> pushAsIsCommand = command.asIs(result);
+        return new ReplicationLog<>(replicaId(), pushAsIsCommand, result.revision());
     }
 
     private void createParentNodes() throws Exception {

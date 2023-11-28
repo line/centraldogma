@@ -64,6 +64,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.PushAsIsCommand;
 import com.linecorp.centraldogma.testing.internal.FlakyTest;
@@ -444,7 +445,8 @@ class ZooKeeperCommandExecutorTest {
                 final Throwable cause = catchThrowable(result::join);
                 assertThat(cause).isInstanceOf(CompletionException.class);
                 assertThat(cause.getCause()).isInstanceOf(ReplicationException.class)
-                        .hasMessageContaining("Failed to acquire a lock for /project in 10 seconds");
+                                            .hasMessageContaining(
+                                                    "Failed to acquire a lock for /project in 10 seconds");
             });
             pendingFuture.get().complete(null);
         }
@@ -536,6 +538,69 @@ class ZooKeeperCommandExecutorTest {
         }
     }
 
+    @Test
+    void testForcePush() throws Exception {
+        try (Cluster cluster = Cluster.builder()
+                                      .numReplicas(9)
+                                      .numGroup(3)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+
+            final Replica replica1 = cluster.get(0);
+
+            final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
+            replica1.commandExecutor().execute(command1).join();
+
+            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).get();
+            assertThat(commandResult1.command()).isEqualTo(command1);
+            assertThat(commandResult1.result()).isNull();
+            awaitUntilReplicated(cluster, command1);
+
+            final Command<Void> readOnlyCommand = Command.updateServerStatus(false);
+            replica1.commandExecutor().execute(readOnlyCommand).join();
+            assertThat(replica1.commandExecutor().isWritable()).isFalse();
+            final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).get();
+            assertThat(commandResult2.command()).isEqualTo(readOnlyCommand);
+            awaitUntilReplicated(cluster, readOnlyCommand);
+
+            final Command<CommitResult> normalizingPushCommand =
+                    Command.push(0L, Author.SYSTEM, "project", "repo1", new Revision(1),
+                                 "summary", "detail",
+                                 Markup.PLAINTEXT,
+                                 ImmutableList.of(pushChange));
+
+            assert normalizingPushCommand instanceof NormalizingPushCommand;
+            final PushAsIsCommand asIsCommand = ((NormalizingPushCommand) normalizingPushCommand).asIs(
+                    CommitResult.of(new Revision(2), ImmutableList.of(normalizedChange)));
+
+            assertThatThrownBy(() -> replica1.commandExecutor().execute(normalizingPushCommand))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("running in read-only mode.");
+
+            final Command<CommitResult> forceNormalizingPush = Command.forcePush(normalizingPushCommand);
+            assertThat(replica1.commandExecutor().execute(forceNormalizingPush).join()
+                               .revision())
+                    .isEqualTo(new Revision(2));
+            final ReplicationLog<?> commandResult3 = replica1.commandExecutor().loadLog(2, false).get();
+            // The content of force push is changed to PushAsIsCommand.
+            final Command<Revision> forceAsIsCommand = Command.forcePush(asIsCommand);
+            assertThat(commandResult3.command()).isEqualTo(forceAsIsCommand);
+            assertThat(commandResult3.result()).isInstanceOf(Revision.class);
+
+            // pushAsIs is applied for other replicas.
+            for (int i = 1; i < cluster.size(); i++) {
+                final Replica replica = cluster.get(i);
+                await().untilAsserted(() -> verify(replica.delegate()).apply(eq(forceAsIsCommand)));
+            }
+        }
+    }
+
+    private static <T> void awaitUntilReplicated(Cluster cluster, Command<T> command) {
+        for (int i = 0; i < cluster.size(); i++) {
+            final Replica replica = cluster.get(i);
+            await().untilAsserted(() -> verify(replica.delegate()).apply(eq(command)));
+        }
+    }
+
     @SuppressWarnings("unchecked")
     static <T> Function<Command<?>, CompletableFuture<?>> newMockDelegate() {
         final Function<Command<T>, CompletableFuture<T>> delegate = mock(Function.class);
@@ -543,23 +608,35 @@ class ZooKeeperCommandExecutorTest {
         lenient().when(delegate.apply(argThat(x -> x == null || x.type().resultType() == Void.class)))
                  .thenReturn(completedFuture(null));
 
-        lenient().when(delegate.apply(argThat(x -> x != null && x.type().resultType() == Revision.class)))
+        lenient().when(delegate.apply(argThat(x -> x != null && maybeUnwrapForcePush(x).type().resultType() ==
+                                                                Revision.class)))
                  .then(invocation -> completedFuture(new Revision(revisionCounter.incrementAndGet())));
 
-        lenient().when(delegate.apply(argThat(x -> x != null && x.type().resultType() == CommitResult.class)))
+        lenient().when(delegate.apply(argThat(x -> x != null && maybeUnwrapForcePush(x).type().resultType() ==
+                                                                CommitResult.class)))
                  .then(invocation -> {
                      final Revision revision = new Revision(revisionCounter.incrementAndGet());
-                     final Object argument = invocation.getArgument(0);
+                     Object argument = invocation.getArgument(0);
+                     if (argument instanceof ForcePushCommand) {
+                         argument = ((ForcePushCommand<?>) argument).delegate();
+                     }
                      if (argument instanceof NormalizingPushCommand) {
                          if (((NormalizingPushCommand) argument).changes().equals(
                                  ImmutableList.of(pushChange))) {
-                            return completedFuture(
-                                    CommitResult.of(revision, ImmutableList.of(normalizedChange)));
+                             return completedFuture(
+                                     CommitResult.of(revision, ImmutableList.of(normalizedChange)));
                          }
                      }
                      return completedFuture(CommitResult.of(revision, ImmutableList.of()));
                  });
 
         return (Function<Command<?>, CompletableFuture<?>>) (Function<?, ?>) delegate;
+    }
+
+    private static <T> Command<T> maybeUnwrapForcePush(Command<T> command) {
+        if (command instanceof ForcePushCommand) {
+            return ((ForcePushCommand<T>) command).delegate();
+        }
+        return command;
     }
 }
