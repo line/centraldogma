@@ -58,13 +58,18 @@ class StandaloneCommandExecutorTest {
         executor.execute(Command.createRepository(Author.SYSTEM, TEST_PRJ, TEST_REPO)).join();
         executor.execute(Command.createRepository(Author.SYSTEM, TEST_PRJ, TEST_REPO2)).join();
         executor.execute(Command.createRepository(Author.SYSTEM, TEST_PRJ, TEST_REPO3)).join();
+
+        final MetadataService mds = new MetadataService(extension.projectManager(), executor);
+        // Metadata should be created before entering read-only mode.
+        mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO).join();
+        mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO2).join();
+        mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO3).join();
     }
 
     @Test
     void setWriteQuota() {
         final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) extension.executor();
         final MetadataService mds = new MetadataService(extension.projectManager(), executor);
-        mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO).join();
 
         final RateLimiter rateLimiter1 = executor.writeRateLimiters.get("test_prj/test_repo");
         assertThat(rateLimiter1).isNull();
@@ -122,12 +127,6 @@ class StandaloneCommandExecutorTest {
     @Test
     void shouldPerformAdministrativeCommandWithReadOnly() throws JsonParseException {
         final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) extension.executor();
-        final MetadataService mds = new MetadataService(extension.projectManager(), executor);
-        // Metadata should be created before entering read-only mode.
-        mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO).join();
-        mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO2).join();
-        mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO3).join();
-
         executor.execute(Command.updateServerStatus(false)).join();
         assertThat(executor.isWritable()).isFalse();
 
