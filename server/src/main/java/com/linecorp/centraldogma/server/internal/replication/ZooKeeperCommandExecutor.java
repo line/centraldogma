@@ -715,9 +715,9 @@ public final class ZooKeeperCommandExecutor
         }
 
         long nextRevision = info.lastReplayedRevision + 1;
-        ReplicationLog<?> l = null;
-        try {
-            for (;;) {
+        for (;;) {
+            ReplicationLog<?> l = null;
+            try {
                 final Optional<ReplicationLog<?>> log = loadLog(nextRevision, true);
                 if (log.isPresent()) {
                     l = log.get();
@@ -745,26 +745,28 @@ public final class ZooKeeperCommandExecutor
                 } else {
                     nextRevision++;
                 }
-            }
-        } catch (Throwable t) {
-            if (l != null) {
-                logger.error("Failed to replay a log at revision {}; entering read-only mode. replay log: {}",
-                             nextRevision, l, t);
-            } else {
-                logger.error("Failed to replay a log at revision {}; entering read-only mode.",
-                             nextRevision, t);
-            }
+            } catch (Throwable t) {
+                if (l != null) {
+                    logger.error(
+                            "Failed to replay a log at revision {}; entering read-only mode. replay log: {}",
+                            nextRevision, l, t);
+                } else {
+                    logger.error("Failed to replay a log at revision {}; entering read-only mode.",
+                                 nextRevision, t);
+                }
 
-            stopLater();
+                stopLater();
 
-            if (t instanceof ReplicationException) {
-                throw (ReplicationException) t;
+                if (t instanceof ReplicationException) {
+                    throw (ReplicationException) t;
+                }
+                final StringBuilder sb = new StringBuilder();
+                sb.append("failed to replay a log at revision " + nextRevision);
+                if (l != null) {
+                    sb.append(". replay log: ").append(l);
+                }
+                throw new ReplicationException(sb.toString(), t);
             }
-            String message = "failed to replay a log at revision " + nextRevision;
-            if (l != null) {
-                message += ". replay log: " + l;
-            }
-            throw new ReplicationException(message, t);
         }
     }
 
