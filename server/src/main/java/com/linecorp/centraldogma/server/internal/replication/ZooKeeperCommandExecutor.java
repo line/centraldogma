@@ -715,11 +715,12 @@ public final class ZooKeeperCommandExecutor
         }
 
         long nextRevision = info.lastReplayedRevision + 1;
+        ReplicationLog<?> l = null;
         try {
             for (;;) {
                 final Optional<ReplicationLog<?>> log = loadLog(nextRevision, true);
                 if (log.isPresent()) {
-                    final ReplicationLog<?> l = log.get();
+                    l = log.get();
                     final Command<?> command = l.command();
                     final Object expectedResult = l.result();
                     final Object actualResult = delegate.execute(command).get();
@@ -746,13 +747,24 @@ public final class ZooKeeperCommandExecutor
                 }
             }
         } catch (Throwable t) {
-            logger.error("Failed to replay a log at revision {}; entering read-only mode", nextRevision, t);
+            if (l != null) {
+                logger.error("Failed to replay a log at revision {}; entering read-only mode. replay log: {}",
+                             nextRevision, l, t);
+            } else {
+                logger.error("Failed to replay a log at revision {}; entering read-only mode.",
+                             nextRevision, t);
+            }
+
             stopLater();
 
             if (t instanceof ReplicationException) {
                 throw (ReplicationException) t;
             }
-            throw new ReplicationException("failed to replay a log at revision " + nextRevision, t);
+            String message = "failed to replay a log at revision " + nextRevision;
+            if (l != null) {
+                message += ". replay log: " + l;
+            }
+            throw new ReplicationException(message, t);
         }
     }
 
