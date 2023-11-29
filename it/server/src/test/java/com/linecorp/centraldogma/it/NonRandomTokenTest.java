@@ -27,7 +27,7 @@ import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
-import com.linecorp.armeria.common.auth.OAuth2Token;
+import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
@@ -57,7 +57,7 @@ class NonRandomTokenTest {
         final String sessionId = Jackson.readValue(response.content().array(), AccessToken.class)
                                         .accessToken();
         final WebClient adminClient = WebClient.builder(client.uri())
-                                               .auth(OAuth2Token.of(sessionId)).build();
+                                               .auth(AuthToken.ofOAuth2(sessionId)).build();
 
         final HttpRequest request = HttpRequest.builder()
                                                .post("/api/v1/tokens")

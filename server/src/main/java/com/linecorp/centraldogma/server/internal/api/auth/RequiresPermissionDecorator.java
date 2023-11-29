@@ -39,7 +39,6 @@ import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.metadata.Permission;
-import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
@@ -65,37 +64,13 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
         final String repoName = ctx.pathParam("repoName");
         checkArgument(!isNullOrEmpty(repoName), "no repository name is specified");
 
-        if (Project.isReservedRepoName(repoName)) {
-            return serveInternalRepo(ctx, req, mds, user, projectName, repoName);
-        } else {
-            return serveUserRepo(ctx, req, mds, user, projectName, repoName);
-        }
-    }
-
-    private HttpResponse serveInternalRepo(ServiceRequestContext ctx, HttpRequest req,
-                                           MetadataService mds, User user,
-                                           String projectName, String repoName) throws Exception {
-        if (user.isAdmin()) {
+        if (Project.REPO_DOGMA.equals(repoName)) {
+            if (!user.isAdmin()) {
+                return throwForbiddenResponse(ctx, projectName, repoName, "administrator");
+            }
             return unwrap().serve(ctx, req);
         }
-        if (Project.REPO_DOGMA.equals(repoName)) {
-            return throwForbiddenResponse(ctx, projectName, repoName, "administrator");
-        }
-        assert Project.REPO_META.equals(repoName);
-
-        return HttpResponse.from(mds.findRole(projectName, user).handle((role, cause) -> {
-            if (cause != null) {
-                return handleException(ctx, cause);
-            }
-            if (role != ProjectRole.OWNER) {
-                return throwForbiddenResponse(ctx, projectName, repoName, "owner");
-            }
-            try {
-                return unwrap().serve(ctx, req);
-            } catch (Exception e) {
-                return Exceptions.throwUnsafely(e);
-            }
-        }));
+        return serveUserRepo(ctx, req, mds, user, projectName, repoName);
     }
 
     private static HttpResponse throwForbiddenResponse(ServiceRequestContext ctx, String projectName,
@@ -115,7 +90,7 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
             return handleException(ctx, cause);
         }
 
-        return HttpResponse.from(f.handle((permission, cause) -> {
+        return HttpResponse.of(f.handle((permission, cause) -> {
             if (cause != null) {
                 return handleException(ctx, cause);
             }
