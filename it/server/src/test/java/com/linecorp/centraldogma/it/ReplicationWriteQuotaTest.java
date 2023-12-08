@@ -37,7 +37,7 @@ import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.SessionProtocol;
-import com.linecorp.armeria.common.auth.OAuth2Token;
+import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -92,7 +92,7 @@ class ReplicationWriteQuotaTest extends WriteQuotaTestBase {
                 getSessionId(port1, TestAuthMessageUtil.USERNAME, TestAuthMessageUtil.PASSWORD);
 
         webClient = WebClient.builder("http://127.0.0.1:" + port1)
-                             .auth(OAuth2Token.of(adminSessionId))
+                             .auth(AuthToken.ofOAuth2(adminSessionId))
                              .build();
         dogmaClient = new ArmeriaCentralDogmaBuilder()
                 .accessToken(adminSessionId)
