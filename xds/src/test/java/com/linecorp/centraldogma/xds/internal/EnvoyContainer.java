@@ -52,7 +52,6 @@ final class EnvoyContainer extends GenericContainer<EnvoyContainer> {
     protected void configure() {
         withClasspathResourceMapping(LAUNCH_ENVOY_SCRIPT, LAUNCH_ENVOY_SCRIPT_DEST, BindMode.READ_ONLY);
         withClasspathResourceMapping(config, CONFIG_DEST, BindMode.READ_ONLY);
-        withExtraHost("host.docker.internal", "host-gateway");
         withCommand("/bin/bash", LAUNCH_ENVOY_SCRIPT_DEST, Integer.toString(controlPlanePortSupplier.get()),
                     CONFIG_DEST, "-l", "debug");
 
