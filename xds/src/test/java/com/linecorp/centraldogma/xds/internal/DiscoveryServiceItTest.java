@@ -133,6 +133,7 @@ final class DiscoveryServiceItTest {
     @CsvSource({ "envoy/xds.config.yaml", "envoy/ads.config.yaml" })
     @ParameterizedTest
     void validateTestRequestToEchoClusterViaEnvoy(String configFile) throws InterruptedException {
+        org.testcontainers.Testcontainers.exposeHostPorts(dogma.serverAddress().getPort());
         try (EnvoyContainer envoy =
                      new EnvoyContainer(configFile, () -> dogma.serverAddress().getPort())
                              .withExposedPorts(ENVOY_LISTENER_PORT)
