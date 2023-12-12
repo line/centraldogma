@@ -94,7 +94,7 @@ final class DiscoveryServiceItTest {
     private static final Integer ENVOY_LISTENER_PORT = 10000;
 
     @RegisterExtension
-    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
+    final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void scaffold(CentralDogma client) {
             final Cluster echoCluster = createEchoCluster(true);
