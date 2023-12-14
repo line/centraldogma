@@ -44,10 +44,13 @@ import com.google.protobuf.MessageOrBuilder;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
+import io.envoyproxy.controlplane.cache.VersionedResource;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster.DiscoveryType;
 import io.envoyproxy.envoy.config.core.v3.Address;
@@ -98,6 +101,8 @@ final class DiscoveryServiceItTest {
         @Override
         protected void scaffold(CentralDogma client) {
             final Cluster echoCluster = createEchoCluster(true);
+            final VersionedResource<Cluster> resource = VersionedResource.create(echoCluster);
+            System.err.println("version: " + resource.version());
             commit(client, echoCluster, CLUSTER_REPO, ECHO_CLUSTER, CLUSTER_FILE);
             final Cluster noEchoCluster = createEchoCluster(false);
             commit(client, noEchoCluster, CLUSTER_REPO, NO_ECHO_CLUSTER, CLUSTER_FILE);
@@ -110,6 +115,12 @@ final class DiscoveryServiceItTest {
         @Override
         protected boolean runForEachTest() {
             return true;
+        }
+
+        @Override
+        protected void configure(CentralDogmaBuilder builder) {
+            builder.port(36462, SessionProtocol.HTTP);
+            builder.webAppEnabled(true);
         }
     };
 

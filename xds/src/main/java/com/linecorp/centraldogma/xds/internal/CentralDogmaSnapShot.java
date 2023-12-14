@@ -31,7 +31,7 @@ import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.Secret;
 
-final class XdsSnapShot extends Snapshot {
+final class CentralDogmaSnapShot extends Snapshot {
 
     private final SnapshotResources<Cluster> clusters;
     private final SnapshotResources<ClusterLoadAssignment> endpoints;
@@ -39,9 +39,10 @@ final class XdsSnapShot extends Snapshot {
     private final SnapshotResources<RouteConfiguration> routes;
     private final SnapshotResources<Secret> secrets;
 
-    XdsSnapShot(SnapshotResources<Cluster> clusters, SnapshotResources<ClusterLoadAssignment> endpoints,
-                SnapshotResources<Listener> listeners, SnapshotResources<RouteConfiguration> routes,
-                SnapshotResources<Secret> secrets) {
+    CentralDogmaSnapShot(SnapshotResources<Cluster> clusters,
+                         SnapshotResources<ClusterLoadAssignment> endpoints,
+                         SnapshotResources<Listener> listeners, SnapshotResources<RouteConfiguration> routes,
+                         SnapshotResources<Secret> secrets) {
         this.clusters = clusters;
         this.endpoints = endpoints;
         this.listeners = listeners;
@@ -85,10 +86,10 @@ final class XdsSnapShot extends Snapshot {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof XdsSnapShot)) {
+        if (!(o instanceof CentralDogmaSnapShot)) {
             return false;
         }
-        final XdsSnapShot that = (XdsSnapShot) o;
+        final CentralDogmaSnapShot that = (CentralDogmaSnapShot) o;
         return Objects.equal(clusters, that.clusters) &&
                Objects.equal(endpoints, that.endpoints) &&
                Objects.equal(listeners, that.listeners) &&

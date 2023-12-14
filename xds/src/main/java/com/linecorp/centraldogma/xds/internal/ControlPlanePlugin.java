@@ -122,6 +122,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         watchRepository(repositoryManager.get(ROUTE_REPO), ROUTE_FILE, Revision.INIT,
                         (entries, revision) -> routes(entries, revision, cache));
         final V3DiscoveryServer server = new V3DiscoveryServer(new LoggingDiscoveryServerCallbacks(), cache);
+        // xDS, ADS
         final GrpcService grpcService = GrpcService.builder()
                                                    .addService(server.getClusterDiscoveryServiceImpl())
                                                    .addService(server.getEndpointDiscoveryServiceImpl())
@@ -131,11 +132,11 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                                                    .addService(server.getAggregatedDiscoveryServiceImpl())
                                                    .useBlockingTaskExecutor(true)
                                                    .build();
-        sb.service(grpcService);
+        sb.route().requestTimeoutMillis(0).build(grpcService);
     }
 
     private void watchRepository(Repository repository, String fileName, Revision revision,
-                                 SnapshotConverter snapshotConverter) {
+                                 BiFunction<Collection<Entry<?>>, Revision, Boolean> snapshotConverter) {
         final CompletableFuture<Revision> future = repository.watch(revision, "/**");
         future.handleAsync((BiFunction<Revision, Throwable, Void>) (watchedRevision, cause) -> {
             if (stop) {
@@ -201,7 +202,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         }
 
         setNewSnapshot(cache, ResourceType.CLUSTER,
-                       SnapshotResources.create(clustersBuilder.build(), Integer.toString(revision.major())));
+                       CentralDogmaSnapshotResources.create(clustersBuilder.build(), revision));
         return true;
     }
 
@@ -221,7 +222,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         }
 
         setNewSnapshot(cache, ResourceType.ENDPOINT,
-                       SnapshotResources.create(endpointsBuilder.build(), Integer.toString(revision.major())));
+                       CentralDogmaSnapshotResources.create(endpointsBuilder.build(), revision));
         return true;
     }
 
@@ -241,7 +242,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         }
 
         setNewSnapshot(cache, ResourceType.LISTENER,
-                       SnapshotResources.create(listenersBuilder.build(), Integer.toString(revision.major())));
+                       CentralDogmaSnapshotResources.create(listenersBuilder.build(), revision));
         return true;
     }
 
@@ -261,7 +262,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         }
 
         setNewSnapshot(cache, ResourceType.ROUTE,
-                       SnapshotResources.create(routesBuilder.build(), Integer.toString(revision.major())));
+                       CentralDogmaSnapshotResources.create(routesBuilder.build(), revision));
         return true;
     }
 
@@ -312,7 +313,8 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                     throw new Error();
             }
 
-            cache.setSnapshot(DEFAULT_GROUP, new XdsSnapShot(clusters, endpoints, listeners, routes, secrets));
+            cache.setSnapshot(DEFAULT_GROUP,
+                              new CentralDogmaSnapShot(clusters, endpoints, listeners, routes, secrets));
         } finally {
             snapshotLock.unlock();
         }
@@ -332,22 +334,20 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     private static final class LoggingDiscoveryServerCallbacks implements DiscoveryServerCallbacks {
         @Override
         public void onV3StreamRequest(long streamId, DiscoveryRequest request) throws RequestException {
-            logger.debug("streamId: {}, onV3StreamRequest: {}", streamId, request);
+            logger.debug("Received v3 stream request. streamId: {}, version: {}, resource_names: {}, " +
+                         "response_nonce: {}, type_url: {}",
+                         streamId, request.getVersionInfo(), request.getResourceNamesList(),
+                         request.getResponseNonce(), request.getTypeUrl());
         }
 
         @Override
         public void onV3StreamDeltaRequest(long streamId, DeltaDiscoveryRequest request)
-                throws RequestException {
-            logger.debug("streamId: {}, onV3StreamDeltaRequest: {}", streamId, request);
-        }
+                throws RequestException {}
 
         @Override
         public void onV3StreamResponse(long streamId, DiscoveryRequest request,
                                        DiscoveryResponse response) {
-            logger.debug("streamId: {}, onV3StreamResponse: {}", streamId, response);
+            logger.debug("Sent v3 stream response. streamId: {}, onV3StreamResponse: {}", streamId, response);
         }
-    }
-
-    private interface SnapshotConverter extends BiFunction<Collection<Entry<?>>, Revision, Boolean> {
     }
 }
