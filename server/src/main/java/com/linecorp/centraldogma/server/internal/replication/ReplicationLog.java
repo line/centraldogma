@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.replication;
 
+import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -28,7 +29,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
@@ -60,10 +60,12 @@ public final class ReplicationLog<T> {
             result = null;
         }
 
+        final Class<T> resultType;
         if (command.type() == CommandType.FORCE_PUSH) {
-            command = ((ForcePushCommand<T>) command).delegate();
+            resultType = unsafeCast(((ForcePushCommand<?>) command).delegate().type().resultType());
+        } else {
+            resultType = unsafeCast(command.type().resultType());
         }
-        final Class<T> resultType = Util.unsafeCast(command.type().resultType());
         if (resultType == Void.class) {
             if (result != null) {
                 rejectIncompatibleResult(result, Void.class);

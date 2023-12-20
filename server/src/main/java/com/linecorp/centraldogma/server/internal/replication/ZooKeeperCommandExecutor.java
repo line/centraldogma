@@ -107,6 +107,7 @@ import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.RemoveRepositoryCommand;
+import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -1098,6 +1099,20 @@ public final class ZooKeeperCommandExecutor
                 final Command<Revision> command0 = Command.forcePush(delegated.asIs(commitResult));
                 log = new ReplicationLog<>(replicaId(), command0, commitResult.revision());
             } else {
+                if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
+                    final UpdateServerStatusCommand command0 = (UpdateServerStatusCommand) command;
+                    final boolean writable = command0.writable();
+                    final boolean wasWritable = isWritable();
+                    setWritable(writable);
+                    if (writable != wasWritable) {
+                        if (writable) {
+                            logger.warn("Left read-only mode.");
+                        } else {
+                            logger.warn("Entered read-only mode.");
+                        }
+                    }
+                }
+
                 log = new ReplicationLog<>(replicaId(), command, result);
             }
 
