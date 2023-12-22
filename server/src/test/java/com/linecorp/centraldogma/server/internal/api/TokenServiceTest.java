@@ -17,7 +17,6 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
 
 import java.util.Collection;
 import java.util.concurrent.CompletionException;
@@ -71,7 +70,9 @@ class TokenServiceTest {
     private static TokenService tokenService;
     private static MetadataService metadataService;
 
-    private final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
+    // ctx is only used for getting the blocking task executor.
+    private final ServiceRequestContext ctx =
+            ServiceRequestContext.builder(HttpRequest.of(HttpMethod.GET, "/")).build();
 
     @BeforeAll
     static void setUp() {
@@ -113,10 +114,7 @@ class TokenServiceTest {
                                              .join())
                 .hasCauseInstanceOf(HttpResponseException.class);
 
-        final ServiceRequestContext ctx = ServiceRequestContext.of(
-                HttpRequest.of(HttpMethod.DELETE, "/tokens/{appId}/removed"));
-
-        assertThat(tokenService.deleteToken(this.ctx, "forAdmin1", adminAuthor, admin).thenCompose(
+        assertThat(tokenService.deleteToken(ctx, "forAdmin1", adminAuthor, admin).thenCompose(
                 unused -> tokenService.purgeToken(ctx, "forAdmin1", adminAuthor, admin)).join()).satisfies(
                 t -> {
                     assertThat(t.appId()).isEqualTo(token.appId());
@@ -141,17 +139,14 @@ class TokenServiceTest {
         assertThat(tokens.stream().filter(token -> !StringUtil.isNullOrEmpty(token.secret())).count())
                 .isEqualTo(0);
 
-        final ServiceRequestContext ctx = ServiceRequestContext.of(
-                HttpRequest.of(HttpMethod.DELETE, "/tokens/{appId}/removed"));
-
-        assertThat(tokenService.deleteToken(this.ctx, "forUser1", adminAuthor, admin).thenCompose(
+        assertThat(tokenService.deleteToken(ctx, "forUser1", adminAuthor, admin).thenCompose(
                 unused -> tokenService.purgeToken(ctx, "forUser1", adminAuthor, admin)).join()).satisfies(t -> {
             assertThat(t.appId()).isEqualTo(userToken1.appId());
             assertThat(t.isAdmin()).isEqualTo(userToken1.isAdmin());
             assertThat(t.creation()).isEqualTo(userToken1.creation());
             assertThat(t.deactivation()).isEqualTo(userToken1.deactivation());
         });
-        assertThat(tokenService.deleteToken(this.ctx, "forUser2", guestAuthor, guest).thenCompose(
+        assertThat(tokenService.deleteToken(ctx, "forUser2", guestAuthor, guest).thenCompose(
                 unused -> tokenService.purgeToken(ctx, "forUser2", guestAuthor, guest)).join()).satisfies(t -> {
             assertThat(t.appId()).isEqualTo(userToken2.appId());
             assertThat(t.isAdmin()).isEqualTo(userToken2.isAdmin());
