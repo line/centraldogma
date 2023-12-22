@@ -174,7 +174,7 @@ public final class Token implements Identifiable {
     @Override
     public String toString() {
         // Do not add "secret" to prevent it from logging.
-        return MoreObjects.toStringHelper(this)
+        return MoreObjects.toStringHelper(this).omitNullValues()
                           .add("appId", appId())
                           .add("isAdmin", isAdmin())
                           .add("creation", creation())
