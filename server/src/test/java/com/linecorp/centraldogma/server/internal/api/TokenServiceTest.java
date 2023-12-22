@@ -122,7 +122,7 @@ class TokenServiceTest {
                     assertThat(t.appId()).isEqualTo(token.appId());
                     assertThat(t.isAdmin()).isEqualTo(token.isAdmin());
                     assertThat(t.creation()).isEqualTo(token.creation());
-                    assertThat(t.deactivation()).isEqualTo(token.deactivation());
+                    assertThat(t.isDeleted()).isTrue();
                 });
         assertThat(tokenService.listTokens(admin).join().size()).isEqualTo(0);
         assertThat(metadataService.getProject("myPro").join().tokens().size()).isEqualTo(0);
