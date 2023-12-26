@@ -27,6 +27,8 @@ import java.util.function.Supplier;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -49,19 +51,19 @@ public class SafeProjectManager implements ProjectManager {
 
     @Override
     public boolean exists(String name) {
-        validateProjectName(name);
+        validateProjectName(name, true);
         return delegate().exists(name);
     }
 
     @Override
     public Project get(String name) {
-        validateProjectName(name);
+        validateProjectName(name, true);
         return delegate().get(name);
     }
 
     @Override
     public Project create(String name, long creationTimeMillis, Author author) {
-        validateProjectName(name);
+        validateProjectName(name, false);
         return delegate().create(name, creationTimeMillis, author);
     }
 
@@ -70,7 +72,7 @@ public class SafeProjectManager implements ProjectManager {
         final Map<String, Project> list = delegate().list();
         final Map<String, Project> ret = new LinkedHashMap<>(list.size());
         for (Map.Entry<String, Project> entry : list.entrySet()) {
-            if (isValidProjectName(entry.getValue().name())) {
+            if (isValidProjectName(entry.getValue().name(), true)) {
                 ret.put(entry.getKey(), entry.getValue());
             }
         }
@@ -84,13 +86,13 @@ public class SafeProjectManager implements ProjectManager {
 
     @Override
     public void remove(String name) {
-        validateProjectName(name);
+        validateProjectName(name, false);
         delegate().remove(name);
     }
 
     @Override
     public Project unremove(String name) {
-        validateProjectName(name);
+        validateProjectName(name, false);
         return delegate().unremove(name);
     }
 
@@ -101,7 +103,7 @@ public class SafeProjectManager implements ProjectManager {
 
     @Override
     public void markForPurge(String name) {
-        validateProjectName(name);
+        validateProjectName(name, false);
         delegate().markForPurge(name);
     }
 
@@ -114,14 +116,29 @@ public class SafeProjectManager implements ProjectManager {
         return delegate;
     }
 
-    protected static void validateProjectName(String name) {
-        if (!isValidProjectName(name)) {
+    public static void validateProjectName(String name, boolean allowAdmin) {
+        if (!isValidProjectName(name, allowAdmin)) {
             throw new IllegalArgumentException("Illegal access to project '" + name + '\'');
         }
     }
 
-    protected static boolean isValidProjectName(String name) {
-        return name != null &&
-               !INTERNAL_PROJECT_DOGMA.equals(name);
+    protected static boolean isValidProjectName(String name, boolean allowAdmin) {
+        if (name == null) {
+            return false;
+        }
+        if (!INTERNAL_PROJECT_DOGMA.equals(name)) {
+            return true;
+        }
+
+        if (!allowAdmin) {
+            return false;
+        }
+
+        final User currentUserOrNull = AuthUtil.currentUserOrNull();
+        if (currentUserOrNull == null) {
+            return false;
+        }
+
+        return currentUserOrNull.isAdmin();
     }
 }

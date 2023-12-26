@@ -20,6 +20,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.checkStatusArgument;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.checkUnremoveArgument;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
+import static com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager.validateProjectName;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -29,6 +30,8 @@ import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import com.linecorp.armeria.common.ContextAwareBlockingTaskExecutor;
+import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.Delete;
@@ -75,17 +78,19 @@ public class ProjectServiceV1 extends AbstractService {
      */
     @Get("/projects")
     public CompletableFuture<List<ProjectDto>> listProjects(@Param @Nullable String status) {
+        final ContextAwareBlockingTaskExecutor executor =
+                ServiceRequestContext.current().blockingTaskExecutor();
         if (status != null) {
             checkStatusArgument(status);
             return CompletableFuture.supplyAsync(() -> projectManager().listRemoved().keySet()
                                                                        .stream()
                                                                        .map(ProjectDto::new)
-                                                                       .collect(toImmutableList()));
+                                                                       .collect(toImmutableList()), executor);
         }
 
         return CompletableFuture.supplyAsync(() -> projectManager().list().values().stream()
                                                                    .map(DtoConverter::convert)
-                                                                   .collect(toImmutableList()));
+                                                                   .collect(toImmutableList()), executor);
     }
 
     /**
@@ -127,6 +132,7 @@ public class ProjectServiceV1 extends AbstractService {
     @Delete("/projects/{projectName}")
     @RequiresRole(roles = ProjectRole.OWNER)
     public CompletableFuture<Void> removeProject(Project project, Author author) {
+        validateProjectName(project.name(), false);
         // Metadata must be updated first because it cannot be updated if the project is removed.
         return mds.removeProject(author, project.name())
                   .thenCompose(unused -> execute(Command.removeProject(author, project.name())))
@@ -141,6 +147,7 @@ public class ProjectServiceV1 extends AbstractService {
     @Delete("/projects/{projectName}/removed")
     @RequiresRole(roles = ProjectRole.OWNER)
     public CompletableFuture<Void> purgeProject(@Param String projectName, Author author) {
+        validateProjectName(projectName, false);
         return execute(Command.purgeProject(author, projectName))
                 .handle(HttpApiUtil::throwUnsafelyIfNonNull);
     }
@@ -154,6 +161,7 @@ public class ProjectServiceV1 extends AbstractService {
     @Patch("/projects/{projectName}")
     @RequiresAdministrator
     public CompletableFuture<ProjectDto> patchProject(@Param String projectName, JsonNode node, Author author) {
+        validateProjectName(projectName, false);
         checkUnremoveArgument(node);
         // Restore the project first then update its metadata as 'active'.
         return execute(Command.unremoveProject(author, projectName))

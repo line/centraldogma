@@ -20,6 +20,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
+import static com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager.validateProjectName;
 import static com.linecorp.centraldogma.server.metadata.RepositorySupport.convertWithJackson;
 import static com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
@@ -179,6 +180,7 @@ public class MetadataService {
     public CompletableFuture<Revision> removeProject(Author author, String projectName) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
+        validateProjectName(projectName, false);
 
         final Change<JsonNode> change = Change.ofJsonPatch(
                 METADATA_JSON,
@@ -195,6 +197,7 @@ public class MetadataService {
     public CompletableFuture<Revision> restoreProject(Author author, String projectName) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
+        validateProjectName(projectName, false);
 
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON, new RemoveOperation(PROJECT_REMOVAL).toJsonNode());

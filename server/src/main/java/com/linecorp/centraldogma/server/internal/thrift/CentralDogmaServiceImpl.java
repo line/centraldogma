@@ -20,6 +20,7 @@ import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static com.linecorp.centraldogma.server.internal.api.ContentServiceV1.checkPush;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1.increaseCounterIfOldRevisionUsed;
+import static com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager.validateProjectName;
 import static com.linecorp.centraldogma.server.internal.thrift.Converter.convert;
 import static com.linecorp.centraldogma.server.storage.project.Project.isReservedRepoName;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
@@ -127,6 +128,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     @Override
     public void removeProject(String name, AsyncMethodCallback resultHandler) {
+        validateProjectName(name, false);
         // Metadata must be updated first because it cannot be updated if the project is removed.
         handle(mds.removeProject(SYSTEM, name)
                   .thenCompose(unused -> executor.execute(Command.removeProject(SYSTEM, name))),
@@ -135,11 +137,13 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     @Override
     public void purgeProject(String name, AsyncMethodCallback resultHandler) {
+        validateProjectName(name, false);
         handleAsVoidResult(executor.execute(Command.purgeProject(SYSTEM, name)), resultHandler);
     }
 
     @Override
     public void unremoveProject(String name, AsyncMethodCallback resultHandler) {
+        validateProjectName(name, false);
         // Restore the project first then update its metadata as 'active'.
         handleAsVoidResult(executor.execute(Command.unremoveProject(SYSTEM, name))
                                    .thenCompose(unused -> mds.restoreProject(SYSTEM, name)),
