@@ -70,17 +70,20 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     private static final Logger logger = LoggerFactory.getLogger(ControlPlanePlugin.class);
 
     public static final String CLUSTER_REPO = "clusters";
-    public static final String CLUSTER_FILE = "io.envoyproxy.envoy.config.cluster.v3.Cluster.json";
+    public static final String CLUSTER_FILE =
+            io.envoyproxy.envoy.config.cluster.v3.Cluster.class.getName() + ".json";
 
     public static final String ENDPOINT_REPO = "endpoints";
     public static final String ENDPOINT_FILE =
-            "io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment.json";
+            io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment.class.getName() + ".json";
 
     public static final String LISTENER_REPO = "listeners";
-    public static final String LISTENER_FILE = "io.envoyproxy.envoy.config.listener.v3.Listener.json";
+    public static final String LISTENER_FILE =
+            io.envoyproxy.envoy.config.listener.v3.Listener.class.getName() + ".json";
 
     public static final String ROUTE_REPO = "routes";
-    public static final String ROUTE_FILE = "io.envoyproxy.envoy.config.route.v3.route.RouteConfiguration.json";
+    public static final String ROUTE_FILE =
+            io.envoyproxy.envoy.config.route.v3.RouteConfiguration.class.getName() + ".json";
 
     public static final String DEFAULT_GROUP = "default_group";
 
