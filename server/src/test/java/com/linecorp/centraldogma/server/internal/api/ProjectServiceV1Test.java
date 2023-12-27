@@ -135,8 +135,8 @@ class ProjectServiceV1Test {
                 '{' +
                 "   \"name\": \"bar\"," +
                 "   \"creator\": {" +
-                "       \"name\": \"System\"," +
-                "       \"email\": \"system@localhost.localdomain\"" +
+                "       \"name\": \"admin\"," +
+                "       \"email\": \"admin@localhost.localdomain\"" +
                 "   }," +
                 "   \"url\": \"/api/v1/projects/bar\"," +
                 "   \"createdAt\": \"${json-unit.ignore}\"" +
@@ -187,8 +187,8 @@ class ProjectServiceV1Test {
                     "   {" +
                     "       \"name\": \"hyangtack\"," +
                     "       \"creator\": {" +
-                    "           \"name\": \"System\"," +
-                    "           \"email\": \"system@localhost.localdomain\"" +
+                    "           \"name\": \"admin\"," +
+                    "           \"email\": \"admin@localhost.localdomain\"" +
                     "       }," +
                     "       \"url\": \"/api/v1/projects/hyangtack\"," +
                     "       \"createdAt\": \"${json-unit.ignore}\"" +
@@ -196,8 +196,8 @@ class ProjectServiceV1Test {
                     "   {" +
                     "       \"name\": \"minwoox\"," +
                     "       \"creator\": {" +
-                    "           \"name\": \"System\"," +
-                    "           \"email\": \"system@localhost.localdomain\"" +
+                    "           \"name\": \"admin\"," +
+                    "           \"email\": \"admin@localhost.localdomain\"" +
                     "       }," +
                     "       \"url\": \"/api/v1/projects/minwoox\"," +
                     "       \"createdAt\": \"${json-unit.ignore}\"" +
@@ -205,8 +205,8 @@ class ProjectServiceV1Test {
                     "   {" +
                     "       \"name\": \"trustin\"," +
                     "       \"creator\": {" +
-                    "           \"name\": \"System\"," +
-                    "           \"email\": \"system@localhost.localdomain\"" +
+                    "           \"name\": \"admin\"," +
+                    "           \"email\": \"admin@localhost.localdomain\"" +
                     "       }," +
                     "       \"url\": \"/api/v1/projects/trustin\"," +
                     "       \"createdAt\": \"${json-unit.ignore}\"" +

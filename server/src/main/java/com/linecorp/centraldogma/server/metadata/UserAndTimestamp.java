@@ -89,6 +89,13 @@ public final class UserAndTimestamp {
         return timestampAsText;
     }
 
+    /**
+     * Returns the epoch milliseconds of the {@link #timestamp()}.
+     */
+    public long epochMillis() {
+        return timestamp.toEpochMilli();
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {

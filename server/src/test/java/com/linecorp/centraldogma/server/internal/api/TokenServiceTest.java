@@ -40,8 +40,8 @@ class TokenServiceTest {
     @RegisterExtension
     static final ProjectManagerExtension manager = new ProjectManagerExtension();
 
-    private static final Author adminAuthor = new Author("admin@localhost.com");
-    private static final Author guestAuthor = new Author("guest@localhost.com");
+    private static final Author adminAuthor = Author.ofEmail("admin@localhost.com");
+    private static final Author guestAuthor = Author.ofEmail("guest@localhost.com");
     private static final User admin = new User("admin@localhost.com", User.LEVEL_ADMIN);
     private static final User guest = new User("guest@localhost.com");
 

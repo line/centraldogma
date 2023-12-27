@@ -29,14 +29,19 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
+import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -61,6 +66,8 @@ public class DefaultProject implements Project {
     private static final Logger logger = LoggerFactory.getLogger(DefaultProject.class);
 
     private final String name;
+    private final long creationTimeMillis;
+    private final Author author;
     final RepositoryManager repos;
     private final AtomicReference<MetaRepository> metaRepo = new AtomicReference<>();
 
@@ -82,6 +89,14 @@ public class DefaultProject implements Project {
         boolean success = false;
         try {
             createReservedRepos(System.currentTimeMillis());
+            final UserAndTimestamp creation = metadataCreation();
+            if (creation != null) {
+                creationTimeMillis = creation.epochMillis();
+                author = Author.ofEmail(creation.user());
+            } else {
+                creationTimeMillis = repos.get(REPO_DOGMA).creationTimeMillis();
+                author = repos.get(REPO_DOGMA).author();
+            }
             success = true;
         } finally {
             if (!success) {
@@ -109,11 +124,30 @@ public class DefaultProject implements Project {
         try {
             createReservedRepos(creationTimeMillis);
             initializeMetadata(creationTimeMillis, author);
+            this.creationTimeMillis = creationTimeMillis;
+            this.author = author;
             success = true;
         } finally {
             if (!success) {
                 repos.close(() -> new CentralDogmaException("failed to initialize internal repositories"));
             }
+        }
+    }
+
+    @Nullable
+    private UserAndTimestamp metadataCreation() {
+        if (name.equals(INTERNAL_PROJECT_DOGMA)) {
+            return null;
+        }
+        final Entry<JsonNode> metadata = repos.get(REPO_DOGMA)
+                                              .get(Revision.HEAD, Query.ofJson(METADATA_JSON))
+                                              .join();
+        try {
+            return Jackson.treeToValue(metadata.content(), ProjectMetadata.class)
+                          .creation();
+        } catch (JsonParseException | JsonMappingException e) {
+            logger.warn("Failed to retrieve creation in {} file. project: {}", METADATA_JSON, name);
+            return null;
         }
     }
 
@@ -172,6 +206,16 @@ public class DefaultProject implements Project {
     @Override
     public String name() {
         return name;
+    }
+
+    @Override
+    public long creationTimeMillis() {
+        return creationTimeMillis;
+    }
+
+    @Override
+    public Author author() {
+        return author;
     }
 
     @Override
