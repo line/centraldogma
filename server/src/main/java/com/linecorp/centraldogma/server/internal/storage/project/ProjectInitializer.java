@@ -51,7 +51,7 @@ public final class ProjectInitializer {
 
         // These repositories might be created when creating an internal project, but we try to create them
         // again here in order to make sure them exist because sometimes their names are changed.
-        initializeInternalRepos(executor, creationTimeMillis, INTERNAL_PROJECT_DOGMA, Project.internalRepos());
+        initializeInternalRepos(executor, creationTimeMillis, Project.internalRepos());
 
         try {
             final Change<?> change = Change.ofJsonPatch(MetadataService.TOKEN_JSON,
@@ -83,17 +83,17 @@ public final class ProjectInitializer {
     }
 
     public static void initializeInternalRepos(
-            CommandExecutor executor, long creationTimeMillis,
-            String projectName, List<String> internalRepos) {
+            CommandExecutor executor, long creationTimeMillis, List<String> internalRepos) {
         for (final String repo : internalRepos) {
             try {
-                executor.execute(createRepository(creationTimeMillis, Author.SYSTEM, projectName, repo))
+                executor.execute(createRepository(creationTimeMillis, Author.SYSTEM,
+                                                  INTERNAL_PROJECT_DOGMA, repo))
                         .get();
             } catch (Throwable cause) {
                 final Throwable peeled = Exceptions.peel(cause);
                 if (!(peeled instanceof RepositoryExistsException)) {
-                    throw new Error(
-                            "failed to initialize an internal repository: " + projectName + '/' + repo, peeled);
+                    throw new Error("failed to initialize an internal repository: " + INTERNAL_PROJECT_DOGMA +
+                                    '/' + repo, peeled);
                 }
             }
         }

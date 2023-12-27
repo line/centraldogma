@@ -16,9 +16,9 @@
 
 package com.linecorp.centraldogma.xds.internal;
 
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTER_FILE;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTER_REPO;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CONTROL_PLANE_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENER_FILE;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENER_REPO;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ROUTE_FILE;
@@ -29,6 +29,7 @@ import static org.awaitility.Awaitility.await;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -44,13 +45,11 @@ import com.google.protobuf.MessageOrBuilder;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.common.SessionProtocol;
-import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-import io.envoyproxy.controlplane.cache.VersionedResource;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster.DiscoveryType;
 import io.envoyproxy.envoy.config.core.v3.Address;
@@ -98,29 +97,10 @@ final class DiscoveryServiceItTest {
 
     @RegisterExtension
     final CentralDogmaExtension dogma = new CentralDogmaExtension() {
-        @Override
-        protected void scaffold(CentralDogma client) {
-            final Cluster echoCluster = createEchoCluster(true);
-            final VersionedResource<Cluster> resource = VersionedResource.create(echoCluster);
-            System.err.println("version: " + resource.version());
-            commit(client, echoCluster, CLUSTER_REPO, ECHO_CLUSTER, CLUSTER_FILE);
-            final Cluster noEchoCluster = createEchoCluster(false);
-            commit(client, noEchoCluster, CLUSTER_REPO, NO_ECHO_CLUSTER, CLUSTER_FILE);
-            final RouteConfiguration route = createEchoRoute(true);
-            commit(client, route, ROUTE_REPO, ECHO_ROUTE, ROUTE_FILE);
-            final Listener listener = createEchoListener();
-            commit(client, listener, LISTENER_REPO, ECHO_LISTENER, LISTENER_FILE);
-        }
 
         @Override
         protected boolean runForEachTest() {
             return true;
-        }
-
-        @Override
-        protected void configure(CentralDogmaBuilder builder) {
-            builder.port(36462, SessionProtocol.HTTP);
-            builder.webAppEnabled(true);
         }
     };
 
@@ -135,6 +115,18 @@ final class DiscoveryServiceItTest {
     private static final EchoContainer noEchoCluster = new EchoContainer(false)
             .withNetwork(NETWORK)
             .withNetworkAliases(NO_ECHO_CLUSTER_ADDRESS);
+
+    @BeforeEach
+    void setUp() {
+        final Cluster echoCluster = createEchoCluster(true);
+        commit(echoCluster, CLUSTER_REPO, ECHO_CLUSTER, CLUSTER_FILE);
+        final Cluster noEchoCluster = createEchoCluster(false);
+        commit(noEchoCluster, CLUSTER_REPO, NO_ECHO_CLUSTER, CLUSTER_FILE);
+        final RouteConfiguration route = createEchoRoute(true);
+        commit(route, ROUTE_REPO, ECHO_ROUTE, ROUTE_FILE);
+        final Listener listener = createEchoListener();
+        commit(listener, LISTENER_REPO, ECHO_LISTENER, LISTENER_FILE);
+    }
 
     @AfterAll
     static void afterAll() {
@@ -160,7 +152,7 @@ final class DiscoveryServiceItTest {
 
             // Change the route to noEchoCluster.
             final RouteConfiguration route = createEchoRoute(false);
-            commit(dogma.client(), route, ROUTE_REPO, ECHO_ROUTE, ROUTE_FILE);
+            commit(route, ROUTE_REPO, ECHO_ROUTE, ROUTE_FILE);
 
             await().atMost(5, TimeUnit.SECONDS)
                    .ignoreExceptions()
@@ -198,8 +190,7 @@ final class DiscoveryServiceItTest {
                       .build();
     }
 
-    private static void commit(CentralDogma client, MessageOrBuilder message,
-                               String repoName, String clusterName, String fileName) {
+    private void commit(MessageOrBuilder message, String repoName, String clusterName, String fileName) {
         final String json;
         try {
             json = JsonFormatUtil.printer().print(message);
@@ -209,8 +200,11 @@ final class DiscoveryServiceItTest {
         }
         final Change<JsonNode> echoCluster =
                 Change.ofJsonUpsert('/' + clusterName + '/' + fileName, json);
-        client.forRepo(CONTROL_PLANE_PROJECT, repoName)
-              .commit("Add " + clusterName, echoCluster).push().join();
+        dogma.projectManager()
+             .get(INTERNAL_PROJECT_DOGMA)
+             .repos()
+             .get(repoName)
+             .commit(Revision.HEAD, 0, Author.SYSTEM, "Add " + clusterName, echoCluster).join();
     }
 
     private static RouteConfiguration createEchoRoute(boolean echo) {

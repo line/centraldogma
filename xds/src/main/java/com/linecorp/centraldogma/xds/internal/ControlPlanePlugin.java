@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.initializeInternalProject;
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.initializeInternalRepos;
 
 import java.util.Collection;
@@ -29,8 +29,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
-
-import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,20 +69,18 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
 
     private static final Logger logger = LoggerFactory.getLogger(ControlPlanePlugin.class);
 
-    // TODO(minwoox): prepend '_' to distinguish from user project
-    public static final String CONTROL_PLANE_PROJECT = "control_plane";
-
     public static final String CLUSTER_REPO = "clusters";
-    public static final String CLUSTER_FILE = "cluster.json";
+    public static final String CLUSTER_FILE = "io.envoyproxy.envoy.config.cluster.v3.Cluster.json";
 
     public static final String ENDPOINT_REPO = "endpoints";
-    public static final String ENDPOINT_FILE = "endpoint.json";
+    public static final String ENDPOINT_FILE =
+            "io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment.json";
 
     public static final String LISTENER_REPO = "listeners";
-    public static final String LISTENER_FILE = "listener.json";
+    public static final String LISTENER_FILE = "io.envoyproxy.envoy.config.listener.v3.Listener.json";
 
     public static final String ROUTE_REPO = "routes";
-    public static final String ROUTE_FILE = "route.json";
+    public static final String ROUTE_FILE = "io.envoyproxy.envoy.config.route.v3.route.RouteConfiguration.json";
 
     public static final String DEFAULT_GROUP = "default_group";
 
@@ -102,8 +98,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     public void init(PluginInitContext pluginInitContext) {
         final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
         final long currentTimeMillis = System.currentTimeMillis();
-        initializeInternalProject(commandExecutor, currentTimeMillis, CONTROL_PLANE_PROJECT);
-        initializeInternalRepos(commandExecutor, currentTimeMillis, CONTROL_PLANE_PROJECT,
+        initializeInternalRepos(commandExecutor, currentTimeMillis,
                                 ImmutableList.of(CLUSTER_REPO, ENDPOINT_REPO, LISTENER_REPO, ROUTE_REPO));
 
         final ServerBuilder sb = pluginInitContext.serverBuilder();
@@ -111,7 +106,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         // TODO(minwoox): Implement better cache implementation that updates only changed resources.
         final SimpleCache<String> cache = new SimpleCache<>(node -> DEFAULT_GROUP);
         final RepositoryManager repositoryManager = pluginInitContext.projectManager()
-                                                                     .get(CONTROL_PLANE_PROJECT)
+                                                                     .get(INTERNAL_PROJECT_DOGMA)
                                                                      .repos();
         watchRepository(repositoryManager.get(CLUSTER_REPO), CLUSTER_FILE, Revision.INIT,
                         (entries, revision) -> clusters(entries, revision, cache));
@@ -151,7 +146,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                 return null;
             }
             final CompletableFuture<Map<String, Entry<?>>> entriesFuture =
-                    repository.find(watchedRevision, "/*/" + fileName);
+                    repository.find(watchedRevision, "/**/" + fileName);
             entriesFuture.handleAsync(
                     (BiFunction<Map<String, Entry<?>>, Throwable, Void>) (entries, findCause) -> {
                         if (stop) {
@@ -186,7 +181,6 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         }, CONTROL_PLANE_EXECUTOR);
     }
 
-    @Nullable
     private boolean clusters(Collection<Entry<?>> entries, Revision revision, SimpleCache<String> cache) {
         final Builder<Cluster> clustersBuilder = ImmutableList.builder();
         for (Entry<?> entry : entries) {
@@ -206,7 +200,6 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         return true;
     }
 
-    @Nullable
     private boolean endpoints(Collection<Entry<?>> entries, Revision revision, SimpleCache<String> cache) {
         final Builder<ClusterLoadAssignment> endpointsBuilder = ImmutableList.builder();
         for (Entry<?> entry : entries) {
@@ -226,7 +219,6 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         return true;
     }
 
-    @Nullable
     private boolean listeners(Collection<Entry<?>> entries, Revision revision, SimpleCache<String> cache) {
         final Builder<Listener> listenersBuilder = ImmutableList.builder();
         for (Entry<?> entry : entries) {
@@ -246,7 +238,6 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         return true;
     }
 
-    @Nullable
     private boolean routes(Collection<Entry<?>> entries, Revision revision, SimpleCache<String> cache) {
         final Builder<RouteConfiguration> routesBuilder = ImmutableList.builder();
         for (Entry<?> entry : entries) {
