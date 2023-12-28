@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
+import static com.linecorp.centraldogma.xds.internal.CdsStreamingTest.commit;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTER_FILE;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTER_REPO;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENER_FILE;
@@ -37,17 +37,11 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.protobuf.Any;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.MessageOrBuilder;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
@@ -119,13 +113,13 @@ final class DiscoveryServiceItTest {
     @BeforeEach
     void setUp() {
         final Cluster echoCluster = createEchoCluster(true);
-        commit(echoCluster, CLUSTER_REPO, ECHO_CLUSTER, CLUSTER_FILE);
+        commit(echoCluster, dogma.projectManager(), CLUSTER_REPO, ECHO_CLUSTER, CLUSTER_FILE);
         final Cluster noEchoCluster = createEchoCluster(false);
-        commit(noEchoCluster, CLUSTER_REPO, NO_ECHO_CLUSTER, CLUSTER_FILE);
+        commit(noEchoCluster, dogma.projectManager(), CLUSTER_REPO, NO_ECHO_CLUSTER, CLUSTER_FILE);
         final RouteConfiguration route = createEchoRoute(true);
-        commit(route, ROUTE_REPO, ECHO_ROUTE, ROUTE_FILE);
+        commit(route, dogma.projectManager(), ROUTE_REPO, ECHO_ROUTE, ROUTE_FILE);
         final Listener listener = createEchoListener();
-        commit(listener, LISTENER_REPO, ECHO_LISTENER, LISTENER_FILE);
+        commit(listener, dogma.projectManager(), LISTENER_REPO, ECHO_LISTENER, LISTENER_FILE);
     }
 
     @AfterAll
@@ -152,7 +146,7 @@ final class DiscoveryServiceItTest {
 
             // Change the route to noEchoCluster.
             final RouteConfiguration route = createEchoRoute(false);
-            commit(route, ROUTE_REPO, ECHO_ROUTE, ROUTE_FILE);
+            commit(route, dogma.projectManager(), ROUTE_REPO, ECHO_ROUTE, ROUTE_FILE);
 
             await().atMost(5, TimeUnit.SECONDS)
                    .ignoreExceptions()
@@ -188,23 +182,6 @@ final class DiscoveryServiceItTest {
                       .setType(DiscoveryType.STRICT_DNS)
                       .setLoadAssignment(loadAssignment)
                       .build();
-    }
-
-    private void commit(MessageOrBuilder message, String repoName, String clusterName, String fileName) {
-        final String json;
-        try {
-            json = JsonFormatUtil.printer().print(message);
-        } catch (InvalidProtocolBufferException e) {
-            // Should never reach here.
-            throw new Error(e);
-        }
-        final Change<JsonNode> echoCluster =
-                Change.ofJsonUpsert('/' + clusterName + '/' + fileName, json);
-        dogma.projectManager()
-             .get(INTERNAL_PROJECT_DOGMA)
-             .repos()
-             .get(repoName)
-             .commit(Revision.HEAD, 0, Author.SYSTEM, "Add " + clusterName, echoCluster).join();
     }
 
     private static RouteConfiguration createEchoRoute(boolean echo) {
