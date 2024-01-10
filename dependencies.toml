@@ -185,6 +185,9 @@ module = "com.fasterxml.jackson.core:jackson-databind"
 javadocs = "https://fasterxml.github.io/jackson-databind/javadoc/2.13/"
 [libraries.jackson-datatype-jsr310]
 module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
+# Only used for testing. See ArmeriaJacksonObjectMapperProviderTest class.
+[libraries.jackson-module-scala]
+module = "com.fasterxml.jackson.module:jackson-module-scala_3"
 
 [libraries.javassist]
 module = "org.javassist:javassist"
