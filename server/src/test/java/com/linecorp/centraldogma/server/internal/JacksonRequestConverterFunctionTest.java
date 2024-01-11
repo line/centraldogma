@@ -24,7 +24,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-class ArmeriaJacksonObjectMapperProviderTest {
+class JacksonRequestConverterFunctionTest {
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension();
@@ -38,8 +38,6 @@ class ArmeriaJacksonObjectMapperProviderTest {
         // However, if there's the scala module in the classpath, the ObjectMapper disallows null value,
         // so it fails.
         // https://github.com/line/armeria/blob/219ee3758b232ca9c47e03258a0a62f4cc4841c3/core/src/main/java/com/linecorp/armeria/internal/common/DefaultJacksonObjectMapperProvider.java#L48
-        // So we introduce ArmeriaJacksonObjectMapperProvider which returns the default ObjectMapper without
-        // any configuration.
         dogma.client().createProject("foo").join();
         final Set<String> projects = dogma.client().listProjects().join();
         assertThat(projects).containsExactly("foo");

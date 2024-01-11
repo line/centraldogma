@@ -61,6 +61,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
@@ -91,6 +92,7 @@ import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.armeria.server.ServiceNaming;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.annotation.JacksonRequestConverterFunction;
 import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.cors.CorsService;
@@ -703,6 +705,11 @@ public class CentralDogma implements AutoCloseable {
         final SafeProjectManager safePm = new SafeProjectManager(pm);
 
         final HttpApiRequestConverter v1RequestConverter = new HttpApiRequestConverter(safePm);
+        final JacksonRequestConverterFunction jacksonRequestConverterFunction =
+                // Use the default ObjectMapper without any configuration.
+                // See JacksonRequestConverterFunctionTest
+                new JacksonRequestConverterFunction(new ObjectMapper());
+        // Do not need jacksonResponseConverterFunction because HttpApiResponseConverter handles the JSON data.
         final HttpApiResponseConverter v1ResponseConverter = new HttpApiResponseConverter();
 
         // Enable content compression for API responses.
@@ -710,13 +717,13 @@ public class CentralDogma implements AutoCloseable {
 
         sb.annotatedService(API_V1_PATH_PREFIX,
                             new AdministrativeService(safePm, executor), decorator,
-                            v1RequestConverter, v1ResponseConverter);
+                            v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
         sb.annotatedService(API_V1_PATH_PREFIX,
                             new ProjectServiceV1(safePm, executor, mds), decorator,
-                            v1RequestConverter, v1ResponseConverter);
+                            v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
         sb.annotatedService(API_V1_PATH_PREFIX,
                             new RepositoryServiceV1(safePm, executor, mds), decorator,
-                            v1RequestConverter, v1ResponseConverter);
+                            v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
         sb.annotatedService()
           .pathPrefix(API_V1_PATH_PREFIX)
           .defaultServiceNaming(new ServiceNaming() {
@@ -733,7 +740,7 @@ public class CentralDogma implements AutoCloseable {
               }
           })
           .decorator(decorator)
-          .requestConverters(v1RequestConverter)
+          .requestConverters(v1RequestConverter, jacksonRequestConverterFunction)
           .responseConverters(v1ResponseConverter)
           .build(new ContentServiceV1(safePm, executor, watchService));
 
@@ -742,9 +749,11 @@ public class CentralDogma implements AutoCloseable {
             assert authCfg != null : "authCfg";
             sb.annotatedService(API_V1_PATH_PREFIX,
                                 new MetadataApiService(mds, authCfg.loginNameNormalizer()),
-                                decorator, v1RequestConverter, v1ResponseConverter);
+                                decorator, v1RequestConverter, jacksonRequestConverterFunction,
+                                v1ResponseConverter);
             sb.annotatedService(API_V1_PATH_PREFIX, new TokenService(pm, executor, mds),
-                                decorator, v1RequestConverter, v1ResponseConverter);
+                                decorator, v1RequestConverter, jacksonRequestConverterFunction,
+                                v1ResponseConverter);
 
             // authentication services:
             Optional.ofNullable(authProvider.loginApiService())
@@ -766,9 +775,9 @@ public class CentralDogma implements AutoCloseable {
 
             // TODO(hyangtack): Simplify this if https://github.com/line/armeria/issues/582 is resolved.
             sb.annotatedService(API_V0_PATH_PREFIX, new UserService(safePm, executor),
-                                decorator, httpApiV0Converter)
+                                decorator, jacksonRequestConverterFunction, httpApiV0Converter)
               .annotatedService(API_V0_PATH_PREFIX, new RepositoryService(safePm, executor),
-                                decorator, httpApiV0Converter);
+                                decorator, jacksonRequestConverterFunction, httpApiV0Converter);
 
             if (authProvider != null) {
                 // Will redirect to /web/auth/login by default.
