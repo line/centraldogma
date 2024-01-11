@@ -31,7 +31,7 @@ import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.Secret;
 
-final class CentralDogmaSnapShot extends Snapshot {
+final class CentralDogmaSnapshot extends Snapshot {
 
     private final SnapshotResources<Cluster> clusters;
     private final SnapshotResources<ClusterLoadAssignment> endpoints;
@@ -39,7 +39,7 @@ final class CentralDogmaSnapShot extends Snapshot {
     private final SnapshotResources<RouteConfiguration> routes;
     private final SnapshotResources<Secret> secrets;
 
-    CentralDogmaSnapShot(SnapshotResources<Cluster> clusters,
+    CentralDogmaSnapshot(SnapshotResources<Cluster> clusters,
                          SnapshotResources<ClusterLoadAssignment> endpoints,
                          SnapshotResources<Listener> listeners, SnapshotResources<RouteConfiguration> routes,
                          SnapshotResources<Secret> secrets) {
