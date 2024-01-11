@@ -86,10 +86,10 @@ final class CentralDogmaSnapshot extends Snapshot {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof CentralDogmaSnapShot)) {
+        if (!(o instanceof CentralDogmaSnapshot)) {
             return false;
         }
-        final CentralDogmaSnapShot that = (CentralDogmaSnapShot) o;
+        final CentralDogmaSnapshot that = (CentralDogmaSnapshot) o;
         return Objects.equal(clusters, that.clusters) &&
                Objects.equal(endpoints, that.endpoints) &&
                Objects.equal(listeners, that.listeners) &&

@@ -304,7 +304,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
             }
 
             cache.setSnapshot(DEFAULT_GROUP,
-                              new CentralDogmaSnapShot(clusters, endpoints, listeners, routes, secrets));
+                              new CentralDogmaSnapshot(clusters, endpoints, listeners, routes, secrets));
         } finally {
             snapshotLock.unlock();
         }
