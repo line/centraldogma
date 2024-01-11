@@ -92,7 +92,7 @@ public final class UserAndTimestamp {
     /**
      * Returns the epoch milliseconds of the {@link #timestamp()}.
      */
-    public long epochMillis() {
+    public long timestampMillis() {
         return timestamp.toEpochMilli();
     }
 

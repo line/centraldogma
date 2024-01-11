@@ -91,7 +91,7 @@ public class DefaultProject implements Project {
             createReservedRepos(System.currentTimeMillis());
             final UserAndTimestamp creation = metadataCreation();
             if (creation != null) {
-                creationTimeMillis = creation.epochMillis();
+                creationTimeMillis = creation.timestampMillis();
                 author = Author.ofEmail(creation.user());
             } else {
                 creationTimeMillis = repos.get(REPO_DOGMA).creationTimeMillis();
