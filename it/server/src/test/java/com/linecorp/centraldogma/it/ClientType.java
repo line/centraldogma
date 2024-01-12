@@ -23,8 +23,8 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 enum ClientType {
 
-    LEGACY(CentralDogmaExtension::legacyClient),
-    DEFAULT(CentralDogmaExtension::client);
+    DEFAULT(CentralDogmaExtension::client),
+    LEGACY(CentralDogmaExtension::legacyClient);
 
     private final Function<CentralDogmaExtension, CentralDogma> clientFactory;
 
