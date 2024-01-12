@@ -22,23 +22,16 @@ import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 /**
  * A base service class for HTTP API.
  */
 public class AbstractService {
 
-    private final ProjectManager projectManager;
     private final CommandExecutor executor;
 
-    protected AbstractService(ProjectManager projectManager, CommandExecutor executor) {
-        this.projectManager = requireNonNull(projectManager, "projectManager");
+    protected AbstractService(CommandExecutor executor) {
         this.executor = requireNonNull(executor, "executor");
-    }
-
-    public final ProjectManager projectManager() {
-        return projectManager;
     }
 
     public final CommandExecutor executor() {

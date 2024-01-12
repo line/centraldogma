@@ -20,7 +20,6 @@ import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static com.linecorp.centraldogma.server.internal.api.ContentServiceV1.checkPush;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1.increaseCounterIfOldRevisionUsed;
-import static com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager.validateProjectName;
 import static com.linecorp.centraldogma.server.internal.thrift.Converter.convert;
 import static com.linecorp.centraldogma.server.storage.project.Project.isReservedRepoName;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
@@ -65,8 +64,8 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
@@ -77,14 +76,14 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
             Exceptions.clearTrace(new IllegalArgumentException(
                     "The repository is reserved by system and thus cannot be created or removed."));
 
-    private final ProjectManager projectManager;
+    private final ProjectApiManager projectApiManager;
     private final CommandExecutor executor;
     private final WatchService watchService;
     private final MetadataService mds;
 
-    public CentralDogmaServiceImpl(ProjectManager projectManager, CommandExecutor executor,
+    public CentralDogmaServiceImpl(ProjectApiManager projectApiManager, CommandExecutor executor,
                                    WatchService watchService, MetadataService mds) {
-        this.projectManager = requireNonNull(projectManager, "projectManager");
+        this.projectApiManager = requireNonNull(projectApiManager, "projectApiManager");
         this.executor = requireNonNull(executor, "executor");
         this.watchService = requireNonNull(watchService, "watchService");
         this.mds = requireNonNull(mds, "mds");
@@ -123,38 +122,31 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void createProject(String name, AsyncMethodCallback resultHandler) {
         // ProjectInitializingCommandExecutor initializes a metadata for the specified project.
-        handle(executor.execute(Command.createProject(SYSTEM, name)), resultHandler);
+        handle(projectApiManager.createProject(name, SYSTEM), resultHandler);
     }
 
     @Override
     public void removeProject(String name, AsyncMethodCallback resultHandler) {
-        validateProjectName(name, false);
         // Metadata must be updated first because it cannot be updated if the project is removed.
-        handle(mds.removeProject(SYSTEM, name)
-                  .thenCompose(unused -> executor.execute(Command.removeProject(SYSTEM, name))),
-               resultHandler);
+        handle(projectApiManager.removeProject(name, SYSTEM), resultHandler);
     }
 
     @Override
     public void purgeProject(String name, AsyncMethodCallback resultHandler) {
-        validateProjectName(name, false);
-        handleAsVoidResult(executor.execute(Command.purgeProject(SYSTEM, name)), resultHandler);
+        handleAsVoidResult(projectApiManager.purgeProject(name, SYSTEM), resultHandler);
     }
 
     @Override
     public void unremoveProject(String name, AsyncMethodCallback resultHandler) {
-        validateProjectName(name, false);
         // Restore the project first then update its metadata as 'active'.
-        handleAsVoidResult(executor.execute(Command.unremoveProject(SYSTEM, name))
-                                   .thenCompose(unused -> mds.restoreProject(SYSTEM, name)),
-                           resultHandler);
+        handleAsVoidResult(projectApiManager.unremoveProject(name, SYSTEM), resultHandler);
     }
 
     @Override
     public void listProjects(AsyncMethodCallback resultHandler) {
         handle(() -> {
             final Map<String, com.linecorp.centraldogma.server.storage.project.Project> projects =
-                    projectManager.list();
+                    projectApiManager.listProjects();
             final List<Project> ret = new ArrayList<>(projects.size());
             projects.forEach((key, value) -> ret.add(convert(key, value)));
             return ret;
@@ -163,7 +155,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     @Override
     public void listRemovedProjects(AsyncMethodCallback resultHandler) {
-        handle(() -> projectManager.listRemoved().keySet(), resultHandler);
+        handle(() -> projectApiManager.listRemovedProjects().keySet(), resultHandler);
     }
 
     @Override
@@ -209,15 +201,15 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     @Override
     public void listRepositories(String projectName, AsyncMethodCallback resultHandler) {
-        handle(allAsList(projectManager.get(projectName).repos().list().entrySet().stream()
-                                       .map(e -> convert(e.getKey(), e.getValue()))
-                                       .collect(toList())),
+        handle(allAsList(projectApiManager.getProject(projectName).repos().list().entrySet().stream()
+                                          .map(e -> convert(e.getKey(), e.getValue()))
+                                          .collect(toList())),
                resultHandler);
     }
 
     @Override
     public void listRemovedRepositories(String projectName, AsyncMethodCallback resultHandler) {
-        handle(() -> projectManager.get(projectName).repos().listRemoved().keySet(), resultHandler);
+        handle(() -> projectApiManager.getProject(projectName).repos().listRemoved().keySet(), resultHandler);
     }
 
     @Override
@@ -232,7 +224,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     private com.linecorp.centraldogma.common.Revision normalizeRevision(
             String projectName, String repositoryName, Revision revision) {
-        final Repository repository = projectManager.get(projectName).repos().get(repositoryName);
+        final Repository repository = projectApiManager.getProject(projectName).repos().get(repositoryName);
         final com.linecorp.centraldogma.common.Revision normalized =
                 repository.normalizeNow(convert(revision));
         final com.linecorp.centraldogma.common.Revision head = repository.normalizeNow(HEAD);
@@ -245,14 +237,14 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                           AsyncMethodCallback resultHandler) {
         // Call normalizeRevision() first to check if the specified revision needs to be recorded.
         normalizeRevision(projectName, repositoryName, revision);
-        handle(projectManager.get(projectName).repos().get(repositoryName)
-                             .find(convert(revision), pathPattern, FIND_ALL_WITHOUT_CONTENT)
-                             .thenApply(entries -> {
-                                 final List<Entry> ret = new ArrayList<>(entries.size());
-                                 entries.forEach((path, entry) -> ret.add(
-                                         new Entry(path, convert(entry.type()))));
-                                 return ret;
-                             }),
+        handle(projectApiManager.getProject(projectName).repos().get(repositoryName)
+                                .find(convert(revision), pathPattern, FIND_ALL_WITHOUT_CONTENT)
+                                .thenApply(entries -> {
+                                    final List<Entry> ret = new ArrayList<>(entries.size());
+                                    entries.forEach((path, entry) -> ret.add(
+                                            new Entry(path, convert(entry.type()))));
+                                    return ret;
+                                }),
                resultHandler);
     }
 
@@ -261,15 +253,15 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                          AsyncMethodCallback resultHandler) {
         // Call normalizeRevision() first to check if the specified revision needs to be recorded.
         normalizeRevision(projectName, repositoryName, revision);
-        handle(projectManager.get(projectName).repos().get(repositoryName)
-                             .find(convert(revision), pathPattern)
-                             .thenApply(entries -> {
-                                 final List<Entry> ret = new ArrayList<>(entries.size());
-                                 ret.addAll(entries.entrySet().stream()
-                                                   .map(e -> convert(e.getValue()))
-                                                   .collect(toList()));
-                                 return ret;
-                             }),
+        handle(projectApiManager.getProject(projectName).repos().get(repositoryName)
+                                .find(convert(revision), pathPattern)
+                                .thenApply(entries -> {
+                                    final List<Entry> ret = new ArrayList<>(entries.size());
+                                    ret.addAll(entries.entrySet().stream()
+                                                      .map(e -> convert(e.getValue()))
+                                                      .collect(toList()));
+                                    return ret;
+                                }),
                resultHandler);
     }
 
@@ -279,11 +271,11 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
         // Call normalizeRevision() first to check if the specified revision needs to be recorded.
         normalizeRevision(projectName, repositoryName, from);
         normalizeRevision(projectName, repositoryName, to);
-        handle(projectManager.get(projectName).repos().get(repositoryName)
-                             .history(convert(from), convert(to), pathPattern)
-                             .thenApply(commits -> commits.stream()
-                                                          .map(Converter::convert)
-                                                          .collect(toList())),
+        handle(projectApiManager.getProject(projectName).repos().get(repositoryName)
+                                .history(convert(from), convert(to), pathPattern)
+                                .thenApply(commits -> commits.stream()
+                                                             .map(Converter::convert)
+                                                             .collect(toList())),
                resultHandler);
     }
 
@@ -293,9 +285,9 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
         // Call normalizeRevision() first to check if the specified revision needs to be recorded.
         normalizeRevision(projectName, repositoryName, from);
         normalizeRevision(projectName, repositoryName, to);
-        handle(projectManager.get(projectName).repos().get(repositoryName)
-                             .diff(convert(from), convert(to), pathPattern)
-                             .thenApply(diffs -> convert(diffs.values(), Converter::convert)),
+        handle(projectApiManager.getProject(projectName).repos().get(repositoryName)
+                                .diff(convert(from), convert(to), pathPattern)
+                                .thenApply(diffs -> convert(diffs.values(), Converter::convert)),
                resultHandler);
     }
 
@@ -304,9 +296,9 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                                 List<Change> changes, AsyncMethodCallback resultHandler) {
         // Call normalizeRevision() first to check if the specified revision needs to be recorded.
         normalizeRevision(projectName, repositoryName, baseRevision);
-        handle(projectManager.get(projectName).repos().get(repositoryName)
-                             .previewDiff(convert(baseRevision), convert(changes, Converter::convert))
-                             .thenApply(diffs -> convert(diffs.values(), Converter::convert)),
+        handle(projectApiManager.getProject(projectName).repos().get(repositoryName)
+                                .previewDiff(convert(baseRevision), convert(changes, Converter::convert))
+                                .thenApply(diffs -> convert(diffs.values(), Converter::convert)),
                resultHandler);
     }
 
@@ -327,8 +319,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                                              convert(detail.getMarkup()), convertedChanges))
                        .thenCompose(commitResult -> {
                            final com.linecorp.centraldogma.common.Revision newRev = commitResult.revision();
-                           return projectManager.get(projectName).repos().get(repositoryName)
-                                                .history(newRev, newRev, "/**");
+                           return projectApiManager.getProject(projectName).repos().get(repositoryName)
+                                                   .history(newRev, newRev, "/**");
                        })
                        .thenApply(commits -> convert(commits.get(0))),
                resultHandler);
@@ -339,9 +331,9 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                         AsyncMethodCallback resultHandler) {
         // Call normalizeRevision() first to check if the specified revision needs to be recorded.
         normalizeRevision(projectName, repositoryName, revision);
-        handle(projectManager.get(projectName).repos().get(repositoryName)
-                             .get(convert(revision), convert(query))
-                             .thenApply(res -> new GetFileResult(convert(res.type()), res.contentAsText())),
+        handle(projectApiManager.getProject(projectName).repos().get(repositoryName)
+                                .get(convert(revision), convert(query))
+                                .thenApply(res -> new GetFileResult(convert(res.type()), res.contentAsText())),
                resultHandler);
     }
 
@@ -352,10 +344,10 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
         normalizeRevision(projectName, repositoryName, from);
         normalizeRevision(projectName, repositoryName, to);
         // FIXME(trustin): Remove the firstNonNull() on the change content once we make it optional.
-        handle(projectManager.get(projectName).repos().get(repositoryName)
-                             .diff(convert(from), convert(to), convert(query))
-                             .thenApply(change -> new DiffFileResult(convert(change.type()),
-                                                                     firstNonNull(change.contentAsText(), ""))),
+        handle(projectApiManager.getProject(projectName).repos().get(repositoryName)
+                                .diff(convert(from), convert(to), convert(query))
+                                .thenApply(change -> new DiffFileResult(
+                                        convert(change.type()), firstNonNull(change.contentAsText(), ""))),
                resultHandler);
     }
 
@@ -364,12 +356,12 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                            MergeQuery mergeQuery, AsyncMethodCallback resultHandler) {
         // Call normalizeRevision() first to check if the specified revision needs to be recorded.
         normalizeRevision(projectName, repositoryName, revision);
-        handle(projectManager.get(projectName).repos().get(repositoryName)
-                             .mergeFiles(convert(revision), convert(mergeQuery))
-                             .thenApply(merged -> new MergedEntry(convert(merged.revision()),
-                                                                  convert(merged.type()),
-                                                                  merged.contentAsText(),
-                                                                  merged.paths())),
+        handle(projectApiManager.getProject(projectName).repos().get(repositoryName)
+                                .mergeFiles(convert(revision), convert(mergeQuery))
+                                .thenApply(merged -> new MergedEntry(convert(merged.revision()),
+                                                                     convert(merged.type()),
+                                                                     merged.contentAsText(),
+                                                                     merged.paths())),
                resultHandler);
     }
 
@@ -384,7 +376,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
             return;
         }
 
-        final Repository repo = projectManager.get(projectName).repos().get(repositoryName);
+        final Repository repo = projectApiManager.getProject(projectName).repos().get(repositoryName);
         final CompletableFuture<com.linecorp.centraldogma.common.Revision> future =
                 watchService.watchRepository(repo, convert(lastKnownRevision), pathPattern, timeoutMillis,
                                              false);
@@ -421,7 +413,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
             return;
         }
 
-        final Repository repo = projectManager.get(projectName).repos().get(repositoryName);
+        final Repository repo = projectApiManager.getProject(projectName).repos().get(repositoryName);
         final CompletableFuture<com.linecorp.centraldogma.common.Entry<Object>> future =
                 watchService.watchFile(repo, convert(lastKnownRevision), convert(query), timeoutMillis,
                                        false);

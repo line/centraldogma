@@ -22,9 +22,9 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 enum ClientType {
-    @SuppressWarnings("unused")
-    DEFAULT(CentralDogmaExtension::client),
-    LEGACY(CentralDogmaExtension::legacyClient);
+
+    LEGACY(CentralDogmaExtension::legacyClient),
+    DEFAULT(CentralDogmaExtension::client);
 
     private final Function<CentralDogmaExtension, CentralDogma> clientFactory;
 

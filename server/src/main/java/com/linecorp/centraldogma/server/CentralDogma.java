@@ -139,7 +139,7 @@ import com.linecorp.centraldogma.server.internal.api.converter.HttpApiResponseCo
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTranslator;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutScheduler;
@@ -533,8 +533,9 @@ public class CentralDogma implements AutoCloseable {
         final MetadataService mds = new MetadataService(pm, executor);
         final WatchService watchService = new WatchService(meterRegistry);
         final AuthProvider authProvider = createAuthProvider(executor, sessionManager, mds);
+        final ProjectApiManager projectApiManager = new ProjectApiManager(pm, executor, mds);
 
-        configureThriftService(sb, pm, executor, watchService, mds);
+        configureThriftService(sb, projectApiManager, executor, watchService, mds);
 
         sb.service("/title", webAppTitleFile(cfg.webAppTitle(), SystemInfo.hostname()).asService());
 
@@ -549,7 +550,7 @@ public class CentralDogma implements AutoCloseable {
                                                                  "Bearer " + CsrfToken.ANONYMOUS))
                                   .build());
 
-        configureHttpApi(sb, pm, executor, watchService, mds, authProvider, sessionManager);
+        configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, sessionManager);
 
         configureMetrics(sb, meterRegistry);
 
@@ -643,10 +644,11 @@ public class CentralDogma implements AutoCloseable {
                 meterRegistry, pm, config().writeQuotaPerRepository(), onTakeLeadership, onReleaseLeadership);
     }
 
-    private void configureThriftService(ServerBuilder sb, ProjectManager pm, CommandExecutor executor,
+    private void configureThriftService(ServerBuilder sb, ProjectApiManager projectApiManager,
+                                        CommandExecutor executor,
                                         WatchService watchService, MetadataService mds) {
         final CentralDogmaServiceImpl service =
-                new CentralDogmaServiceImpl(pm, executor, watchService, mds);
+                new CentralDogmaServiceImpl(projectApiManager, executor, watchService, mds);
 
         HttpService thriftService =
                 ThriftCallService.of(service)
@@ -667,7 +669,7 @@ public class CentralDogma implements AutoCloseable {
     }
 
     private void configureHttpApi(ServerBuilder sb,
-                                  ProjectManager pm, CommandExecutor executor,
+                                  ProjectApiManager projectApiManager, CommandExecutor executor,
                                   WatchService watchService, MetadataService mds,
                                   @Nullable AuthProvider authProvider,
                                   @Nullable SessionManager sessionManager) {
@@ -700,22 +702,20 @@ public class CentralDogma implements AutoCloseable {
                     .andThen(AuthService.newDecorator(new CsrfTokenAuthorizer()));
         }
 
-        final SafeProjectManager safePm = new SafeProjectManager(pm);
-
-        final HttpApiRequestConverter v1RequestConverter = new HttpApiRequestConverter(safePm);
+        final HttpApiRequestConverter v1RequestConverter = new HttpApiRequestConverter(projectApiManager);
         final HttpApiResponseConverter v1ResponseConverter = new HttpApiResponseConverter();
 
         // Enable content compression for API responses.
         decorator = decorator.andThen(contentEncodingDecorator());
 
         sb.annotatedService(API_V1_PATH_PREFIX,
-                            new AdministrativeService(safePm, executor), decorator,
+                            new AdministrativeService(executor), decorator,
                             v1RequestConverter, v1ResponseConverter);
         sb.annotatedService(API_V1_PATH_PREFIX,
-                            new ProjectServiceV1(safePm, executor, mds), decorator,
+                            new ProjectServiceV1(projectApiManager), decorator,
                             v1RequestConverter, v1ResponseConverter);
         sb.annotatedService(API_V1_PATH_PREFIX,
-                            new RepositoryServiceV1(safePm, executor, mds), decorator,
+                            new RepositoryServiceV1(executor, mds), decorator,
                             v1RequestConverter, v1ResponseConverter);
         sb.annotatedService()
           .pathPrefix(API_V1_PATH_PREFIX)
@@ -735,7 +735,7 @@ public class CentralDogma implements AutoCloseable {
           .decorator(decorator)
           .requestConverters(v1RequestConverter)
           .responseConverters(v1ResponseConverter)
-          .build(new ContentServiceV1(safePm, executor, watchService));
+          .build(new ContentServiceV1(executor, watchService));
 
         if (authProvider != null) {
             final AuthConfig authCfg = cfg.authConfig();
@@ -743,7 +743,7 @@ public class CentralDogma implements AutoCloseable {
             sb.annotatedService(API_V1_PATH_PREFIX,
                                 new MetadataApiService(mds, authCfg.loginNameNormalizer()),
                                 decorator, v1RequestConverter, v1ResponseConverter);
-            sb.annotatedService(API_V1_PATH_PREFIX, new TokenService(pm, executor, mds),
+            sb.annotatedService(API_V1_PATH_PREFIX, new TokenService(executor, mds),
                                 decorator, v1RequestConverter, v1ResponseConverter);
 
             // authentication services:
@@ -765,9 +765,9 @@ public class CentralDogma implements AutoCloseable {
             final RestfulJsonResponseConverter httpApiV0Converter = new RestfulJsonResponseConverter();
 
             // TODO(hyangtack): Simplify this if https://github.com/line/armeria/issues/582 is resolved.
-            sb.annotatedService(API_V0_PATH_PREFIX, new UserService(safePm, executor),
+            sb.annotatedService(API_V0_PATH_PREFIX, new UserService(executor),
                                 decorator, httpApiV0Converter)
-              .annotatedService(API_V0_PATH_PREFIX, new RepositoryService(safePm, executor),
+              .annotatedService(API_V0_PATH_PREFIX, new RepositoryService(projectApiManager, executor),
                                 decorator, httpApiV0Converter);
 
             if (authProvider != null) {

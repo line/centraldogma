@@ -58,7 +58,6 @@ import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.micrometer.core.instrument.Tag;
@@ -72,9 +71,8 @@ public class RepositoryServiceV1 extends AbstractService {
 
     private final MetadataService mds;
 
-    public RepositoryServiceV1(ProjectManager projectManager, CommandExecutor executor,
-                               MetadataService mds) {
-        super(projectManager, executor);
+    public RepositoryServiceV1(CommandExecutor executor, MetadataService mds) {
+        super(executor);
         this.mds = requireNonNull(mds, "mds");
     }
 

@@ -52,7 +52,6 @@ import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.Tokens;
 import com.linecorp.centraldogma.server.metadata.User;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 /**
  * Annotated service object for managing {@link Token}s.
@@ -74,9 +73,8 @@ public class TokenService extends AbstractService {
 
     private final MetadataService mds;
 
-    public TokenService(ProjectManager projectManager, CommandExecutor executor,
-                        MetadataService mds) {
-        super(projectManager, executor);
+    public TokenService(CommandExecutor executor, MetadataService mds) {
+        super(executor);
         this.mds = requireNonNull(mds, "mds");
     }
 

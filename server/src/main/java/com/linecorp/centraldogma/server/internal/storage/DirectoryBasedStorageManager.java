@@ -234,10 +234,8 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
             final T newChild = createChild(f, author, creationTimeMillis);
             success = true;
             return newChild;
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new StorageException("failed to create a new " + childTypeName + ": " + f, e);
+        } catch (Throwable t) {
+            throw new RuntimeException(t);
         } finally {
             if (!success && f.exists()) {
                 // Attempt to delete a partially created project.

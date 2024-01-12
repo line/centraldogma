@@ -19,8 +19,8 @@ package com.linecorp.centraldogma.server.metadata;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager.listProjectsWithoutDogma;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
-import static com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager.validateProjectName;
 import static com.linecorp.centraldogma.server.metadata.RepositorySupport.convertWithJackson;
 import static com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
@@ -56,7 +56,6 @@ import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.TestAbsenceOperation;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -180,7 +179,6 @@ public class MetadataService {
     public CompletableFuture<Revision> removeProject(Author author, String projectName) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
-        validateProjectName(projectName, false);
 
         final Change<JsonNode> change = Change.ofJsonPatch(
                 METADATA_JSON,
@@ -197,7 +195,6 @@ public class MetadataService {
     public CompletableFuture<Revision> restoreProject(Author author, String projectName) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
-        validateProjectName(projectName, false);
 
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON, new RemoveOperation(PROJECT_REMOVAL).toJsonNode());
@@ -880,7 +877,7 @@ public class MetadataService {
         requireNonNull(appId, "appId");
 
         // Remove the token from every project.
-        final Collection<Project> projects = new SafeProjectManager(projectManager).list().values();
+        final Collection<Project> projects = listProjectsWithoutDogma(projectManager.list()).values();
         final CompletableFuture<?>[] futures = new CompletableFuture<?>[projects.size()];
         int i = 0;
         for (final Project p : projects) {
