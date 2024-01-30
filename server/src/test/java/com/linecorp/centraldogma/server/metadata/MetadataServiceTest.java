@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.metadata;
 import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.NO_PERMISSION;
 import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_ONLY;
 import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_WRITE;
+import static com.linecorp.centraldogma.server.storage.project.Project.REPO_DOGMA;
 import static com.linecorp.centraldogma.server.storage.project.Project.REPO_META;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -39,11 +40,11 @@ import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
 class MetadataServiceTest {
 
+    @SuppressWarnings("JUnitMalformedDeclaration")
     @RegisterExtension
     final ProjectManagerExtension manager = new ProjectManagerExtension() {
         @Override
@@ -197,11 +198,14 @@ class MetadataServiceTest {
         assertThat(mds.findPermissions(project1, repo1, guest).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
 
-        for (String internalRepo : Project.internalRepos()) {
-            assertThatThrownBy(() -> mds.updatePerRolePermissions(
-                    author, project1, internalRepo, PerRolePermissions.ofDefault()).join())
-                    .isInstanceOf(UnsupportedOperationException.class);
-        }
+        assertThatThrownBy(() -> mds.updatePerRolePermissions(
+                author, project1, REPO_DOGMA, PerRolePermissions.ofPublic()).join())
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("Can't update the per role permission for internal repository");
+        assertThatThrownBy(() -> mds.updatePerRolePermissions(
+                author, project1, REPO_META, PerRolePermissions.ofPublic()).join())
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("Can't give a permission to guest for internal repository");
     }
 
     @Test

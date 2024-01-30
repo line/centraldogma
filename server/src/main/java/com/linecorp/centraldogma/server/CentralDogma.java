@@ -33,6 +33,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.List;
@@ -510,7 +511,10 @@ public class CentralDogma implements AutoCloseable {
             try {
                 final TlsConfig tlsConfig = cfg.tls();
                 if (tlsConfig != null) {
-                    sb.tls(tlsConfig.keyCertChainFile(), tlsConfig.keyFile(), tlsConfig.keyPassword());
+                    try (InputStream keyCertChainInputStream = tlsConfig.keyCertChainInputStream();
+                         InputStream keyInputStream = tlsConfig.keyInputStream()) {
+                        sb.tls(keyCertChainInputStream, keyInputStream, tlsConfig.keyPassword());
+                    }
                 } else {
                     logger.warn(
                             "Missing TLS configuration. Generating a self-signed certificate for TLS support.");

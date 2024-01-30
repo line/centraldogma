@@ -1,7 +1,6 @@
 plugins {
     alias libs.plugins.nexus.publish
     alias libs.plugins.osdetector apply false
-    alias libs.plugins.jmh apply false
 }
 
 allprojects {
@@ -28,9 +27,6 @@ ext {
 apply from: "${rootDir}/gradle/scripts/build-flags.gradle"
 
 configure(projectsWithFlags('java')) {
-
-    // Apply common plugins.
-    apply plugin: 'me.champeau.jmh'
 
     // Common properties and functions.
     ext {
@@ -98,35 +94,6 @@ configure(projectsWithFlags('java')) {
             }
         }
     }
-
-    // Configure JMH.
-    jmh {
-        forceGC = true
-        includeTests = false
-        duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-        jmhVersion = libs.versions.jmh.core.get()
-
-        if (rootProject.hasProperty('jmh.fork')) {
-            fork = Integer.parseInt(String.valueOf(rootProject.findProperty('jmh.fork')))
-        } else {
-            fork = 1
-        }
-        if (rootProject.hasProperty('jmh.iterations')) {
-            iterations = Integer.parseInt(String.valueOf(rootProject.findProperty('jmh.iterations')))
-        }
-        if (rootProject.hasProperty('jmh.warmupIterations')) {
-            warmupIterations = Integer.parseInt(String.valueOf(rootProject.findProperty('jmh.warmupIterations')))
-        } else {
-            warmupIterations = iterations
-        }
-        if (rootProject.hasProperty('jmh.profilers')) {
-            profilers = String.valueOf(rootProject.findProperty('jmh.profilers')).split(',')
-        }
-        if (rootProject.hasProperty('jmh.verbose')) {
-            verbosity = 'EXTRA'
-        }
-    }
-    configurations.jmh.extendsFrom configurations.testImplementation
 
     // Add common JVM options such as max memory and leak detection.
     tasks.withType(JavaForkOptions) {
