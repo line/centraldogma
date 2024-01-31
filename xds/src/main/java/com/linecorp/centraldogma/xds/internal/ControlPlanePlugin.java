@@ -27,13 +27,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServerBuilder;
@@ -127,7 +127,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     }
 
     private void watchRepository(Repository repository, String fileName, Revision revision,
-                                 BiPredicate<Collection<Entry<?>>, Revision> updatingSnapshotFunction) {
+                                 ThrowingBiConsumer<Collection<Entry<?>>, Revision> updatingSnapshotFunction) {
         final CompletableFuture<Revision> future = repository.watch(revision, "/**");
         future.handleAsync((BiFunction<Revision, Throwable, Void>) (watchedRevision, cause) -> {
             if (stop) {
@@ -159,11 +159,14 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                                     BACKOFF_SECONDS, TimeUnit.SECONDS);
                             return null;
                         }
-                        if (updatingSnapshotFunction.test(entries.values(), watchedRevision)) {
-                            // No exception. Watch right away.
+                        try {
+                            updatingSnapshotFunction.accept(entries.values(), watchedRevision);
                             CONTROL_PLANE_EXECUTOR.execute(() -> watchRepository(
                                     repository, fileName, watchedRevision, updatingSnapshotFunction));
-                        } else {
+                        } catch (Throwable t) {
+                            logger.warn("Unexpected exception is raised while building from {} using {}" +
+                                        ". Try watching after {} seconds..",
+                                        repository.name(), entries.values(), BACKOFF_SECONDS, t);
                             CONTROL_PLANE_EXECUTOR.schedule(
                                     () -> watchRepository(
                                             repository, fileName, watchedRevision, updatingSnapshotFunction),
@@ -176,18 +179,13 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         }, CONTROL_PLANE_EXECUTOR);
     }
 
-    private boolean updateClusters(Collection<Entry<?>> entries, Revision revision, SimpleCache<String> cache) {
+    private static boolean updateClusters(Collection<Entry<?>> entries, Revision revision,
+                                          SimpleCache<String> cache) throws InvalidProtocolBufferException {
         final Builder<Cluster> clustersBuilder = ImmutableList.builder();
         for (Entry<?> entry : entries) {
-            try {
-                final Cluster.Builder clusterBuilder = Cluster.newBuilder();
-                JsonFormatUtil.parser().merge(entry.contentAsText(), clusterBuilder);
-                clustersBuilder.add(clusterBuilder.build());
-            } catch (Throwable e) {
-                logger.warn("Unexpected exception is raised while building a cluster using {}" +
-                            ". Try watching after {} seconds..", entry, BACKOFF_SECONDS, e);
-                return false;
-            }
+            final Cluster.Builder clusterBuilder = Cluster.newBuilder();
+            JsonFormatUtil.parser().merge(entry.contentAsText(), clusterBuilder);
+            clustersBuilder.add(clusterBuilder.build());
         }
 
         setNewSnapshot(cache, ResourceType.CLUSTER,
@@ -195,19 +193,13 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         return true;
     }
 
-    private boolean updateEndpoints(Collection<Entry<?>> entries, Revision revision,
-                                    SimpleCache<String> cache) {
+    private static boolean updateEndpoints(Collection<Entry<?>> entries, Revision revision,
+                                           SimpleCache<String> cache) throws InvalidProtocolBufferException {
         final Builder<ClusterLoadAssignment> endpointsBuilder = ImmutableList.builder();
         for (Entry<?> entry : entries) {
-            try {
-                final ClusterLoadAssignment.Builder endpointBuilder = ClusterLoadAssignment.newBuilder();
-                JsonFormatUtil.parser().merge(entry.contentAsText(), endpointBuilder);
-                endpointsBuilder.add(endpointBuilder.build());
-            } catch (Throwable e) {
-                logger.warn("Unexpected exception is raised while building an endpoint using {}" +
-                            ". Try watching after {} seconds..", entry, BACKOFF_SECONDS, e);
-                return false;
-            }
+            final ClusterLoadAssignment.Builder endpointBuilder = ClusterLoadAssignment.newBuilder();
+            JsonFormatUtil.parser().merge(entry.contentAsText(), endpointBuilder);
+            endpointsBuilder.add(endpointBuilder.build());
         }
 
         setNewSnapshot(cache, ResourceType.ENDPOINT,
@@ -215,19 +207,13 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         return true;
     }
 
-    private boolean updateListeners(Collection<Entry<?>> entries, Revision revision,
-                                    SimpleCache<String> cache) {
+    private static boolean updateListeners(Collection<Entry<?>> entries, Revision revision,
+                                           SimpleCache<String> cache) throws InvalidProtocolBufferException {
         final Builder<Listener> listenersBuilder = ImmutableList.builder();
         for (Entry<?> entry : entries) {
-            try {
-                final Listener.Builder listenerBuilder = Listener.newBuilder();
-                JsonFormatUtil.parser().merge(entry.contentAsText(), listenerBuilder);
-                listenersBuilder.add(listenerBuilder.build());
-            } catch (Throwable e) {
-                logger.warn("Unexpected exception is raised while building a listener using {}" +
-                            ". Try watching after {} seconds..", entry, BACKOFF_SECONDS, e);
-                return false;
-            }
+            final Listener.Builder listenerBuilder = Listener.newBuilder();
+            JsonFormatUtil.parser().merge(entry.contentAsText(), listenerBuilder);
+            listenersBuilder.add(listenerBuilder.build());
         }
 
         setNewSnapshot(cache, ResourceType.LISTENER,
@@ -235,18 +221,13 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         return true;
     }
 
-    private boolean routes(Collection<Entry<?>> entries, Revision revision, SimpleCache<String> cache) {
+    private static boolean routes(Collection<Entry<?>> entries, Revision revision, SimpleCache<String> cache)
+            throws InvalidProtocolBufferException {
         final Builder<RouteConfiguration> routesBuilder = ImmutableList.builder();
         for (Entry<?> entry : entries) {
-            try {
-                final RouteConfiguration.Builder routeBuilder = RouteConfiguration.newBuilder();
-                JsonFormatUtil.parser().merge(entry.contentAsText(), routeBuilder);
-                routesBuilder.add(routeBuilder.build());
-            } catch (Throwable e) {
-                logger.warn("Unexpected exception is raised while building a route using {}" +
-                            ". Try watching after {} seconds..", entry, BACKOFF_SECONDS, e);
-                return false;
-            }
+            final RouteConfiguration.Builder routeBuilder = RouteConfiguration.newBuilder();
+            JsonFormatUtil.parser().merge(entry.contentAsText(), routeBuilder);
+            routesBuilder.add(routeBuilder.build());
         }
 
         setNewSnapshot(cache, ResourceType.ROUTE,
@@ -312,6 +293,11 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     public CompletionStage<Void> stop(PluginContext context) {
         stop = true;
         return UnmodifiableFuture.completedFuture(null);
+    }
+
+    @FunctionalInterface
+    interface ThrowingBiConsumer<A, B> {
+        void accept(A a, B b) throws Exception;
     }
 
     private static final class LoggingDiscoveryServerCallbacks implements DiscoveryServerCallbacks {
