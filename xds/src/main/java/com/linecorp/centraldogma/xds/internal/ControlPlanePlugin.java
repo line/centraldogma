@@ -26,9 +26,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,8 +88,6 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
             Executors.newSingleThreadScheduledExecutor(
                     new DefaultThreadFactory("control-plane-executor", true));
 
-    private final Lock snapshotLock = new ReentrantLock();
-
     private volatile boolean stop;
 
     @Override
@@ -108,11 +105,11 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                                                                      .get(INTERNAL_PROJECT_DOGMA)
                                                                      .repos();
         watchRepository(repositoryManager.get(CLUSTER_REPO), CLUSTER_FILE, Revision.INIT,
-                        (entries, revision) -> clusters(entries, revision, cache));
+                        (entries, revision) -> updateClusters(entries, revision, cache));
         watchRepository(repositoryManager.get(ENDPOINT_REPO), ENDPOINT_FILE, Revision.INIT,
-                        (entries, revision) -> endpoints(entries, revision, cache));
+                        (entries, revision) -> updateEndpoints(entries, revision, cache));
         watchRepository(repositoryManager.get(LISTENER_REPO), LISTENER_FILE, Revision.INIT,
-                        (entries, revision) -> listeners(entries, revision, cache));
+                        (entries, revision) -> updateListeners(entries, revision, cache));
         watchRepository(repositoryManager.get(ROUTE_REPO), ROUTE_FILE, Revision.INIT,
                         (entries, revision) -> routes(entries, revision, cache));
         final V3DiscoveryServer server = new V3DiscoveryServer(new LoggingDiscoveryServerCallbacks(), cache);
@@ -126,11 +123,11 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                                                    .addService(server.getAggregatedDiscoveryServiceImpl())
                                                    .useBlockingTaskExecutor(true)
                                                    .build();
-        sb.route().requestTimeoutMillis(0).build(grpcService);
+        sb.route().build(grpcService);
     }
 
     private void watchRepository(Repository repository, String fileName, Revision revision,
-                                 BiFunction<Collection<Entry<?>>, Revision, Boolean> snapshotConverter) {
+                                 BiPredicate<Collection<Entry<?>>, Revision> updatingSnapshotFunction) {
         final CompletableFuture<Revision> future = repository.watch(revision, "/**");
         future.handleAsync((BiFunction<Revision, Throwable, Void>) (watchedRevision, cause) -> {
             if (stop) {
@@ -140,7 +137,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                 logger.warn("Unexpected exception is raised while watching {}. Try watching after {} seconds..",
                             repository, BACKOFF_SECONDS, cause);
                 CONTROL_PLANE_EXECUTOR.schedule(
-                        () -> watchRepository(repository, fileName, revision, snapshotConverter),
+                        () -> watchRepository(repository, fileName, revision, updatingSnapshotFunction),
                         BACKOFF_SECONDS, TimeUnit.SECONDS);
                 return null;
             }
@@ -158,19 +155,18 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                                     fileName, watchedRevision, repository, BACKOFF_SECONDS, findCause);
                             CONTROL_PLANE_EXECUTOR.schedule(
                                     () -> watchRepository(repository, fileName,
-                                                          watchedRevision, snapshotConverter),
+                                                          watchedRevision, updatingSnapshotFunction),
                                     BACKOFF_SECONDS, TimeUnit.SECONDS);
                             return null;
                         }
-                        final Boolean converted = snapshotConverter.apply(entries.values(), watchedRevision);
-                        if (Boolean.TRUE.equals(converted)) {
+                        if (updatingSnapshotFunction.test(entries.values(), watchedRevision)) {
                             // No exception. Watch right away.
                             CONTROL_PLANE_EXECUTOR.execute(() -> watchRepository(
-                                    repository, fileName, watchedRevision, snapshotConverter));
+                                    repository, fileName, watchedRevision, updatingSnapshotFunction));
                         } else {
                             CONTROL_PLANE_EXECUTOR.schedule(
                                     () -> watchRepository(
-                                            repository, fileName, watchedRevision, snapshotConverter),
+                                            repository, fileName, watchedRevision, updatingSnapshotFunction),
                                     BACKOFF_SECONDS, TimeUnit.SECONDS);
                         }
                         return null;
@@ -180,7 +176,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         }, CONTROL_PLANE_EXECUTOR);
     }
 
-    private boolean clusters(Collection<Entry<?>> entries, Revision revision, SimpleCache<String> cache) {
+    private boolean updateClusters(Collection<Entry<?>> entries, Revision revision, SimpleCache<String> cache) {
         final Builder<Cluster> clustersBuilder = ImmutableList.builder();
         for (Entry<?> entry : entries) {
             try {
@@ -199,7 +195,8 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         return true;
     }
 
-    private boolean endpoints(Collection<Entry<?>> entries, Revision revision, SimpleCache<String> cache) {
+    private boolean updateEndpoints(Collection<Entry<?>> entries, Revision revision,
+                                    SimpleCache<String> cache) {
         final Builder<ClusterLoadAssignment> endpointsBuilder = ImmutableList.builder();
         for (Entry<?> entry : entries) {
             try {
@@ -218,7 +215,8 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         return true;
     }
 
-    private boolean listeners(Collection<Entry<?>> entries, Revision revision, SimpleCache<String> cache) {
+    private boolean updateListeners(Collection<Entry<?>> entries, Revision revision,
+                                    SimpleCache<String> cache) {
         final Builder<Listener> listenersBuilder = ImmutableList.builder();
         for (Entry<?> entry : entries) {
             try {
@@ -257,57 +255,52 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     }
 
     @SuppressWarnings("unchecked")
-    private void setNewSnapshot(SimpleCache<String> cache, ResourceType resourceType,
-                                SnapshotResources<?> resources) {
-        snapshotLock.lock();
-        try {
-            SnapshotResources<Cluster> clusters;
-            SnapshotResources<ClusterLoadAssignment> endpoints;
-            SnapshotResources<Listener> listeners;
-            SnapshotResources<RouteConfiguration> routes;
-            SnapshotResources<Secret> secrets;
-            final Snapshot previousSnapshot = cache.getSnapshot(DEFAULT_GROUP);
-            if (previousSnapshot == null) {
-                final SnapshotResources<?> emptyResources =
-                        SnapshotResources.create(ImmutableList.of(), "empty_resources");
-                clusters = (SnapshotResources<Cluster>) emptyResources;
-                endpoints = (SnapshotResources<ClusterLoadAssignment>) emptyResources;
-                listeners = (SnapshotResources<Listener>) emptyResources;
-                routes = (SnapshotResources<RouteConfiguration>) emptyResources;
-                secrets = (SnapshotResources<Secret>) emptyResources;
-            } else {
-                clusters = previousSnapshot.clusters();
-                endpoints = previousSnapshot.endpoints();
-                listeners = previousSnapshot.listeners();
-                routes = previousSnapshot.routes();
-                secrets = previousSnapshot.secrets();
-            }
-            switch (resourceType) {
-                case CLUSTER:
-                    clusters = (SnapshotResources<Cluster>) resources;
-                    break;
-                case ENDPOINT:
-                    endpoints = (SnapshotResources<ClusterLoadAssignment>) resources;
-                    break;
-                case LISTENER:
-                    listeners = (SnapshotResources<Listener>) resources;
-                    break;
-                case ROUTE:
-                    routes = (SnapshotResources<RouteConfiguration>) resources;
-                    break;
-                case SECRET:
-                    secrets = (SnapshotResources<Secret>) resources;
-                    break;
-                default:
-                    // Should never reach here.
-                    throw new Error();
-            }
-
-            cache.setSnapshot(DEFAULT_GROUP,
-                              new CentralDogmaSnapshot(clusters, endpoints, listeners, routes, secrets));
-        } finally {
-            snapshotLock.unlock();
+    private static void setNewSnapshot(SimpleCache<String> cache, ResourceType resourceType,
+                                       SnapshotResources<?> resources) {
+        SnapshotResources<Cluster> clusters;
+        SnapshotResources<ClusterLoadAssignment> endpoints;
+        SnapshotResources<Listener> listeners;
+        SnapshotResources<RouteConfiguration> routes;
+        SnapshotResources<Secret> secrets;
+        final Snapshot previousSnapshot = cache.getSnapshot(DEFAULT_GROUP);
+        if (previousSnapshot == null) {
+            final SnapshotResources<?> emptyResources =
+                    SnapshotResources.create(ImmutableList.of(), "empty_resources");
+            clusters = (SnapshotResources<Cluster>) emptyResources;
+            endpoints = (SnapshotResources<ClusterLoadAssignment>) emptyResources;
+            listeners = (SnapshotResources<Listener>) emptyResources;
+            routes = (SnapshotResources<RouteConfiguration>) emptyResources;
+            secrets = (SnapshotResources<Secret>) emptyResources;
+        } else {
+            clusters = previousSnapshot.clusters();
+            endpoints = previousSnapshot.endpoints();
+            listeners = previousSnapshot.listeners();
+            routes = previousSnapshot.routes();
+            secrets = previousSnapshot.secrets();
         }
+        switch (resourceType) {
+            case CLUSTER:
+                clusters = (SnapshotResources<Cluster>) resources;
+                break;
+            case ENDPOINT:
+                endpoints = (SnapshotResources<ClusterLoadAssignment>) resources;
+                break;
+            case LISTENER:
+                listeners = (SnapshotResources<Listener>) resources;
+                break;
+            case ROUTE:
+                routes = (SnapshotResources<RouteConfiguration>) resources;
+                break;
+            case SECRET:
+                secrets = (SnapshotResources<Secret>) resources;
+                break;
+            default:
+                // Should never reach here.
+                throw new Error();
+        }
+
+        cache.setSnapshot(DEFAULT_GROUP,
+                          new CentralDogmaSnapshot(clusters, endpoints, listeners, routes, secrets));
     }
 
     @Override

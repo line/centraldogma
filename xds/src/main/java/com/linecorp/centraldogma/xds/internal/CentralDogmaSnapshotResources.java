@@ -88,7 +88,7 @@ final class CentralDogmaSnapshotResources<T extends Message> extends SnapshotRes
                 return allResourceVersion;
             }
 
-            return Hashing.sha256().hashInt(Objects.hash(collected)).toString();
+            return Hashing.sha256().hashInt(collected.hashCode()).toString();
         };
     }
 
