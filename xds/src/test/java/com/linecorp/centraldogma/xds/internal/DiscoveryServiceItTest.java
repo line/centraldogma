@@ -16,13 +16,17 @@
 
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.xds.internal.CdsStreamingTest.commit;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTER_FILE;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTER_REPO;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENER_FILE;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENER_REPO;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ROUTE_FILE;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ROUTE_REPO;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.cluster;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.commit;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.httpConnectionManager;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.rdsConfigSource;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.routeConfiguration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -47,35 +51,17 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster.DiscoveryType;
 import io.envoyproxy.envoy.config.core.v3.Address;
-import io.envoyproxy.envoy.config.core.v3.ApiConfigSource;
-import io.envoyproxy.envoy.config.core.v3.ApiVersion;
-import io.envoyproxy.envoy.config.core.v3.ConfigSource;
-import io.envoyproxy.envoy.config.core.v3.GrpcService;
-import io.envoyproxy.envoy.config.core.v3.GrpcService.EnvoyGrpc;
 import io.envoyproxy.envoy.config.core.v3.SocketAddress;
 import io.envoyproxy.envoy.config.core.v3.SocketAddress.Protocol;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
-import io.envoyproxy.envoy.config.endpoint.v3.Endpoint;
-import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint;
-import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
 import io.envoyproxy.envoy.config.listener.v3.Filter;
 import io.envoyproxy.envoy.config.listener.v3.FilterChain;
 import io.envoyproxy.envoy.config.listener.v3.Listener;
-import io.envoyproxy.envoy.config.route.v3.Route;
-import io.envoyproxy.envoy.config.route.v3.RouteAction;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
-import io.envoyproxy.envoy.config.route.v3.RouteMatch;
-import io.envoyproxy.envoy.config.route.v3.VirtualHost;
-import io.envoyproxy.envoy.extensions.filters.http.router.v3.Router;
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager;
-import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager.CodecType;
-import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter;
-import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.Rds;
 
 @Testcontainers(disabledWithoutDocker = true)
 final class DiscoveryServiceItTest {
-
-    private static final String API_CONFIG_SOURCE_CLUSTER_NAME = "xds_cluster";
 
     private static final String ECHO_CLUSTER = "echo_cluster";
     private static final String ECHO_CLUSTER_ADDRESS = "echo_upstream";
@@ -163,71 +149,19 @@ final class DiscoveryServiceItTest {
     }
 
     private static Cluster createEchoCluster(boolean echo) {
-        final SocketAddress.Builder socketAddress = SocketAddress
-                .newBuilder()
-                .setAddress(echo ? ECHO_CLUSTER_ADDRESS : NO_ECHO_CLUSTER_ADDRESS)
-                .setPortValue(echo ? EchoContainer.PORT : EchoContainer.NO_ECHO_PORT)
-                .setProtocolValue(Protocol.TCP_VALUE);
-        final LbEndpoint.Builder lbEndpoint = LbEndpoint
-                .newBuilder()
-                .setEndpoint(Endpoint.newBuilder()
-                                     .setAddress(Address.newBuilder().setSocketAddress(socketAddress)));
         final String clusterName = echo ? ECHO_CLUSTER : NO_ECHO_CLUSTER;
-        final ClusterLoadAssignment.Builder loadAssignment = ClusterLoadAssignment
-                .newBuilder()
-                .setClusterName(clusterName)
-                .addEndpoints(LocalityLbEndpoints.newBuilder().addLbEndpoints(lbEndpoint));
-        return Cluster.newBuilder()
-                      .setName(clusterName)
-                      .setType(DiscoveryType.STRICT_DNS)
-                      .setLoadAssignment(loadAssignment)
-                      .build();
+        final ClusterLoadAssignment loadAssignment =
+                XdsTestUtil.loadAssignment(clusterName, echo ? ECHO_CLUSTER_ADDRESS : NO_ECHO_CLUSTER_ADDRESS,
+                                           echo ? EchoContainer.PORT : EchoContainer.NO_ECHO_PORT);
+        return cluster(clusterName, loadAssignment, DiscoveryType.STRICT_DNS);
     }
 
     private static RouteConfiguration createEchoRoute(boolean echo) {
-        final VirtualHost.Builder virtualHostBuilder =
-                VirtualHost.newBuilder()
-                           .setName("all")
-                           .addDomains("*")
-                           .addRoutes(Route.newBuilder()
-                                           .setMatch(RouteMatch.newBuilder().setPrefix("/"))
-                                           .setRoute(RouteAction.newBuilder().setCluster(
-                                                   echo ? ECHO_CLUSTER : NO_ECHO_CLUSTER)));
-        return RouteConfiguration.newBuilder()
-                                 .setName(ECHO_ROUTE)
-                                 .addVirtualHosts(virtualHostBuilder)
-                                 .build();
+        return routeConfiguration(ECHO_ROUTE, echo ? ECHO_CLUSTER : NO_ECHO_CLUSTER);
     }
 
     private static Listener createEchoListener() {
-        final GrpcService.Builder grpcServiceBuilder =
-                GrpcService.newBuilder().setEnvoyGrpc(
-                        EnvoyGrpc.newBuilder()
-                                 .setClusterName(API_CONFIG_SOURCE_CLUSTER_NAME));
-
-        final ConfigSource rdsConfigSource =
-                ConfigSource.newBuilder()
-                            .setResourceApiVersion(ApiVersion.V3)
-                            .setApiConfigSource(
-                                    ApiConfigSource.newBuilder()
-                                                   .setTransportApiVersion(ApiVersion.V3)
-                                                   .setApiType(ApiConfigSource.ApiType.GRPC)
-                                                   .addGrpcServices(grpcServiceBuilder))
-                            .build();
-
-        final HttpConnectionManager manager =
-                HttpConnectionManager.newBuilder()
-                                     .setCodecType(CodecType.AUTO)
-                                     .setStatPrefix("http")
-                                     .setRds(Rds.newBuilder()
-                                                .setConfigSource(rdsConfigSource)
-                                                .setRouteConfigName(ECHO_ROUTE))
-                                     .addHttpFilters(HttpFilter.newBuilder()
-                                                               .setName("envoy.filters.http.router")
-                                                               .setTypedConfig(Any.pack(
-                                                                       Router.newBuilder().build())))
-                                     .build();
-
+        final HttpConnectionManager manager = httpConnectionManager(ECHO_ROUTE, rdsConfigSource());
         return Listener.newBuilder()
                        .setName(ECHO_LISTENER)
                        .setAddress(Address.newBuilder()

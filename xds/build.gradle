@@ -6,5 +6,6 @@ dependencies {
     implementation libs.controlplane.server
 
     testImplementation libs.armeria.junit5
+    testImplementation libs.armeria.xds
     testImplementation libs.testcontainers.junit.jupiter
 }

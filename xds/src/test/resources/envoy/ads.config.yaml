@@ -7,7 +7,7 @@ dynamic_resources:
     api_type: GRPC
     grpc_services:
       envoy_grpc:
-        cluster_name: xds_cluster
+        cluster_name: dogma/cluster
     transport_api_version: V3
   cds_config:
     ads: {}
@@ -23,7 +23,7 @@ static_resources:
   - connect_timeout: 1s
     type: STRICT_DNS
     load_assignment:
-      cluster_name: xds_cluster
+      cluster_name: dogma/cluster
       endpoints:
         - lb_endpoints:
           - endpoint:
@@ -32,4 +32,4 @@ static_resources:
                   address: host.testcontainers.internal
                   port_value: HOST_PORT
     http2_protocol_options: {}
-    name: xds_cluster
+    name: dogma/cluster

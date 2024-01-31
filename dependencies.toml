@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 [versions]
-armeria = "1.26.4"
+armeria = "1.27.0"
 assertj = "3.24.2"
 awaitility = "4.2.0"
 bouncycastle = "1.76"
@@ -83,6 +83,9 @@ module = "com.linecorp.armeria:armeria-logback"
 module = "com.linecorp.armeria:armeria-saml"
 [libraries.armeria-thrift09]
 module = "com.linecorp.armeria:armeria-thrift0.9"
+[libraries.armeria-xds]
+module = "com.linecorp.armeria:armeria-xds"
+
 
 [libraries.assertj]
 module = "org.assertj:assertj-core"
