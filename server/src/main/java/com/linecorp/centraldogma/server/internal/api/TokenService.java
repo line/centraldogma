@@ -156,10 +156,10 @@ public class TokenService extends AbstractService {
     public CompletableFuture<Token> purgeToken(ServiceRequestContext ctx,
                                                @Param String appId,
                                                Author author, User loginUser) {
-        return getTokenOrRespondForbidden(ctx, appId, loginUser).thenComposeAsync(
+        return getTokenOrRespondForbidden(ctx, appId, loginUser).thenApplyAsync(
                 token -> {
                     mds.purgeToken(author, appId);
-                    return CompletableFuture.supplyAsync(token::withoutSecret);
+                    return token.withoutSecret();
                 }, ctx.blockingTaskExecutor());
     }
 
