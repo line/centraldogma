@@ -62,6 +62,8 @@ dependencies {
     // Logging
     optionalImplementation libs.logback
     optionalImplementation libs.slf4j.jul.to.slf4j
+
+    testImplementation libs.jackson.module.scala
 }
 
 // allows illegal access by ExecutorServiceMetrics of Micrometer
