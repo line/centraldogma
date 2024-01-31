@@ -18,11 +18,10 @@ package com.linecorp.centraldogma.server.internal.storage.project;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-
-import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
@@ -70,14 +69,14 @@ public final class ProjectApiManager {
         return currentUserOrNull.isAdmin();
     }
 
-    public static ImmutableMap<String, Project> listProjectsWithoutDogma(Map<String, Project> projects) {
+    public static Map<String, Project> listProjectsWithoutDogma(Map<String, Project> projects) {
         final Map<String, Project> result = new LinkedHashMap<>(projects.size() - 1);
         for (Map.Entry<String, Project> entry : projects.entrySet()) {
             if (!INTERNAL_PROJECT_DOGMA.equals(entry.getKey())) {
                 result.put(entry.getKey(), entry.getValue());
             }
         }
-        return ImmutableMap.copyOf(result);
+        return Collections.unmodifiableMap(result);
     }
 
     public Map<String, Instant> listRemovedProjects() {
@@ -89,9 +88,9 @@ public final class ProjectApiManager {
         return commandExecutor.execute(Command.createProject(author, projectName));
     }
 
-    private static void checkInternalDogmaProject(String projectName, String methodName) {
+    private static void checkInternalDogmaProject(String projectName, String operation) {
         if (INTERNAL_PROJECT_DOGMA.equals(projectName)) {
-            throw new IllegalArgumentException("Cannot " + methodName + ' ' + projectName);
+            throw new IllegalArgumentException("Cannot " + operation + ' ' + projectName);
         }
     }
 
@@ -113,7 +112,7 @@ public final class ProjectApiManager {
     }
 
     public CompletableFuture<Revision> unremoveProject(String projectName, Author author) {
-        checkInternalDogmaProject(projectName, "patch");
+        checkInternalDogmaProject(projectName, "unremove");
         // Restore the project first then update its metadata as 'active'.
         return commandExecutor.execute(Command.unremoveProject(author, projectName))
                 .thenCompose(unused -> metadataService.restoreProject(author, projectName));
