@@ -16,7 +16,9 @@
 package com.linecorp.centraldogma.testing.internal.auth;
 
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD2;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME2;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.WRONG_SESSION_ID;
 import static java.util.Objects.requireNonNull;
 
@@ -78,7 +80,7 @@ public class TestAuthProvider implements AuthProvider {
     class LoginService implements HttpService {
         @Override
         public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
-            return HttpResponse.from(CompletableFuture.supplyAsync(() -> {
+            return HttpResponse.of(CompletableFuture.supplyAsync(() -> {
                 final AggregatedHttpRequest msg = req.aggregate().join();
                 final String username;
                 final String password;
@@ -92,7 +94,8 @@ public class TestAuthProvider implements AuthProvider {
                     username = decoder.parameters().get("username").get(0);
                     password = decoder.parameters().get("password").get(0);
                 }
-                if (USERNAME.equals(username) && PASSWORD.equals(password)) {
+                if ((USERNAME.equals(username) && PASSWORD.equals(password)) ||
+                    (USERNAME2.equals(username) && PASSWORD2.equals(password))) {
                     final String sessionId = sessionIdGenerator.get();
                     final Session session =
                             new Session(sessionId, username, Duration.ofSeconds(60));
@@ -114,7 +117,7 @@ public class TestAuthProvider implements AuthProvider {
     class LogoutService implements HttpService {
         @Override
         public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
-            return HttpResponse.from(CompletableFuture.supplyAsync(() -> {
+            return HttpResponse.of(CompletableFuture.supplyAsync(() -> {
                 final AggregatedHttpRequest msg = req.aggregate().join();
                 final String sessionId =
                         AuthTokenExtractors.oAuth2().apply(RequestHeaders.of(msg.headers())).accessToken();

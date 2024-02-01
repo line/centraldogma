@@ -85,7 +85,6 @@ import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConve
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
 import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -103,9 +102,8 @@ public class ContentServiceV1 extends AbstractService {
 
     private final WatchService watchService;
 
-    public ContentServiceV1(ProjectManager projectManager, CommandExecutor executor,
-                            WatchService watchService) {
-        super(projectManager, executor);
+    public ContentServiceV1(CommandExecutor executor, WatchService watchService) {
+        super(executor);
         this.watchService = requireNonNull(watchService, "watchService");
     }
 

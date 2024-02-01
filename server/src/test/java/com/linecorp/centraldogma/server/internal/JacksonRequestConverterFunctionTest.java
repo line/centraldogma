@@ -40,6 +40,7 @@ class JacksonRequestConverterFunctionTest {
         // https://github.com/line/armeria/blob/219ee3758b232ca9c47e03258a0a62f4cc4841c3/core/src/main/java/com/linecorp/armeria/internal/common/DefaultJacksonObjectMapperProvider.java#L48
         dogma.client().createProject("foo").join();
         final Set<String> projects = dogma.client().listProjects().join();
-        assertThat(projects).containsExactly("foo");
+        // Admin contains intenal dogma project as well.
+        assertThat(projects).containsExactlyInAnyOrder("foo", "dogma");
     }
 }

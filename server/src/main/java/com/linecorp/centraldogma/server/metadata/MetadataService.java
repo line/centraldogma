@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.metadata;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager.listProjectsWithoutDogma;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static com.linecorp.centraldogma.server.metadata.RepositorySupport.convertWithJackson;
 import static com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
@@ -55,7 +56,6 @@ import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.TestAbsenceOperation;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -904,8 +904,7 @@ public class MetadataService {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
-        final Collection<Project> projects = new SafeProjectManager(projectManager).list().values();
-
+        final Collection<Project> projects = listProjectsWithoutDogma(projectManager.list()).values();
         // Remove the token from projects that only have the token.
         for (Project project : projects) {
             final ProjectMetadata projectMetadata = fetchMetadata(project.name()).join().object();

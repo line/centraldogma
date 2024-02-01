@@ -76,10 +76,8 @@ class TokenServiceTest {
 
     @BeforeAll
     static void setUp() {
-        metadataService = new MetadataService(manager.projectManager(),
-                                              manager.executor());
-        tokenService = new TokenService(manager.projectManager(), manager.executor(),
-                                        metadataService);
+        metadataService = new MetadataService(manager.projectManager(), manager.executor());
+        tokenService = new TokenService(manager.executor(), metadataService);
     }
 
     @AfterEach
