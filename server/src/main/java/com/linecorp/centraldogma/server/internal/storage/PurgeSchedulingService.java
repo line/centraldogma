@@ -16,10 +16,12 @@
 package com.linecorp.centraldogma.server.internal.storage;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -41,6 +43,8 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.Token;
+import com.linecorp.centraldogma.server.metadata.Tokens;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 /**
@@ -80,6 +84,7 @@ public class PurgeSchedulingService {
         storagePurgingScheduler.start(() -> {
             try {
                 purgeProjectAndRepository(commandExecutor, metadataService);
+                purgeToken(metadataService);
             } catch (Exception e) {
                 logger.warn("Unexpected purging service failure", e);
             }
@@ -141,6 +146,20 @@ public class PurgeSchedulingService {
                                }
                            });
                 });
+    }
+
+    private static void purgeToken(MetadataService metadataService) {
+        final Tokens tokens = metadataService.getTokens().join();
+        final List<String> purging = tokens.appIds().values()
+                                           .stream()
+                                           .filter(Token::isDeleted)
+                                           .map(Token::appId)
+                                           .collect(toImmutableList());
+
+        if (!purging.isEmpty()) {
+            logger.info("Purging {} tokens: {}", purging.size(), purging);
+            purging.forEach(appId -> metadataService.purgeToken(Author.SYSTEM, appId));
+        }
     }
 
     private boolean isDisabled() {

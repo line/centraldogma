@@ -876,31 +876,66 @@ public class MetadataService {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
-        // Remove the token from every project.
+        return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
+                              "Delete the token: " + appId,
+                              () -> tokenRepo
+                                      .fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
+                                      .thenApply(tokens -> {
+                                          final JsonPointer deletionPath =
+                                                  JsonPointer.compile("/appIds" + encodeSegment(appId) +
+                                                                      "/deletion");
+                                          final Change<?> change = Change.ofJsonPatch(
+                                                  TOKEN_JSON,
+                                                  asJsonArray(new TestAbsenceOperation(deletionPath),
+                                                              new AddOperation(deletionPath,
+                                                                               Jackson.valueToTree(
+                                                                                       UserAndTimestamp.of(
+                                                                                               author)))));
+                                          return HolderWithRevision.of(change, tokens.revision());
+                                      }));
+    }
+
+    /**
+     * Purges the {@link Token} of the specified {@code appId} that was removed before.
+     *
+     * <p>Note that this is a blocking method that should not be invoked in an event loop.
+     */
+    public Revision purgeToken(Author author, String appId) {
+        requireNonNull(author, "author");
+        requireNonNull(appId, "appId");
+
         final Collection<Project> projects = new SafeProjectManager(projectManager).list().values();
-        final CompletableFuture<?>[] futures = new CompletableFuture<?>[projects.size()];
-        int i = 0;
-        for (final Project p : projects) {
-            futures[i++] = removeToken(p.name(), author, appId, true).toCompletableFuture();
+
+        // Remove the token from projects that only have the token.
+        for (Project project : projects) {
+            final ProjectMetadata projectMetadata = fetchMetadata(project.name()).join().object();
+            final boolean containsTargetTokenInTheProject =
+                    projectMetadata.tokens().values()
+                                   .stream()
+                                   .anyMatch(token -> token.appId().equals(appId));
+
+            if (containsTargetTokenInTheProject) {
+                removeToken(project.name(), author, appId, true).join();
+            }
         }
-        return CompletableFuture.allOf(futures).thenCompose(unused -> tokenRepo.push(
-                INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, "Remove the token: " + appId,
-                () -> tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
-                               .thenApply(tokens -> {
-                                   final Token token = tokens.object().get(appId);
-                                   final JsonPointer appIdPath =
-                                           JsonPointer.compile("/appIds" + encodeSegment(appId));
-                                   final String secret = token.secret();
-                                   assert secret != null;
-                                   final JsonPointer secretPath =
-                                           JsonPointer.compile("/secrets" + encodeSegment(secret));
-                                   final Change<?> change = Change.ofJsonPatch(
-                                           TOKEN_JSON,
-                                           asJsonArray(new RemoveOperation(appIdPath),
-                                                       new RemoveIfExistsOperation(secretPath)));
-                                   return HolderWithRevision.of(change, tokens.revision());
-                               }))
-        );
+
+        return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, "Remove the token: " + appId,
+                              () -> tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
+                                             .thenApply(tokens -> {
+                                                 final Token token = tokens.object().get(appId);
+                                                 final JsonPointer appIdPath =
+                                                         JsonPointer.compile("/appIds" + encodeSegment(appId));
+                                                 final String secret = token.secret();
+                                                 assert secret != null;
+                                                 final JsonPointer secretPath =
+                                                         JsonPointer.compile(
+                                                                 "/secrets" + encodeSegment(secret));
+                                                 final Change<?> change = Change.ofJsonPatch(
+                                                         TOKEN_JSON,
+                                                         asJsonArray(new RemoveOperation(appIdPath),
+                                                                     new RemoveIfExistsOperation(secretPath)));
+                                                 return HolderWithRevision.of(change, tokens.revision());
+                                             })).join();
     }
 
     /**
