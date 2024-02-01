@@ -360,6 +360,7 @@ class MetadataServiceTest {
 
         // Remove 'app1' from the system completely.
         mds.destroyToken(author, app1).join();
+        mds.purgeToken(author, app1);
 
         // Remove per-token permission of 'app1', too.
         assertThat(mds.findPermissions(project1, repo1, app1).join())

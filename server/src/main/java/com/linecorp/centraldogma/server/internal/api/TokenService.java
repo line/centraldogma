@@ -47,6 +47,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.Token;
@@ -120,13 +121,13 @@ public class TokenService extends AbstractService {
             tokenFuture = mds.createToken(author, appId, isAdmin);
         }
         return tokenFuture
-                  .thenCompose(unused -> mds.findTokenByAppId(appId))
-                  .thenApply(token -> {
-                      final ResponseHeaders headers = ResponseHeaders.of(HttpStatus.CREATED,
-                                                                         HttpHeaderNames.LOCATION,
-                                                                         "/tokens/" + appId);
-                      return HttpResult.of(headers, token);
-                  });
+                .thenCompose(unused -> mds.findTokenByAppId(appId))
+                .thenApply(token -> {
+                    final ResponseHeaders headers = ResponseHeaders.of(HttpStatus.CREATED,
+                                                                       HttpHeaderNames.LOCATION,
+                                                                       "/tokens/" + appId);
+                    return HttpResult.of(headers, token);
+                });
     }
 
     /**
@@ -144,6 +145,23 @@ public class TokenService extends AbstractService {
     }
 
     /**
+     * DELETE /tokens/{appId}/removed
+     *
+     * <p>Purges a token of the specified ID that was deleted before.
+     */
+    @Delete("/tokens/{appId}/removed")
+    @RequiresAdministrator
+    public CompletableFuture<Token> purgeToken(ServiceRequestContext ctx,
+                                               @Param String appId,
+                                               Author author, User loginUser) {
+        return getTokenOrRespondForbidden(ctx, appId, loginUser).thenApplyAsync(
+                token -> {
+                    mds.purgeToken(author, appId);
+                    return token.withoutSecret();
+                }, ctx.blockingTaskExecutor());
+    }
+
+    /**
      * PATCH /tokens/{appId}
      *
      * <p>Activates or deactivates the token of the specified {@code appId}.
@@ -153,18 +171,25 @@ public class TokenService extends AbstractService {
     public CompletableFuture<Token> updateToken(ServiceRequestContext ctx,
                                                 @Param String appId,
                                                 JsonNode node, Author author, User loginUser) {
-        if (node.equals(activation)) {
-            return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
-                    token -> mds.activateToken(author, appId)
-                                .thenApply(unused -> token.withoutSecret()));
-        }
-        if (node.equals(deactivation)) {
-            return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
-                    token -> mds.deactivateToken(author, appId)
-                                .thenApply(unused -> token.withoutSecret()));
-        }
-        throw new IllegalArgumentException("Unsupported JSON patch: " + node +
-                                           " (expected: " + activation + " or " + deactivation + ')');
+        return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
+                token -> {
+                    if (token.isDeleted()) {
+                        throw new IllegalArgumentException(
+                                "You can't update the status of the token scheduled for deletion.");
+                    }
+                    if (node.equals(activation)) {
+                        return mds.activateToken(author, appId)
+                                  .thenApply(unused -> token.withoutSecret());
+                    }
+                    if (node.equals(deactivation)) {
+                        return mds.deactivateToken(author, appId)
+                                  .thenApply(unused -> token.withoutSecret());
+                    }
+                    throw new IllegalArgumentException("Unsupported JSON patch: " + node +
+                                                       " (expected: " + activation + " or " + deactivation +
+                                                       ')');
+                }
+        );
     }
 
     private CompletableFuture<Token> getTokenOrRespondForbidden(ServiceRequestContext ctx,

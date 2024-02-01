@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.common;
 
+import static com.linecorp.centraldogma.internal.Util.emailToUsername;
 import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -43,12 +44,23 @@ public class Author {
      */
     public static final Author UNKNOWN = new Author("Unknown", "nobody@no.where");
 
+    /**
+     * Create a new {@link Author} with the {@code email}.
+     * The {@link #name()} will be set to the username of the {@code email}.
+     */
+    public static Author ofEmail(String email) {
+        return new Author(emailToUsername(email, "email"), email);
+    }
+
     private final String name;
     private final String email;
 
     /**
      * Creates a new instance with the specified e-mail address.
+     *
+     * @deprecated Use {@link #ofEmail(String)}.
      */
+    @Deprecated
     public Author(String email) {
         this(email, email);
     }

@@ -12,6 +12,7 @@ angular.module('CentralDogmaAdmin')
             for (i in tokens) {
               tokens[i].creationTimeStr = moment(tokens[i].creation.timestamp).fromNow();
               tokens[i].isActive = !angular.isDefined(tokens[i].deactivation);
+              tokens[i].isDeleted = angular.isDefined(tokens[i].deletion);
             }
             defer.resolve(tokens);
           } else {

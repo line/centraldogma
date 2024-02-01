@@ -86,8 +86,8 @@ class ProjectServiceV1ListProjectTest {
                 "   {" +
                 "       \"name\": \"hyangtack\"," +
                 "       \"creator\": {" +
-                "           \"name\": \"System\"," +
-                "           \"email\": \"system@localhost.localdomain\"" +
+                "           \"name\": \"" + TestAuthMessageUtil.USERNAME2 + "\"," +
+                "           \"email\": \"" + TestAuthMessageUtil.USERNAME2 + "@localhost.localdomain\"" +
                 "       }," +
                 "       \"url\": \"/api/v1/projects/hyangtack\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
@@ -95,8 +95,8 @@ class ProjectServiceV1ListProjectTest {
                 "   {" +
                 "       \"name\": \"minwoox\"," +
                 "       \"creator\": {" +
-                "           \"name\": \"System\"," +
-                "           \"email\": \"system@localhost.localdomain\"" +
+                "           \"name\": \"" + TestAuthMessageUtil.USERNAME2 + "\"," +
+                "           \"email\": \"" + TestAuthMessageUtil.USERNAME2 + "@localhost.localdomain\"" +
                 "       }," +
                 "       \"url\": \"/api/v1/projects/minwoox\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
@@ -104,8 +104,8 @@ class ProjectServiceV1ListProjectTest {
                 "   {" +
                 "       \"name\": \"trustin\"," +
                 "       \"creator\": {" +
-                "           \"name\": \"System\"," +
-                "           \"email\": \"system@localhost.localdomain\"" +
+                "           \"name\": \"" + TestAuthMessageUtil.USERNAME2 + "\"," +
+                "           \"email\": \"" + TestAuthMessageUtil.USERNAME2 + "@localhost.localdomain\"" +
                 "       }," +
                 "       \"url\": \"/api/v1/projects/trustin\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +

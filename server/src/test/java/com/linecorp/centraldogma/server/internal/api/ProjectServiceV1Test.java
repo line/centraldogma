@@ -179,8 +179,8 @@ class ProjectServiceV1Test {
                 '{' +
                 "   \"name\": \"bar\"," +
                 "   \"creator\": {" +
-                "       \"name\": \"System\"," +
-                "       \"email\": \"system@localhost.localdomain\"" +
+                "       \"name\": \"" + TestAuthMessageUtil.USERNAME2 + "\"," +
+                "       \"email\": \"" + TestAuthMessageUtil.USERNAME2 + "@localhost.localdomain\"" +
                 "   }," +
                 "   \"url\": \"/api/v1/projects/bar\"," +
                 "   \"createdAt\": \"${json-unit.ignore}\"" +
