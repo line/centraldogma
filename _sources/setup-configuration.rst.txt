@@ -274,21 +274,21 @@ example shows the configuration of the first replica in a 3-replica cluster:
             "quorumPort": 36463,
             "electionPort": 36464,
             "groupId": null,
-            "weight": null,
+            "weight": null
           },
           "2": {
             "host": "replica2.example.com",
             "quorumPort": 36463,
             "electionPort": 36464,
             "groupId": null,
-            "weight": null,
+            "weight": null
           },
           "3": {
             "host": "replica3.example.com",
             "quorumPort": 36463,
             "electionPort": 36464,
             "groupId": null,
-            "weight": null,
+            "weight": null
           }
         },
         "secret": "JqJAkZ!oZ6MNx4rBpIH8M*yuVWXDULgR",

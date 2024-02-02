@@ -27,43 +27,43 @@
 <a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.google.common.base.Preconditions.checkArgument;
 <a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 <a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
-<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
-<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.RepositorySupport.convertWithJackson;
-<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
-<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
-<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> java.util.Objects.requireNonNull;
-<a class="jxr_linenumber" name="L27" href="#L27">27</a>  
-<a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> java.util.Collection;
-<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> java.util.Map;
-<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> java.util.Set;
-<a class="jxr_linenumber" name="L31" href="#L31">31</a>  <strong class="jxr_keyword">import</strong> java.util.UUID;
-<a class="jxr_linenumber" name="L32" href="#L32">32</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.CompletableFuture;
-<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.ConcurrentHashMap;
-<a class="jxr_linenumber" name="L34" href="#L34">34</a>  
-<a class="jxr_linenumber" name="L35" href="#L35">35</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
-<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
-<a class="jxr_linenumber" name="L37" href="#L37">37</a>  
-<a class="jxr_linenumber" name="L38" href="#L38">38</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.core.JsonPointer;
-<a class="jxr_linenumber" name="L39" href="#L39">39</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.databind.JsonNode;
-<a class="jxr_linenumber" name="L40" href="#L40">40</a>  <strong class="jxr_keyword">import</strong> com.google.common.collect.ImmutableList;
-<a class="jxr_linenumber" name="L41" href="#L41">41</a>  <strong class="jxr_keyword">import</strong> com.spotify.futures.CompletableFutures;
-<a class="jxr_linenumber" name="L42" href="#L42">42</a>  
-<a class="jxr_linenumber" name="L43" href="#L43">43</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.common.util.Exceptions;
-<a class="jxr_linenumber" name="L44" href="#L44">44</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Author;
-<a class="jxr_linenumber" name="L45" href="#L45">45</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Change;
-<a class="jxr_linenumber" name="L46" href="#L46">46</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ChangeConflictException;
-<a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.RepositoryExistsException;
-<a class="jxr_linenumber" name="L48" href="#L48">48</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Revision;
-<a class="jxr_linenumber" name="L49" href="#L49">49</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.Jackson;
-<a class="jxr_linenumber" name="L50" href="#L50">50</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.jsonpatch.AddOperation;
-<a class="jxr_linenumber" name="L51" href="#L51">51</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation;
-<a class="jxr_linenumber" name="L52" href="#L52">52</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.jsonpatch.RemoveIfExistsOperation;
-<a class="jxr_linenumber" name="L53" href="#L53">53</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.jsonpatch.RemoveOperation;
-<a class="jxr_linenumber" name="L54" href="#L54">54</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
-<a class="jxr_linenumber" name="L55" href="#L55">55</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.jsonpatch.TestAbsenceOperation;
-<a class="jxr_linenumber" name="L56" href="#L56">56</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.QuotaConfig;
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.CommandExecutor;
-<a class="jxr_linenumber" name="L58" href="#L58">58</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
+<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager.listProjectsWithoutDogma;
+<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
+<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.RepositorySupport.convertWithJackson;
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
+<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
+<a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> java.util.Objects.requireNonNull;
+<a class="jxr_linenumber" name="L28" href="#L28">28</a>  
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> java.util.Collection;
+<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> java.util.Map;
+<a class="jxr_linenumber" name="L31" href="#L31">31</a>  <strong class="jxr_keyword">import</strong> java.util.Set;
+<a class="jxr_linenumber" name="L32" href="#L32">32</a>  <strong class="jxr_keyword">import</strong> java.util.UUID;
+<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.CompletableFuture;
+<a class="jxr_linenumber" name="L34" href="#L34">34</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.ConcurrentHashMap;
+<a class="jxr_linenumber" name="L35" href="#L35">35</a>  
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
+<a class="jxr_linenumber" name="L37" href="#L37">37</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
+<a class="jxr_linenumber" name="L38" href="#L38">38</a>  
+<a class="jxr_linenumber" name="L39" href="#L39">39</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.core.JsonPointer;
+<a class="jxr_linenumber" name="L40" href="#L40">40</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.databind.JsonNode;
+<a class="jxr_linenumber" name="L41" href="#L41">41</a>  <strong class="jxr_keyword">import</strong> com.google.common.collect.ImmutableList;
+<a class="jxr_linenumber" name="L42" href="#L42">42</a>  <strong class="jxr_keyword">import</strong> com.spotify.futures.CompletableFutures;
+<a class="jxr_linenumber" name="L43" href="#L43">43</a>  
+<a class="jxr_linenumber" name="L44" href="#L44">44</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.common.util.Exceptions;
+<a class="jxr_linenumber" name="L45" href="#L45">45</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Author;
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Change;
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.ChangeConflictException;
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.RepositoryExistsException;
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Revision;
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.Jackson;
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.jsonpatch.AddOperation;
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation;
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.jsonpatch.RemoveIfExistsOperation;
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.jsonpatch.RemoveOperation;
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.jsonpatch.TestAbsenceOperation;
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.QuotaConfig;
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.CommandExecutor;
 <a class="jxr_linenumber" name="L59" href="#L59">59</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.storage.project.Project;
 <a class="jxr_linenumber" name="L60" href="#L60">60</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.storage.project.ProjectManager;
 <a class="jxr_linenumber" name="L61" href="#L61">61</a>  
@@ -884,156 +884,190 @@
 <a class="jxr_linenumber" name="L876" href="#L876">876</a>         requireNonNull(author, <span class="jxr_string">"author"</span>);
 <a class="jxr_linenumber" name="L877" href="#L877">877</a>         requireNonNull(appId, <span class="jxr_string">"appId"</span>);
 <a class="jxr_linenumber" name="L878" href="#L878">878</a> 
-<a class="jxr_linenumber" name="L879" href="#L879">879</a>         <em class="jxr_comment">// Remove the token from every project.</em>
-<a class="jxr_linenumber" name="L880" href="#L880">880</a>         <strong class="jxr_keyword">final</strong> Collection&lt;Project&gt; projects = <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/server/internal/storage/project/SafeProjectManager.html">SafeProjectManager</a>(projectManager).list().values();
-<a class="jxr_linenumber" name="L881" href="#L881">881</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;?&gt;[] futures = <strong class="jxr_keyword">new</strong> CompletableFuture&lt;?&gt;[projects.size()];
-<a class="jxr_linenumber" name="L882" href="#L882">882</a>         <strong class="jxr_keyword">int</strong> i = 0;
-<a class="jxr_linenumber" name="L883" href="#L883">883</a>         <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">final</strong> Project p : projects) {
-<a class="jxr_linenumber" name="L884" href="#L884">884</a>             futures[i++] = removeToken(p.name(), author, appId, <strong class="jxr_keyword">true</strong>).toCompletableFuture();
-<a class="jxr_linenumber" name="L885" href="#L885">885</a>         }
-<a class="jxr_linenumber" name="L886" href="#L886">886</a>         <strong class="jxr_keyword">return</strong> CompletableFuture.allOf(futures).thenCompose(unused -&gt; tokenRepo.push(
-<a class="jxr_linenumber" name="L887" href="#L887">887</a>                 INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, <span class="jxr_string">"Remove the token: "</span> + appId,
-<a class="jxr_linenumber" name="L888" href="#L888">888</a>                 () -&gt; tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
-<a class="jxr_linenumber" name="L889" href="#L889">889</a>                                .thenApply(tokens -&gt; {
-<a class="jxr_linenumber" name="L890" href="#L890">890</a>                                    <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/server/metadata/Token.html">Token</a> token = tokens.object().get(appId);
-<a class="jxr_linenumber" name="L891" href="#L891">891</a>                                    <strong class="jxr_keyword">final</strong> JsonPointer appIdPath =
-<a class="jxr_linenumber" name="L892" href="#L892">892</a>                                            JsonPointer.compile(<span class="jxr_string">"/appIds"</span> + encodeSegment(appId));
-<a class="jxr_linenumber" name="L893" href="#L893">893</a>                                    <strong class="jxr_keyword">final</strong> String secret = token.secret();
-<a class="jxr_linenumber" name="L894" href="#L894">894</a>                                    assert secret != <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L895" href="#L895">895</a>                                    <strong class="jxr_keyword">final</strong> JsonPointer secretPath =
-<a class="jxr_linenumber" name="L896" href="#L896">896</a>                                            JsonPointer.compile(<span class="jxr_string">"/secrets"</span> + encodeSegment(secret));
-<a class="jxr_linenumber" name="L897" href="#L897">897</a>                                    <strong class="jxr_keyword">final</strong> Change&lt;?&gt; change = Change.ofJsonPatch(
-<a class="jxr_linenumber" name="L898" href="#L898">898</a>                                            TOKEN_JSON,
-<a class="jxr_linenumber" name="L899" href="#L899">899</a>                                            asJsonArray(<strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/RemoveOperation.html">RemoveOperation</a>(appIdPath),
-<a class="jxr_linenumber" name="L900" href="#L900">900</a>                                                        <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/RemoveIfExistsOperation.html">RemoveIfExistsOperation</a>(secretPath)));
-<a class="jxr_linenumber" name="L901" href="#L901">901</a>                                    <strong class="jxr_keyword">return</strong> HolderWithRevision.of(change, tokens.revision());
-<a class="jxr_linenumber" name="L902" href="#L902">902</a>                                }))
-<a class="jxr_linenumber" name="L903" href="#L903">903</a>         );
-<a class="jxr_linenumber" name="L904" href="#L904">904</a>     }
-<a class="jxr_linenumber" name="L905" href="#L905">905</a> 
-<a class="jxr_linenumber" name="L906" href="#L906">906</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L907" href="#L907">907</a> <em class="jxr_javadoccomment">     * Activates the {@link Token} of the specified {@code appId}.</em>
-<a class="jxr_linenumber" name="L908" href="#L908">908</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L909" href="#L909">909</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Revision&gt; activateToken(<a href="../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author, String appId) {
-<a class="jxr_linenumber" name="L910" href="#L910">910</a>         requireNonNull(author, <span class="jxr_string">"author"</span>);
-<a class="jxr_linenumber" name="L911" href="#L911">911</a>         requireNonNull(appId, <span class="jxr_string">"appId"</span>);
-<a class="jxr_linenumber" name="L912" href="#L912">912</a> 
-<a class="jxr_linenumber" name="L913" href="#L913">913</a>         <strong class="jxr_keyword">return</strong> tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
-<a class="jxr_linenumber" name="L914" href="#L914">914</a>                               <span class="jxr_string">"Enable the token: "</span> + appId,
-<a class="jxr_linenumber" name="L915" href="#L915">915</a>                               () -&gt; tokenRepo
-<a class="jxr_linenumber" name="L916" href="#L916">916</a>                                       .fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
-<a class="jxr_linenumber" name="L917" href="#L917">917</a>                                       .thenApply(tokens -&gt; {
-<a class="jxr_linenumber" name="L918" href="#L918">918</a>                                           <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/server/metadata/Token.html">Token</a> token = tokens.object().get(appId);
-<a class="jxr_linenumber" name="L919" href="#L919">919</a>                                           <strong class="jxr_keyword">final</strong> JsonPointer removalPath =
-<a class="jxr_linenumber" name="L920" href="#L920">920</a>                                                   JsonPointer.compile(<span class="jxr_string">"/appIds"</span> + encodeSegment(appId) +
-<a class="jxr_linenumber" name="L921" href="#L921">921</a>                                                                       <span class="jxr_string">"/deactivation"</span>);
-<a class="jxr_linenumber" name="L922" href="#L922">922</a>                                           <strong class="jxr_keyword">final</strong> String secret = token.secret();
-<a class="jxr_linenumber" name="L923" href="#L923">923</a>                                           assert secret != <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L924" href="#L924">924</a>                                           <strong class="jxr_keyword">final</strong> JsonPointer secretPath =
-<a class="jxr_linenumber" name="L925" href="#L925">925</a>                                                   JsonPointer.compile(<span class="jxr_string">"/secrets"</span> +
-<a class="jxr_linenumber" name="L926" href="#L926">926</a>                                                                       encodeSegment(secret));
-<a class="jxr_linenumber" name="L927" href="#L927">927</a>                                           <strong class="jxr_keyword">final</strong> Change&lt;JsonNode&gt; change = Change.ofJsonPatch(
-<a class="jxr_linenumber" name="L928" href="#L928">928</a>                                                   TOKEN_JSON,
-<a class="jxr_linenumber" name="L929" href="#L929">929</a>                                                   asJsonArray(<strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/RemoveOperation.html">RemoveOperation</a>(removalPath),
-<a class="jxr_linenumber" name="L930" href="#L930">930</a>                                                               <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/AddOperation.html">AddOperation</a>(secretPath,
-<a class="jxr_linenumber" name="L931" href="#L931">931</a>                                                                                Jackson.valueToTree(appId))));
-<a class="jxr_linenumber" name="L932" href="#L932">932</a>                                           <strong class="jxr_keyword">return</strong> HolderWithRevision.of(change, tokens.revision());
-<a class="jxr_linenumber" name="L933" href="#L933">933</a>                                       })
-<a class="jxr_linenumber" name="L934" href="#L934">934</a>         );
-<a class="jxr_linenumber" name="L935" href="#L935">935</a>     }
-<a class="jxr_linenumber" name="L936" href="#L936">936</a> 
-<a class="jxr_linenumber" name="L937" href="#L937">937</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L938" href="#L938">938</a> <em class="jxr_javadoccomment">     * Deactivates the {@link Token} of the specified {@code appId}.</em>
-<a class="jxr_linenumber" name="L939" href="#L939">939</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L940" href="#L940">940</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Revision&gt; deactivateToken(<a href="../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author, String appId) {
-<a class="jxr_linenumber" name="L941" href="#L941">941</a>         requireNonNull(author, <span class="jxr_string">"author"</span>);
-<a class="jxr_linenumber" name="L942" href="#L942">942</a>         requireNonNull(appId, <span class="jxr_string">"appId"</span>);
-<a class="jxr_linenumber" name="L943" href="#L943">943</a> 
-<a class="jxr_linenumber" name="L944" href="#L944">944</a>         <strong class="jxr_keyword">return</strong> tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
-<a class="jxr_linenumber" name="L945" href="#L945">945</a>                               <span class="jxr_string">"Disable the token: "</span> + appId,
-<a class="jxr_linenumber" name="L946" href="#L946">946</a>                               () -&gt; tokenRepo
-<a class="jxr_linenumber" name="L947" href="#L947">947</a>                                       .fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
-<a class="jxr_linenumber" name="L948" href="#L948">948</a>                                       .thenApply(tokens -&gt; {
-<a class="jxr_linenumber" name="L949" href="#L949">949</a>                                           <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/server/metadata/Token.html">Token</a> token = tokens.object().get(appId);
-<a class="jxr_linenumber" name="L950" href="#L950">950</a>                                           <strong class="jxr_keyword">final</strong> JsonPointer removalPath =
-<a class="jxr_linenumber" name="L951" href="#L951">951</a>                                                   JsonPointer.compile(<span class="jxr_string">"/appIds"</span> + encodeSegment(appId) +
-<a class="jxr_linenumber" name="L952" href="#L952">952</a>                                                                       <span class="jxr_string">"/deactivation"</span>);
-<a class="jxr_linenumber" name="L953" href="#L953">953</a>                                           <strong class="jxr_keyword">final</strong> String secret = token.secret();
-<a class="jxr_linenumber" name="L954" href="#L954">954</a>                                           assert secret != <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L955" href="#L955">955</a>                                           <strong class="jxr_keyword">final</strong> JsonPointer secretPath =
-<a class="jxr_linenumber" name="L956" href="#L956">956</a>                                                   JsonPointer.compile(<span class="jxr_string">"/secrets"</span> +
-<a class="jxr_linenumber" name="L957" href="#L957">957</a>                                                                       encodeSegment(secret));
-<a class="jxr_linenumber" name="L958" href="#L958">958</a>                                           <strong class="jxr_keyword">final</strong> Change&lt;?&gt; change = Change.ofJsonPatch(
-<a class="jxr_linenumber" name="L959" href="#L959">959</a>                                                   TOKEN_JSON,
-<a class="jxr_linenumber" name="L960" href="#L960">960</a>                                                   asJsonArray(<strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/TestAbsenceOperation.html">TestAbsenceOperation</a>(removalPath),
-<a class="jxr_linenumber" name="L961" href="#L961">961</a>                                                               <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/AddOperation.html">AddOperation</a>(removalPath, Jackson.valueToTree(
-<a class="jxr_linenumber" name="L962" href="#L962">962</a>                                                                       UserAndTimestamp.of(author))),
-<a class="jxr_linenumber" name="L963" href="#L963">963</a>                                                               <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/RemoveOperation.html">RemoveOperation</a>(secretPath)));
-<a class="jxr_linenumber" name="L964" href="#L964">964</a>                                           <strong class="jxr_keyword">return</strong> HolderWithRevision.of(change, tokens.revision());
-<a class="jxr_linenumber" name="L965" href="#L965">965</a>                                       }));
-<a class="jxr_linenumber" name="L966" href="#L966">966</a>     }
-<a class="jxr_linenumber" name="L967" href="#L967">967</a> 
-<a class="jxr_linenumber" name="L968" href="#L968">968</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L969" href="#L969">969</a> <em class="jxr_javadoccomment">     * Returns a {@link Token} which has the specified {@code appId}.</em>
-<a class="jxr_linenumber" name="L970" href="#L970">970</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L971" href="#L971">971</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Token&gt; findTokenByAppId(String appId) {
-<a class="jxr_linenumber" name="L972" href="#L972">972</a>         requireNonNull(appId, <span class="jxr_string">"appId"</span>);
-<a class="jxr_linenumber" name="L973" href="#L973">973</a>         <strong class="jxr_keyword">return</strong> tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
-<a class="jxr_linenumber" name="L974" href="#L974">974</a>                         .thenApply(tokens -&gt; tokens.object().get(appId));
-<a class="jxr_linenumber" name="L975" href="#L975">975</a>     }
-<a class="jxr_linenumber" name="L976" href="#L976">976</a> 
-<a class="jxr_linenumber" name="L977" href="#L977">977</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L978" href="#L978">978</a> <em class="jxr_javadoccomment">     * Returns a {@link Token} which has the specified {@code secret}.</em>
-<a class="jxr_linenumber" name="L979" href="#L979">979</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L980" href="#L980">980</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Token&gt; findTokenBySecret(String secret) {
-<a class="jxr_linenumber" name="L981" href="#L981">981</a>         requireNonNull(secret, <span class="jxr_string">"secret"</span>);
-<a class="jxr_linenumber" name="L982" href="#L982">982</a>         validateSecret(secret);
-<a class="jxr_linenumber" name="L983" href="#L983">983</a>         <strong class="jxr_keyword">return</strong> tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
-<a class="jxr_linenumber" name="L984" href="#L984">984</a>                         .thenApply(tokens -&gt; tokens.object().findBySecret(secret));
-<a class="jxr_linenumber" name="L985" href="#L985">985</a>     }
-<a class="jxr_linenumber" name="L986" href="#L986">986</a> 
-<a class="jxr_linenumber" name="L987" href="#L987">987</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L988" href="#L988">988</a> <em class="jxr_javadoccomment">     * Ensures that the specified {@code user} is a member of the specified {@code project}.</em>
-<a class="jxr_linenumber" name="L989" href="#L989">989</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L990" href="#L990">990</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> ensureProjectMember(<a href="../../../../../com/linecorp/centraldogma/server/metadata/ProjectMetadata.html">ProjectMetadata</a> project, <a href="../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a> user) {
-<a class="jxr_linenumber" name="L991" href="#L991">991</a>         requireNonNull(project, <span class="jxr_string">"project"</span>);
-<a class="jxr_linenumber" name="L992" href="#L992">992</a>         requireNonNull(user, <span class="jxr_string">"user"</span>);
-<a class="jxr_linenumber" name="L993" href="#L993">993</a> 
-<a class="jxr_linenumber" name="L994" href="#L994">994</a>         checkArgument(project.members().values().stream().anyMatch(member -&gt; member.login().equals(user.id())),
-<a class="jxr_linenumber" name="L995" href="#L995">995</a>                       user.id() + <span class="jxr_string">" is not a member of the project '"</span> + project.name() + '\'');
-<a class="jxr_linenumber" name="L996" href="#L996">996</a>     }
-<a class="jxr_linenumber" name="L997" href="#L997">997</a> 
-<a class="jxr_linenumber" name="L998" href="#L998">998</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L999" href="#L999">999</a> <em class="jxr_javadoccomment">     * Ensures that the specified {@code appId} is a token of the specified {@code project}.</em>
-<a class="jxr_linenumber" name="L1000" href="#L1000">1000</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L1001" href="#L1001">1001</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> ensureProjectToken(<a href="../../../../../com/linecorp/centraldogma/server/metadata/ProjectMetadata.html">ProjectMetadata</a> project, String appId) {
-<a class="jxr_linenumber" name="L1002" href="#L1002">1002</a>         requireNonNull(project, <span class="jxr_string">"project"</span>);
-<a class="jxr_linenumber" name="L1003" href="#L1003">1003</a>         requireNonNull(appId, <span class="jxr_string">"appId"</span>);
-<a class="jxr_linenumber" name="L1004" href="#L1004">1004</a> 
-<a class="jxr_linenumber" name="L1005" href="#L1005">1005</a>         checkArgument(project.tokens().containsKey(appId),
-<a class="jxr_linenumber" name="L1006" href="#L1006">1006</a>                       appId + <span class="jxr_string">" is not a token of the project '"</span> + project.name() + '\'');
-<a class="jxr_linenumber" name="L1007" href="#L1007">1007</a>     }
-<a class="jxr_linenumber" name="L1008" href="#L1008">1008</a> 
-<a class="jxr_linenumber" name="L1009" href="#L1009">1009</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L1010" href="#L1010">1010</a> <em class="jxr_javadoccomment">     * Generates the path of {@link JsonPointer} of permission of the specified {@code memberId} in the</em>
-<a class="jxr_linenumber" name="L1011" href="#L1011">1011</a> <em class="jxr_javadoccomment">     * specified {@code repoName}.</em>
-<a class="jxr_linenumber" name="L1012" href="#L1012">1012</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L1013" href="#L1013">1013</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> JsonPointer perUserPermissionPointer(String repoName, String memberId) {
-<a class="jxr_linenumber" name="L1014" href="#L1014">1014</a>         <strong class="jxr_keyword">return</strong> JsonPointer.compile(<span class="jxr_string">"/repos"</span> + encodeSegment(repoName) +
-<a class="jxr_linenumber" name="L1015" href="#L1015">1015</a>                                    <span class="jxr_string">"/perUserPermissions"</span> + encodeSegment(memberId));
-<a class="jxr_linenumber" name="L1016" href="#L1016">1016</a>     }
-<a class="jxr_linenumber" name="L1017" href="#L1017">1017</a> 
-<a class="jxr_linenumber" name="L1018" href="#L1018">1018</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L1019" href="#L1019">1019</a> <em class="jxr_javadoccomment">     * Generates the path of {@link JsonPointer} of permission of the specified token {@code appId}</em>
-<a class="jxr_linenumber" name="L1020" href="#L1020">1020</a> <em class="jxr_javadoccomment">     * in the specified {@code repoName}.</em>
-<a class="jxr_linenumber" name="L1021" href="#L1021">1021</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L1022" href="#L1022">1022</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> JsonPointer perTokenPermissionPointer(String repoName, String appId) {
-<a class="jxr_linenumber" name="L1023" href="#L1023">1023</a>         <strong class="jxr_keyword">return</strong> JsonPointer.compile(<span class="jxr_string">"/repos"</span> + encodeSegment(repoName) +
-<a class="jxr_linenumber" name="L1024" href="#L1024">1024</a>                                    <span class="jxr_string">"/perTokenPermissions"</span> + encodeSegment(appId));
-<a class="jxr_linenumber" name="L1025" href="#L1025">1025</a>     }
-<a class="jxr_linenumber" name="L1026" href="#L1026">1026</a> }
+<a class="jxr_linenumber" name="L879" href="#L879">879</a>         <strong class="jxr_keyword">return</strong> tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
+<a class="jxr_linenumber" name="L880" href="#L880">880</a>                               <span class="jxr_string">"Delete the token: "</span> + appId,
+<a class="jxr_linenumber" name="L881" href="#L881">881</a>                               () -&gt; tokenRepo
+<a class="jxr_linenumber" name="L882" href="#L882">882</a>                                       .fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
+<a class="jxr_linenumber" name="L883" href="#L883">883</a>                                       .thenApply(tokens -&gt; {
+<a class="jxr_linenumber" name="L884" href="#L884">884</a>                                           <strong class="jxr_keyword">final</strong> JsonPointer deletionPath =
+<a class="jxr_linenumber" name="L885" href="#L885">885</a>                                                   JsonPointer.compile(<span class="jxr_string">"/appIds"</span> + encodeSegment(appId) +
+<a class="jxr_linenumber" name="L886" href="#L886">886</a>                                                                       <span class="jxr_string">"/deletion"</span>);
+<a class="jxr_linenumber" name="L887" href="#L887">887</a>                                           <strong class="jxr_keyword">final</strong> Change&lt;?&gt; change = Change.ofJsonPatch(
+<a class="jxr_linenumber" name="L888" href="#L888">888</a>                                                   TOKEN_JSON,
+<a class="jxr_linenumber" name="L889" href="#L889">889</a>                                                   asJsonArray(<strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/TestAbsenceOperation.html">TestAbsenceOperation</a>(deletionPath),
+<a class="jxr_linenumber" name="L890" href="#L890">890</a>                                                               <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/AddOperation.html">AddOperation</a>(deletionPath,
+<a class="jxr_linenumber" name="L891" href="#L891">891</a>                                                                                Jackson.valueToTree(
+<a class="jxr_linenumber" name="L892" href="#L892">892</a>                                                                                        UserAndTimestamp.of(
+<a class="jxr_linenumber" name="L893" href="#L893">893</a>                                                                                                author)))));
+<a class="jxr_linenumber" name="L894" href="#L894">894</a>                                           <strong class="jxr_keyword">return</strong> HolderWithRevision.of(change, tokens.revision());
+<a class="jxr_linenumber" name="L895" href="#L895">895</a>                                       }));
+<a class="jxr_linenumber" name="L896" href="#L896">896</a>     }
+<a class="jxr_linenumber" name="L897" href="#L897">897</a> 
+<a class="jxr_linenumber" name="L898" href="#L898">898</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L899" href="#L899">899</a> <em class="jxr_javadoccomment">     * Purges the {@link Token} of the specified {@code appId} that was removed before.</em>
+<a class="jxr_linenumber" name="L900" href="#L900">900</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L901" href="#L901">901</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Note that this is a blocking method that should not be invoked in an event loop.</em>
+<a class="jxr_linenumber" name="L902" href="#L902">902</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L903" href="#L903">903</a>     <strong class="jxr_keyword">public</strong> <a href="../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> purgeToken(<a href="../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author, String appId) {
+<a class="jxr_linenumber" name="L904" href="#L904">904</a>         requireNonNull(author, <span class="jxr_string">"author"</span>);
+<a class="jxr_linenumber" name="L905" href="#L905">905</a>         requireNonNull(appId, <span class="jxr_string">"appId"</span>);
+<a class="jxr_linenumber" name="L906" href="#L906">906</a> 
+<a class="jxr_linenumber" name="L907" href="#L907">907</a>         <strong class="jxr_keyword">final</strong> Collection&lt;Project&gt; projects = listProjectsWithoutDogma(projectManager.list()).values();
+<a class="jxr_linenumber" name="L908" href="#L908">908</a>         <em class="jxr_comment">// Remove the token from projects that only have the token.</em>
+<a class="jxr_linenumber" name="L909" href="#L909">909</a>         <strong class="jxr_keyword">for</strong> (Project project : projects) {
+<a class="jxr_linenumber" name="L910" href="#L910">910</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/server/metadata/ProjectMetadata.html">ProjectMetadata</a> projectMetadata = fetchMetadata(project.name()).join().object();
+<a class="jxr_linenumber" name="L911" href="#L911">911</a>             <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> containsTargetTokenInTheProject =
+<a class="jxr_linenumber" name="L912" href="#L912">912</a>                     projectMetadata.tokens().values()
+<a class="jxr_linenumber" name="L913" href="#L913">913</a>                                    .stream()
+<a class="jxr_linenumber" name="L914" href="#L914">914</a>                                    .anyMatch(token -&gt; token.appId().equals(appId));
+<a class="jxr_linenumber" name="L915" href="#L915">915</a> 
+<a class="jxr_linenumber" name="L916" href="#L916">916</a>             <strong class="jxr_keyword">if</strong> (containsTargetTokenInTheProject) {
+<a class="jxr_linenumber" name="L917" href="#L917">917</a>                 removeToken(project.name(), author, appId, <strong class="jxr_keyword">true</strong>).join();
+<a class="jxr_linenumber" name="L918" href="#L918">918</a>             }
+<a class="jxr_linenumber" name="L919" href="#L919">919</a>         }
+<a class="jxr_linenumber" name="L920" href="#L920">920</a> 
+<a class="jxr_linenumber" name="L921" href="#L921">921</a>         <strong class="jxr_keyword">return</strong> tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, <span class="jxr_string">"Remove the token: "</span> + appId,
+<a class="jxr_linenumber" name="L922" href="#L922">922</a>                               () -&gt; tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
+<a class="jxr_linenumber" name="L923" href="#L923">923</a>                                              .thenApply(tokens -&gt; {
+<a class="jxr_linenumber" name="L924" href="#L924">924</a>                                                  <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/server/metadata/Token.html">Token</a> token = tokens.object().get(appId);
+<a class="jxr_linenumber" name="L925" href="#L925">925</a>                                                  <strong class="jxr_keyword">final</strong> JsonPointer appIdPath =
+<a class="jxr_linenumber" name="L926" href="#L926">926</a>                                                          JsonPointer.compile(<span class="jxr_string">"/appIds"</span> + encodeSegment(appId));
+<a class="jxr_linenumber" name="L927" href="#L927">927</a>                                                  <strong class="jxr_keyword">final</strong> String secret = token.secret();
+<a class="jxr_linenumber" name="L928" href="#L928">928</a>                                                  assert secret != <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L929" href="#L929">929</a>                                                  <strong class="jxr_keyword">final</strong> JsonPointer secretPath =
+<a class="jxr_linenumber" name="L930" href="#L930">930</a>                                                          JsonPointer.compile(
+<a class="jxr_linenumber" name="L931" href="#L931">931</a>                                                                  <span class="jxr_string">"/secrets"</span> + encodeSegment(secret));
+<a class="jxr_linenumber" name="L932" href="#L932">932</a>                                                  <strong class="jxr_keyword">final</strong> Change&lt;?&gt; change = Change.ofJsonPatch(
+<a class="jxr_linenumber" name="L933" href="#L933">933</a>                                                          TOKEN_JSON,
+<a class="jxr_linenumber" name="L934" href="#L934">934</a>                                                          asJsonArray(<strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/RemoveOperation.html">RemoveOperation</a>(appIdPath),
+<a class="jxr_linenumber" name="L935" href="#L935">935</a>                                                                      <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/RemoveIfExistsOperation.html">RemoveIfExistsOperation</a>(secretPath)));
+<a class="jxr_linenumber" name="L936" href="#L936">936</a>                                                  <strong class="jxr_keyword">return</strong> HolderWithRevision.of(change, tokens.revision());
+<a class="jxr_linenumber" name="L937" href="#L937">937</a>                                              })).join();
+<a class="jxr_linenumber" name="L938" href="#L938">938</a>     }
+<a class="jxr_linenumber" name="L939" href="#L939">939</a> 
+<a class="jxr_linenumber" name="L940" href="#L940">940</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L941" href="#L941">941</a> <em class="jxr_javadoccomment">     * Activates the {@link Token} of the specified {@code appId}.</em>
+<a class="jxr_linenumber" name="L942" href="#L942">942</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L943" href="#L943">943</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Revision&gt; activateToken(<a href="../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author, String appId) {
+<a class="jxr_linenumber" name="L944" href="#L944">944</a>         requireNonNull(author, <span class="jxr_string">"author"</span>);
+<a class="jxr_linenumber" name="L945" href="#L945">945</a>         requireNonNull(appId, <span class="jxr_string">"appId"</span>);
+<a class="jxr_linenumber" name="L946" href="#L946">946</a> 
+<a class="jxr_linenumber" name="L947" href="#L947">947</a>         <strong class="jxr_keyword">return</strong> tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
+<a class="jxr_linenumber" name="L948" href="#L948">948</a>                               <span class="jxr_string">"Enable the token: "</span> + appId,
+<a class="jxr_linenumber" name="L949" href="#L949">949</a>                               () -&gt; tokenRepo
+<a class="jxr_linenumber" name="L950" href="#L950">950</a>                                       .fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
+<a class="jxr_linenumber" name="L951" href="#L951">951</a>                                       .thenApply(tokens -&gt; {
+<a class="jxr_linenumber" name="L952" href="#L952">952</a>                                           <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/server/metadata/Token.html">Token</a> token = tokens.object().get(appId);
+<a class="jxr_linenumber" name="L953" href="#L953">953</a>                                           <strong class="jxr_keyword">final</strong> JsonPointer removalPath =
+<a class="jxr_linenumber" name="L954" href="#L954">954</a>                                                   JsonPointer.compile(<span class="jxr_string">"/appIds"</span> + encodeSegment(appId) +
+<a class="jxr_linenumber" name="L955" href="#L955">955</a>                                                                       <span class="jxr_string">"/deactivation"</span>);
+<a class="jxr_linenumber" name="L956" href="#L956">956</a>                                           <strong class="jxr_keyword">final</strong> String secret = token.secret();
+<a class="jxr_linenumber" name="L957" href="#L957">957</a>                                           assert secret != <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L958" href="#L958">958</a>                                           <strong class="jxr_keyword">final</strong> JsonPointer secretPath =
+<a class="jxr_linenumber" name="L959" href="#L959">959</a>                                                   JsonPointer.compile(<span class="jxr_string">"/secrets"</span> +
+<a class="jxr_linenumber" name="L960" href="#L960">960</a>                                                                       encodeSegment(secret));
+<a class="jxr_linenumber" name="L961" href="#L961">961</a>                                           <strong class="jxr_keyword">final</strong> Change&lt;JsonNode&gt; change = Change.ofJsonPatch(
+<a class="jxr_linenumber" name="L962" href="#L962">962</a>                                                   TOKEN_JSON,
+<a class="jxr_linenumber" name="L963" href="#L963">963</a>                                                   asJsonArray(<strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/RemoveOperation.html">RemoveOperation</a>(removalPath),
+<a class="jxr_linenumber" name="L964" href="#L964">964</a>                                                               <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/AddOperation.html">AddOperation</a>(secretPath,
+<a class="jxr_linenumber" name="L965" href="#L965">965</a>                                                                                Jackson.valueToTree(appId))));
+<a class="jxr_linenumber" name="L966" href="#L966">966</a>                                           <strong class="jxr_keyword">return</strong> HolderWithRevision.of(change, tokens.revision());
+<a class="jxr_linenumber" name="L967" href="#L967">967</a>                                       })
+<a class="jxr_linenumber" name="L968" href="#L968">968</a>         );
+<a class="jxr_linenumber" name="L969" href="#L969">969</a>     }
+<a class="jxr_linenumber" name="L970" href="#L970">970</a> 
+<a class="jxr_linenumber" name="L971" href="#L971">971</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L972" href="#L972">972</a> <em class="jxr_javadoccomment">     * Deactivates the {@link Token} of the specified {@code appId}.</em>
+<a class="jxr_linenumber" name="L973" href="#L973">973</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L974" href="#L974">974</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Revision&gt; deactivateToken(<a href="../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author, String appId) {
+<a class="jxr_linenumber" name="L975" href="#L975">975</a>         requireNonNull(author, <span class="jxr_string">"author"</span>);
+<a class="jxr_linenumber" name="L976" href="#L976">976</a>         requireNonNull(appId, <span class="jxr_string">"appId"</span>);
+<a class="jxr_linenumber" name="L977" href="#L977">977</a> 
+<a class="jxr_linenumber" name="L978" href="#L978">978</a>         <strong class="jxr_keyword">return</strong> tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
+<a class="jxr_linenumber" name="L979" href="#L979">979</a>                               <span class="jxr_string">"Disable the token: "</span> + appId,
+<a class="jxr_linenumber" name="L980" href="#L980">980</a>                               () -&gt; tokenRepo
+<a class="jxr_linenumber" name="L981" href="#L981">981</a>                                       .fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
+<a class="jxr_linenumber" name="L982" href="#L982">982</a>                                       .thenApply(tokens -&gt; {
+<a class="jxr_linenumber" name="L983" href="#L983">983</a>                                           <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/server/metadata/Token.html">Token</a> token = tokens.object().get(appId);
+<a class="jxr_linenumber" name="L984" href="#L984">984</a>                                           <strong class="jxr_keyword">final</strong> JsonPointer removalPath =
+<a class="jxr_linenumber" name="L985" href="#L985">985</a>                                                   JsonPointer.compile(<span class="jxr_string">"/appIds"</span> + encodeSegment(appId) +
+<a class="jxr_linenumber" name="L986" href="#L986">986</a>                                                                       <span class="jxr_string">"/deactivation"</span>);
+<a class="jxr_linenumber" name="L987" href="#L987">987</a>                                           <strong class="jxr_keyword">final</strong> String secret = token.secret();
+<a class="jxr_linenumber" name="L988" href="#L988">988</a>                                           assert secret != <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L989" href="#L989">989</a>                                           <strong class="jxr_keyword">final</strong> JsonPointer secretPath =
+<a class="jxr_linenumber" name="L990" href="#L990">990</a>                                                   JsonPointer.compile(<span class="jxr_string">"/secrets"</span> +
+<a class="jxr_linenumber" name="L991" href="#L991">991</a>                                                                       encodeSegment(secret));
+<a class="jxr_linenumber" name="L992" href="#L992">992</a>                                           <strong class="jxr_keyword">final</strong> Change&lt;?&gt; change = Change.ofJsonPatch(
+<a class="jxr_linenumber" name="L993" href="#L993">993</a>                                                   TOKEN_JSON,
+<a class="jxr_linenumber" name="L994" href="#L994">994</a>                                                   asJsonArray(<strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/TestAbsenceOperation.html">TestAbsenceOperation</a>(removalPath),
+<a class="jxr_linenumber" name="L995" href="#L995">995</a>                                                               <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/AddOperation.html">AddOperation</a>(removalPath, Jackson.valueToTree(
+<a class="jxr_linenumber" name="L996" href="#L996">996</a>                                                                       UserAndTimestamp.of(author))),
+<a class="jxr_linenumber" name="L997" href="#L997">997</a>                                                               <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/RemoveOperation.html">RemoveOperation</a>(secretPath)));
+<a class="jxr_linenumber" name="L998" href="#L998">998</a>                                           <strong class="jxr_keyword">return</strong> HolderWithRevision.of(change, tokens.revision());
+<a class="jxr_linenumber" name="L999" href="#L999">999</a>                                       }));
+<a class="jxr_linenumber" name="L1000" href="#L1000">1000</a>     }
+<a class="jxr_linenumber" name="L1001" href="#L1001">1001</a> 
+<a class="jxr_linenumber" name="L1002" href="#L1002">1002</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L1003" href="#L1003">1003</a> <em class="jxr_javadoccomment">     * Returns a {@link Token} which has the specified {@code appId}.</em>
+<a class="jxr_linenumber" name="L1004" href="#L1004">1004</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L1005" href="#L1005">1005</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Token&gt; findTokenByAppId(String appId) {
+<a class="jxr_linenumber" name="L1006" href="#L1006">1006</a>         requireNonNull(appId, <span class="jxr_string">"appId"</span>);
+<a class="jxr_linenumber" name="L1007" href="#L1007">1007</a>         <strong class="jxr_keyword">return</strong> tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
+<a class="jxr_linenumber" name="L1008" href="#L1008">1008</a>                         .thenApply(tokens -&gt; tokens.object().get(appId));
+<a class="jxr_linenumber" name="L1009" href="#L1009">1009</a>     }
+<a class="jxr_linenumber" name="L1010" href="#L1010">1010</a> 
+<a class="jxr_linenumber" name="L1011" href="#L1011">1011</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L1012" href="#L1012">1012</a> <em class="jxr_javadoccomment">     * Returns a {@link Token} which has the specified {@code secret}.</em>
+<a class="jxr_linenumber" name="L1013" href="#L1013">1013</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L1014" href="#L1014">1014</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Token&gt; findTokenBySecret(String secret) {
+<a class="jxr_linenumber" name="L1015" href="#L1015">1015</a>         requireNonNull(secret, <span class="jxr_string">"secret"</span>);
+<a class="jxr_linenumber" name="L1016" href="#L1016">1016</a>         validateSecret(secret);
+<a class="jxr_linenumber" name="L1017" href="#L1017">1017</a>         <strong class="jxr_keyword">return</strong> tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
+<a class="jxr_linenumber" name="L1018" href="#L1018">1018</a>                         .thenApply(tokens -&gt; tokens.object().findBySecret(secret));
+<a class="jxr_linenumber" name="L1019" href="#L1019">1019</a>     }
+<a class="jxr_linenumber" name="L1020" href="#L1020">1020</a> 
+<a class="jxr_linenumber" name="L1021" href="#L1021">1021</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L1022" href="#L1022">1022</a> <em class="jxr_javadoccomment">     * Ensures that the specified {@code user} is a member of the specified {@code project}.</em>
+<a class="jxr_linenumber" name="L1023" href="#L1023">1023</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L1024" href="#L1024">1024</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> ensureProjectMember(<a href="../../../../../com/linecorp/centraldogma/server/metadata/ProjectMetadata.html">ProjectMetadata</a> project, <a href="../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a> user) {
+<a class="jxr_linenumber" name="L1025" href="#L1025">1025</a>         requireNonNull(project, <span class="jxr_string">"project"</span>);
+<a class="jxr_linenumber" name="L1026" href="#L1026">1026</a>         requireNonNull(user, <span class="jxr_string">"user"</span>);
+<a class="jxr_linenumber" name="L1027" href="#L1027">1027</a> 
+<a class="jxr_linenumber" name="L1028" href="#L1028">1028</a>         checkArgument(project.members().values().stream().anyMatch(member -&gt; member.login().equals(user.id())),
+<a class="jxr_linenumber" name="L1029" href="#L1029">1029</a>                       user.id() + <span class="jxr_string">" is not a member of the project '"</span> + project.name() + '\'');
+<a class="jxr_linenumber" name="L1030" href="#L1030">1030</a>     }
+<a class="jxr_linenumber" name="L1031" href="#L1031">1031</a> 
+<a class="jxr_linenumber" name="L1032" href="#L1032">1032</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L1033" href="#L1033">1033</a> <em class="jxr_javadoccomment">     * Ensures that the specified {@code appId} is a token of the specified {@code project}.</em>
+<a class="jxr_linenumber" name="L1034" href="#L1034">1034</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L1035" href="#L1035">1035</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> ensureProjectToken(<a href="../../../../../com/linecorp/centraldogma/server/metadata/ProjectMetadata.html">ProjectMetadata</a> project, String appId) {
+<a class="jxr_linenumber" name="L1036" href="#L1036">1036</a>         requireNonNull(project, <span class="jxr_string">"project"</span>);
+<a class="jxr_linenumber" name="L1037" href="#L1037">1037</a>         requireNonNull(appId, <span class="jxr_string">"appId"</span>);
+<a class="jxr_linenumber" name="L1038" href="#L1038">1038</a> 
+<a class="jxr_linenumber" name="L1039" href="#L1039">1039</a>         checkArgument(project.tokens().containsKey(appId),
+<a class="jxr_linenumber" name="L1040" href="#L1040">1040</a>                       appId + <span class="jxr_string">" is not a token of the project '"</span> + project.name() + '\'');
+<a class="jxr_linenumber" name="L1041" href="#L1041">1041</a>     }
+<a class="jxr_linenumber" name="L1042" href="#L1042">1042</a> 
+<a class="jxr_linenumber" name="L1043" href="#L1043">1043</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L1044" href="#L1044">1044</a> <em class="jxr_javadoccomment">     * Generates the path of {@link JsonPointer} of permission of the specified {@code memberId} in the</em>
+<a class="jxr_linenumber" name="L1045" href="#L1045">1045</a> <em class="jxr_javadoccomment">     * specified {@code repoName}.</em>
+<a class="jxr_linenumber" name="L1046" href="#L1046">1046</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L1047" href="#L1047">1047</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> JsonPointer perUserPermissionPointer(String repoName, String memberId) {
+<a class="jxr_linenumber" name="L1048" href="#L1048">1048</a>         <strong class="jxr_keyword">return</strong> JsonPointer.compile(<span class="jxr_string">"/repos"</span> + encodeSegment(repoName) +
+<a class="jxr_linenumber" name="L1049" href="#L1049">1049</a>                                    <span class="jxr_string">"/perUserPermissions"</span> + encodeSegment(memberId));
+<a class="jxr_linenumber" name="L1050" href="#L1050">1050</a>     }
+<a class="jxr_linenumber" name="L1051" href="#L1051">1051</a> 
+<a class="jxr_linenumber" name="L1052" href="#L1052">1052</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L1053" href="#L1053">1053</a> <em class="jxr_javadoccomment">     * Generates the path of {@link JsonPointer} of permission of the specified token {@code appId}</em>
+<a class="jxr_linenumber" name="L1054" href="#L1054">1054</a> <em class="jxr_javadoccomment">     * in the specified {@code repoName}.</em>
+<a class="jxr_linenumber" name="L1055" href="#L1055">1055</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L1056" href="#L1056">1056</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> JsonPointer perTokenPermissionPointer(String repoName, String appId) {
+<a class="jxr_linenumber" name="L1057" href="#L1057">1057</a>         <strong class="jxr_keyword">return</strong> JsonPointer.compile(<span class="jxr_string">"/repos"</span> + encodeSegment(repoName) +
+<a class="jxr_linenumber" name="L1058" href="#L1058">1058</a>                                    <span class="jxr_string">"/perTokenPermissions"</span> + encodeSegment(appId));
+<a class="jxr_linenumber" name="L1059" href="#L1059">1059</a>     }
+<a class="jxr_linenumber" name="L1060" href="#L1060">1060</a> }
 </pre>
 <hr/>
-<div id="footer">&copy; Copyright 2017&ndash;2023 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>
+<div id="footer">&copy; Copyright 2017&ndash;2024 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>
 </body>
 </html>
