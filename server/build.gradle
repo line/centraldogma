@@ -59,11 +59,11 @@ dependencies {
     // Snappy
     implementation libs.snappy
 
-    // Mockito for mocking a Project
-    jmh libs.mockito.core
     // Logging
     optionalImplementation libs.logback12
     optionalImplementation libs.slf4j1.jul.to.slf4j
+
+    testImplementation libs.jackson.module.scala
 }
 
 // allows illegal access by ExecutorServiceMetrics of Micrometer

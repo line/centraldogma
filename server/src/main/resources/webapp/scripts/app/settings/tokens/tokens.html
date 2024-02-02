@@ -29,8 +29,13 @@
       <td>{{token.creationTimeStr}}</td>
       <td>
         <div ng-switch="token.isActive">
-          <div ng-switch-when="true">Active</div>
-          <div ng-switch-default>Inactive</div>
+          <div ng-switch-when="false">
+            <div ng-switch="token.isDeleted">
+              <div ng-switch-when="true">Scheduled for deletion</div>
+              <div ng-switch-default>Inactive</div>
+            </div>
+          </div>
+          <div ng-switch-default>Active</div>
         </div>
       </td>
     </tr>

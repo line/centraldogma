@@ -22,6 +22,7 @@ import static java.util.Objects.requireNonNull;
 import java.io.File;
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -29,7 +30,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -188,35 +188,25 @@ public final class DefaultMirroringService implements MirroringService {
         final ZonedDateTime currentLastExecutionTime = lastExecutionTime;
         lastExecutionTime = now;
 
-        projectManager.list().values().stream()
-                      .map(Project::metaRepo)
-                      .flatMap(r -> {
+        projectManager.list()
+                      .values()
+                      .forEach(project -> {
+                          final Set<Mirror> mirrors;
                           try {
-                              return r.mirrors().stream();
+                              mirrors = project.metaRepo().mirrors();
                           } catch (Exception e) {
-                              logger.warn("Failed to load the mirror list from: {}", r.parent().name(), e);
-                              return Stream.empty();
+                              logger.warn("Failed to load the mirror list from: {}", project.name(), e);
+                              return;
                           }
-                      })
-                      .filter(m -> {
-                          try {
-                              return m.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0;
-                          } catch (Exception e) {
-                              logger.warn("Failed to calculate the next execution time of: {}", m, e);
-                              return false;
-                          }
-                      })
-                      .forEach(m -> {
-                          final ListenableFuture<?> future = worker.submit(() -> run(m, true));
-                          Futures.addCallback(future, new FutureCallback<Object>() {
-                              @Override
-                              public void onSuccess(@Nullable Object result) {}
-
-                              @Override
-                              public void onFailure(Throwable cause) {
-                                  logger.warn("Unexpected Git mirroring failure: {}", m, cause);
+                          mirrors.forEach(m -> {
+                              try {
+                                  if (m.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0) {
+                                      run(project, m);
+                                  }
+                              } catch (Exception e) {
+                                  logger.warn("Unexpected exception while mirroring: {}", m, e);
                               }
-                          }, MoreExecutors.directExecutor());
+                          });
                       });
     }
 
@@ -229,14 +219,27 @@ public final class DefaultMirroringService implements MirroringService {
         return CompletableFuture.runAsync(
                 () -> projectManager.list().values()
                                     .forEach(p -> p.metaRepo().mirrors()
-                                                   .forEach(m -> run(m, false))),
+                                                   .forEach(m -> run(m, p.name(), false))),
                 worker);
     }
 
-    private void run(Mirror m, boolean logOnFailure) {
+    private void run(Project project, Mirror m) {
+        final ListenableFuture<?> future = worker.submit(() -> run(m, project.name(), true));
+        Futures.addCallback(future, new FutureCallback<Object>() {
+            @Override
+            public void onSuccess(@Nullable Object result) {}
+
+            @Override
+            public void onFailure(Throwable cause) {
+                logger.warn("Unexpected Git mirroring failure: {}", m, cause);
+            }
+        }, MoreExecutors.directExecutor());
+    }
+
+    private void run(Mirror m, String projectName, boolean logOnFailure) {
         logger.info("Mirroring: {}", m);
         try {
-            new MirroringTask(m, meterRegistry)
+            new MirroringTask(m, projectName, meterRegistry)
                     .run(workDir, commandExecutor, maxNumFilesPerMirror, maxNumBytesPerMirror);
         } catch (Exception e) {
             if (logOnFailure) {

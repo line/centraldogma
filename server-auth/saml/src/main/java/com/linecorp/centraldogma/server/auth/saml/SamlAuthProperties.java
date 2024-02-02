@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server.auth.saml;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
@@ -192,6 +193,7 @@ final class SamlAuthProperties {
         /**
          * A map of the key name and its password.
          */
+        @Nullable
         private final Map<String, String> keyPasswords;
 
         /**
@@ -211,17 +213,8 @@ final class SamlAuthProperties {
             this.type = firstNonNull(type, java.security.KeyStore.getDefaultType());
             this.path = requireNonNull(path, "path");
             this.password = password;
-            this.keyPasswords = sanitizePasswords(keyPasswords);
+            this.keyPasswords = keyPasswords;
             this.signatureAlgorithm = firstNonNull(signatureAlgorithm, DEFAULT_SIGNATURE_ALGORITHM);
-        }
-
-        private static Map<String, String> sanitizePasswords(@Nullable Map<String, String> keyPasswords) {
-            if (keyPasswords == null) {
-                return ImmutableMap.of();
-            }
-            final ImmutableMap.Builder<String, String> builder = new Builder<>();
-            keyPasswords.forEach((key, password) -> builder.put(key, firstNonNull(password, "")));
-            return builder.build();
         }
 
         @JsonProperty
@@ -237,12 +230,22 @@ final class SamlAuthProperties {
         @Nullable
         @JsonProperty
         public String password() {
-            return password;
+            return convertValue(password, "keyStore.password");
         }
 
         @JsonProperty
         public Map<String, String> keyPasswords() {
-            return keyPasswords;
+            return sanitizePasswords(keyPasswords);
+        }
+
+        private static Map<String, String> sanitizePasswords(@Nullable Map<String, String> keyPasswords) {
+            if (keyPasswords == null) {
+                return ImmutableMap.of();
+            }
+            final ImmutableMap.Builder<String, String> builder = new Builder<>();
+            keyPasswords.forEach((key, password) -> builder.put(key, firstNonNull(
+                    convertValue(password, "keyStore.keyPasswords"), "")));
+            return builder.build();
         }
 
         @JsonProperty

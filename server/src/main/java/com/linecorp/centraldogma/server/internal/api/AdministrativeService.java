@@ -36,15 +36,14 @@ import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 @ProducesJson
 public final class AdministrativeService extends AbstractService {
 
     private static final Logger logger = LoggerFactory.getLogger(AdministrativeService.class);
 
-    public AdministrativeService(ProjectManager projectManager, CommandExecutor executor) {
-        super(projectManager, executor);
+    public AdministrativeService(CommandExecutor executor) {
+        super(executor);
     }
 
     /**

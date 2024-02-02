@@ -30,7 +30,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 /**
  * A class which is used to pass internally-created instances into the {@link Plugin}.
  */
-public final class PluginContext {
+public class PluginContext {
 
     private final CentralDogmaConfig config;
     private final ProjectManager projectManager;

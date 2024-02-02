@@ -33,6 +33,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.List;
@@ -60,6 +61,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
@@ -90,6 +92,7 @@ import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.armeria.server.ServiceNaming;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.annotation.JacksonRequestConverterFunction;
 import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.cors.CorsService;
@@ -138,14 +141,16 @@ import com.linecorp.centraldogma.server.internal.api.converter.HttpApiResponseCo
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTranslator;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutScheduler;
 import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
+import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.Plugin;
+import com.linecorp.centraldogma.server.plugin.PluginInitContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -364,7 +369,7 @@ public class CentralDogma implements AutoCloseable {
             }
 
             logger.info("Starting the RPC server.");
-            server = startServer(pm, executor, meterRegistry, sessionManager);
+            server = startServer(pm, executor, purgeWorker, meterRegistry, sessionManager);
             logger.info("Started the RPC server at: {}", server.activePorts());
             logger.info("Started the Central Dogma successfully.");
             success = true;
@@ -489,7 +494,8 @@ public class CentralDogma implements AutoCloseable {
     }
 
     private Server startServer(ProjectManager pm, CommandExecutor executor,
-                               MeterRegistry meterRegistry, @Nullable SessionManager sessionManager) {
+                               ScheduledExecutorService purgeWorker, MeterRegistry meterRegistry,
+                               @Nullable SessionManager sessionManager) {
         final ServerBuilder sb = Server.builder();
         sb.verboseResponses(true);
         cfg.ports().forEach(sb::port);
@@ -498,7 +504,10 @@ public class CentralDogma implements AutoCloseable {
             try {
                 final TlsConfig tlsConfig = cfg.tls();
                 if (tlsConfig != null) {
-                    sb.tls(tlsConfig.keyCertChainFile(), tlsConfig.keyFile(), tlsConfig.keyPassword());
+                    try (InputStream keyCertChainInputStream = tlsConfig.keyCertChainInputStream();
+                         InputStream keyInputStream = tlsConfig.keyInputStream()) {
+                        sb.tls(keyCertChainInputStream, keyInputStream, tlsConfig.keyPassword());
+                    }
                 } else {
                     logger.warn(
                             "Missing TLS configuration. Generating a self-signed certificate for TLS support.");
@@ -526,8 +535,9 @@ public class CentralDogma implements AutoCloseable {
         final MetadataService mds = new MetadataService(pm, executor);
         final WatchService watchService = new WatchService(meterRegistry);
         final AuthProvider authProvider = createAuthProvider(executor, sessionManager, mds);
+        final ProjectApiManager projectApiManager = new ProjectApiManager(pm, executor, mds);
 
-        configureThriftService(sb, pm, executor, watchService, mds);
+        configureThriftService(sb, projectApiManager, executor, watchService, mds);
 
         sb.service("/title", webAppTitleFile(cfg.webAppTitle(), SystemInfo.hostname()).asService());
 
@@ -542,7 +552,7 @@ public class CentralDogma implements AutoCloseable {
                                                                  "Bearer " + CsrfToken.ANONYMOUS))
                                   .build());
 
-        configureHttpApi(sb, pm, executor, watchService, mds, authProvider, sessionManager);
+        configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, sessionManager);
 
         configureMetrics(sb, meterRegistry);
 
@@ -557,6 +567,22 @@ public class CentralDogma implements AutoCloseable {
         } else {
             sb.accessLogFormat(accessLogFormat);
         }
+
+        if (pluginsForAllReplicas != null) {
+            final PluginInitContext pluginInitContext =
+                    new PluginInitContext(config(), pm, executor, meterRegistry, purgeWorker, sb);
+            pluginsForAllReplicas.plugins()
+                                 .forEach(p -> {
+                                     if (!(p instanceof AllReplicasPlugin)) {
+                                         return;
+                                     }
+                                     final AllReplicasPlugin plugin = (AllReplicasPlugin) p;
+                                     plugin.init(pluginInitContext);
+                                 });
+        }
+        // Configure the uncaught exception handler just before starting the server so that override the
+        // default exception handler set by third-party libraries such as NIOServerCnxnFactory.
+        Thread.setDefaultUncaughtExceptionHandler((t, e) -> logger.warn("Uncaught exception: {}", t, e));
 
         final Server s = sb.build();
         s.start().join();
@@ -620,10 +646,11 @@ public class CentralDogma implements AutoCloseable {
                 meterRegistry, pm, config().writeQuotaPerRepository(), onTakeLeadership, onReleaseLeadership);
     }
 
-    private void configureThriftService(ServerBuilder sb, ProjectManager pm, CommandExecutor executor,
+    private void configureThriftService(ServerBuilder sb, ProjectApiManager projectApiManager,
+                                        CommandExecutor executor,
                                         WatchService watchService, MetadataService mds) {
         final CentralDogmaServiceImpl service =
-                new CentralDogmaServiceImpl(pm, executor, watchService, mds);
+                new CentralDogmaServiceImpl(projectApiManager, executor, watchService, mds);
 
         HttpService thriftService =
                 ThriftCallService.of(service)
@@ -644,7 +671,7 @@ public class CentralDogma implements AutoCloseable {
     }
 
     private void configureHttpApi(ServerBuilder sb,
-                                  ProjectManager pm, CommandExecutor executor,
+                                  ProjectApiManager projectApiManager, CommandExecutor executor,
                                   WatchService watchService, MetadataService mds,
                                   @Nullable AuthProvider authProvider,
                                   @Nullable SessionManager sessionManager) {
@@ -677,23 +704,26 @@ public class CentralDogma implements AutoCloseable {
                     .andThen(AuthService.newDecorator(new CsrfTokenAuthorizer()));
         }
 
-        final SafeProjectManager safePm = new SafeProjectManager(pm);
-
-        final HttpApiRequestConverter v1RequestConverter = new HttpApiRequestConverter(safePm);
+        final HttpApiRequestConverter v1RequestConverter = new HttpApiRequestConverter(projectApiManager);
+        final JacksonRequestConverterFunction jacksonRequestConverterFunction =
+                // Use the default ObjectMapper without any configuration.
+                // See JacksonRequestConverterFunctionTest
+                new JacksonRequestConverterFunction(new ObjectMapper());
+        // Do not need jacksonResponseConverterFunction because HttpApiResponseConverter handles the JSON data.
         final HttpApiResponseConverter v1ResponseConverter = new HttpApiResponseConverter();
 
         // Enable content compression for API responses.
         decorator = decorator.andThen(contentEncodingDecorator());
 
         sb.annotatedService(API_V1_PATH_PREFIX,
-                            new AdministrativeService(safePm, executor), decorator,
-                            v1RequestConverter, v1ResponseConverter);
+                            new AdministrativeService(executor), decorator,
+                            v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
         sb.annotatedService(API_V1_PATH_PREFIX,
-                            new ProjectServiceV1(safePm, executor, mds), decorator,
-                            v1RequestConverter, v1ResponseConverter);
+                            new ProjectServiceV1(projectApiManager), decorator,
+                            v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
         sb.annotatedService(API_V1_PATH_PREFIX,
-                            new RepositoryServiceV1(safePm, executor, mds), decorator,
-                            v1RequestConverter, v1ResponseConverter);
+                            new RepositoryServiceV1(executor, mds), decorator,
+                            v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
         sb.annotatedService()
           .pathPrefix(API_V1_PATH_PREFIX)
           .defaultServiceNaming(new ServiceNaming() {
@@ -710,18 +740,20 @@ public class CentralDogma implements AutoCloseable {
               }
           })
           .decorator(decorator)
-          .requestConverters(v1RequestConverter)
+          .requestConverters(v1RequestConverter, jacksonRequestConverterFunction)
           .responseConverters(v1ResponseConverter)
-          .build(new ContentServiceV1(safePm, executor, watchService));
+          .build(new ContentServiceV1(executor, watchService));
 
         if (authProvider != null) {
             final AuthConfig authCfg = cfg.authConfig();
             assert authCfg != null : "authCfg";
             sb.annotatedService(API_V1_PATH_PREFIX,
                                 new MetadataApiService(mds, authCfg.loginNameNormalizer()),
-                                decorator, v1RequestConverter, v1ResponseConverter);
-            sb.annotatedService(API_V1_PATH_PREFIX, new TokenService(pm, executor, mds),
-                                decorator, v1RequestConverter, v1ResponseConverter);
+                                decorator, v1RequestConverter, jacksonRequestConverterFunction,
+                                v1ResponseConverter);
+            sb.annotatedService(API_V1_PATH_PREFIX, new TokenService(executor, mds),
+                                decorator, v1RequestConverter, jacksonRequestConverterFunction,
+                                v1ResponseConverter);
 
             // authentication services:
             Optional.ofNullable(authProvider.loginApiService())
@@ -742,10 +774,10 @@ public class CentralDogma implements AutoCloseable {
             final RestfulJsonResponseConverter httpApiV0Converter = new RestfulJsonResponseConverter();
 
             // TODO(hyangtack): Simplify this if https://github.com/line/armeria/issues/582 is resolved.
-            sb.annotatedService(API_V0_PATH_PREFIX, new UserService(safePm, executor),
-                                decorator, httpApiV0Converter)
-              .annotatedService(API_V0_PATH_PREFIX, new RepositoryService(safePm, executor),
-                                decorator, httpApiV0Converter);
+            sb.annotatedService(API_V0_PATH_PREFIX, new UserService(executor),
+                                decorator, jacksonRequestConverterFunction, httpApiV0Converter)
+              .annotatedService(API_V0_PATH_PREFIX, new RepositoryService(projectApiManager, executor),
+                                decorator, jacksonRequestConverterFunction, httpApiV0Converter);
 
             if (authProvider != null) {
                 // Will redirect to /web/auth/login by default.

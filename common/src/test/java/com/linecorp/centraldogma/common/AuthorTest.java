@@ -42,9 +42,9 @@ class AuthorTest {
                              "  \"email\": \"homer@simpsonsworld.com\"" +
                              '}');
 
-        TestUtil.assertJsonConversion(new Author("bart@simpsonsworld.com"),
+        TestUtil.assertJsonConversion(Author.ofEmail("bart@simpsonsworld.com"),
                              '{' +
-                             "  \"name\": \"bart@simpsonsworld.com\"," +
+                             "  \"name\": \"bart\"," +
                              "  \"email\": \"bart@simpsonsworld.com\"" +
                              '}');
     }
