@@ -39,6 +39,7 @@ import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.TlsConfig;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 import io.netty.util.NetUtil;
@@ -174,6 +175,15 @@ public class CentralDogmaRuleDelegate {
             throw new IllegalStateException("Central Dogma not available");
         }
         return dogma;
+    }
+
+    /**
+     * Returns the {@link ProjectManager} of the server.
+     *
+     * @throws IllegalStateException if Central Dogma did not start yet
+     */
+    public ProjectManager projectManager() {
+        return dogma().projectManager();
     }
 
     /**

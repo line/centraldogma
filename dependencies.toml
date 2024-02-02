@@ -3,12 +3,13 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 [versions]
-armeria = "1.26.4"
+armeria = "1.27.0"
 assertj = "3.24.2"
 awaitility = "4.2.0"
 bouncycastle = "1.76"
 caffeine = "2.9.3"
 checkstyle = "10.3.3"
+controlplane = "1.0.39"
 curator = "5.5.0"
 # Do not upgrade cron-utils until there's another CVE or Armeria's SLF4J and Logback are upgraded.
 cron-utils = "9.2.0"
@@ -60,6 +61,7 @@ sphinx = "2.10.1"
 spring-boot2 = "2.7.16"
 spring-boot3 = "3.1.4"
 spring-test-junit5 = "1.5.0"
+testcontainers = "1.19.0"
 thrift09 = { strictly = "0.9.3-1" }
 zookeeper = "3.7.1"
 
@@ -71,6 +73,8 @@ junit5 = { module = "org.junit:junit-bom", version.ref = "junit5" }
 [libraries.armeria]
 module = "com.linecorp.armeria:armeria"
 javadocs = "https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.24.3/"
+[libraries.armeria-grpc]
+module = "com.linecorp.armeria:armeria-grpc"
 [libraries.armeria-junit5]
 module = "com.linecorp.armeria:armeria-junit5"
 [libraries.armeria-logback]
@@ -79,6 +83,9 @@ module = "com.linecorp.armeria:armeria-logback"
 module = "com.linecorp.armeria:armeria-saml"
 [libraries.armeria-thrift09]
 module = "com.linecorp.armeria:armeria-thrift0.9"
+[libraries.armeria-xds]
+module = "com.linecorp.armeria:armeria-xds"
+
 
 [libraries.assertj]
 module = "org.assertj:assertj-core"
@@ -275,6 +282,13 @@ module = "ch.qos.logback:logback-classic"
 version.ref = "logback"
 javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.12/"
 
+[libraries.controlplane-cache]
+module = "io.envoyproxy.controlplane:cache"
+version.ref = "controlplane"
+[libraries.controlplane-server]
+module = "io.envoyproxy.controlplane:server"
+version.ref = "controlplane"
+
 [libraries.micrometer-core]
 module = "io.micrometer:micrometer-core"
 version.ref = "micrometer"
@@ -365,6 +379,10 @@ version.ref = "spring-boot3"
 [libraries.spring-test-junit5]
 module = "com.github.sbrannen:spring-test-junit5"
 version.ref = "spring-test-junit5"
+
+[libraries.testcontainers-junit-jupiter]
+module = "org.testcontainers:junit-jupiter"
+version.ref = "testcontainers"
 
 [libraries.thrift09]
 module = "org.apache.thrift:libthrift"

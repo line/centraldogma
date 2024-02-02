@@ -32,6 +32,7 @@ import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaRuleDelegate;
 
 /**
@@ -169,6 +170,15 @@ public class CentralDogmaRule extends TemporaryFolder {
      */
     public final com.linecorp.centraldogma.server.CentralDogma dogma() {
         return delegate.dogma();
+    }
+
+    /**
+     * Returns the {@link ProjectManager} of the server.
+     *
+     * @throws IllegalStateException if Central Dogma did not start yet
+     */
+    public ProjectManager projectManager() {
+        return delegate.projectManager();
     }
 
     /**
