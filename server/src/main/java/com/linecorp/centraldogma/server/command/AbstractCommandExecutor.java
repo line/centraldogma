@@ -26,6 +26,9 @@ import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.Exceptions;
@@ -35,6 +38,8 @@ import com.linecorp.armeria.common.util.StartStopSupport;
  * Helps to implement a concrete {@link CommandExecutor}.
  */
 public abstract class AbstractCommandExecutor implements CommandExecutor {
+
+    private static final Logger logger = LoggerFactory.getLogger(AbstractCommandExecutor.class);
 
     @Nullable
     private final Consumer<CommandExecutor> onTakeLeadership;
@@ -69,7 +74,12 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
 
     @Override
     public final CompletableFuture<Void> start() {
-        return startStop.start(false).thenRun(() -> started = true);
+        return startStop.start(false).thenRun(() -> {
+            started = true;
+            if (!writable) {
+                logger.warn("Started a command executor with read-only mode.");
+            }
+        });
     }
 
     protected abstract void doStart(@Nullable Runnable onTakeLeadership,
@@ -97,8 +107,11 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     @Override
     public final <T> CompletableFuture<T> execute(Command<T> command) {
         requireNonNull(command, "command");
-        if (!isWritable()) {
-            throw new IllegalStateException("running in read-only mode");
+        if (!isWritable() && !(command instanceof AdministrativeCommand)) {
+            // Reject all commands except for AdministrativeCommand when the replica is in read-only mode.
+            // AdministrativeCommand is allowed because it is used to change the read-only mode or migrate
+            // metadata under maintenance mode.
+            throw new IllegalStateException("running in read-only mode. command: " + command);
         }
 
         try {
