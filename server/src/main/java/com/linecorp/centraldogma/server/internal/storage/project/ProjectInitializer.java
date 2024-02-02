@@ -20,6 +20,8 @@ import static com.linecorp.centraldogma.server.command.Command.createProject;
 import static com.linecorp.centraldogma.server.command.Command.createRepository;
 import static com.linecorp.centraldogma.server.command.Command.push;
 
+import java.util.List;
+
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.util.Exceptions;
@@ -45,30 +47,11 @@ public final class ProjectInitializer {
      */
     public static void initializeInternalProject(CommandExecutor executor) {
         final long creationTimeMillis = System.currentTimeMillis();
-        try {
-            executor.execute(createProject(creationTimeMillis, Author.SYSTEM, INTERNAL_PROJECT_DOGMA))
-                    .get();
-        } catch (Throwable cause) {
-            cause = Exceptions.peel(cause);
-            if (!(cause instanceof ProjectExistsException)) {
-                throw new Error("failed to initialize an internal project", cause);
-            }
-        }
+        initializeInternalProject(executor, creationTimeMillis, INTERNAL_PROJECT_DOGMA);
 
         // These repositories might be created when creating an internal project, but we try to create them
         // again here in order to make sure them exist because sometimes their names are changed.
-        for (final String repo : Project.internalRepos()) {
-            try {
-                executor.execute(createRepository(creationTimeMillis, Author.SYSTEM,
-                                                  INTERNAL_PROJECT_DOGMA, repo))
-                        .get();
-            } catch (Throwable cause) {
-                cause = Exceptions.peel(cause);
-                if (!(cause instanceof RepositoryExistsException)) {
-                    throw new Error(cause);
-                }
-            }
-        }
+        initializeInternalRepos(executor, creationTimeMillis, Project.internalRepos());
 
         try {
             final Change<?> change = Change.ofJsonPatch(MetadataService.TOKEN_JSON,
@@ -79,9 +62,39 @@ public final class ProjectInitializer {
                                   commitSummary, "", Markup.PLAINTEXT, ImmutableList.of(change)))
                     .get();
         } catch (Throwable cause) {
-            cause = Exceptions.peel(cause);
-            if (!(cause instanceof ChangeConflictException)) {
-                throw new Error("failed to initialize the token list file", cause);
+            final Throwable peeled = Exceptions.peel(cause);
+            if (!(peeled instanceof ChangeConflictException)) {
+                throw new Error("failed to initialize the token list file", peeled);
+            }
+        }
+    }
+
+    public static void initializeInternalProject(
+            CommandExecutor executor, long creationTimeMillis, String projectName) {
+        try {
+            executor.execute(createProject(creationTimeMillis, Author.SYSTEM, projectName))
+                    .get();
+        } catch (Throwable cause) {
+            final Throwable peeled = Exceptions.peel(cause);
+            if (!(peeled instanceof ProjectExistsException)) {
+                throw new Error("failed to initialize an internal project: " + projectName, peeled);
+            }
+        }
+    }
+
+    public static void initializeInternalRepos(
+            CommandExecutor executor, long creationTimeMillis, List<String> internalRepos) {
+        for (final String repo : internalRepos) {
+            try {
+                executor.execute(createRepository(creationTimeMillis, Author.SYSTEM,
+                                                  INTERNAL_PROJECT_DOGMA, repo))
+                        .get();
+            } catch (Throwable cause) {
+                final Throwable peeled = Exceptions.peel(cause);
+                if (!(peeled instanceof RepositoryExistsException)) {
+                    throw new Error("failed to initialize an internal repository: " + INTERNAL_PROJECT_DOGMA +
+                                    '/' + repo, peeled);
+                }
             }
         }
     }

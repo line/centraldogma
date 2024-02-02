@@ -38,6 +38,7 @@ import org.opensaml.saml.saml2.core.NameIDType;
 import org.opensaml.saml.saml2.core.Response;
 
 import com.google.common.base.Strings;
+import com.google.common.html.HtmlEscapers;
 
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpRequest;
@@ -125,11 +126,12 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
 
         final String redirectionScript;
         if (!Strings.isNullOrEmpty(relayState)) {
-            redirectionScript = "window.location.href='/#" + relayState + '\'';
+            redirectionScript = "window.location.href='/#" +
+                                HtmlEscapers.htmlEscaper().escape(relayState) + '\'';
         } else {
             redirectionScript = "window.location.href='/'";
         }
-        return HttpResponse.from(loginSessionPropagator.apply(session).thenApply(
+        return HttpResponse.of(loginSessionPropagator.apply(session).thenApply(
                 unused -> HttpResponse.of(HttpStatus.OK, MediaType.HTML_UTF_8, getHtmlWithOnload(
                         "localStorage.setItem('sessionId','" + sessionId + "')",
                         redirectionScript))));

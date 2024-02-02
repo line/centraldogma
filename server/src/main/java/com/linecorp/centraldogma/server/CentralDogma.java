@@ -266,6 +266,15 @@ public class CentralDogma implements AutoCloseable {
     }
 
     /**
+     * Returns the {@link ProjectManager} of the server if the server is started.
+     * {@code null} is returned, otherwise.
+     */
+    @Nullable
+    public ProjectManager projectManager() {
+        return pm;
+    }
+
+    /**
      * Returns the {@link MirroringService} of the server.
      *
      * @return the {@link MirroringService} if the server is started and mirroring is enabled.
