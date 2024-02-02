@@ -7,3 +7,4 @@ dependencies {
     testImplementation libs.spring.boot3.starter.test
     testRuntimeOnly libs.hibernate.validator8
 }
+

@@ -42,7 +42,8 @@ json-unit = "2.38.0"
 jmh-core = "1.37"
 jmh-gradle-plugin = "0.7.1"
 jxr = "0.2.1"
-logback = "1.2.12"
+logback12 = { strictly = "1.2.12" }
+logback14 = { strictly = "1.4.11" }
 micrometer = "1.11.5"
 mina-sshd = "2.11.0"
 mockito = "4.11.0"
@@ -53,7 +54,8 @@ proguard = "7.3.1"
 quartz = "2.3.2"
 shadow-gradle-plugin = "7.1.2"
 shiro = "1.3.2"
-slf4j = "1.7.36"
+slf4j1 = { strictly = "1.7.36" }
+slf4j2 = { strictly = "2.0.7" }
 # Ensure that we use the same Snappy version as what Curator depends on.
 # See: https://github.com/apache/curator/blob/master/pom.xml
 snappy = "1.1.10.1"
@@ -77,8 +79,6 @@ javadocs = "https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.24
 module = "com.linecorp.armeria:armeria-grpc"
 [libraries.armeria-junit5]
 module = "com.linecorp.armeria:armeria-junit5"
-[libraries.armeria-logback]
-module = "com.linecorp.armeria:armeria-logback"
 [libraries.armeria-saml]
 module = "com.linecorp.armeria:armeria-saml"
 [libraries.armeria-thrift09]
@@ -277,10 +277,14 @@ module = "org.junit.platform:junit-platform-commons"
 [libraries.junit5-platform-launcher]
 module = "org.junit.platform:junit-platform-launcher"
 
-[libraries.logback]
+[libraries.logback12]
 module = "ch.qos.logback:logback-classic"
-version.ref = "logback"
+version.ref = "logback12"
 javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.12/"
+[libraries.logback14]
+module = "ch.qos.logback:logback-classic"
+version.ref = "logback14"
+javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.4.11/"
 
 [libraries.controlplane-cache]
 module = "io.envoyproxy.controlplane:cache"
@@ -330,19 +334,33 @@ module = "org.apache.shiro:shiro-core"
 version.ref = "shiro"
 javadocs = "https://shiro.apache.org/static/1.3.2/apidocs/"
 
-[libraries.slf4j-api]
+[libraries.slf4j1-api]
 module = "org.slf4j:slf4j-api"
-version.ref = "slf4j"
+version.ref = "slf4j1"
 javadocs = "https://www.javadoc.io/doc/org.slf4j/slf4j-api/1.7.36/"
-[libraries.slf4j-jcl-over-slf4j]
+[libraries.slf4j1-jcl-over-slf4j]
 module = "org.slf4j:jcl-over-slf4j"
-version.ref = "slf4j"
-[libraries.slf4j-jul-to-slf4j]
+version.ref = "slf4j1"
+[libraries.slf4j1-jul-to-slf4j]
 module = "org.slf4j:jul-to-slf4j"
-version.ref = "slf4j"
-[libraries.slf4j-log4j-over-slf4j]
+version.ref = "slf4j1"
+[libraries.slf4j1-log4j-over-slf4j]
 module = "org.slf4j:log4j-over-slf4j"
-version.ref = "slf4j"
+version.ref = "slf4j1"
+
+[libraries.slf4j2-api]
+module = "org.slf4j:slf4j-api"
+version.ref = "slf4j2"
+javadocs = "https://www.javadoc.io/doc/org.slf4j/slf4j-api/2.0.7/"
+[libraries.slf4j2-jcl-over-slf4j]
+module = "org.slf4j:jcl-over-slf4j"
+version.ref = "slf4j2"
+[libraries.slf4j2-jul-to-slf4j]
+module = "org.slf4j:jul-to-slf4j"
+version.ref = "slf4j2"
+[libraries.slf4j2-log4j-over-slf4j]
+module = "org.slf4j:log4j-over-slf4j"
+version.ref = "slf4j2"
 
 [libraries.snappy]
 module = "org.xerial.snappy:snappy-java"
