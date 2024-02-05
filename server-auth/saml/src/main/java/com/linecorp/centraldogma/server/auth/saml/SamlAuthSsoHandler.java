@@ -19,6 +19,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.server.auth.saml.HtmlUtil.getHtmlWithOnload;
 import static java.util.Objects.requireNonNull;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -38,7 +40,6 @@ import org.opensaml.saml.saml2.core.NameIDType;
 import org.opensaml.saml.saml2.core.Response;
 
 import com.google.common.base.Strings;
-import com.google.common.html.HtmlEscapers;
 
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpRequest;
@@ -126,8 +127,12 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
 
         final String redirectionScript;
         if (!Strings.isNullOrEmpty(relayState)) {
-            redirectionScript = "window.location.href='/#" +
-                                HtmlEscapers.htmlEscaper().escape(relayState) + '\'';
+            try {
+                redirectionScript = "window.location.href='/#" + URLEncoder.encode(relayState, "UTF-8") + '\'';
+            } catch (UnsupportedEncodingException e) {
+                // Should never reach here.
+                throw new Error();
+            }
         } else {
             redirectionScript = "window.location.href='/'";
         }
