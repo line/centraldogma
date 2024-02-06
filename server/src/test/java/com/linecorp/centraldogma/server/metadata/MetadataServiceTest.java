@@ -71,7 +71,7 @@ class MetadataServiceTest {
     private static final User user2 = new User("user2@localhost.com");
 
     private static final PerRolePermissions ownerOnly =
-            new PerRolePermissions(READ_WRITE, NO_PERMISSION, NO_PERMISSION);
+            new PerRolePermissions(READ_WRITE, NO_PERMISSION, NO_PERMISSION, NO_PERMISSION);
 
     @Test
     void project() {
@@ -182,6 +182,8 @@ class MetadataServiceTest {
                                                                                      Permission.WRITE);
         assertThat(repositoryMetadata.perRolePermissions().guest()).containsExactly(Permission.READ,
                                                                                     Permission.WRITE);
+        assertThat(repositoryMetadata.perRolePermissions().anonymous()).containsExactly(Permission.READ,
+                                                                                        Permission.WRITE);
 
         mds.updatePerRolePermissions(author, project1, repo1, PerRolePermissions.ofPrivate()).join();
 
@@ -191,6 +193,8 @@ class MetadataServiceTest {
         assertThat(repositoryMetadata.perRolePermissions().member()).containsExactly(Permission.READ,
                                                                                      Permission.WRITE);
         assertThat(repositoryMetadata.perRolePermissions().guest())
+                .containsExactlyElementsOf(NO_PERMISSION);
+        assertThat(repositoryMetadata.perRolePermissions().anonymous())
                 .containsExactlyElementsOf(NO_PERMISSION);
 
         assertThat(mds.findPermissions(project1, repo1, owner).join())

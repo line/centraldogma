@@ -784,8 +784,10 @@ public class MetadataService {
                 return repositoryMetadata.perRolePermissions().owner();
             case MEMBER:
                 return repositoryMetadata.perRolePermissions().member();
-            default:
+            case GUEST:
                 return repositoryMetadata.perRolePermissions().guest();
+            default:
+                return repositoryMetadata.perRolePermissions().anonymous();
         }
     }
 

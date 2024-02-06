@@ -51,9 +51,9 @@ public class PerRolePermissions {
      */
     @Deprecated
     public static final PerRolePermissions DEFAULT =
-            new PerRolePermissions(READ_WRITE, READ_WRITE, NO_PERMISSION);
+            new PerRolePermissions(READ_WRITE, READ_WRITE, NO_PERMISSION, NO_PERMISSION);
     private static final PerRolePermissions internalPermissions =
-            new PerRolePermissions(READ_WRITE, NO_PERMISSION, NO_PERMISSION);
+            new PerRolePermissions(READ_WRITE, NO_PERMISSION, NO_PERMISSION, NO_PERMISSION);
 
     /**
      * Creates a {@link PerRolePermissions} which allows read/write a repository from a owner.
@@ -73,14 +73,14 @@ public class PerRolePermissions {
      * Creates a {@link PerRolePermissions} which allows accessing a repository from everyone.
      */
     public static PerRolePermissions ofPublic() {
-        return new PerRolePermissions(READ_WRITE, READ_WRITE, READ_WRITE);
+        return new PerRolePermissions(READ_WRITE, READ_WRITE, READ_WRITE, READ_WRITE);
     }
 
     /**
      * Creates a {@link PerRolePermissions} which allows accessing a repository from a project member.
      */
     public static PerRolePermissions ofPrivate() {
-        return new PerRolePermissions(READ_WRITE, READ_WRITE, NO_PERMISSION);
+        return new PerRolePermissions(READ_WRITE, READ_WRITE, NO_PERMISSION, NO_PERMISSION);
     }
 
     /**
@@ -99,15 +99,22 @@ public class PerRolePermissions {
     private final Set<Permission> guest;
 
     /**
+     * {@link Permission}s for a {@link ProjectRole#ANONYMOUS}.
+     */
+    private final Set<Permission> anonymous;
+
+    /**
      * Creates an instance.
      */
     @JsonCreator
     public PerRolePermissions(@JsonProperty("owner") Iterable<Permission> owner,
                               @JsonProperty("member") Iterable<Permission> member,
-                              @JsonProperty("guest") Iterable<Permission> guest) {
+                              @JsonProperty("guest") Iterable<Permission> guest,
+                              @JsonProperty("anonymous") Iterable<Permission> anonymous) {
         this.owner = Sets.immutableEnumSet(requireNonNull(owner, "owner"));
         this.member = Sets.immutableEnumSet(requireNonNull(member, "member"));
         this.guest = Sets.immutableEnumSet(requireNonNull(guest, "guest"));
+        this.anonymous = Sets.immutableEnumSet(requireNonNull(anonymous, "anonymous"));
     }
 
     /**
@@ -134,9 +141,17 @@ public class PerRolePermissions {
         return guest;
     }
 
+    /**
+     * Returns the permissions granted to anonymous users.
+     */
+    @JsonProperty
+    public Set<Permission> anonymous() {
+        return anonymous;
+    }
+
     @Override
     public int hashCode() {
-        return Objects.hash(owner, member, guest);
+        return Objects.hash(owner, member, guest, anonymous);
     }
 
     @Override
@@ -151,7 +166,8 @@ public class PerRolePermissions {
         final PerRolePermissions that = (PerRolePermissions) o;
         return owner.equals(that.owner) &&
                member.equals(that.member) &&
-               guest.equals(that.guest);
+               guest.equals(that.guest) &&
+               anonymous.equals(that.anonymous);
     }
 
     @Override
@@ -160,6 +176,7 @@ public class PerRolePermissions {
                           .add("owner", owner())
                           .add("member", member())
                           .add("guest", guest())
+                          .add("anonymous", anonymous())
                           .toString();
     }
 }

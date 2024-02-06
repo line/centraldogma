@@ -102,7 +102,7 @@ class PermissionTest {
             mds.createToken(AUTHOR, APP_ID_3, SECRET_3).toCompletableFuture().join();
 
             mds.addRepo(AUTHOR, "project1", "repo1",
-                        new PerRolePermissions(READ_ONLY, READ_ONLY, NO_PERMISSION))
+                        new PerRolePermissions(READ_ONLY, READ_ONLY, NO_PERMISSION, NO_PERMISSION))
                .toCompletableFuture().join();
 
             // app-1 is an owner and it has read/write permission.
