@@ -413,9 +413,10 @@ public class MetadataService {
 
         if (Project.REPO_META.equals(repoName)) {
             final Set<Permission> guest = perRolePermissions.guest();
-            if (!guest.isEmpty()) {
+            final Set<Permission> anonymous = perRolePermissions.anonymous();
+            if (!guest.isEmpty() || !anonymous.isEmpty()) {
                 throw new UnsupportedOperationException(
-                        "Can't give a permission to guest for internal repository: " + repoName);
+                        "Can't give a permission to guest or anonymous for internal repository: " + repoName);
             }
         }
 
