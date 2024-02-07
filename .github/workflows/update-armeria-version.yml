@@ -19,7 +19,7 @@ jobs:
         with:
           url: "https://repo.maven.apache.org/maven2/com/linecorp/armeria/armeria-bom/${{ inputs.armeria_version }}/armeria-bom-${{ inputs.armeria_version }}.pom"
           responseCode: 200
-          timeout: 60000 # 1 minute
+          timeout: 18000000 # Timeout before giving up in milliseconds. 5 hours
           interval: 60000 # 1 minute
 
       - name: Update Armeria version to ${{ inputs.armeria_version }}
