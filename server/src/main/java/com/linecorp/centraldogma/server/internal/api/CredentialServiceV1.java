@@ -30,17 +30,18 @@ import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
-import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 
 /**
  * Annotated service object for managing credential service.
  */
 @ProducesJson
-@RequiresRole(roles = ProjectRole.OWNER)
+@RequiresWritePermission(repository = Project.REPO_META)
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class CredentialServiceV1 extends AbstractService {
 
@@ -56,6 +57,7 @@ public class CredentialServiceV1 extends AbstractService {
      *
      * <p>Returns the list of the credentials in the project.
      */
+    @RequiresReadPermission(repository = Project.REPO_META)
     @Get("/projects/{projectName}/credentials")
     public CompletableFuture<List<MirrorCredential>> listCredentials(@Param String projectName) {
         return metaRepo(projectName).credentials();
@@ -66,6 +68,7 @@ public class CredentialServiceV1 extends AbstractService {
      *
      * <p>Returns the credential for the ID in the project.
      */
+    @RequiresReadPermission(repository = Project.REPO_META)
     @Get("/projects/{projectName}/credentials/{id}")
     public CompletableFuture<MirrorCredential> getCredentialById(@Param String projectName, @Param String id) {
         return metaRepo(projectName).credential(id);

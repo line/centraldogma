@@ -34,17 +34,18 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
-import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 
 /**
  * Annotated service object for managing mirroring service.
  */
 @ProducesJson
-@RequiresRole(roles = ProjectRole.OWNER)
+@RequiresWritePermission(repository = Project.REPO_META)
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class MirroringServiceV1 extends AbstractService {
 
@@ -60,6 +61,7 @@ public class MirroringServiceV1 extends AbstractService {
      *
      * <p>Returns the list of the mirrors in the project.
      */
+    @RequiresReadPermission(repository = Project.REPO_META)
     @Get("/projects/{projectName}/mirrors")
     public CompletableFuture<List<MirrorDto>> listMirrors(@Param String projectName) {
         return metaRepo(projectName).mirrors(true).thenApply(mirrors -> {
@@ -74,6 +76,7 @@ public class MirroringServiceV1 extends AbstractService {
      *
      * <p>Returns the mirror of the ID in the project mirror list.
      */
+    @RequiresReadPermission(repository = Project.REPO_META)
     @Get("/projects/{projectName}/mirrors/{id}")
     public CompletableFuture<MirrorDto> getMirror(@Param String projectName, @Param String id) {
 

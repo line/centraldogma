@@ -85,8 +85,10 @@ public final class InternalProjectInitializer {
             whenInitialized.complete(null);
         } catch (Throwable cause) {
             final Throwable peeled = Exceptions.peel(cause);
-            whenInitialized.completeExceptionally(peeled);
-            if (!(peeled instanceof ChangeConflictException)) {
+            if (peeled instanceof ChangeConflictException) {
+                whenInitialized.complete(null);
+            } else {
+                whenInitialized.completeExceptionally(peeled);
                 throw new Error("failed to initialize the token list file", peeled);
             }
         }

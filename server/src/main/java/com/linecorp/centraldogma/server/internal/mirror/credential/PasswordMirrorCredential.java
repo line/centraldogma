@@ -58,7 +58,6 @@ public final class PasswordMirrorCredential extends AbstractMirrorCredential {
         return username;
     }
 
-    @JsonProperty("password")
     public String password() {
         try {
             return convertValue(password, "credentials.password");
@@ -68,6 +67,11 @@ public final class PasswordMirrorCredential extends AbstractMirrorCredential {
                          username, id(), t);
             return password;
         }
+    }
+
+    @JsonProperty("password")
+    public String rawPassword() {
+        return password;
     }
 
     @Override

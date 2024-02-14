@@ -764,7 +764,6 @@ public class CentralDogma implements AutoCloseable {
                             v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
 
         if (GIT_MIRROR_ENABLED) {
-            // TODO(ikhoon): Resolve conflicts
             sb.annotatedService(API_V1_PATH_PREFIX,
                                 new MirroringServiceV1(projectApiManager, executor), decorator,
                                 v1RequestConverter, v1RequestConverter);
@@ -936,6 +935,7 @@ public class CentralDogma implements AutoCloseable {
         this.pm = null;
         this.repositoryWorker = null;
         this.sessionManager = null;
+        projectInitializer = null;
         if (meterRegistryToBeClosed != null) {
             assert meterRegistry instanceof CompositeMeterRegistry;
             ((CompositeMeterRegistry) meterRegistry).remove(meterRegistryToBeClosed);

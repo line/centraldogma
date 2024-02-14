@@ -1138,12 +1138,6 @@ public final class ZooKeeperCommandExecutor
         }
     }
 
-    private <T> ReplicationLog<?> newReplicationLogForPush(NormalizingPushCommand command, CommitResult
-            result) {
-        final Command<Revision> pushAsIsCommand = command.asIs(result);
-        return new ReplicationLog<>(replicaId(), pushAsIsCommand, result.revision());
-    }
-
     private void createParentNodes() throws Exception {
         if (createdParentNodes) {
             return;

@@ -145,7 +145,7 @@ class MirroringMigrationService {
                 return true;
             }
         }
-        return true;
+        return false;
     }
 
     private boolean migrateMirrors(MetaRepository repository) throws Exception {

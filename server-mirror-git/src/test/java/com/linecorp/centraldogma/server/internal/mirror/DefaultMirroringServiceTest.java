@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.mirror;
 
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -40,6 +41,7 @@ import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
@@ -93,10 +95,13 @@ class DefaultMirroringServiceTest {
 
         when(mr.mirrors()).thenReturn(CompletableFuture.completedFuture(ImmutableList.of(mirror)));
 
-        InternalProjectInitializer internalProjectInitializer = mock(InternalProjectInitializer.class);
+        final InternalProjectInitializer internalProjectInitializer = mock(InternalProjectInitializer.class);
+        when(internalProjectInitializer.whenInitialized()).thenReturn(UnmodifiableFuture.completedFuture(null));
         final DefaultMirroringService service = new DefaultMirroringService(
                 temporaryFolder, pm, new SimpleMeterRegistry(), internalProjectInitializer, 1, 1, 1);
-        service.start(mock(CommandExecutor.class));
+        final CommandExecutor executor = mock(CommandExecutor.class);
+        when(executor.execute(any(Command.class))).thenReturn(UnmodifiableFuture.completedFuture(null));
+        service.start(executor);
 
         try {
             // The mirroring task should run more than once.

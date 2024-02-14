@@ -25,6 +25,10 @@ import java.util.Collection;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
+import javax.annotation.Nullable;
+
+import com.google.common.base.Strings;
+
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
@@ -48,10 +52,18 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 public final class RequiresPermissionDecorator extends SimpleDecoratingHttpService {
 
     private final Permission requiredPermission;
+    @Nullable
+    private final String projectName;
+    @Nullable
+    private final String repoName;
 
-    RequiresPermissionDecorator(HttpService delegate, Permission requiredPermission) {
+    RequiresPermissionDecorator(HttpService delegate, Permission requiredPermission,
+                                @Nullable String projectName,
+                                @Nullable String repoName) {
         super(delegate);
         this.requiredPermission = requireNonNull(requiredPermission, "requiredPermission");
+        this.projectName = projectName;
+        this.repoName = repoName;
     }
 
     @Override
@@ -59,9 +71,15 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
         final MetadataService mds = MetadataServiceInjector.getMetadataService(ctx);
         final User user = AuthUtil.currentUser(ctx);
 
-        final String projectName = ctx.pathParam("projectName");
+        String projectName = this.projectName;
+        if (projectName == null) {
+            projectName = ctx.pathParam("projectName");
+        }
         checkArgument(!isNullOrEmpty(projectName), "no project name is specified");
-        final String repoName = ctx.pathParam("repoName");
+        String repoName = this.repoName;
+        if (repoName == null) {
+            repoName = ctx.pathParam("repoName");
+        }
         checkArgument(!isNullOrEmpty(repoName), "no repository name is specified");
 
         if (Project.REPO_DOGMA.equals(repoName)) {
@@ -117,7 +135,9 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
         @Override
         public Function<? super HttpService, ? extends HttpService>
         newDecorator(RequiresReadPermission parameter) {
-            return delegate -> new RequiresPermissionDecorator(delegate, Permission.READ);
+            return delegate -> new RequiresPermissionDecorator(delegate, Permission.READ,
+                                                               Strings.emptyToNull(parameter.project()),
+                                                               Strings.emptyToNull(parameter.repository()));
         }
     }
 
@@ -130,7 +150,9 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
         @Override
         public Function<? super HttpService, ? extends HttpService>
         newDecorator(RequiresWritePermission parameter) {
-            return delegate -> new RequiresPermissionDecorator(delegate, Permission.WRITE);
+            return delegate -> new RequiresPermissionDecorator(delegate, Permission.WRITE,
+                                                               Strings.emptyToNull(parameter.project()),
+                                                               Strings.emptyToNull(parameter.repository()));
         }
     }
 }
