@@ -142,7 +142,6 @@ import com.linecorp.centraldogma.server.internal.api.converter.HttpApiResponseCo
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
-import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTranslator;
@@ -156,6 +155,7 @@ import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.MeterRegistry;

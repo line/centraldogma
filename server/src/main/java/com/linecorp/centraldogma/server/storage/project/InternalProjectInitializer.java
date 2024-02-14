@@ -39,6 +39,9 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.Tokens;
 
+/**
+ * Initializes the internal project and repositories.
+ */
 public final class InternalProjectInitializer {
 
     public static final String INTERNAL_PROJECT_DOGMA = "dogma";
@@ -46,6 +49,9 @@ public final class InternalProjectInitializer {
     private final CompletableFuture<Void> whenInitialized = new CompletableFuture<>();
     private final CommandExecutor executor;
 
+    /**
+     * Creates a new instance.
+     */
     public InternalProjectInitializer(CommandExecutor executor) {
         this.executor = executor;
     }

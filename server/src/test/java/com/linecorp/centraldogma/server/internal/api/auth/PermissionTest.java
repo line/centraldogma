@@ -56,12 +56,12 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
-import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.metadata.Permission;
 import com.linecorp.centraldogma.server.metadata.ProjectRole;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 
