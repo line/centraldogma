@@ -55,9 +55,9 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public final class DefaultMetaRepository extends RepositoryWrapper implements MetaRepository {
 
-    private static final String PATH_CREDENTIALS = "/credentials/";
+    public static final String PATH_CREDENTIALS = "/credentials/";
 
-    private static final String PATH_MIRRORS = "/mirrors/";
+    public static final String PATH_MIRRORS = "/mirrors/";
 
     public static boolean isMetaFile(String path) {
         return "/mirrors.json".equals(path) || "/credentials.json".equals(path) ||
