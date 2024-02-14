@@ -309,7 +309,7 @@ class MirroringMigrationService {
         }
 
         // Back up the old credentials.json file and don't use it anymore.
-        rename(repository, PATH_LEGACY_CREDENTIALS, PATH_LEGACY_CREDENTIALS_BACKUP);
+        rename(repository, PATH_LEGACY_CREDENTIALS, PATH_LEGACY_CREDENTIALS_BACKUP, false);
         return true;
     }
 
