@@ -401,7 +401,8 @@ public final class ZooKeeperCommandExecutor
             leaderSelector.start();
 
             // Start the delegate.
-            delegate.start();
+            // The delegate is StandaloneCommandExecutor, which will be quite fast to start.
+            delegate.start().get();
 
             // Get the command executor threads ready.
             final ThreadPoolExecutor executor = new ThreadPoolExecutor(
