@@ -96,7 +96,7 @@ class MirroringMigrationService {
         projectInitializer.whenInitialized().get();
 
         if (wasMigrated()) {
-            logger.debug("Mirrors and credentials have already been migrated.");
+            logger.debug("Mirrors and credentials have already been migrated. Skipping auto migration...");
             return;
         }
 
@@ -136,11 +136,13 @@ class MirroringMigrationService {
     private boolean wasMigrated() throws Exception {
         for (Project project : projectManager.list().values()) {
             final MetaRepository repository = project.metaRepo();
-            if (getMetaData(repository, PATH_LEGACY_MIRRORS) != null) {
-                return false;
+            if (getMetaData(repository, PATH_LEGACY_MIRRORS_BACKUP) != null) {
+                // The mirrors.json file has been backed up.
+                return true;
             }
-            if (getMetaData(repository, PATH_LEGACY_CREDENTIALS) != null) {
-                return false;
+            if (getMetaData(repository, PATH_LEGACY_CREDENTIALS_BACKUP) != null) {
+                // The credentials.json file has been backed up.
+                return true;
             }
         }
         return true;
