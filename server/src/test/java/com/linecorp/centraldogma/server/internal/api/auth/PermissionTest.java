@@ -56,7 +56,7 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
@@ -90,8 +90,7 @@ class PermissionTest {
             final CommandExecutor executor = new StandaloneCommandExecutor(
                     pm, ForkJoinPool.commonPool(), null, null, null);
             executor.start().join();
-
-            ProjectInitializer.initializeInternalProject(executor);
+            new InternalProjectInitializer(executor).initialize();
 
             executor.execute(Command.createProject(AUTHOR, "project1")).join();
 

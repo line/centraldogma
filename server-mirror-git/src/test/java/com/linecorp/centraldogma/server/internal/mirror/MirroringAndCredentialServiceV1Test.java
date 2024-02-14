@@ -128,8 +128,8 @@ class MirroringAndCredentialServiceV1Test {
                 final PublicKeyMirrorCredential actual = (PublicKeyMirrorCredential) credentialDto;
                 assertThat(actual.username()).isEqualTo(credential.get("username"));
                 assertThat(actual.publicKey()).isEqualTo(credential.get("publicKey"));
-                assertThat(actual.privateKey()).isEqualTo(credential.get("privateKey"));
-                assertThat(actual.passphraseString()).isEqualTo(credential.get("passphrase"));
+                assertThat(actual.rawPrivateKey()).isEqualTo(credential.get("privateKey"));
+                assertThat(actual.rawPassphrase()).isEqualTo(credential.get("passphrase"));
             } else if ("none".equals(credentialType)) {
                 assertThat(credentialDto).isInstanceOf(NoneMirrorCredential.class);
             } else {
@@ -173,8 +173,8 @@ class MirroringAndCredentialServiceV1Test {
                 .containsExactlyElementsOf(hostnamePatterns);
         assertThat(actual.username()).isEqualTo(credential.get("username"));
         assertThat(actual.publicKey()).isEqualTo(credential.get("publicKey"));
-        assertThat(actual.privateKey()).isEqualTo(credential.get("privateKey"));
-        assertThat(actual.passphraseString()).isEqualTo(credential.get("passphrase"));
+        assertThat(actual.rawPrivateKey()).isEqualTo(credential.get("privateKey"));
+        assertThat(actual.rawPassphrase()).isEqualTo(credential.get("passphrase"));
     }
 
     private void createAndReadMirror() throws JsonParseException {

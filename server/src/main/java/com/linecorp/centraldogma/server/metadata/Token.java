@@ -64,8 +64,11 @@ public final class Token implements Identifiable {
     @Nullable
     private final UserAndTimestamp deactivation;
 
+    @Nullable
+    private final UserAndTimestamp deletion;
+
     Token(String appId, String secret, boolean isAdmin, UserAndTimestamp creation) {
-        this(appId, secret, isAdmin, creation, null);
+        this(appId, secret, isAdmin, creation, null, null);
     }
 
     /**
@@ -76,20 +79,23 @@ public final class Token implements Identifiable {
                  @JsonProperty("secret") String secret,
                  @JsonProperty("admin") boolean isAdmin,
                  @JsonProperty("creation") UserAndTimestamp creation,
-                 @JsonProperty("deactivation") @Nullable UserAndTimestamp deactivation) {
+                 @JsonProperty("deactivation") @Nullable UserAndTimestamp deactivation,
+                 @JsonProperty("deletion") @Nullable UserAndTimestamp deletion) {
         this.appId = Util.validateFileName(appId, "appId");
         this.secret = Util.validateFileName(secret, "secret");
         this.isAdmin = isAdmin;
         this.creation = requireNonNull(creation, "creation");
         this.deactivation = deactivation;
+        this.deletion = deletion;
     }
 
     private Token(String appId, boolean isAdmin, UserAndTimestamp creation,
-                  @Nullable UserAndTimestamp deactivation) {
+                  @Nullable UserAndTimestamp deactivation, @Nullable UserAndTimestamp deletion) {
         this.appId = Util.validateFileName(appId, "appId");
         this.isAdmin = isAdmin;
         this.creation = requireNonNull(creation, "creation");
         this.deactivation = deactivation;
+        this.deletion = deletion;
         secret = null;
     }
 
@@ -141,21 +147,39 @@ public final class Token implements Identifiable {
     }
 
     /**
+     * Returns who deleted this token when.
+     */
+    @Nullable
+    @JsonProperty
+    public UserAndTimestamp deletion() {
+        return deletion;
+    }
+
+    /**
      * Returns whether this token is activated.
      */
     @JsonIgnore
     public boolean isActive() {
-        return deactivation == null;
+        return deactivation == null && deletion == null;
+    }
+
+    /**
+     * Returns whether this token is deleted.
+     */
+    @JsonIgnore
+    public boolean isDeleted() {
+        return deletion != null;
     }
 
     @Override
     public String toString() {
         // Do not add "secret" to prevent it from logging.
-        return MoreObjects.toStringHelper(this)
+        return MoreObjects.toStringHelper(this).omitNullValues()
                           .add("appId", appId())
                           .add("isAdmin", isAdmin())
                           .add("creation", creation())
                           .add("deactivation", deactivation())
+                          .add("deletion", deletion())
                           .toString();
     }
 
@@ -163,6 +187,6 @@ public final class Token implements Identifiable {
      * Returns a new {@link Token} instance without its secret.
      */
     public Token withoutSecret() {
-        return new Token(appId(), isAdmin(), creation(), deactivation());
+        return new Token(appId(), isAdmin(), creation(), deactivation(), deletion());
     }
 }

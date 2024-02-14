@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.internal.replication;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static java.util.Objects.requireNonNull;
 
 import java.io.BufferedReader;
@@ -107,6 +107,7 @@ import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.RemoveRepositoryCommand;
+import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -716,11 +717,12 @@ public final class ZooKeeperCommandExecutor
         }
 
         long nextRevision = info.lastReplayedRevision + 1;
-        try {
-            for (;;) {
+        for (;;) {
+            ReplicationLog<?> l = null;
+            try {
                 final Optional<ReplicationLog<?>> log = loadLog(nextRevision, true);
                 if (log.isPresent()) {
-                    final ReplicationLog<?> l = log.get();
+                    l = log.get();
                     final Command<?> command = l.command();
                     final Object expectedResult = l.result();
                     final Object actualResult = delegate.execute(command).get();
@@ -745,15 +747,28 @@ public final class ZooKeeperCommandExecutor
                 } else {
                     nextRevision++;
                 }
-            }
-        } catch (Throwable t) {
-            logger.error("Failed to replay a log at revision {}; entering read-only mode", nextRevision, t);
-            stopLater();
+            } catch (Throwable t) {
+                if (l != null) {
+                    logger.error(
+                            "Failed to replay a log at revision {}; entering read-only mode. replay log: {}",
+                            nextRevision, l, t);
+                } else {
+                    logger.error("Failed to replay a log at revision {}; entering read-only mode.",
+                                 nextRevision, t);
+                }
 
-            if (t instanceof ReplicationException) {
-                throw (ReplicationException) t;
+                stopLater();
+
+                if (t instanceof ReplicationException) {
+                    throw (ReplicationException) t;
+                }
+                final StringBuilder sb = new StringBuilder();
+                sb.append("failed to replay a log at revision " + nextRevision);
+                if (l != null) {
+                    sb.append(". replay log: ").append(l);
+                }
+                throw new ReplicationException(sb.toString(), t);
             }
-            throw new ReplicationException("failed to replay a log at revision " + nextRevision, t);
         }
     }
 
@@ -1098,6 +1113,20 @@ public final class ZooKeeperCommandExecutor
                 final Command<Revision> command0 = Command.forcePush(delegated.asIs(commitResult));
                 log = new ReplicationLog<>(replicaId(), command0, commitResult.revision());
             } else {
+                if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
+                    final UpdateServerStatusCommand command0 = (UpdateServerStatusCommand) command;
+                    final boolean writable = command0.writable();
+                    final boolean wasWritable = isWritable();
+                    setWritable(writable);
+                    if (writable != wasWritable) {
+                        if (writable) {
+                            logger.warn("Left read-only mode.");
+                        } else {
+                            logger.warn("Entered read-only mode.");
+                        }
+                    }
+                }
+
                 log = new ReplicationLog<>(replicaId(), command, result);
             }
 

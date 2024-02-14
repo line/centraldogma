@@ -24,6 +24,7 @@ import java.util.List;
  *     <li>{@code replication.secret}</li>
  *     <li>{@code tls.keyCertChain}</li>
  *     <li>{@code tls.key}</li>
+ *     <li>{@code tls.keyPassword}</li>
  *     <li>{@code authentication.properties.keyStore.password} (when SAML is used)</li>
  *     <li>{@code authentication.properties.keyStore.keyPasswords} (when SAML is used)</li>
  * </ul>

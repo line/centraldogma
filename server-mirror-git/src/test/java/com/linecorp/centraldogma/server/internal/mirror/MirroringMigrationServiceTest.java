@@ -224,7 +224,8 @@ class MirroringMigrationServiceTest {
                                   "Create a new mirrors.json",
                                   Change.ofJsonUpsert(PATH_LEGACY_MIRRORS, mirrorsJson)).join();
         final MirroringMigrationService migrationService = new MirroringMigrationService(
-                projectManager, projectManagerExtension.executor());
+                projectManager, projectManagerExtension.executor(),
+                projectManagerExtension.internalProjectInitializer());
         migrationService.migrate();
 
         final Map<String, Entry<?>> entries = project.metaRepo()
@@ -252,7 +253,7 @@ class MirroringMigrationServiceTest {
     }
 
     static void assertMirrorConfig(Map.Entry<String, Entry<?>> actualMirrorConfig, String mirrorId,
-                                           String expectedMirrorConfig) throws JsonParseException {
+                                   String expectedMirrorConfig) throws JsonParseException {
         assertThat(actualMirrorConfig.getKey()).matches("/mirrors/" + mirrorId + "\\.json");
         final JsonNode mirrorConfig = actualMirrorConfig.getValue().contentAsJson();
         assertThat(mirrorConfig.get("id").asText()).matches(mirrorId);
@@ -272,7 +273,8 @@ class MirroringMigrationServiceTest {
                                   "Create a new credentials.json",
                                   Change.ofJsonUpsert(PATH_LEGACY_CREDENTIALS, credentialJson)).join();
         final MirroringMigrationService migrationService = new MirroringMigrationService(
-                projectManager, projectManagerExtension.executor());
+                projectManager, projectManagerExtension.executor(),
+                projectManagerExtension.internalProjectInitializer());
         migrationService.migrate();
 
         final Map<String, Entry<?>> entries = project.metaRepo()
@@ -314,7 +316,8 @@ class MirroringMigrationServiceTest {
                                   Change.ofJsonUpsert(PATH_LEGACY_CREDENTIALS, credentialJson)).join();
 
         final MirroringMigrationService migrationService = new MirroringMigrationService(
-                projectManager, projectManagerExtension.executor());
+                projectManager, projectManagerExtension.executor(),
+                projectManagerExtension.internalProjectInitializer());
         migrationService.migrate();
 
         final List<Mirror> mirrors = project.metaRepo().mirrors().join();
@@ -335,7 +338,7 @@ class MirroringMigrationServiceTest {
     }
 
     static void assertCredential(Map.Entry<String, Entry<?>> actualCredential, String credentialId,
-                                         String expectedCredential) throws JsonParseException {
+                                 String expectedCredential) throws JsonParseException {
         assertThat(actualCredential.getKey()).matches("/credentials/" + credentialId + "\\.json");
         final JsonNode credential = actualCredential.getValue().contentAsJson();
         assertThat(credential.get("id").asText()).matches(credentialId);

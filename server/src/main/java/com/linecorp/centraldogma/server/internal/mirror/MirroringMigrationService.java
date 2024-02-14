@@ -56,7 +56,7 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
@@ -79,18 +79,21 @@ class MirroringMigrationService {
 
     private final ProjectManager projectManager;
     private final CommandExecutor commandExecutor;
+    private final InternalProjectInitializer projectInitializer;
 
     @Nullable
     private List<String> shortWords;
 
-    MirroringMigrationService(ProjectManager projectManager, CommandExecutor commandExecutor) {
+    MirroringMigrationService(ProjectManager projectManager, CommandExecutor commandExecutor,
+                              InternalProjectInitializer projectInitializer) {
         this.projectManager = projectManager;
         this.commandExecutor = commandExecutor;
+        this.projectInitializer = projectInitializer;
     }
 
     void migrate() throws Exception {
         // Wait until the internal project is initialized.
-        ProjectInitializer.whenInternalProjectInitialized().get();
+        projectInitializer.whenInitialized().get();
 
         if (wasMigrated()) {
             logger.debug("Mirrors and credentials have already been migrated.");

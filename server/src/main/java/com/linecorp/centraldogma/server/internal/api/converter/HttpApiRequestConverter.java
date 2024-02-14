@@ -31,9 +31,9 @@ import com.linecorp.armeria.server.annotation.RequestConverterFunction;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -41,10 +41,10 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
  */
 public final class HttpApiRequestConverter implements RequestConverterFunction {
 
-    private final ProjectManager projectManager;
+    private final ProjectApiManager projectApiManager;
 
-    public HttpApiRequestConverter(ProjectManager projectManager) {
-        this.projectManager = requireNonNull(projectManager, "projectManager");
+    public HttpApiRequestConverter(ProjectApiManager projectApiManager) {
+        this.projectApiManager = requireNonNull(projectApiManager, "projectApiManager");
     }
 
     @Override
@@ -58,7 +58,7 @@ public final class HttpApiRequestConverter implements RequestConverterFunction {
                           "project name should not be null or empty.");
 
             // ProjectNotFoundException would be thrown if there is no project.
-            return projectManager.get(projectName);
+            return projectApiManager.getProject(projectName);
         }
 
         if (expectedResultType == Repository.class) {
@@ -77,7 +77,7 @@ public final class HttpApiRequestConverter implements RequestConverterFunction {
                         projectName, Project.REPO_DOGMA);
             }
             // RepositoryNotFoundException would be thrown if there is no project or no repository.
-            return projectManager.get(projectName).repos().get(repositoryName);
+            return projectApiManager.getProject(projectName).repos().get(repositoryName);
         }
 
         if (expectedResultType == Author.class) {

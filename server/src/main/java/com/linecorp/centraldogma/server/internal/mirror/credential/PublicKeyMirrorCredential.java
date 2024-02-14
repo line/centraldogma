@@ -16,20 +16,33 @@
 
 package com.linecorp.centraldogma.server.internal.mirror.credential;
 
-import static com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredentialUtil.maybeDecodeBase64;
+import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 import static com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredentialUtil.requireNonEmpty;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.CharMatcher;
 import com.google.common.base.MoreObjects.ToStringHelper;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
 
 public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
+
+    private static final Logger logger = LoggerFactory.getLogger(PublicKeyMirrorCredential.class);
+
+    private static final Splitter NEWLINE_SPLITTER = Splitter.on(CharMatcher.anyOf("\n\r"))
+                                                             .omitEmptyStrings()
+                                                             .trimResults();
 
     private static final int PUBLIC_KEY_PREVIEW_LEN = 40;
 
@@ -38,8 +51,6 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
     private final String privateKey;
     @Nullable
     private final String passphrase;
-    @Nullable
-    private final String passphraseString;
 
     @JsonCreator
     public PublicKeyMirrorCredential(@JsonProperty("id") String id,
@@ -56,12 +67,8 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
 
         this.username = requireNonEmpty(username, "username");
         this.publicKey = requireNonEmpty(publicKey, "publicKey");
-        requireNonEmpty(privateKey, "privateKey");
-        // privateKey is converted into a list of Strings that will be used as an input of
-        // KeyPairResourceLoader.loadKeyPairs(...)
-        this.privateKey = privateKey;
-        this.passphrase = maybeDecodeBase64(passphrase, "passphrase");
-        passphraseString = passphrase;
+        this.privateKey = requireNonEmpty(privateKey, "privateKey");
+        this.passphrase = passphrase;
     }
 
     @JsonProperty("username")
@@ -74,20 +81,43 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
         return publicKey;
     }
 
+    public List<String> privateKey() {
+        String converted;
+        try {
+            converted = convertValue(privateKey, "credentials.privateKey");
+        } catch (Throwable t) {
+            // Just use it as is for backward compatibility.
+            logger.debug("Failed to convert the key of the credential. username: {}, id: {}",
+                         username, id(), t);
+            converted = privateKey;
+        }
+        assert converted != null;
+        // privateKey is converted into a list of Strings that will be used as an input of
+        // KeyPairResourceLoader.loadKeyPairs(...)
+        return ImmutableList.copyOf(NEWLINE_SPLITTER.splitToList(converted));
+    }
+
     @JsonProperty("privateKey")
-    public String privateKey() {
+    public String rawPrivateKey() {
         return privateKey;
     }
 
     @Nullable
     public String passphrase() {
-        return passphrase;
+        try {
+            return convertValue(passphrase, "credentials.passphrase");
+        } catch (Throwable t) {
+            // The passphrase probably has `:` without prefix. Just return it as is for backward compatibility.
+            logger.debug("Failed to convert the passphrase of the credential. username: {}, id: {}",
+                         username, id(), t);
+            return passphrase;
+        }
     }
 
     @JsonProperty("passphrase")
     @Nullable
-    public String passphraseString() {
-        return passphraseString;
+    public String rawPassphrase() {
+        return passphrase;
     }
 
     @Override

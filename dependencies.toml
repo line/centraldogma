@@ -3,48 +3,53 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 [versions]
-armeria = "1.26.2"
-assertj = "3.24.2"
+armeria = "1.27.1"
+assertj = "3.25.2"
 awaitility = "4.2.0"
-bouncycastle = "1.76"
+bouncycastle = "1.77"
 caffeine = "2.9.3"
 checkstyle = "10.3.3"
-curator = "5.5.0"
+controlplane = "1.0.39"
+curator = "5.6.0"
 # Do not upgrade cron-utils until there's another CVE or Armeria's SLF4J and Logback are upgraded.
 cron-utils = "9.2.0"
 diffutils = "1.3.0"
-docker = "9.3.5"
+docker = "9.4.0"
 download = "5.5.0"
 dropwizard-metrics = "4.2.21"
 eddsa = "0.3.0"
 findbugs = "3.0.2"
-futures-completable = "0.3.5"
-guava = "32.1.3-jre"
+futures-completable = "0.3.6"
+guava = "33.0.0-jre"
 guava-failureaccess = "1.0.1"
 hamcrest-library = "2.2"
 hibernate-validator6 = "6.2.5.Final"
 hibernate-validator8 = "8.0.1.Final"
-jackson = "2.15.3"
-javassist = "3.29.2-GA"
+jackson = "2.16.1"
+javassist = "3.30.2-GA"
 javax-annotation = "1.3.2"
 javax-inject = "1"
 javax-validation = "2.0.1.Final"
 jcommander = "1.82"
 jetty-alpn-api = "1.1.3.v20160715"
 jetty-alpn-agent = "2.0.10"
-jgit = "5.13.2.202306221912-r"
-jgit6 = "6.7.0.202309050840-r"
+jgit = "5.13.3.202401111512-r"
+jgit6 = "6.8.0.202311291450-r"
 junit4 = "4.13.2"
-junit5 = "5.10.0"
+junit5 = "5.10.1"
 jsch = "0.1.55"
 json-path = "2.2.0"
 json-unit = "2.38.0"
 jmh-core = "1.37"
-jmh-gradle-plugin = "0.7.1"
+jmh-gradle-plugin = "0.7.2"
 jxr = "0.2.1"
-logback = "1.2.12"
+logback12 = { strictly = "1.2.13" }
+logback14 = { strictly = "1.4.14" }
 micrometer = "1.11.5"
 mina-sshd = "2.11.0"
+logback = "1.2.13"
+micrometer = "1.12.2"
+mina-sshd = "2.12.0"
 mockito = "4.11.0"
 nexus-publish-plugin = "1.3.0"
 node-gradle-plugin = "7.0.1"
@@ -53,16 +58,18 @@ proguard = "7.3.1"
 quartz = "2.3.2"
 shadow-gradle-plugin = "7.1.2"
 shiro = "1.3.2"
-slf4j = "1.7.36"
+slf4j1 = { strictly = "1.7.36" }
+slf4j2 = { strictly = "2.0.7" }
 # Ensure that we use the same Snappy version as what Curator depends on.
 # See: https://github.com/apache/curator/blob/master/pom.xml
-snappy = "1.1.10.1"
+snappy = "1.1.10.4"
 sphinx = "2.10.1"
-spring-boot2 = "2.7.16"
-spring-boot3 = "3.1.4"
+spring-boot2 = "2.7.18"
+spring-boot3 = "3.2.2"
 spring-test-junit5 = "1.5.0"
+testcontainers = "1.19.0"
 thrift09 = { strictly = "0.9.3-1" }
-zookeeper = "3.7.1"
+zookeeper = "3.7.2"
 
 [boms]
 armeria = { module = "com.linecorp.armeria:armeria-bom", version.ref = "armeria" }
@@ -71,15 +78,18 @@ junit5 = { module = "org.junit:junit-bom", version.ref = "junit5" }
 
 [libraries.armeria]
 module = "com.linecorp.armeria:armeria"
-javadocs = "https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.24.3/"
+javadocs = "https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.27.0/"
+[libraries.armeria-grpc]
+module = "com.linecorp.armeria:armeria-grpc"
 [libraries.armeria-junit5]
 module = "com.linecorp.armeria:armeria-junit5"
-[libraries.armeria-logback]
-module = "com.linecorp.armeria:armeria-logback"
 [libraries.armeria-saml]
 module = "com.linecorp.armeria:armeria-saml"
 [libraries.armeria-thrift09]
 module = "com.linecorp.armeria:armeria-thrift0.9"
+[libraries.armeria-xds]
+module = "com.linecorp.armeria:armeria-xds"
+
 
 [libraries.assertj]
 module = "org.assertj:assertj-core"
@@ -189,10 +199,13 @@ javadocs = "https://fasterxml.github.io/jackson-core/javadoc/2.13/"
 [libraries.jackson-databind]
 module = "com.fasterxml.jackson.core:jackson-databind"
 javadocs = "https://fasterxml.github.io/jackson-databind/javadoc/2.13/"
-[libraries.jackson-datatype-jsr310]
-module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
 [libraries.jackson-datatype-jdk8]
 module = "com.fasterxml.jackson.datatype:jackson-datatype-jdk8"
+[libraries.jackson-datatype-jsr310]
+module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
+# Only used for testing. See JacksonRequestConverterFunctionTest for more information.
+[libraries.jackson-module-scala]
+module = "com.fasterxml.jackson.module:jackson-module-scala_3"
 
 [libraries.javassist]
 module = "org.javassist:javassist"
@@ -275,10 +288,21 @@ module = "org.junit.platform:junit-platform-commons"
 [libraries.junit5-platform-launcher]
 module = "org.junit.platform:junit-platform-launcher"
 
-[libraries.logback]
+[libraries.logback12]
 module = "ch.qos.logback:logback-classic"
-version.ref = "logback"
+version.ref = "logback12"
 javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.12/"
+[libraries.logback14]
+module = "ch.qos.logback:logback-classic"
+version.ref = "logback14"
+javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.4.11/"
+
+[libraries.controlplane-cache]
+module = "io.envoyproxy.controlplane:cache"
+version.ref = "controlplane"
+[libraries.controlplane-server]
+module = "io.envoyproxy.controlplane:server"
+version.ref = "controlplane"
 
 [libraries.micrometer-core]
 module = "io.micrometer:micrometer-core"
@@ -321,19 +345,33 @@ module = "org.apache.shiro:shiro-core"
 version.ref = "shiro"
 javadocs = "https://shiro.apache.org/static/1.3.2/apidocs/"
 
-[libraries.slf4j-api]
+[libraries.slf4j1-api]
 module = "org.slf4j:slf4j-api"
-version.ref = "slf4j"
+version.ref = "slf4j1"
 javadocs = "https://www.javadoc.io/doc/org.slf4j/slf4j-api/1.7.36/"
-[libraries.slf4j-jcl-over-slf4j]
+[libraries.slf4j1-jcl-over-slf4j]
 module = "org.slf4j:jcl-over-slf4j"
-version.ref = "slf4j"
-[libraries.slf4j-jul-to-slf4j]
+version.ref = "slf4j1"
+[libraries.slf4j1-jul-to-slf4j]
 module = "org.slf4j:jul-to-slf4j"
-version.ref = "slf4j"
-[libraries.slf4j-log4j-over-slf4j]
+version.ref = "slf4j1"
+[libraries.slf4j1-log4j-over-slf4j]
 module = "org.slf4j:log4j-over-slf4j"
-version.ref = "slf4j"
+version.ref = "slf4j1"
+
+[libraries.slf4j2-api]
+module = "org.slf4j:slf4j-api"
+version.ref = "slf4j2"
+javadocs = "https://www.javadoc.io/doc/org.slf4j/slf4j-api/2.0.7/"
+[libraries.slf4j2-jcl-over-slf4j]
+module = "org.slf4j:jcl-over-slf4j"
+version.ref = "slf4j2"
+[libraries.slf4j2-jul-to-slf4j]
+module = "org.slf4j:jul-to-slf4j"
+version.ref = "slf4j2"
+[libraries.slf4j2-log4j-over-slf4j]
+module = "org.slf4j:log4j-over-slf4j"
+version.ref = "slf4j2"
 
 [libraries.snappy]
 module = "org.xerial.snappy:snappy-java"
@@ -370,6 +408,10 @@ version.ref = "spring-boot3"
 [libraries.spring-test-junit5]
 module = "com.github.sbrannen:spring-test-junit5"
 version.ref = "spring-test-junit5"
+
+[libraries.testcontainers-junit-jupiter]
+module = "org.testcontainers:junit-jupiter"
+version.ref = "testcontainers"
 
 [libraries.thrift09]
 module = "org.apache.thrift:libthrift"

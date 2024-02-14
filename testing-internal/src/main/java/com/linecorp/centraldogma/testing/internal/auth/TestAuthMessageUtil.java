@@ -33,6 +33,8 @@ public final class TestAuthMessageUtil {
 
     public static final String USERNAME = "foo";
     public static final String PASSWORD = "bar";
+    public static final String USERNAME2 = "foo2";
+    public static final String PASSWORD2 = "bar2";
     public static final String WRONG_PASSWORD = "baz";
     public static final String WRONG_SESSION_ID = "00000000-0000-0000-0000-000000000000";
     public static final String MALFORMED_SESSION_ID = "not_a_session_id";

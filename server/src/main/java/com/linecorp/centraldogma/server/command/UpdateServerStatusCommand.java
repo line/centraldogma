@@ -70,6 +70,6 @@ public final class UpdateServerStatusCommand extends AdministrativeCommand<Void>
     @Override
     ToStringHelper toStringHelper() {
         return super.toStringHelper()
-                .add("writable", writable);
+                    .add("writable", writable);
     }
 }

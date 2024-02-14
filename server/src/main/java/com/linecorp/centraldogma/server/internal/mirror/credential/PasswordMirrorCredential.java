@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.mirror.credential;
 
+import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 import static com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredentialUtil.requireNonEmpty;
 import static java.util.Objects.requireNonNull;
 
@@ -23,12 +24,17 @@ import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 public final class PasswordMirrorCredential extends AbstractMirrorCredential {
+
+    private static final Logger logger = LoggerFactory.getLogger(PasswordMirrorCredential.class);
 
     private final String username;
     private final String password;
@@ -54,7 +60,14 @@ public final class PasswordMirrorCredential extends AbstractMirrorCredential {
 
     @JsonProperty("password")
     public String password() {
-        return password;
+        try {
+            return convertValue(password, "credentials.password");
+        } catch (Throwable t) {
+            // The password probably has `:` without prefix. Just return it as is for backward compatibility.
+            logger.debug("Failed to convert the password of the credential. username: {}, id: {}",
+                         username, id(), t);
+            return password;
+        }
     }
 
     @Override

@@ -74,7 +74,12 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
 
     @Override
     public final CompletableFuture<Void> start() {
-        return startStop.start(false).thenRun(() -> started = true);
+        return startStop.start(false).thenRun(() -> {
+            started = true;
+            if (!writable) {
+                logger.warn("Started a command executor with read-only mode.");
+            }
+        });
     }
 
     protected abstract void doStart(@Nullable Runnable onTakeLeadership,
@@ -107,19 +112,6 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
             // AdministrativeCommand is allowed because it is used to change the read-only mode or migrate
             // metadata under maintenance mode.
             throw new IllegalStateException("running in read-only mode. command: " + command);
-        }
-
-        if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
-            final UpdateServerStatusCommand command0 = (UpdateServerStatusCommand) command;
-            final boolean writable0 = command0.writable();
-            if (writable0 != writable) {
-                setWritable(writable0);
-                if (writable0) {
-                    logger.warn("Left read-only mode.");
-                } else {
-                    logger.warn("Entered read-only mode.");
-                }
-            }
         }
 
         try {

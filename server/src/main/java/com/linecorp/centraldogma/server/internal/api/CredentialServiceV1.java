@@ -31,9 +31,9 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 
 /**
@@ -44,8 +44,11 @@ import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class CredentialServiceV1 extends AbstractService {
 
-    public CredentialServiceV1(ProjectManager pm, CommandExecutor executor) {
-        super(pm, executor);
+    private final ProjectApiManager projectApiManager;
+
+    public CredentialServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor) {
+        super(executor);
+        this.projectApiManager = projectApiManager;
     }
 
     /**
@@ -104,6 +107,6 @@ public class CredentialServiceV1 extends AbstractService {
     }
 
     private MetaRepository metaRepo(String projectName) {
-        return projectManager().get(projectName).metaRepo();
+        return projectApiManager.getProject(projectName).metaRepo();
     }
 }

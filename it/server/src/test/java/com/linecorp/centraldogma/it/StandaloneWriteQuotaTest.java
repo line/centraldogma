@@ -29,7 +29,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.common.auth.OAuth2Token;
+import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -61,7 +61,7 @@ class StandaloneWriteQuotaTest extends WriteQuotaTestBase {
         final URI uri = dogma.httpClient().uri();
 
         webClient = WebClient.builder(uri)
-                             .auth(OAuth2Token.of(adminSessionId))
+                             .auth(AuthToken.ofOAuth2(adminSessionId))
                              .build();
         dogmaClient = new ArmeriaCentralDogmaBuilder()
                 .accessToken(adminSessionId)

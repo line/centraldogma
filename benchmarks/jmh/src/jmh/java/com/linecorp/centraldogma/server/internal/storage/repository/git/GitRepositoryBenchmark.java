@@ -41,7 +41,7 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 @State(Scope.Benchmark)
 public class GitRepositoryBenchmark {
 
-    private static final Author AUTHOR = new Author("user@example.com");
+    private static final Author AUTHOR = Author.ofEmail("user@example.com");
 
     @Param({ "0", "2000", "4000", "6000", "8000" })
     private int previousCommits;
