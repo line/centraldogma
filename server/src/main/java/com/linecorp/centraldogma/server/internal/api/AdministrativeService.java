@@ -18,10 +18,6 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.common.HttpStatus;
@@ -34,13 +30,13 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchException;
+import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
+import com.linecorp.centraldogma.server.management.ServerStatus;
 
 @ProducesJson
 public final class AdministrativeService extends AbstractService {
-
-    private static final Logger logger = LoggerFactory.getLogger(AdministrativeService.class);
 
     public AdministrativeService(CommandExecutor executor) {
         super(executor);
@@ -106,58 +102,15 @@ public final class AdministrativeService extends AbstractService {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.BAD_REQUEST,
                                              "'replicating' must be 'true' if 'writable' is 'true'.");
         }
-        if (oldStatus.writable == writable && oldStatus.replicating == replicating) {
+        if (oldStatus.writable() == writable && oldStatus.replicating() == replicating) {
             throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
         }
 
-        if (oldStatus.writable != writable) {
-            executor().setWritable(writable);
-            if (writable) {
-                logger.warn("Left read-only mode.");
-            } else {
-                logger.warn("Entered read-only mode. replication: {}", replicating);
-            }
-        }
-
-        if (oldStatus.replicating != replicating) {
-            if (replicating) {
-                return executor().start().handle((unused, cause) -> {
-                    if (cause != null) {
-                        logger.warn("Failed to start the command executor:", cause);
-                    } else {
-                        logger.info("Enabled replication. read-only: {}", !writable);
-                    }
-                    return status();
-                });
-            }
-            return executor().stop().handle((unused, cause) -> {
-                if (cause != null) {
-                    logger.warn("Failed to stop the command executor:", cause);
-                } else {
-                    logger.info("Disabled replication");
-                }
-                return status();
-            });
-        }
-
-        return CompletableFuture.completedFuture(status());
+        return execute(Command.updateServerStatus(writable, replicating))
+                .thenApply(unused -> status());
     }
 
     private static CompletableFuture<ServerStatus> rejectStatusPatch(JsonNode patch) {
         throw new IllegalArgumentException("Invalid JSON patch: " + patch);
-    }
-
-    // TODO(trustin): Add more properties, e.g. method, host name, isLeader and config.
-    private static final class ServerStatus {
-        @JsonProperty
-        final boolean writable;
-        @JsonProperty
-        final boolean replicating;
-
-        ServerStatus(boolean writable, boolean replicating) {
-            assert !writable || replicating; // replicating must be true if writable is true.
-            this.writable = writable;
-            this.replicating = replicating;
-        }
     }
 }

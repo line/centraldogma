@@ -555,7 +555,7 @@ class ZooKeeperCommandExecutorTest {
             assertThat(commandResult1.result()).isNull();
             awaitUntilReplicated(cluster, command1);
 
-            final Command<Void> readOnlyCommand = Command.updateServerStatus(false);
+            final Command<Void> readOnlyCommand = Command.updateServerStatus(false, null);
             replica1.commandExecutor().execute(readOnlyCommand).join();
             assertThat(replica1.commandExecutor().isWritable()).isFalse();
             final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).get();

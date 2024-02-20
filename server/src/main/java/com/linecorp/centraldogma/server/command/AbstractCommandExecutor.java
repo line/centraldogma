@@ -33,6 +33,7 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.StartStopSupport;
+import com.linecorp.centraldogma.common.ReadOnlyException;
 
 /**
  * Helps to implement a concrete {@link CommandExecutor}.
@@ -111,7 +112,7 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
             // Reject all commands except for AdministrativeCommand when the replica is in read-only mode.
             // AdministrativeCommand is allowed because it is used to change the read-only mode or migrate
             // metadata under maintenance mode.
-            throw new IllegalStateException("running in read-only mode. command: " + command);
+            throw new ReadOnlyException("running in read-only mode. command: " + command);
         }
 
         try {

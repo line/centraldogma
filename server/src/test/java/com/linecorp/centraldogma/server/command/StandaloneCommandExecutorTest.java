@@ -127,7 +127,7 @@ class StandaloneCommandExecutorTest {
     @Test
     void shouldPerformAdministrativeCommandWithReadOnly() throws JsonParseException {
         final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) extension.executor();
-        executor.execute(Command.updateServerStatus(false)).join();
+        executor.execute(Command.updateServerStatus(false, null)).join();
         assertThat(executor.isWritable()).isFalse();
 
         final Change<JsonNode> change = Change.ofJsonUpsert("/foo.json", "{\"a\": \"b\"}");

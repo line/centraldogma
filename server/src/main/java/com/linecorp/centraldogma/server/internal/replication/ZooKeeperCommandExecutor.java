@@ -108,6 +108,7 @@ import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.RemoveRepositoryCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
+import com.linecorp.centraldogma.server.internal.command.CommandExecutorStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -172,6 +173,7 @@ public final class ZooKeeperCommandExecutor
     private final QuotaConfig writeQuota;
 
     private MetadataService metadataService;
+    private final CommandExecutorStatusManager executorStatusManager;
 
     private volatile EmbeddedZooKeeper quorumPeer;
     private volatile CuratorFramework curator;
@@ -184,6 +186,7 @@ public final class ZooKeeperCommandExecutor
     private volatile LeaderSelector leaderSelector;
     private volatile ScheduledExecutorService quotaExecutor;
     private volatile boolean createdParentNodes;
+    private volatile boolean canReplicate;
 
     private class OldLogRemover implements LeaderSelectorListener {
         volatile boolean hasLeadership;
@@ -319,6 +322,7 @@ public final class ZooKeeperCommandExecutor
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
         this.writeQuota = writeQuota;
         metadataService = new MetadataService(projectManager, this);
+        executorStatusManager = new CommandExecutorStatusManager(this);
 
         // Register the metrics which are accessible even before started.
         Gauge.builder("replica.id", this, self -> replicaId()).register(meterRegistry);
@@ -417,6 +421,7 @@ public final class ZooKeeperCommandExecutor
                     Executors.newSingleThreadScheduledExecutor(
                             new DefaultThreadFactory("zookeeper-quota-executor", true)),
                     "quotaExecutor");
+            canReplicate = true;
         } catch (InterruptedException | ReplicationException e) {
             throw e;
         } catch (Exception e) {
@@ -718,12 +723,16 @@ public final class ZooKeeperCommandExecutor
 
         long nextRevision = info.lastReplayedRevision + 1;
         for (;;) {
+            if (!canReplicate) {
+                break;
+            }
             ReplicationLog<?> l = null;
             try {
                 final Optional<ReplicationLog<?>> log = loadLog(nextRevision, true);
+                Command<?> command = null;
                 if (log.isPresent()) {
                     l = log.get();
-                    final Command<?> command = l.command();
+                    command = l.command();
                     final Object expectedResult = l.result();
                     final Object actualResult = delegate.execute(command).get();
 
@@ -742,6 +751,9 @@ public final class ZooKeeperCommandExecutor
 
                 updateLastReplayedRevision(nextRevision);
                 info.lastReplayedRevision = nextRevision;
+                if (command instanceof UpdateServerStatusCommand) {
+                    updateServerStatusLater((UpdateServerStatusCommand) command);
+                }
                 if (nextRevision == targetRevision) {
                     break;
                 } else {
@@ -770,6 +782,18 @@ public final class ZooKeeperCommandExecutor
                 throw new ReplicationException(sb.toString(), t);
             }
         }
+    }
+
+    private void updateServerStatusLater(UpdateServerStatusCommand command) {
+        final Boolean replicating = command.replicating();
+        if (Boolean.FALSE.equals(replicating)) {
+            canReplicate = false;
+        }
+        // Use a separate executor since executorStatusManager.updateStatus() may stop the executor that calls
+        // this method.
+        ForkJoinPool.commonPool().execute(() -> {
+            executorStatusManager.updateStatus(command);
+        });
     }
 
     @Override
@@ -1070,6 +1094,11 @@ public final class ZooKeeperCommandExecutor
     @Override
     protected <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception {
         final CompletableFuture<T> future = new CompletableFuture<>();
+        ExecutorService executor = this.executor;
+        if (command instanceof UpdateServerStatusCommand) {
+            // Use a separate executor because `this.executor()` could be stopped while executing the command.
+            executor = ForkJoinPool.commonPool();
+        }
         executor.execute(() -> {
             try {
                 future.complete(blockingExecute(command));
@@ -1113,25 +1142,17 @@ public final class ZooKeeperCommandExecutor
                 final Command<Revision> command0 = Command.forcePush(delegated.asIs(commitResult));
                 log = new ReplicationLog<>(replicaId(), command0, commitResult.revision());
             } else {
-                if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
-                    final UpdateServerStatusCommand command0 = (UpdateServerStatusCommand) command;
-                    final boolean writable = command0.writable();
-                    final boolean wasWritable = isWritable();
-                    setWritable(writable);
-                    if (writable != wasWritable) {
-                        if (writable) {
-                            logger.warn("Left read-only mode.");
-                        } else {
-                            logger.warn("Entered read-only mode.");
-                        }
-                    }
-                }
-
                 log = new ReplicationLog<>(replicaId(), command, result);
             }
 
             // Store the command execution log to ZooKeeper.
             final long revision = storeLog(log);
+
+            // Update the ServerStatus to the CommandExecutor after the log is stored.
+            if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
+                canReplicate = false;
+                executorStatusManager.updateStatus((UpdateServerStatusCommand) command);
+            }
 
             logger.debug("logging OK. revision = {}, log = {}", revision, log);
             return result;
