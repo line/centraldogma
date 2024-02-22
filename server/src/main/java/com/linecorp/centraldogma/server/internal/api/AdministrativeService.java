@@ -59,7 +59,7 @@ public final class AdministrativeService extends AbstractService {
     }
 
     /**
-     * PATCH /status?scope=cluster
+     * PATCH /status?scope=all
      *
      * <p>Patches the server status with a JSON patch. Currently used only for entering read-only.
      *
@@ -115,7 +115,7 @@ public final class AdministrativeService extends AbstractService {
         }
 
         if (scope == Scope.LOCAL) {
-            // Validate the new status for instance scope. Other servers may have different status.
+            // Validate the new status for the local scope. Other servers may have different status.
             if (oldStatus.writable() == writable && oldStatus.replicating() == replicating) {
                 throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
             }

@@ -546,7 +546,7 @@ public final class ZooKeeperCommandExecutor
             peer.start();
 
             // Wait until the ZooKeeper joins the cluster.
-            for (;;) {
+            for (; ; ) {
                 final ServerState state = peer.getPeerState();
                 if (state == ServerState.FOLLOWING || state == ServerState.LEADING) {
                     break;
@@ -719,7 +719,7 @@ public final class ZooKeeperCommandExecutor
         }
 
         long nextRevision = info.lastReplayedRevision + 1;
-        for (;;) {
+        for (; ; ) {
             if (!canReplicate) {
                 break;
             }
@@ -1147,8 +1147,11 @@ public final class ZooKeeperCommandExecutor
 
             // Update the ServerStatus to the CommandExecutor after the log is stored.
             if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
-                canReplicate = false;
-                statusManager().updateStatus((UpdateServerStatusCommand) command);
+                final UpdateServerStatusCommand statusCommand = (UpdateServerStatusCommand) command;
+                if (Boolean.FALSE.equals(statusCommand.replicating())) {
+                    canReplicate = false;
+                }
+                statusManager().updateStatus(statusCommand);
             }
 
             logger.debug("logging OK. revision = {}, log = {}", revision, log);

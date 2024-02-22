@@ -24,7 +24,6 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.armeria.common.metric.NoopMeterRegistry;
 import com.linecorp.centraldogma.common.ShuttingDownException;
@@ -60,13 +59,6 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
     private CommandExecutor executor;
     private ScheduledExecutorService purgeWorker;
 
-    @RegisterExtension
-    final TemporaryFolderExtension gitRepoDir = new TemporaryFolderExtension() {
-        @Override
-        protected boolean runForEachTest() {
-            return true;
-        }
-    };
     private final TemporaryFolder tempDir = new TemporaryFolder();
     private File dataDir;
 
