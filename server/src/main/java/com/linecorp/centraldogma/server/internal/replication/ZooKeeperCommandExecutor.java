@@ -546,7 +546,7 @@ public final class ZooKeeperCommandExecutor
             peer.start();
 
             // Wait until the ZooKeeper joins the cluster.
-            for (; ; ) {
+            for (;;) {
                 final ServerState state = peer.getPeerState();
                 if (state == ServerState.FOLLOWING || state == ServerState.LEADING) {
                     break;
@@ -719,7 +719,7 @@ public final class ZooKeeperCommandExecutor
         }
 
         long nextRevision = info.lastReplayedRevision + 1;
-        for (; ; ) {
+        for (;;) {
             if (!canReplicate) {
                 break;
             }

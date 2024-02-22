@@ -35,6 +35,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
@@ -134,7 +135,7 @@ class StandaloneCommandExecutorTest {
         final Command<CommitResult> push = Command.push(
                 Author.SYSTEM, TEST_PRJ, TEST_REPO3, Revision.HEAD, "", "", Markup.PLAINTEXT, change);
         assertThatThrownBy(() -> executor.execute(push))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(ReadOnlyException.class)
                 .hasMessageContaining("running in read-only mode.");
         // The same json upsert.
         final CommitResult commitResult = executor.execute(Command.forcePush(push)).join();
