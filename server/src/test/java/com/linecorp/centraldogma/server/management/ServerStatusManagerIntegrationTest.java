@@ -28,6 +28,7 @@ import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.UnprocessedRequestException;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.centraldogma.common.ReadOnlyException;
+import com.linecorp.centraldogma.server.internal.api.AdministrativeService.Scope;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaReplicationExtension;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaRuleDelegate;
 
@@ -121,6 +122,31 @@ class ServerStatusManagerIntegrationTest {
                 .hasCauseInstanceOf(ReadOnlyException.class);
     }
 
+    @Test
+    void updateSingleInstance() throws Exception {
+        final CentralDogmaRuleDelegate dogma = cluster.servers().get(0);
+        final BlockingWebClient client = dogma.httpClient().blocking();
+
+        ServerStatus serverStatus = getServerStatus(client);
+        assertThat(serverStatus.writable()).isTrue();
+        assertThat(serverStatus.replicating()).isTrue();
+
+        updateServerStatus(client, false, false, Scope.LOCAL);
+
+        serverStatus = getServerStatus(client);
+        assertThat(serverStatus.writable()).isFalse();
+        assertThat(serverStatus.replicating()).isFalse();
+
+        for (int i = 1; i < cluster.servers().size(); i++) {
+            serverStatus = getServerStatus(cluster.servers().get(i).httpClient().blocking());
+            assertThat(serverStatus.writable()).isTrue();
+            assertThat(serverStatus.replicating()).isTrue();
+        }
+
+        updateServerStatus(client, true, true, Scope.LOCAL);
+        assertAllServerStatus(true, true);
+    }
+
     private void assertAllServerStatus(boolean writable, boolean replicating) {
         for (CentralDogmaRuleDelegate server : cluster.servers()) {
             final BlockingWebClient otherClient = server.httpClient().blocking();
@@ -131,11 +157,17 @@ class ServerStatusManagerIntegrationTest {
     }
 
     private static ServerStatus updateServerStatus(BlockingWebClient client,
-                                                   boolean writable, boolean replicating)
+                                                   boolean writable, boolean replicating) throws Exception {
+        return updateServerStatus(client, writable, replicating, Scope.ALL);
+    }
+
+    private static ServerStatus updateServerStatus(BlockingWebClient client,
+                                                   boolean writable, boolean replicating, Scope scope)
             throws Exception {
         final ServerStatus serverStatus =
                 client.prepare()
                       .patch("/api/v1/status")
+                      .queryParam("scope", scope.name())
                       .content(MediaType.JSON_PATCH,
                                patchServerStatus(writable, replicating))
                       .asJson(ServerStatus.class)

@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.command;
+package com.linecorp.centraldogma.server.command;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -26,10 +26,11 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 
+/**
+ * Manages the status of a {@link CommandExecutor}.
+ */
 public final class CommandExecutorStatusManager {
 
     private static final Logger logger = LoggerFactory.getLogger(ServerStatusManager.class);
@@ -38,18 +39,40 @@ public final class CommandExecutorStatusManager {
 
     private volatile ReplicatingRequest replicatingRequest = ReplicatingRequest.NONE;
 
+    /**
+     * Creates a new instance.
+     */
     public CommandExecutorStatusManager(CommandExecutor executor) {
         this.executor = executor;
     }
 
-    boolean writable() {
+    /**
+     * Returns the executor that this {@link CommandExecutorStatusManager} manages.
+     */
+    public CommandExecutor executor() {
+        return executor;
+    }
+
+    /**
+     * Returns whether the {@link #executor()} is writable.
+     */
+    public boolean writable() {
         return executor.isWritable();
     }
 
-    boolean replicating() {
+    /**
+     * Returns whether the {@link #executor()} is replicating.
+     */
+    public boolean replicating() {
         return executor.isStarted();
     }
 
+    /**
+     * Updates the status of the executor with the specified {@link UpdateServerStatusCommand}.
+     *
+     * <p>This method could take a long time if the executor is not in the desired state yet.
+     * So it should be not called from an event loop thread.
+     */
     public void updateStatus(UpdateServerStatusCommand command) {
         final Boolean writable = command.writable();
         if (writable != null) {
@@ -82,6 +105,10 @@ public final class CommandExecutorStatusManager {
 
     /**
      * Sets the executor to replicating mode or non-replicating mode.
+     *
+     * <p>This method could take a long time if the executor is not in the desired state yet.
+     * So it should be not called from an event loop thread.
+     *
      * @return {@code true} if the executor is already in the specified mode, or the mode has been updated
      *         successfully.
      */

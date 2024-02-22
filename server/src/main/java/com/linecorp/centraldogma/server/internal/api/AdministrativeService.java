@@ -24,7 +24,9 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
+import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.Get;
+import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -34,12 +36,16 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
 import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.management.ServerStatusManager;
 
 @ProducesJson
 public final class AdministrativeService extends AbstractService {
 
-    public AdministrativeService(CommandExecutor executor) {
+    private final ServerStatusManager statusManager;
+
+    public AdministrativeService(CommandExecutor executor, ServerStatusManager statusManager) {
         super(executor);
+        this.statusManager = statusManager;
     }
 
     /**
@@ -53,15 +59,20 @@ public final class AdministrativeService extends AbstractService {
     }
 
     /**
-     * PATCH /status
+     * PATCH /status?scope=cluster
      *
      * <p>Patches the server status with a JSON patch. Currently used only for entering read-only.
+     *
+     * <p>The 'scope' parameter should be either 'local' or 'all'. If absent, defaults to 'all'.
+     * If the scope is {@link Scope#ALL}, the new status is propagated to all cluster servers.
+     * If the scope is {@link Scope#LOCAL}, the new status is only applied to the current server.
      */
     @Patch("/status")
     @Consumes("application/json-patch+json")
     @RequiresAdministrator
-    public CompletableFuture<ServerStatus> updateStatus(ServiceRequestContext ctx,
-                                                        JsonNode patch) throws Exception {
+    public CompletableFuture<ServerStatus> updateStatus(ServiceRequestContext ctx, JsonNode patch,
+                                                        @Param @Default("ALL") Scope scope)
+            throws Exception {
         // TODO(trustin): Consider extracting this into common utility or Armeria.
         final ServerStatus oldStatus = status();
         final JsonNode oldValue = Jackson.valueToTree(oldStatus);
@@ -102,15 +113,29 @@ public final class AdministrativeService extends AbstractService {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.BAD_REQUEST,
                                              "'replicating' must be 'true' if 'writable' is 'true'.");
         }
-        if (oldStatus.writable() == writable && oldStatus.replicating() == replicating) {
-            throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
-        }
 
-        return execute(Command.updateServerStatus(writable, replicating))
-                .thenApply(unused -> status());
+        if (scope == Scope.LOCAL) {
+            // Validate the new status for instance scope. Other servers may have different status.
+            if (oldStatus.writable() == writable && oldStatus.replicating() == replicating) {
+                throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
+            }
+
+            return CompletableFuture.supplyAsync(() -> {
+                executor().statusManager().setWritable(writable);
+                executor().statusManager().setReplicating(replicating);
+                return statusManager.updateStatus(writable, replicating);
+            }, ctx.blockingTaskExecutor());
+        } else {
+            return execute(Command.updateServerStatus(writable, replicating))
+                    .thenApply(unused -> status());
+        }
     }
 
     private static CompletableFuture<ServerStatus> rejectStatusPatch(JsonNode patch) {
         throw new IllegalArgumentException("Invalid JSON patch: " + patch);
+    }
+
+    public enum Scope {
+        LOCAL, ALL
     }
 }

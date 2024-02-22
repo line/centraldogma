@@ -108,7 +108,6 @@ import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.RemoveRepositoryCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
-import com.linecorp.centraldogma.server.internal.command.CommandExecutorStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -173,7 +172,6 @@ public final class ZooKeeperCommandExecutor
     private final QuotaConfig writeQuota;
 
     private MetadataService metadataService;
-    private final CommandExecutorStatusManager executorStatusManager;
 
     private volatile EmbeddedZooKeeper quorumPeer;
     private volatile CuratorFramework curator;
@@ -322,7 +320,6 @@ public final class ZooKeeperCommandExecutor
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
         this.writeQuota = writeQuota;
         metadataService = new MetadataService(projectManager, this);
-        executorStatusManager = new CommandExecutorStatusManager(this);
 
         // Register the metrics which are accessible even before started.
         Gauge.builder("replica.id", this, self -> replicaId()).register(meterRegistry);
@@ -792,7 +789,7 @@ public final class ZooKeeperCommandExecutor
         // Use a separate executor since executorStatusManager.updateStatus() may stop the executor that calls
         // this method.
         ForkJoinPool.commonPool().execute(() -> {
-            executorStatusManager.updateStatus(command);
+            statusManager().updateStatus(command);
         });
     }
 
@@ -1151,7 +1148,7 @@ public final class ZooKeeperCommandExecutor
             // Update the ServerStatus to the CommandExecutor after the log is stored.
             if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
                 canReplicate = false;
-                executorStatusManager.updateStatus((UpdateServerStatusCommand) command);
+                statusManager().updateStatus((UpdateServerStatusCommand) command);
             }
 
             logger.debug("logging OK. revision = {}, log = {}", revision, log);

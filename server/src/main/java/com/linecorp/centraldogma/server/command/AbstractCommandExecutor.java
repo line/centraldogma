@@ -51,6 +51,7 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     private volatile boolean started;
     private volatile boolean writable = true;
     private final AtomicInteger numPendingStopRequests = new AtomicInteger();
+    private final CommandExecutorStatusManager statusManager;
 
     /**
      * Creates a new instance.
@@ -62,6 +63,7 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
                                       @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
         this.onTakeLeadership = onTakeLeadership;
         this.onReleaseLeadership = onReleaseLeadership;
+        statusManager = new CommandExecutorStatusManager(this);
     }
 
     @Override
@@ -125,6 +127,11 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     }
 
     protected abstract <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception;
+
+    @Override
+    public CommandExecutorStatusManager statusManager() {
+        return statusManager;
+    }
 
     @Override
     public String toString() {

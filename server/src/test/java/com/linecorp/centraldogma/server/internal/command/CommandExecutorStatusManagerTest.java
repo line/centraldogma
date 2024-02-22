@@ -28,6 +28,7 @@ import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.command.CommandExecutorStatusManager;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 
 class CommandExecutorStatusManagerTest {
@@ -132,6 +133,11 @@ class CommandExecutorStatusManagerTest {
         @Override
         public <T> CompletableFuture<T> execute(Command<T> command) {
             return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CommandExecutorStatusManager statusManager() {
+            return new CommandExecutorStatusManager(this);
         }
     }
 }

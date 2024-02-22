@@ -435,7 +435,7 @@ public class CentralDogma implements AutoCloseable {
             }
         };
 
-        final ServerStatusManager statusManager = new ServerStatusManager(cfg.dataDir());
+        statusManager = new ServerStatusManager(cfg.dataDir());
         final CommandExecutor executor;
         final ReplicationMethod replicationMethod = cfg.replicationConfig().method();
         switch (replicationMethod) {
@@ -737,8 +737,9 @@ public class CentralDogma implements AutoCloseable {
         // Enable content compression for API responses.
         decorator = decorator.andThen(contentEncodingDecorator());
 
+        assert statusManager != null;
         sb.annotatedService(API_V1_PATH_PREFIX,
-                            new AdministrativeService(executor), decorator,
+                            new AdministrativeService(executor, statusManager), decorator,
                             v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
         sb.annotatedService(API_V1_PATH_PREFIX,
                             new ProjectServiceV1(projectApiManager), decorator,

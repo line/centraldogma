@@ -37,7 +37,6 @@ import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionManager;
-import com.linecorp.centraldogma.server.internal.command.CommandExecutorStatusManager;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -61,7 +60,6 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private final double permitsPerSecond;
     private final MetadataService metadataService;
     private final ServerStatusManager serverStatusManager;
-    private final CommandExecutorStatusManager executorStatusManager;
 
     @VisibleForTesting
     final Map<String, RateLimiter> writeRateLimiters;
@@ -123,7 +121,6 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         this.permitsPerSecond = permitsPerSecond;
         writeRateLimiters = new ConcurrentHashMap<>();
         metadataService = new MetadataService(projectManager, this);
-        executorStatusManager = new CommandExecutorStatusManager(this);
     }
 
     @Override
@@ -374,7 +371,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private CompletableFuture<Void> updateServerStatus(UpdateServerStatusCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             serverStatusManager.updateStatus(c.writable(), c.replicating());
-            executorStatusManager.updateStatus(c);
+            statusManager().updateStatus(c);
             return null;
         }, repositoryWorker);
     }
