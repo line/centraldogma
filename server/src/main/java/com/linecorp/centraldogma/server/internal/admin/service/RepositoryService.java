@@ -181,7 +181,7 @@ public class RepositoryService extends AbstractService {
         return projectApiManager.getProject(projectName).repos().get(repoName)
                                 .history(new Revision(from),
                                          new Revision(to),
-                                        pathPattern)
+                                         pathPattern)
                                 .thenApply(commits -> commits.stream()
                                                              .map(DtoConverter::convert)
                                                              .collect(toList()));
