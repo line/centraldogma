@@ -177,10 +177,11 @@ public class RepositoryService extends AbstractService {
                                                        @Param String path,
                                                        @Param @Default("-1") String from,
                                                        @Param @Default("1") String to) {
+        final String pathPattern = "/".equals(path) ? "/**" : path + "/**";
         return projectApiManager.getProject(projectName).repos().get(repoName)
                                 .history(new Revision(from),
                                          new Revision(to),
-                                         path + "**")
+                                        pathPattern)
                                 .thenApply(commits -> commits.stream()
                                                              .map(DtoConverter::convert)
                                                              .collect(toList()));
