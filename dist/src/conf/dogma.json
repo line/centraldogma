@@ -28,7 +28,7 @@
   },
   "webAppEnabled": true,
   "webAppTitle": null,
-  "mirroringEnabled": null,
+  "mirroringEnabled": true,
   "numMirroringThreads": null,
   "maxNumFilesPerMirror": null,
   "maxNumBytesPerMirror": null,
@@ -36,6 +36,10 @@
     "method": "NONE"
   },
   "csrfTokenRequiredForThrift": null,
+  "writeQuotaPerRepository": {
+    "requestQuota": 5,
+    "timeWindowSeconds": 1
+  },
   "accessLogFormat": "common",
   "authentication": null
 }
