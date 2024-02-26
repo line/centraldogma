@@ -41,5 +41,6 @@
     "timeWindowSeconds": 1
   },
   "accessLogFormat": "common",
-  "authentication": null
+  "authentication": null,
+  "cors": null
 }
