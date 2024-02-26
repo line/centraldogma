@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 [versions]
-armeria = "1.27.1"
+armeria = "1.27.2"
 assertj = "3.25.2"
 awaitility = "4.2.0"
 bouncycastle = "1.77"
