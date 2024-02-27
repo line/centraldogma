@@ -35,7 +35,6 @@
   "replication": {
     "method": "NONE"
   },
-  "csrfTokenRequiredForThrift": null,
   "writeQuotaPerRepository": {
     "requestQuota": 5,
     "timeWindowSeconds": 1
