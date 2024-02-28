@@ -30,6 +30,8 @@ public final class HttpApiV1Constants {
 
     public static final String PROJECTS_PREFIX = API_V1_PATH_PREFIX + PROJECTS;
 
+    public static final String PROJECTS_VO_PREFIX = API_V0_PATH_PREFIX + PROJECTS;
+
     public static final String REPOS = "/repos";
 
     public static final String COMMITS = "/commits";
