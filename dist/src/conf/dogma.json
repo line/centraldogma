@@ -35,10 +35,7 @@
   "replication": {
     "method": "NONE"
   },
-  "writeQuotaPerRepository": {
-    "requestQuota": 5,
-    "timeWindowSeconds": 1
-  },
+  "writeQuotaPerRepository": null,
   "accessLogFormat": "common",
   "authentication": null,
   "cors": null
