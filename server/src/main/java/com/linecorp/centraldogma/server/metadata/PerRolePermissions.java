@@ -73,7 +73,7 @@ public class PerRolePermissions {
      * Creates a {@link PerRolePermissions} which allows accessing a repository from everyone.
      */
     public static PerRolePermissions ofPublic() {
-        return new PerRolePermissions(READ_WRITE, READ_WRITE, READ_WRITE, READ_WRITE);
+        return new PerRolePermissions(READ_WRITE, READ_WRITE, READ_WRITE, READ_ONLY);
     }
 
     /**
