@@ -766,9 +766,10 @@ public class MetadataService {
             final RepositoryMetadata repositoryMetadata = metadata.repo(repoName);
             final Member member = metadata.memberOrDefault(user.id(), null);
 
-            // If the member is guest.
+            // If the member is guest or using anonymous token.
             if (member == null) {
-                return repositoryMetadata.perRolePermissions().guest();
+                return !user.isAnonymous() ? repositoryMetadata.perRolePermissions().guest() :
+                       repositoryMetadata.perRolePermissions().anonymous();
             }
             final Collection<Permission> p = repositoryMetadata.perUserPermissions().get(member.id());
             if (p != null) {

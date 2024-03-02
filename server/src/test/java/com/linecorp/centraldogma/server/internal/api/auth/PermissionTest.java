@@ -27,6 +27,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -51,6 +52,7 @@ import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.armeria.testing.junit5.server.ServerExtension;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.internal.ApplicationToken;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
@@ -103,6 +105,9 @@ class PermissionTest {
 
             mds.addRepo(AUTHOR, "project1", "repo1",
                         new PerRolePermissions(READ_ONLY, READ_ONLY, NO_PERMISSION, NO_PERMISSION))
+               .toCompletableFuture().join();
+            mds.addRepo(AUTHOR, "project1", "anonymous_allowed_repo",
+                        new PerRolePermissions(READ_ONLY, READ_ONLY, NO_PERMISSION, READ_ONLY))
                .toCompletableFuture().join();
 
             // app-1 is an owner and it has read/write permission.
@@ -182,6 +187,22 @@ class PermissionTest {
         } else {
             assertThat(authenticatedUser(server.requestContextCaptor().take())).isEqualTo(appId);
         }
+    }
+
+    @Test
+    void test_anonymous() {
+        final WebClient client = WebClient.builder(server.httpUri())
+                                          .addHeader(HttpHeaderNames.AUTHORIZATION,
+                                                     "Bearer " + ApplicationToken.ANONYMOUS)
+                                          .build();
+        AggregatedHttpResponse response = client.get("/projects/project1/repos/anonymous_allowed_repo")
+                                                .aggregate().join();
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
+
+        final WebClient client2 = WebClient.builder(server.httpUri()).build();
+        AggregatedHttpResponse response2 = client2.get("/projects/project1/repos/anonymous_allowed_repo")
+                                                  .aggregate().join();
+        assertThat(response2.status()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Nullable
