@@ -52,7 +52,7 @@ import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.armeria.testing.junit5.server.ServerExtension;
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.internal.ApplicationToken;
+import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
@@ -193,7 +193,7 @@ class PermissionTest {
     void test_anonymous() {
         final WebClient client = WebClient.builder(server.httpUri())
                                           .addHeader(HttpHeaderNames.AUTHORIZATION,
-                                                     "Bearer " + ApplicationToken.ANONYMOUS)
+                                                     "Bearer " + CsrfToken.ANONYMOUS)
                                           .build();
         AggregatedHttpResponse response = client.get("/projects/project1/repos/anonymous_allowed_repo")
                                                 .aggregate().join();
