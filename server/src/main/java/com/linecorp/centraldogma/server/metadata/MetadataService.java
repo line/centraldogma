@@ -768,8 +768,8 @@ public class MetadataService {
 
             // If the member is guest or using anonymous token.
             if (member == null) {
-                return !user.isAnonymous() ? repositoryMetadata.perRolePermissions().guest() :
-                       repositoryMetadata.perRolePermissions().anonymous();
+                return !user.isAnonymous() ? repositoryMetadata.perRolePermissions().guest()
+                                           : repositoryMetadata.perRolePermissions().anonymous();
             }
             final Collection<Permission> p = repositoryMetadata.perUserPermissions().get(member.id());
             if (p != null) {
