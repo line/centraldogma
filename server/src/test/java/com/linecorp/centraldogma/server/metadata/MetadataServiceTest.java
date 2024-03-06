@@ -182,7 +182,7 @@ class MetadataServiceTest {
                                                                                      Permission.WRITE);
         assertThat(repositoryMetadata.perRolePermissions().guest()).containsExactly(Permission.READ,
                                                                                     Permission.WRITE);
-        assertThat(repositoryMetadata.perRolePermissions().anonymous()).containsExactly(Permission.READ);
+        assertThat(repositoryMetadata.perRolePermissions().anonymous()).containsExactly();
 
         mds.updatePerRolePermissions(author, project1, repo1, PerRolePermissions.ofPrivate()).join();
 

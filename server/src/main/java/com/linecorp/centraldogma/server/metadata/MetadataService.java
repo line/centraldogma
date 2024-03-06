@@ -411,13 +411,16 @@ public class MetadataService {
                     "Can't update the per role permission for internal repository: " + repoName);
         }
 
+        final Set<Permission> anonymous = perRolePermissions.anonymous();
         if (Project.REPO_META.equals(repoName)) {
             final Set<Permission> guest = perRolePermissions.guest();
-            final Set<Permission> anonymous = perRolePermissions.anonymous();
             if (!guest.isEmpty() || !anonymous.isEmpty()) {
                 throw new UnsupportedOperationException(
                         "Can't give a permission to guest or anonymous for internal repository: " + repoName);
             }
+        }
+        if (anonymous.contains(Permission.WRITE)) {
+            throw new IllegalArgumentException("Anonymous users cannot have write permission.");
         }
 
         final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) +

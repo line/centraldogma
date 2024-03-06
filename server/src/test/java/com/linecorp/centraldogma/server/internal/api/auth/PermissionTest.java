@@ -35,6 +35,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import com.google.common.util.concurrent.MoreExecutors;
 
+import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpData;
@@ -191,16 +192,14 @@ class PermissionTest {
 
     @Test
     void test_anonymous() {
-        final WebClient client = WebClient.builder(server.httpUri())
-                                          .addHeader(HttpHeaderNames.AUTHORIZATION,
-                                                     "Bearer " + CsrfToken.ANONYMOUS)
-                                          .build();
-        AggregatedHttpResponse response = client.get("/projects/project1/repos/anonymous_allowed_repo")
-                                                .aggregate().join();
+        final BlockingWebClient client = server.blockingWebClient(
+                builder -> builder.addHeader(HttpHeaderNames.AUTHORIZATION,
+                                             "Bearer " + CsrfToken.ANONYMOUS));
+        final AggregatedHttpResponse response = client.get("/projects/project1/repos/anonymous_allowed_repo");
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
 
         final WebClient client2 = WebClient.builder(server.httpUri()).build();
-        AggregatedHttpResponse response2 = client2.get("/projects/project1/repos/anonymous_allowed_repo")
+        final AggregatedHttpResponse response2 = client2.get("/projects/project1/repos/anonymous_allowed_repo")
                                                   .aggregate().join();
         assertThat(response2.status()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
