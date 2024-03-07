@@ -34,6 +34,8 @@ public final class HttpApiV1Constants {
 
     public static final String REPOS = "/repos";
 
+    public static final String REPOSITORIES = "/repositories";
+
     public static final String COMMITS = "/commits";
 
     public static final String COMPARE = "/compare";
