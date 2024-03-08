@@ -72,33 +72,44 @@ class RepositoryServiceTest {
     void getHistory() throws IOException {
         final WebClient client = dogma.httpClient();
         final String repoName = "myRepo";
-        final AggregatedHttpResponse repoResponse = createRepository(client, repoName);
-        final ResponseHeaders repoResponseHeaders = ResponseHeaders.of(repoResponse.headers());
+        final AggregatedHttpResponse myRepoCreatedResponse = createRepository(client, repoName);
+        final ResponseHeaders repoResponseHeaders = ResponseHeaders.of(myRepoCreatedResponse.headers());
         assertThat(repoResponseHeaders.status()).isEqualTo(HttpStatus.CREATED);
 
         final String repoNamePrefix = "/myRepo";
-        final AggregatedHttpResponse fileResponse1 = createFile(client,
+        final AggregatedHttpResponse barCreatedResponse = createFile(client,
                 repoNamePrefix,
                 "/foo/bar.txt",
                 "bar.txt",
                 "Bar");
-        final ResponseHeaders fileResponseHeader1 = ResponseHeaders.of(fileResponse1.headers());
+        final ResponseHeaders fileResponseHeader1 = ResponseHeaders.of(barCreatedResponse.headers());
         assertThat(fileResponseHeader1.status()).isEqualTo(HttpStatus.CREATED);
 
-        final AggregatedHttpResponse fileResponse2 = createFile(client,
+        final AggregatedHttpResponse bar2Created = createFile(client,
                 repoNamePrefix,
                 "/foo2/bar2.txt",
                 "bar2.txt",
                 "Bar 2");
-        final ResponseHeaders file2ResponseHeaders = ResponseHeaders.of(fileResponse2.headers());
+        final ResponseHeaders file2ResponseHeaders = ResponseHeaders.of(bar2Created.headers());
         assertThat(file2ResponseHeaders.status()).isEqualTo(HttpStatus.CREATED);
 
-        final AggregatedHttpResponse historyResponse1 = getHistory(client, repoNamePrefix, "/foo");
-        final JsonNode fooHistory = Jackson.readTree(historyResponse1.contentUtf8());
+        final AggregatedHttpResponse myRepoHistoryResponse = getHistory(client, repoNamePrefix, "/");
+        final JsonNode myRepoHistory = Jackson.readTree(myRepoHistoryResponse.contentUtf8());
+        assertThat(myRepoHistory.size()).isEqualTo(3);
+        assertThat(myRepoHistory.get(0).get("summary").asText()).isEqualTo("Add /foo2/bar2.txt");
+        assertThat(myRepoHistory.get(1).get("summary").asText()).isEqualTo("Add /foo/bar.txt");
+        assertThat(myRepoHistory.get(2).get("summary").asText()).isEqualTo("Create a new repository");
+
+        final AggregatedHttpResponse fooHistoryResponse = getHistory(client, repoNamePrefix, "/foo");
+        final JsonNode fooHistory = Jackson.readTree(fooHistoryResponse.contentUtf8());
         assertThat(fooHistory.get(0).get("summary").asText()).isEqualTo("Add /foo/bar.txt");
         final boolean containsUndesiredString = StreamSupport.stream(fooHistory.spliterator(), false)
                 .anyMatch(node -> "Add /foo2/bar2.txt".equals(node.get("summary").asText()));
         assertThat(containsUndesiredString).isFalse();
+
+        final AggregatedHttpResponse foo2HistoryResponse = getHistory(client, repoNamePrefix, "/foo2");
+        final JsonNode foo2History = Jackson.readTree(foo2HistoryResponse.contentUtf8());
+        assertThat(foo2History.get(0).get("summary").asText()).isEqualTo("Add /foo2/bar2.txt");
     }
 
     private static AggregatedHttpResponse getHistory(WebClient client, String repoName, String childRepoName) {
