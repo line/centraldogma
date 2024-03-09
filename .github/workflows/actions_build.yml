@@ -28,7 +28,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-12, windows-latest]
-        java: [17]
+        java: [17, 21]
         include:
           - java: 8
             os: ubuntu-latest
@@ -42,12 +42,14 @@ jobs:
             min-java: 11
           - java: 19
             os: ubuntu-latest
+          - java: 21
+            os: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
 
     - id: setup-build-jdk
       name: Set up build JDK ${{ env.BUILD_JDK_VERSION }}
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: ${{ env.BUILD_JDK_VERSION }}
@@ -55,7 +57,7 @@ jobs:
     - id: setup-test-jdk
       if: ${{ matrix.java != env.BUILD_JDK_VERSION }}
       name: Set up test JDK ${{ matrix.java }}
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: ${{ matrix.java }}
