@@ -16,7 +16,9 @@
 
 package com.linecorp.centraldogma.it;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -55,7 +57,8 @@ class GracefulShutdownTest {
     void watchRepositoryGracefulShutdown(ClientType clientType) throws Exception {
         final CentralDogma client = clientType.client(dogma);
         testGracefulShutdown(client.watchRepository(
-                dogma.project(), dogma.repo1(), Revision.HEAD, PathPattern.all(), 60000, false));
+                dogma.project(), dogma.repo1(), Revision.HEAD, PathPattern.all(), 60000, false),
+                             clientType);
     }
 
     @ParameterizedTest
@@ -63,16 +66,24 @@ class GracefulShutdownTest {
     void watchFileGracefulShutdown(ClientType clientType) throws Exception {
         final CentralDogma client = clientType.client(dogma);
         testGracefulShutdown(client.watchFile(
-                dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test.json"), 60000, false));
+                dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test.json"), 60000, false),
+                             clientType);
     }
 
-    private static void testGracefulShutdown(CompletableFuture<?> future) throws Exception {
+    private static void testGracefulShutdown(CompletableFuture<?> future,
+                                             ClientType clientType) throws Exception {
         // Wait a little bit so that we do not start to stop the server before the watch operation is accepted.
         Thread.sleep(500);
         dogma.stopAsync();
 
-        assertThatThrownBy(future::join)
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(ShuttingDownException.class);
+        await().untilAsserted(() -> assertThat(future).isDone());
+        if (clientType == ClientType.LEGACY) {
+            assertThatThrownBy(future::join)
+                    .isInstanceOf(CompletionException.class)
+                    .hasCauseInstanceOf(ShuttingDownException.class);
+        } else {
+            // the future is completed without an exception
+            assertThat(future).isCompleted();
+        }
     }
 }
