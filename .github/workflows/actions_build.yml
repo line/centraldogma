@@ -16,7 +16,7 @@ concurrency:
 
 env:
   LC_ALL: "en_US.UTF-8"
-  BUILD_JDK_VERSION: "17"
+  BUILD_JDK_VERSION: "21"
 
 jobs:
   build:
@@ -40,8 +40,6 @@ jobs:
           - java: 17
             os: ubuntu-latest
             min-java: 11
-          - java: 19
-            os: ubuntu-latest
           - java: 21
             os: ubuntu-latest
     steps:
