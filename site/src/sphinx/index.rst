@@ -40,11 +40,11 @@ Give it a try!
     $ bin/startup
     <Open http://127.0.0.1:36462/ in your browser for administrative console.>
 
-Using Docker? Launch our image at `Docker Hub <https://hub.docker.com/r/line/centraldogma/>`_:
+Using Docker? Launch our image at `Github Packages registry <https://github.com/line/centraldogma/pkgs/container/centraldogma>`_:
 
 .. code-block:: shell
 
-    $ docker run -p 36462:36462 line/centraldogma
+    $ docker run -p 36462:36462 ghcr.io/line/centraldogma
 
 Repository service for textual configuration
 --------------------------------------------
