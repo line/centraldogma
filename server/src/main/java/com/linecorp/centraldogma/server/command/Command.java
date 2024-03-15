@@ -360,9 +360,10 @@ public interface Command<T> {
 
     /**
      * Returns a new {@link Command} which is used to update the status of the server.
+     * If {@code null} is specified, the status is not updated.
      */
-    static Command<Void> updateServerStatus(boolean writable) {
-        return new UpdateServerStatusCommand(null, null, writable);
+    static Command<Void> updateServerStatus(@Nullable Boolean writable, @Nullable Boolean replicating) {
+        return new UpdateServerStatusCommand(null, null, writable, replicating);
     }
 
     /**

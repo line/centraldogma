@@ -21,6 +21,8 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
@@ -29,24 +31,43 @@ import com.linecorp.centraldogma.common.Author;
 /**
  * A {@link Command} which is used to update the status of all servers in the cluster.
  */
+@JsonInclude(Include.NON_NULL)
 public final class UpdateServerStatusCommand extends AdministrativeCommand<Void> {
 
-    private final boolean writable;
+    @Nullable
+    private final Boolean writable;
+    @Nullable
+    private final Boolean replicating;
 
+    /**
+     * Creates a new instance with the specified properties.
+     */
     @JsonCreator
-    UpdateServerStatusCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
-                              @JsonProperty("author") @Nullable Author author,
-                              @JsonProperty("writable") boolean writable) {
+    public UpdateServerStatusCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                                     @JsonProperty("author") @Nullable Author author,
+                                     @JsonProperty("writable") @Nullable Boolean writable,
+                                     @JsonProperty("replicating") @Nullable Boolean replicating) {
         super(CommandType.UPDATE_SERVER_STATUS, timestamp, author);
         this.writable = writable;
+        this.replicating = replicating;
     }
 
     /**
      * Returns whether the cluster is writable.
      */
+    @Nullable
     @JsonProperty("writable")
-    public boolean writable() {
+    public Boolean writable() {
         return writable;
+    }
+
+    /**
+     * Returns whether the cluster is replicating.
+     */
+    @Nullable
+    @JsonProperty("replicating")
+    public Boolean replicating() {
+        return replicating;
     }
 
     @Override
@@ -59,17 +80,18 @@ public final class UpdateServerStatusCommand extends AdministrativeCommand<Void>
         }
         final UpdateServerStatusCommand that = (UpdateServerStatusCommand) o;
 
-        return super.equals(that) && writable == that.writable;
+        return super.equals(that) && writable == that.writable && replicating == that.replicating;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), writable);
+        return Objects.hash(super.hashCode(), writable, replicating);
     }
 
     @Override
     ToStringHelper toStringHelper() {
         return super.toStringHelper()
-                    .add("writable", writable);
+                    .add("writable", writable)
+                    .add("replicating", replicating);
     }
 }

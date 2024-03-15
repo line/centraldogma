@@ -98,7 +98,7 @@ class AdministrativeServiceTest {
     void redundantUpdateStatus_Writable() {
         final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse res = client.execute(
-                RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
+                RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status?scope=local",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[" + writable(true) + "]").aggregate().join();
 
@@ -109,7 +109,7 @@ class AdministrativeServiceTest {
     void redundantUpdateStatus_Replicating() {
         final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse res = client.execute(
-                RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
+                RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status?scope=local",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[" + replicating(true) + "]").aggregate().join();
 

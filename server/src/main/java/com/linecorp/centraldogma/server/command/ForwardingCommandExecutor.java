@@ -79,6 +79,11 @@ public class ForwardingCommandExecutor implements CommandExecutor {
     }
 
     @Override
+    public CommandExecutorStatusManager statusManager() {
+        return delegate().statusManager();
+    }
+
+    @Override
     public String toString() {
         return getClass().getSimpleName() + '(' + delegate() + ')';
     }

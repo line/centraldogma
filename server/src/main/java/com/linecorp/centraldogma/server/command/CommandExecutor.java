@@ -73,4 +73,9 @@ public interface CommandExecutor {
      * @param <T> the type of the result to be returned
      */
     <T> CompletableFuture<T> execute(Command<T> command);
+
+    /**
+     * Returns the status manager of this executor.
+     */
+    CommandExecutorStatusManager statusManager();
 }

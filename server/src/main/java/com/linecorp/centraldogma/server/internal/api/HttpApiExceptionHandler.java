@@ -38,6 +38,7 @@ import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.QueryExecutionException;
+import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
@@ -104,7 +105,9 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
                                            "Too many %s are sent to %s", type, cause.getMessage());
                     })
                .put(InvalidPushException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause));
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
+                .put(ReadOnlyException.class,
+                     (ctx, req, cause) -> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause));
 
         exceptionHandlers = builder.build();
     }

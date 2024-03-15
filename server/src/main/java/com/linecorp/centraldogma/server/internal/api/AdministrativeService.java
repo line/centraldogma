@@ -18,32 +18,34 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
+import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.Get;
+import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchException;
+import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
+import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.management.ServerStatusManager;
 
 @ProducesJson
 public final class AdministrativeService extends AbstractService {
 
-    private static final Logger logger = LoggerFactory.getLogger(AdministrativeService.class);
+    private final ServerStatusManager statusManager;
 
-    public AdministrativeService(CommandExecutor executor) {
+    public AdministrativeService(CommandExecutor executor, ServerStatusManager statusManager) {
         super(executor);
+        this.statusManager = statusManager;
     }
 
     /**
@@ -57,15 +59,20 @@ public final class AdministrativeService extends AbstractService {
     }
 
     /**
-     * PATCH /status
+     * PATCH /status?scope=all
      *
      * <p>Patches the server status with a JSON patch. Currently used only for entering read-only.
+     *
+     * <p>The 'scope' parameter should be either 'local' or 'all'. If absent, defaults to 'all'.
+     * If the scope is {@link Scope#ALL}, the new status is propagated to all cluster servers.
+     * If the scope is {@link Scope#LOCAL}, the new status is only applied to the current server.
      */
     @Patch("/status")
     @Consumes("application/json-patch+json")
     @RequiresAdministrator
-    public CompletableFuture<ServerStatus> updateStatus(ServiceRequestContext ctx,
-                                                        JsonNode patch) throws Exception {
+    public CompletableFuture<ServerStatus> updateStatus(ServiceRequestContext ctx, JsonNode patch,
+                                                        @Param @Default("ALL") Scope scope)
+            throws Exception {
         // TODO(trustin): Consider extracting this into common utility or Armeria.
         final ServerStatus oldStatus = status();
         final JsonNode oldValue = Jackson.valueToTree(oldStatus);
@@ -106,58 +113,29 @@ public final class AdministrativeService extends AbstractService {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.BAD_REQUEST,
                                              "'replicating' must be 'true' if 'writable' is 'true'.");
         }
-        if (oldStatus.writable == writable && oldStatus.replicating == replicating) {
-            throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
-        }
 
-        if (oldStatus.writable != writable) {
-            executor().setWritable(writable);
-            if (writable) {
-                logger.warn("Left read-only mode.");
-            } else {
-                logger.warn("Entered read-only mode. replication: {}", replicating);
+        if (scope == Scope.LOCAL) {
+            // Validate the new status for the local scope. Other servers may have different status.
+            if (oldStatus.writable() == writable && oldStatus.replicating() == replicating) {
+                throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
             }
-        }
 
-        if (oldStatus.replicating != replicating) {
-            if (replicating) {
-                return executor().start().handle((unused, cause) -> {
-                    if (cause != null) {
-                        logger.warn("Failed to start the command executor:", cause);
-                    } else {
-                        logger.info("Enabled replication. read-only: {}", !writable);
-                    }
-                    return status();
-                });
-            }
-            return executor().stop().handle((unused, cause) -> {
-                if (cause != null) {
-                    logger.warn("Failed to stop the command executor:", cause);
-                } else {
-                    logger.info("Disabled replication");
-                }
-                return status();
-            });
+            return CompletableFuture.supplyAsync(() -> {
+                executor().statusManager().setWritable(writable);
+                executor().statusManager().setReplicating(replicating);
+                return statusManager.updateStatus(writable, replicating);
+            }, ctx.blockingTaskExecutor());
+        } else {
+            return execute(Command.updateServerStatus(writable, replicating))
+                    .thenApply(unused -> status());
         }
-
-        return CompletableFuture.completedFuture(status());
     }
 
     private static CompletableFuture<ServerStatus> rejectStatusPatch(JsonNode patch) {
         throw new IllegalArgumentException("Invalid JSON patch: " + patch);
     }
 
-    // TODO(trustin): Add more properties, e.g. method, host name, isLeader and config.
-    private static final class ServerStatus {
-        @JsonProperty
-        final boolean writable;
-        @JsonProperty
-        final boolean replicating;
-
-        ServerStatus(boolean writable, boolean replicating) {
-            assert !writable || replicating; // replicating must be true if writable is true.
-            this.writable = writable;
-            this.replicating = replicating;
-        }
+    public enum Scope {
+        LOCAL, ALL
     }
 }

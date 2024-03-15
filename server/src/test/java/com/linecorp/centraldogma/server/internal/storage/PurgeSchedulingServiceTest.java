@@ -20,6 +20,7 @@ import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+import java.io.File;
 import java.util.concurrent.Executor;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -54,8 +55,9 @@ class PurgeSchedulingServiceTest {
         }
 
         @Override
-        protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker) {
-            return spy(super.newCommandExecutor(projectManager, worker));
+        protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker,
+                                                     File dataDir) {
+            return spy(super.newCommandExecutor(projectManager, worker, dataDir));
         }
 
         @Override

@@ -60,6 +60,7 @@ import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
@@ -555,7 +556,7 @@ class ZooKeeperCommandExecutorTest {
             assertThat(commandResult1.result()).isNull();
             awaitUntilReplicated(cluster, command1);
 
-            final Command<Void> readOnlyCommand = Command.updateServerStatus(false);
+            final Command<Void> readOnlyCommand = Command.updateServerStatus(false, null);
             replica1.commandExecutor().execute(readOnlyCommand).join();
             assertThat(replica1.commandExecutor().isWritable()).isFalse();
             final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).get();
@@ -573,7 +574,7 @@ class ZooKeeperCommandExecutorTest {
                     CommitResult.of(new Revision(2), ImmutableList.of(normalizedChange)));
 
             assertThatThrownBy(() -> replica1.commandExecutor().execute(normalizingPushCommand))
-                    .isInstanceOf(IllegalStateException.class)
+                    .isInstanceOf(ReadOnlyException.class)
                     .hasMessageContaining("running in read-only mode.");
 
             final Command<CommitResult> forceNormalizingPush = Command.forcePush(normalizingPushCommand);
