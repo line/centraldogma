@@ -30,8 +30,8 @@ function addBadges(parent) {
   var div = document.createElement('div');
   div.className = 'project-badges';
   addBadge(div, 'https://img.shields.io/github/stars/line/centraldogma.svg?style=social');
-  addBadge(div, 'https://img.shields.io/badge/chat-on%20slack-brightgreen.svg?style=social',
-    'https://join.slack.com/t/central-dogma/shared_invite/enQtNjA5NDk5MTExODQzLWFhOWU2NGZhNDk3MjBmNzczZDYyZjRmMTI1MzdiNGI3OTcwNWZlOTkyY2U3Nzk4YTM2NzQ2NGJhMjQ1NzJlNzQ');
+  addBadge(div, 'https://img.shields.io/badge/chat-on%20Discord-brightgreen.svg?style=social',
+    'https://armeria.dev/s/discord');
   addBadge(div, 'https://img.shields.io/maven-central/v/com.linecorp.centraldogma/centraldogma-common.svg?style=flat-square',
     'https://search.maven.org/search?q=g:com.linecorp.centraldogma');
   addBadge(div, 'https://img.shields.io/github/commit-activity/m/line/centraldogma.svg?style=flat-square',
