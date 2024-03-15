@@ -257,7 +257,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
             changes.put(mirrorStatePath, Change.ofJsonUpsert(
                     mirrorStatePath, "{ \"sourceRevision\": \"" + headCommitId.name() + "\" }"));
             // Construct the log message and log.
-            summary = "Mirror " + abbrId + ", " + remoteRepoUri() + '#' +
+            summary = "Mirror " + abbrId + ", " + remoteRepoUri() +
                     (remoteBranch() != null ? '#' + remoteBranch() : "") +
                       " to the repository '" + localRepo().name() + '\'';
             final RevCommit headCommit = revWalk.parseCommit(headCommitId);
