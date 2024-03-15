@@ -23,6 +23,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -41,8 +42,9 @@ public final class PluginInitContext extends PluginContext {
                              ProjectManager projectManager,
                              CommandExecutor commandExecutor,
                              MeterRegistry meterRegistry,
-                             ScheduledExecutorService purgeWorker, ServerBuilder serverBuilder) {
-        super(config, projectManager, commandExecutor, meterRegistry, purgeWorker);
+                             ScheduledExecutorService purgeWorker, ServerBuilder serverBuilder,
+                             InternalProjectInitializer projectInitializer) {
+        super(config, projectManager, commandExecutor, meterRegistry, purgeWorker, projectInitializer);
         this.serverBuilder = requireNonNull(serverBuilder, "serverBuilder");
     }
 

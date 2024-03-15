@@ -41,6 +41,7 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -124,9 +125,10 @@ final class PluginGroup {
      */
     CompletableFuture<Void> start(CentralDogmaConfig config, ProjectManager projectManager,
                                   CommandExecutor commandExecutor, MeterRegistry meterRegistry,
-                                  ScheduledExecutorService purgeWorker) {
+                                  ScheduledExecutorService purgeWorker,
+                                  InternalProjectInitializer internalProjectInitializer) {
         final PluginContext context = new PluginContext(config, projectManager, commandExecutor, meterRegistry,
-                                                        purgeWorker);
+                                                        purgeWorker, internalProjectInitializer);
         return startStop.start(context, context, true);
     }
 
@@ -135,9 +137,11 @@ final class PluginGroup {
      */
     CompletableFuture<Void> stop(CentralDogmaConfig config, ProjectManager projectManager,
                                  CommandExecutor commandExecutor, MeterRegistry meterRegistry,
-                                 ScheduledExecutorService purgeWorker) {
+                                 ScheduledExecutorService purgeWorker,
+                                 InternalProjectInitializer internalProjectInitializer) {
         return startStop.stop(
-                new PluginContext(config, projectManager, commandExecutor, meterRegistry, purgeWorker));
+                new PluginContext(config, projectManager, commandExecutor, meterRegistry, purgeWorker,
+                                  internalProjectInitializer));
     }
 
     private class PluginGroupStartStop extends StartStopSupport<PluginContext, PluginContext, Void, Void> {

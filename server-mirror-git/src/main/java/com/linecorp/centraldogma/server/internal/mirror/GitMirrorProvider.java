@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorUtil.split;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_FILE;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTP;
@@ -26,6 +25,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
 
+import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUri;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorContext;
 import com.linecorp.centraldogma.server.mirror.MirrorProvider;
@@ -44,20 +44,22 @@ public final class GitMirrorProvider implements MirrorProvider {
 
         switch (scheme) {
             case SCHEME_GIT_SSH: {
-                final String[] components = split(remoteUri, "git");
-                return new SshGitMirror(context.schedule(), context.direction(), context.credential(),
+                final RepositoryUri repositoryUri = RepositoryUri.parse(remoteUri, "git");
+                return new SshGitMirror(context.id(), context.enabled(), context.schedule(),
+                                        context.direction(), context.credential(),
                                         context.localRepo(), context.localPath(),
-                                        URI.create(components[0]), components[1], components[2],
+                                        repositoryUri.uri(), repositoryUri.path(), repositoryUri.branch(),
                                         context.gitignore());
             }
             case SCHEME_GIT_HTTP:
             case SCHEME_GIT_HTTPS:
             case SCHEME_GIT:
             case SCHEME_GIT_FILE: {
-                final String[] components = split(remoteUri, "git");
-                return new DefaultGitMirror(context.schedule(), context.direction(), context.credential(),
+                final RepositoryUri repositoryUri = RepositoryUri.parse(remoteUri, "git");
+                return new DefaultGitMirror(context.id(), context.enabled(), context.schedule(),
+                                            context.direction(), context.credential(),
                                             context.localRepo(), context.localPath(),
-                                            URI.create(components[0]), components[1], components[2],
+                                            repositoryUri.uri(), repositoryUri.path(), repositoryUri.branch(),
                                             context.gitignore());
             }
         }

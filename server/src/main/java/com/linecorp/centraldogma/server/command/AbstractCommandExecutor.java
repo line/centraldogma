@@ -111,7 +111,8 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
             // Reject all commands except for AdministrativeCommand when the replica is in read-only mode.
             // AdministrativeCommand is allowed because it is used to change the read-only mode or migrate
             // metadata under maintenance mode.
-            throw new IllegalStateException("running in read-only mode. command: " + command);
+            throw new IllegalStateException(
+                    "running in read-only mode. command: " + command + ", executor: " + this);
         }
 
         try {

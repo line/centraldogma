@@ -16,8 +16,7 @@
 
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
-import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.initializeInternalRepos;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
 
 import java.util.Collection;
 import java.util.Map;
@@ -40,10 +39,10 @@ import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.grpc.GrpcService;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
@@ -92,10 +91,9 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
 
     @Override
     public void init(PluginInitContext pluginInitContext) {
-        final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
-        final long currentTimeMillis = System.currentTimeMillis();
-        initializeInternalRepos(commandExecutor, currentTimeMillis,
-                                ImmutableList.of(CLUSTER_REPO, ENDPOINT_REPO, LISTENER_REPO, ROUTE_REPO));
+        final InternalProjectInitializer projectInitializer = pluginInitContext.internalProjectInitializer();
+        projectInitializer.initializeInternalRepos(
+                ImmutableList.of(CLUSTER_REPO, ENDPOINT_REPO, LISTENER_REPO, ROUTE_REPO));
 
         final ServerBuilder sb = pluginInitContext.serverBuilder();
 

@@ -61,7 +61,7 @@ class ArmeriaCentralDogmaTest {
                 .build();
 
         final PushResult result = client.forRepo("foo", "meta")
-                                        .commit("summary", Change.ofJsonUpsert("/mirrors.json", "[]"))
+                                        .commit("summary", Change.ofJsonUpsert("/mirrors/foo.json", "{}"))
                                         .push()
                                         .join();
         assertThat(result.revision().major()).isPositive();

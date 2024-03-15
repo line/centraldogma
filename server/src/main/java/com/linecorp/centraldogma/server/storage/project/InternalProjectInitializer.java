@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,13 +14,15 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.storage.project;
+package com.linecorp.centraldogma.server.storage.project;
 
 import static com.linecorp.centraldogma.server.command.Command.createProject;
 import static com.linecorp.centraldogma.server.command.Command.createRepository;
 import static com.linecorp.centraldogma.server.command.Command.push;
+import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import com.google.common.collect.ImmutableList;
 
@@ -36,22 +38,46 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.Tokens;
-import com.linecorp.centraldogma.server.storage.project.Project;
 
-public final class ProjectInitializer {
+/**
+ * Initializes the internal project and repositories.
+ */
+public final class InternalProjectInitializer {
 
     public static final String INTERNAL_PROJECT_DOGMA = "dogma";
+
+    private final CompletableFuture<Void> whenInitialized = new CompletableFuture<>();
+    private final CommandExecutor executor;
+
+    /**
+     * Creates a new instance.
+     */
+    public InternalProjectInitializer(CommandExecutor executor) {
+        this.executor = executor;
+    }
 
     /**
      * Creates an internal project and repositories such as a token storage.
      */
-    public static void initializeInternalProject(CommandExecutor executor) {
+    public void initialize() {
+        if (whenInitialized.isDone()) {
+            return;
+        }
+
         final long creationTimeMillis = System.currentTimeMillis();
-        initializeInternalProject(executor, creationTimeMillis, INTERNAL_PROJECT_DOGMA);
+        try {
+            executor.execute(createProject(creationTimeMillis, Author.SYSTEM, INTERNAL_PROJECT_DOGMA))
+                    .get();
+        } catch (Throwable cause1) {
+            final Throwable peeled1 = Exceptions.peel(cause1);
+            if (!(peeled1 instanceof ProjectExistsException)) {
+                throw new Error("failed to initialize an internal project: " + INTERNAL_PROJECT_DOGMA, peeled1);
+            }
+        }
 
         // These repositories might be created when creating an internal project, but we try to create them
         // again here in order to make sure them exist because sometimes their names are changed.
-        initializeInternalRepos(executor, creationTimeMillis, Project.internalRepos());
+        initializeInternalRepos(Project.internalRepos(), creationTimeMillis);
 
         try {
             final Change<?> change = Change.ofJsonPatch(MetadataService.TOKEN_JSON,
@@ -61,29 +87,29 @@ public final class ProjectInitializer {
             executor.execute(push(Author.SYSTEM, INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, Revision.HEAD,
                                   commitSummary, "", Markup.PLAINTEXT, ImmutableList.of(change)))
                     .get();
+
+            whenInitialized.complete(null);
         } catch (Throwable cause) {
             final Throwable peeled = Exceptions.peel(cause);
-            if (!(peeled instanceof ChangeConflictException)) {
+            if (peeled instanceof ChangeConflictException) {
+                whenInitialized.complete(null);
+            } else {
+                whenInitialized.completeExceptionally(peeled);
                 throw new Error("failed to initialize the token list file", peeled);
             }
         }
     }
 
-    public static void initializeInternalProject(
-            CommandExecutor executor, long creationTimeMillis, String projectName) {
-        try {
-            executor.execute(createProject(creationTimeMillis, Author.SYSTEM, projectName))
-                    .get();
-        } catch (Throwable cause) {
-            final Throwable peeled = Exceptions.peel(cause);
-            if (!(peeled instanceof ProjectExistsException)) {
-                throw new Error("failed to initialize an internal project: " + projectName, peeled);
-            }
-        }
+    /**
+     * Creates the specified internal repositories in the internal project.
+     */
+    public void initializeInternalRepos(List<String> internalRepos) {
+        requireNonNull(internalRepos, "internalRepos");
+        final long creationTimeMillis = System.currentTimeMillis();
+        initializeInternalRepos(internalRepos, creationTimeMillis);
     }
 
-    public static void initializeInternalRepos(
-            CommandExecutor executor, long creationTimeMillis, List<String> internalRepos) {
+    private void initializeInternalRepos(List<String> internalRepos, long creationTimeMillis) {
         for (final String repo : internalRepos) {
             try {
                 executor.execute(createRepository(creationTimeMillis, Author.SYSTEM,
@@ -99,5 +125,11 @@ public final class ProjectInitializer {
         }
     }
 
-    private ProjectInitializer() {}
+    /**
+     * Returns a {@link CompletableFuture} which is completed when the internal project is initialized with
+     * the default internal repositories.
+     */
+    public CompletableFuture<Void> whenInitialized() {
+        return whenInitialized;
+    }
 }

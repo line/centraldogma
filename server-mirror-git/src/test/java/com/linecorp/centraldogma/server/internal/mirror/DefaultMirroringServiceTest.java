@@ -17,11 +17,16 @@
 package com.linecorp.centraldogma.server.internal.mirror;
 
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.net.URI;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
@@ -31,13 +36,17 @@ import com.cronutils.model.Cron;
 import com.cronutils.model.CronType;
 import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.parser.CronParser;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
@@ -63,12 +72,15 @@ class DefaultMirroringServiceTest {
         when(pm.list()).thenReturn(ImmutableMap.of("foo", p));
         when(p.name()).thenReturn("foo");
         when(p.metaRepo()).thenReturn(mr);
+        when(mr.find(eq(Revision.HEAD), anyString(), anyMap()))
+                .thenReturn(UnmodifiableFuture.completedFuture(ImmutableMap.of()));
         when(r.parent()).thenReturn(p);
         when(r.name()).thenReturn("bar");
 
-        final Mirror mirror = new AbstractMirror(EVERY_SECOND, MirrorDirection.REMOTE_TO_LOCAL,
+        final Mirror mirror = new AbstractMirror("my-mirror-1", true, EVERY_SECOND,
+                                                 MirrorDirection.REMOTE_TO_LOCAL,
                                                  MirrorCredential.FALLBACK, r, "/",
-                                                 URI.create("unused://uri"), "/", null, null) {
+                                                 URI.create("unused://uri"), "/", "", null) {
             @Override
             protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) {}
 
@@ -81,11 +93,15 @@ class DefaultMirroringServiceTest {
             }
         };
 
-        when(mr.mirrors()).thenReturn(ImmutableSet.of(mirror));
+        when(mr.mirrors()).thenReturn(CompletableFuture.completedFuture(ImmutableList.of(mirror)));
 
+        final InternalProjectInitializer internalProjectInitializer = mock(InternalProjectInitializer.class);
+        when(internalProjectInitializer.whenInitialized()).thenReturn(UnmodifiableFuture.completedFuture(null));
         final DefaultMirroringService service = new DefaultMirroringService(
-                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1);
-        service.start(mock(CommandExecutor.class));
+                temporaryFolder, pm, new SimpleMeterRegistry(), internalProjectInitializer, 1, 1, 1);
+        final CommandExecutor executor = mock(CommandExecutor.class);
+        when(executor.execute(any(Command.class))).thenReturn(UnmodifiableFuture.completedFuture(null));
+        service.start(executor);
 
         try {
             // The mirroring task should run more than once.

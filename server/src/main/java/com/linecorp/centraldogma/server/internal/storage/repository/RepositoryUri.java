@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2023 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,23 +13,25 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
 package com.linecorp.centraldogma.server.internal.storage.repository;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.server.mirror.MirrorUtil.normalizePath;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLDecoder;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * A utility class for creating a mirroring task.
- */
-public final class MirrorUtil {
+import com.google.common.base.MoreObjects;
+
+public final class RepositoryUri {
 
     /**
-     * Splits the specified 'remoteUri' into:
+     * Parses the specified 'remoteUri' into:
      * - the actual remote repository URI
      * - the path in the remote repository
      * - the branch name.
@@ -44,7 +46,7 @@ public final class MirrorUtil {
      * - remotePath:    / (default)
      * - remoteBranch:  {@code defaultBranch}
      */
-    public static String[] split(URI remoteUri, String suffix) {
+    public static RepositoryUri parse(URI remoteUri, String suffix) {
         final String host = remoteUri.getHost();
         if (host == null && !remoteUri.getScheme().endsWith("+file")) {
             throw new IllegalArgumentException("no host in remoteUri: " + remoteUri);
@@ -85,8 +87,57 @@ public final class MirrorUtil {
 
         final String remoteBranch = remoteUri.getFragment();
 
-        return new String[] { newRemoteUri, remotePath, remoteBranch };
+        return new RepositoryUri(URI.create(newRemoteUri), remotePath, firstNonNull(remoteBranch, ""));
     }
 
-    private MirrorUtil() {}
+    private final URI uri;
+    private final String path;
+    private final String branch;
+
+    private RepositoryUri(URI uri, String path, String branch) {
+        this.uri = uri;
+        this.path = path;
+        this.branch = branch;
+    }
+
+    public URI uri() {
+        return uri;
+    }
+
+    public String path() {
+        return path;
+    }
+
+    public String branch() {
+        return branch;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof RepositoryUri)) {
+            return false;
+        }
+
+        final RepositoryUri that = (RepositoryUri) o;
+        return uri.equals(that.uri) &&
+               path.equals(that.path) &&
+               branch.equals(that.branch);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(uri, path, branch);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                          .add("uri", uri)
+                          .add("path", path)
+                          .add("branch", branch)
+                          .toString();
+    }
 }

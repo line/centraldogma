@@ -43,16 +43,15 @@ class MirrorCredentialTest {
 
     @Test
     void testConstruction() {
-        // Without ID and hostnamePatterns, i.e. effectively disabled.
-        assertThat(new MirrorCredentialImpl(null, null).id()).isEmpty();
-        assertThat(new MirrorCredentialImpl(null, null).hostnamePatterns()).isEmpty();
+        // null hostnamePatterns.
+        assertThat(new MirrorCredentialImpl("foo", null).hostnamePatterns()).isEmpty();
 
-        // Without ID and with hostnamePatterns that contain null.
-        assertThatThrownBy(() -> new MirrorCredentialImpl(null, INVALID_PATTERNS))
+        // hostnamePatterns that contain null.
+        assertThatThrownBy(() -> new MirrorCredentialImpl("foo", INVALID_PATTERNS))
                 .isInstanceOf(NullPointerException.class);
 
-        // Without ID and with an empty hostnamePatterns.
-        assertThat(new MirrorCredentialImpl(null, ImmutableSet.of()).hostnamePatterns()).isEmpty();
+        // An empty hostnamePatterns.
+        assertThat(new MirrorCredentialImpl("foo", ImmutableSet.of()).hostnamePatterns()).isEmpty();
 
         // With ID and non-empty hostnamePatterns.
         final MirrorCredential c = new MirrorCredentialImpl("foo", HOSTNAME_PATTERNS);
@@ -62,8 +61,8 @@ class MirrorCredentialTest {
     }
 
     private static final class MirrorCredentialImpl extends AbstractMirrorCredential {
-        MirrorCredentialImpl(@Nullable String id, @Nullable Iterable<Pattern> hostnamePatterns) {
-            super(id, hostnamePatterns);
+        MirrorCredentialImpl(String id, @Nullable Iterable<Pattern> hostnamePatterns) {
+            super(id, true, "custom", hostnamePatterns);
         }
 
         @Override

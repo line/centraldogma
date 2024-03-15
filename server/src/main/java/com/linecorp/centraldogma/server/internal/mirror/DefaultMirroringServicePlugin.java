@@ -50,6 +50,7 @@ public final class DefaultMirroringServicePlugin implements Plugin {
             mirroringService = new DefaultMirroringService(new File(cfg.dataDir(), "_mirrors"),
                                                            context.projectManager(),
                                                            context.meterRegistry(),
+                                                           context.internalProjectInitializer(),
                                                            cfg.numMirroringThreads(),
                                                            cfg.maxNumFilesPerMirror(),
                                                            cfg.maxNumBytesPerMirror());

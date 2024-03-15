@@ -5,9 +5,15 @@ import java.util.stream.Collectors
 
 plugins {
     id 'base'
-    alias libs.plugins.sphinx
+    alias libs.plugins.sphinx apply false
     alias libs.plugins.jxr
 }
+
+if (project.hasProperty("noSite")) {
+    return
+}
+
+apply plugin: "kr.motd.sphinx"
 
 sphinx {
     group = 'Documentation'

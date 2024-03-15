@@ -16,54 +16,72 @@
 
 package com.linecorp.centraldogma.server.internal.mirror.credential;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.internal.Util.requireNonNullElements;
 import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
-import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
-abstract class AbstractMirrorCredential implements MirrorCredential {
+public abstract class AbstractMirrorCredential implements MirrorCredential {
 
-    @Nullable
     private final String id;
+    private final boolean enabled;
+    // TODO(ikhoon): Consider changing 'type' to an enum.
+    private final String type;
     private final Set<Pattern> hostnamePatterns;
     private final Set<String> hostnamePatternStrings;
 
-    AbstractMirrorCredential(@Nullable String id, @Nullable Iterable<Pattern> hostnamePatterns) {
-        this.id = id;
+    AbstractMirrorCredential(String id, @Nullable Boolean enabled, String type,
+                             @Nullable Iterable<Pattern> hostnamePatterns) {
+        this.id = requireNonNull(id, "id");
+        this.enabled = firstNonNull(enabled, true);
+        // JsonTypeInfo is ignored when serializing collections.
+        // As a workaround, manually set the type hint to serialize.
+        this.type = requireNonNull(type, "type");
         this.hostnamePatterns = validateHostnamePatterns(hostnamePatterns);
         hostnamePatternStrings = this.hostnamePatterns.stream().map(Pattern::pattern)
                                                       .collect(Collectors.toSet());
     }
 
     private static Set<Pattern> validateHostnamePatterns(@Nullable Iterable<Pattern> hostnamePatterns) {
-        if (hostnamePatterns == null) {
+        if (hostnamePatterns == null || Iterables.isEmpty(hostnamePatterns)) {
             return ImmutableSet.of();
         }
-
         return ImmutableSet.copyOf(
                 requireNonNullElements(hostnamePatterns, "hostnamePatterns"));
     }
 
     @Override
-    public final Optional<String> id() {
-        return Optional.ofNullable(id);
+    public final String id() {
+        return id;
+    }
+
+    @JsonProperty("type")
+    public final String type() {
+        return type;
     }
 
     @Override
     public final Set<Pattern> hostnamePatterns() {
         return hostnamePatterns;
+    }
+
+    @Override
+    public final boolean enabled() {
+        return enabled;
     }
 
     @Override

@@ -48,6 +48,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.deser.InstantDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.InstantSerializer;
 import com.google.common.collect.ImmutableList;
@@ -77,7 +78,8 @@ public final class Jackson {
         compactMapper.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
         prettyMapper.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
 
-        registerModules(new SimpleModule().addSerializer(Instant.class, InstantSerializer.INSTANCE)
+        registerModules(new Jdk8Module(),
+                        new SimpleModule().addSerializer(Instant.class, InstantSerializer.INSTANCE)
                                           .addDeserializer(Instant.class, InstantDeserializer.INSTANT));
     }
 

@@ -22,14 +22,16 @@ import static java.util.Objects.requireNonNull;
 import java.io.File;
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.Set;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import javax.annotation.Nullable;
 
@@ -48,6 +50,7 @@ import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -66,6 +69,7 @@ public final class DefaultMirroringService implements MirroringService {
 
     private final File workDir;
     private final ProjectManager projectManager;
+    private final InternalProjectInitializer projectInitializer;
     private final int numThreads;
     private final int maxNumFilesPerMirror;
     private final long maxNumBytesPerMirror;
@@ -78,11 +82,13 @@ public final class DefaultMirroringService implements MirroringService {
     private final MeterRegistry meterRegistry;
 
     DefaultMirroringService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
+                            InternalProjectInitializer projectInitializer,
                             int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror) {
 
         this.workDir = requireNonNull(workDir, "workDir");
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
+        this.projectInitializer = requireNonNull(projectInitializer, "projectInitializer");
 
         checkArgument(numThreads > 0, "numThreads: %s (expected: > 0)", numThreads);
         checkArgument(maxNumFilesPerMirror > 0,
@@ -127,6 +133,15 @@ public final class DefaultMirroringService implements MirroringService {
                         Thread.currentThread().interrupt();
                     }
                 }));
+
+        // Migrate the old mirrors.json to the new format if exists.
+        try {
+            new MirroringMigrationService(projectManager, commandExecutor, projectInitializer).migrate();
+        } catch (Throwable e) {
+            logger.error("Git mirroring stopped due to an unexpected exception while migrating mirrors.json:",
+                         e);
+            return;
+        }
 
         final ListenableScheduledFuture<?> future = scheduler.scheduleWithFixedDelay(
                 this::schedulePendingMirrors,
@@ -191,9 +206,14 @@ public final class DefaultMirroringService implements MirroringService {
         projectManager.list()
                       .values()
                       .forEach(project -> {
-                          final Set<Mirror> mirrors;
+                          final List<Mirror> mirrors;
                           try {
-                              mirrors = project.metaRepo().mirrors();
+                              mirrors = project.metaRepo().mirrors()
+                                               .get(5, TimeUnit.SECONDS);
+                          } catch (TimeoutException e) {
+                              logger.warn("Failed to load the mirror list within 5 seconds. project: {}",
+                                          project.name(), e);
+                              return;
                           } catch (Exception e) {
                               logger.warn("Failed to load the mirror list from: {}", project.name(), e);
                               return;
@@ -217,9 +237,15 @@ public final class DefaultMirroringService implements MirroringService {
         }
 
         return CompletableFuture.runAsync(
-                () -> projectManager.list().values()
-                                    .forEach(p -> p.metaRepo().mirrors()
-                                                   .forEach(m -> run(m, p.name(), false))),
+                () -> projectManager.list().values().forEach(p -> {
+                    try {
+                        p.metaRepo().mirrors().get(5, TimeUnit.SECONDS)
+                         .forEach(m -> run(m, p.name(), false));
+                    } catch (InterruptedException | TimeoutException | ExecutionException e) {
+                        throw new IllegalStateException(
+                                "Failed to load mirror list with in 5 seconds. project: " + p.name(), e);
+                    }
+                }),
                 worker);
     }
 
