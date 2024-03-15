@@ -115,12 +115,6 @@ public final class MirrorConfig {
     @Nullable
     Mirror toMirror(Project parent, Iterable<MirrorCredential> credentials) {
         if (!enabled || localRepo == null || !parent.repos().exists(localRepo)) {
-            final String localRepoStatus = localRepo == null ? "not specified" : "does not exist";
-            logger.warn("Mirroring is not possible because one or more conditions are not met: " +
-                            "mirroring enabled={}, localRepo={}, localRepo status={}. " +
-                            "Please ensure mirroring is enabled, a local repository name is specified, " +
-                            "and the local repository exists.",
-                    enabled, localRepo == null ? "null" : localRepo, localRepoStatus);
             return null;
         }
 
