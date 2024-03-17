@@ -64,7 +64,7 @@ if [[ -z "$APP_MAIN" ]]; then
 fi
 
 if [[ -z "$JAVA_HOME" ]]; then
-  eecho "Set JAVA_HOME enviroment variable first."
+  eecho "Set JAVA_HOME environment variable first."
   exit 4
 fi
 
