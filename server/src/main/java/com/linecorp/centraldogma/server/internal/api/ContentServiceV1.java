@@ -234,7 +234,8 @@ public class ContentServiceV1 extends AbstractService {
      * jsonpath={jsonpath}
      *
      * <p>Returns the entry of files in the path. This is same with
-     * {@link #listFiles(ServiceRequestContext, String, String, Repository)} except that containing the content of the files.
+     * {@link #listFiles(ServiceRequestContext, String, String, Repository)} except that containing
+     * the content of the files.
      * Note that if the {@link HttpHeaderNames#IF_NONE_MATCH} in which has a revision is sent with,
      * this will await for the time specified in {@link HttpHeaderNames#PREFER}.
      * During the time if the specified revision becomes different with the latest revision, this will
