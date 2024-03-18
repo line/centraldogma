@@ -594,8 +594,8 @@ public interface CentralDogma {
      * {@link CompletableFuture} will be completed with {@code null}.
      *
      * @return the latest known {@link Revision} which contains the changes for the matched files.
-     *         {@code null} if the files were not changed for 1 minute since the invocation of this method,
-     *         or the server is shut down during the watch.
+     *         {@code null} if the files were not changed for 1 minute since the invocation of this method.
+     *         Even before the timeout, the watch may return null earlier due to issues such as server restart.
      *
      * @deprecated Use {@link WatchFilesRequest#start(Revision)} via
      *             {@link CentralDogmaRepository#watch(PathPattern)}.
@@ -616,7 +616,8 @@ public interface CentralDogma {
      *
      * @return the latest known {@link Revision} which contains the changes for the matched files.
      *         {@code null} if the files were not changed for {@code timeoutMillis} milliseconds
-     *         since the invocation of this method, or the server is shut down during the watch.
+     *         since the invocation of this method. Even before the timeout, the watch may return null
+     *         earlier due to issues such as server restart.
      *
      * @deprecated Use {@link CentralDogmaRepository#watch(PathPattern)} and
      *             {@link WatchFilesRequest#start(Revision)}.
@@ -646,8 +647,9 @@ public interface CentralDogma {
      *
      * @return the latest known {@link Revision} which contains the changes for the matched files.
      *         {@code null} if the files were not changed for {@code timeoutMillis} milliseconds
-     *         since the invocation of this method, or the server is shut down during the watch.
-     *         {@link EntryNotFoundException} is raised if the target does not exist.
+     *         since the invocation of this method. Even before the timeout, the watch may return null
+     *         earlier due to issues such as server restart. {@link EntryNotFoundException} is raised
+     *         if the target does not exist.
      */
     CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
                                                 Revision lastKnownRevision, PathPattern pathPattern,
@@ -659,8 +661,8 @@ public interface CentralDogma {
      * {@link CompletableFuture} will be completed with {@code null}.
      *
      * @return the {@link Entry} which contains the latest known {@link Query} result.
-     *         {@code null} if the file was not changed for 1 minute since the invocation of this method,
-     *         or the server is shut down during the watch.
+     *         {@code null} if the file was not changed for 1 minute since the invocation of this method.
+     *         Even before the timeout, the watch may return null earlier due to issues such as server restart.
      *
      * @deprecated Use {@link WatchRequest#start(Revision)} via {@link CentralDogmaRepository#watch(Query)}.
      */
@@ -680,7 +682,8 @@ public interface CentralDogma {
      *
      * @return the {@link Entry} which contains the latest known {@link Query} result.
      *         {@code null} if the file was not changed for {@code timeoutMillis} milliseconds
-     *         since the invocation of this method, or the server is shut down during the watch.
+     *         since the invocation of this method. Even before the timeout, the watch may return null
+     *         earlier due to issues such as server restart.
      *
      * @deprecated Use {@link WatchRequest#start(Revision)} via {@link CentralDogmaRepository#watch(Query)}.
      */
@@ -711,7 +714,8 @@ public interface CentralDogma {
      *
      * @return the {@link Entry} which contains the latest known {@link Query} result.
      *         {@code null} if the file was not changed for {@code timeoutMillis} milliseconds
-     *         since the invocation of this method, or the server is shut down during the watch.
+     *         since the invocation of this method. Even before the timeout, the watch may return null
+     *         earlier due to issues such as server restart.
      *         {@link EntryNotFoundException} is raised if the target does not exist.
      */
     <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
