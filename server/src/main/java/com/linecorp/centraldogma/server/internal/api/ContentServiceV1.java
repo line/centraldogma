@@ -66,6 +66,7 @@ import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.api.v1.ChangeDto;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
@@ -313,7 +314,8 @@ public class ContentServiceV1 extends AbstractService {
     }
 
     private static Object handleWatchFailure(Throwable thrown) {
-        if (Throwables.getRootCause(thrown) instanceof CancellationException) {
+        final Throwable rootCause = Throwables.getRootCause(thrown);
+        if (rootCause instanceof CancellationException || rootCause instanceof ShuttingDownException) {
             // timeout happens
             return HttpResponse.of(HttpStatus.NOT_MODIFIED);
         }

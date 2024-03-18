@@ -48,7 +48,6 @@ import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.common.ShuttingDownException;
 
 abstract class AbstractWatcher<T> implements Watcher<T> {
 
@@ -274,9 +273,6 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                      } else if (cause instanceof RepositoryNotFoundException) {
                          logger.info("{}/{} does not exist yet; trying again",
                                      projectName, repositoryName);
-                         logged = true;
-                     } else if (cause instanceof ShuttingDownException) {
-                         logger.info("Central Dogma is shutting down; trying again");
                          logged = true;
                      }
                  }
