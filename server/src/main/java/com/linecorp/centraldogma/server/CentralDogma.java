@@ -330,6 +330,7 @@ public class CentralDogma implements AutoCloseable {
         final Optional<GracefulShutdownTimeout> gracefulTimeoutOpt = cfg.gracefulShutdownTimeout();
         if (gracefulTimeoutOpt.isPresent()) {
             try {
+                // Sleep so that clients have some time to redirect traffic according to the health status
                 Thread.sleep(gracefulTimeoutOpt.get().quietPeriodMillis());
             } catch (InterruptedException e) {
                 logger.debug("Interrupted while waiting for quiet period", e);
