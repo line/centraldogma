@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.server;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
@@ -37,6 +39,10 @@ public final class GracefulShutdownTimeout {
     public GracefulShutdownTimeout(
             @JsonProperty(value = "quietPeriodMillis", required = true) long quietPeriodMillis,
             @JsonProperty(value = "timeoutMillis", required = true) long timeoutMillis) {
+        checkArgument(quietPeriodMillis >= 0,
+                      "quietPeriodMillis: %s (expected: >= 0)", quietPeriodMillis);
+        checkArgument(timeoutMillis >= 0,
+                      "timeoutMillis: %s (expected: >= 0)", timeoutMillis);
         this.quietPeriodMillis = quietPeriodMillis;
         this.timeoutMillis = timeoutMillis;
     }
