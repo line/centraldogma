@@ -267,7 +267,7 @@ add a user or a token as a member of the project and can also remove them from t
 .. image:: _images/auth_2.png
 
 When you add a user as a member of the project, you need to choose the role of the member.
-There are 4 user role types in the access control system of Central Dogma, but you can choose one
+There are 5 user role types in the access control system of Central Dogma, but you can choose one
 of ``Owner`` and ``Member`` role in the UI. More information about the role is as follows.
 
 - ``Administrator``
@@ -290,6 +290,11 @@ of ``Owner`` and ``Member`` role in the UI. More information about the role is a
 
   - users who is logged in but is neither an owner nor a member of a project. Guests are not allowed to see
     the configuration of a project.
+
+- ``Anonymous`` of a project
+
+  - users who is not logged in and is neither an owner nor a member of a project. Anonymous users are not
+    allowed to see the configuration of a project.
 
 .. note::
 

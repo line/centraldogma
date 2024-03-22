@@ -67,6 +67,7 @@
         <th>{{ 'entities.title_owner' | translate }}</th>
         <th>{{ 'entities.title_member' | translate }}</th>
         <th>{{ 'entities.title_guest' | translate }}</th>
+        <th>{{ 'entities.title_anonymous' | translate }}</th>
       </tr>
       </thead>
       <tbody>
@@ -92,6 +93,13 @@
         </td>
         <td>
           <div ng-repeat="perm in repo.perRolePermissions.guest" style="display:inline-block">
+            <a type="button" class="btn btn-xs btn-link" ng-href="#/metadata/{{project.name}}/{{repo.name}}">
+              <span class="glyphicon">{{perm}}</span>
+            </a>
+          </div>
+        </td>
+        <td>
+          <div ng-repeat="perm in repo.perRolePermissions.anonymous" style="display:inline-block">
             <a type="button" class="btn btn-xs btn-link" ng-href="#/metadata/{{project.name}}/{{repo.name}}">
               <span class="glyphicon">{{perm}}</span>
             </a>

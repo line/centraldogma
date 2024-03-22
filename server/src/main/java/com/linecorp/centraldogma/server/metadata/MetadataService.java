@@ -411,12 +411,16 @@ public class MetadataService {
                     "Can't update the per role permission for internal repository: " + repoName);
         }
 
+        final Set<Permission> anonymous = perRolePermissions.anonymous();
         if (Project.REPO_META.equals(repoName)) {
             final Set<Permission> guest = perRolePermissions.guest();
-            if (!guest.isEmpty()) {
+            if (!guest.isEmpty() || !anonymous.isEmpty()) {
                 throw new UnsupportedOperationException(
-                        "Can't give a permission to guest for internal repository: " + repoName);
+                        "Can't give a permission to guest or anonymous for internal repository: " + repoName);
             }
+        }
+        if (anonymous.contains(Permission.WRITE)) {
+            throw new IllegalArgumentException("Anonymous users cannot have write permission.");
         }
 
         final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) +
@@ -765,9 +769,10 @@ public class MetadataService {
             final RepositoryMetadata repositoryMetadata = metadata.repo(repoName);
             final Member member = metadata.memberOrDefault(user.id(), null);
 
-            // If the member is guest.
+            // If the member is guest or using anonymous token.
             if (member == null) {
-                return repositoryMetadata.perRolePermissions().guest();
+                return !user.isAnonymous() ? repositoryMetadata.perRolePermissions().guest()
+                                           : repositoryMetadata.perRolePermissions().anonymous();
             }
             final Collection<Permission> p = repositoryMetadata.perUserPermissions().get(member.id());
             if (p != null) {
@@ -784,8 +789,10 @@ public class MetadataService {
                 return repositoryMetadata.perRolePermissions().owner();
             case MEMBER:
                 return repositoryMetadata.perRolePermissions().member();
-            default:
+            case GUEST:
                 return repositoryMetadata.perRolePermissions().guest();
+            default:
+                return repositoryMetadata.perRolePermissions().anonymous();
         }
     }
 

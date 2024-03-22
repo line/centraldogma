@@ -85,6 +85,7 @@
     "title_created_by": "Created By",
     "title_delete_target": "Delete '{{target}}'?",
     "title_guest": "Guest",
+    "title_anonymous": "Anonymous",
     "title_login_id": "Login ID",
     "title_member": "Member",
     "title_name": "Name",

@@ -86,7 +86,8 @@ class SerializationTest {
                                            "      \"perRolePermissions\" : {\n" +
                                            "        \"owner\" : [ \"READ\", \"WRITE\" ],\n" +
                                            "        \"member\" : [ \"READ\", \"WRITE\" ],\n" +
-                                           "        \"guest\" : []\n" +
+                                           "        \"guest\" : [],\n" +
+                                           "        \"anonymous\" : []\n" +
                                            "      },\n" +
                                            "      \"perUserPermissions\" : { },\n" +
                                            "      \"perTokenPermissions\" : { },\n" +
@@ -161,7 +162,8 @@ class SerializationTest {
                                            "      \"perRolePermissions\" : {\n" +
                                            "        \"owner\" : [ \"READ\", \"WRITE\" ],\n" +
                                            "        \"member\" : [ \"READ\", \"WRITE\" ],\n" +
-                                           "        \"guest\" : []\n" +
+                                           "        \"guest\" : [],\n" +
+                                           "        \"anonymous\" : []\n" +
                                            "      },\n" +
                                            "      \"perUserPermissions\" : { },\n" +
                                            "      \"perTokenPermissions\" : { },\n" +

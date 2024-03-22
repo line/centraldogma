@@ -41,13 +41,16 @@ public class User implements Identifiable, Serializable {
 
     private static final long serialVersionUID = -5429782019985526549L;
 
-    private static final String LEVEL_ADMIN_STR = "LEVEL_ADMIN";
+    private static final String LEVEL_ANONYMOUS_STR = "LEVEL_ANONYMOUS";
     private static final String LEVEL_USER_STR = "LEVEL_USER";
+    private static final String LEVEL_ADMIN_STR = "LEVEL_ADMIN";
 
     // System-wide roles for a user. It is different from the role in a project.
+    public static final List<String> LEVEL_ANONYMOUS = ImmutableList.of(LEVEL_ANONYMOUS_STR);
     public static final List<String> LEVEL_USER = ImmutableList.of(LEVEL_USER_STR);
     public static final List<String> LEVEL_ADMIN = ImmutableList.of(LEVEL_ADMIN_STR, LEVEL_USER_STR);
 
+    public static final User ANONYMOUS = new User("anonymous@localhost.localdomain", LEVEL_ANONYMOUS);
     public static final User DEFAULT = new User("user@localhost.localdomain", LEVEL_USER);
     public static final User ADMIN = new User("admin@localhost.localdomain", LEVEL_ADMIN);
 
@@ -57,6 +60,8 @@ public class User implements Identifiable, Serializable {
     private final List<String> roles;
 
     private final boolean isAdmin;
+
+    private final boolean isAnonymous;
 
     /**
      * Creates a new instance.
@@ -71,6 +76,7 @@ public class User implements Identifiable, Serializable {
         this.email = requireNonNull(email, "email");
         this.roles = ImmutableList.copyOf(requireNonNull(roles, "roles"));
         isAdmin = roles.stream().anyMatch(LEVEL_ADMIN_STR::equals);
+        isAnonymous = roles.stream().anyMatch(LEVEL_ANONYMOUS_STR::equals);
     }
 
     /**
@@ -95,6 +101,7 @@ public class User implements Identifiable, Serializable {
 
         this.roles = ImmutableList.copyOf(roles);
         isAdmin = roles.stream().anyMatch(LEVEL_ADMIN_STR::equals);
+        isAnonymous = roles.stream().anyMatch(LEVEL_ANONYMOUS_STR::equals);
     }
 
     /**
@@ -139,6 +146,13 @@ public class User implements Identifiable, Serializable {
      */
     public boolean isAdmin() {
         return isAdmin;
+    }
+
+    /**
+     * Returns {@code true} if this user is anonymous.
+     */
+    public boolean isAnonymous() {
+        return isAnonymous;
     }
 
     @Override
