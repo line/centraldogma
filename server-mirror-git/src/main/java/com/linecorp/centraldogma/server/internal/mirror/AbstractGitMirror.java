@@ -257,8 +257,8 @@ abstract class AbstractGitMirror extends AbstractMirror {
             changes.put(mirrorStatePath, Change.ofJsonUpsert(
                     mirrorStatePath, "{ \"sourceRevision\": \"" + headCommitId.name() + "\" }"));
             // Construct the log message and log.
-            summary = "Mirror " + abbrId + ", " + remoteRepoUri() +
-                    (remoteBranch() != null ? '#' + remoteBranch() : "") +
+            final String branchName = getRemoteBranchName(headBranchRef);
+            summary = "Mirror " + abbrId + ", " + remoteRepoUri() + '#' + branchName +
                       " to the repository '" + localRepo().name() + '\'';
             final RevCommit headCommit = revWalk.parseCommit(headCommitId);
             detail = generateCommitDetail(headCommit);
@@ -722,6 +722,16 @@ abstract class AbstractGitMirror extends AbstractMirror {
             default:
                 throw new StorageException("unexpected refUpdate state: " + res);
         }
+    }
+
+    private String getRemoteBranchName(Ref headBranchRef) {
+        if (remoteBranch() != null && !remoteBranch().isEmpty()) {
+            return remoteBranch();
+        }
+        if (headBranchRef.getName().startsWith(Constants.R_HEADS)) {
+            return headBranchRef.getName().substring(Constants.R_HEADS.length());
+        }
+        return "";
     }
 
     private static final class InsertText extends PathEdit {
