@@ -34,9 +34,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -56,6 +58,7 @@ import org.slf4j.LoggerFactory;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -414,13 +417,17 @@ class ZooKeeperCommandExecutorTest {
 
     @Test
     void lockTimeout() throws Exception {
-        final AtomicBoolean neverEnding = new AtomicBoolean();
-        final AtomicReference<CompletableFuture<?>> pendingFuture = new AtomicReference<>();
+        final AtomicBoolean isSlow = new AtomicBoolean();
+        final AtomicBoolean ranSlow = new AtomicBoolean();
         final Supplier<Function<Command<?>, CompletableFuture<?>>> mockDelegate = () -> command -> {
-            if (neverEnding.get()) {
-                final CompletableFuture<Object> future = new CompletableFuture<>();
-                pendingFuture.set(future);
-                return future;
+            if (isSlow.get()) {
+                ranSlow.set(true);
+                return CompletableFuture.supplyAsync(() -> {
+                    try {
+                        Thread.sleep(15000);
+                    } catch (InterruptedException ignored) {}
+                    return null;
+                }, CommonPools.blockingTaskExecutor());
             } else {
                 return newMockDelegate().apply(command);
             }
@@ -433,11 +440,11 @@ class ZooKeeperCommandExecutorTest {
             final Replica replica = cluster.get(0);
             final ZooKeeperCommandExecutor executor = replica.commandExecutor();
 
-            neverEnding.set(true);
+            isSlow.set(true);
             final Command<Void> command = Command.createRepository(Author.SYSTEM, "project", "repo1");
             executor.execute(command);
-            // Await until the first command is executed.
-            await().untilAtomic(pendingFuture, Matchers.notNullValue());
+            // Wait until the first command is executed.
+            await().untilAsserted(() -> assertThat(ranSlow).isTrue());
 
             final CompletableFuture<Void> result = executor.execute(command);
             await().between(Duration.ofSeconds(9), Duration.ofSeconds(15)).untilAsserted(() -> {
@@ -446,9 +453,8 @@ class ZooKeeperCommandExecutorTest {
                 assertThat(cause).isInstanceOf(CompletionException.class);
                 assertThat(cause.getCause()).isInstanceOf(ReplicationException.class)
                                             .hasMessageContaining(
-                                                    "Failed to acquire a lock for /project in 10 seconds");
+                                                    "failed to acquire a lock for /project in time");
             });
-            pendingFuture.get().complete(null);
         }
     }
 
