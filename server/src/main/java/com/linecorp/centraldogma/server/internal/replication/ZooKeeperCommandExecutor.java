@@ -89,6 +89,7 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -173,7 +174,7 @@ public final class ZooKeeperCommandExecutor
     private MetadataService metadataService;
 
     // Failing to acquire a lock is a critical problem, so we wait as much as we can.
-    private long lockTimeoutMillis = TimeUnit.MINUTES.toMillis(1);
+    private long lockTimeoutNanos = TimeUnit.MINUTES.toNanos(1);
 
     private volatile EmbeddedZooKeeper quorumPeer;
     private volatile CuratorFramework curator;
@@ -792,7 +793,7 @@ public final class ZooKeeperCommandExecutor
     }
 
     private SafeCloseable safeLock(Command<?> command) {
-        final long lockTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(lockTimeoutMillis);
+        final long lockTimeoutNanos = this.lockTimeoutNanos;
         final String executionPath = command.executionPath();
         final InterProcessMutex mtx = mutexMap.computeIfAbsent(
                 executionPath, k -> new InterProcessMutex(curator, absolutePath(LOCK_PATH, k)));
@@ -817,18 +818,16 @@ public final class ZooKeeperCommandExecutor
                                 executionPath, command, e);
                 }
 
-                // Sleep a little bit to avoid high CPU usage.
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException ignored) {
-                    // Ignore
-                }
-
+                // Give up if timed out already or will time out after sleeping.
+                final long sleepTimeNanos = TimeUnit.MILLISECONDS.toNanos(500);
                 remainingTimeNanos = deadlineNanos - System.nanoTime();
-                if (remainingTimeNanos <= 0) {
-                    // Timed out.
+                if (remainingTimeNanos <= sleepTimeNanos) {
                     break;
                 }
+
+                // Sleep for a bit to avoid high CPU usage.
+                Uninterruptibles.sleepUninterruptibly(sleepTimeNanos, TimeUnit.NANOSECONDS);
+                remainingTimeNanos -= sleepTimeNanos;
             }
 
             if (lockAcquired) {
@@ -1207,7 +1206,7 @@ public final class ZooKeeperCommandExecutor
 
     @VisibleForTesting
     void setLockTimeoutMillis(long lockTimeoutMillis) {
-        this.lockTimeoutMillis = lockTimeoutMillis;
+        this.lockTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(lockTimeoutMillis);
     }
 
     private static final class WriteLock {
