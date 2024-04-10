@@ -201,8 +201,8 @@ public class TokenService extends AbstractService {
     @Consumes("application/json-patch+json")
     @RequiresAdministrator
     public CompletableFuture<Token> updateTokenLevel(ServiceRequestContext ctx,
-                                                          @Param String appId,
-                                                          Author author, User loginUser) {
+                                                     @Param String appId,
+                                                     Author author, User loginUser) {
         return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
                 token -> {
                     if (token.isAdmin()) {

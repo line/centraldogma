@@ -427,7 +427,6 @@ class MetadataServiceTest {
         assertThat(token.isAdmin()).isFalse();
     }
 
-
     private static RepositoryMetadata getRepo1(MetadataService mds) {
         final ProjectMetadata metadata = mds.getProject(project1).join();
         return metadata.repo(repo1);
