@@ -408,6 +408,26 @@ class MetadataServiceTest {
         assertThat(repoMeta.writeQuota()).isEqualTo(writeQuota2);
     }
 
+    @Test
+    void updateUser() {
+        final MetadataService mds = newMetadataService(manager);
+
+        Token token;
+        mds.createToken(author, app1).join();
+        token = mds.getTokens().join().get(app1);
+        assertThat(token).isNotNull();
+        assertThat(token.isAdmin()).isFalse();
+
+        mds.updateTokenToAdmin(author, app1).join();
+        token = mds.getTokens().join().get(app1);
+        assertThat(token.isAdmin()).isTrue();
+
+        mds.updateTokenToUser(author, app1).join();
+        token = mds.getTokens().join().get(app1);
+        assertThat(token.isAdmin()).isFalse();
+    }
+
+
     private static RepositoryMetadata getRepo1(MetadataService mds) {
         final ProjectMetadata metadata = mds.getProject(project1).join();
         return metadata.repo(repo1);

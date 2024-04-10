@@ -192,6 +192,31 @@ public class TokenService extends AbstractService {
         );
     }
 
+    /**
+     * PATCH /tokens/{appId}/permission
+     *
+     * <p>Updates a permission of a token of the specified ID.
+     */
+    @Patch("/tokens/{appId}/level")
+    @Consumes("application/json-patch+json")
+    @RequiresAdministrator
+    public CompletableFuture<Token> updateTokenLevel(ServiceRequestContext ctx,
+                                                          @Param String appId,
+                                                          Author author, User loginUser) {
+        return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
+                token -> {
+                    if (token.isAdmin()) {
+                        return mds.updateTokenToUser(author, appId).thenApply(
+                                unused -> mds.findTokenByAppId(appId).join().withoutSecret()
+                        );
+                    } else {
+                        return mds.updateTokenToAdmin(author, appId).thenApply(
+                                unused -> mds.findTokenByAppId(appId).join().withoutSecret()
+                        );
+                    }
+                });
+    }
+
     private CompletableFuture<Token> getTokenOrRespondForbidden(ServiceRequestContext ctx,
                                                                 String appId, User loginUser) {
         return mds.findTokenByAppId(appId).thenApply(token -> {
