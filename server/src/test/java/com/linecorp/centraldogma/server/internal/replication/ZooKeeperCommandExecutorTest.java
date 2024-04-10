@@ -34,11 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -48,7 +46,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2;
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.function.ThrowingConsumer;
@@ -425,7 +422,9 @@ class ZooKeeperCommandExecutorTest {
                 return CompletableFuture.supplyAsync(() -> {
                     try {
                         Thread.sleep(15000);
-                    } catch (InterruptedException ignored) {}
+                    } catch (InterruptedException ignored) {
+                        // Ignore
+                    }
                     return null;
                 }, CommonPools.blockingTaskExecutor());
             } else {
