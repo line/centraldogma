@@ -407,13 +407,13 @@ public class CentralDogma implements AutoCloseable {
                 logger.info("Starting plugins on the leader replica ..");
                 pluginsForLeaderOnly
                         .start(cfg, pm, exec, meterRegistry, purgeWorker).handle((unused, cause) -> {
-                    if (cause == null) {
-                        logger.info("Started plugins on the leader replica.");
-                    } else {
-                        logger.error("Failed to start plugins on the leader replica..", cause);
-                    }
-                    return null;
-                });
+                            if (cause == null) {
+                                logger.info("Started plugins on the leader replica.");
+                            } else {
+                                logger.error("Failed to start plugins on the leader replica..", cause);
+                            }
+                            return null;
+                        });
             }
         };
 
@@ -561,7 +561,8 @@ public class CentralDogma implements AutoCloseable {
                                                                  "Bearer " + CsrfToken.ANONYMOUS))
                                   .build());
 
-        configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, sessionManager);
+        configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, sessionManager,
+                         meterRegistry);
 
         configureMetrics(sb, meterRegistry);
 
@@ -683,7 +684,7 @@ public class CentralDogma implements AutoCloseable {
                                   ProjectApiManager projectApiManager, CommandExecutor executor,
                                   WatchService watchService, MetadataService mds,
                                   @Nullable AuthProvider authProvider,
-                                  @Nullable SessionManager sessionManager) {
+                                  @Nullable SessionManager sessionManager, MeterRegistry meterRegistry) {
         Function<? super HttpService, ? extends HttpService> decorator;
 
         if (authProvider != null) {
@@ -751,7 +752,7 @@ public class CentralDogma implements AutoCloseable {
           .decorator(decorator)
           .requestConverters(v1RequestConverter, jacksonRequestConverterFunction)
           .responseConverters(v1ResponseConverter)
-          .build(new ContentServiceV1(executor, watchService));
+          .build(new ContentServiceV1(executor, watchService, meterRegistry));
 
         if (authProvider != null) {
             final AuthConfig authCfg = cfg.authConfig();
