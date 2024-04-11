@@ -407,13 +407,13 @@ public class CentralDogma implements AutoCloseable {
                 logger.info("Starting plugins on the leader replica ..");
                 pluginsForLeaderOnly
                         .start(cfg, pm, exec, meterRegistry, purgeWorker).handle((unused, cause) -> {
-                            if (cause == null) {
-                                logger.info("Started plugins on the leader replica.");
-                            } else {
-                                logger.error("Failed to start plugins on the leader replica..", cause);
-                            }
-                            return null;
-                        });
+                    if (cause == null) {
+                        logger.info("Started plugins on the leader replica.");
+                    } else {
+                        logger.error("Failed to start plugins on the leader replica..", cause);
+                    }
+                    return null;
+                });
             }
         };
 
