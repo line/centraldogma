@@ -373,6 +373,6 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             serverStatusManager.updateStatus(c.writable(), c.replicating());
             statusManager().updateStatus(c);
             return null;
-        }, repositoryWorker);
+        }, serverStatusManager.sequentialExecutor());
     }
 }

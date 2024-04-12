@@ -48,24 +48,6 @@ class CommandExecutorStatusManagerTest {
     }
 
     @Test
-    void cancelStartExecutor() throws InterruptedException {
-        final CompletableFuture<Void> startFuture = new CompletableFuture<>();
-        final CompletableFuture<Void> stopFuture = UnmodifiableFuture.completedFuture(null);
-        final TestCommandExecutor executor = new TestCommandExecutor(startFuture, stopFuture);
-        final CommandExecutorStatusManager executorStatusManager = new CommandExecutorStatusManager(executor);
-        final CompletableFuture<Boolean> replicationFuture = CompletableFuture.supplyAsync(() -> {
-            return executorStatusManager.setReplicating(true);
-        });
-        Thread.sleep(500);
-        assertThat(replicationFuture).isNotDone();
-        executorStatusManager.setReplicating(false);
-
-        // executor.start() should be cancelled by setReplicating(false) call.
-        assertThat(replicationFuture.join()).isFalse();
-        assertThat(executorStatusManager.replicating()).isFalse();
-    }
-
-    @Test
     void ignoreNullValues() {
         final CommandExecutorStatusManager executorStatusManager =
                 new CommandExecutorStatusManager(new TestCommandExecutor());

@@ -55,7 +55,7 @@ public final class AdministrativeService extends AbstractService {
      */
     @Get("/status")
     public ServerStatus status() {
-        return new ServerStatus(executor().isWritable(), executor().isStarted());
+        return ServerStatus.of(executor().isWritable(), executor().isStarted());
     }
 
     /**
@@ -124,7 +124,7 @@ public final class AdministrativeService extends AbstractService {
                 executor().statusManager().setWritable(writable);
                 executor().statusManager().setReplicating(replicating);
                 return statusManager.updateStatus(writable, replicating);
-            }, ctx.blockingTaskExecutor());
+            }, statusManager.sequentialExecutor());
         } else {
             return execute(Command.updateServerStatus(writable, replicating))
                     .thenApply(unused -> status());

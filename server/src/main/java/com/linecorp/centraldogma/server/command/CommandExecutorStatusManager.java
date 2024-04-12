@@ -16,11 +16,6 @@
 
 package com.linecorp.centraldogma.server.command;
 
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,8 +31,6 @@ public final class CommandExecutorStatusManager {
     private static final Logger logger = LoggerFactory.getLogger(ServerStatusManager.class);
 
     private final CommandExecutor executor;
-
-    private volatile ReplicatingRequest replicatingRequest = ReplicatingRequest.NONE;
 
     /**
      * Creates a new instance.
@@ -73,7 +66,7 @@ public final class CommandExecutorStatusManager {
      * <p>This method could take a long time if the executor is not in the desired state yet.
      * So it should be not called from an event loop thread.
      */
-    public void updateStatus(UpdateServerStatusCommand command) {
+    public synchronized void updateStatus(UpdateServerStatusCommand command) {
         final Boolean writable = command.writable();
         if (writable != null) {
             setWritable(writable);
@@ -89,7 +82,7 @@ public final class CommandExecutorStatusManager {
      * @return {@code true} if the executor is already in the specified mode, or the mode has been updated
      *          successfully.
      */
-    public boolean setWritable(boolean newWritable) {
+    public synchronized boolean setWritable(boolean newWritable) {
         final boolean writable = writable();
         if (writable == newWritable) {
             return true;
@@ -112,10 +105,14 @@ public final class CommandExecutorStatusManager {
      * @return {@code true} if the executor is already in the specified mode, or the mode has been updated
      *         successfully.
      */
-    public boolean setReplicating(boolean newReplicating) {
+    public synchronized boolean setReplicating(boolean newReplicating) {
         if (newReplicating) {
+            if (replicating()) {
+                return true;
+            }
             try {
-                startExecutor();
+                logger.info("Enabling replication ...");
+                executor.start().get();
                 logger.info("Enabled replication. read-only: {}", !writable());
                 return true;
             } catch (Exception cause) {
@@ -123,8 +120,12 @@ public final class CommandExecutorStatusManager {
                 return false;
             }
         } else {
+            if (!replicating()) {
+                return true;
+            }
             try {
-                stopExecutor();
+                logger.info("Disabling replication ...");
+                executor.stop().get();
                 logger.info("Disabled replication");
                 return true;
             } catch (Exception cause) {
@@ -134,102 +135,11 @@ public final class CommandExecutorStatusManager {
         }
     }
 
-    /**
-     * Starts the executor if the {@link CommandExecutor} is not started yet.
-     */
-    private void startExecutor() throws Exception {
-        final CompletableFuture<Void> startFuture;
-        synchronized (this) {
-            switch (replicatingRequest) {
-                case START:
-                    // Start request has already been issued.
-                    return;
-                case STOP:
-                    replicatingRequest = ReplicatingRequest.START;
-                    logger.debug("Cancelled the previous replication stop request");
-                    break;
-                case NONE:
-                    if (replicating()) {
-                        return;
-                    }
-                    replicatingRequest = ReplicatingRequest.START;
-                    break;
-            }
-            startFuture = executor.start();
-        }
-
-        try {
-            for (;;) {
-                if (replicatingRequest != ReplicatingRequest.START) {
-                    // Stop waiting for the startFuture if a new stop request has been issued.
-                    throw new CancellationException("'executor.start()' request has been cancelled");
-                }
-
-                try {
-                    startFuture.get(100, TimeUnit.MILLISECONDS);
-                    return;
-                } catch (TimeoutException unused) {
-                    // Taking long time ..
-                }
-            }
-        } finally {
-            replicatingRequest = ReplicatingRequest.NONE;
-        }
-    }
-
-    /**
-     * Stops the executor if the {@link CommandExecutor} is started.
-     */
-    private void stopExecutor() throws Exception {
-        final CompletableFuture<Void> stopFuture;
-        synchronized (this) {
-            switch (replicatingRequest) {
-                case STOP:
-                    // Stop request has already been issued.
-                    return;
-                case START:
-                    replicatingRequest = ReplicatingRequest.STOP;
-                    logger.debug("Cancelled the previous replication start request");
-                    break;
-                case NONE:
-                    if (!replicating()) {
-                        return;
-                    }
-                    replicatingRequest = ReplicatingRequest.STOP;
-                    break;
-            }
-            stopFuture = executor.stop();
-        }
-
-        try {
-            for (;;) {
-                if (replicatingRequest != ReplicatingRequest.STOP) {
-                    // Stop waiting for the stopFuture if a new start request has been issued.
-                    throw new CancellationException("'executor.stop()' request has been cancelled");
-                }
-
-                try {
-                    stopFuture.get(100, TimeUnit.MILLISECONDS);
-                    return;
-                } catch (TimeoutException unused) {
-                    // Taking long time ..
-                }
-            }
-        } finally {
-            replicatingRequest = ReplicatingRequest.NONE;
-        }
-    }
-
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("replicationRequest", replicatingRequest)
                           .add("isWritable", writable())
                           .add("replicating", replicating())
                           .toString();
-    }
-
-    enum ReplicatingRequest {
-        START, STOP, NONE
     }
 }

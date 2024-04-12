@@ -23,13 +23,21 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 import javax.annotation.Nullable;
+
+import com.linecorp.armeria.common.util.ThreadFactories;
 
 /**
  * Manages the server status.
  */
 public final class ServerStatusManager {
+
+    private final Executor sequentialExecutor =
+            Executors.newSingleThreadExecutor(
+                    ThreadFactories.newThreadFactory("server-status-manager", true));
 
     private final Path serverStatusFile;
 
@@ -66,7 +74,7 @@ public final class ServerStatusManager {
 
         final String writable = properties.getProperty("writable", "true");
         final String replicating = properties.getProperty("replicating", "true");
-        return new ServerStatus(Boolean.valueOf(writable), Boolean.valueOf(replicating));
+        return ServerStatus.of(Boolean.valueOf(writable), Boolean.valueOf(replicating));
     }
 
     /**
@@ -105,6 +113,13 @@ public final class ServerStatusManager {
                                                 e);
             }
         }
-        return new ServerStatus(writable, replicating);
+        return ServerStatus.of(writable, replicating);
+    }
+
+    /**
+     * Returns the {@link Executor} which is used to execute the status update sequentially.
+     */
+    public Executor sequentialExecutor() {
+        return sequentialExecutor;
     }
 }

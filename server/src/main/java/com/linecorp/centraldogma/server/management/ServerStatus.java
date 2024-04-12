@@ -18,21 +18,22 @@ package com.linecorp.centraldogma.server.management;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 
-import java.util.Objects;
-
-import javax.annotation.Nullable;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.MoreObjects;
+
+import com.linecorp.armeria.common.annotation.Nullable;
 
 /**
  * The status of the server.
  */
-@JsonInclude(Include.NON_NULL)
-public final class ServerStatus {
+@JsonFormat(shape = JsonFormat.Shape.OBJECT)
+public enum ServerStatus {
+
+    READ_ONLY(false, false),
+    REPLICATION_ONLY(false, true),
+    WRITABLE(true, true);
+
     private final boolean writable;
     private final boolean replicating;
 
@@ -41,16 +42,29 @@ public final class ServerStatus {
     /**
      * Creates a new instance with the specified properties.
      */
-    @JsonCreator
-    public ServerStatus(@JsonProperty("writable") @Nullable Boolean writable,
-                        @JsonProperty("replicating") @Nullable Boolean replicating) {
-        writable = firstNonNull(writable, true);
-        replicating = firstNonNull(replicating, true);
-        if (writable && !replicating) {
-            throw new IllegalArgumentException("replicating must be true if writable is true");
-        }
+    ServerStatus(boolean writable, boolean replicating) {
         this.writable = writable;
         this.replicating = replicating;
+    }
+
+    @JsonCreator
+    public static ServerStatus of(@JsonProperty("writable") @Nullable Boolean writable,
+                                  @JsonProperty("replicating") @Nullable Boolean replicating) {
+        writable = firstNonNull(writable, true);
+        replicating = firstNonNull(replicating, true);
+        if (writable) {
+            if (replicating) {
+                return WRITABLE;
+            } else {
+                throw new IllegalArgumentException("replicating must be true if writable is true");
+            }
+        } else {
+            if (replicating) {
+                return REPLICATION_ONLY;
+            } else {
+                return READ_ONLY;
+            }
+        }
     }
 
     /**
@@ -67,35 +81,5 @@ public final class ServerStatus {
     @JsonProperty("replicating")
     public boolean replicating() {
         return replicating;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof ServerStatus)) {
-            return false;
-        }
-
-        final ServerStatus that = (ServerStatus) o;
-
-        if (!Objects.equals(writable, that.writable)) {
-            return false;
-        }
-        return Objects.equals(replicating, that.replicating);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(writable, replicating);
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this)
-                          .add("writable", writable)
-                          .add("replicating", replicating)
-                          .toString();
     }
 }

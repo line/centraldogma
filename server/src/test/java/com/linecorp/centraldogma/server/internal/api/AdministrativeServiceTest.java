@@ -138,7 +138,7 @@ class AdministrativeServiceTest {
 
         // Try to enter read-only mode with replication disabled.
         AggregatedHttpResponse res =
-                client.execute(RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
+                client.execute(RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status?scope=local",
                                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                                "[" + writable(false) + "," + replicating(false) + "]")
                       .aggregate()
@@ -147,7 +147,8 @@ class AdministrativeServiceTest {
         assertThatJson(res.contentUtf8()).isEqualTo("{ \"writable\": false, \"replicating\": false }");
 
         // Try to enable replication.
-        res = client.execute(RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
+        // Replication can be enabled with the local scope.
+        res = client.execute(RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status?scope=local",
                                                HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                              "[" + replicating(true) + "]")
                     .aggregate()
