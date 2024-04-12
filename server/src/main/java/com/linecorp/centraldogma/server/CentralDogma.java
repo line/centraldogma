@@ -752,7 +752,7 @@ public class CentralDogma implements AutoCloseable {
           .decorator(decorator)
           .requestConverters(v1RequestConverter, jacksonRequestConverterFunction)
           .responseConverters(v1ResponseConverter)
-          .build(new ContentServiceV1(executor, watchService, meterRegistry));
+          .build(new ContentServiceV1(executor, watchService));
 
         if (authProvider != null) {
             final AuthConfig authCfg = cfg.authConfig();
@@ -864,7 +864,7 @@ public class CentralDogma implements AutoCloseable {
             logger.info("Not exposing a prometheus endpoint for the type: {}", registry.getClass());
         }
 
-        sb.decorator(MetricCollectingService.newDecorator(MeterIdPrefixFunction.ofDefault("api")));
+        sb.decorator(MetricCollectingService.newDecorator(repoAwareMeterIdPrefixFunction()));
 
         // Bind system metrics.
         new FileDescriptorMetrics().bindTo(registry);
@@ -878,6 +878,16 @@ public class CentralDogma implements AutoCloseable {
 
         // Bind global thread pool metrics.
         ExecutorServiceMetrics.monitor(registry, ForkJoinPool.commonPool(), "commonPool");
+    }
+
+    private static MeterIdPrefixFunction repoAwareMeterIdPrefixFunction() {
+        final MeterIdPrefixFunction meterIdPrefix = MeterIdPrefixFunction.ofDefault("api");
+        return meterIdPrefix.andThen((registry0, log, meterIdPrefix0) -> {
+            final ServiceRequestContext ctx = (ServiceRequestContext) log.context();
+            final String project = firstNonNull(ctx.pathParam("projectName"), "none");
+            final String repo = firstNonNull(ctx.pathParam("repoName"), "none");
+            return meterIdPrefix0.withTags("project", project, "repository", repo);
+        });
     }
 
     private void doStop() {

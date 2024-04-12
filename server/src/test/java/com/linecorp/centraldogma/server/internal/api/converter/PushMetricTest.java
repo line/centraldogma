@@ -17,12 +17,14 @@
 package com.linecorp.centraldogma.server.internal.api.converter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.micrometer.core.instrument.Counter;
@@ -35,13 +37,15 @@ class PushMetricTest {
 
     @Test
     void shouldIncreasePushCounter() {
-        String projectName = "myPro";
-        String repoName = "myRepo";
+        final String projectName = "myPro";
+        final String repoName = "myRepo";
         final MeterRegistry meterRegistry = dogma.dogma().meterRegistry().get();
-        Counter pushCounter = meterRegistry.find("commits.push")
-                                           .tags("project", projectName, "repository", repoName)
-                                           .counter();
-        final double before = pushCounter != null ? pushCounter.count() : 0;
+        final Counter pushCounter0 =
+                meterRegistry.find("api.requests")
+                             .tags("service", ContentServiceV1.class.getName(), "method", "push")
+                             .tags("project", projectName, "repository", repoName)
+                             .counter();
+        final double before = pushCounter0 != null ? pushCounter0.count() : 0;
         final CentralDogma client = dogma.client();
         client.createProject(projectName).join();
         client.createRepository(projectName, repoName).join();
@@ -49,10 +53,14 @@ class PushMetricTest {
               .commit("Add a file", Change.ofTextUpsert("/a.txt", "a"))
               .push().join();
 
-        pushCounter = meterRegistry.find("commits.push")
-                                   .tags("project", projectName, "repository", repoName)
-                                   .counter();
-        // Check whether the push counter is increased by one.
-        assertThat(pushCounter.count()).isEqualTo(before + 1);
+        final Counter pushCounter1 =
+                meterRegistry.find("api.requests")
+                             .tags("service", ContentServiceV1.class.getName(), "method", "push")
+                             .tags("project", projectName, "repository", repoName)
+                             .counter();
+        await().untilAsserted(() -> {
+            // Check whether the push counter is increased by one.
+            assertThat(pushCounter1.count()).isEqualTo(before + 1);
+        });
     }
 }
