@@ -110,7 +110,10 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     @Override
     public final <T> CompletableFuture<T> execute(Command<T> command) {
         requireNonNull(command, "command");
-        if (!isWritable() && !(command instanceof AdministrativeCommand)) {
+        if (!isStarted()) {
+            throw new ReadOnlyException("running in read-only mode. command: " + command);
+        }
+        if (!writable && !(command instanceof AdministrativeCommand)) {
             // Reject all commands except for AdministrativeCommand when the replica is in read-only mode.
             // AdministrativeCommand is allowed because it is used to change the read-only mode or migrate
             // metadata under maintenance mode.
