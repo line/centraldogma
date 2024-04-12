@@ -326,6 +326,18 @@ public class CentralDogma implements AutoCloseable {
      */
     public CompletableFuture<Void> stop() {
         serverHealth.setHealthy(false);
+
+        final Optional<GracefulShutdownTimeout> gracefulTimeoutOpt = cfg.gracefulShutdownTimeout();
+        if (gracefulTimeoutOpt.isPresent()) {
+            try {
+                // Sleep so that clients have some time to redirect traffic according to the health status
+                Thread.sleep(gracefulTimeoutOpt.get().quietPeriodMillis());
+            } catch (InterruptedException e) {
+                logger.debug("Interrupted while waiting for quiet period", e);
+                Thread.currentThread().interrupt();
+            }
+        }
+
         numPendingStopRequests.incrementAndGet();
         return startStop.stop().thenRun(numPendingStopRequests::decrementAndGet);
     }
