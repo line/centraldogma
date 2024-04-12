@@ -334,6 +334,7 @@ public class CentralDogma implements AutoCloseable {
                 Thread.sleep(gracefulTimeoutOpt.get().quietPeriodMillis());
             } catch (InterruptedException e) {
                 logger.debug("Interrupted while waiting for quiet period", e);
+                Thread.currentThread().interrupt();
             }
         }
 
