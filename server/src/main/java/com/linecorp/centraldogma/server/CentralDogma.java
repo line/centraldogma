@@ -561,8 +561,7 @@ public class CentralDogma implements AutoCloseable {
                                                                  "Bearer " + CsrfToken.ANONYMOUS))
                                   .build());
 
-        configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, sessionManager,
-                         meterRegistry);
+        configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, sessionManager);
 
         configureMetrics(sb, meterRegistry);
 
@@ -684,7 +683,7 @@ public class CentralDogma implements AutoCloseable {
                                   ProjectApiManager projectApiManager, CommandExecutor executor,
                                   WatchService watchService, MetadataService mds,
                                   @Nullable AuthProvider authProvider,
-                                  @Nullable SessionManager sessionManager, MeterRegistry meterRegistry) {
+                                  @Nullable SessionManager sessionManager) {
         Function<? super HttpService, ? extends HttpService> decorator;
 
         if (authProvider != null) {
