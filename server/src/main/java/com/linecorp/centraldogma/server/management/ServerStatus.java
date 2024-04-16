@@ -32,14 +32,14 @@ public enum ServerStatus {
 
     // TODO(trustin): Add more properties, e.g. method, host name, isLeader and config.
 
-    /**
-     * Creates a new instance with the specified properties.
-     */
     ServerStatus(boolean writable, boolean replicating) {
         this.writable = writable;
         this.replicating = replicating;
     }
 
+    /**
+     * Returns the {@link ServerStatus} instance with the specified properties.
+     */
     public static ServerStatus of(boolean writable, boolean replicating) {
         if (writable) {
             if (replicating) {

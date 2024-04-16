@@ -546,7 +546,7 @@ public final class ZooKeeperCommandExecutor
             peer.start();
 
             // Wait until the ZooKeeper joins the cluster.
-            for (; ; ) {
+            for (;;) {
                 final ServerState state = peer.getPeerState();
                 if (state == ServerState.FOLLOWING || state == ServerState.LEADING) {
                     break;
@@ -720,7 +720,7 @@ public final class ZooKeeperCommandExecutor
         }
 
         long nextRevision = info.lastReplayedRevision + 1;
-        for (; ; ) {
+        for (;;) {
             if (!canReplicate) {
                 break;
             }
@@ -750,7 +750,7 @@ public final class ZooKeeperCommandExecutor
                 updateLastReplayedRevision(nextRevision);
                 info.lastReplayedRevision = nextRevision;
                 if (command instanceof UpdateServerStatusCommand) {
-                    zkCommmmandStatusLater((UpdateServerStatusCommand) command);
+                    updateZkCommandStatusLater((UpdateServerStatusCommand) command);
                 }
                 if (nextRevision == targetRevision) {
                     break;
@@ -782,7 +782,7 @@ public final class ZooKeeperCommandExecutor
         }
     }
 
-    private void zkCommmmandStatusLater(UpdateServerStatusCommand command) {
+    private void updateZkCommandStatusLater(UpdateServerStatusCommand command) {
         canReplicate = command.serverStatus().replicating();
         // Use a separate executor since executorStatusManager.updateStatus() may stop the executor that calls
         // this method.
