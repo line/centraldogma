@@ -89,8 +89,8 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.Uninterruptibles;
 
-import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Revision;
@@ -172,6 +172,9 @@ public final class ZooKeeperCommandExecutor
     private final QuotaConfig writeQuota;
 
     private MetadataService metadataService;
+
+    // Failing to acquire a lock is a critical problem, so we wait as much as we can.
+    private long lockTimeoutNanos = TimeUnit.MINUTES.toNanos(1);
 
     private volatile EmbeddedZooKeeper quorumPeer;
     private volatile CuratorFramework curator;
@@ -583,7 +586,7 @@ public final class ZooKeeperCommandExecutor
     }
 
     private void stopLater() {
-        // Stop from an other thread so that it does not get stuck
+        // Stop from other thread so that it does not get stuck
         // when this method runs on an executor thread.
         ForkJoinPool.commonPool().execute(this::stop);
     }
@@ -790,32 +793,68 @@ public final class ZooKeeperCommandExecutor
     }
 
     private SafeCloseable safeLock(Command<?> command) {
+        final long lockTimeoutNanos = this.lockTimeoutNanos;
         final String executionPath = command.executionPath();
         final InterProcessMutex mtx = mutexMap.computeIfAbsent(
                 executionPath, k -> new InterProcessMutex(curator, absolutePath(LOCK_PATH, k)));
 
         WriteLock writeLock = null;
-        boolean lockTimeout = false;
+        boolean lockAcquired = false;
+        boolean success = false;
+        Throwable cause = null;
         try {
-            // Align with the default request timeout
-            if (!mtx.acquire(10, TimeUnit.SECONDS)) {
-                lockTimeout = true;
-                throw new ReplicationException(
-                        "Failed to acquire a lock for " + executionPath + " in 10 seconds");
-            }
-            if (command instanceof NormalizingPushCommand) {
-                writeLock = acquireWriteLock((NormalizingPushCommand) command);
-            } else if (command instanceof RemoveRepositoryCommand) {
-                clearWriteQuota((RemoveRepositoryCommand) command);
-            }
-        } catch (Exception e) {
-            if (lockTimeout) {
-                return Exceptions.throwUnsafely(e);
+            // Retry up to 1 minute, to minimize the chance of going read-only.
+            long remainingTimeNanos = lockTimeoutNanos;
+            final long deadlineNanos = System.nanoTime() + remainingTimeNanos;
+            for (;;) {
+                try {
+                    if (mtx.acquire(remainingTimeNanos, TimeUnit.NANOSECONDS)) {
+                        lockAcquired = true;
+                        break;
+                    }
+                } catch (NullPointerException e) {
+                    // We're not sure why this happens, but we're retrying to recover from it.
+                    logger.warn("Unexpected NPE from Curator while acquiring a lock for {} (command: {}):",
+                                executionPath, command, e);
+                }
+
+                // Give up if timed out already or will time out after sleeping.
+                final long sleepTimeNanos = TimeUnit.MILLISECONDS.toNanos(500);
+                remainingTimeNanos = deadlineNanos - System.nanoTime();
+                if (remainingTimeNanos <= sleepTimeNanos) {
+                    break;
+                }
+
+                // Sleep for a bit to avoid high CPU usage.
+                Uninterruptibles.sleepUninterruptibly(sleepTimeNanos, TimeUnit.NANOSECONDS);
+                remainingTimeNanos -= sleepTimeNanos;
             }
 
-            logger.error("Failed to acquire a lock for {}; entering read-only mode", executionPath, e);
-            stopLater();
-            throw new ReplicationException("failed to acquire a lock for " + executionPath, e);
+            if (lockAcquired) {
+                if (command instanceof NormalizingPushCommand) {
+                    writeLock = acquireWriteLock((NormalizingPushCommand) command);
+                } else if (command instanceof RemoveRepositoryCommand) {
+                    clearWriteQuota((RemoveRepositoryCommand) command);
+                }
+                success = true;
+            }
+        } catch (Throwable e) {
+            cause = e;
+        }
+
+        if (!success) {
+            if (cause != null) {
+                logger.error("Failed to acquire a lock for {} (command: {}); entering read-only mode",
+                             executionPath, command, cause);
+                stopLater();
+                throw new ReplicationException("failed to acquire a lock for " + executionPath, cause);
+            } else {
+                logger.error("Failed to acquire a lock for {} in time (command: {}); " +
+                             "entering read-only mode",
+                             executionPath, command);
+                stopLater();
+                throw new ReplicationException("failed to acquire a lock for " + executionPath + " in time");
+            }
         }
 
         if (writeLock != null) {
@@ -1165,12 +1204,20 @@ public final class ZooKeeperCommandExecutor
         this.metadataService = metadataService;
     }
 
+    @VisibleForTesting
+    void setLockTimeoutMillis(long lockTimeoutMillis) {
+        this.lockTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(lockTimeoutMillis);
+    }
+
     private static final class WriteLock {
         private final InterProcessSemaphoreV2 semaphore;
+        @Nullable
         private final Lease lease;
         private final QuotaConfig writeQuota;
 
-        private WriteLock(InterProcessSemaphoreV2 semaphore, Lease lease, QuotaConfig writeQuota) {
+        private WriteLock(InterProcessSemaphoreV2 semaphore,
+                          @Nullable Lease lease,
+                          QuotaConfig writeQuota) {
             this.semaphore = semaphore;
             this.lease = lease;
             this.writeQuota = writeQuota;
