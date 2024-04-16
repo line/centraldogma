@@ -59,6 +59,7 @@ class PushMetricTest {
                                  .tags("service", ContentServiceV1.class.getName(), "method", "push")
                                  .tags("project", projectName, "repository", repoName)
                                  .counter();
+            assertThat(pushCounter1).isNotNull();
             // Check whether the push counter is increased by one.
             assertThat(pushCounter1.count()).isEqualTo(before + 1);
         });
