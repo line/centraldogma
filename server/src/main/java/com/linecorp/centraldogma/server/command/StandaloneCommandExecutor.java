@@ -370,7 +370,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> updateServerStatus(UpdateServerStatusCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            serverStatusManager.updateStatus(c.writable(), c.replicating());
+            serverStatusManager.updateStatus(c.serverStatus());
             statusManager().updateStatus(c);
             return null;
         }, serverStatusManager.sequentialExecutor());

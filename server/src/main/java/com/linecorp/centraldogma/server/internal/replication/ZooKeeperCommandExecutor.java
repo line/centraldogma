@@ -546,7 +546,7 @@ public final class ZooKeeperCommandExecutor
             peer.start();
 
             // Wait until the ZooKeeper joins the cluster.
-            for (;;) {
+            for (; ; ) {
                 final ServerState state = peer.getPeerState();
                 if (state == ServerState.FOLLOWING || state == ServerState.LEADING) {
                     break;
@@ -592,6 +592,7 @@ public final class ZooKeeperCommandExecutor
 
     @Override
     protected void doStop(@Nullable Runnable onReleaseLeadership) throws Exception {
+        canReplicate = false;
         listenerInfo = null;
         logger.info("Stopping the worker threads");
         boolean interrupted = shutdown(executor);
@@ -719,7 +720,7 @@ public final class ZooKeeperCommandExecutor
         }
 
         long nextRevision = info.lastReplayedRevision + 1;
-        for (;;) {
+        for (; ; ) {
             if (!canReplicate) {
                 break;
             }
@@ -749,7 +750,7 @@ public final class ZooKeeperCommandExecutor
                 updateLastReplayedRevision(nextRevision);
                 info.lastReplayedRevision = nextRevision;
                 if (command instanceof UpdateServerStatusCommand) {
-                    updateServerStatusLater((UpdateServerStatusCommand) command);
+                    zkCommmmandStatusLater((UpdateServerStatusCommand) command);
                 }
                 if (nextRevision == targetRevision) {
                     break;
@@ -781,11 +782,8 @@ public final class ZooKeeperCommandExecutor
         }
     }
 
-    private void updateServerStatusLater(UpdateServerStatusCommand command) {
-        final Boolean replicating = command.replicating();
-        if (Boolean.FALSE.equals(replicating)) {
-            canReplicate = false;
-        }
+    private void zkCommmmandStatusLater(UpdateServerStatusCommand command) {
+        canReplicate = command.serverStatus().replicating();
         // Use a separate executor since executorStatusManager.updateStatus() may stop the executor that calls
         // this method.
         ForkJoinPool.commonPool().execute(() -> {
@@ -1148,9 +1146,7 @@ public final class ZooKeeperCommandExecutor
             // Update the ServerStatus to the CommandExecutor after the log is stored.
             if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
                 final UpdateServerStatusCommand statusCommand = (UpdateServerStatusCommand) command;
-                if (Boolean.FALSE.equals(statusCommand.replicating())) {
-                    canReplicate = false;
-                }
+                canReplicate = statusCommand.serverStatus().replicating();
                 statusManager().updateStatus(statusCommand);
             }
 

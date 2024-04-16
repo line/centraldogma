@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 
 /**
@@ -67,14 +68,9 @@ public final class CommandExecutorStatusManager {
      * So it should be not called from an event loop thread.
      */
     public synchronized void updateStatus(UpdateServerStatusCommand command) {
-        final Boolean writable = command.writable();
-        if (writable != null) {
-            setWritable(writable);
-        }
-        final Boolean replicating = command.replicating();
-        if (replicating != null) {
-            setReplicating(replicating);
-        }
+        final ServerStatus serverStatus = command.serverStatus();
+        setWritable(serverStatus.writable());
+        setReplicating(serverStatus.replicating());
     }
 
     /**

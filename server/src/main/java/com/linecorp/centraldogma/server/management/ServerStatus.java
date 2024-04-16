@@ -16,18 +16,11 @@
 
 package com.linecorp.centraldogma.server.management;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import com.linecorp.armeria.common.annotation.Nullable;
 
 /**
  * The status of the server.
  */
-@JsonFormat(shape = JsonFormat.Shape.OBJECT)
 public enum ServerStatus {
 
     READ_ONLY(false, false),
@@ -47,11 +40,7 @@ public enum ServerStatus {
         this.replicating = replicating;
     }
 
-    @JsonCreator
-    public static ServerStatus of(@JsonProperty("writable") @Nullable Boolean writable,
-                                  @JsonProperty("replicating") @Nullable Boolean replicating) {
-        writable = firstNonNull(writable, true);
-        replicating = firstNonNull(replicating, true);
+    public static ServerStatus of(boolean writable, boolean replicating) {
         if (writable) {
             if (replicating) {
                 return WRITABLE;

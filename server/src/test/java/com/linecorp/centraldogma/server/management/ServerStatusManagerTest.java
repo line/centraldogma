@@ -46,21 +46,21 @@ class ServerStatusManagerTest {
     @Test
     void updateValues() throws IOException {
         final ServerStatusManager serverStatusManager = new ServerStatusManager(tmpDir.newFolder().toFile());
-        serverStatusManager.updateStatus(false, false);
+        serverStatusManager.updateStatus(ServerStatus.READ_ONLY);
         final ServerStatus serverStatus = serverStatusManager.serverStatus();
         assertThat(serverStatus.writable()).isFalse();
         assertThat(serverStatus.replicating()).isFalse();
     }
 
     @Test
-    void ignoreNullValues() throws IOException {
+    void readOnlyToReplicationOnly() throws IOException {
         final ServerStatusManager serverStatusManager = new ServerStatusManager(tmpDir.newFolder().toFile());
-        serverStatusManager.updateStatus(false, false);
+        serverStatusManager.updateStatus(ServerStatus.READ_ONLY);
         ServerStatus serverStatus = serverStatusManager.serverStatus();
         assertThat(serverStatus.writable()).isFalse();
         assertThat(serverStatus.replicating()).isFalse();
 
-        serverStatusManager.updateStatus(null, true);
+        serverStatusManager.updateStatus(ServerStatus.REPLICATION_ONLY);
         serverStatus = serverStatusManager.serverStatus();
         assertThat(serverStatus.writable()).isFalse();
         assertThat(serverStatus.replicating()).isTrue();

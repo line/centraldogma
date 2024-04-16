@@ -26,9 +26,9 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.UnprocessedRequestException;
-import com.linecorp.armeria.common.MediaType;
 import com.linecorp.centraldogma.common.ReadOnlyException;
-import com.linecorp.centraldogma.server.internal.api.AdministrativeService.Scope;
+import com.linecorp.centraldogma.server.internal.api.UpdateServerStatusRequest;
+import com.linecorp.centraldogma.server.internal.api.UpdateServerStatusRequest.Scope;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaReplicationExtension;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaRuleDelegate;
 
@@ -42,7 +42,7 @@ class ServerStatusManagerIntegrationTest {
     };
 
     @Test
-    void readOnlyMode() throws Exception {
+    void replicationOnlyMode() throws Exception {
         final CentralDogmaRuleDelegate dogma = cluster.servers().get(0);
         final BlockingWebClient client = dogma.httpClient().blocking();
         ServerStatus serverStatus = getServerStatus(client);
@@ -52,14 +52,14 @@ class ServerStatusManagerIntegrationTest {
         assertThat(serverStatus.replicating()).isTrue();
 
         // Read-only mode.
-        serverStatus = updateServerStatus(client, false, true);
+        serverStatus = updateServerStatus(client, ServerStatus.REPLICATION_ONLY);
         assertThat(serverStatus.writable()).isFalse();
         assertThat(serverStatus.replicating()).isTrue();
         assertAllServerStatus(false, true);
         assertThatThrownBy(() -> dogma.client().createProject("test-project").join())
                 .hasCauseInstanceOf(ReadOnlyException.class);
 
-        serverStatus = updateServerStatus(client, true, true);
+        serverStatus = updateServerStatus(client, ServerStatus.WRITABLE);
         assertThat(serverStatus.writable()).isTrue();
         assertThat(serverStatus.replicating()).isTrue();
         assertAllServerStatus(true, true);
@@ -74,7 +74,7 @@ class ServerStatusManagerIntegrationTest {
 
         final BlockingWebClient client = dogma.httpClient().blocking();
         // Read-only mode.
-        ServerStatus serverStatus = updateServerStatus(client, false, true);
+        ServerStatus serverStatus = updateServerStatus(client, ServerStatus.REPLICATION_ONLY);
         assertThat(serverStatus.writable()).isFalse();
         assertThat(serverStatus.replicating()).isTrue();
         assertAllServerStatus(false, true);
@@ -94,12 +94,12 @@ class ServerStatusManagerIntegrationTest {
         assertThat(serverStatus.replicating()).isTrue();
 
         // Enable the writable mode.
-        serverStatus = updateServerStatus(client, true, true);
+        serverStatus = updateServerStatus(client, ServerStatus.WRITABLE);
         assertThat(serverStatus.writable()).isTrue();
         assertThat(serverStatus.replicating()).isTrue();
 
         // Disable both the writable and replicating mode.
-        serverStatus = updateServerStatus(client, false, false);
+        serverStatus = updateServerStatus(client, ServerStatus.READ_ONLY);
         assertThat(serverStatus.writable()).isFalse();
         assertThat(serverStatus.replicating()).isFalse();
         assertAllServerStatus(false, false);
@@ -131,7 +131,7 @@ class ServerStatusManagerIntegrationTest {
         assertThat(serverStatus.writable()).isTrue();
         assertThat(serverStatus.replicating()).isTrue();
 
-        updateServerStatus(client, false, false, Scope.LOCAL);
+        updateServerStatus(client, ServerStatus.READ_ONLY, Scope.LOCAL);
 
         serverStatus = getServerStatus(client);
         assertThat(serverStatus.writable()).isFalse();
@@ -143,7 +143,7 @@ class ServerStatusManagerIntegrationTest {
             assertThat(serverStatus.replicating()).isTrue();
         }
 
-        updateServerStatus(client, true, true, Scope.LOCAL);
+        updateServerStatus(client, ServerStatus.WRITABLE, Scope.LOCAL);
         assertAllServerStatus(true, true);
     }
 
@@ -157,25 +157,23 @@ class ServerStatusManagerIntegrationTest {
     }
 
     private static ServerStatus updateServerStatus(BlockingWebClient client,
-                                                   boolean writable, boolean replicating) throws Exception {
-        return updateServerStatus(client, writable, replicating, Scope.ALL);
+                                                   ServerStatus serverStatus) throws Exception {
+        return updateServerStatus(client, serverStatus, Scope.ALL);
     }
 
     private static ServerStatus updateServerStatus(BlockingWebClient client,
-                                                   boolean writable, boolean replicating, Scope scope)
+                                                   ServerStatus serverStatus, Scope scope)
             throws Exception {
-        final ServerStatus serverStatus =
+        final ServerStatus newServerStatus =
                 client.prepare()
-                      .patch("/api/v1/status")
-                      .queryParam("scope", scope.name())
-                      .content(MediaType.JSON_PATCH,
-                               patchServerStatus(writable, replicating))
+                      .put("/api/v1/status")
+                      .contentJson(new UpdateServerStatusRequest(serverStatus, scope))
                       .asJson(ServerStatus.class)
                       .execute()
                       .content();
         // Wait for the status to be replicated to the other servers.
         Thread.sleep(500);
-        return serverStatus;
+        return newServerStatus;
     }
 
     private static ServerStatus getServerStatus(BlockingWebClient client) {
