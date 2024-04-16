@@ -53,12 +53,12 @@ class PushMetricTest {
               .commit("Add a file", Change.ofTextUpsert("/a.txt", "a"))
               .push().join();
 
-        final Counter pushCounter1 =
-                meterRegistry.find("api.requests")
-                             .tags("service", ContentServiceV1.class.getName(), "method", "push")
-                             .tags("project", projectName, "repository", repoName)
-                             .counter();
         await().untilAsserted(() -> {
+            final Counter pushCounter1 =
+                    meterRegistry.find("api.requests")
+                                 .tags("service", ContentServiceV1.class.getName(), "method", "push")
+                                 .tags("project", projectName, "repository", repoName)
+                                 .counter();
             // Check whether the push counter is increased by one.
             assertThat(pushCounter1.count()).isEqualTo(before + 1);
         });
