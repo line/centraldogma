@@ -55,7 +55,7 @@ public final class AdministrativeService extends AbstractService {
     }
 
     /**
-     * PUT /status?scope=all
+     * PUT /status
      *
      * <p>Patches the server status with a JSON patch. Currently used only for entering read-only.
      *
@@ -71,20 +71,6 @@ public final class AdministrativeService extends AbstractService {
             throws Exception {
         // TODO(trustin): Consider extracting this into common utility or Armeria.
         final ServerStatus oldStatus = status();
-
-        //    writable       | replicating   |  result
-        //-------------------+---------------+-----------------------------------
-        //    true -> true   | true -> true  | not_modified exception
-        //                   | true -> false | bad_request exception
-        //-------------------+---------------+-----------------------------------
-        //    true -> false  | true -> true  | setWritable(false)
-        //                   | true -> false | setWritable(false) & stop executor.
-        //-------------------+---------------+-----------------------------------
-        //    false -> true  | true -> true  | setWritable(true)
-        //                   | false -> true | setWritable(true) & start executor.
-        //-------------------+---------------+-----------------------------------
-        //    false -> false | true -> false | Stop executor.
-        //                   | false -> true | Start executor.
 
         final ServerStatus newStatus = statusRequest.serverStatus();
         if (statusRequest.scope() == Scope.LOCAL) {
