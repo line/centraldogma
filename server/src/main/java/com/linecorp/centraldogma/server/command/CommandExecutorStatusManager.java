@@ -69,8 +69,25 @@ public final class CommandExecutorStatusManager {
      */
     public synchronized void updateStatus(UpdateServerStatusCommand command) {
         final ServerStatus serverStatus = command.serverStatus();
-        setWritable(serverStatus.writable());
-        setReplicating(serverStatus.replicating());
+        updateStatus(serverStatus);
+    }
+
+    /**
+     * Updates the status of the executor with the specified {@link ServerStatus}.
+     *
+     * <p>This method could take a long time if the executor is not in the desired state yet.
+     * So it should be not called from an event loop thread.
+     */
+    public synchronized void updateStatus(ServerStatus serverStatus) {
+        if (serverStatus.replicating()) {
+            // Replicating mode is enabled first to write data to the cluster.
+            setReplicating(serverStatus.replicating());
+            setWritable(serverStatus.writable());
+        } else {
+            // For graceful transition, writable mode is disabled first.
+            setWritable(serverStatus.writable());
+            setReplicating(serverStatus.replicating());
+        }
     }
 
     /**

@@ -1090,7 +1090,7 @@ public final class ZooKeeperCommandExecutor
     protected <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception {
         final CompletableFuture<T> future = new CompletableFuture<>();
         ExecutorService executor = this.executor;
-        if (command instanceof UpdateServerStatusCommand) {
+        if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
             // Use a separate executor because `this.executor()` could be stopped while executing the command.
             executor = ForkJoinPool.commonPool();
         }
