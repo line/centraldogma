@@ -22,7 +22,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.HttpStatusException;
-import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.ProducesJson;
@@ -37,11 +36,11 @@ import com.linecorp.centraldogma.server.management.ServerStatusManager;
 @ProducesJson
 public final class AdministrativeService extends AbstractService {
 
-    private final ServerStatusManager statusManager;
+    private final ServerStatusManager serverStatusManager;
 
-    public AdministrativeService(CommandExecutor executor, ServerStatusManager statusManager) {
+    public AdministrativeService(CommandExecutor executor, ServerStatusManager serverStatusManager) {
         super(executor);
-        this.statusManager = statusManager;
+        this.serverStatusManager = serverStatusManager;
     }
 
     /**
@@ -66,8 +65,7 @@ public final class AdministrativeService extends AbstractService {
     @Put("/status")
     @Consumes("application/json")
     @RequiresAdministrator
-    public CompletableFuture<ServerStatus> updateStatus(ServiceRequestContext ctx,
-                                                        UpdateServerStatusRequest statusRequest)
+    public CompletableFuture<ServerStatus> updateStatus(UpdateServerStatusRequest statusRequest)
             throws Exception {
         // TODO(trustin): Consider extracting this into common utility or Armeria.
         final ServerStatus oldStatus = status();
@@ -80,11 +78,10 @@ public final class AdministrativeService extends AbstractService {
             }
 
             return CompletableFuture.supplyAsync(() -> {
-                executor().statusManager().setWritable(newStatus.writable());
-                executor().statusManager().setReplicating(newStatus.replicating());
-                statusManager.updateStatus(newStatus);
+                executor().statusManager().updateStatus(newStatus);
+                serverStatusManager.updateStatus(newStatus);
                 return status();
-            }, statusManager.sequentialExecutor());
+            }, serverStatusManager.sequentialExecutor());
         } else {
             return execute(Command.updateServerStatus(newStatus))
                     .thenApply(unused -> status());
