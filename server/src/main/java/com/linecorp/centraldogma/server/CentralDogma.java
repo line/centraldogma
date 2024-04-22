@@ -45,7 +45,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -360,7 +360,8 @@ public class CentralDogma implements AutoCloseable {
 
             final ThreadPoolExecutor repositoryWorkerImpl = new ThreadPoolExecutor(
                     cfg.numRepositoryWorkers(), cfg.numRepositoryWorkers(),
-                    60, TimeUnit.SECONDS, new LinkedTransferQueue<>(),
+                    // TODO(minwoox): Use LinkedTransferQueue when we upgrade to JDK 21.
+                    60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
                     new DefaultThreadFactory("repository-worker", true));
             repositoryWorkerImpl.allowCoreThreadTimeOut(true);
             repositoryWorker = ExecutorServiceMetrics.monitor(meterRegistry, repositoryWorkerImpl,
