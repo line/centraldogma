@@ -786,9 +786,11 @@ public final class ZooKeeperCommandExecutor
         canReplicate = command.serverStatus().replicating();
         // Use a separate executor since executorStatusManager.updateStatus() may stop the executor that calls
         // this method.
-        ForkJoinPool.commonPool().execute(() -> {
-            statusManager().updateStatus(command);
-        });
+        if (!canReplicate) {
+            ForkJoinPool.commonPool().execute(() -> {
+                statusManager().updateStatus(command);
+            });
+        }
     }
 
     @Override
@@ -1091,8 +1093,10 @@ public final class ZooKeeperCommandExecutor
         final CompletableFuture<T> future = new CompletableFuture<>();
         ExecutorService executor = this.executor;
         if (command instanceof UpdateServerStatusCommand) {
-            // Use a separate executor because `this.executor()` could be stopped while executing the command.
-            executor = ForkJoinPool.commonPool();
+            if (!((UpdateServerStatusCommand) command).serverStatus().replicating()) {
+                // Use a separate executor because `this.executor()` could be stopped while executing the command.
+                executor = ForkJoinPool.commonPool();
+            }
         }
         executor.execute(() -> {
             try {
