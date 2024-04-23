@@ -20,7 +20,10 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -41,6 +44,7 @@ import com.linecorp.armeria.client.logging.LoggingClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.SessionProtocol;
+import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogma;
@@ -190,15 +194,61 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
         }
     }
 
-    public void start() {
+    public void start() throws InterruptedException {
         if (dogmaCluster == null) {
             throw new IllegalStateException("Central Dogma cluster is not created yet");
+        }
+
+        final List<Integer> ports = new ArrayList<>(12);
+        final ZooKeeperReplicationConfig zkConfig =
+                (ZooKeeperReplicationConfig) dogmaCluster.get(0).dogma().config().replicationConfig();
+        for (ZooKeeperServerConfig config : zkConfig.servers().values()) {
+            ports.add(config.clientPort());
+            ports.add(config.electionPort());
+            ports.add(config.quorumPort());
+        }
+        for (CentralDogmaRuleDelegate delegate : dogmaCluster) {
+            for (ServerPort port : delegate.dogma().config().ports()) {
+                ports.add(port.localAddress().getPort());
+            }
+        }
+
+        // This logic won't completely prevent port duplication, but it is best efforts to reduce flaky.
+        boolean success = true;
+        for (int i = 0; i < MAX_RETRIES; i++) {
+            success = true;
+            for (Integer port : ports) {
+                if (!isTcpPortAvailable(port)) {
+                    success = false;
+                    break;
+                }
+            }
+            if (success) {
+                break;
+            } else if (i < MAX_RETRIES - 1) {
+                Thread.sleep(1000);
+            }
+        }
+        if (!success) {
+            throw new IllegalStateException("Failed to find available ports for the Central Dogma cluster");
         }
 
         dogmaCluster.stream().map(CentralDogmaRuleDelegate::dogma)
                     .map(CentralDogma::start)
                     .collect(Collectors.toList())
                     .forEach(CompletableFuture::join);
+        // Wait for the Central Dogma cluster to be ready.
+        Thread.sleep(500);
+    }
+
+    private static boolean isTcpPortAvailable(int port) {
+        try (ServerSocket ignored = new ServerSocket(port, 1,
+                                                     InetAddress.getByName("127.0.0.1"))) {
+            return true;
+        } catch (IOException e) {
+            // Port in use or unable to bind.
+            return false;
+        }
     }
 
     public void stop() {
