@@ -790,6 +790,8 @@ public final class ZooKeeperCommandExecutor
             ForkJoinPool.commonPool().execute(() -> {
                 statusManager().updateStatus(command);
             });
+        } else {
+            statusManager().updateStatus(command);
         }
     }
 
