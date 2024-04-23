@@ -215,7 +215,7 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
 
         // This logic won't completely prevent port duplication, but it is best efforts to reduce flakiness.
         boolean success = true;
-        for (int i = 0; i < MAX_RETRIES; i++) {
+        for (int i = 0; i < MAX_RETRIES * 2; i++) {
             success = true;
             for (Integer port : ports) {
                 if (!isTcpPortAvailable(port)) {
