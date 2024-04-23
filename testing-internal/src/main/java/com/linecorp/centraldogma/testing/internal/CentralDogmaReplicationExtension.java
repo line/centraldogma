@@ -213,7 +213,7 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
             }
         }
 
-        // This logic won't completely prevent port duplication, but it is best efforts to reduce flaky.
+        // This logic won't completely prevent port duplication, but it is best efforts to reduce flakiness.
         boolean success = true;
         for (int i = 0; i < MAX_RETRIES; i++) {
             success = true;
