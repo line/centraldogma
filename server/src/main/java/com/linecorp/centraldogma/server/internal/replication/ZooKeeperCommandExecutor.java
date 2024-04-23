@@ -187,6 +187,7 @@ public final class ZooKeeperCommandExecutor
     private volatile LeaderSelector leaderSelector;
     private volatile ScheduledExecutorService quotaExecutor;
     private volatile boolean createdParentNodes;
+    private volatile boolean canReplicate;
 
     private class OldLogRemover implements LeaderSelectorListener {
         volatile boolean hasLeadership;
@@ -421,6 +422,7 @@ public final class ZooKeeperCommandExecutor
                     Executors.newSingleThreadScheduledExecutor(
                             new DefaultThreadFactory("zookeeper-quota-executor", true)),
                     "quotaExecutor");
+            canReplicate = true;
         } catch (InterruptedException | ReplicationException e) {
             throw e;
         } catch (Exception e) {
@@ -594,6 +596,7 @@ public final class ZooKeeperCommandExecutor
 
     @Override
     protected void doStop(@Nullable Runnable onReleaseLeadership) throws Exception {
+        canReplicate = false;
         listenerInfo = null;
         logger.info("Stopping the worker threads");
         boolean interrupted = shutdown(executor);
@@ -722,12 +725,16 @@ public final class ZooKeeperCommandExecutor
 
         long nextRevision = info.lastReplayedRevision + 1;
         for (;;) {
+            if (!canReplicate) {
+                break;
+            }
             ReplicationLog<?> l = null;
             try {
                 final Optional<ReplicationLog<?>> log = loadLog(nextRevision, true);
+                Command<?> command = null;
                 if (log.isPresent()) {
                     l = log.get();
-                    final Command<?> command = l.command();
+                    command = l.command();
                     final Object expectedResult = l.result();
                     final Object actualResult = delegate.execute(command).get();
 
@@ -746,6 +753,9 @@ public final class ZooKeeperCommandExecutor
 
                 updateLastReplayedRevision(nextRevision);
                 info.lastReplayedRevision = nextRevision;
+                if (command instanceof UpdateServerStatusCommand) {
+                    updateZkCommandStatusLater((UpdateServerStatusCommand) command);
+                }
                 if (nextRevision == targetRevision) {
                     break;
                 } else {
@@ -773,6 +783,19 @@ public final class ZooKeeperCommandExecutor
                 }
                 throw new ReplicationException(sb.toString(), t);
             }
+        }
+    }
+
+    private void updateZkCommandStatusLater(UpdateServerStatusCommand command) {
+        canReplicate = command.serverStatus().replicating();
+        // Use a separate executor since executorStatusManager.updateStatus() may stop the executor that calls
+        // this method.
+        if (!canReplicate) {
+            ForkJoinPool.commonPool().execute(() -> {
+                statusManager().updateStatus(command);
+            });
+        } else {
+            statusManager().updateStatus(command);
         }
     }
 
@@ -1110,6 +1133,14 @@ public final class ZooKeeperCommandExecutor
     @Override
     protected <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception {
         final CompletableFuture<T> future = new CompletableFuture<>();
+        ExecutorService executor = this.executor;
+        if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
+            if (!((UpdateServerStatusCommand) command).serverStatus().replicating()) {
+                // Use a separate executor because `this.executor()` could be stopped while executing
+                // the command.
+                executor = ForkJoinPool.commonPool();
+            }
+        }
         executor.execute(() -> {
             try {
                 future.complete(blockingExecute(command));
@@ -1153,25 +1184,18 @@ public final class ZooKeeperCommandExecutor
                 final Command<Revision> command0 = Command.forcePush(delegated.asIs(commitResult));
                 log = new ReplicationLog<>(replicaId(), command0, commitResult.revision());
             } else {
-                if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
-                    final UpdateServerStatusCommand command0 = (UpdateServerStatusCommand) command;
-                    final boolean writable = command0.writable();
-                    final boolean wasWritable = isWritable();
-                    setWritable(writable);
-                    if (writable != wasWritable) {
-                        if (writable) {
-                            logger.warn("Left read-only mode.");
-                        } else {
-                            logger.warn("Entered read-only mode.");
-                        }
-                    }
-                }
-
                 log = new ReplicationLog<>(replicaId(), command, result);
             }
 
             // Store the command execution log to ZooKeeper.
             final long revision = storeLog(log);
+
+            // Update the ServerStatus to the CommandExecutor after the log is stored.
+            if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
+                final UpdateServerStatusCommand statusCommand = (UpdateServerStatusCommand) command;
+                canReplicate = statusCommand.serverStatus().replicating();
+                statusManager().updateStatus(statusCommand);
+            }
 
             logger.debug("logging OK. revision = {}, log = {}", revision, log);
             return result;

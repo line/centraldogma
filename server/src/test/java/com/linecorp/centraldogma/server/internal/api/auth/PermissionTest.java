@@ -21,6 +21,7 @@ import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_
 import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_WRITE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.File;
 import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
@@ -60,6 +61,7 @@ import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer;
+import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
@@ -87,11 +89,13 @@ class PermissionTest {
     static final ServerExtension server = new ServerExtension() {
         @Override
         protected void configure(ServerBuilder sb) throws Exception {
+            final File dataDir = rootDir.getRoot().toFile();
             final ProjectManager pm = new DefaultProjectManager(
-                    rootDir.getRoot().toFile(), ForkJoinPool.commonPool(),
+                    dataDir, ForkJoinPool.commonPool(),
                     MoreExecutors.directExecutor(), NoopMeterRegistry.get(), null);
+            final ServerStatusManager statusManager = new ServerStatusManager(dataDir);
             final CommandExecutor executor = new StandaloneCommandExecutor(
-                    pm, ForkJoinPool.commonPool(), null, null, null);
+                    pm, ForkJoinPool.commonPool(), statusManager, null, null, null);
             executor.start().join();
 
             ProjectInitializer.initializeInternalProject(executor);

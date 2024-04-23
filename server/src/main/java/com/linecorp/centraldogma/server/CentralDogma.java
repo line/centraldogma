@@ -146,6 +146,8 @@ import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTra
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutScheduler;
 import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
+import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
@@ -219,6 +221,8 @@ public class CentralDogma implements AutoCloseable {
     MeterRegistry meterRegistryToBeClosed;
     @Nullable
     private SessionManager sessionManager;
+    @Nullable
+    private ServerStatusManager statusManager;
 
     CentralDogma(CentralDogmaConfig cfg, MeterRegistry meterRegistry) {
         this.cfg = requireNonNull(cfg, "cfg");
@@ -421,13 +425,13 @@ public class CentralDogma implements AutoCloseable {
                 logger.info("Starting plugins on the leader replica ..");
                 pluginsForLeaderOnly
                         .start(cfg, pm, exec, meterRegistry, purgeWorker).handle((unused, cause) -> {
-                    if (cause == null) {
-                        logger.info("Started plugins on the leader replica.");
-                    } else {
-                        logger.error("Failed to start plugins on the leader replica..", cause);
-                    }
-                    return null;
-                });
+                            if (cause == null) {
+                                logger.info("Started plugins on the leader replica.");
+                            } else {
+                                logger.error("Failed to start plugins on the leader replica..", cause);
+                            }
+                            return null;
+                        });
             }
         };
 
@@ -445,16 +449,17 @@ public class CentralDogma implements AutoCloseable {
             }
         };
 
+        statusManager = new ServerStatusManager(cfg.dataDir());
         final CommandExecutor executor;
         final ReplicationMethod replicationMethod = cfg.replicationConfig().method();
         switch (replicationMethod) {
             case ZOOKEEPER:
-                executor = newZooKeeperCommandExecutor(pm, repositoryWorker, meterRegistry, sessionManager,
-                                                       onTakeLeadership, onReleaseLeadership);
+                executor = newZooKeeperCommandExecutor(pm, repositoryWorker, statusManager, meterRegistry,
+                                                       sessionManager, onTakeLeadership, onReleaseLeadership);
                 break;
             case NONE:
                 logger.info("No replication mechanism specified; entering standalone");
-                executor = new StandaloneCommandExecutor(pm, repositoryWorker, sessionManager,
+                executor = new StandaloneCommandExecutor(pm, repositoryWorker, statusManager, sessionManager,
                                                          cfg.writeQuotaPerRepository(),
                                                          onTakeLeadership, onReleaseLeadership);
                 break;
@@ -462,6 +467,11 @@ public class CentralDogma implements AutoCloseable {
                 throw new Error("unknown replication method: " + replicationMethod);
         }
 
+        final ServerStatus initialServerStatus = statusManager.serverStatus();
+        executor.setWritable(initialServerStatus.writable());
+        if (!initialServerStatus.replicating()) {
+            return executor;
+        }
         try {
             final CompletableFuture<Void> startFuture = executor.start();
             while (!startFuture.isDone()) {
@@ -651,20 +661,23 @@ public class CentralDogma implements AutoCloseable {
     }
 
     private CommandExecutor newZooKeeperCommandExecutor(
-            ProjectManager pm, Executor repositoryWorker, MeterRegistry meterRegistry,
+            ProjectManager pm, Executor repositoryWorker,
+            ServerStatusManager serverStatusManager,
+            MeterRegistry meterRegistry,
             @Nullable SessionManager sessionManager,
             @Nullable Consumer<CommandExecutor> onTakeLeadership,
             @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
         final ZooKeeperReplicationConfig zkCfg = (ZooKeeperReplicationConfig) cfg.replicationConfig();
 
         // Delete the old UUID replica ID which is not used anymore.
-        new File(cfg.dataDir(), "replica_id").delete();
+        final File dataDir = cfg.dataDir();
+        new File(dataDir, "replica_id").delete();
 
         // TODO(trustin): Provide a way to restart/reload the replicator
         //                so that we can recover from ZooKeeper maintenance automatically.
         return new ZooKeeperCommandExecutor(
-                zkCfg, cfg.dataDir(),
-                new StandaloneCommandExecutor(pm, repositoryWorker, sessionManager,
+                zkCfg, dataDir,
+                new StandaloneCommandExecutor(pm, repositoryWorker, serverStatusManager, sessionManager,
                         /* onTakeLeadership */ null, /* onReleaseLeadership */ null),
                 meterRegistry, pm, config().writeQuotaPerRepository(), onTakeLeadership, onReleaseLeadership);
     }
@@ -738,8 +751,9 @@ public class CentralDogma implements AutoCloseable {
         // Enable content compression for API responses.
         decorator = decorator.andThen(contentEncodingDecorator());
 
+        assert statusManager != null;
         sb.annotatedService(API_V1_PATH_PREFIX,
-                            new AdministrativeService(executor), decorator,
+                            new AdministrativeService(executor, statusManager), decorator,
                             v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
         sb.annotatedService(API_V1_PATH_PREFIX,
                             new ProjectServiceV1(projectApiManager), decorator,

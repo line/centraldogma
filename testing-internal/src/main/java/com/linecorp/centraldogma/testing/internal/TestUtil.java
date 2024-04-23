@@ -28,6 +28,7 @@ import java.util.regex.Pattern;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
+import com.linecorp.armeria.internal.common.util.PortUtil;
 import com.linecorp.centraldogma.internal.Jackson;
 
 public final class TestUtil {
@@ -60,6 +61,38 @@ public final class TestUtil {
     private static String normalizedDisplayName(String displayName, Optional<Method> method) {
         return DISALLOWED_CHARS.matcher(displayName + method.map(Method::getName).orElse(""))
                                .replaceAll("");
+    }
+
+    // Forked from https://github.com/line/armeria/blob/main/zookeeper3/src/test/java/com/linecorp/armeria/common/zookeeper/ZooKeeperTestUtil.java#L45-L45
+    public static int[] unusedTcpPorts(int numPorts) {
+        final int[] ports = new int[numPorts];
+        for (int i = 0; i < numPorts; i++) {
+            int mayUnusedTcpPort;
+            for (;;) {
+                mayUnusedTcpPort = PortUtil.unusedTcpPort();
+                if (i == 0) {
+                    // The first acquired port is always unique.
+                    break;
+                }
+                boolean isAcquiredPort = false;
+                for (int j = 0; j < i; j++) {
+                    isAcquiredPort = ports[j] == mayUnusedTcpPort;
+                    if (isAcquiredPort) {
+                        break;
+                    }
+                }
+
+                if (isAcquiredPort) {
+                    // Duplicate port. Look up an unused port again.
+                    continue;
+                } else {
+                    // A newly acquired unique port.
+                    break;
+                }
+            }
+            ports[i] = mayUnusedTcpPort;
+        }
+        return ports;
     }
 
     private TestUtil() {}
