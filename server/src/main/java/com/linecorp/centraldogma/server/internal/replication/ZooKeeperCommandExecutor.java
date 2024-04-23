@@ -1096,7 +1096,8 @@ public final class ZooKeeperCommandExecutor
         ExecutorService executor = this.executor;
         if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
             if (!((UpdateServerStatusCommand) command).serverStatus().replicating()) {
-                // Use a separate executor because `this.executor()` could be stopped while executing the command.
+                // Use a separate executor because `this.executor()` could be stopped while executing
+                // the command.
                 executor = ForkJoinPool.commonPool();
             }
         }
