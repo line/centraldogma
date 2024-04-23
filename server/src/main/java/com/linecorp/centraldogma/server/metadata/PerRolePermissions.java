@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -26,8 +27,10 @@ import java.util.Set;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 
+import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -110,11 +113,11 @@ public class PerRolePermissions {
     public PerRolePermissions(@JsonProperty("owner") Iterable<Permission> owner,
                               @JsonProperty("member") Iterable<Permission> member,
                               @JsonProperty("guest") Iterable<Permission> guest,
-                              @JsonProperty("anonymous") Iterable<Permission> anonymous) {
+                              @JsonProperty("anonymous") @Nullable Iterable<Permission> anonymous) {
         this.owner = Sets.immutableEnumSet(requireNonNull(owner, "owner"));
         this.member = Sets.immutableEnumSet(requireNonNull(member, "member"));
         this.guest = Sets.immutableEnumSet(requireNonNull(guest, "guest"));
-        this.anonymous = Sets.immutableEnumSet(requireNonNull(anonymous, "anonymous"));
+        this.anonymous = Sets.immutableEnumSet(firstNonNull(anonymous, ImmutableSet.of()));
     }
 
     /**
