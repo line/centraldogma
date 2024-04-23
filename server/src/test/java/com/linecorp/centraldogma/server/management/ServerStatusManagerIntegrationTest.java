@@ -85,6 +85,8 @@ class ServerStatusManagerIntegrationTest {
         assertThatThrownBy(() -> getServerStatus(client))
                 .isInstanceOf(UnprocessedRequestException.class)
                 .hasCauseInstanceOf(ConnectException.class);
+        // Wait for the ports acquired to be released.
+        Thread.sleep(3000);
 
         // Restart the cluster with the same configuration.
         cluster.start();
@@ -109,6 +111,8 @@ class ServerStatusManagerIntegrationTest {
         assertThatThrownBy(() -> getServerStatus(client))
                 .isInstanceOf(UnprocessedRequestException.class)
                 .hasCauseInstanceOf(ConnectException.class);
+        // Wait for the ports acquired to be released.
+        Thread.sleep(3000);
 
         cluster.start();
         serverStatus = getServerStatus(client);
