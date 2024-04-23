@@ -46,7 +46,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -409,7 +409,8 @@ public final class ZooKeeperCommandExecutor
             // Get the command executor threads ready.
             final ThreadPoolExecutor executor = new ThreadPoolExecutor(
                     cfg.numWorkers(), cfg.numWorkers(),
-                    60, TimeUnit.SECONDS, new LinkedTransferQueue<>(),
+                    // TODO(minwoox): Use LinkedTransferQueue when we upgrade to JDK 21.
+                    60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
                     new DefaultThreadFactory("zookeeper-command-executor", true));
             executor.allowCoreThreadTimeOut(true);
 
