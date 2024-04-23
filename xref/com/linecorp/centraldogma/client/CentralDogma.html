@@ -603,256 +603,262 @@
 <a class="jxr_linenumber" name="L595" href="#L595">595</a> <em class="jxr_javadoccomment">     *</em>
 <a class="jxr_linenumber" name="L596" href="#L596">596</a> <em class="jxr_javadoccomment">     * @return the latest known {@link Revision} which contains the changes for the matched files.</em>
 <a class="jxr_linenumber" name="L597" href="#L597">597</a> <em class="jxr_javadoccomment">     *         {@code null} if the files were not changed for 1 minute since the invocation of this method.</em>
-<a class="jxr_linenumber" name="L598" href="#L598">598</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L599" href="#L599">599</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatchFilesRequest#start(Revision)} via</em>
-<a class="jxr_linenumber" name="L600" href="#L600">600</a> <em class="jxr_javadoccomment">     *             {@link CentralDogmaRepository#watch(PathPattern)}.</em>
-<a class="jxr_linenumber" name="L601" href="#L601">601</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L602" href="#L602">602</a>     @Deprecated
-<a class="jxr_linenumber" name="L603" href="#L603">603</a>     <strong class="jxr_keyword">default</strong> CompletableFuture&lt;Revision&gt; watchRepository(String projectName, String repositoryName,
-<a class="jxr_linenumber" name="L604" href="#L604">604</a>                                                         <a href="../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, String pathPattern) {
-<a class="jxr_linenumber" name="L605" href="#L605">605</a>         <strong class="jxr_keyword">return</strong> watchRepository(projectName, repositoryName, lastKnownRevision, toPathPattern(pathPattern),
-<a class="jxr_linenumber" name="L606" href="#L606">606</a>                                WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS,
-<a class="jxr_linenumber" name="L607" href="#L607">607</a>                                WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND);
-<a class="jxr_linenumber" name="L608" href="#L608">608</a>     }
-<a class="jxr_linenumber" name="L609" href="#L609">609</a> 
-<a class="jxr_linenumber" name="L610" href="#L610">610</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L611" href="#L611">611</a> <em class="jxr_javadoccomment">     * Waits for the files matched by the specified {@code pathPattern} to be changed since the specified</em>
-<a class="jxr_linenumber" name="L612" href="#L612">612</a> <em class="jxr_javadoccomment">     * {@code lastKnownRevision}.  If no changes were made within the specified {@code timeoutMillis}, the</em>
-<a class="jxr_linenumber" name="L613" href="#L613">613</a> <em class="jxr_javadoccomment">     * returned {@link CompletableFuture} will be completed with {@code null}. It is recommended to specify</em>
-<a class="jxr_linenumber" name="L614" href="#L614">614</a> <em class="jxr_javadoccomment">     * the largest {@code timeoutMillis} allowed by the server.</em>
-<a class="jxr_linenumber" name="L615" href="#L615">615</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L616" href="#L616">616</a> <em class="jxr_javadoccomment">     * @return the latest known {@link Revision} which contains the changes for the matched files.</em>
-<a class="jxr_linenumber" name="L617" href="#L617">617</a> <em class="jxr_javadoccomment">     *         {@code null} if the files were not changed for {@code timeoutMillis} milliseconds</em>
-<a class="jxr_linenumber" name="L618" href="#L618">618</a> <em class="jxr_javadoccomment">     *         since the invocation of this method.</em>
-<a class="jxr_linenumber" name="L619" href="#L619">619</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L620" href="#L620">620</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link CentralDogmaRepository#watch(PathPattern)} and</em>
-<a class="jxr_linenumber" name="L621" href="#L621">621</a> <em class="jxr_javadoccomment">     *             {@link WatchFilesRequest#start(Revision)}.</em>
-<a class="jxr_linenumber" name="L622" href="#L622">622</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L623" href="#L623">623</a>     @Deprecated
-<a class="jxr_linenumber" name="L624" href="#L624">624</a>     <strong class="jxr_keyword">default</strong> CompletableFuture&lt;Revision&gt; watchRepository(String projectName, String repositoryName,
-<a class="jxr_linenumber" name="L625" href="#L625">625</a>                                                         <a href="../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, String pathPattern,
-<a class="jxr_linenumber" name="L626" href="#L626">626</a>                                                         <strong class="jxr_keyword">long</strong> timeoutMillis) {
-<a class="jxr_linenumber" name="L627" href="#L627">627</a>         <strong class="jxr_keyword">return</strong> watchRepository(projectName, repositoryName, lastKnownRevision, toPathPattern(pathPattern),
-<a class="jxr_linenumber" name="L628" href="#L628">628</a>                                timeoutMillis, WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND);
-<a class="jxr_linenumber" name="L629" href="#L629">629</a>     }
-<a class="jxr_linenumber" name="L630" href="#L630">630</a> 
-<a class="jxr_linenumber" name="L631" href="#L631">631</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L632" href="#L632">632</a> <em class="jxr_javadoccomment">     * Waits for the files matched by the specified {@link PathPattern} to be changed since the specified</em>
-<a class="jxr_linenumber" name="L633" href="#L633">633</a> <em class="jxr_javadoccomment">     * {@code lastKnownRevision}.  If no changes were made within the specified {@code timeoutMillis}, the</em>
-<a class="jxr_linenumber" name="L634" href="#L634">634</a> <em class="jxr_javadoccomment">     * returned {@link CompletableFuture} will be completed with {@code null}. It is recommended to specify</em>
-<a class="jxr_linenumber" name="L635" href="#L635">635</a> <em class="jxr_javadoccomment">     * the largest {@code timeoutMillis} allowed by the server.</em>
-<a class="jxr_linenumber" name="L636" href="#L636">636</a> <em class="jxr_javadoccomment">     * This method is equivalent to calling:</em>
-<a class="jxr_linenumber" name="L637" href="#L637">637</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
-<a class="jxr_linenumber" name="L638" href="#L638">638</a> <em class="jxr_javadoccomment">     * CentralDogma dogma = ...</em>
-<a class="jxr_linenumber" name="L639" href="#L639">639</a> <em class="jxr_javadoccomment">     * dogma.forRepo(projectName, repositoryName)</em>
-<a class="jxr_linenumber" name="L640" href="#L640">640</a> <em class="jxr_javadoccomment">     *      .watch(pathPattern)</em>
-<a class="jxr_linenumber" name="L641" href="#L641">641</a> <em class="jxr_javadoccomment">     *      .timeoutMillis(timeoutMillis)</em>
-<a class="jxr_linenumber" name="L642" href="#L642">642</a> <em class="jxr_javadoccomment">     *      .errorOnEntryNotFound(errorOnEntryNotFound)</em>
-<a class="jxr_linenumber" name="L643" href="#L643">643</a> <em class="jxr_javadoccomment">     *      .start(lastKnownRevision);</em>
-<a class="jxr_linenumber" name="L644" href="#L644">644</a> <em class="jxr_javadoccomment">     * }&lt;/pre&gt;</em>
-<a class="jxr_linenumber" name="L645" href="#L645">645</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L646" href="#L646">646</a> <em class="jxr_javadoccomment">     * @return the latest known {@link Revision} which contains the changes for the matched files.</em>
-<a class="jxr_linenumber" name="L647" href="#L647">647</a> <em class="jxr_javadoccomment">     *         {@code null} if the files were not changed for {@code timeoutMillis} milliseconds</em>
-<a class="jxr_linenumber" name="L648" href="#L648">648</a> <em class="jxr_javadoccomment">     *         since the invocation of this method. {@link EntryNotFoundException} is raised if the</em>
-<a class="jxr_linenumber" name="L649" href="#L649">649</a> <em class="jxr_javadoccomment">     *         target does not exist.</em>
-<a class="jxr_linenumber" name="L650" href="#L650">650</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L651" href="#L651">651</a>     CompletableFuture&lt;Revision&gt; watchRepository(String projectName, String repositoryName,
-<a class="jxr_linenumber" name="L652" href="#L652">652</a>                                                 <a href="../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, <a href="../../../../com/linecorp/centraldogma/common/PathPattern.html">PathPattern</a> pathPattern,
-<a class="jxr_linenumber" name="L653" href="#L653">653</a>                                                 <strong class="jxr_keyword">long</strong> timeoutMillis, <strong class="jxr_keyword">boolean</strong> errorOnEntryNotFound);
-<a class="jxr_linenumber" name="L654" href="#L654">654</a> 
-<a class="jxr_linenumber" name="L655" href="#L655">655</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L656" href="#L656">656</a> <em class="jxr_javadoccomment">     * Waits for the file matched by the specified {@link Query} to be changed since the specified</em>
-<a class="jxr_linenumber" name="L657" href="#L657">657</a> <em class="jxr_javadoccomment">     * {@code lastKnownRevision}. If no changes were made within 1 minute, the returned</em>
-<a class="jxr_linenumber" name="L658" href="#L658">658</a> <em class="jxr_javadoccomment">     * {@link CompletableFuture} will be completed with {@code null}.</em>
-<a class="jxr_linenumber" name="L659" href="#L659">659</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L660" href="#L660">660</a> <em class="jxr_javadoccomment">     * @return the {@link Entry} which contains the latest known {@link Query} result.</em>
-<a class="jxr_linenumber" name="L661" href="#L661">661</a> <em class="jxr_javadoccomment">     *         {@code null} if the file was not changed for 1 minute since the invocation of this method.</em>
+<a class="jxr_linenumber" name="L598" href="#L598">598</a> <em class="jxr_javadoccomment">     *         Even before the timeout, the watch may return null earlier due to issues such as server restart.</em>
+<a class="jxr_linenumber" name="L599" href="#L599">599</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L600" href="#L600">600</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatchFilesRequest#start(Revision)} via</em>
+<a class="jxr_linenumber" name="L601" href="#L601">601</a> <em class="jxr_javadoccomment">     *             {@link CentralDogmaRepository#watch(PathPattern)}.</em>
+<a class="jxr_linenumber" name="L602" href="#L602">602</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L603" href="#L603">603</a>     @Deprecated
+<a class="jxr_linenumber" name="L604" href="#L604">604</a>     <strong class="jxr_keyword">default</strong> CompletableFuture&lt;Revision&gt; watchRepository(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L605" href="#L605">605</a>                                                         <a href="../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, String pathPattern) {
+<a class="jxr_linenumber" name="L606" href="#L606">606</a>         <strong class="jxr_keyword">return</strong> watchRepository(projectName, repositoryName, lastKnownRevision, toPathPattern(pathPattern),
+<a class="jxr_linenumber" name="L607" href="#L607">607</a>                                WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS,
+<a class="jxr_linenumber" name="L608" href="#L608">608</a>                                WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND);
+<a class="jxr_linenumber" name="L609" href="#L609">609</a>     }
+<a class="jxr_linenumber" name="L610" href="#L610">610</a> 
+<a class="jxr_linenumber" name="L611" href="#L611">611</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L612" href="#L612">612</a> <em class="jxr_javadoccomment">     * Waits for the files matched by the specified {@code pathPattern} to be changed since the specified</em>
+<a class="jxr_linenumber" name="L613" href="#L613">613</a> <em class="jxr_javadoccomment">     * {@code lastKnownRevision}.  If no changes were made within the specified {@code timeoutMillis}, the</em>
+<a class="jxr_linenumber" name="L614" href="#L614">614</a> <em class="jxr_javadoccomment">     * returned {@link CompletableFuture} will be completed with {@code null}. It is recommended to specify</em>
+<a class="jxr_linenumber" name="L615" href="#L615">615</a> <em class="jxr_javadoccomment">     * the largest {@code timeoutMillis} allowed by the server.</em>
+<a class="jxr_linenumber" name="L616" href="#L616">616</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L617" href="#L617">617</a> <em class="jxr_javadoccomment">     * @return the latest known {@link Revision} which contains the changes for the matched files.</em>
+<a class="jxr_linenumber" name="L618" href="#L618">618</a> <em class="jxr_javadoccomment">     *         {@code null} if the files were not changed for {@code timeoutMillis} milliseconds</em>
+<a class="jxr_linenumber" name="L619" href="#L619">619</a> <em class="jxr_javadoccomment">     *         since the invocation of this method. Even before the timeout, the watch may return null</em>
+<a class="jxr_linenumber" name="L620" href="#L620">620</a> <em class="jxr_javadoccomment">     *         earlier due to issues such as server restart.</em>
+<a class="jxr_linenumber" name="L621" href="#L621">621</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L622" href="#L622">622</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link CentralDogmaRepository#watch(PathPattern)} and</em>
+<a class="jxr_linenumber" name="L623" href="#L623">623</a> <em class="jxr_javadoccomment">     *             {@link WatchFilesRequest#start(Revision)}.</em>
+<a class="jxr_linenumber" name="L624" href="#L624">624</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L625" href="#L625">625</a>     @Deprecated
+<a class="jxr_linenumber" name="L626" href="#L626">626</a>     <strong class="jxr_keyword">default</strong> CompletableFuture&lt;Revision&gt; watchRepository(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L627" href="#L627">627</a>                                                         <a href="../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, String pathPattern,
+<a class="jxr_linenumber" name="L628" href="#L628">628</a>                                                         <strong class="jxr_keyword">long</strong> timeoutMillis) {
+<a class="jxr_linenumber" name="L629" href="#L629">629</a>         <strong class="jxr_keyword">return</strong> watchRepository(projectName, repositoryName, lastKnownRevision, toPathPattern(pathPattern),
+<a class="jxr_linenumber" name="L630" href="#L630">630</a>                                timeoutMillis, WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND);
+<a class="jxr_linenumber" name="L631" href="#L631">631</a>     }
+<a class="jxr_linenumber" name="L632" href="#L632">632</a> 
+<a class="jxr_linenumber" name="L633" href="#L633">633</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L634" href="#L634">634</a> <em class="jxr_javadoccomment">     * Waits for the files matched by the specified {@link PathPattern} to be changed since the specified</em>
+<a class="jxr_linenumber" name="L635" href="#L635">635</a> <em class="jxr_javadoccomment">     * {@code lastKnownRevision}.  If no changes were made within the specified {@code timeoutMillis}, the</em>
+<a class="jxr_linenumber" name="L636" href="#L636">636</a> <em class="jxr_javadoccomment">     * returned {@link CompletableFuture} will be completed with {@code null}. It is recommended to specify</em>
+<a class="jxr_linenumber" name="L637" href="#L637">637</a> <em class="jxr_javadoccomment">     * the largest {@code timeoutMillis} allowed by the server.</em>
+<a class="jxr_linenumber" name="L638" href="#L638">638</a> <em class="jxr_javadoccomment">     * This method is equivalent to calling:</em>
+<a class="jxr_linenumber" name="L639" href="#L639">639</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
+<a class="jxr_linenumber" name="L640" href="#L640">640</a> <em class="jxr_javadoccomment">     * CentralDogma dogma = ...</em>
+<a class="jxr_linenumber" name="L641" href="#L641">641</a> <em class="jxr_javadoccomment">     * dogma.forRepo(projectName, repositoryName)</em>
+<a class="jxr_linenumber" name="L642" href="#L642">642</a> <em class="jxr_javadoccomment">     *      .watch(pathPattern)</em>
+<a class="jxr_linenumber" name="L643" href="#L643">643</a> <em class="jxr_javadoccomment">     *      .timeoutMillis(timeoutMillis)</em>
+<a class="jxr_linenumber" name="L644" href="#L644">644</a> <em class="jxr_javadoccomment">     *      .errorOnEntryNotFound(errorOnEntryNotFound)</em>
+<a class="jxr_linenumber" name="L645" href="#L645">645</a> <em class="jxr_javadoccomment">     *      .start(lastKnownRevision);</em>
+<a class="jxr_linenumber" name="L646" href="#L646">646</a> <em class="jxr_javadoccomment">     * }&lt;/pre&gt;</em>
+<a class="jxr_linenumber" name="L647" href="#L647">647</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L648" href="#L648">648</a> <em class="jxr_javadoccomment">     * @return the latest known {@link Revision} which contains the changes for the matched files.</em>
+<a class="jxr_linenumber" name="L649" href="#L649">649</a> <em class="jxr_javadoccomment">     *         {@code null} if the files were not changed for {@code timeoutMillis} milliseconds</em>
+<a class="jxr_linenumber" name="L650" href="#L650">650</a> <em class="jxr_javadoccomment">     *         since the invocation of this method. Even before the timeout, the watch may return null</em>
+<a class="jxr_linenumber" name="L651" href="#L651">651</a> <em class="jxr_javadoccomment">     *         earlier due to issues such as server restart. {@link EntryNotFoundException} is raised</em>
+<a class="jxr_linenumber" name="L652" href="#L652">652</a> <em class="jxr_javadoccomment">     *         if the target does not exist.</em>
+<a class="jxr_linenumber" name="L653" href="#L653">653</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L654" href="#L654">654</a>     CompletableFuture&lt;Revision&gt; watchRepository(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L655" href="#L655">655</a>                                                 <a href="../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, <a href="../../../../com/linecorp/centraldogma/common/PathPattern.html">PathPattern</a> pathPattern,
+<a class="jxr_linenumber" name="L656" href="#L656">656</a>                                                 <strong class="jxr_keyword">long</strong> timeoutMillis, <strong class="jxr_keyword">boolean</strong> errorOnEntryNotFound);
+<a class="jxr_linenumber" name="L657" href="#L657">657</a> 
+<a class="jxr_linenumber" name="L658" href="#L658">658</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L659" href="#L659">659</a> <em class="jxr_javadoccomment">     * Waits for the file matched by the specified {@link Query} to be changed since the specified</em>
+<a class="jxr_linenumber" name="L660" href="#L660">660</a> <em class="jxr_javadoccomment">     * {@code lastKnownRevision}. If no changes were made within 1 minute, the returned</em>
+<a class="jxr_linenumber" name="L661" href="#L661">661</a> <em class="jxr_javadoccomment">     * {@link CompletableFuture} will be completed with {@code null}.</em>
 <a class="jxr_linenumber" name="L662" href="#L662">662</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L663" href="#L663">663</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatchRequest#start(Revision)} via {@link CentralDogmaRepository#watch(Query)}.</em>
-<a class="jxr_linenumber" name="L664" href="#L664">664</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L665" href="#L665">665</a>     @Deprecated
-<a class="jxr_linenumber" name="L666" href="#L666">666</a>     <strong class="jxr_keyword">default</strong> &lt;T&gt; CompletableFuture&lt;Entry&lt;T&gt;&gt; watchFile(String projectName, String repositoryName,
-<a class="jxr_linenumber" name="L667" href="#L667">667</a>                                                       <a href="../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, Query&lt;T&gt; query) {
-<a class="jxr_linenumber" name="L668" href="#L668">668</a>         <strong class="jxr_keyword">return</strong> watchFile(projectName, repositoryName, lastKnownRevision, query,
-<a class="jxr_linenumber" name="L669" href="#L669">669</a>                          WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS,
-<a class="jxr_linenumber" name="L670" href="#L670">670</a>                          WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND);
-<a class="jxr_linenumber" name="L671" href="#L671">671</a>     }
-<a class="jxr_linenumber" name="L672" href="#L672">672</a> 
-<a class="jxr_linenumber" name="L673" href="#L673">673</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L674" href="#L674">674</a> <em class="jxr_javadoccomment">     * Waits for the file matched by the specified {@link Query} to be changed since the specified</em>
-<a class="jxr_linenumber" name="L675" href="#L675">675</a> <em class="jxr_javadoccomment">     * {@code lastKnownRevision}. If no changes were made within the specified {@code timeoutMillis}, the</em>
-<a class="jxr_linenumber" name="L676" href="#L676">676</a> <em class="jxr_javadoccomment">     * returned {@link CompletableFuture} will be completed with {@code null}. It is recommended to specify</em>
-<a class="jxr_linenumber" name="L677" href="#L677">677</a> <em class="jxr_javadoccomment">     * the largest {@code timeoutMillis} allowed by the server.</em>
-<a class="jxr_linenumber" name="L678" href="#L678">678</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L679" href="#L679">679</a> <em class="jxr_javadoccomment">     * @return the {@link Entry} which contains the latest known {@link Query} result.</em>
-<a class="jxr_linenumber" name="L680" href="#L680">680</a> <em class="jxr_javadoccomment">     *         {@code null} if the file was not changed for {@code timeoutMillis} milliseconds</em>
-<a class="jxr_linenumber" name="L681" href="#L681">681</a> <em class="jxr_javadoccomment">     *         since the invocation of this method.</em>
+<a class="jxr_linenumber" name="L663" href="#L663">663</a> <em class="jxr_javadoccomment">     * @return the {@link Entry} which contains the latest known {@link Query} result.</em>
+<a class="jxr_linenumber" name="L664" href="#L664">664</a> <em class="jxr_javadoccomment">     *         {@code null} if the file was not changed for 1 minute since the invocation of this method.</em>
+<a class="jxr_linenumber" name="L665" href="#L665">665</a> <em class="jxr_javadoccomment">     *         Even before the timeout, the watch may return null earlier due to issues such as server restart.</em>
+<a class="jxr_linenumber" name="L666" href="#L666">666</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L667" href="#L667">667</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatchRequest#start(Revision)} via {@link CentralDogmaRepository#watch(Query)}.</em>
+<a class="jxr_linenumber" name="L668" href="#L668">668</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L669" href="#L669">669</a>     @Deprecated
+<a class="jxr_linenumber" name="L670" href="#L670">670</a>     <strong class="jxr_keyword">default</strong> &lt;T&gt; CompletableFuture&lt;Entry&lt;T&gt;&gt; watchFile(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L671" href="#L671">671</a>                                                       <a href="../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, Query&lt;T&gt; query) {
+<a class="jxr_linenumber" name="L672" href="#L672">672</a>         <strong class="jxr_keyword">return</strong> watchFile(projectName, repositoryName, lastKnownRevision, query,
+<a class="jxr_linenumber" name="L673" href="#L673">673</a>                          WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS,
+<a class="jxr_linenumber" name="L674" href="#L674">674</a>                          WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND);
+<a class="jxr_linenumber" name="L675" href="#L675">675</a>     }
+<a class="jxr_linenumber" name="L676" href="#L676">676</a> 
+<a class="jxr_linenumber" name="L677" href="#L677">677</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L678" href="#L678">678</a> <em class="jxr_javadoccomment">     * Waits for the file matched by the specified {@link Query} to be changed since the specified</em>
+<a class="jxr_linenumber" name="L679" href="#L679">679</a> <em class="jxr_javadoccomment">     * {@code lastKnownRevision}. If no changes were made within the specified {@code timeoutMillis}, the</em>
+<a class="jxr_linenumber" name="L680" href="#L680">680</a> <em class="jxr_javadoccomment">     * returned {@link CompletableFuture} will be completed with {@code null}. It is recommended to specify</em>
+<a class="jxr_linenumber" name="L681" href="#L681">681</a> <em class="jxr_javadoccomment">     * the largest {@code timeoutMillis} allowed by the server.</em>
 <a class="jxr_linenumber" name="L682" href="#L682">682</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L683" href="#L683">683</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatchRequest#start(Revision)} via {@link CentralDogmaRepository#watch(Query)}.</em>
-<a class="jxr_linenumber" name="L684" href="#L684">684</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L685" href="#L685">685</a>     @Deprecated
-<a class="jxr_linenumber" name="L686" href="#L686">686</a>     <strong class="jxr_keyword">default</strong> &lt;T&gt; CompletableFuture&lt;Entry&lt;T&gt;&gt; watchFile(String projectName, String repositoryName,
-<a class="jxr_linenumber" name="L687" href="#L687">687</a>                                                       <a href="../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, Query&lt;T&gt; query,
-<a class="jxr_linenumber" name="L688" href="#L688">688</a>                                                       <strong class="jxr_keyword">long</strong> timeoutMillis) {
-<a class="jxr_linenumber" name="L689" href="#L689">689</a>         <strong class="jxr_keyword">return</strong> watchFile(projectName, repositoryName, lastKnownRevision, query,
-<a class="jxr_linenumber" name="L690" href="#L690">690</a>                          timeoutMillis, WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND);
-<a class="jxr_linenumber" name="L691" href="#L691">691</a>     }
-<a class="jxr_linenumber" name="L692" href="#L692">692</a> 
-<a class="jxr_linenumber" name="L693" href="#L693">693</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L694" href="#L694">694</a> <em class="jxr_javadoccomment">     * Waits for the file matched by the specified {@link Query} to be changed since the specified</em>
-<a class="jxr_linenumber" name="L695" href="#L695">695</a> <em class="jxr_javadoccomment">     * {@code lastKnownRevision}. If the file does not exist and {@code errorOnEntryNotFound} is {@code true},</em>
-<a class="jxr_linenumber" name="L696" href="#L696">696</a> <em class="jxr_javadoccomment">     * the returned {@link CompletableFuture} will be completed exceptionally with</em>
-<a class="jxr_linenumber" name="L697" href="#L697">697</a> <em class="jxr_javadoccomment">     * {@link EntryNotFoundException}. If no changes were made within the specified {@code timeoutMillis},</em>
-<a class="jxr_linenumber" name="L698" href="#L698">698</a> <em class="jxr_javadoccomment">     * the returned {@link CompletableFuture} will be completed with {@code null}.</em>
-<a class="jxr_linenumber" name="L699" href="#L699">699</a> <em class="jxr_javadoccomment">     * It is recommended to specify the largest {@code timeoutMillis} allowed by the server.</em>
-<a class="jxr_linenumber" name="L700" href="#L700">700</a> <em class="jxr_javadoccomment">     * This method is equivalent to calling:</em>
-<a class="jxr_linenumber" name="L701" href="#L701">701</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
-<a class="jxr_linenumber" name="L702" href="#L702">702</a> <em class="jxr_javadoccomment">     * CentralDogma dogma = ...</em>
-<a class="jxr_linenumber" name="L703" href="#L703">703</a> <em class="jxr_javadoccomment">     * dogma.forRepo(projectName, repositoryName)</em>
-<a class="jxr_linenumber" name="L704" href="#L704">704</a> <em class="jxr_javadoccomment">     *      .watch(query)</em>
-<a class="jxr_linenumber" name="L705" href="#L705">705</a> <em class="jxr_javadoccomment">     *      .timeoutMillis(timeoutMillis)</em>
-<a class="jxr_linenumber" name="L706" href="#L706">706</a> <em class="jxr_javadoccomment">     *      .errorOnEntryNotFound(errorOnEntryNotFound)</em>
-<a class="jxr_linenumber" name="L707" href="#L707">707</a> <em class="jxr_javadoccomment">     *      .start(lastKnownRevision);</em>
-<a class="jxr_linenumber" name="L708" href="#L708">708</a> <em class="jxr_javadoccomment">     * }&lt;/pre&gt;</em>
-<a class="jxr_linenumber" name="L709" href="#L709">709</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L710" href="#L710">710</a> <em class="jxr_javadoccomment">     * @return the {@link Entry} which contains the latest known {@link Query} result.</em>
-<a class="jxr_linenumber" name="L711" href="#L711">711</a> <em class="jxr_javadoccomment">     *         {@code null} if the file was not changed for {@code timeoutMillis} milliseconds</em>
-<a class="jxr_linenumber" name="L712" href="#L712">712</a> <em class="jxr_javadoccomment">     *         since the invocation of this method. {@link EntryNotFoundException} is raised if the</em>
-<a class="jxr_linenumber" name="L713" href="#L713">713</a> <em class="jxr_javadoccomment">     *         target does not exist.</em>
-<a class="jxr_linenumber" name="L714" href="#L714">714</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L715" href="#L715">715</a>     &lt;T&gt; CompletableFuture&lt;Entry&lt;T&gt;&gt; watchFile(String projectName, String repositoryName,
-<a class="jxr_linenumber" name="L716" href="#L716">716</a>                                               <a href="../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, Query&lt;T&gt; query,
-<a class="jxr_linenumber" name="L717" href="#L717">717</a>                                               <strong class="jxr_keyword">long</strong> timeoutMillis, <strong class="jxr_keyword">boolean</strong> errorOnEntryNotFound);
-<a class="jxr_linenumber" name="L718" href="#L718">718</a> 
-<a class="jxr_linenumber" name="L719" href="#L719">719</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L720" href="#L720">720</a> <em class="jxr_javadoccomment">     * Returns a {@link Watcher} which notifies its listeners when the result of the</em>
-<a class="jxr_linenumber" name="L721" href="#L721">721</a> <em class="jxr_javadoccomment">     * given {@link Query} becomes available or changes. e.g:</em>
-<a class="jxr_linenumber" name="L722" href="#L722">722</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
-<a class="jxr_linenumber" name="L723" href="#L723">723</a> <em class="jxr_javadoccomment">     * Watcher&lt;JsonNode&gt; watcher = client.fileWatcher("foo", "bar", Query.ofJson("/baz.json"));</em>
-<a class="jxr_linenumber" name="L724" href="#L724">724</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L725" href="#L725">725</a> <em class="jxr_javadoccomment">     * watcher.watch((revision, content) -&gt; {</em>
-<a class="jxr_linenumber" name="L726" href="#L726">726</a> <em class="jxr_javadoccomment">     *     assert content instanceof JsonNode;</em>
-<a class="jxr_linenumber" name="L727" href="#L727">727</a> <em class="jxr_javadoccomment">     *     ...</em>
-<a class="jxr_linenumber" name="L728" href="#L728">728</a> <em class="jxr_javadoccomment">     * });}&lt;/pre&gt;</em>
-<a class="jxr_linenumber" name="L729" href="#L729">729</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L730" href="#L730">730</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(Query)}.</em>
-<a class="jxr_linenumber" name="L731" href="#L731">731</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L732" href="#L732">732</a>     @Deprecated
-<a class="jxr_linenumber" name="L733" href="#L733">733</a>     <strong class="jxr_keyword">default</strong> &lt;T&gt; Watcher&lt;T&gt; fileWatcher(String projectName, String repositoryName, Query&lt;T&gt; query) {
-<a class="jxr_linenumber" name="L734" href="#L734">734</a>         <strong class="jxr_keyword">return</strong> forRepo(projectName, repositoryName).watcher(query).start();
-<a class="jxr_linenumber" name="L735" href="#L735">735</a>     }
-<a class="jxr_linenumber" name="L736" href="#L736">736</a> 
-<a class="jxr_linenumber" name="L737" href="#L737">737</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L738" href="#L738">738</a> <em class="jxr_javadoccomment">     * Returns a {@link Watcher} which notifies its listeners after applying the specified</em>
-<a class="jxr_linenumber" name="L739" href="#L739">739</a> <em class="jxr_javadoccomment">     * {@link Function} when the result of the given {@link Query} becomes available or changes. e.g:</em>
-<a class="jxr_linenumber" name="L740" href="#L740">740</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
-<a class="jxr_linenumber" name="L741" href="#L741">741</a> <em class="jxr_javadoccomment">     * Watcher&lt;MyType&gt; watcher = client.fileWatcher(</em>
-<a class="jxr_linenumber" name="L742" href="#L742">742</a> <em class="jxr_javadoccomment">     *         "foo", "bar", Query.ofJson("/baz.json"),</em>
-<a class="jxr_linenumber" name="L743" href="#L743">743</a> <em class="jxr_javadoccomment">     *         content -&gt; new ObjectMapper().treeToValue(content, MyType.class));</em>
-<a class="jxr_linenumber" name="L744" href="#L744">744</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L745" href="#L745">745</a> <em class="jxr_javadoccomment">     * watcher.watch((revision, myValue) -&gt; {</em>
-<a class="jxr_linenumber" name="L746" href="#L746">746</a> <em class="jxr_javadoccomment">     *     assert myValue instanceof MyType;</em>
-<a class="jxr_linenumber" name="L747" href="#L747">747</a> <em class="jxr_javadoccomment">     *     ...</em>
-<a class="jxr_linenumber" name="L748" href="#L748">748</a> <em class="jxr_javadoccomment">     * });}&lt;/pre&gt;</em>
-<a class="jxr_linenumber" name="L749" href="#L749">749</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L750" href="#L750">750</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Note that {@link Function} by default is executed by a blocking task executor so that you can</em>
-<a class="jxr_linenumber" name="L751" href="#L751">751</a> <em class="jxr_javadoccomment">     * safely call a blocking operation.</em>
-<a class="jxr_linenumber" name="L752" href="#L752">752</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L753" href="#L753">753</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(Query)}.</em>
-<a class="jxr_linenumber" name="L754" href="#L754">754</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L755" href="#L755">755</a>     @Deprecated
-<a class="jxr_linenumber" name="L756" href="#L756">756</a>     &lt;T, U&gt; Watcher&lt;U&gt; fileWatcher(String projectName, String repositoryName,
-<a class="jxr_linenumber" name="L757" href="#L757">757</a>                                   Query&lt;T&gt; query, Function&lt;? <strong class="jxr_keyword">super</strong> T, ? <strong class="jxr_keyword">extends</strong> U&gt; function);
-<a class="jxr_linenumber" name="L758" href="#L758">758</a> 
-<a class="jxr_linenumber" name="L759" href="#L759">759</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L760" href="#L760">760</a> <em class="jxr_javadoccomment">     * Returns a {@link Watcher} which notifies its listeners after applying the specified</em>
-<a class="jxr_linenumber" name="L761" href="#L761">761</a> <em class="jxr_javadoccomment">     * {@link Function} when the result of the given {@link Query} becomes available or changes. e.g:</em>
-<a class="jxr_linenumber" name="L762" href="#L762">762</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
-<a class="jxr_linenumber" name="L763" href="#L763">763</a> <em class="jxr_javadoccomment">     * Watcher&lt;MyType&gt; watcher = client.fileWatcher(</em>
-<a class="jxr_linenumber" name="L764" href="#L764">764</a> <em class="jxr_javadoccomment">     *         "foo", "bar", Query.ofJson("/baz.json"),</em>
-<a class="jxr_linenumber" name="L765" href="#L765">765</a> <em class="jxr_javadoccomment">     *         content -&gt; new ObjectMapper().treeToValue(content, MyType.class), executor);</em>
-<a class="jxr_linenumber" name="L766" href="#L766">766</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L767" href="#L767">767</a> <em class="jxr_javadoccomment">     * watcher.watch((revision, myValue) -&gt; {</em>
-<a class="jxr_linenumber" name="L768" href="#L768">768</a> <em class="jxr_javadoccomment">     *     assert myValue instanceof MyType;</em>
-<a class="jxr_linenumber" name="L769" href="#L769">769</a> <em class="jxr_javadoccomment">     *     ...</em>
-<a class="jxr_linenumber" name="L770" href="#L770">770</a> <em class="jxr_javadoccomment">     * });}&lt;/pre&gt;</em>
-<a class="jxr_linenumber" name="L771" href="#L771">771</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L772" href="#L772">772</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(Query)}.</em>
-<a class="jxr_linenumber" name="L773" href="#L773">773</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L774" href="#L774">774</a>     @Deprecated
-<a class="jxr_linenumber" name="L775" href="#L775">775</a>     &lt;T, U&gt; Watcher&lt;U&gt; fileWatcher(String projectName, String repositoryName, Query&lt;T&gt; query,
-<a class="jxr_linenumber" name="L776" href="#L776">776</a>                                   Function&lt;? <strong class="jxr_keyword">super</strong> T, ? <strong class="jxr_keyword">extends</strong> U&gt; function, Executor executor);
-<a class="jxr_linenumber" name="L777" href="#L777">777</a> 
-<a class="jxr_linenumber" name="L778" href="#L778">778</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L779" href="#L779">779</a> <em class="jxr_javadoccomment">     * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit</em>
-<a class="jxr_linenumber" name="L780" href="#L780">780</a> <em class="jxr_javadoccomment">     * that contains the changes for the files matched by the given {@code pathPattern}. e.g:</em>
-<a class="jxr_linenumber" name="L781" href="#L781">781</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
-<a class="jxr_linenumber" name="L782" href="#L782">782</a> <em class="jxr_javadoccomment">     * Watcher&lt;Revision&gt; watcher = client.repositoryWatcher("foo", "bar", "/*.json");</em>
-<a class="jxr_linenumber" name="L783" href="#L783">783</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L784" href="#L784">784</a> <em class="jxr_javadoccomment">     * watcher.watch(revision -&gt; {</em>
-<a class="jxr_linenumber" name="L785" href="#L785">785</a> <em class="jxr_javadoccomment">     *     ...</em>
-<a class="jxr_linenumber" name="L786" href="#L786">786</a> <em class="jxr_javadoccomment">     * });}&lt;/pre&gt;</em>
-<a class="jxr_linenumber" name="L787" href="#L787">787</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L788" href="#L788">788</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(PathPattern)}.</em>
-<a class="jxr_linenumber" name="L789" href="#L789">789</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L790" href="#L790">790</a>     @Deprecated
-<a class="jxr_linenumber" name="L791" href="#L791">791</a>     <strong class="jxr_keyword">default</strong> Watcher&lt;Revision&gt; repositoryWatcher(String projectName, String repositoryName, String pathPattern) {
-<a class="jxr_linenumber" name="L792" href="#L792">792</a>         <strong class="jxr_keyword">return</strong> forRepo(projectName, repositoryName).watcher(toPathPattern(pathPattern)).start();
-<a class="jxr_linenumber" name="L793" href="#L793">793</a>     }
-<a class="jxr_linenumber" name="L794" href="#L794">794</a> 
-<a class="jxr_linenumber" name="L795" href="#L795">795</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L796" href="#L796">796</a> <em class="jxr_javadoccomment">     * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit</em>
-<a class="jxr_linenumber" name="L797" href="#L797">797</a> <em class="jxr_javadoccomment">     * that contains the changes for the files matched by the given {@code pathPattern}. e.g:</em>
-<a class="jxr_linenumber" name="L798" href="#L798">798</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
-<a class="jxr_linenumber" name="L799" href="#L799">799</a> <em class="jxr_javadoccomment">     * Watcher&lt;Map&lt;String, Entry&lt;?&gt;&gt; watcher = client.repositoryWatcher(</em>
-<a class="jxr_linenumber" name="L800" href="#L800">800</a> <em class="jxr_javadoccomment">     *         "foo", "bar", "/*.json", revision -&gt; client.getFiles("foo", "bar", revision, "/*.json").join());</em>
-<a class="jxr_linenumber" name="L801" href="#L801">801</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L802" href="#L802">802</a> <em class="jxr_javadoccomment">     * watcher.watch((revision, contents) -&gt; {</em>
-<a class="jxr_linenumber" name="L803" href="#L803">803</a> <em class="jxr_javadoccomment">     *     ...</em>
-<a class="jxr_linenumber" name="L804" href="#L804">804</a> <em class="jxr_javadoccomment">     * });}&lt;/pre&gt;</em>
-<a class="jxr_linenumber" name="L805" href="#L805">805</a> <em class="jxr_javadoccomment">     * {@link Function} by default is executed by a blocking task executor so that you can safely call a</em>
-<a class="jxr_linenumber" name="L806" href="#L806">806</a> <em class="jxr_javadoccomment">     * blocking operation.</em>
+<a class="jxr_linenumber" name="L683" href="#L683">683</a> <em class="jxr_javadoccomment">     * @return the {@link Entry} which contains the latest known {@link Query} result.</em>
+<a class="jxr_linenumber" name="L684" href="#L684">684</a> <em class="jxr_javadoccomment">     *         {@code null} if the file was not changed for {@code timeoutMillis} milliseconds</em>
+<a class="jxr_linenumber" name="L685" href="#L685">685</a> <em class="jxr_javadoccomment">     *         since the invocation of this method. Even before the timeout, the watch may return null</em>
+<a class="jxr_linenumber" name="L686" href="#L686">686</a> <em class="jxr_javadoccomment">     *         earlier due to issues such as server restart.</em>
+<a class="jxr_linenumber" name="L687" href="#L687">687</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L688" href="#L688">688</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatchRequest#start(Revision)} via {@link CentralDogmaRepository#watch(Query)}.</em>
+<a class="jxr_linenumber" name="L689" href="#L689">689</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L690" href="#L690">690</a>     @Deprecated
+<a class="jxr_linenumber" name="L691" href="#L691">691</a>     <strong class="jxr_keyword">default</strong> &lt;T&gt; CompletableFuture&lt;Entry&lt;T&gt;&gt; watchFile(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L692" href="#L692">692</a>                                                       <a href="../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, Query&lt;T&gt; query,
+<a class="jxr_linenumber" name="L693" href="#L693">693</a>                                                       <strong class="jxr_keyword">long</strong> timeoutMillis) {
+<a class="jxr_linenumber" name="L694" href="#L694">694</a>         <strong class="jxr_keyword">return</strong> watchFile(projectName, repositoryName, lastKnownRevision, query,
+<a class="jxr_linenumber" name="L695" href="#L695">695</a>                          timeoutMillis, WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND);
+<a class="jxr_linenumber" name="L696" href="#L696">696</a>     }
+<a class="jxr_linenumber" name="L697" href="#L697">697</a> 
+<a class="jxr_linenumber" name="L698" href="#L698">698</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L699" href="#L699">699</a> <em class="jxr_javadoccomment">     * Waits for the file matched by the specified {@link Query} to be changed since the specified</em>
+<a class="jxr_linenumber" name="L700" href="#L700">700</a> <em class="jxr_javadoccomment">     * {@code lastKnownRevision}. If the file does not exist and {@code errorOnEntryNotFound} is {@code true},</em>
+<a class="jxr_linenumber" name="L701" href="#L701">701</a> <em class="jxr_javadoccomment">     * the returned {@link CompletableFuture} will be completed exceptionally with</em>
+<a class="jxr_linenumber" name="L702" href="#L702">702</a> <em class="jxr_javadoccomment">     * {@link EntryNotFoundException}. If no changes were made within the specified {@code timeoutMillis},</em>
+<a class="jxr_linenumber" name="L703" href="#L703">703</a> <em class="jxr_javadoccomment">     * the returned {@link CompletableFuture} will be completed with {@code null}.</em>
+<a class="jxr_linenumber" name="L704" href="#L704">704</a> <em class="jxr_javadoccomment">     * It is recommended to specify the largest {@code timeoutMillis} allowed by the server.</em>
+<a class="jxr_linenumber" name="L705" href="#L705">705</a> <em class="jxr_javadoccomment">     * This method is equivalent to calling:</em>
+<a class="jxr_linenumber" name="L706" href="#L706">706</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
+<a class="jxr_linenumber" name="L707" href="#L707">707</a> <em class="jxr_javadoccomment">     * CentralDogma dogma = ...</em>
+<a class="jxr_linenumber" name="L708" href="#L708">708</a> <em class="jxr_javadoccomment">     * dogma.forRepo(projectName, repositoryName)</em>
+<a class="jxr_linenumber" name="L709" href="#L709">709</a> <em class="jxr_javadoccomment">     *      .watch(query)</em>
+<a class="jxr_linenumber" name="L710" href="#L710">710</a> <em class="jxr_javadoccomment">     *      .timeoutMillis(timeoutMillis)</em>
+<a class="jxr_linenumber" name="L711" href="#L711">711</a> <em class="jxr_javadoccomment">     *      .errorOnEntryNotFound(errorOnEntryNotFound)</em>
+<a class="jxr_linenumber" name="L712" href="#L712">712</a> <em class="jxr_javadoccomment">     *      .start(lastKnownRevision);</em>
+<a class="jxr_linenumber" name="L713" href="#L713">713</a> <em class="jxr_javadoccomment">     * }&lt;/pre&gt;</em>
+<a class="jxr_linenumber" name="L714" href="#L714">714</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L715" href="#L715">715</a> <em class="jxr_javadoccomment">     * @return the {@link Entry} which contains the latest known {@link Query} result.</em>
+<a class="jxr_linenumber" name="L716" href="#L716">716</a> <em class="jxr_javadoccomment">     *         {@code null} if the file was not changed for {@code timeoutMillis} milliseconds</em>
+<a class="jxr_linenumber" name="L717" href="#L717">717</a> <em class="jxr_javadoccomment">     *         since the invocation of this method. Even before the timeout, the watch may return null</em>
+<a class="jxr_linenumber" name="L718" href="#L718">718</a> <em class="jxr_javadoccomment">     *         earlier due to issues such as server restart.</em>
+<a class="jxr_linenumber" name="L719" href="#L719">719</a> <em class="jxr_javadoccomment">     *         {@link EntryNotFoundException} is raised if the target does not exist.</em>
+<a class="jxr_linenumber" name="L720" href="#L720">720</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L721" href="#L721">721</a>     &lt;T&gt; CompletableFuture&lt;Entry&lt;T&gt;&gt; watchFile(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L722" href="#L722">722</a>                                               <a href="../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, Query&lt;T&gt; query,
+<a class="jxr_linenumber" name="L723" href="#L723">723</a>                                               <strong class="jxr_keyword">long</strong> timeoutMillis, <strong class="jxr_keyword">boolean</strong> errorOnEntryNotFound);
+<a class="jxr_linenumber" name="L724" href="#L724">724</a> 
+<a class="jxr_linenumber" name="L725" href="#L725">725</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L726" href="#L726">726</a> <em class="jxr_javadoccomment">     * Returns a {@link Watcher} which notifies its listeners when the result of the</em>
+<a class="jxr_linenumber" name="L727" href="#L727">727</a> <em class="jxr_javadoccomment">     * given {@link Query} becomes available or changes. e.g:</em>
+<a class="jxr_linenumber" name="L728" href="#L728">728</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
+<a class="jxr_linenumber" name="L729" href="#L729">729</a> <em class="jxr_javadoccomment">     * Watcher&lt;JsonNode&gt; watcher = client.fileWatcher("foo", "bar", Query.ofJson("/baz.json"));</em>
+<a class="jxr_linenumber" name="L730" href="#L730">730</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L731" href="#L731">731</a> <em class="jxr_javadoccomment">     * watcher.watch((revision, content) -&gt; {</em>
+<a class="jxr_linenumber" name="L732" href="#L732">732</a> <em class="jxr_javadoccomment">     *     assert content instanceof JsonNode;</em>
+<a class="jxr_linenumber" name="L733" href="#L733">733</a> <em class="jxr_javadoccomment">     *     ...</em>
+<a class="jxr_linenumber" name="L734" href="#L734">734</a> <em class="jxr_javadoccomment">     * });}&lt;/pre&gt;</em>
+<a class="jxr_linenumber" name="L735" href="#L735">735</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L736" href="#L736">736</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(Query)}.</em>
+<a class="jxr_linenumber" name="L737" href="#L737">737</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L738" href="#L738">738</a>     @Deprecated
+<a class="jxr_linenumber" name="L739" href="#L739">739</a>     <strong class="jxr_keyword">default</strong> &lt;T&gt; Watcher&lt;T&gt; fileWatcher(String projectName, String repositoryName, Query&lt;T&gt; query) {
+<a class="jxr_linenumber" name="L740" href="#L740">740</a>         <strong class="jxr_keyword">return</strong> forRepo(projectName, repositoryName).watcher(query).start();
+<a class="jxr_linenumber" name="L741" href="#L741">741</a>     }
+<a class="jxr_linenumber" name="L742" href="#L742">742</a> 
+<a class="jxr_linenumber" name="L743" href="#L743">743</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L744" href="#L744">744</a> <em class="jxr_javadoccomment">     * Returns a {@link Watcher} which notifies its listeners after applying the specified</em>
+<a class="jxr_linenumber" name="L745" href="#L745">745</a> <em class="jxr_javadoccomment">     * {@link Function} when the result of the given {@link Query} becomes available or changes. e.g:</em>
+<a class="jxr_linenumber" name="L746" href="#L746">746</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
+<a class="jxr_linenumber" name="L747" href="#L747">747</a> <em class="jxr_javadoccomment">     * Watcher&lt;MyType&gt; watcher = client.fileWatcher(</em>
+<a class="jxr_linenumber" name="L748" href="#L748">748</a> <em class="jxr_javadoccomment">     *         "foo", "bar", Query.ofJson("/baz.json"),</em>
+<a class="jxr_linenumber" name="L749" href="#L749">749</a> <em class="jxr_javadoccomment">     *         content -&gt; new ObjectMapper().treeToValue(content, MyType.class));</em>
+<a class="jxr_linenumber" name="L750" href="#L750">750</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L751" href="#L751">751</a> <em class="jxr_javadoccomment">     * watcher.watch((revision, myValue) -&gt; {</em>
+<a class="jxr_linenumber" name="L752" href="#L752">752</a> <em class="jxr_javadoccomment">     *     assert myValue instanceof MyType;</em>
+<a class="jxr_linenumber" name="L753" href="#L753">753</a> <em class="jxr_javadoccomment">     *     ...</em>
+<a class="jxr_linenumber" name="L754" href="#L754">754</a> <em class="jxr_javadoccomment">     * });}&lt;/pre&gt;</em>
+<a class="jxr_linenumber" name="L755" href="#L755">755</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L756" href="#L756">756</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Note that {@link Function} by default is executed by a blocking task executor so that you can</em>
+<a class="jxr_linenumber" name="L757" href="#L757">757</a> <em class="jxr_javadoccomment">     * safely call a blocking operation.</em>
+<a class="jxr_linenumber" name="L758" href="#L758">758</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L759" href="#L759">759</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(Query)}.</em>
+<a class="jxr_linenumber" name="L760" href="#L760">760</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L761" href="#L761">761</a>     @Deprecated
+<a class="jxr_linenumber" name="L762" href="#L762">762</a>     &lt;T, U&gt; Watcher&lt;U&gt; fileWatcher(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L763" href="#L763">763</a>                                   Query&lt;T&gt; query, Function&lt;? <strong class="jxr_keyword">super</strong> T, ? <strong class="jxr_keyword">extends</strong> U&gt; function);
+<a class="jxr_linenumber" name="L764" href="#L764">764</a> 
+<a class="jxr_linenumber" name="L765" href="#L765">765</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L766" href="#L766">766</a> <em class="jxr_javadoccomment">     * Returns a {@link Watcher} which notifies its listeners after applying the specified</em>
+<a class="jxr_linenumber" name="L767" href="#L767">767</a> <em class="jxr_javadoccomment">     * {@link Function} when the result of the given {@link Query} becomes available or changes. e.g:</em>
+<a class="jxr_linenumber" name="L768" href="#L768">768</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
+<a class="jxr_linenumber" name="L769" href="#L769">769</a> <em class="jxr_javadoccomment">     * Watcher&lt;MyType&gt; watcher = client.fileWatcher(</em>
+<a class="jxr_linenumber" name="L770" href="#L770">770</a> <em class="jxr_javadoccomment">     *         "foo", "bar", Query.ofJson("/baz.json"),</em>
+<a class="jxr_linenumber" name="L771" href="#L771">771</a> <em class="jxr_javadoccomment">     *         content -&gt; new ObjectMapper().treeToValue(content, MyType.class), executor);</em>
+<a class="jxr_linenumber" name="L772" href="#L772">772</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L773" href="#L773">773</a> <em class="jxr_javadoccomment">     * watcher.watch((revision, myValue) -&gt; {</em>
+<a class="jxr_linenumber" name="L774" href="#L774">774</a> <em class="jxr_javadoccomment">     *     assert myValue instanceof MyType;</em>
+<a class="jxr_linenumber" name="L775" href="#L775">775</a> <em class="jxr_javadoccomment">     *     ...</em>
+<a class="jxr_linenumber" name="L776" href="#L776">776</a> <em class="jxr_javadoccomment">     * });}&lt;/pre&gt;</em>
+<a class="jxr_linenumber" name="L777" href="#L777">777</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L778" href="#L778">778</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(Query)}.</em>
+<a class="jxr_linenumber" name="L779" href="#L779">779</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L780" href="#L780">780</a>     @Deprecated
+<a class="jxr_linenumber" name="L781" href="#L781">781</a>     &lt;T, U&gt; Watcher&lt;U&gt; fileWatcher(String projectName, String repositoryName, Query&lt;T&gt; query,
+<a class="jxr_linenumber" name="L782" href="#L782">782</a>                                   Function&lt;? <strong class="jxr_keyword">super</strong> T, ? <strong class="jxr_keyword">extends</strong> U&gt; function, Executor executor);
+<a class="jxr_linenumber" name="L783" href="#L783">783</a> 
+<a class="jxr_linenumber" name="L784" href="#L784">784</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L785" href="#L785">785</a> <em class="jxr_javadoccomment">     * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit</em>
+<a class="jxr_linenumber" name="L786" href="#L786">786</a> <em class="jxr_javadoccomment">     * that contains the changes for the files matched by the given {@code pathPattern}. e.g:</em>
+<a class="jxr_linenumber" name="L787" href="#L787">787</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
+<a class="jxr_linenumber" name="L788" href="#L788">788</a> <em class="jxr_javadoccomment">     * Watcher&lt;Revision&gt; watcher = client.repositoryWatcher("foo", "bar", "/*.json");</em>
+<a class="jxr_linenumber" name="L789" href="#L789">789</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L790" href="#L790">790</a> <em class="jxr_javadoccomment">     * watcher.watch(revision -&gt; {</em>
+<a class="jxr_linenumber" name="L791" href="#L791">791</a> <em class="jxr_javadoccomment">     *     ...</em>
+<a class="jxr_linenumber" name="L792" href="#L792">792</a> <em class="jxr_javadoccomment">     * });}&lt;/pre&gt;</em>
+<a class="jxr_linenumber" name="L793" href="#L793">793</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L794" href="#L794">794</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(PathPattern)}.</em>
+<a class="jxr_linenumber" name="L795" href="#L795">795</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L796" href="#L796">796</a>     @Deprecated
+<a class="jxr_linenumber" name="L797" href="#L797">797</a>     <strong class="jxr_keyword">default</strong> Watcher&lt;Revision&gt; repositoryWatcher(String projectName, String repositoryName, String pathPattern) {
+<a class="jxr_linenumber" name="L798" href="#L798">798</a>         <strong class="jxr_keyword">return</strong> forRepo(projectName, repositoryName).watcher(toPathPattern(pathPattern)).start();
+<a class="jxr_linenumber" name="L799" href="#L799">799</a>     }
+<a class="jxr_linenumber" name="L800" href="#L800">800</a> 
+<a class="jxr_linenumber" name="L801" href="#L801">801</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L802" href="#L802">802</a> <em class="jxr_javadoccomment">     * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit</em>
+<a class="jxr_linenumber" name="L803" href="#L803">803</a> <em class="jxr_javadoccomment">     * that contains the changes for the files matched by the given {@code pathPattern}. e.g:</em>
+<a class="jxr_linenumber" name="L804" href="#L804">804</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
+<a class="jxr_linenumber" name="L805" href="#L805">805</a> <em class="jxr_javadoccomment">     * Watcher&lt;Map&lt;String, Entry&lt;?&gt;&gt; watcher = client.repositoryWatcher(</em>
+<a class="jxr_linenumber" name="L806" href="#L806">806</a> <em class="jxr_javadoccomment">     *         "foo", "bar", "/*.json", revision -&gt; client.getFiles("foo", "bar", revision, "/*.json").join());</em>
 <a class="jxr_linenumber" name="L807" href="#L807">807</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L808" href="#L808">808</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Note that you may get {@link RevisionNotFoundException} during the {@code getFiles()} call and</em>
-<a class="jxr_linenumber" name="L809" href="#L809">809</a> <em class="jxr_javadoccomment">     * may have to retry in the above example due to</em>
-<a class="jxr_linenumber" name="L810" href="#L810">810</a> <em class="jxr_javadoccomment">     * &lt;a href="https://github.com/line/centraldogma/issues/40"&gt;a known issue&lt;/a&gt;.</em>
-<a class="jxr_linenumber" name="L811" href="#L811">811</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L812" href="#L812">812</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(PathPattern)}.</em>
-<a class="jxr_linenumber" name="L813" href="#L813">813</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L814" href="#L814">814</a>     @Deprecated
-<a class="jxr_linenumber" name="L815" href="#L815">815</a>     &lt;T&gt; Watcher&lt;T&gt; repositoryWatcher(String projectName, String repositoryName, String pathPattern,
-<a class="jxr_linenumber" name="L816" href="#L816">816</a>                                      Function&lt;Revision, ? <strong class="jxr_keyword">extends</strong> T&gt; function);
-<a class="jxr_linenumber" name="L817" href="#L817">817</a> 
-<a class="jxr_linenumber" name="L818" href="#L818">818</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L819" href="#L819">819</a> <em class="jxr_javadoccomment">     * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit</em>
-<a class="jxr_linenumber" name="L820" href="#L820">820</a> <em class="jxr_javadoccomment">     * that contains the changes for the files matched by the given {@code pathPattern}. e.g:</em>
-<a class="jxr_linenumber" name="L821" href="#L821">821</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
-<a class="jxr_linenumber" name="L822" href="#L822">822</a> <em class="jxr_javadoccomment">     * Watcher&lt;Map&lt;String, Entry&lt;?&gt;&gt; watcher = client.repositoryWatcher(</em>
-<a class="jxr_linenumber" name="L823" href="#L823">823</a> <em class="jxr_javadoccomment">     *         "foo", "bar", "/*.json",</em>
-<a class="jxr_linenumber" name="L824" href="#L824">824</a> <em class="jxr_javadoccomment">     *         revision -&gt; client.getFiles("foo", "bar", revision, "/*.json").join(), executor);</em>
-<a class="jxr_linenumber" name="L825" href="#L825">825</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L826" href="#L826">826</a> <em class="jxr_javadoccomment">     * watcher.watch((revision, contents) -&gt; {</em>
-<a class="jxr_linenumber" name="L827" href="#L827">827</a> <em class="jxr_javadoccomment">     *     ...</em>
-<a class="jxr_linenumber" name="L828" href="#L828">828</a> <em class="jxr_javadoccomment">     * });}&lt;/pre&gt;</em>
-<a class="jxr_linenumber" name="L829" href="#L829">829</a> <em class="jxr_javadoccomment">     * Note that you may get {@link RevisionNotFoundException} during the {@code getFiles()} call and</em>
-<a class="jxr_linenumber" name="L830" href="#L830">830</a> <em class="jxr_javadoccomment">     * may have to retry in the above example due to</em>
-<a class="jxr_linenumber" name="L831" href="#L831">831</a> <em class="jxr_javadoccomment">     * &lt;a href="https://github.com/line/centraldogma/issues/40"&gt;a known issue&lt;/a&gt;.</em>
-<a class="jxr_linenumber" name="L832" href="#L832">832</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L833" href="#L833">833</a> <em class="jxr_javadoccomment">     * @param executor the {@link Executor} that executes the {@link Function}</em>
-<a class="jxr_linenumber" name="L834" href="#L834">834</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L835" href="#L835">835</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(PathPattern)}.</em>
-<a class="jxr_linenumber" name="L836" href="#L836">836</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L837" href="#L837">837</a>     @Deprecated
-<a class="jxr_linenumber" name="L838" href="#L838">838</a>     &lt;T&gt; Watcher&lt;T&gt; repositoryWatcher(String projectName, String repositoryName, String pathPattern,
-<a class="jxr_linenumber" name="L839" href="#L839">839</a>                                      Function&lt;Revision, ? <strong class="jxr_keyword">extends</strong> T&gt; function, Executor executor);
-<a class="jxr_linenumber" name="L840" href="#L840">840</a> 
-<a class="jxr_linenumber" name="L841" href="#L841">841</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L842" href="#L842">842</a> <em class="jxr_javadoccomment">     * Returns a {@link CompletableFuture} which is completed when the initial endpoints of this</em>
-<a class="jxr_linenumber" name="L843" href="#L843">843</a> <em class="jxr_javadoccomment">     * client are ready. It is recommended to wait for the initial endpoints in order to send the first request</em>
-<a class="jxr_linenumber" name="L844" href="#L844">844</a> <em class="jxr_javadoccomment">     * without additional delay.</em>
-<a class="jxr_linenumber" name="L845" href="#L845">845</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L846" href="#L846">846</a>     CompletableFuture&lt;Void&gt; whenEndpointReady();
-<a class="jxr_linenumber" name="L847" href="#L847">847</a> }
+<a class="jxr_linenumber" name="L808" href="#L808">808</a> <em class="jxr_javadoccomment">     * watcher.watch((revision, contents) -&gt; {</em>
+<a class="jxr_linenumber" name="L809" href="#L809">809</a> <em class="jxr_javadoccomment">     *     ...</em>
+<a class="jxr_linenumber" name="L810" href="#L810">810</a> <em class="jxr_javadoccomment">     * });}&lt;/pre&gt;</em>
+<a class="jxr_linenumber" name="L811" href="#L811">811</a> <em class="jxr_javadoccomment">     * {@link Function} by default is executed by a blocking task executor so that you can safely call a</em>
+<a class="jxr_linenumber" name="L812" href="#L812">812</a> <em class="jxr_javadoccomment">     * blocking operation.</em>
+<a class="jxr_linenumber" name="L813" href="#L813">813</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L814" href="#L814">814</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Note that you may get {@link RevisionNotFoundException} during the {@code getFiles()} call and</em>
+<a class="jxr_linenumber" name="L815" href="#L815">815</a> <em class="jxr_javadoccomment">     * may have to retry in the above example due to</em>
+<a class="jxr_linenumber" name="L816" href="#L816">816</a> <em class="jxr_javadoccomment">     * &lt;a href="https://github.com/line/centraldogma/issues/40"&gt;a known issue&lt;/a&gt;.</em>
+<a class="jxr_linenumber" name="L817" href="#L817">817</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L818" href="#L818">818</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(PathPattern)}.</em>
+<a class="jxr_linenumber" name="L819" href="#L819">819</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L820" href="#L820">820</a>     @Deprecated
+<a class="jxr_linenumber" name="L821" href="#L821">821</a>     &lt;T&gt; Watcher&lt;T&gt; repositoryWatcher(String projectName, String repositoryName, String pathPattern,
+<a class="jxr_linenumber" name="L822" href="#L822">822</a>                                      Function&lt;Revision, ? <strong class="jxr_keyword">extends</strong> T&gt; function);
+<a class="jxr_linenumber" name="L823" href="#L823">823</a> 
+<a class="jxr_linenumber" name="L824" href="#L824">824</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L825" href="#L825">825</a> <em class="jxr_javadoccomment">     * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit</em>
+<a class="jxr_linenumber" name="L826" href="#L826">826</a> <em class="jxr_javadoccomment">     * that contains the changes for the files matched by the given {@code pathPattern}. e.g:</em>
+<a class="jxr_linenumber" name="L827" href="#L827">827</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;{@code</em>
+<a class="jxr_linenumber" name="L828" href="#L828">828</a> <em class="jxr_javadoccomment">     * Watcher&lt;Map&lt;String, Entry&lt;?&gt;&gt; watcher = client.repositoryWatcher(</em>
+<a class="jxr_linenumber" name="L829" href="#L829">829</a> <em class="jxr_javadoccomment">     *         "foo", "bar", "/*.json",</em>
+<a class="jxr_linenumber" name="L830" href="#L830">830</a> <em class="jxr_javadoccomment">     *         revision -&gt; client.getFiles("foo", "bar", revision, "/*.json").join(), executor);</em>
+<a class="jxr_linenumber" name="L831" href="#L831">831</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L832" href="#L832">832</a> <em class="jxr_javadoccomment">     * watcher.watch((revision, contents) -&gt; {</em>
+<a class="jxr_linenumber" name="L833" href="#L833">833</a> <em class="jxr_javadoccomment">     *     ...</em>
+<a class="jxr_linenumber" name="L834" href="#L834">834</a> <em class="jxr_javadoccomment">     * });}&lt;/pre&gt;</em>
+<a class="jxr_linenumber" name="L835" href="#L835">835</a> <em class="jxr_javadoccomment">     * Note that you may get {@link RevisionNotFoundException} during the {@code getFiles()} call and</em>
+<a class="jxr_linenumber" name="L836" href="#L836">836</a> <em class="jxr_javadoccomment">     * may have to retry in the above example due to</em>
+<a class="jxr_linenumber" name="L837" href="#L837">837</a> <em class="jxr_javadoccomment">     * &lt;a href="https://github.com/line/centraldogma/issues/40"&gt;a known issue&lt;/a&gt;.</em>
+<a class="jxr_linenumber" name="L838" href="#L838">838</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L839" href="#L839">839</a> <em class="jxr_javadoccomment">     * @param executor the {@link Executor} that executes the {@link Function}</em>
+<a class="jxr_linenumber" name="L840" href="#L840">840</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L841" href="#L841">841</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(PathPattern)}.</em>
+<a class="jxr_linenumber" name="L842" href="#L842">842</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L843" href="#L843">843</a>     @Deprecated
+<a class="jxr_linenumber" name="L844" href="#L844">844</a>     &lt;T&gt; Watcher&lt;T&gt; repositoryWatcher(String projectName, String repositoryName, String pathPattern,
+<a class="jxr_linenumber" name="L845" href="#L845">845</a>                                      Function&lt;Revision, ? <strong class="jxr_keyword">extends</strong> T&gt; function, Executor executor);
+<a class="jxr_linenumber" name="L846" href="#L846">846</a> 
+<a class="jxr_linenumber" name="L847" href="#L847">847</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L848" href="#L848">848</a> <em class="jxr_javadoccomment">     * Returns a {@link CompletableFuture} which is completed when the initial endpoints of this</em>
+<a class="jxr_linenumber" name="L849" href="#L849">849</a> <em class="jxr_javadoccomment">     * client are ready. It is recommended to wait for the initial endpoints in order to send the first request</em>
+<a class="jxr_linenumber" name="L850" href="#L850">850</a> <em class="jxr_javadoccomment">     * without additional delay.</em>
+<a class="jxr_linenumber" name="L851" href="#L851">851</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L852" href="#L852">852</a>     CompletableFuture&lt;Void&gt; whenEndpointReady();
+<a class="jxr_linenumber" name="L853" href="#L853">853</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2024 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>
