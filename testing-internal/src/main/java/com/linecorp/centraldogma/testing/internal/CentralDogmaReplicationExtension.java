@@ -31,8 +31,6 @@ import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableMap;
@@ -61,8 +59,6 @@ import io.netty.util.NetUtil;
  * A JUnit {@link Extension} that starts an embedded Central Dogma cluster based on ZooKeeper.
  */
 public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension {
-
-    private static final Logger logger = LoggerFactory.getLogger(CentralDogmaReplicationExtension.class);
 
     private static final int MAX_RETRIES = 10;
 
