@@ -203,4 +203,27 @@ class TokenServiceTest {
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    public void updateTokenLevel() {
+        final Token token = tokenService.createToken("forUpdate", true, null, adminAuthor, admin).join()
+                                        .content();
+        assertThat(token.isActive()).isTrue();
+
+        final Token userToken = tokenService.updateTokenLevel(ctx, "forUpdate", new TokenLevelRequest("USER"),
+                                                              adminAuthor, admin)
+                                            .join();
+        assertThat(userToken.isAdmin()).isFalse();
+
+        final Token adminToken = tokenService.updateTokenLevel(ctx, "forUpdate", new TokenLevelRequest("ADMIN"),
+                                                               adminAuthor, admin)
+                                             .join();
+        assertThat(adminToken.isAdmin()).isTrue();
+
+        assertThatThrownBy(
+                () -> tokenService.updateTokenLevel(ctx, "forUpdate", new TokenLevelRequest("INVALID"),
+                                                    adminAuthor, admin).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
 }

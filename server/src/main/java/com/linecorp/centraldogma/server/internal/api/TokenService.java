@@ -198,21 +198,23 @@ public class TokenService extends AbstractService {
      * <p>Updates a permission of a token of the specified ID.
      */
     @Patch("/tokens/{appId}/level")
-    @Consumes("application/json-patch+json")
     @RequiresAdministrator
     public CompletableFuture<Token> updateTokenLevel(ServiceRequestContext ctx,
                                                      @Param String appId,
+                                                     TokenLevelRequest tokenLevelRequest,
                                                      Author author, User loginUser) {
+
         return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
                 token -> {
-                    if (token.isAdmin()) {
-                        return mds.updateTokenToUser(author, appId).thenApply(
-                                unused -> mds.findTokenByAppId(appId).join().withoutSecret()
-                        );
-                    } else {
-                        return mds.updateTokenToAdmin(author, appId).thenApply(
-                                unused -> mds.findTokenByAppId(appId).join().withoutSecret()
-                        );
+                    switch (tokenLevelRequest.getLevel()) {
+                        case "USER":
+                            return mds.updateTokenToUser(author, appId).thenCompose(
+                                    unused -> mds.findTokenByAppId(appId).thenApply(Token::withoutSecret));
+                        case "ADMIN":
+                            return mds.updateTokenToAdmin(author, appId).thenCompose(
+                                    unused -> mds.findTokenByAppId(appId).thenApply(Token::withoutSecret));
+                        default:
+                            throw new IllegalArgumentException("Unexpected token level: " + tokenLevelRequest);
                     }
                 });
     }
