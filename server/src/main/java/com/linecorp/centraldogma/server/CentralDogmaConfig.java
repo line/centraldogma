@@ -43,6 +43,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
@@ -86,6 +87,8 @@ public final class CentralDogmaConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaConfig.class);
 
+    private static final Pattern PREFIX_PATTERN = Pattern.compile("^[a-z0-9_]+$");
+
     private static final Map<String, ConfigValueConverter> CONFIG_VALUE_CONVERTERS;
 
     static {
@@ -94,10 +97,25 @@ public final class CentralDogmaConfig {
         configValueConverters.add(DefaultConfigValueConverter.INSTANCE);
         final ImmutableMap.Builder<String, ConfigValueConverter> builder = ImmutableMap.builder();
         for (ConfigValueConverter configValueConverter : configValueConverters) {
-            configValueConverter.supportedPrefixes()
-                                .forEach(prefix -> builder.put(prefix, configValueConverter));
+            if (configValueConverter.supportedPrefixes().isEmpty()) {
+                continue;
+            }
+            boolean addConverter = true;
+            for (String supportedPrefix : configValueConverter.supportedPrefixes()) {
+                if (!PREFIX_PATTERN.matcher(supportedPrefix).matches()) {
+                    logger.warn("{} isn't used because it has an invalid prefix: {}. (expected: {})",
+                                configValueConverter, supportedPrefix, PREFIX_PATTERN.pattern());
+                    addConverter = false;
+                    break;
+                }
+            }
+            if (addConverter) {
+                configValueConverter.supportedPrefixes()
+                                    .forEach(prefix -> builder.put(prefix, configValueConverter));
+            }
         }
         CONFIG_VALUE_CONVERTERS = ImmutableMap.copyOf(builder.buildOrThrow());
+
         final StringBuilder sb = new StringBuilder();
         sb.append('{');
         CONFIG_VALUE_CONVERTERS.entrySet().stream().sorted(Entry.comparingByKey()).forEach(
@@ -127,14 +145,20 @@ public final class CentralDogmaConfig {
         }
 
         final String prefix = value.substring(0, index);
+        if (!PREFIX_PATTERN.matcher(prefix).matches()) {
+            // Not a prefix.
+            return value;
+        }
+
         final String rest = value.substring(index + 1);
 
         final ConfigValueConverter converter = CONFIG_VALUE_CONVERTERS.get(prefix);
         if (converter != null) {
             return converter.convert(prefix, rest);
         }
-
-        throw new IllegalArgumentException("failed to convert " + propertyName + ". value: " + value);
+        logger.warn("No {} found for {}. prefix: {}",
+                    ConfigValueConverter.class.getSimpleName(), propertyName, prefix);
+        return value;
     }
 
     private final File dataDir;
