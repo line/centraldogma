@@ -194,7 +194,9 @@ public class ContentServiceV1 extends AbstractService {
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
         checkPush(repository.name(), changes);
-        meterRegistry.counter("commits.push", "project", repository.parent().name(), "repository", repository.name())
+        meterRegistry.counter("commits.push",
+                              "project", repository.parent().name(),
+                              "repository", repository.name())
                      .increment();
 
         final long commitTimeMillis = System.currentTimeMillis();
