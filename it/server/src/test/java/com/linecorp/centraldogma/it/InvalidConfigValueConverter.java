@@ -25,7 +25,7 @@ public final class InvalidConfigValueConverter implements ConfigValueConverter {
 
     @Override
     public List<String> supportedPrefixes() {
-        return ImmutableList.of("-invalid-prefix");
+        return ImmutableList.of("invalid space prefix");
     }
 
     @Override

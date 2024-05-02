@@ -25,8 +25,8 @@ class ConfigValueConverterTest {
 
     @Test
     void convert() {
-        assertThat(CentralDogmaConfig.convertValue("-invalid-prefix:invalid", "property"))
-                .isEqualTo("-invalid-prefix:invalid");
+        assertThat(CentralDogmaConfig.convertValue("invalid space prefix:invalid", "property"))
+                .isEqualTo("invalid space prefix:invalid");
         assertThat(CentralDogmaConfig.convertValue("valid_prefix:value", "property"))
                 .isEqualTo("valid_value");
     }
