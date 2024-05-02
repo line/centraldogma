@@ -87,7 +87,7 @@ public final class CentralDogmaConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaConfig.class);
 
-    private static final Pattern PREFIX_PATTERN = Pattern.compile("^[a-z0-9_]+$");
+    private static final Pattern PREFIX_PATTERN = Pattern.compile("^[a-z0-9_-]+$");
 
     private static final Map<String, ConfigValueConverter> CONFIG_VALUE_CONVERTERS;
 
