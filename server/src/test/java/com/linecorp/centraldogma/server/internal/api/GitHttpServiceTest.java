@@ -200,6 +200,7 @@ class GitHttpServiceTest {
              .commit("push", Change.ofTextUpsert("/bar.txt", "hello bar!"))
              .push()
              .join();
+        git.close();
         // Clone again.
         final Git git1 = Git.cloneRepository().setURI("http://127.0.0.1:" +
                                                       dogma.serverAddress().getPort() + "/foo/bar.git")
@@ -218,6 +219,7 @@ class GitHttpServiceTest {
         assertThat(new String(fileContent).trim()).isEqualTo("hello foo!");
         fileContent = getFileContent(git1, ref1.getObjectId(), "/bar.txt");
         assertThat(new String(fileContent).trim()).isEqualTo("hello bar!");
+        git1.close();
     }
 
     private static Ref assertRefs(Git git) throws IOException {
