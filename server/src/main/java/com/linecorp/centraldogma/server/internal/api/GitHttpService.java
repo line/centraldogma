@@ -51,6 +51,9 @@ import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 
+/**
+ * A service that provides Git HTTP protocol.
+ */
 @RequiresReadPermission
 public final class GitHttpService {
 
@@ -66,18 +69,22 @@ public final class GitHttpService {
                            .build(),
             HttpData.ofUtf8(capabilityAdvertisement()));
 
+    // https://git-scm.com/docs/protocol-capabilities/
     private static String capabilityAdvertisement() {
         final StringBuilder sb = new StringBuilder();
         sb.append("001e# service=git-upload-pack\n0000");
         pktLine(sb, "version 2");
         pktLine(sb, COMMAND_LS_REFS);
+        // Support limited options for now due to the unique characteristics of Git repositories in
+        // Central Dogma, such as having only a master branch and no tags, among other specifics.
         pktLine(sb, COMMAND_FETCH + '=' + OPTION_WAIT_FOR_DONE + ' ' + OPTION_SHALLOW);
         // TODO(minwoox): Migrate hash function https://git-scm.com/docs/hash-function-transition
         pktLine(sb, "object-format=sha1");
-        sb.append("0000"); // flush-pkt
+        sb.append("0000"); // flush-pkt https://git-scm.com/docs/protocol-v2/2.31.0#_packet_line_framing
         return sb.toString();
     }
 
+    // https://git-scm.com/docs/protocol-common#_pkt_line_format
     static void pktLine(StringBuilder sb, String line) {
         lineLength(sb, line.length() + 5);
         sb.append(line).append('\n');
