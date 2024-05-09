@@ -23,12 +23,17 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
+import org.eclipse.jgit.api.CloneCommand;
+import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.TransportCommand;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.transport.FetchResult;
 import org.eclipse.jgit.transport.TransportHttp;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.junit.jupiter.api.Test;
@@ -39,6 +44,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
@@ -191,40 +197,23 @@ class GitHttpServiceTest {
     void gitClone() throws Exception {
         // shallow clone by jGit is added after 6.5.0 so we just test the normal clone.
         // https://projects.eclipse.org/projects/technology.jgit/releases/6.5.0/
-        final Git git = Git.cloneRepository().setURI("http://127.0.0.1:" +
-                                                     dogma.serverAddress().getPort() + "/foo/bar.git")
-                           .setDirectory(temporaryFolder)
-                           .setTransportConfigCallback(transport -> {
-                               if (transport instanceof TransportHttp) {
-                                   ((TransportHttp) transport).setAdditionalHeaders(
-                                           ImmutableMap.of(HttpHeaderNames.AUTHORIZATION.toString(),
-                                                           "Bearer anonymous"));
-                               }
-                           }).call();
+        final Git git = clone(temporaryFolder);
         final Ref ref = assertRefs(git);
 
         byte[] fileContent = getFileContent(git, ref.getObjectId(), "/foo.txt");
         assertThat(new String(fileContent).trim()).isEqualTo("hello foo!");
         fileContent = getFileContent(git, ref.getObjectId(), "/bar.txt");
         assertThat(fileContent).isNull();
+        git.close();
 
         // Commit another file.
         dogma.client().forRepo("foo", "bar")
              .commit("push", Change.ofTextUpsert("/bar.txt", "hello bar!"))
              .push()
              .join();
-        git.close();
+
         // Clone again.
-        final Git git1 = Git.cloneRepository().setURI("http://127.0.0.1:" +
-                                                      dogma.serverAddress().getPort() + "/foo/bar.git")
-                            .setDirectory(temporaryFolder2)
-                            .setTransportConfigCallback(transport -> {
-                                if (transport instanceof TransportHttp) {
-                                    ((TransportHttp) transport).setAdditionalHeaders(
-                                            ImmutableMap.of(HttpHeaderNames.AUTHORIZATION.toString(),
-                                                            "Bearer anonymous"));
-                                }
-                            }).call();
+        final Git git1 = clone(temporaryFolder2);
         final Ref ref1 = assertRefs(git1);
         assertThat(ref).isNotEqualTo(ref1);
 
@@ -232,7 +221,42 @@ class GitHttpServiceTest {
         assertThat(new String(fileContent).trim()).isEqualTo("hello foo!");
         fileContent = getFileContent(git1, ref1.getObjectId(), "/bar.txt");
         assertThat(new String(fileContent).trim()).isEqualTo("hello bar!");
+
+        // Update the previous file and fetch.
+        dogma.client().forRepo("foo", "bar")
+             .commit("push", Change.ofTextUpsert("/foo.txt", "hello foo second!"))
+             .push()
+             .join();
+        final FetchCommand fetch = git1.fetch();
+        addAuthHeader(fetch);
+        final FetchResult call = fetch.call();
+        assertThat(call.getAdvertisedRefs()).hasSize(1);
+        final Ref ref2 = Iterables.getFirst(call.getAdvertisedRefs(), null);
+        fileContent = getFileContent(git1, ref2.getObjectId(), "/foo.txt");
+        assertThat(new String(fileContent).trim()).isEqualTo("hello foo second!");
+        fileContent = getFileContent(git1, ref2.getObjectId(), "/bar.txt");
+        assertThat(new String(fileContent).trim()).isEqualTo("hello bar!");
+
         git1.close();
+    }
+
+    private static Git clone(File directory) throws GitAPIException {
+        final CloneCommand cloneCommand = Git.cloneRepository().setURI("http://127.0.0.1:" +
+                                                                       dogma.serverAddress().getPort()
+                                                                       + "/foo/bar.git")
+                                             .setDirectory(directory);
+        addAuthHeader(cloneCommand);
+        return cloneCommand.call();
+    }
+
+    private static void addAuthHeader(TransportCommand<?, ?> command) {
+        command.setTransportConfigCallback(transport -> {
+            if (transport instanceof TransportHttp) {
+                ((TransportHttp) transport).setAdditionalHeaders(
+                        ImmutableMap.of(HttpHeaderNames.AUTHORIZATION.toString(),
+                                        "Bearer anonymous"));
+            }
+        });
     }
 
     private static Ref assertRefs(Git git) throws IOException {
