@@ -72,7 +72,8 @@ public final class GitHttpService {
     // https://git-scm.com/docs/protocol-capabilities/
     private static String capabilityAdvertisement() {
         final StringBuilder sb = new StringBuilder();
-        sb.append("001e# service=git-upload-pack\n0000");
+        sb.append("001e# service=git-upload-pack\n");
+        pktFlush(sb);
         pktLine(sb, "version 2");
         pktLine(sb, COMMAND_LS_REFS);
         // Support limited options for now due to the unique characteristics of Git repositories in
@@ -80,7 +81,7 @@ public final class GitHttpService {
         pktLine(sb, COMMAND_FETCH + '=' + OPTION_WAIT_FOR_DONE + ' ' + OPTION_SHALLOW);
         // TODO(minwoox): Migrate hash function https://git-scm.com/docs/hash-function-transition
         pktLine(sb, "object-format=sha1");
-        sb.append("0000"); // flush-pkt https://git-scm.com/docs/protocol-v2/2.31.0#_packet_line_framing
+        pktFlush(sb);
         return sb.toString();
     }
 
@@ -88,6 +89,11 @@ public final class GitHttpService {
     static void pktLine(StringBuilder sb, String line) {
         lineLength(sb, line.length() + 5);
         sb.append(line).append('\n');
+    }
+
+    static void pktFlush(StringBuilder sb) {
+        https://git-scm.com/docs/protocol-v2/2.31.0#_packet_line_framing
+        sb.append("0000");
     }
 
     private static void lineLength(StringBuilder sb, int length) {
@@ -109,7 +115,8 @@ public final class GitHttpService {
                                             @Param String projectName, @Param String repoName) {
         if (!"git-upload-pack".equals(service)) {
             // Return 403 https://www.git-scm.com/docs/http-protocol#_smart_server_response
-            return HttpResponse.of(403);
+            return HttpResponse.of(HttpStatus.FORBIDDEN, MediaType.PLAIN_TEXT_UTF_8,
+                                   "Unsupported service: " + service);
         }
         repoName = maybeRemoveGitSuffix(repoName);
         if (gitProtocol == null || !gitProtocol.contains(VERSION_2_REQUEST)) {
@@ -117,8 +124,13 @@ public final class GitHttpService {
                                    "Unsupported git-protocol: " + gitProtocol);
         }
 
+        if (!projectApiManager.exists(projectName)) {
+            return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
+                                   "Project not found: " + projectName);
+        }
         if (!projectApiManager.getProject(projectName).repos().exists(repoName)) {
-            return HttpResponse.of(HttpStatus.NOT_FOUND);
+            return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
+                                   "Repository not found: " + repoName);
         }
         return CAPABILITY_ADVERTISEMENT_RESPONSE.toHttpResponse();
     }
@@ -147,8 +159,13 @@ public final class GitHttpService {
                                    "Unsupported content-type: " + contentType);
         }
 
+        if (!projectApiManager.exists(projectName)) {
+            return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
+                                   "Project not found: " + projectName);
+        }
         if (!projectApiManager.getProject(projectName).repos().exists(repoName)) {
-            return HttpResponse.of(HttpStatus.NOT_FOUND);
+            return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
+                                   "Repository not found: " + repoName);
         }
 
         final Repository jGitRepository =

@@ -78,12 +78,8 @@ class GitHttpServiceTest {
         }
     };
 
-    @Test
-    void advertiseCapability() {
-        advertiseCapability("bar.git");
-        advertiseCapability("bar");
-    }
-
+    @CsvSource({ "bar.git", "bar" })
+    @ParameterizedTest
     void advertiseCapability(String repoName) {
         final RequestHeaders headers =
                 RequestHeaders.of(HttpMethod.GET, "/foo/" + repoName + "/info/refs?service=git-upload-pack",
