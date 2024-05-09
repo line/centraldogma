@@ -34,6 +34,8 @@ import org.eclipse.jgit.treewalk.TreeWalk;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
@@ -115,8 +117,9 @@ class GitHttpServiceTest {
                 .isSameAs(HttpStatus.BAD_REQUEST);
     }
 
-    @Test
-    void gitUploadPackRequest() {
+    @CsvSource({ "true", "false" })
+    @ParameterizedTest
+    void gitUploadPackRequest(boolean shallow) {
         final RequestHeaders headers =
                 RequestHeaders.of(HttpMethod.POST, "/foo/bar.git/git-upload-pack",
                                   HttpHeaderNames.CONTENT_TYPE, "application/x-git-upload-pack-request",
@@ -143,13 +146,21 @@ class GitHttpServiceTest {
         // same oid
         assertThat(headLineSplit.get(0).substring(4)).isEqualTo(masterLineSplit.get(0).substring(4));
 
-        res = dogma.httpClient().execute(headers, fetchCommand(headLineSplit.get(0).substring(4)))
+        res = dogma.httpClient().execute(headers, fetchCommand(headLineSplit.get(0).substring(4), shallow))
                    .aggregate().join();
         assertThat(res.headers().get("content-type")).isEqualTo("application/x-git-upload-pack-result");
         assertThat(res.headers().get(HttpHeaderNames.CACHE_CONTROL))
                 .isEqualTo(ServerCacheControl.REVALIDATED.asHeaderValue());
-        // We will verify the contents under the gitClone test so check the first line.
-        assertThat(res.contentUtf8().split("\n")[0].trim()).isEqualTo("000dpackfile");
+        final String[] contents = res.contentUtf8().split("\n");
+        if (shallow) {
+            assertThat(contents[0].trim()).isEqualTo("0011shallow-info");
+            // in the format of "0035shallow f748c234dd9515d354daa9d8a8171a67e1a419ee"
+            assertThat(contents[1].trim()).startsWith("0035shallow ");
+            assertThat(contents[2].trim()).isEqualTo("0001000dpackfile");
+        } else {
+            // We will verify the contents under the gitClone test so just check the packfile.
+            assertThat(contents[0].trim()).isEqualTo("000dpackfile");
+        }
     }
 
     @Test
@@ -178,6 +189,8 @@ class GitHttpServiceTest {
 
     @Test
     void gitClone() throws Exception {
+        // shallow clone by jGit is added after 6.5.0 so we just test the normal clone.
+        // https://projects.eclipse.org/projects/technology.jgit/releases/6.5.0/
         final Git git = Git.cloneRepository().setURI("http://127.0.0.1:" +
                                                      dogma.serverAddress().getPort() + "/foo/bar.git")
                            .setDirectory(temporaryFolder)
@@ -254,13 +267,16 @@ class GitHttpServiceTest {
         return sb.toString();
     }
 
-    private static String fetchCommand(String oid) {
+    private static String fetchCommand(String oid, boolean shallow) {
         final StringBuilder sb = new StringBuilder();
         pktLine(sb, "command=fetch");
         pktLine(sb, "object-format=sha1");
         sb.append("0001"); // delim-pkt
         pktLine(sb, "thin-pack");
         pktLine(sb, "ofs-delta");
+        if (shallow) {
+            pktLine(sb, "deepen 1");
+        }
         pktLine(sb, "want " + oid);
         pktLine(sb, "done");
         sb.append("0000");
