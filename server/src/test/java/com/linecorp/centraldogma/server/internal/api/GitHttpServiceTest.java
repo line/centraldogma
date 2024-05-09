@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.linecorp.centraldogma.server.internal.api.GitHttpService.pktFlush;
 import static com.linecorp.centraldogma.server.internal.api.GitHttpService.pktLine;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.eclipse.jgit.transport.GitProtocolConstants.VERSION_2_REQUEST;
@@ -283,7 +284,7 @@ class GitHttpServiceTest {
         pktLine(sb, "ref-prefix HEAD");
         pktLine(sb, "ref-prefix refs/heads/");
         pktLine(sb, "ref-prefix refs/tags/");
-        sb.append("0000");
+        pktFlush(sb);
         return sb.toString();
     }
 
@@ -299,7 +300,7 @@ class GitHttpServiceTest {
         }
         pktLine(sb, "want " + oid);
         pktLine(sb, "done");
-        sb.append("0000");
+        pktFlush(sb);
         return sb.toString();
     }
 
