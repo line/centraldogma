@@ -242,8 +242,8 @@ class GitHttpServiceTest {
 
     private static Git clone(File directory) throws GitAPIException {
         final CloneCommand cloneCommand = Git.cloneRepository().setURI("http://127.0.0.1:" +
-                                                                       dogma.serverAddress().getPort()
-                                                                       + "/foo/bar.git")
+                                                                       dogma.serverAddress().getPort() +
+                                                                       "/foo/bar.git")
                                              .setDirectory(directory);
         addAuthHeader(cloneCommand);
         return cloneCommand.call();
