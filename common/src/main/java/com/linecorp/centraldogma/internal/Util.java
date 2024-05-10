@@ -57,7 +57,7 @@ public final class Util {
      * End with an alphanumeric character.
      */
     private static final Pattern PROJECT_AND_REPO_NAME_PATTERN =
-            Pattern.compile("^[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$");
+            Pattern.compile("^(?!.*\\.git$)[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$");
 
     public static String validateFileName(String name, String paramName) {
         requireNonNull(name, paramName);
