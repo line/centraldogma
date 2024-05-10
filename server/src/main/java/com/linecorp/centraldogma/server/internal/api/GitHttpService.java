@@ -97,6 +97,7 @@ public final class GitHttpService {
     public HttpResponse advertiseCapability(@Header("git-protocol") @Nullable String gitProtocol,
                                             @Param String service,
                                             @Param String projectName, @Param String repoName) {
+        repoName = maybeRemoveGitSuffix(repoName);
         if (!"git-upload-pack".equals(service)) {
             // Return 403 https://www.git-scm.com/docs/http-protocol#_smart_server_response
             return HttpResponse.of(HttpStatus.FORBIDDEN, MediaType.PLAIN_TEXT_UTF_8,
@@ -112,14 +113,10 @@ public final class GitHttpService {
             return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
                                    "Project not found: " + projectName);
         }
-        if (!projectApiManager.getProject(projectName).repos().exists(repoName)) {
-            final String maybeGitSuffixRemoved = maybeRemoveGitSuffix(repoName);
-            if (maybeGitSuffixRemoved == repoName || // We can just check the reference.
-                !projectApiManager.getProject(projectName).repos().exists(maybeGitSuffixRemoved)) {
-                return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
-                                       "Repository not found: " + repoName);
-            }
-        }
+    if (!projectApiManager.getProject(projectName).repos().exists(repoName)) {
+            return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
+                                   "Repository not found: " + repoName);
+    }
         return CAPABILITY_ADVERTISEMENT_RESPONSE.toHttpResponse();
     }
 
@@ -134,6 +131,7 @@ public final class GitHttpService {
     @Post("/{projectName}/{repoName}/git-upload-pack")
     public HttpResponse gitUploadPack(AggregatedHttpRequest req,
                                       @Param String projectName, @Param String repoName) {
+        repoName = maybeRemoveGitSuffix(repoName);
         final String gitProtocol = req.headers().get("git-protocol");
         if (gitProtocol == null || !gitProtocol.contains(VERSION_2_REQUEST)) {
             return HttpResponse.of(HttpStatus.BAD_REQUEST, MediaType.PLAIN_TEXT_UTF_8,
@@ -151,13 +149,8 @@ public final class GitHttpService {
                                    "Project not found: " + projectName);
         }
         if (!projectApiManager.getProject(projectName).repos().exists(repoName)) {
-            final String maybeGitSuffixRemoved = maybeRemoveGitSuffix(repoName);
-            if (maybeGitSuffixRemoved == repoName || // We can just check the reference.
-                !projectApiManager.getProject(projectName).repos().exists(maybeGitSuffixRemoved)) {
-                return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
-                                       "Repository not found: " + repoName);
-            }
-            repoName = maybeGitSuffixRemoved;
+            return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
+                                   "Repository not found: " + repoName);
         }
 
         final Repository jGitRepository =
