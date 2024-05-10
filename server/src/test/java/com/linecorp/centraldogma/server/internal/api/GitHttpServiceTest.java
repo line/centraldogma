@@ -15,8 +15,6 @@
  */
 package com.linecorp.centraldogma.server.internal.api;
 
-import static com.linecorp.centraldogma.server.internal.api.GitHttpService.pktFlush;
-import static com.linecorp.centraldogma.server.internal.api.GitHttpService.pktLine;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.eclipse.jgit.transport.GitProtocolConstants.VERSION_2_REQUEST;
 
@@ -57,6 +55,7 @@ import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.server.internal.api.GitHttpService.PacketLineFraming;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class GitHttpServiceTest {
@@ -275,33 +274,33 @@ class GitHttpServiceTest {
     }
 
     private static String lsRefsCommand() {
-        final StringBuilder sb = new StringBuilder();
-        pktLine(sb, "command=ls-refs");
-        pktLine(sb, "object-format=sha1");
-        sb.append("0001"); // delim-pkt
-        pktLine(sb, "peel");
-        pktLine(sb, "symrefs");
-        pktLine(sb, "ref-prefix HEAD");
-        pktLine(sb, "ref-prefix refs/heads/");
-        pktLine(sb, "ref-prefix refs/tags/");
-        pktFlush(sb);
-        return sb.toString();
+        final PacketLineFraming pktLineFraming = new PacketLineFraming();
+        pktLineFraming.put("command=ls-refs");
+        pktLineFraming.put("object-format=sha1");
+        pktLineFraming.delim();
+        pktLineFraming.put("peel");
+        pktLineFraming.put("symrefs");
+        pktLineFraming.put("ref-prefix HEAD");
+        pktLineFraming.put("ref-prefix refs/heads/");
+        pktLineFraming.put("ref-prefix refs/tags/");
+        pktLineFraming.flush();
+        return pktLineFraming.toString();
     }
 
     private static String fetchCommand(String oid, boolean shallow) {
-        final StringBuilder sb = new StringBuilder();
-        pktLine(sb, "command=fetch");
-        pktLine(sb, "object-format=sha1");
-        sb.append("0001"); // delim-pkt
-        pktLine(sb, "thin-pack");
-        pktLine(sb, "ofs-delta");
+        final PacketLineFraming pktLineFraming = new PacketLineFraming();
+        pktLineFraming.put("command=fetch");
+        pktLineFraming.put("object-format=sha1");
+        pktLineFraming.delim();
+        pktLineFraming.put("thin-pack");
+        pktLineFraming.put("ofs-delta");
         if (shallow) {
-            pktLine(sb, "deepen 1");
+            pktLineFraming.put("deepen 1");
         }
-        pktLine(sb, "want " + oid);
-        pktLine(sb, "done");
-        pktFlush(sb);
-        return sb.toString();
+        pktLineFraming.put("want " + oid);
+        pktLineFraming.put("done");
+        pktLineFraming.flush();
+        return pktLineFraming.toString();
     }
 
     @Nullable

@@ -72,35 +72,18 @@ public final class GitHttpService {
 
     // https://git-scm.com/docs/protocol-capabilities/
     private static String capabilityAdvertisement() {
-        final StringBuilder sb = new StringBuilder();
-        sb.append("001e# service=git-upload-pack\n");
-        pktFlush(sb);
-        pktLine(sb, "version 2");
-        pktLine(sb, COMMAND_LS_REFS);
+        final PacketLineFraming packetLineFraming = new PacketLineFraming();
+        packetLineFraming.putWithoutPktLine("001e# service=git-upload-pack\n");
+        packetLineFraming.flush();
+        packetLineFraming.put("version 2");
+        packetLineFraming.put(COMMAND_LS_REFS);
         // Support limited options for now due to the unique characteristics of Git repositories in
         // Central Dogma, such as having only a master branch and no tags, among other specifics.
-        pktLine(sb, COMMAND_FETCH + '=' + OPTION_WAIT_FOR_DONE + ' ' + OPTION_SHALLOW);
+        packetLineFraming.put(COMMAND_FETCH + '=' + OPTION_WAIT_FOR_DONE + ' ' + OPTION_SHALLOW);
         // TODO(minwoox): Migrate hash function https://git-scm.com/docs/hash-function-transition
-        pktLine(sb, "object-format=sha1");
-        pktFlush(sb);
-        return sb.toString();
-    }
-
-    // https://git-scm.com/docs/protocol-common#_pkt_line_format
-    static void pktLine(StringBuilder sb, String line) {
-        lineLength(sb, line.getBytes(StandardCharsets.UTF_8).length + 5);
-        sb.append(line).append('\n');
-    }
-
-    static void pktFlush(StringBuilder sb) {
-        https://git-scm.com/docs/protocol-v2/2.31.0#_packet_line_framing
-        sb.append("0000");
-    }
-
-    private static void lineLength(StringBuilder sb, int length) {
-        for (int i = 3; i >= 0; i--) {
-            sb.append(HEX_DIGITS[(length >>> (4 * i)) & 0xf]);
-        }
+        packetLineFraming.put("object-format=sha1");
+        packetLineFraming.flush();
+        return packetLineFraming.toString();
     }
 
     private final ProjectApiManager projectApiManager;
@@ -119,7 +102,7 @@ public final class GitHttpService {
             return HttpResponse.of(HttpStatus.FORBIDDEN, MediaType.PLAIN_TEXT_UTF_8,
                                    "Unsupported service: " + service);
         }
-        repoName = maybeRemoveGitSuffix(repoName);
+
         if (gitProtocol == null || !gitProtocol.contains(VERSION_2_REQUEST)) {
             return HttpResponse.of(HttpStatus.BAD_REQUEST, MediaType.PLAIN_TEXT_UTF_8,
                                    "Unsupported git-protocol: " + gitProtocol);
@@ -130,8 +113,12 @@ public final class GitHttpService {
                                    "Project not found: " + projectName);
         }
         if (!projectApiManager.getProject(projectName).repos().exists(repoName)) {
-            return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
-                                   "Repository not found: " + repoName);
+            final String maybeGitSuffixRemoved = maybeRemoveGitSuffix(repoName);
+            if (maybeGitSuffixRemoved == repoName || // We can just check the reference.
+                !projectApiManager.getProject(projectName).repos().exists(maybeGitSuffixRemoved)) {
+                return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
+                                       "Repository not found: " + repoName);
+            }
         }
         return CAPABILITY_ADVERTISEMENT_RESPONSE.toHttpResponse();
     }
@@ -147,7 +134,6 @@ public final class GitHttpService {
     @Post("/{projectName}/{repoName}/git-upload-pack")
     public HttpResponse gitUploadPack(AggregatedHttpRequest req,
                                       @Param String projectName, @Param String repoName) {
-        repoName = maybeRemoveGitSuffix(repoName);
         final String gitProtocol = req.headers().get("git-protocol");
         if (gitProtocol == null || !gitProtocol.contains(VERSION_2_REQUEST)) {
             return HttpResponse.of(HttpStatus.BAD_REQUEST, MediaType.PLAIN_TEXT_UTF_8,
@@ -165,8 +151,13 @@ public final class GitHttpService {
                                    "Project not found: " + projectName);
         }
         if (!projectApiManager.getProject(projectName).repos().exists(repoName)) {
-            return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
-                                   "Repository not found: " + repoName);
+            final String maybeGitSuffixRemoved = maybeRemoveGitSuffix(repoName);
+            if (maybeGitSuffixRemoved == repoName || // We can just check the reference.
+                !projectApiManager.getProject(projectName).repos().exists(maybeGitSuffixRemoved)) {
+                return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
+                                       "Repository not found: " + repoName);
+            }
+            repoName = maybeGitSuffixRemoved;
         }
 
         final Repository jGitRepository =
@@ -202,5 +193,39 @@ public final class GitHttpService {
                                .add(HttpHeaderNames.CACHE_CONTROL,
                                     ServerCacheControl.REVALIDATED.asHeaderValue())
                                .build(), body);
+    }
+
+    static class PacketLineFraming {
+        private final StringBuilder sb = new StringBuilder();
+
+        // https://git-scm.com/docs/protocol-common#_pkt_line_format
+        void put(String line) {
+            lineLength(sb, line.getBytes(StandardCharsets.UTF_8).length + 5);
+            sb.append(line).append('\n');
+        }
+
+        private static void lineLength(StringBuilder sb, int length) {
+            for (int i = 3; i >= 0; i--) {
+                sb.append(HEX_DIGITS[(length >>> (4 * i)) & 0xf]);
+            }
+        }
+
+        void putWithoutPktLine(String line) {
+            sb.append(line);
+        }
+
+        void delim() {
+            sb.append("0001");
+        }
+
+        void flush() {
+            https: //git-scm.com/docs/protocol-v2/2.31.0#_packet_line_framing
+            sb.append("0000");
+        }
+
+        @Override
+        public String toString() {
+            return sb.toString();
+        }
     }
 }
