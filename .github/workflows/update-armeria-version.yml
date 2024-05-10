@@ -14,6 +14,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Wait for Armeria artifacts to be available
+        uses: nev7n/wait_for_response@v1
+        with:
+          url: "https://repo.maven.apache.org/maven2/com/linecorp/armeria/armeria-bom/${{ inputs.armeria_version }}/armeria-bom-${{ inputs.armeria_version }}.pom"
+          responseCode: 200
+          timeout: 18000000 # Timeout before giving up in milliseconds. 5 hours
+          interval: 60000 # 1 minute
+
       - name: Update Armeria version to ${{ inputs.armeria_version }}
         run: |
           sed -i "s/armeria = \".*\"/armeria = \"${{ inputs.armeria_version }}\"/" dependencies.toml

@@ -27,6 +27,7 @@ evaluationDependsOn(':server')
 evaluationDependsOn(':server-auth:saml')
 evaluationDependsOn(':server-auth:shiro')
 evaluationDependsOn(':server-mirror-git')
+evaluationDependsOn(':xds')
 
 ext {
     distDir = "${project.buildDir}/dist"
@@ -78,6 +79,10 @@ task copyLib(group: 'Build',
     from project(':server-auth:shiro').tasks.jar
     from project(':server-mirror-git').configurations.runtimeClasspath
     from project(':server-mirror-git').tasks.jar
+    from project(':xds').configurations.runtimeClasspath {
+        exclude group: 'org.eclipse.jgit'
+    }
+    from project(':xds').tasks.jar
 
     File libDir = new File("${project.ext.distDir}/lib")
     into libDir

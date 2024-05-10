@@ -21,32 +21,39 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.server.management.ServerStatus;
 
 /**
  * A {@link Command} which is used to update the status of all servers in the cluster.
  */
+@JsonInclude(Include.NON_NULL)
 public final class UpdateServerStatusCommand extends AdministrativeCommand<Void> {
 
-    private final boolean writable;
+    private final ServerStatus serverStatus;
 
+    /**
+     * Creates a new instance with the specified properties.
+     */
     @JsonCreator
-    UpdateServerStatusCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
-                              @JsonProperty("author") @Nullable Author author,
-                              @JsonProperty("writable") boolean writable) {
+    public UpdateServerStatusCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                                     @JsonProperty("author") @Nullable Author author,
+                                     @JsonProperty("serverStatus") ServerStatus serverStatus) {
         super(CommandType.UPDATE_SERVER_STATUS, timestamp, author);
-        this.writable = writable;
+        this.serverStatus = serverStatus;
     }
 
     /**
-     * Returns whether the cluster is writable.
+     * Returns the status of the server.
      */
-    @JsonProperty("writable")
-    public boolean writable() {
-        return writable;
+    @JsonProperty("serverStatus")
+    public ServerStatus serverStatus() {
+        return serverStatus;
     }
 
     @Override
@@ -59,17 +66,17 @@ public final class UpdateServerStatusCommand extends AdministrativeCommand<Void>
         }
         final UpdateServerStatusCommand that = (UpdateServerStatusCommand) o;
 
-        return super.equals(that) && writable == that.writable;
+        return super.equals(that) && serverStatus == that.serverStatus;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), writable);
+        return Objects.hash(super.hashCode(), serverStatus);
     }
 
     @Override
     ToStringHelper toStringHelper() {
         return super.toStringHelper()
-                    .add("writable", writable);
+                    .add("serverStatus", serverStatus);
     }
 }

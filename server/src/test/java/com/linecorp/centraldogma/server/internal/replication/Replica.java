@@ -91,6 +91,7 @@ final class Replica {
             }
         }, meterRegistry, mock(ProjectManager.class), writeQuota, null, null);
         commandExecutor.setMetadataService(mockMetaService());
+        commandExecutor.setLockTimeoutMillis(10000);
 
         startFuture = start ? commandExecutor.start() : null;
     }

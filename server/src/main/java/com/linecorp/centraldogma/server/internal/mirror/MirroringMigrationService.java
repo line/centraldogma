@@ -60,6 +60,7 @@ import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
+import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -103,7 +104,8 @@ class MirroringMigrationService {
         }
 
         // Enter read-only mode.
-        commandExecutor.execute(Command.updateServerStatus(false)).get(1, TimeUnit.MINUTES);
+        commandExecutor.execute(Command.updateServerStatus(ServerStatus.REPLICATION_ONLY))
+                       .get(1, TimeUnit.MINUTES);
         logger.info("Starting Mirrors and credentials migration ...");
         if (commandExecutor instanceof ZooKeeperCommandExecutor) {
             logger.debug("Waiting for 30 seconds to make sure that all cluster have been notified of the " +
@@ -141,7 +143,8 @@ class MirroringMigrationService {
         }
 
         // Exit read-only mode.
-        commandExecutor.execute(Command.updateServerStatus(true)).get(1, TimeUnit.MINUTES);
+        commandExecutor.execute(Command.updateServerStatus(ServerStatus.WRITABLE))
+                       .get(1, TimeUnit.MINUTES);
         logger.info("Mirrors and credentials migration has been completed. (took: {} ms.)",
                     stopwatch.elapsed().toMillis());
 

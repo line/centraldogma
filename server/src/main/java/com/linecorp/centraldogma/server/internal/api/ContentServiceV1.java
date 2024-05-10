@@ -66,6 +66,7 @@ import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.api.v1.ChangeDto;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
@@ -233,7 +234,8 @@ public class ContentServiceV1 extends AbstractService {
      * jsonpath={jsonpath}
      *
      * <p>Returns the entry of files in the path. This is same with
-     * {@link #listFiles(String, String, Repository)} except that containing the content of the files.
+     * {@link #listFiles(ServiceRequestContext, String, String, Repository)} except that containing
+     * the content of the files.
      * Note that if the {@link HttpHeaderNames#IF_NONE_MATCH} in which has a revision is sent with,
      * this will await for the time specified in {@link HttpHeaderNames#PREFER}.
      * During the time if the specified revision becomes different with the latest revision, this will
@@ -312,7 +314,8 @@ public class ContentServiceV1 extends AbstractService {
     }
 
     private static Object handleWatchFailure(Throwable thrown) {
-        if (Throwables.getRootCause(thrown) instanceof CancellationException) {
+        final Throwable rootCause = Throwables.getRootCause(thrown);
+        if (rootCause instanceof CancellationException || rootCause instanceof ShuttingDownException) {
             // timeout happens
             return HttpResponse.of(HttpStatus.NOT_MODIFIED);
         }

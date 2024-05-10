@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.testing.internal;
 
+import java.io.File;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
@@ -29,6 +30,7 @@ import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
+import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.testing.junit.AbstractAllOrEachExtension;
@@ -59,6 +61,7 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
     private InternalProjectInitializer internalProjectInitializer;
 
     private final TemporaryFolder tempDir = new TemporaryFolder();
+    private File dataDir;
 
     /**
      * Configures an {@link Executor}, {@link ProjectManager} and {@link CommandExecutor},
@@ -67,12 +70,13 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
     @Override
     public void before(ExtensionContext context) throws Exception {
         tempDir.create();
-
+        dataDir = tempDir.newFolder().toFile();
         final Executor repositoryWorker = newWorker();
         purgeWorker = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("purge-worker", true));
         projectManager = newProjectManager(repositoryWorker, purgeWorker);
-        executor = newCommandExecutor(projectManager, repositoryWorker);
+        executor = newCommandExecutor(projectManager, repositoryWorker, dataDir);
+
         executor.start().get();
         internalProjectInitializer = new InternalProjectInitializer(executor);
         internalProjectInitializer.initialize();
@@ -136,7 +140,7 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
      */
     protected ProjectManager newProjectManager(Executor repositoryWorker, Executor purgeWorker) {
         try {
-            return new DefaultProjectManager(tempDir.newFolder().toFile(), repositoryWorker,
+            return new DefaultProjectManager(dataDir, repositoryWorker,
                                              purgeWorker, NoopMeterRegistry.get(), null);
         } catch (Exception e) {
             // Should not reach here.
@@ -147,7 +151,8 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
     /**
      * Override this method to customize a {@link CommandExecutor}.
      */
-    protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker) {
-        return new StandaloneCommandExecutor(projectManager, worker, null, null, null, null);
+    protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker, File dataDir) {
+        return new StandaloneCommandExecutor(projectManager, worker, new ServerStatusManager(dataDir), null,
+                                             null, null, null);
     }
 }

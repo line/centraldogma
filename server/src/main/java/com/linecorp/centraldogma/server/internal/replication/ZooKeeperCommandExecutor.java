@@ -46,7 +46,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -89,8 +89,8 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.Uninterruptibles;
 
-import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Revision;
@@ -173,6 +173,9 @@ public final class ZooKeeperCommandExecutor
 
     private MetadataService metadataService;
 
+    // Failing to acquire a lock is a critical problem, so we wait as much as we can.
+    private long lockTimeoutNanos = TimeUnit.MINUTES.toNanos(1);
+
     private volatile EmbeddedZooKeeper quorumPeer;
     private volatile CuratorFramework curator;
     private volatile RetryPolicy retryPolicy = RETRY_POLICY_NEVER;
@@ -184,6 +187,7 @@ public final class ZooKeeperCommandExecutor
     private volatile LeaderSelector leaderSelector;
     private volatile ScheduledExecutorService quotaExecutor;
     private volatile boolean createdParentNodes;
+    private volatile boolean canReplicate;
 
     private class OldLogRemover implements LeaderSelectorListener {
         volatile boolean hasLeadership;
@@ -407,7 +411,8 @@ public final class ZooKeeperCommandExecutor
             // Get the command executor threads ready.
             final ThreadPoolExecutor executor = new ThreadPoolExecutor(
                     cfg.numWorkers(), cfg.numWorkers(),
-                    60, TimeUnit.SECONDS, new LinkedTransferQueue<>(),
+                    // TODO(minwoox): Use LinkedTransferQueue when we upgrade to JDK 21.
+                    60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
                     new DefaultThreadFactory("zookeeper-command-executor", true));
             executor.allowCoreThreadTimeOut(true);
 
@@ -418,6 +423,7 @@ public final class ZooKeeperCommandExecutor
                     Executors.newSingleThreadScheduledExecutor(
                             new DefaultThreadFactory("zookeeper-quota-executor", true)),
                     "quotaExecutor");
+            canReplicate = true;
         } catch (InterruptedException | ReplicationException e) {
             throw e;
         } catch (Exception e) {
@@ -584,13 +590,14 @@ public final class ZooKeeperCommandExecutor
     }
 
     private void stopLater() {
-        // Stop from an other thread so that it does not get stuck
+        // Stop from other thread so that it does not get stuck
         // when this method runs on an executor thread.
         ForkJoinPool.commonPool().execute(this::stop);
     }
 
     @Override
     protected void doStop(@Nullable Runnable onReleaseLeadership) throws Exception {
+        canReplicate = false;
         listenerInfo = null;
         logger.info("Stopping the worker threads");
         boolean interrupted = shutdown(executor);
@@ -719,12 +726,16 @@ public final class ZooKeeperCommandExecutor
 
         long nextRevision = info.lastReplayedRevision + 1;
         for (;;) {
+            if (!canReplicate) {
+                break;
+            }
             ReplicationLog<?> l = null;
             try {
                 final Optional<ReplicationLog<?>> log = loadLog(nextRevision, true);
+                Command<?> command = null;
                 if (log.isPresent()) {
                     l = log.get();
-                    final Command<?> command = l.command();
+                    command = l.command();
                     final Object expectedResult = l.result();
                     final Object actualResult = delegate.execute(command).get();
 
@@ -743,6 +754,9 @@ public final class ZooKeeperCommandExecutor
 
                 updateLastReplayedRevision(nextRevision);
                 info.lastReplayedRevision = nextRevision;
+                if (command instanceof UpdateServerStatusCommand) {
+                    updateZkCommandStatusLater((UpdateServerStatusCommand) command);
+                }
                 if (nextRevision == targetRevision) {
                     break;
                 } else {
@@ -773,6 +787,19 @@ public final class ZooKeeperCommandExecutor
         }
     }
 
+    private void updateZkCommandStatusLater(UpdateServerStatusCommand command) {
+        canReplicate = command.serverStatus().replicating();
+        // Use a separate executor since executorStatusManager.updateStatus() may stop the executor that calls
+        // this method.
+        if (!canReplicate) {
+            ForkJoinPool.commonPool().execute(() -> {
+                statusManager().updateStatus(command);
+            });
+        } else {
+            statusManager().updateStatus(command);
+        }
+    }
+
     @Override
     public void childEvent(CuratorFramework unused, PathChildrenCacheEvent event) throws Exception {
         if (event.getType() != PathChildrenCacheEvent.Type.CHILD_ADDED) {
@@ -791,32 +818,68 @@ public final class ZooKeeperCommandExecutor
     }
 
     private SafeCloseable safeLock(Command<?> command) {
+        final long lockTimeoutNanos = this.lockTimeoutNanos;
         final String executionPath = command.executionPath();
         final InterProcessMutex mtx = mutexMap.computeIfAbsent(
                 executionPath, k -> new InterProcessMutex(curator, absolutePath(LOCK_PATH, k)));
 
         WriteLock writeLock = null;
-        boolean lockTimeout = false;
+        boolean lockAcquired = false;
+        boolean success = false;
+        Throwable cause = null;
         try {
-            // Align with the default request timeout
-            if (!mtx.acquire(10, TimeUnit.SECONDS)) {
-                lockTimeout = true;
-                throw new ReplicationException(
-                        "Failed to acquire a lock for " + executionPath + " in 10 seconds");
-            }
-            if (command instanceof NormalizingPushCommand) {
-                writeLock = acquireWriteLock((NormalizingPushCommand) command);
-            } else if (command instanceof RemoveRepositoryCommand) {
-                clearWriteQuota((RemoveRepositoryCommand) command);
-            }
-        } catch (Exception e) {
-            if (lockTimeout) {
-                return Exceptions.throwUnsafely(e);
+            // Retry up to 1 minute, to minimize the chance of going read-only.
+            long remainingTimeNanos = lockTimeoutNanos;
+            final long deadlineNanos = System.nanoTime() + remainingTimeNanos;
+            for (;;) {
+                try {
+                    if (mtx.acquire(remainingTimeNanos, TimeUnit.NANOSECONDS)) {
+                        lockAcquired = true;
+                        break;
+                    }
+                } catch (NullPointerException e) {
+                    // We're not sure why this happens, but we're retrying to recover from it.
+                    logger.warn("Unexpected NPE from Curator while acquiring a lock for {} (command: {}):",
+                                executionPath, command, e);
+                }
+
+                // Give up if timed out already or will time out after sleeping.
+                final long sleepTimeNanos = TimeUnit.MILLISECONDS.toNanos(500);
+                remainingTimeNanos = deadlineNanos - System.nanoTime();
+                if (remainingTimeNanos <= sleepTimeNanos) {
+                    break;
+                }
+
+                // Sleep for a bit to avoid high CPU usage.
+                Uninterruptibles.sleepUninterruptibly(sleepTimeNanos, TimeUnit.NANOSECONDS);
+                remainingTimeNanos -= sleepTimeNanos;
             }
 
-            logger.error("Failed to acquire a lock for {}; entering read-only mode", executionPath, e);
-            stopLater();
-            throw new ReplicationException("failed to acquire a lock for " + executionPath, e);
+            if (lockAcquired) {
+                if (command instanceof NormalizingPushCommand) {
+                    writeLock = acquireWriteLock((NormalizingPushCommand) command);
+                } else if (command instanceof RemoveRepositoryCommand) {
+                    clearWriteQuota((RemoveRepositoryCommand) command);
+                }
+                success = true;
+            }
+        } catch (Throwable e) {
+            cause = e;
+        }
+
+        if (!success) {
+            if (cause != null) {
+                logger.error("Failed to acquire a lock for {} (command: {}); entering read-only mode",
+                             executionPath, command, cause);
+                stopLater();
+                throw new ReplicationException("failed to acquire a lock for " + executionPath, cause);
+            } else {
+                logger.error("Failed to acquire a lock for {} in time (command: {}); " +
+                             "entering read-only mode",
+                             executionPath, command);
+                stopLater();
+                throw new ReplicationException("failed to acquire a lock for " + executionPath + " in time");
+            }
         }
 
         if (writeLock != null) {
@@ -1071,6 +1134,14 @@ public final class ZooKeeperCommandExecutor
     @Override
     protected <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception {
         final CompletableFuture<T> future = new CompletableFuture<>();
+        ExecutorService executor = this.executor;
+        if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
+            if (!((UpdateServerStatusCommand) command).serverStatus().replicating()) {
+                // Use a separate executor because `this.executor()` could be stopped while executing
+                // the command.
+                executor = ForkJoinPool.commonPool();
+            }
+        }
         executor.execute(() -> {
             try {
                 future.complete(blockingExecute(command));
@@ -1114,25 +1185,18 @@ public final class ZooKeeperCommandExecutor
                 final Command<Revision> command0 = Command.forcePush(delegated.asIs(commitResult));
                 log = new ReplicationLog<>(replicaId(), command0, commitResult.revision());
             } else {
-                if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
-                    final UpdateServerStatusCommand command0 = (UpdateServerStatusCommand) command;
-                    final boolean writable = command0.writable();
-                    final boolean wasWritable = isWritable();
-                    setWritable(writable);
-                    if (writable != wasWritable) {
-                        if (writable) {
-                            logger.warn("Left read-only mode.");
-                        } else {
-                            logger.warn("Entered read-only mode.");
-                        }
-                    }
-                }
-
                 log = new ReplicationLog<>(replicaId(), command, result);
             }
 
             // Store the command execution log to ZooKeeper.
             final long revision = storeLog(log);
+
+            // Update the ServerStatus to the CommandExecutor after the log is stored.
+            if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
+                final UpdateServerStatusCommand statusCommand = (UpdateServerStatusCommand) command;
+                canReplicate = statusCommand.serverStatus().replicating();
+                statusManager().updateStatus(statusCommand);
+            }
 
             logger.debug("logging OK. revision = {}, log = {}", revision, log);
             return result;
@@ -1166,12 +1230,20 @@ public final class ZooKeeperCommandExecutor
         this.metadataService = metadataService;
     }
 
+    @VisibleForTesting
+    void setLockTimeoutMillis(long lockTimeoutMillis) {
+        this.lockTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(lockTimeoutMillis);
+    }
+
     private static final class WriteLock {
         private final InterProcessSemaphoreV2 semaphore;
+        @Nullable
         private final Lease lease;
         private final QuotaConfig writeQuota;
 
-        private WriteLock(InterProcessSemaphoreV2 semaphore, Lease lease, QuotaConfig writeQuota) {
+        private WriteLock(InterProcessSemaphoreV2 semaphore,
+                          @Nullable Lease lease,
+                          QuotaConfig writeQuota) {
             this.semaphore = semaphore;
             this.lease = lease;
             this.writeQuota = writeQuota;

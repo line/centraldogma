@@ -74,7 +74,7 @@ import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-class GitMirrorTest {
+class GitMirrorIntegrationTest {
 
     private static final int MAX_NUM_FILES = 32;
     private static final long MAX_NUM_BYTES = 1048576; // 1 MiB

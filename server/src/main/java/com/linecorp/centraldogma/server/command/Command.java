@@ -32,6 +32,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -361,8 +362,8 @@ public interface Command<T> {
     /**
      * Returns a new {@link Command} which is used to update the status of the server.
      */
-    static Command<Void> updateServerStatus(boolean writable) {
-        return new UpdateServerStatusCommand(null, null, writable);
+    static Command<Void> updateServerStatus(ServerStatus serverStatus) {
+        return new UpdateServerStatusCommand(null, null, serverStatus);
     }
 
     /**

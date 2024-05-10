@@ -96,6 +96,7 @@ import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.QueryType;
+import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
@@ -131,6 +132,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                         .put(ShuttingDownException.class.getName(), ShuttingDownException::new)
                         .put(RepositoryExistsException.class.getName(), RepositoryExistsException::new)
                         .put(InvalidPushException.class.getName(), InvalidPushException::new)
+                        .put(ReadOnlyException.class.getName(), ReadOnlyException::new)
                         .build();
 
     private final WebClient client;

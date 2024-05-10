@@ -46,7 +46,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2;
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.function.ThrowingConsumer;
@@ -56,10 +55,12 @@ import org.slf4j.LoggerFactory;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
@@ -67,6 +68,7 @@ import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.PushAsIsCommand;
+import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.testing.internal.FlakyTest;
 
 @FlakyTest
@@ -414,13 +416,19 @@ class ZooKeeperCommandExecutorTest {
 
     @Test
     void lockTimeout() throws Exception {
-        final AtomicBoolean neverEnding = new AtomicBoolean();
-        final AtomicReference<CompletableFuture<?>> pendingFuture = new AtomicReference<>();
+        final AtomicBoolean isSlow = new AtomicBoolean();
+        final AtomicBoolean ranSlow = new AtomicBoolean();
         final Supplier<Function<Command<?>, CompletableFuture<?>>> mockDelegate = () -> command -> {
-            if (neverEnding.get()) {
-                final CompletableFuture<Object> future = new CompletableFuture<>();
-                pendingFuture.set(future);
-                return future;
+            if (isSlow.get()) {
+                ranSlow.set(true);
+                return CompletableFuture.supplyAsync(() -> {
+                    try {
+                        Thread.sleep(15000);
+                    } catch (InterruptedException ignored) {
+                        // Ignore
+                    }
+                    return null;
+                }, CommonPools.blockingTaskExecutor());
             } else {
                 return newMockDelegate().apply(command);
             }
@@ -433,11 +441,11 @@ class ZooKeeperCommandExecutorTest {
             final Replica replica = cluster.get(0);
             final ZooKeeperCommandExecutor executor = replica.commandExecutor();
 
-            neverEnding.set(true);
+            isSlow.set(true);
             final Command<Void> command = Command.createRepository(Author.SYSTEM, "project", "repo1");
             executor.execute(command);
-            // Await until the first command is executed.
-            await().untilAtomic(pendingFuture, Matchers.notNullValue());
+            // Wait until the first command is executed.
+            await().untilAsserted(() -> assertThat(ranSlow).isTrue());
 
             final CompletableFuture<Void> result = executor.execute(command);
             await().between(Duration.ofSeconds(9), Duration.ofSeconds(15)).untilAsserted(() -> {
@@ -446,9 +454,8 @@ class ZooKeeperCommandExecutorTest {
                 assertThat(cause).isInstanceOf(CompletionException.class);
                 assertThat(cause.getCause()).isInstanceOf(ReplicationException.class)
                                             .hasMessageContaining(
-                                                    "Failed to acquire a lock for /project in 10 seconds");
+                                                    "failed to acquire a lock for /project in time");
             });
-            pendingFuture.get().complete(null);
         }
     }
 
@@ -555,7 +562,7 @@ class ZooKeeperCommandExecutorTest {
             assertThat(commandResult1.result()).isNull();
             awaitUntilReplicated(cluster, command1);
 
-            final Command<Void> readOnlyCommand = Command.updateServerStatus(false);
+            final Command<Void> readOnlyCommand = Command.updateServerStatus(ServerStatus.REPLICATION_ONLY);
             replica1.commandExecutor().execute(readOnlyCommand).join();
             assertThat(replica1.commandExecutor().isWritable()).isFalse();
             final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).get();
@@ -573,7 +580,7 @@ class ZooKeeperCommandExecutorTest {
                     CommitResult.of(new Revision(2), ImmutableList.of(normalizedChange)));
 
             assertThatThrownBy(() -> replica1.commandExecutor().execute(normalizingPushCommand))
-                    .isInstanceOf(IllegalStateException.class)
+                    .isInstanceOf(ReadOnlyException.class)
                     .hasMessageContaining("running in read-only mode.");
 
             final Command<CommitResult> forceNormalizingPush = Command.forcePush(normalizingPushCommand);
