@@ -120,7 +120,7 @@ public final class GitHttpService {
     }
 
     private static String maybeRemoveGitSuffix(String repoName) {
-        if (repoName.length() > 5 && repoName.endsWith(".git")) {
+        if (repoName.length() >= 5 && repoName.endsWith(".git")) {
             repoName = repoName.substring(0, repoName.length() - 4);
         }
         return repoName;
@@ -211,7 +211,7 @@ public final class GitHttpService {
         }
 
         void flush() {
-            https: //git-scm.com/docs/protocol-v2/2.31.0#_packet_line_framing
+            // https: //git-scm.com/docs/protocol-v2/2.31.0#_packet_line_framing
             sb.append("0000");
         }
 

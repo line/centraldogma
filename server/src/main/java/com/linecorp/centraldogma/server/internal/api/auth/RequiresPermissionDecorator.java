@@ -86,7 +86,7 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
      * GitHttpService. See {@link GitHttpService}.
      */
     private static String maybeRemoveGitSuffix(String repoName) {
-        if (repoName.length() > 5 && repoName.endsWith(".git")) {
+        if (repoName.length() >= 5 && repoName.endsWith(".git")) {
             repoName = repoName.substring(0, repoName.length() - 4);
         }
         return repoName;
