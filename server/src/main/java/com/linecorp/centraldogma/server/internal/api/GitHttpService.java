@@ -24,6 +24,7 @@ import static org.eclipse.jgit.transport.GitProtocolConstants.VERSION_2_REQUEST;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.UploadPack;
@@ -87,7 +88,7 @@ public final class GitHttpService {
 
     // https://git-scm.com/docs/protocol-common#_pkt_line_format
     static void pktLine(StringBuilder sb, String line) {
-        lineLength(sb, line.length() + 5);
+        lineLength(sb, line.getBytes(StandardCharsets.UTF_8).length + 5);
         sb.append(line).append('\n');
     }
 
@@ -184,14 +185,15 @@ public final class GitHttpService {
                 uploadPack.upload(inputStream, os, null);
             } catch (IOException e) {
                 // Log until https://github.com/line/centraldogma/pull/719 is implemented.
-                logger.debug("Failed to respond git-upload-pack-request: {}", req, e);
-                throw new RuntimeException("failed to respond git-upload-pack-request: " + req, e);
+                logger.debug("Failed to respond git-upload-pack-request: {}", req.contentUtf8(), e);
+                throw new RuntimeException("failed to respond git-upload-pack-request: " +
+                                           req.contentUtf8(), e);
             }
             try {
                 os.close();
             } catch (IOException e) {
                 // Should never reach here because StreamWriterOutputStream.close() never throws an exception.
-                logger.warn("Failed to close the output stream. request: {}", req, e);
+                logger.warn("Failed to close the output stream. request: {}", req.contentUtf8(), e);
             }
         });
         return HttpResponse.of(
