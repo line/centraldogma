@@ -24,6 +24,7 @@ import static org.eclipse.jgit.transport.GitProtocolConstants.VERSION_2_REQUEST;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.UploadPack;
@@ -192,7 +193,7 @@ public final class GitHttpService {
 
         // https://git-scm.com/docs/protocol-common#_pkt_line_format
         void put(String line) {
-            lineLength(sb, line.length() + 5);
+            lineLength(sb, line.getBytes(StandardCharsets.UTF_8).length + 5);
             sb.append(line).append('\n');
         }
 
