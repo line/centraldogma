@@ -21,12 +21,14 @@ import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_
 import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_WRITE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.File;
 import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -34,6 +36,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import com.google.common.util.concurrent.MoreExecutors;
 
+import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpData;
@@ -51,12 +54,14 @@ import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.armeria.testing.junit5.server.ServerExtension;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer;
+import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
@@ -84,11 +89,13 @@ class PermissionTest {
     static final ServerExtension server = new ServerExtension() {
         @Override
         protected void configure(ServerBuilder sb) throws Exception {
+            final File dataDir = rootDir.getRoot().toFile();
             final ProjectManager pm = new DefaultProjectManager(
-                    rootDir.getRoot().toFile(), ForkJoinPool.commonPool(),
+                    dataDir, ForkJoinPool.commonPool(),
                     MoreExecutors.directExecutor(), NoopMeterRegistry.get(), null);
+            final ServerStatusManager statusManager = new ServerStatusManager(dataDir);
             final CommandExecutor executor = new StandaloneCommandExecutor(
-                    pm, ForkJoinPool.commonPool(), null, null, null);
+                    pm, ForkJoinPool.commonPool(), statusManager, null, null, null);
             executor.start().join();
 
             ProjectInitializer.initializeInternalProject(executor);
@@ -102,7 +109,10 @@ class PermissionTest {
             mds.createToken(AUTHOR, APP_ID_3, SECRET_3).toCompletableFuture().join();
 
             mds.addRepo(AUTHOR, "project1", "repo1",
-                        new PerRolePermissions(READ_ONLY, READ_ONLY, NO_PERMISSION))
+                        new PerRolePermissions(READ_ONLY, READ_ONLY, NO_PERMISSION, NO_PERMISSION))
+               .toCompletableFuture().join();
+            mds.addRepo(AUTHOR, "project1", "anonymous_allowed_repo",
+                        new PerRolePermissions(READ_ONLY, READ_ONLY, NO_PERMISSION, READ_ONLY))
                .toCompletableFuture().join();
 
             // app-1 is an owner and it has read/write permission.
@@ -182,6 +192,20 @@ class PermissionTest {
         } else {
             assertThat(authenticatedUser(server.requestContextCaptor().take())).isEqualTo(appId);
         }
+    }
+
+    @Test
+    void test_anonymous() {
+        final BlockingWebClient client = server.blockingWebClient(
+                builder -> builder.addHeader(HttpHeaderNames.AUTHORIZATION,
+                                             "Bearer " + CsrfToken.ANONYMOUS));
+        final AggregatedHttpResponse response = client.get("/projects/project1/repos/anonymous_allowed_repo");
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
+
+        final WebClient client2 = WebClient.builder(server.httpUri()).build();
+        final AggregatedHttpResponse response2 = client2.get("/projects/project1/repos/anonymous_allowed_repo")
+                                                  .aggregate().join();
+        assertThat(response2.status()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Nullable

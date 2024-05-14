@@ -3,7 +3,7 @@
   "description": "The admin page for the Central Dogma",
   "license": "Apache-2.0",
   "dependencies": {
-    "ace-builds": "1.2.5",
+    "ace-builds": "1.32.2",
     "angular": "1.5.8",
     "angular-cache-buster": "0.4.3",
     "angular-cookies": "1.5.8",
