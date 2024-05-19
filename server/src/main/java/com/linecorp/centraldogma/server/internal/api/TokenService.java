@@ -31,6 +31,7 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
@@ -208,9 +209,17 @@ public class TokenService extends AbstractService {
                 token -> {
                     switch (tokenLevelRequest.getLevel()) {
                         case "USER":
+                            if (!token.isAdmin()) {
+                                throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
+                            }
+
                             return mds.updateTokenToUser(author, appId).thenCompose(
                                     unused -> mds.findTokenByAppId(appId).thenApply(Token::withoutSecret));
                         case "ADMIN":
+                            if (token.isAdmin()) {
+                                throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
+                            }
+
                             return mds.updateTokenToAdmin(author, appId).thenCompose(
                                     unused -> mds.findTokenByAppId(appId).thenApply(Token::withoutSecret));
                         default:
