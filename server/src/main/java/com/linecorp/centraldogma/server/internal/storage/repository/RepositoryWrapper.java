@@ -52,6 +52,11 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
+    public org.eclipse.jgit.lib.Repository jGitRepository() {
+        return unwrap().jGitRepository();
+    }
+
+    @Override
     public Project parent() {
         return unwrap().parent();
     }

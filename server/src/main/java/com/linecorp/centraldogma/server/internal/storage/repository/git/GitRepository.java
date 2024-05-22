@@ -386,6 +386,11 @@ class GitRepository implements Repository {
     }
 
     @Override
+    public org.eclipse.jgit.lib.Repository jGitRepository() {
+        return jGitRepository;
+    }
+
+    @Override
     public Project parent() {
         return parent;
     }

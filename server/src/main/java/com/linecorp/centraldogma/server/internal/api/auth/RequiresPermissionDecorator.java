@@ -35,6 +35,7 @@ import com.linecorp.armeria.server.SimpleDecoratingHttpService;
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.DecoratorFactoryFunction;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+import com.linecorp.centraldogma.server.internal.api.GitHttpService;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
@@ -70,7 +71,7 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
             }
             return unwrap().serve(ctx, req);
         }
-        return serveUserRepo(ctx, req, mds, user, projectName, repoName);
+        return serveUserRepo(ctx, req, mds, user, projectName, maybeRemoveGitSuffix(repoName));
     }
 
     private static HttpResponse throwForbiddenResponse(ServiceRequestContext ctx, String projectName,
@@ -78,6 +79,17 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
         return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
                                          "Repository '%s/%s' can be accessed only by an %s.",
                                          projectName, repoName, adminOrOwner);
+    }
+
+    /**
+     * Removes the trailing ".git" suffix from the repository name if it exists. This is added for
+     * GitHttpService. See {@link GitHttpService}.
+     */
+    private static String maybeRemoveGitSuffix(String repoName) {
+        if (repoName.length() >= 5 && repoName.endsWith(".git")) {
+            repoName = repoName.substring(0, repoName.length() - 4);
+        }
+        return repoName;
     }
 
     private HttpResponse serveUserRepo(ServiceRequestContext ctx, HttpRequest req,

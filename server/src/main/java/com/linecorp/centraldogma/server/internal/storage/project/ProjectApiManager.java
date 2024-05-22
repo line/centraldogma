@@ -124,4 +124,11 @@ public final class ProjectApiManager {
         }
         return projectManager.get(projectName);
     }
+
+    public boolean exists(String projectName) {
+        if (INTERNAL_PROJECT_DOGMA.equals(projectName) && !isAdmin()) {
+            throw new IllegalArgumentException("Cannot access " + projectName);
+        }
+        return projectManager.exists(projectName);
+    }
 }
