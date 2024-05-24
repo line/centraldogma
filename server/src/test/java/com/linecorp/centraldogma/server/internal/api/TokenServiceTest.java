@@ -246,30 +246,29 @@ class TokenServiceTest {
     }
 
     @Test
-    public void updateTokenLevel() {
-        final Token token = tokenService.createToken("forUpdate", true, null, adminAuthor, admin).join()
+    void updateTokenLevel() {
+        final Token token = tokenService.createToken("forUpdate", false, null, adminAuthor, admin).join()
                                         .content();
         assertThat(token.isActive()).isTrue();
 
-        final Token userToken = tokenService.updateTokenLevel(ctx, "forUpdate", new TokenLevelRequest("USER"),
+        final Token userToken = tokenService.updateTokenLevel(ctx, "forUpdate", new TokenLevelRequest("ADMIN"),
                                                               adminAuthor, admin)
                                             .join();
-        assertThat(userToken.isAdmin()).isFalse();
+        assertThat(userToken.isAdmin()).isTrue();
 
-        final Token adminToken = tokenService.updateTokenLevel(ctx, "forUpdate", new TokenLevelRequest("ADMIN"),
+        final Token adminToken = tokenService.updateTokenLevel(ctx, "forUpdate", new TokenLevelRequest("USER"),
                                                                adminAuthor, admin)
                                              .join();
-        assertThat(adminToken.isAdmin()).isTrue();
+        assertThat(adminToken.isAdmin()).isFalse();
 
         assertThatThrownBy(
                 () -> tokenService.updateTokenLevel(ctx, "forUpdate", new TokenLevelRequest("INVALID"),
                                                     adminAuthor, admin).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void createTokenAndUpdateLevel() throws JsonParseException {
+    void createTokenAndUpdateLevel() throws JsonParseException {
         assertThat(adminClient.post(API_V1_PATH_PREFIX + "tokens",
                                     QueryParams.of("appId", "forUpdate", "isAdmin", false),
                                     HttpData.empty())

@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.api;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
@@ -194,7 +195,7 @@ public class TokenService extends AbstractService {
     }
 
     /**
-     * PATCH /tokens/{appId}/permission
+     * PATCH /tokens/{appId}/level
      *
      * <p>Updates a permission of a token of the specified ID.
      */
@@ -205,26 +206,28 @@ public class TokenService extends AbstractService {
                                                      TokenLevelRequest tokenLevelRequest,
                                                      Author author, User loginUser) {
 
+        checkArgument(Arrays.asList("user", "admin").contains(tokenLevelRequest.level().toLowerCase()),
+                      "Unsupported token level: " + tokenLevelRequest.level());
+
         return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
                 token -> {
-                    switch (tokenLevelRequest.getLevel()) {
-                        case "USER":
+                    boolean toBeAdmin = false;
+
+                    switch (tokenLevelRequest.level().toLowerCase()) {
+                        case "user":
                             if (!token.isAdmin()) {
                                 throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
                             }
-
-                            return mds.updateTokenToUser(author, appId).thenCompose(
-                                    unused -> mds.findTokenByAppId(appId).thenApply(Token::withoutSecret));
-                        case "ADMIN":
+                            break;
+                        case "admin":
                             if (token.isAdmin()) {
                                 throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
                             }
-
-                            return mds.updateTokenToAdmin(author, appId).thenCompose(
-                                    unused -> mds.findTokenByAppId(appId).thenApply(Token::withoutSecret));
-                        default:
-                            throw new IllegalArgumentException("Unexpected token level: " + tokenLevelRequest);
+                            toBeAdmin = true;
+                            break;
                     }
+                    return mds.updateTokenLevel(author, appId, toBeAdmin).thenCompose(
+                            unused -> mds.findTokenByAppId(appId).thenApply(Token::withoutSecret));
                 });
     }
 

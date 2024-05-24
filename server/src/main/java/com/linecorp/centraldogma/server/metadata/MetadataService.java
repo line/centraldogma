@@ -1000,14 +1000,14 @@ public class MetadataService {
     }
 
     /**
-     * Update the {@link Token} of the specified {@code appId} to user.
+     * Update the {@link Token} of the specified {@code appId} to user or admin.
      */
-    public CompletableFuture<Revision> updateTokenToUser(Author author, String appId) {
+    public CompletableFuture<Revision> updateTokenLevel(Author author, String appId, boolean toBeAdmin) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
-                              "Update the token: " + appId + " to user",
+                              "Update the token level: " + appId,
                               () -> tokenRepo
                                       .fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
                                       .thenApply(tokens -> {
@@ -1018,30 +1018,7 @@ public class MetadataService {
                                                   TOKEN_JSON,
                                                   new ReplaceOperation(adminPath,
                                                                        Jackson.valueToTree(
-                                                                               false)).toJsonNode());
-                                          return HolderWithRevision.of(change, tokens.revision());
-                                      }));
-    }
-
-    /**
-     * Update the {@link Token} of the specified {@code appId} to admin.
-     */
-    public CompletableFuture<Revision> updateTokenToAdmin(Author author, String appId) {
-        requireNonNull(author, "author");
-        requireNonNull(appId, "appId");
-
-        return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
-                              "Update the token: " + appId + " to admin",
-                              () -> tokenRepo
-                                      .fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
-                                      .thenApply(tokens -> {
-                                          final JsonPointer adminPath = JsonPointer.compile(
-                                                  "/appIds" + encodeSegment(appId) +
-                                                  "/admin");
-                                          final Change<JsonNode> change = Change.ofJsonPatch(
-                                                  TOKEN_JSON,
-                                                  new ReplaceOperation(adminPath,
-                                                                       Jackson.valueToTree(true)).toJsonNode());
+                                                                               toBeAdmin)).toJsonNode());
                                           return HolderWithRevision.of(change, tokens.revision());
                                       }));
     }

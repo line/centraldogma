@@ -418,11 +418,11 @@ class MetadataServiceTest {
         assertThat(token).isNotNull();
         assertThat(token.isAdmin()).isFalse();
 
-        mds.updateTokenToAdmin(author, app1).join();
+        mds.updateTokenLevel(author, app1, true).join();
         token = mds.getTokens().join().get(app1);
         assertThat(token.isAdmin()).isTrue();
 
-        mds.updateTokenToUser(author, app1).join();
+        mds.updateTokenLevel(author, app1, false).join();
         token = mds.getTokens().join().get(app1);
         assertThat(token.isAdmin()).isFalse();
     }

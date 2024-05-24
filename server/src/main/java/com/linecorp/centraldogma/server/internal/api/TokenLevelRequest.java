@@ -16,21 +16,19 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 class TokenLevelRequest {
-    private String level;
+    private final String level;
 
-    TokenLevelRequest() {
-    }
-
-    TokenLevelRequest(String level) {
+    @JsonCreator
+    TokenLevelRequest(@JsonProperty("level") String level) {
         this.level = level;
     }
 
-    String getLevel() {
+    @JsonProperty
+    String level() {
         return level;
-    }
-
-    void setLevel(String level) {
-        this.level = level;
     }
 }
