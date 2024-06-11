@@ -89,6 +89,8 @@ import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * Annotated service object for managing and watching contents.
  */
@@ -101,10 +103,12 @@ public class ContentServiceV1 extends AbstractService {
     private static final String MIRROR_LOCAL_REPO = "localRepo";
 
     private final WatchService watchService;
+    private final MeterRegistry meterRegistry;
 
-    public ContentServiceV1(CommandExecutor executor, WatchService watchService) {
+    public ContentServiceV1(CommandExecutor executor, WatchService watchService, MeterRegistry meterRegistry) {
         super(executor);
         this.watchService = requireNonNull(watchService, "watchService");
+        this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
     }
 
     /**
@@ -189,6 +193,10 @@ public class ContentServiceV1 extends AbstractService {
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
         checkPush(repository.name(), changes);
+        meterRegistry.counter("commits.push",
+                              "project", repository.parent().name(),
+                              "repository", repository.name())
+                     .increment();
 
         final long commitTimeMillis = System.currentTimeMillis();
         return push(commitTimeMillis, author, repository, new Revision(revision), commitMessage, changes)

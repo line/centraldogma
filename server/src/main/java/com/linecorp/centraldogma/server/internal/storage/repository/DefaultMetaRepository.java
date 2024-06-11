@@ -77,6 +77,11 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     @Override
+    public org.eclipse.jgit.lib.Repository jGitRepository() {
+        return unwrap().jGitRepository();
+    }
+
+    @Override
     public CompletableFuture<List<Mirror>> mirrors(boolean includeDisabled) {
         if (includeDisabled) {
             return allMirrors();

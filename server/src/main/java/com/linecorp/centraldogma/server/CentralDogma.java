@@ -96,6 +96,7 @@ import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.cors.CorsService;
 import com.linecorp.armeria.server.docs.DocService;
+import com.linecorp.armeria.server.encoding.DecodingService;
 import com.linecorp.armeria.server.encoding.EncodingService;
 import com.linecorp.armeria.server.file.FileService;
 import com.linecorp.armeria.server.file.HttpFile;
@@ -129,6 +130,7 @@ import com.linecorp.centraldogma.server.internal.admin.service.UserService;
 import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
 import com.linecorp.centraldogma.server.internal.api.AdministrativeService;
 import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
+import com.linecorp.centraldogma.server.internal.api.GitHttpService;
 import com.linecorp.centraldogma.server.internal.api.CredentialServiceV1;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService;
 import com.linecorp.centraldogma.server.internal.api.MirroringServiceV1;
@@ -613,7 +615,8 @@ public class CentralDogma implements AutoCloseable {
                                                                  "Bearer " + CsrfToken.ANONYMOUS))
                                   .build());
 
-        configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, sessionManager);
+        configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, sessionManager,
+                         meterRegistry);
 
         configureMetrics(sb, meterRegistry);
 
@@ -739,7 +742,7 @@ public class CentralDogma implements AutoCloseable {
                                   ProjectApiManager projectApiManager, CommandExecutor executor,
                                   WatchService watchService, MetadataService mds,
                                   @Nullable AuthProvider authProvider,
-                                  @Nullable SessionManager sessionManager) {
+                                  @Nullable SessionManager sessionManager, MeterRegistry meterRegistry) {
         Function<? super HttpService, ? extends HttpService> decorator;
 
         if (authProvider != null) {
@@ -818,7 +821,11 @@ public class CentralDogma implements AutoCloseable {
           .decorator(decorator)
           .requestConverters(v1RequestConverter, jacksonRequestConverterFunction)
           .responseConverters(v1ResponseConverter)
-          .build(new ContentServiceV1(executor, watchService));
+          .build(new ContentServiceV1(executor, watchService, meterRegistry));
+
+        sb.annotatedService().decorator(decorator)
+          .decorator(DecodingService.newDecorator())
+          .build(new GitHttpService(projectApiManager));
 
         if (authProvider != null) {
             final AuthConfig authCfg = cfg.authConfig();
@@ -899,6 +906,8 @@ public class CentralDogma implements AutoCloseable {
                             case "json":
                             case "xml":
                             case "x-thrift":
+                            case "x-git-upload-pack-advertisement":
+                            case "x-git-upload-pack-result":
                                 return true;
                             default:
                                 return subtype.endsWith("+json") ||
