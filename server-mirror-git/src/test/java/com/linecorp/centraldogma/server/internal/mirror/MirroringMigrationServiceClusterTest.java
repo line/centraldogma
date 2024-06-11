@@ -36,6 +36,7 @@ import static com.linecorp.centraldogma.server.internal.mirror.MirroringMigratio
 import static com.linecorp.centraldogma.server.internal.mirror.MirroringMigrationServiceTest.TEST_REPO3;
 import static com.linecorp.centraldogma.server.internal.mirror.MirroringMigrationServiceTest.assertCredential;
 import static com.linecorp.centraldogma.server.internal.mirror.MirroringMigrationServiceTest.assertMirrorConfig;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -57,6 +58,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.spotify.futures.CompletableFutures;
 
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.internal.common.util.PortUtil;
 import com.linecorp.centraldogma.client.CentralDogmaRepository;
@@ -71,13 +73,17 @@ import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
+import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
+import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
+import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 
 class MirroringMigrationServiceClusterTest {
 
     @RegisterExtension
     static final TemporaryFolderExtension tempDir = new TemporaryFolderExtension();
+    private final AuthProviderFactory factory = new TestAuthProviderFactory();
 
     @Timeout(value = 3, unit = TimeUnit.MINUTES)
     @Test
@@ -101,7 +107,9 @@ class MirroringMigrationServiceClusterTest {
                                  return new CentralDogmaBuilder(data)
                                          .port(port, SessionProtocol.HTTP)
                                          .mirroringEnabled(false)
+                                         .authProviderFactory(factory)
                                          .replication(replicationConfig)
+                                         .administrators(TestAuthMessageUtil.USERNAME)
                                          .build();
                              } catch (IOException e) {
                                  throw new RuntimeException(e);
@@ -113,9 +121,13 @@ class MirroringMigrationServiceClusterTest {
         CompletableFutures.allAsList(futures).join();
 
         final int serverPort = servers.get(0).activePort().localAddress().getPort();
+        final String accessToken = getAccessToken(WebClient.of("http://127.0.0.1:" + serverPort),
+                                                  TestAuthMessageUtil.USERNAME,
+                                                  TestAuthMessageUtil.PASSWORD);
         final com.linecorp.centraldogma.client.CentralDogma client =
                 new ArmeriaCentralDogmaBuilder()
                         .host("127.0.0.1", serverPort)
+                        .accessToken(accessToken)
                         .build();
 
         client.createProject(TEST_PROJ).join();

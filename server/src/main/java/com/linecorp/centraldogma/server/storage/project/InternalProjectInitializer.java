@@ -22,7 +22,6 @@ import static com.linecorp.centraldogma.server.command.Command.push;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import com.google.common.collect.ImmutableList;
 
@@ -47,7 +46,6 @@ public final class InternalProjectInitializer {
 
     public static final String INTERNAL_PROJECT_DOGMA = "dogma";
 
-    private final CompletableFuture<Void> whenInitialized = new CompletableFuture<>();
     private final CommandExecutor executor;
 
     /**
@@ -61,19 +59,14 @@ public final class InternalProjectInitializer {
      * Creates an internal project and repositories such as a token storage.
      */
     public void initialize() {
-        if (whenInitialized.isDone()) {
-            return;
-        }
-
         final long creationTimeMillis = System.currentTimeMillis();
         try {
             executor.execute(createProject(creationTimeMillis, Author.SYSTEM, INTERNAL_PROJECT_DOGMA))
                     .get();
         } catch (Throwable cause) {
             final Throwable peeled = Exceptions.peel(cause);
-            if (peeled instanceof ReadOnlyException) {
+            if (cause instanceof ReadOnlyException) {
                 // The executor has stopped right after starting up.
-                whenInitialized.complete(null);
                 return;
             }
             if (!(peeled instanceof ProjectExistsException)) {
@@ -93,16 +86,12 @@ public final class InternalProjectInitializer {
             executor.execute(push(Author.SYSTEM, INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, Revision.HEAD,
                                   commitSummary, "", Markup.PLAINTEXT, ImmutableList.of(change)))
                     .get();
-
-            whenInitialized.complete(null);
         } catch (Throwable cause) {
             final Throwable peeled = Exceptions.peel(cause);
-            if (peeled instanceof ChangeConflictException || peeled instanceof ReadOnlyException) {
-                whenInitialized.complete(null);
-            } else {
-                whenInitialized.completeExceptionally(peeled);
-                throw new Error("failed to initialize the token list file", peeled);
+            if (peeled instanceof ReadOnlyException || peeled instanceof ChangeConflictException) {
+                return;
             }
+            throw new Error("failed to initialize the token list file", peeled);
         }
     }
 
@@ -123,19 +112,15 @@ public final class InternalProjectInitializer {
                         .get();
             } catch (Throwable cause) {
                 final Throwable peeled = Exceptions.peel(cause);
+                if (peeled instanceof ReadOnlyException) {
+                    // The executor has stopped right after starting up.
+                    return;
+                }
                 if (!(peeled instanceof RepositoryExistsException)) {
                     throw new Error("failed to initialize an internal repository: " + INTERNAL_PROJECT_DOGMA +
                                     '/' + repo, peeled);
                 }
             }
         }
-    }
-
-    /**
-     * Returns a {@link CompletableFuture} which is completed when the internal project is initialized with
-     * the default internal repositories.
-     */
-    public CompletableFuture<Void> whenInitialized() {
-        return whenInitialized;
     }
 }

@@ -77,6 +77,7 @@ import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
@@ -85,6 +86,7 @@ import com.linecorp.centraldogma.server.internal.api.converter.MergeQueryRequest
 import com.linecorp.centraldogma.server.internal.api.converter.QueryRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
@@ -188,12 +190,14 @@ public class ContentServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/repos/{repoName}/contents")
     @RequiresWritePermission
     public CompletableFuture<PushResultDto> push(
+            ServiceRequestContext ctx,
             @Param @Default("-1") String revision,
             Repository repository,
             Author author,
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
-        checkPush(repository.name(), changes);
+        final User user = AuthUtil.currentUser(ctx);
+        checkPush(repository.name(), changes, user.isAdmin());
         meterRegistry.counter("commits.push",
                               "project", repository.parent().name(),
                               "repository", repository.name())
@@ -438,7 +442,7 @@ public class ContentServiceV1 extends AbstractService {
      * Checks if the commit is for creating a file and raises a {@link InvalidPushException} if the
      * given {@code repoName} field is one of {@code meta} and {@code dogma} which are internal repositories.
      */
-    public static void checkPush(String repoName, Iterable<Change<?>> changes) {
+    public static void checkPush(String repoName, Iterable<Change<?>> changes, boolean isAdmin) {
         if (Project.REPO_META.equals(repoName)) {
             final boolean hasChangesOtherThanMetaRepoFiles =
                     Streams.stream(changes).anyMatch(change -> !isMetaFile(change.path()));
@@ -447,22 +451,26 @@ public class ContentServiceV1 extends AbstractService {
                         "The " + Project.REPO_META + " repository is reserved for internal usage.");
             }
 
-            for (Change<?> change : changes) {
-                // 'mirrors.json' and 'credentials.json' are disallowed to be created or modified.
-                // 'mirrors/{id}.json' and 'credentials/{id}.json' must be used instead.
-                final String path = change.path();
-                if (change.type() == ChangeType.REMOVE) {
-                    continue;
-                }
-                if ("/mirrors.json".equals(path)) {
-                    throw new InvalidPushException(
-                            "The '/mirrors.json' file is disallowed. Use '/mirrors/{id}.json' file or " +
-                            "'/api/v1/projects/{projectName}/mirrors' API instead.");
-                }
-                if ("/credentials.json".equals(path)) {
-                    throw new InvalidPushException(
-                            "The '/credentials.json' file is disallowed. Use '/credentials/{id}.json' file or " +
-                            "'/api/v1/projects/{projectName}/credentials' API instead.");
+            if (isAdmin) {
+                // Admin may push the legacy files to test migration.
+            } else {
+                for (Change<?> change : changes) {
+                    // 'mirrors.json' and 'credentials.json' are disallowed to be created or modified.
+                    // 'mirrors/{id}.json' and 'credentials/{id}.json' must be used instead.
+                    final String path = change.path();
+                    if (change.type() == ChangeType.REMOVE) {
+                        continue;
+                    }
+                    if ("/mirrors.json".equals(path)) {
+                        throw new InvalidPushException(
+                                "The '/mirrors.json' file is disallowed. Use '/mirrors/{id}.json' file or " +
+                                "'/api/v1/projects/{projectName}/mirrors' API instead.");
+                    }
+                    if ("/credentials.json".equals(path)) {
+                        throw new InvalidPushException(
+                                "The '/credentials.json' file is disallowed. Use '/credentials/{id}.json' file or " +
+                                "'/api/v1/projects/{projectName}/credentials' API instead.");
+                    }
                 }
             }
 

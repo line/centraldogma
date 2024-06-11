@@ -18,8 +18,6 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import java.util.concurrent.CompletableFuture;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.annotation.Consumes;
@@ -86,9 +84,5 @@ public final class AdministrativeService extends AbstractService {
             return execute(Command.updateServerStatus(newStatus))
                     .thenApply(unused -> status());
         }
-    }
-
-    private static CompletableFuture<ServerStatus> rejectStatusPatch(JsonNode patch) {
-        throw new IllegalArgumentException("Invalid JSON patch: " + patch);
     }
 }

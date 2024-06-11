@@ -50,7 +50,6 @@ import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.mirror.Mirror;
-import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -69,7 +68,6 @@ public final class DefaultMirroringService implements MirroringService {
 
     private final File workDir;
     private final ProjectManager projectManager;
-    private final InternalProjectInitializer projectInitializer;
     private final int numThreads;
     private final int maxNumFilesPerMirror;
     private final long maxNumBytesPerMirror;
@@ -82,13 +80,11 @@ public final class DefaultMirroringService implements MirroringService {
     private final MeterRegistry meterRegistry;
 
     DefaultMirroringService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
-                            InternalProjectInitializer projectInitializer,
                             int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror) {
 
         this.workDir = requireNonNull(workDir, "workDir");
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
-        this.projectInitializer = requireNonNull(projectInitializer, "projectInitializer");
 
         checkArgument(numThreads > 0, "numThreads: %s (expected: > 0)", numThreads);
         checkArgument(maxNumFilesPerMirror > 0,
@@ -136,7 +132,7 @@ public final class DefaultMirroringService implements MirroringService {
 
         // Migrate the old mirrors.json to the new format if exists.
         try {
-            new MirroringMigrationService(projectManager, commandExecutor, projectInitializer).migrate();
+            new MirroringMigrationService(projectManager, commandExecutor).migrate();
         } catch (Throwable e) {
             logger.error("Git mirroring stopped due to an unexpected exception while migrating mirrors.json:",
                          e);

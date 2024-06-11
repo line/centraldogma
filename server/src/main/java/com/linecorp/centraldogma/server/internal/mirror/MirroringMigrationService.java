@@ -62,7 +62,6 @@ import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
-import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
@@ -82,21 +81,16 @@ class MirroringMigrationService {
 
     private final ProjectManager projectManager;
     private final CommandExecutor commandExecutor;
-    private final InternalProjectInitializer projectInitializer;
 
     @Nullable
     private List<String> shortWords;
 
-    MirroringMigrationService(ProjectManager projectManager, CommandExecutor commandExecutor,
-                              InternalProjectInitializer projectInitializer) {
+    MirroringMigrationService(ProjectManager projectManager, CommandExecutor commandExecutor) {
         this.projectManager = projectManager;
         this.commandExecutor = commandExecutor;
-        this.projectInitializer = projectInitializer;
     }
 
     void migrate() throws Exception {
-        // Wait until the internal project is initialized.
-        projectInitializer.whenInitialized().get();
 
         if (wasMigrated()) {
             logger.debug("Mirrors and credentials have already been migrated. Skipping auto migration...");
