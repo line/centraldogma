@@ -32,6 +32,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ProjectExistsException;
+import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -68,10 +69,15 @@ public final class InternalProjectInitializer {
         try {
             executor.execute(createProject(creationTimeMillis, Author.SYSTEM, INTERNAL_PROJECT_DOGMA))
                     .get();
-        } catch (Throwable cause1) {
-            final Throwable peeled1 = Exceptions.peel(cause1);
-            if (!(peeled1 instanceof ProjectExistsException)) {
-                throw new Error("failed to initialize an internal project: " + INTERNAL_PROJECT_DOGMA, peeled1);
+        } catch (Throwable cause) {
+            final Throwable peeled = Exceptions.peel(cause);
+            if (peeled instanceof ReadOnlyException) {
+                // The executor has stopped right after starting up.
+                whenInitialized.complete(null);
+                return;
+            }
+            if (!(peeled instanceof ProjectExistsException)) {
+                throw new Error("failed to initialize an internal project: " + INTERNAL_PROJECT_DOGMA, peeled);
             }
         }
 
@@ -91,7 +97,7 @@ public final class InternalProjectInitializer {
             whenInitialized.complete(null);
         } catch (Throwable cause) {
             final Throwable peeled = Exceptions.peel(cause);
-            if (peeled instanceof ChangeConflictException) {
+            if (peeled instanceof ChangeConflictException || peeled instanceof ReadOnlyException) {
                 whenInitialized.complete(null);
             } else {
                 whenInitialized.completeExceptionally(peeled);

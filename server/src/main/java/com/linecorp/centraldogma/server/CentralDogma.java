@@ -478,6 +478,7 @@ public class CentralDogma implements AutoCloseable {
         };
 
         statusManager = new ServerStatusManager(cfg.dataDir());
+        logger.info("Startup mode: {}", statusManager.serverStatus());
         final CommandExecutor executor;
         final ReplicationMethod replicationMethod = cfg.replicationConfig().method();
         switch (replicationMethod) {
