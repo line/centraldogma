@@ -59,6 +59,7 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.RequestConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.Markup;
@@ -444,6 +445,25 @@ public class ContentServiceV1 extends AbstractService {
             if (hasChangesOtherThanMetaRepoFiles) {
                 throw new InvalidPushException(
                         "The " + Project.REPO_META + " repository is reserved for internal usage.");
+            }
+
+            for (Change<?> change : changes) {
+                // 'mirrors.json' and 'credentials.json' are disallowed to be created or modified.
+                // 'mirrors/{id}.json' and 'credentials/{id}.json' must be used instead.
+                final String path = change.path();
+                if (change.type() == ChangeType.REMOVE) {
+                    continue;
+                }
+                if ("/mirrors.json".equals(path)) {
+                    throw new InvalidPushException(
+                            "The '/mirrors.json' file is disallowed. Use '/mirrors/{id}.json' file or " +
+                            "'/api/v1/projects/{projectName}/mirrors' API instead.");
+                }
+                if ("/credentials.json".equals(path)) {
+                    throw new InvalidPushException(
+                            "The '/credentials.json' file is disallowed. Use '/credentials/{id}.json' file or " +
+                            "'/api/v1/projects/{projectName}/credentials' API instead.");
+                }
             }
 
             // TODO(ikhoon): Disallow creating a mirror with the commit API. Mirroring REST API should be used

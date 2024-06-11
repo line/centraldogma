@@ -49,6 +49,10 @@ import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class MirroringServiceV1 extends AbstractService {
 
+    // TODO(ikhoon):
+    //  - Write documentation for the REST API specification
+    //  - Add Java APIs to the CentralDogma client
+
     private final ProjectApiManager projectApiManager;
 
     public MirroringServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor) {
