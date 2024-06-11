@@ -230,8 +230,8 @@ class MirroringMigrationService {
             final MetaRepository metaRepository = project.metaRepo();
             rollbackMigration(metaRepository, PATH_MIRRORS, PATH_LEGACY_MIRRORS,
                               PATH_LEGACY_MIRRORS_BACKUP);
-            rollbackMigration(metaRepository, PATH_CREDENTIALS, PATH_LEGACY_MIRRORS,
-                              PATH_LEGACY_MIRRORS_BACKUP);
+            rollbackMigration(metaRepository, PATH_CREDENTIALS, PATH_LEGACY_CREDENTIALS,
+                              PATH_LEGACY_CREDENTIALS_BACKUP);
         }
     }
 

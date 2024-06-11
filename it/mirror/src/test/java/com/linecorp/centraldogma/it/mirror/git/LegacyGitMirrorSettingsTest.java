@@ -65,25 +65,6 @@ class LegacyGitMirrorSettingsTest {
                   .push().join();
         }).isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(InvalidPushException.class)
-          .hasMessageContaining(" The '/mirrors.json' file is disallowed.");
-
-        assertThatThrownBy(() -> {
-            client.forRepo("foo", Project.REPO_META)
-                  .commit("Add /mirrors.json",
-                          Change.ofJsonUpsert("/mirrors.json",
-                                              "[{" +
-                                              "  \"id\": \"foo\"," +
-                                              "  \"enabled\": true," +
-                                              "  \"type\": \"single\"," +
-                                              "  \"direction\": \"REMOTE_TO_LOCAL\"," +
-                                              "  \"localRepo\": \"local\"," +
-                                              "  \"localPath\": \"localPath0\"," +
-                                              "  \"remoteUri\": \"remoteUri\"," +
-                                              "  \"schedule\": \"0 0 0 1 1 ? 2099\"" +
-                                              "}]"))
-                  .push().join();
-        }).isInstanceOf(CompletionException.class)
-          .hasCauseInstanceOf(InvalidPushException.class)
           .hasMessageContaining("The '/mirrors.json' file is disallowed.");
 
         assertThatThrownBy(() -> {
