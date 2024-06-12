@@ -65,7 +65,7 @@ public final class InternalProjectInitializer {
                     .get();
         } catch (Throwable cause) {
             final Throwable peeled = Exceptions.peel(cause);
-            if (cause instanceof ReadOnlyException) {
+            if (peeled instanceof ReadOnlyException) {
                 // The executor has stopped right after starting up.
                 return;
             }

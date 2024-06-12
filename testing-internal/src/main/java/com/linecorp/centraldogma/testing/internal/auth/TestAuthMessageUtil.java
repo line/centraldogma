@@ -58,11 +58,10 @@ public final class TestAuthMessageUtil {
 
     public static AggregatedHttpResponse loginWithBasicAuth(WebClient client, String username,
                                                             String password) {
-        return client.execute(
-                             RequestHeaders.of(HttpMethod.POST, "/api/v1/login",
-                                               HttpHeaderNames.AUTHORIZATION,
-                                               "basic " + encoder.encodeToString(
-                                                       (username + ':' + password).getBytes(StandardCharsets.US_ASCII))))
+        final String token = "basic " + encoder.encodeToString(
+                (username + ':' + password).getBytes(StandardCharsets.US_ASCII));
+        return client.execute(RequestHeaders.of(HttpMethod.POST, "/api/v1/login",
+                                                HttpHeaderNames.AUTHORIZATION, token))
                      .aggregate().join();
     }
 
