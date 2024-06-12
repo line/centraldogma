@@ -452,7 +452,7 @@ public class ContentServiceV1 extends AbstractService {
             }
 
             if (isAdmin) {
-                // Admin may push the legacy files to test migration.
+                // Admin may push the legacy files to test the mirror migration.
             } else {
                 for (Change<?> change : changes) {
                     // 'mirrors.json' and 'credentials.json' are disallowed to be created or modified.
@@ -468,8 +468,8 @@ public class ContentServiceV1 extends AbstractService {
                     }
                     if ("/credentials.json".equals(path)) {
                         throw new InvalidPushException(
-                                "The '/credentials.json' file is disallowed. Use '/credentials/{id}.json' file or " +
-                                "'/api/v1/projects/{projectName}/credentials' API instead.");
+                                "The '/credentials.json' file is disallowed. Use '/credentials/{id}.json' " +
+                                "file or '/api/v1/projects/{projectName}/credentials' API instead.");
                     }
                 }
             }
