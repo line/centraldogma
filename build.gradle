@@ -71,14 +71,14 @@ configure(projectsWithFlags('java')) {
             testImplementation libs.slf4j2.jul.to.slf4j
             testImplementation libs.slf4j2.jcl.over.slf4j
             testImplementation libs.slf4j2.log4j.over.slf4j
-            testRuntimeOnly libs.logback14
+            testRuntimeOnly libs.logback15
             configurations.configureEach {
                 resolutionStrategy {
                     force libs.slf4j2.api.get()
                     force libs.slf4j2.jul.to.slf4j.get()
                     force libs.slf4j2.jcl.over.slf4j.get()
                     force libs.slf4j2.log4j.over.slf4j.get()
-                    force libs.logback14.get()
+                    force libs.logback15.get()
                 }
             }
         } else {

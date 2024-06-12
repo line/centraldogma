@@ -3,13 +3,13 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 [versions]
-armeria = "1.28.4"
-assertj = "3.25.3"
+armeria = "1.29.0"
+assertj = "3.26.0"
 awaitility = "4.2.1"
 bouncycastle = "1.78.1"
 caffeine = "2.9.3"
 checkstyle = "10.3.3"
-controlplane = "1.0.44"
+controlplane = "1.0.45"
 curator = "5.6.0"
 # Do not upgrade cron-utils until there's another CVE or Armeria's SLF4J and Logback are upgraded.
 cron-utils = "9.2.0"
@@ -19,12 +19,12 @@ download = "5.6.0"
 eddsa = "0.3.0"
 findbugs = "3.0.2"
 futures-completable = "0.3.6"
-guava = "33.1.0-jre"
+guava = "33.2.1-jre"
 guava-failureaccess = "1.0.1"
 hamcrest-library = "2.2"
 hibernate-validator6 = "6.2.5.Final"
 hibernate-validator8 = "8.0.1.Final"
-jackson = "2.17.0"
+jackson = "2.17.1"
 javassist = "3.30.2-GA"
 javax-annotation = "1.3.2"
 javax-inject = "1"
@@ -43,9 +43,9 @@ jmh-core = "1.37"
 jmh-gradle-plugin = "0.7.2"
 jxr = "0.2.1"
 logback12 = { strictly = "1.2.13" }
-logback14 = { strictly = "1.4.14" }
+logback15 = { strictly = "1.5.5" }
 logback = "1.2.13"
-micrometer = "1.12.4"
+micrometer = "1.13.0"
 mina-sshd = "2.12.1"
 mockito = "4.11.0"
 nexus-publish-plugin = "2.0.0"
@@ -56,15 +56,15 @@ quartz = "2.3.2"
 shadow-gradle-plugin = "7.1.2"
 shiro = "1.3.2"
 slf4j1 = { strictly = "1.7.36" }
-slf4j2 = { strictly = "2.0.7" }
+slf4j2 = { strictly = "2.0.12" }
 # Ensure that we use the same Snappy version as what Curator depends on.
 # See: https://github.com/apache/curator/blob/master/pom.xml
 snappy = "1.1.10.4"
 sphinx = "2.10.1"
 spring-boot2 = "2.7.18"
-spring-boot3 = "3.2.4"
+spring-boot3 = "3.3.0"
 spring-test-junit5 = "1.5.0"
-testcontainers = "1.19.7"
+testcontainers = "1.19.8"
 thrift09 = { strictly = "0.9.3-1" }
 zookeeper = "3.7.2"
 
@@ -80,13 +80,14 @@ javadocs = "https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.27
 module = "com.linecorp.armeria:armeria-grpc"
 [libraries.armeria-junit5]
 module = "com.linecorp.armeria:armeria-junit5"
+[libraries.armeria-prometheus1]
+module = "com.linecorp.armeria:armeria-prometheus1"
 [libraries.armeria-saml]
 module = "com.linecorp.armeria:armeria-saml"
 [libraries.armeria-thrift09]
 module = "com.linecorp.armeria:armeria-thrift0.9"
 [libraries.armeria-xds]
 module = "com.linecorp.armeria:armeria-xds"
-
 
 [libraries.assertj]
 module = "org.assertj:assertj-core"
@@ -282,10 +283,10 @@ module = "org.junit.platform:junit-platform-launcher"
 module = "ch.qos.logback:logback-classic"
 version.ref = "logback12"
 javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.12/"
-[libraries.logback14]
+[libraries.logback15]
 module = "ch.qos.logback:logback-classic"
-version.ref = "logback14"
-javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.4.11/"
+version.ref = "logback15"
+javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.5.4/"
 
 [libraries.controlplane-cache]
 module = "io.envoyproxy.controlplane:cache"
@@ -297,11 +298,11 @@ version.ref = "controlplane"
 [libraries.micrometer-core]
 module = "io.micrometer:micrometer-core"
 version.ref = "micrometer"
-javadocs = "https://www.javadoc.io/doc/io.micrometer/micrometer-core/1.11.3/"
+javadocs = "https://www.javadoc.io/doc/io.micrometer/micrometer-core/1.13.0/"
 [libraries.micrometer-prometheus]
 module = "io.micrometer:micrometer-registry-prometheus"
 version.ref = "micrometer"
-javadocs = "https://www.javadoc.io/doc/io.micrometer/micrometer-registry-prometheus/1.11.3/"
+javadocs = "https://www.javadoc.io/doc/io.micrometer/micrometer-registry-prometheus/1.13.0/"
 
 [libraries.mina-sshd-core]
 module = "org.apache.sshd:sshd-core"

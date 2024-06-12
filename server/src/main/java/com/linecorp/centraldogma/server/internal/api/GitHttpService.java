@@ -65,7 +65,7 @@ public final class GitHttpService {
     // TODO(minwoox): Add the headers in this class to Armeria.
     private static final AggregatedHttpResponse CAPABILITY_ADVERTISEMENT_RESPONSE = AggregatedHttpResponse.of(
             ResponseHeaders.builder(200)
-                           .add(HttpHeaderNames.CONTENT_TYPE, "application/x-git-upload-pack-advertisement")
+                           .contentType(MediaType.GIT_UPLOAD_PACK_ADVERTISEMENT)
                            .add(HttpHeaderNames.CACHE_CONTROL, ServerCacheControl.REVALIDATED.asHeaderValue())
                            .build(),
             HttpData.ofUtf8(capabilityAdvertisement()));
@@ -132,14 +132,14 @@ public final class GitHttpService {
     public HttpResponse gitUploadPack(AggregatedHttpRequest req,
                                       @Param String projectName, @Param String repoName) {
         repoName = maybeRemoveGitSuffix(repoName);
-        final String gitProtocol = req.headers().get("git-protocol");
+        final String gitProtocol = req.headers().get(HttpHeaderNames.GIT_PROTOCOL);
         if (gitProtocol == null || !gitProtocol.contains(VERSION_2_REQUEST)) {
             return HttpResponse.of(HttpStatus.BAD_REQUEST, MediaType.PLAIN_TEXT_UTF_8,
                                    "Unsupported git-protocol: " + gitProtocol);
         }
 
         final MediaType contentType = req.headers().contentType();
-        if (contentType == null || !"application/x-git-upload-pack-request".equals(contentType.toString())) {
+        if (MediaType.GIT_UPLOAD_PACK_REQUEST != contentType) {
             return HttpResponse.of(HttpStatus.BAD_REQUEST, MediaType.PLAIN_TEXT_UTF_8,
                                    "Unsupported content-type: " + contentType);
         }
@@ -182,7 +182,7 @@ public final class GitHttpService {
         });
         return HttpResponse.of(
                 ResponseHeaders.builder(200)
-                               .add(HttpHeaderNames.CONTENT_TYPE, "application/x-git-upload-pack-result")
+                               .contentType(MediaType.GIT_UPLOAD_PACK_RESULT)
                                .add(HttpHeaderNames.CACHE_CONTROL,
                                     ServerCacheControl.REVALIDATED.asHeaderValue())
                                .build(), body);
