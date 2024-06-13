@@ -258,8 +258,8 @@ abstract class AbstractGitMirror extends AbstractMirror {
                     mirrorStatePath, "{ \"sourceRevision\": \"" + headCommitId.name() + "\" }"));
             // Construct the log message and log.
             final String branchName = getRemoteBranchName(headBranchRef);
-            summary = "Mirror " + abbrId + ", " + remoteRepoUri() + '#' + branchName +
-                      " to the repository '" + localRepo().name() + '\'';
+            summary = "Mirror " + abbrId + ", '" + remoteRepoUri() + '#' + branchName +
+                      "' to the repository '" + localRepo().name() + '\'';
             final RevCommit headCommit = revWalk.parseCommit(headCommitId);
             detail = generateCommitDetail(headCommit);
             logger.info(summary);
@@ -725,13 +725,15 @@ abstract class AbstractGitMirror extends AbstractMirror {
     }
 
     private String getRemoteBranchName(Ref headBranchRef) {
-        if (remoteBranch() != null && !remoteBranch().isEmpty()) {
-            return remoteBranch();
+        final String remoteBranch = remoteBranch();
+        if (remoteBranch != null && !remoteBranch.isEmpty()) {
+            return remoteBranch;
         }
-        if (headBranchRef.getName().startsWith(Constants.R_HEADS)) {
-            return headBranchRef.getName().substring(Constants.R_HEADS.length());
+        final String headBranchName = headBranchRef.getName();
+        if (headBranchName.startsWith(Constants.R_HEADS)) {
+            return headBranchName.substring(Constants.R_HEADS.length());
         }
-        return "";
+        return headBranchName;
     }
 
     private static final class InsertText extends PathEdit {
