@@ -28,6 +28,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
@@ -62,9 +64,11 @@ import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 class MirroringMigrationService {
 
@@ -78,6 +82,8 @@ class MirroringMigrationService {
     static final String PATH_LEGACY_MIRRORS_BACKUP = PATH_LEGACY_MIRRORS + ".bak";
     @VisibleForTesting
     static final String PATH_LEGACY_CREDENTIALS_BACKUP = PATH_LEGACY_CREDENTIALS + ".bak";
+    @VisibleForTesting
+    static final String MIRROR_MIGRATION_JOB_LOG = "/mirror-migration-job.json";
 
     private final ProjectManager projectManager;
     private final CommandExecutor commandExecutor;
@@ -91,8 +97,7 @@ class MirroringMigrationService {
     }
 
     void migrate() throws Exception {
-
-        if (wasMigrated()) {
+        if (hasMigrationLog()) {
             logger.debug("Mirrors and credentials have already been migrated. Skipping auto migration...");
             return;
         }
@@ -124,6 +129,7 @@ class MirroringMigrationService {
                                 project.name());
                 }
             }
+            logMigrationJob();
         } catch (Exception ex) {
             final MirrorMigrationException mirrorException = new MirrorMigrationException(
                     "Failed to migrate mirrors and credentials. Rollback to the legacy configurations", ex);
@@ -145,23 +151,42 @@ class MirroringMigrationService {
         shortWords = null;
     }
 
-    private boolean wasMigrated() throws Exception {
-        for (Project project : projectManager.list().values()) {
-            final MetaRepository repository = project.metaRepo();
-            if (getMetaData(repository, PATH_LEGACY_MIRRORS_BACKUP) != null) {
-                // The mirrors.json file has been backed up.
-                return true;
-            }
-            if (getMetaData(repository, PATH_LEGACY_CREDENTIALS_BACKUP) != null) {
-                // The credentials.json file has been backed up.
-                return true;
-            }
+    private void logMigrationJob() throws Exception {
+        final ImmutableMap<String, Instant> data = ImmutableMap.of("timestamp", Instant.now());
+        final Change<JsonNode> change = Change.ofJsonUpsert(MIRROR_MIGRATION_JOB_LOG,
+                                                            Jackson.writeValueAsString(data));
+        final Command<CommitResult> command =
+                Command.push(Author.SYSTEM, InternalProjectInitializer.INTERNAL_PROJECT_DOGMA,
+                             Project.REPO_DOGMA, Revision.HEAD,
+                             "Migration of mirrors and credentials has been done", "",
+                             Markup.PLAINTEXT, change);
+        executeCommand(command);
+    }
+
+    private void remoteMigrationJobLog() throws Exception {
+        if (!hasMigrationLog()) {
+            // Maybe the migration job was failed before writing the log.
+            return;
         }
-        return false;
+        final Change<Void> change = Change.ofRemoval(MIRROR_MIGRATION_JOB_LOG);
+        final Command<CommitResult> command =
+                Command.push(Author.SYSTEM, InternalProjectInitializer.INTERNAL_PROJECT_DOGMA,
+                             Project.REPO_DOGMA, Revision.HEAD,
+                             "Remove the migration job log", "",
+                             Markup.PLAINTEXT, change);
+        executeCommand(command);
+    }
+
+    private boolean hasMigrationLog() throws Exception {
+        final Project internalProj = projectManager.get(InternalProjectInitializer.INTERNAL_PROJECT_DOGMA);
+        final Repository repository = internalProj.repos().get(Project.REPO_DOGMA);
+        final Map<String, Entry<?>> entries = repository.find(Revision.HEAD, MIRROR_MIGRATION_JOB_LOG).get();
+        final Entry<?> entry = entries.get(MIRROR_MIGRATION_JOB_LOG);
+        return entry != null;
     }
 
     private boolean migrateMirrors(MetaRepository repository) throws Exception {
-        final ArrayNode mirrors = getMetaData(repository, PATH_LEGACY_MIRRORS);
+        final ArrayNode mirrors = getLegacyMetaData(repository, PATH_LEGACY_MIRRORS);
         if (mirrors == null) {
             return false;
         }
@@ -181,6 +206,7 @@ class MirroringMigrationService {
             } catch (Exception e) {
                 logger.warn("Failed to migrate a mirror config: {} (project: {})", mirror,
                             repository.parent().name(), e);
+                throw e;
             }
         }
         // Back up the old mirrors.json file and don't use it anymore.
@@ -226,6 +252,7 @@ class MirroringMigrationService {
                               PATH_LEGACY_MIRRORS_BACKUP);
             rollbackMigration(metaRepository, PATH_CREDENTIALS, PATH_LEGACY_CREDENTIALS,
                               PATH_LEGACY_CREDENTIALS_BACKUP);
+            remoteMigrationJobLog();
         }
     }
 
@@ -282,7 +309,7 @@ class MirroringMigrationService {
      * While migrating, the {@code id} field of each credential is filled with a random value if absent.
      */
     private boolean migrateCredentials(MetaRepository repository) throws Exception {
-        final ArrayNode credentials = getMetaData(repository, PATH_LEGACY_CREDENTIALS);
+        final ArrayNode credentials = getLegacyMetaData(repository, PATH_LEGACY_CREDENTIALS);
         if (credentials == null) {
             return false;
         }
@@ -300,6 +327,7 @@ class MirroringMigrationService {
                 } catch (Exception e) {
                     logger.warn("Failed to migrate the credential config in project {}",
                                 repository.parent().name(), e);
+                    throw e;
                 }
             }
             index++;
@@ -335,7 +363,7 @@ class MirroringMigrationService {
     }
 
     @Nullable
-    private static ArrayNode getMetaData(MetaRepository repository, String path)
+    private static ArrayNode getLegacyMetaData(MetaRepository repository, String path)
             throws InterruptedException, ExecutionException {
         final Map<String, Entry<?>> entries = repository.find(Revision.HEAD, path, ImmutableMap.of())
                                                         .get();

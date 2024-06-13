@@ -17,11 +17,13 @@
 package com.linecorp.centraldogma.server.internal.mirror;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.linecorp.centraldogma.server.internal.mirror.MirroringMigrationService.MIRROR_MIGRATION_JOB_LOG;
 import static com.linecorp.centraldogma.server.internal.mirror.MirroringMigrationService.PATH_LEGACY_CREDENTIALS;
 import static com.linecorp.centraldogma.server.internal.mirror.MirroringMigrationService.PATH_LEGACY_MIRRORS;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -40,8 +42,10 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
@@ -293,6 +297,13 @@ class MirroringMigrationServiceTest {
         assertCredential(credentials.get("password"), "credential-1", PASSWORD_CREDENTIAL);
         // "-1" suffix is added because the credential ID is duplicated.
         assertCredential(credentials.get("access_token"), "credential-1-1", ACCESS_TOKEN_CREDENTIAL);
+
+        // Make sure that the migration log is written.
+        final Repository dogmaRepo = projectManager.get(InternalProjectInitializer.INTERNAL_PROJECT_DOGMA)
+                                                    .repos().get(Project.REPO_DOGMA);
+        final Map<String, Entry<?>> log = dogmaRepo.find(Revision.HEAD, MIRROR_MIGRATION_JOB_LOG).join();
+        final JsonNode data = log.get(MIRROR_MIGRATION_JOB_LOG).contentAsJson();
+        assertThat(Jackson.readValue(data.get("timestamp").asText(), Instant.class)).isBefore(Instant.now());
     }
 
     @Test
