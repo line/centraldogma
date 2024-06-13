@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.internal.thrift;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.common.Revision.HEAD;
+import static com.linecorp.centraldogma.internal.Util.validateProjectName;
+import static com.linecorp.centraldogma.internal.Util.validateRepositoryName;
 import static com.linecorp.centraldogma.server.internal.api.ContentServiceV1.checkPush;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1.increaseCounterIfOldRevisionUsed;
 import static com.linecorp.centraldogma.server.internal.thrift.Converter.convert;
@@ -121,6 +123,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     @Override
     public void createProject(String name, AsyncMethodCallback resultHandler) {
+        validateProjectName(name, "name");
         // ProjectInitializingCommandExecutor initializes a metadata for the specified project.
         handle(projectApiManager.createProject(name, SYSTEM), resultHandler);
     }
@@ -161,6 +164,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void createRepository(String projectName, String repositoryName,
                                  AsyncMethodCallback resultHandler) {
+        validateRepositoryName(repositoryName, "repositoryName");
         // HTTP v1 API will return '403 forbidden' in this case, but we deal it as '400 bad request' here.
         if (isReservedRepoName(repositoryName)) {
             resultHandler.onError(convert(RESERVED_REPOSITORY_EXCEPTION));
