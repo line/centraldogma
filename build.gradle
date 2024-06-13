@@ -141,6 +141,6 @@ allprojects {
 // Require to use JDK 21 when releasing.
 tasks.release.doFirst {
     if (JavaVersion.current() != JavaVersion.VERSION_21) {
-        throw new IllegalStateException("You must release using JDK 17.")
+        throw new IllegalStateException("You must release using JDK 21. Current: ${JavaVersion.current()}")
     }
 }
