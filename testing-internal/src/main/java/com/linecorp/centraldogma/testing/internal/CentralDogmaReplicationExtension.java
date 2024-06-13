@@ -190,7 +190,7 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
                 } catch (IOException e) {
                     throw new CompletionException(e);
                 }
-            });
+            }).join();
         }
     }
 
