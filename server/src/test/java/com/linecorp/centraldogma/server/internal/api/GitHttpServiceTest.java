@@ -83,11 +83,11 @@ class GitHttpServiceTest {
     void advertiseCapability(String repoName) {
         final RequestHeaders headers =
                 RequestHeaders.of(HttpMethod.GET, "/foo/" + repoName + "/info/refs?service=git-upload-pack",
-                                  "git-protocol", VERSION_2_REQUEST,
+                                  HttpHeaderNames.GIT_PROTOCOL, VERSION_2_REQUEST,
                                   HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
         final AggregatedHttpResponse res = dogma.httpClient().execute(headers).aggregate().join();
         assertThat(res.status()).isSameAs(HttpStatus.OK);
-        assertThat(res.headers().get("content-type")).isEqualTo("application/x-git-upload-pack-advertisement");
+        assertThat(res.headers().contentType()).isSameAs(MediaType.GIT_UPLOAD_PACK_ADVERTISEMENT);
         assertThat(res.headers().get(HttpHeaderNames.CACHE_CONTROL))
                 .isEqualTo(ServerCacheControl.REVALIDATED.asHeaderValue());
         assertThat(res.contentUtf8()).isEqualTo("001e# service=git-upload-pack\n0000" +
@@ -102,7 +102,7 @@ class GitHttpServiceTest {
     void invalidRequestAdvertiseCapability() {
         RequestHeaders headers =
                 RequestHeaders.of(HttpMethod.GET, "/foo/non-exist-repo/info/refs?service=git-upload-pack",
-                                  "git-protocol", VERSION_2_REQUEST,
+                                  HttpHeaderNames.GIT_PROTOCOL, VERSION_2_REQUEST,
                                   HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
         assertThat(dogma.httpClient().execute(headers).aggregate().join().status())
                 .isSameAs(HttpStatus.NOT_FOUND);
@@ -113,7 +113,7 @@ class GitHttpServiceTest {
                 .isSameAs(HttpStatus.FORBIDDEN);
 
         headers = RequestHeaders.of(HttpMethod.GET, "/foo/bar.git/info/refs?service=git-upload-pack",
-                                    "git-protocol", "invalid-version",
+                                    HttpHeaderNames.GIT_PROTOCOL, "invalid-version",
                                     HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
         assertThat(dogma.httpClient().execute(headers).aggregate().join().status())
                 .isSameAs(HttpStatus.BAD_REQUEST);
@@ -125,12 +125,12 @@ class GitHttpServiceTest {
         final RequestHeaders headers =
                 RequestHeaders.of(HttpMethod.POST, "/foo/bar.git/git-upload-pack",
                                   HttpHeaderNames.CONTENT_TYPE, "application/x-git-upload-pack-request",
-                                  "git-protocol", VERSION_2_REQUEST,
+                                  HttpHeaderNames.GIT_PROTOCOL, VERSION_2_REQUEST,
                                   HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
         AggregatedHttpResponse res = dogma.httpClient().execute(headers, lsRefsCommand())
                                           .aggregate().join();
         assertThat(res.status()).isSameAs(HttpStatus.OK);
-        assertThat(res.headers().get("content-type")).isEqualTo("application/x-git-upload-pack-result");
+        assertThat(res.headers().contentType()).isSameAs(MediaType.GIT_UPLOAD_PACK_RESULT);
         assertThat(res.headers().get(HttpHeaderNames.CACHE_CONTROL))
                 .isEqualTo(ServerCacheControl.REVALIDATED.asHeaderValue());
         final List<String> lines = Splitter.on('\n').trimResults().splitToList(res.contentUtf8());
@@ -150,7 +150,7 @@ class GitHttpServiceTest {
 
         res = dogma.httpClient().execute(headers, fetchCommand(headLineSplit.get(0).substring(4), shallow))
                    .aggregate().join();
-        assertThat(res.headers().get("content-type")).isEqualTo("application/x-git-upload-pack-result");
+        assertThat(res.headers().contentType()).isSameAs(MediaType.GIT_UPLOAD_PACK_RESULT);
         assertThat(res.headers().get(HttpHeaderNames.CACHE_CONTROL))
                 .isEqualTo(ServerCacheControl.REVALIDATED.asHeaderValue());
         final String[] contents = res.contentUtf8().split("\n");
@@ -170,7 +170,7 @@ class GitHttpServiceTest {
         RequestHeaders headers =
                 RequestHeaders.of(HttpMethod.POST, "/foo/non-exist-repo/git-upload-pack",
                                   HttpHeaderNames.CONTENT_TYPE, "application/x-git-upload-pack-request",
-                                  "git-protocol", VERSION_2_REQUEST,
+                                  HttpHeaderNames.GIT_PROTOCOL, VERSION_2_REQUEST,
                                   HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
         assertThat(dogma.httpClient().execute(headers).aggregate().join().status())
                 .isSameAs(HttpStatus.NOT_FOUND);
@@ -183,7 +183,7 @@ class GitHttpServiceTest {
 
         headers = RequestHeaders.of(HttpMethod.POST, "/foo/bar.git/git-upload-pack",
                                     HttpHeaderNames.CONTENT_TYPE, "application/x-git-upload-pack-request",
-                                    "git-protocol", "invalid-version",
+                                    HttpHeaderNames.GIT_PROTOCOL, "invalid-version",
                                     HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
         assertThat(dogma.httpClient().execute(headers).aggregate().join().status())
                 .isSameAs(HttpStatus.BAD_REQUEST);

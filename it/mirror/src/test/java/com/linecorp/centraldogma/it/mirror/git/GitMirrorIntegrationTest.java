@@ -233,13 +233,13 @@ class GitMirrorIntegrationTest {
 
     @Test
     void remoteToLocal_gitignore() throws Exception {
-        pushMirrorSettings(null, "/first", "\"/exclude_if_root.txt\\nexclude_dir\"");
+        pushMirrorSettings(null, "/first#master", "\"/exclude_if_root.txt\\nexclude_dir\"");
         checkGitignore();
     }
 
     @Test
     void remoteToLocal_gitignore_with_array() throws Exception {
-        pushMirrorSettings(null, "/first", "[\"/exclude_if_root.txt\", \"exclude_dir\"]");
+        pushMirrorSettings(null, "/first#master", "[\"/exclude_if_root.txt\", \"exclude_dir\"]");
         checkGitignore();
     }
 

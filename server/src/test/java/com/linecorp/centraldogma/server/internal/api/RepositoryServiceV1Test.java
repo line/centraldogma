@@ -104,6 +104,13 @@ class RepositoryServiceV1Test {
     }
 
     @Test
+    void createRepositoryWithInvalidName() {
+        final WebClient client = dogma.httpClient();
+        final AggregatedHttpResponse aRes = createRepository(client, "myRepo.git");
+        assertThat(aRes.headers().status()).isSameAs(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
     void createRepositoryInAbsentProject() {
         final WebClient client = dogma.httpClient();
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST,
@@ -123,7 +130,7 @@ class RepositoryServiceV1Test {
     @Test
     void removeRepository() {
         final WebClient client = dogma.httpClient();
-        createRepository(client,"foo");
+        createRepository(client, "foo");
         final AggregatedHttpResponse aRes = client.delete(REPOS_PREFIX + "/foo").aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NO_CONTENT);
     }
