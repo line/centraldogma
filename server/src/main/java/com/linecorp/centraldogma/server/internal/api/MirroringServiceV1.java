@@ -45,7 +45,6 @@ import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
  * Annotated service object for managing mirroring service.
  */
 @ProducesJson
-@RequiresWritePermission(repository = Project.REPO_META)
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class MirroringServiceV1 extends AbstractService {
 
@@ -94,6 +93,7 @@ public class MirroringServiceV1 extends AbstractService {
      *
      * <p>Creates a new mirror.
      */
+    @RequiresWritePermission(repository = Project.REPO_META)
     @Post("/projects/{projectName}/mirrors")
     @ConsumesJson
     @StatusCode(201)
@@ -107,6 +107,7 @@ public class MirroringServiceV1 extends AbstractService {
      *
      * <p>Update the exising mirror.
      */
+    @RequiresWritePermission(repository = Project.REPO_META)
     @Put("/projects/{projectName}/mirrors")
     @ConsumesJson
     public CompletableFuture<PushResultDto> updateMirror(@Param String projectName, MirrorDto mirror,

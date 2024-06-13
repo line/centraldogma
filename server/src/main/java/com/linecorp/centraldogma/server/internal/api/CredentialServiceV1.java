@@ -41,7 +41,6 @@ import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
  * Annotated service object for managing credential service.
  */
 @ProducesJson
-@RequiresWritePermission(repository = Project.REPO_META)
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class CredentialServiceV1 extends AbstractService {
 
@@ -79,6 +78,7 @@ public class CredentialServiceV1 extends AbstractService {
      *
      * <p>Creates a new credential.
      */
+    @RequiresWritePermission(repository = Project.REPO_META)
     @Post("/projects/{projectName}/credentials")
     @ConsumesJson
     @StatusCode(201)
@@ -92,6 +92,7 @@ public class CredentialServiceV1 extends AbstractService {
      *
      * <p>Update the existing credential.
      */
+    @RequiresWritePermission(repository = Project.REPO_META)
     @Put("/projects/{projectName}/credentials")
     @ConsumesJson
     public CompletableFuture<PushResultDto> updateCredential(@Param String projectName,
