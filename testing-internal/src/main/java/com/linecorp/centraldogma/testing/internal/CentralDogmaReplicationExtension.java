@@ -64,7 +64,7 @@ import io.netty.util.NetUtil;
  */
 public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension {
 
-    private static final int MAX_RETRIES = 10;
+    private static final int MAX_RETRIES = 16;
 
     private final TemporaryFolder tmpDir = new TemporaryFolder();
     private final AuthProviderFactory factory = new TestAuthProviderFactory();
@@ -226,11 +226,12 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
             if (success) {
                 break;
             } else if (i < MAX_RETRIES - 1) {
-                Thread.sleep(1000);
+                Thread.sleep(1500);
             }
         }
         if (!success) {
-            throw new IllegalStateException("Failed to find available ports for the Central Dogma cluster");
+            throw new IllegalStateException("Failed to find available ports for the Central Dogma cluster. candidates: " +
+                                            ports);
         }
 
         dogmaCluster.stream().map(CentralDogmaRuleDelegate::dogma)
