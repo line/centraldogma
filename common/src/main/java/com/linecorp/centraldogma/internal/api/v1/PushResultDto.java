@@ -42,8 +42,8 @@ public class PushResultDto {
         this.pushedAt = ISO_INSTANT.format(pushedAt);
     }
 
-    public PushResultDto(Revision revision, long commitTimeMillis) {
-        this(revision, Instant.ofEpochMilli(commitTimeMillis));
+    public PushResultDto(Revision revision, long pushAt) {
+        this(revision, Instant.ofEpochMilli(pushAt));
     }
 
     @JsonProperty("revision")
