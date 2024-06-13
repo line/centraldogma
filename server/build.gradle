@@ -23,6 +23,7 @@ dependencies {
 
     // Armeria
     api libs.armeria
+    api libs.armeria.prometheus1
     api libs.armeria.thrift09
     testImplementation libs.armeria.junit5
 

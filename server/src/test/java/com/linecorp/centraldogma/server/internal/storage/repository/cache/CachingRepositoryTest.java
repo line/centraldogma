@@ -47,7 +47,7 @@ import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.armeria.common.metric.NoopMeterRegistry;
-import com.linecorp.armeria.common.metric.PrometheusMeterRegistries;
+import com.linecorp.armeria.common.prometheus.PrometheusMeterRegistries;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;

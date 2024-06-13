@@ -37,8 +37,7 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
-import io.micrometer.prometheus.PrometheusMeterRegistry;
-import io.prometheus.client.exporter.common.TextFormat;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
 @FlakyTest
 @Timeout(30)
@@ -67,7 +66,7 @@ class MetricsTest {
         final AggregatedHttpResponse res = dogma.httpClient().get("/monitor/metrics").aggregate().join();
         String content = res.contentUtf8();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
-        assertThat(res.contentType()).isEqualTo(MediaType.parse(TextFormat.CONTENT_TYPE_004));
+        assertThat(res.contentType()).isEqualTo(MediaType.parse("text/plain; version=0.0.4; charset=utf-8"));
         assertThat(content).isNotEmpty();
         assertThat(content).doesNotContain(
                 "com.linecorp.centraldogma.server.internal.api.WatchContentServiceV1");
