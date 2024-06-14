@@ -50,6 +50,7 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
@@ -67,11 +68,17 @@ class DefaultMirroringServiceTest {
         final ProjectManager pm = mock(ProjectManager.class);
         final Project p = mock(Project.class);
         final MetaRepository mr = mock(MetaRepository.class);
+        final RepositoryManager rm = mock(RepositoryManager.class);
         final Repository r = mock(Repository.class);
         when(pm.list()).thenReturn(ImmutableMap.of("foo", p));
+        when(pm.get(anyString())).thenReturn(p);
         when(p.name()).thenReturn("foo");
+        when(p.repos()).thenReturn(rm);
+        when(rm.get(anyString())).thenReturn(r);
         when(p.metaRepo()).thenReturn(mr);
         when(mr.find(eq(Revision.HEAD), anyString(), anyMap()))
+                .thenReturn(UnmodifiableFuture.completedFuture(ImmutableMap.of()));
+        when(r.find(eq(Revision.HEAD), anyString()))
                 .thenReturn(UnmodifiableFuture.completedFuture(ImmutableMap.of()));
         when(r.parent()).thenReturn(p);
         when(r.name()).thenReturn("bar");
