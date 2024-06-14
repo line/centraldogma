@@ -230,8 +230,8 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
             }
         }
         if (!success) {
-            throw new IllegalStateException("Failed to find available ports for the Central Dogma cluster. candidates: " +
-                                            ports);
+            throw new IllegalStateException("Failed to find available ports for the Central Dogma cluster. " +
+                                            "candidates: " + ports);
         }
 
         dogmaCluster.stream().map(CentralDogmaRuleDelegate::dogma)
