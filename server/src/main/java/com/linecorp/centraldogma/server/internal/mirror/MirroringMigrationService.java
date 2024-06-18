@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.PATH_CREDENTIALS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.PATH_MIRRORS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.credentialFile;
@@ -70,7 +71,7 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-class MirroringMigrationService {
+final class MirroringMigrationService {
 
     private static final Logger logger = LoggerFactory.getLogger(MirroringMigrationService.class);
 
@@ -113,6 +114,7 @@ class MirroringMigrationService {
         }
 
         final Stopwatch stopwatch = Stopwatch.createStarted();
+        int numMigratedProjects = 0;
         try {
             for (Project project : projectManager.list().values()) {
                 logger.info("Migrating mirrors and credentials in the project: {} ...", project.name());
@@ -122,6 +124,7 @@ class MirroringMigrationService {
                 // Update the credential IDs in the mirrors.json file.
                 processed |= migrateMirrors(repository);
                 if (processed) {
+                    numMigratedProjects++;
                     logger.info("Mirrors and credentials in the project: {} have been migrated.",
                                 project.name());
                 } else {
@@ -129,7 +132,7 @@ class MirroringMigrationService {
                                 project.name());
                 }
             }
-            logMigrationJob();
+            logMigrationJob(numMigratedProjects);
         } catch (Exception ex) {
             final MirrorMigrationException mirrorException = new MirrorMigrationException(
                     "Failed to migrate mirrors and credentials. Rollback to the legacy configurations", ex);
@@ -151,8 +154,10 @@ class MirroringMigrationService {
         shortWords = null;
     }
 
-    private void logMigrationJob() throws Exception {
-        final ImmutableMap<String, Instant> data = ImmutableMap.of("timestamp", Instant.now());
+    private void logMigrationJob(int numMigratedProjects) throws Exception {
+        final ImmutableMap<String, Object> data =
+                ImmutableMap.of("timestamp", Instant.now(),
+                                "projects", numMigratedProjects);
         final Change<JsonNode> change = Change.ofJsonUpsert(MIRROR_MIGRATION_JOB_LOG,
                                                             Jackson.writeValueAsString(data));
         final Command<CommitResult> command =
@@ -163,7 +168,7 @@ class MirroringMigrationService {
         executeCommand(command);
     }
 
-    private void remoteMigrationJobLog() throws Exception {
+    private void removeMigrationJobLog() throws Exception {
         if (!hasMigrationLog()) {
             // Maybe the migration job was failed before writing the log.
             return;
@@ -252,7 +257,7 @@ class MirroringMigrationService {
                               PATH_LEGACY_MIRRORS_BACKUP);
             rollbackMigration(metaRepository, PATH_CREDENTIALS, PATH_LEGACY_CREDENTIALS,
                               PATH_LEGACY_CREDENTIALS_BACKUP);
-            remoteMigrationJobLog();
+            removeMigrationJobLog();
         }
     }
 
@@ -261,15 +266,18 @@ class MirroringMigrationService {
         // Delete all files in the target directory
         final Map<String, Entry<?>> entries = repository.find(Revision.HEAD, targetDirectory + "**")
                                                         .get();
-        for (String name : entries.keySet()) {
-            final Command<CommitResult> command =
-                    Command.push(Author.SYSTEM, repository.parent().name(),
-                                 repository.name(), Revision.HEAD,
-                                 "Rollback the migration of " + name, "",
-                                 Markup.PLAINTEXT, Change.ofRemoval(name));
+        final List<Change<?>> changes = entries.keySet().stream().map(Change::ofRemoval)
+                                                  .collect(toImmutableList());
+        final Command<CommitResult> command =
+                Command.push(Author.SYSTEM, repository.parent().name(),
+                             repository.name(), Revision.HEAD,
+                             "Rollback the migration of " + targetDirectory, "",
+                             Markup.PLAINTEXT, changes);
+        try {
             executeCommand(command);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new MirrorMigrationException("Failed to rollback the migration of " + targetDirectory, e);
         }
-
         // Revert the backup file to the original file if exists.
         final Entry<?> backup = repository.getOrNull(Revision.HEAD, backupFile).get();
         if (backup != null) {
@@ -372,12 +380,12 @@ class MirroringMigrationService {
             return null;
         }
 
-        final JsonNode credentialJson = (JsonNode) entry.content();
-        if (!credentialJson.isArray()) {
+        final JsonNode content = (JsonNode) entry.content();
+        if (!content.isArray()) {
             throw new RepositoryMetadataException(
-                    path + " must be an array: " + credentialJson.getNodeType());
+                    path + " must be an array: " + content.getNodeType());
         }
-        return (ArrayNode) credentialJson;
+        return (ArrayNode) content;
     }
 
     private CommitResult rename(MetaRepository repository, String oldPath, String newPath, boolean rollback)

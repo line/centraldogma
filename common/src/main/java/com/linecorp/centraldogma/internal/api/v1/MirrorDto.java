@@ -62,7 +62,7 @@ public final class MirrorDto {
                      @JsonProperty("remoteBranch") String remoteBranch,
                      @JsonProperty("gitignore") @Nullable String gitignore,
                      @JsonProperty("credentialId") String credentialId) {
-        this.id = id;
+        this.id = requireNonNull(id, "id");
         this.enabled = firstNonNull(enabled, true);
         this.projectName = requireNonNull(projectName, "projectName");
         this.schedule = requireNonNull(schedule, "schedule");

@@ -26,6 +26,7 @@ import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1.increaseCounterIfOldRevisionUsed;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMetaFile;
+import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMirrorFile;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -463,13 +464,15 @@ public class ContentServiceV1 extends AbstractService {
                     }
                     if ("/mirrors.json".equals(path)) {
                         throw new InvalidPushException(
-                                "The '/mirrors.json' file is disallowed. Use '/mirrors/{id}.json' file or " +
+                                "'/mirrors.json' file is not allowed to create. " +
+                                "Use '/mirrors/{id}.json' file or " +
                                 "'/api/v1/projects/{projectName}/mirrors' API instead.");
                     }
                     if ("/credentials.json".equals(path)) {
                         throw new InvalidPushException(
-                                "The '/credentials.json' file is disallowed. Use '/credentials/{id}.json' " +
-                                "file or '/api/v1/projects/{projectName}/credentials' API instead.");
+                                "'/credentials.json' file is not allowed to create. " +
+                                "Use '/credentials/{id}.json' file or " +
+                                "'/api/v1/projects/{projectName}/credentials' API instead.");
                     }
                 }
             }
@@ -478,7 +481,7 @@ public class ContentServiceV1 extends AbstractService {
             //               to validate the input.
             final Optional<String> notAllowedLocalRepo =
                     Streams.stream(changes)
-                           .filter(change -> isMetaFile(change.path()))
+                           .filter(change -> isMirrorFile(change.path()))
                            .filter(change -> change.content() != null)
                            .map(change -> {
                                final Object content = change.content();

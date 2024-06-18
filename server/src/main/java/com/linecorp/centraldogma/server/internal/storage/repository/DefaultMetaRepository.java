@@ -64,6 +64,10 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                (path.endsWith(".json") && (path.startsWith(PATH_CREDENTIALS) || path.startsWith(PATH_MIRRORS)));
     }
 
+    public static boolean isMirrorFile(String path) {
+        return path.endsWith(".json") && (path.startsWith(PATH_CREDENTIALS) || path.startsWith(PATH_MIRRORS));
+    }
+
     public static String credentialFile(String credentialId) {
         return PATH_CREDENTIALS + credentialId + ".json";
     }

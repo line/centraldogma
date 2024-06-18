@@ -39,7 +39,7 @@ public interface MetaRepository extends Repository {
     }
 
     /**
-     * Returns a set of mirroring tasks. If {@code includeDisabled} is @{code true}, disabled mirroring tasks
+     * Returns a set of mirroring tasks. If {@code includeDisabled} is {@code true}, disabled mirroring tasks
      * are also included in the returned {@link Mirror}s.
      */
     CompletableFuture<List<Mirror>> mirrors(boolean includeDisabled);
