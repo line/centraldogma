@@ -1007,20 +1007,19 @@ public class MetadataService {
         requireNonNull(appId, "appId");
 
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
-                              "Update the token level: " + appId,
-                              () -> tokenRepo
-                                      .fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
-                                      .thenApply(tokens -> {
-                                          final JsonPointer adminPath = JsonPointer.compile(
-                                                  "/appIds" + encodeSegment(appId) +
-                                                  "/admin");
-                                          final Change<JsonNode> change = Change.ofJsonPatch(
-                                                  TOKEN_JSON,
-                                                  new ReplaceOperation(adminPath,
-                                                                       Jackson.valueToTree(
-                                                                               toBeAdmin)).toJsonNode());
-                                          return HolderWithRevision.of(change, tokens.revision());
-                                      }));
+                              "Update the token level: " + appId + " to " + (toBeAdmin ? "admin" : "user"),
+                              () -> tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
+                                             .thenApply(tokens -> {
+                                                 final JsonPointer adminPath = JsonPointer.compile(
+                                                         "/appIds" + encodeSegment(appId) +
+                                                         "/admin");
+                                                 final Change<JsonNode> change = Change.ofJsonPatch(
+                                                         TOKEN_JSON,
+                                                         new ReplaceOperation(adminPath,
+                                                                              Jackson.valueToTree(
+                                                                                      toBeAdmin)).toJsonNode());
+                                                 return HolderWithRevision.of(change, tokens.revision());
+                                             }));
     }
 
     /**

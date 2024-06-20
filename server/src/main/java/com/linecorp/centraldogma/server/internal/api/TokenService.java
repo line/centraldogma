@@ -19,7 +19,6 @@ package com.linecorp.centraldogma.server.internal.api;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
@@ -206,14 +205,15 @@ public class TokenService extends AbstractService {
                                                      TokenLevelRequest tokenLevelRequest,
                                                      Author author, User loginUser) {
 
-        checkArgument(Arrays.asList("user", "admin").contains(tokenLevelRequest.level().toLowerCase()),
-                      "Unsupported token level: " + tokenLevelRequest.level());
+        final String newTokenLevel = tokenLevelRequest.level().toLowerCase();
+        checkArgument("user".equals(newTokenLevel) || "admin".equals(newTokenLevel),
+                      "token level: %s (expected: user or admin)" + tokenLevelRequest.level());
 
         return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
                 token -> {
                     boolean toBeAdmin = false;
 
-                    switch (tokenLevelRequest.level().toLowerCase()) {
+                    switch (newTokenLevel) {
                         case "user":
                             if (!token.isAdmin()) {
                                 throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
