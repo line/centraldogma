@@ -31,9 +31,7 @@ import com.linecorp.centraldogma.server.internal.api.UpdateServerStatusRequest;
 import com.linecorp.centraldogma.server.internal.api.UpdateServerStatusRequest.Scope;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaReplicationExtension;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaRuleDelegate;
-import com.linecorp.centraldogma.testing.internal.FlakyTest;
 
-@FlakyTest
 class ServerStatusManagerIntegrationTest {
     @RegisterExtension
     final CentralDogmaReplicationExtension cluster = new CentralDogmaReplicationExtension(3) {
@@ -87,8 +85,6 @@ class ServerStatusManagerIntegrationTest {
         assertThatThrownBy(() -> getServerStatus(client))
                 .isInstanceOf(UnprocessedRequestException.class)
                 .hasCauseInstanceOf(ConnectException.class);
-        // Wait for the ports acquired to be released.
-        Thread.sleep(5000);
 
         // Restart the cluster with the same configuration.
         cluster.start();
@@ -113,8 +109,6 @@ class ServerStatusManagerIntegrationTest {
         assertThatThrownBy(() -> getServerStatus(client))
                 .isInstanceOf(UnprocessedRequestException.class)
                 .hasCauseInstanceOf(ConnectException.class);
-        // Wait for the ports acquired to be released.
-        Thread.sleep(5000);
 
         cluster.start();
         serverStatus = getServerStatus(client);
