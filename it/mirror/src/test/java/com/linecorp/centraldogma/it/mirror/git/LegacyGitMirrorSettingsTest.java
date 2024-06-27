@@ -75,7 +75,7 @@ class LegacyGitMirrorSettingsTest {
                   .push().join();
         }).isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(InvalidPushException.class)
-          .hasMessageContaining("The '/mirrors.json' file is disallowed.");
+          .hasMessageContaining("'/mirrors.json' file is not allowed to create.");
 
         assertThatThrownBy(() -> {
             client.forRepo("foo", Project.REPO_META)
@@ -87,6 +87,6 @@ class LegacyGitMirrorSettingsTest {
                   .push().join();
         }).isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(InvalidPushException.class)
-          .hasMessageContaining("The '/credentials.json' file is disallowed.");
+          .hasMessageContaining("'/credentials.json' file is not allowed to create.");
     }
 }
