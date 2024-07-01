@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 
 import com.google.common.collect.Iterables;
 
+import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.WebClientBuilder;
@@ -245,6 +246,15 @@ public class CentralDogmaRuleDelegate {
             throw new IllegalStateException("Central Dogma not started");
         }
         return webClient;
+    }
+
+    /**
+     * Returns the blocking HTTP client.
+     *
+     * @throws IllegalStateException if Central Dogma did not start yet
+     */
+    public final BlockingWebClient blockingHttpClient() {
+        return httpClient().blocking();
     }
 
     /**

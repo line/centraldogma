@@ -33,6 +33,11 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 public interface Mirror {
 
     /**
+     * Returns the ID of the mirroring task.
+     */
+    String id();
+
+    /**
      * Returns the schedule for the mirroring task.
      */
     Cron schedule();
@@ -77,7 +82,6 @@ public interface Mirror {
     /**
      * Returns the name of the branch in the Git repository where is supposed to be mirrored.
      */
-    @Nullable
     String remoteBranch();
 
     /**
@@ -86,6 +90,11 @@ public interface Mirror {
      */
     @Nullable
     String gitignore();
+
+    /**
+     * Returns whether this {@link Mirror} is enabled.
+     */
+    boolean enabled();
 
     /**
      * Performs the mirroring task.

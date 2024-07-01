@@ -135,6 +135,7 @@ typings/
 
 # next.js build output
 .next
+.swc
 
 # macOS folder meta-data
 .DS_Store

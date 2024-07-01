@@ -104,8 +104,8 @@ class ForceRefUpdateTest {
         dogma.client()
              .forRepo(projName, Project.REPO_META)
              .commit("cleanup",
-                     Change.ofRemoval("/credentials.json"),
-                     Change.ofRemoval("/mirrors.json"))
+                     Change.ofRemoval("/credentials/public-key-id.json"),
+                     Change.ofRemoval("/mirrors/foo.json"))
              .push().join();
     }
 
@@ -200,29 +200,32 @@ class ForceRefUpdateTest {
     private void pushCredentials(String pubKey, String privKey) {
         dogma.client().forRepo(projName, Project.REPO_META)
              .commit("Add a mirror",
-                     Change.ofJsonUpsert("/credentials.json",
-                                         "[{" +
+                     Change.ofJsonUpsert("/credentials/public-key-id.json",
+                                         '{' +
+                                         "  \"id\": \"public-key-id\"," +
                                          "  \"type\": \"public_key\"," +
                                          "  \"hostnamePatterns\": [ \"^.*$\" ]," +
                                          "  \"username\": \"" + "git" + "\"," +
                                          "  \"publicKey\": \"" + pubKey + "\"," +
                                          "  \"privateKey\": \"" + privKey + '"' +
-                                         "}]")
+                                         '}')
              ).push().join();
     }
 
     private void pushMirror(String gitUri, MirrorDirection mirrorDirection) {
         dogma.client().forRepo(projName, Project.REPO_META)
              .commit("Add a mirror",
-                     Change.ofJsonUpsert("/mirrors.json",
-                                         "[{" +
+                     Change.ofJsonUpsert("/mirrors/foo.json",
+                                         '{' +
+                                         "  \"id\": \"foo\"," +
+                                         "  \"enabled\": true," +
                                          "  \"type\": \"single\"," +
                                          "  \"direction\": \"" + mirrorDirection.name() + "\"," +
                                          "  \"localRepo\": \"" + REPO_FOO + "\"," +
                                          "  \"localPath\": \"/\"," +
                                          "  \"remoteUri\": \"" + gitUri + "\"," +
                                          "  \"schedule\": \"0 0 0 1 1 ? 2099\"" +
-                                         "}]"))
+                                         '}'))
              .push().join();
     }
 }

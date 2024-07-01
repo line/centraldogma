@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTER_FILE;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTER_REPO;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ENDPOINT_FILE;

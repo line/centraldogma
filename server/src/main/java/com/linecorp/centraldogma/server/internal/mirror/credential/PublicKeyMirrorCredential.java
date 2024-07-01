@@ -53,7 +53,8 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
     private final String passphrase;
 
     @JsonCreator
-    public PublicKeyMirrorCredential(@JsonProperty("id") @Nullable String id,
+    public PublicKeyMirrorCredential(@JsonProperty("id") String id,
+                                     @JsonProperty("enabled") @Nullable Boolean enabled,
                                      @JsonProperty("hostnamePatterns") @Nullable
                                      @JsonDeserialize(contentAs = Pattern.class)
                                      Iterable<Pattern> hostnamePatterns,
@@ -62,7 +63,7 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
                                      @JsonProperty("privateKey") String privateKey,
                                      @JsonProperty("passphrase") @Nullable String passphrase) {
 
-        super(id, hostnamePatterns);
+        super(id, enabled, "public_key", hostnamePatterns);
 
         this.username = requireNonEmpty(username, "username");
         this.publicKey = requireNonEmpty(publicKey, "publicKey");
@@ -70,10 +71,12 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
         this.passphrase = passphrase;
     }
 
+    @JsonProperty("username")
     public String username() {
         return username;
     }
 
+    @JsonProperty("publicKey")
     public String publicKey() {
         return publicKey;
     }
@@ -94,6 +97,11 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
         return ImmutableList.copyOf(NEWLINE_SPLITTER.splitToList(converted));
     }
 
+    @JsonProperty("privateKey")
+    public String rawPrivateKey() {
+        return privateKey;
+    }
+
     @Nullable
     public String passphrase() {
         try {
@@ -104,6 +112,12 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
                          username, id(), t);
             return passphrase;
         }
+    }
+
+    @JsonProperty("passphrase")
+    @Nullable
+    public String rawPassphrase() {
+        return passphrase;
     }
 
     @Override

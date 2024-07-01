@@ -25,7 +25,8 @@ import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1.increaseCounterIfOldRevisionUsed;
-import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.metaRepoFiles;
+import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMetaFile;
+import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMirrorFile;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -59,6 +60,7 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.RequestConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.Markup;
@@ -76,6 +78,7 @@ import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
@@ -84,7 +87,7 @@ import com.linecorp.centraldogma.server.internal.api.converter.MergeQueryRequest
 import com.linecorp.centraldogma.server.internal.api.converter.QueryRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
-import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
@@ -188,12 +191,14 @@ public class ContentServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/repos/{repoName}/contents")
     @RequiresWritePermission
     public CompletableFuture<PushResultDto> push(
+            ServiceRequestContext ctx,
             @Param @Default("-1") String revision,
             Repository repository,
             Author author,
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
-        checkPush(repository.name(), changes);
+        final User user = AuthUtil.currentUser(ctx);
+        checkPush(repository.name(), changes, user.isAdmin());
         meterRegistry.counter("commits.push",
                               "project", repository.parent().name(),
                               "repository", repository.name())
@@ -438,33 +443,58 @@ public class ContentServiceV1 extends AbstractService {
      * Checks if the commit is for creating a file and raises a {@link InvalidPushException} if the
      * given {@code repoName} field is one of {@code meta} and {@code dogma} which are internal repositories.
      */
-    public static void checkPush(String repoName, Iterable<Change<?>> changes) {
+    public static void checkPush(String repoName, Iterable<Change<?>> changes, boolean isAdmin) {
         if (Project.REPO_META.equals(repoName)) {
             final boolean hasChangesOtherThanMetaRepoFiles =
-                    Streams.stream(changes).anyMatch(change -> !metaRepoFiles.contains(change.path()));
+                    Streams.stream(changes).anyMatch(change -> !isMetaFile(change.path()));
             if (hasChangesOtherThanMetaRepoFiles) {
                 throw new InvalidPushException(
                         "The " + Project.REPO_META + " repository is reserved for internal usage.");
             }
 
+            if (isAdmin) {
+                // Admin may push the legacy files to test the mirror migration.
+            } else {
+                for (Change<?> change : changes) {
+                    // 'mirrors.json' and 'credentials.json' are disallowed to be created or modified.
+                    // 'mirrors/{id}.json' and 'credentials/{id}.json' must be used instead.
+                    final String path = change.path();
+                    if (change.type() == ChangeType.REMOVE) {
+                        continue;
+                    }
+                    if ("/mirrors.json".equals(path)) {
+                        throw new InvalidPushException(
+                                "'/mirrors.json' file is not allowed to create. " +
+                                "Use '/mirrors/{id}.json' file or " +
+                                "'/api/v1/projects/{projectName}/mirrors' API instead.");
+                    }
+                    if ("/credentials.json".equals(path)) {
+                        throw new InvalidPushException(
+                                "'/credentials.json' file is not allowed to create. " +
+                                "Use '/credentials/{id}.json' file or " +
+                                "'/api/v1/projects/{projectName}/credentials' API instead.");
+                    }
+                }
+            }
+
+            // TODO(ikhoon): Disallow creating a mirror with the commit API. Mirroring REST API should be used
+            //               to validate the input.
             final Optional<String> notAllowedLocalRepo =
                     Streams.stream(changes)
-                           .filter(change -> DefaultMetaRepository.PATH_MIRRORS.equals(change.path()))
+                           .filter(change -> isMirrorFile(change.path()))
                            .filter(change -> change.content() != null)
                            .map(change -> {
                                final Object content = change.content();
                                if (content instanceof JsonNode) {
                                    final JsonNode node = (JsonNode) content;
-                                   if (!node.isArray()) {
+                                   if (!node.isObject()) {
                                        return null;
                                    }
-                                   for (JsonNode jsonNode : node) {
-                                       final JsonNode localRepoNode = jsonNode.get(MIRROR_LOCAL_REPO);
-                                       if (localRepoNode != null) {
-                                           final String localRepo = localRepoNode.textValue();
-                                           if (Project.isReservedRepoName(localRepo)) {
-                                               return localRepo;
-                                           }
+                                   final JsonNode localRepoNode = node.get(MIRROR_LOCAL_REPO);
+                                   if (localRepoNode != null) {
+                                       final String localRepo = localRepoNode.textValue();
+                                       if (Project.isReservedRepoName(localRepo)) {
+                                           return localRepo;
                                        }
                                    }
                                }

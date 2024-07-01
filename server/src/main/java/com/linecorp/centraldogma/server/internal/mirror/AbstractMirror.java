@@ -49,6 +49,8 @@ public abstract class AbstractMirror implements Mirror {
 
     protected static final Author MIRROR_AUTHOR = new Author("Mirror", "mirror@localhost.localdomain");
 
+    private final String id;
+    private final boolean enabled;
     private final Cron schedule;
     private final MirrorDirection direction;
     private final MirrorCredential credential;
@@ -56,18 +58,18 @@ public abstract class AbstractMirror implements Mirror {
     private final String localPath;
     private final URI remoteRepoUri;
     private final String remotePath;
-    @Nullable
     private final String remoteBranch;
     @Nullable
     private final String gitignore;
     private final ExecutionTime executionTime;
     private final long jitterMillis;
 
-    protected AbstractMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
-                             Repository localRepo, String localPath,
-                             URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
+    protected AbstractMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
+                             MirrorCredential credential, Repository localRepo, String localPath,
+                             URI remoteRepoUri, String remotePath, String remoteBranch,
                              @Nullable String gitignore) {
-
+        this.id = requireNonNull(id, "id");
+        this.enabled = enabled;
         this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");
         this.credential = requireNonNull(credential, "credential");
@@ -75,7 +77,7 @@ public abstract class AbstractMirror implements Mirror {
         this.localPath = normalizePath(requireNonNull(localPath, "localPath"));
         this.remoteRepoUri = requireNonNull(remoteRepoUri, "remoteRepoUri");
         this.remotePath = normalizePath(requireNonNull(remotePath, "remotePath"));
-        this.remoteBranch = remoteBranch;
+        this.remoteBranch = requireNonNull(remoteBranch, "remoteBranch");
         this.gitignore = gitignore;
 
         executionTime = ExecutionTime.forCron(this.schedule);
@@ -86,6 +88,11 @@ public abstract class AbstractMirror implements Mirror {
                                              this.localRepo.parent().name(), this.localRepo.name(),
                                              this.remoteRepoUri, this.remotePath, this.remoteBranch) /
                                 (Integer.MAX_VALUE / 60000));
+    }
+
+    @Override
+    public String id() {
+        return id;
     }
 
     @Override
@@ -149,6 +156,11 @@ public abstract class AbstractMirror implements Mirror {
     @Override
     public final String gitignore() {
         return gitignore;
+    }
+
+    @Override
+    public final boolean enabled() {
+        return enabled;
     }
 
     @Override

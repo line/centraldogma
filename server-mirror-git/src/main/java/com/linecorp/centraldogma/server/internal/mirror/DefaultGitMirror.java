@@ -42,12 +42,12 @@ final class DefaultGitMirror extends AbstractGitMirror {
 
     private static final Consumer<TransportCommand<?, ?>> NOOP_CONFIGURATOR = command -> {};
 
-    DefaultGitMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
-                     Repository localRepo, String localPath,
-                     URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
+    DefaultGitMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
+                     MirrorCredential credential, Repository localRepo, String localPath,
+                     URI remoteRepoUri, String remotePath, String remoteBranch,
                      @Nullable String gitignore) {
-        super(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, remoteBranch,
-              gitignore);
+        super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath,
+              remoteBranch, gitignore);
     }
 
     @Override
