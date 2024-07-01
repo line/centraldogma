@@ -298,7 +298,6 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
             for (Change<?> change : changes.values()) {
                 final String path = change.path();
                 switch (change.type()) {
-                    case APPLY_JSON_PATCH:
                     case UPSERT_JSON:
                         try {
                             setXdsResources(path, change.contentAsText(), repoName);
@@ -318,7 +317,6 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                             centralDogmaXdsResources.removeRoute(repoName, path);
                         }
                         break;
-                    case RENAME:
                     default:
                         // Ignore other types of changes.
                         break;
