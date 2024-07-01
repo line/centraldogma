@@ -16,8 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-
 import java.io.File;
 
 import com.google.common.collect.ImmutableList;
@@ -35,7 +33,7 @@ final class MirroringTask {
         return ImmutableList.of(
                 Tag.of("project", projectName),
                 Tag.of("direction", mirror.direction().name()),
-                Tag.of("remoteBranch", firstNonNull(mirror.remoteBranch(), "")),
+                Tag.of("remoteBranch", mirror.remoteBranch()),
                 Tag.of("remotePath", mirror.remotePath()),
                 Tag.of("localRepo", mirror.localRepo().name()),
                 Tag.of("localPath", mirror.localPath()));

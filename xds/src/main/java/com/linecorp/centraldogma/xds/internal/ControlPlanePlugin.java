@@ -16,9 +16,6 @@
 
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.server.command.Command.createProject;
-import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.initializeInternalRepos;
-
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -33,25 +30,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.collect.ImmutableList;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.grpc.GrpcService;
-import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
-import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.DiffOption;
@@ -83,21 +76,9 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     static final String LISTENERS_DIRECTORY = "/listeners/";
     static final String ROUTES_DIRECTORY = "/routes/";
 
-    public static final String CLUSTER_REPO = "clusters";
-    public static final String CLUSTER_FILE = Cluster.getDescriptor().getFullName() + ".json";
-
-    public static final String ENDPOINT_REPO = "endpoints";
-    public static final String ENDPOINT_FILE = ClusterLoadAssignment.getDescriptor().getFullName() + ".json";
-
-    public static final String LISTENER_REPO = "listeners";
-    public static final String LISTENER_FILE = Listener.getDescriptor().getFullName() + ".json";
-
-    public static final String ROUTE_REPO = "routes";
-    public static final String ROUTE_FILE = RouteConfiguration.getDescriptor().getFullName() + ".json";
-
     public static final String DEFAULT_GROUP = "default_group";
 
-    public static final long BACKOFF_SECONDS = 60; // Should we use backoff?
+    public static final long BACKOFF_SECONDS = 10;
 
     private static final ScheduledExecutorService CONTROL_PLANE_EXECUTOR =
             Executors.newSingleThreadScheduledExecutor(
@@ -115,22 +96,8 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
 
     @Override
     public void init(PluginInitContext pluginInitContext) {
-        final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
-        final long currentTimeMillis = System.currentTimeMillis();
-        initializeInternalRepos(commandExecutor, currentTimeMillis,
-                                ImmutableList.of(CLUSTER_REPO, ENDPOINT_REPO, LISTENER_REPO, ROUTE_REPO));
-
-        try {
-            commandExecutor.execute(createProject(System.currentTimeMillis(), Author.SYSTEM,
-                                                  XDS_CENTRAL_DOGMA_PROJECT))
-                           .get();
-        } catch (Throwable cause) {
-            final Throwable peeled = Exceptions.peel(cause);
-            if (!(peeled instanceof ProjectExistsException)) {
-                throw new Error("failed to initialize an internal project: " +
-                                XDS_CENTRAL_DOGMA_PROJECT, peeled);
-            }
-        }
+        final InternalProjectInitializer projectInitializer = pluginInitContext.internalProjectInitializer();
+        projectInitializer.initialize(XDS_CENTRAL_DOGMA_PROJECT);
 
         try {
             CONTROL_PLANE_EXECUTOR.submit(() -> init0(pluginInitContext))

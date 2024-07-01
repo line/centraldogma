@@ -17,7 +17,7 @@
 package com.linecorp.centraldogma.it.mirror.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.linecorp.centraldogma.it.mirror.git.GitMirrorTest.addToGitIndex;
+import static com.linecorp.centraldogma.it.mirror.git.GitMirrorIntegrationTest.addToGitIndex;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.eclipse.jgit.lib.Constants.R_HEADS;
@@ -359,9 +359,11 @@ class LocalToRemoteGitMirrorTest {
         final String localPath0 = localPath == null ? "/" : localPath;
         final String remoteUri = gitUri + firstNonNull(remotePath, "");
         client.forRepo(projName, Project.REPO_META)
-              .commit("Add /mirrors.json",
-                      Change.ofJsonUpsert("/mirrors.json",
-                                          "[{" +
+              .commit("Add /mirrors/foo.json",
+                      Change.ofJsonUpsert("/mirrors/foo.json",
+                                          '{' +
+                                          " \"id\": \"foo\"," +
+                                          " \"enabled\": true," +
                                           "  \"type\": \"single\"," +
                                           "  \"direction\": \"" + direction + "\"," +
                                           "  \"localRepo\": \"" + localRepo + "\"," +
@@ -369,7 +371,7 @@ class LocalToRemoteGitMirrorTest {
                                           "  \"remoteUri\": \"" + remoteUri + "\"," +
                                           "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
                                           "  \"gitignore\": " + firstNonNull(gitignore, "\"\"") +
-                                          "}]"))
+                                          '}'))
               .push().join();
     }
 

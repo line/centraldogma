@@ -38,12 +38,14 @@ public final class AccessTokenMirrorCredential extends AbstractMirrorCredential 
     private final String accessToken;
 
     @JsonCreator
-    public AccessTokenMirrorCredential(@JsonProperty("id") @Nullable String id,
+    public AccessTokenMirrorCredential(@JsonProperty("id") String id,
+                                       @JsonProperty("enabled") @Nullable Boolean enabled,
                                        @JsonProperty("hostnamePatterns") @Nullable
                                        @JsonDeserialize(contentAs = Pattern.class)
                                        Iterable<Pattern> hostnamePatterns,
                                        @JsonProperty("accessToken") String accessToken) {
-        super(id, hostnamePatterns);
+        super(id, enabled, "access_token", hostnamePatterns);
+
         this.accessToken = requireNonEmpty(accessToken, "accessToken");
     }
 
@@ -55,6 +57,11 @@ public final class AccessTokenMirrorCredential extends AbstractMirrorCredential 
             logger.debug("Failed to convert the access token of the credential: {}", id(), t);
             return accessToken;
         }
+    }
+
+    @JsonProperty("accessToken")
+    public String rawAccessToken() {
+        return accessToken;
     }
 
     @Override

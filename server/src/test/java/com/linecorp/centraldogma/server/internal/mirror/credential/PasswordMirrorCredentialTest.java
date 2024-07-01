@@ -30,21 +30,22 @@ class PasswordMirrorCredentialTest {
     @Test
     void testConstruction() throws Exception {
         // null checks
-        assertThatThrownBy(() -> new PasswordMirrorCredential(null, null, null, "sesame"))
+        assertThatThrownBy(() -> new PasswordMirrorCredential("foo", true, null, null, "sesame"))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new PasswordMirrorCredential(null, null, "trustin", null))
+        assertThatThrownBy(() -> new PasswordMirrorCredential("foo", true, null, "trustin", null))
                 .isInstanceOf(NullPointerException.class);
 
         // emptiness checks
-        assertThatThrownBy(() -> new PasswordMirrorCredential(null, null, "", "sesame"))
+        assertThatThrownBy(() -> new PasswordMirrorCredential("foo", true, null, "", "sesame"))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // An empty password must be allowed because some servers uses password authentication
         // as token-based authentication whose username is the token and password is an empty string.
-        assertThat(new PasswordMirrorCredential(null, null, "trustin", "").password()).isEmpty();
+        assertThat(new PasswordMirrorCredential("foo", true, null, "trustin", "").password()).isEmpty();
 
         // successful construction
-        final PasswordMirrorCredential c = new PasswordMirrorCredential(null, null, "trustin", "sesame");
+        final PasswordMirrorCredential c = new PasswordMirrorCredential("foo", true, null, "trustin", "sesame");
+        assertThat(c.id()).isEqualTo("foo");
         assertThat(c.username()).isEqualTo("trustin");
         assertThat(c.password()).isEqualTo("sesame");
     }
@@ -53,6 +54,7 @@ class PasswordMirrorCredentialTest {
     void testDeserialization() throws Exception {
         // With hostnamePatterns
         assertThat(Jackson.readValue('{' +
+                                     "  \"id\": \"password-id\"," +
                                      "  \"type\": \"password\"," +
                                      "  \"hostnamePatterns\": [" +
                                      "    \"^foo\\\\.com$\"" +
@@ -60,15 +62,15 @@ class PasswordMirrorCredentialTest {
                                      "  \"username\": \"trustin\"," +
                                      "  \"password\": \"sesame\"" +
                                      '}', MirrorCredential.class))
-                .isEqualTo(new PasswordMirrorCredential(null, HOSTNAME_PATTERNS,
+                .isEqualTo(new PasswordMirrorCredential("password-id", true, HOSTNAME_PATTERNS,
                                                         "trustin", "sesame"));
-        // With ID
+        // Without hostnamePatterns
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"password\"," +
                                      "  \"id\": \"foo\"," +
                                      "  \"username\": \"trustin\"," +
                                      "  \"password\": \"sesame\"" +
                                      '}', MirrorCredential.class))
-                .isEqualTo(new PasswordMirrorCredential("foo", null, "trustin", "sesame"));
+                .isEqualTo(new PasswordMirrorCredential("foo", true, null, "trustin", "sesame"));
     }
 }

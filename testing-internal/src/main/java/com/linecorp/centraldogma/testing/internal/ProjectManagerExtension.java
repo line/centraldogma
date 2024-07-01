@@ -30,8 +30,8 @@ import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.testing.junit.AbstractAllOrEachExtension;
 
@@ -58,6 +58,7 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
     private ProjectManager projectManager;
     private CommandExecutor executor;
     private ScheduledExecutorService purgeWorker;
+    private InternalProjectInitializer internalProjectInitializer;
 
     private final TemporaryFolder tempDir = new TemporaryFolder();
     private File dataDir;
@@ -77,7 +78,8 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
         executor = newCommandExecutor(projectManager, repositoryWorker, dataDir);
 
         executor.start().get();
-        ProjectInitializer.initializeInternalProject(executor);
+        internalProjectInitializer = new InternalProjectInitializer(executor);
+        internalProjectInitializer.initialize();
 
         afterExecutorStarted();
     }

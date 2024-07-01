@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.internal.replication;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static java.util.Objects.requireNonNull;
 
 import java.io.BufferedReader;
@@ -405,7 +405,8 @@ public final class ZooKeeperCommandExecutor
             leaderSelector.start();
 
             // Start the delegate.
-            delegate.start();
+            // The delegate is StandaloneCommandExecutor, which will be quite fast to start.
+            delegate.start().get();
 
             // Get the command executor threads ready.
             final ThreadPoolExecutor executor = new ThreadPoolExecutor(

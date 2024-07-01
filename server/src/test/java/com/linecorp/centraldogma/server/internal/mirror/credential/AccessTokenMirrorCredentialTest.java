@@ -30,15 +30,16 @@ class AccessTokenMirrorCredentialTest {
     @Test
     void testConstruction() throws Exception {
         // null checks
-        assertThatThrownBy(() -> new AccessTokenMirrorCredential(null, null, null))
+        assertThatThrownBy(() -> new AccessTokenMirrorCredential("foo", true, null, null))
                 .isInstanceOf(NullPointerException.class);
 
         // emptiness checks
-        assertThatThrownBy(() -> new AccessTokenMirrorCredential(null, null, ""))
+        assertThatThrownBy(() -> new AccessTokenMirrorCredential("foo", true, null, ""))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // successful construction
-        final AccessTokenMirrorCredential c = new AccessTokenMirrorCredential(null, null, "sesame");
+        final AccessTokenMirrorCredential c = new AccessTokenMirrorCredential("foo", true, null, "sesame");
+        assertThat(c.id()).isEqualTo("foo");
         assertThat(c.accessToken()).isEqualTo("sesame");
     }
 
@@ -46,20 +47,21 @@ class AccessTokenMirrorCredentialTest {
     void testDeserialization() throws Exception {
         // With hostnamePatterns
         assertThat(Jackson.readValue('{' +
+                                     "  \"id\": \"access-token-id\"," +
                                      "  \"type\": \"access_token\"," +
                                      "  \"hostnamePatterns\": [" +
                                      "    \"^foo\\\\.com$\"" +
                                      "  ]," +
                                      "  \"accessToken\": \"sesame\"" +
                                      '}', MirrorCredential.class))
-                .isEqualTo(new AccessTokenMirrorCredential(null, HOSTNAME_PATTERNS,
+                .isEqualTo(new AccessTokenMirrorCredential("access-token-id", true, HOSTNAME_PATTERNS,
                                                            "sesame"));
-        // With ID
+        // Without hostnamePatterns
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"access_token\"," +
                                      "  \"id\": \"foo\"," +
                                      "  \"accessToken\": \"sesame\"" +
                                      '}', MirrorCredential.class))
-                .isEqualTo(new AccessTokenMirrorCredential("foo", null, "sesame"));
+                .isEqualTo(new AccessTokenMirrorCredential("foo", true, null, "sesame"));
     }
 }
