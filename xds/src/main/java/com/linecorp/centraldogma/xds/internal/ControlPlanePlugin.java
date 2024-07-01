@@ -258,6 +258,8 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
             if (cause != null) {
                 logger.warn("Unexpected exception while diffing {} from {} to {}. Building from the first.",
                             repoName, lastKnownRevision, newRevision, cause);
+                centralDogmaXdsResources.removeProject(repoName);
+                // Do not call cache.setSnapshot(). Let watchXdsProject() create a new snapshot.
                 watchXdsProject(repository, Revision.INIT);
                 return null;
             }
@@ -286,6 +288,9 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                         break;
                     default:
                         // Ignore other types of changes.
+                        // No APPLY_JSON_PATCH because the diff option.
+                        // No RENAME because the resource name in the content always have to be
+                        // changed if the file is renamed.
                         break;
                 }
             }
