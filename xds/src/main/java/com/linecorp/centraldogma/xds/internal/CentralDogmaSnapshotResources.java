@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.xds.internal;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -27,55 +26,62 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.Message;
 
-import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.armeria.common.annotation.Nullable;
 
 import io.envoyproxy.controlplane.cache.ResourceVersionResolver;
 import io.envoyproxy.controlplane.cache.Resources;
+import io.envoyproxy.controlplane.cache.Resources.ResourceType;
 import io.envoyproxy.controlplane.cache.SnapshotResources;
 import io.envoyproxy.controlplane.cache.VersionedResource;
 
 final class CentralDogmaSnapshotResources<T extends Message> extends SnapshotResources<T> {
 
     public static <T extends Message> SnapshotResources<T> create(
-            Iterable<T> resources, Revision revision) {
+            Map<String, Map<String, VersionedResource<T>>> resources, ResourceType resourceType) {
         final ImmutableMap.Builder<String, VersionedResource<T>> versionedResourcesMap = ImmutableMap.builder();
         final ImmutableMap.Builder<String, T> resourcesMap = ImmutableMap.builder();
-        for (T resource : resources) {
-            final String resourceName = Resources.getResourceName(resource);
-            versionedResourcesMap.put(resourceName, VersionedResource.create(resource));
-            resourcesMap.put(resourceName, resource);
+        for (Map<String, VersionedResource<T>> value : resources.values()) {
+            value.values().forEach(versionedResource -> {
+                final String resourceName = Resources.getResourceName(versionedResource.resource());
+                versionedResourcesMap.put(resourceName, versionedResource);
+                resourcesMap.put(resourceName, versionedResource.resource());
+            });
         }
-        return new CentralDogmaSnapshotResources<>(versionedResourcesMap.build(), resourcesMap.build(),
-                                                   Integer.toString(revision.major()));
+        return new CentralDogmaSnapshotResources<>(
+                versionedResourcesMap.build(), resourcesMap.build(), resourceType);
     }
 
     private final Map<String, VersionedResource<T>> versionedResources;
     private final Map<String, T> resources;
     private final ResourceVersionResolver resourceVersionResolver;
+    @Nullable
+    private String allResourceVersion;
 
     private CentralDogmaSnapshotResources(
             Map<String, VersionedResource<T>> versionedResources, ImmutableMap<String, T> resources,
-            String allResourceVersion) {
+            ResourceType resourceType) {
         this.versionedResources = versionedResources;
         this.resources = resources;
         resourceVersionResolver = resourceNames -> {
-            if (resourceNames.isEmpty()) { // All resources
-                return allResourceVersion;
+            if (resourceNames.isEmpty()) {
+                return allResourceOrThrow(resourceType);
             }
             if (resourceNames.size() == 1) {
+                final String resourceName = resourceNames.get(0);
+                if ("*".equals(resourceName)) {
+                    return allResourceOrThrow(resourceType);
+                }
                 final VersionedResource<T> versionedResource = versionedResources.get(resourceNames.get(0));
                 if (versionedResource == null) {
                     return "";
                 }
                 return versionedResource.version();
             }
-            final ArrayList<String> sorted = new ArrayList<>(resourceNames);
-            sorted.sort(String::compareTo);
 
-            final List<VersionedResource<T>> collected = sorted.stream().map(versionedResources::get)
-                                                               .filter(Objects::nonNull)
-                                                               .distinct()
-                                                               .collect(toImmutableList());
+            final List<VersionedResource<T>> collected = resourceNames.stream().sorted().distinct()
+                                                                      .map(versionedResources::get)
+                                                                      .filter(Objects::nonNull)
+                                                                      .collect(toImmutableList());
             if (collected.isEmpty()) {
                 // There is no resource with the given names.
                 return "";
@@ -84,12 +90,27 @@ final class CentralDogmaSnapshotResources<T extends Message> extends SnapshotRes
                 return collected.get(0).version();
             }
             if (collected.size() == versionedResources.size()) {
-                // All resources are included.
-                return allResourceVersion;
+                return allResourceVersion();
             }
 
             return Hashing.sha256().hashInt(collected.hashCode()).toString();
         };
+    }
+
+    private String allResourceOrThrow(ResourceType resourceType) {
+        if (resourceType == ResourceType.CLUSTER || resourceType == ResourceType.LISTENER) {
+            return allResourceVersion();
+        }
+        throw new IllegalArgumentException("Requesting all resource isn't allowed for " + resourceType);
+    }
+
+    private String allResourceVersion() {
+        if (allResourceVersion != null) {
+            return allResourceVersion;
+        }
+        return allResourceVersion = Hashing.sha256()
+                                           .hashInt(versionedResources.values().hashCode())
+                                           .toString();
     }
 
     @Override
