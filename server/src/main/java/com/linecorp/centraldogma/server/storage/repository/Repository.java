@@ -230,9 +230,18 @@ public interface Repository {
      * Query a file at two different revisions and return the diff of the two query results.
      */
     default CompletableFuture<Change<?>> diff(Revision from, Revision to, Query<?> query) {
+       return diff(from, to, query, DiffOption.NORMAL);
+    }
+
+    /**
+     * Query a file at two different revisions and return the diff of the two query results.
+     */
+    default CompletableFuture<Change<?>> diff(Revision from, Revision to, Query<?> query,
+                                              DiffOption diffOption) {
         requireNonNull(from, "from");
         requireNonNull(to, "to");
         requireNonNull(query, "query");
+        requireNonNull(diffOption, "diffOption");
 
         final RevisionRange range;
         try {
@@ -293,22 +302,40 @@ public interface Repository {
 
                     switch (entryType) {
                         case JSON:
+                            if (diffOption == DiffOption.PATCH_TO_UPSERT) {
+                                return Change.ofJsonUpsert(path, (JsonNode) toContent);
+                            }
                             return Change.ofJsonPatch(path, (JsonNode) fromContent, (JsonNode) toContent);
                         case TEXT:
+                            if (diffOption == DiffOption.PATCH_TO_UPSERT) {
+                                return Change.ofTextUpsert(path, (String) toContent);
+                            }
                             return Change.ofTextPatch(path, (String) fromContent, (String) toContent);
                         default:
                             throw new Error();
                     }
                 }).toCompletableFuture();
-
         return unsafeCast(future);
     }
 
     /**
      * Returns the diff for all files that are matched by the specified {@code pathPattern}
      * between the specified two {@link Revision}s.
+     *
+     * @throws StorageException if {@code from} or {@code to} does not exist.
      */
-    CompletableFuture<Map<String, Change<?>>> diff(Revision from, Revision to, String pathPattern);
+    default CompletableFuture<Map<String, Change<?>>> diff(Revision from, Revision to, String pathPattern) {
+        return diff(from, to, pathPattern, DiffOption.NORMAL);
+    }
+
+    /**
+     * Returns the diff for all files that are matched by the specified {@code pathPattern}
+     * between the specified two {@link Revision}s.
+     *
+     * @throws StorageException if {@code from} or {@code to} does not exist.
+     */
+    CompletableFuture<Map<String, Change<?>>> diff(Revision from, Revision to, String pathPattern,
+                                                   DiffOption diffOption);
 
     /**
      * Generates the preview diff against the specified {@code baseRevision} and {@code changes}.

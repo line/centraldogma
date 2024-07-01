@@ -27,23 +27,27 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
+import com.linecorp.centraldogma.server.storage.repository.DiffOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class CacheableMultiDiffCall extends CacheableCall<Map<String, Change<?>>> {
 
-    final Revision from;
-    final Revision to;
-    final String pathPattern;
-    final int hashCode;
+    private final Revision from;
+    private final Revision to;
+    private final String pathPattern;
+    private final DiffOption diffOption;
+    private final int hashCode;
 
-    CacheableMultiDiffCall(Repository repo, Revision from, Revision to, String pathPattern) {
+    CacheableMultiDiffCall(Repository repo, Revision from, Revision to, String pathPattern,
+                           DiffOption diffOption) {
         super(repo);
 
         this.from = requireNonNull(from, "from");
         this.to = requireNonNull(to, "to");
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
+        this.diffOption = requireNonNull(diffOption, "diffOption");
 
-        hashCode = Objects.hash(from, to, pathPattern) * 31 + System.identityHashCode(repo);
+        hashCode = Objects.hash(from, to, pathPattern, diffOption) * 31 + System.identityHashCode(repo);
 
         assert !from.isRelative();
         assert !to.isRelative();
@@ -65,7 +69,7 @@ final class CacheableMultiDiffCall extends CacheableCall<Map<String, Change<?>>>
 
     @Override
     public CompletableFuture<Map<String, Change<?>>> execute() {
-        return repo().diff(from, to, pathPattern);
+        return repo().diff(from, to, pathPattern, diffOption);
     }
 
     @Override
@@ -82,13 +86,15 @@ final class CacheableMultiDiffCall extends CacheableCall<Map<String, Change<?>>>
         final CacheableMultiDiffCall that = (CacheableMultiDiffCall) o;
         return from.equals(that.from) &&
                to.equals(that.to) &&
-               pathPattern.equals(that.pathPattern);
+               pathPattern.equals(that.pathPattern) &&
+               diffOption == that.diffOption;
     }
 
     @Override
     protected void toString(ToStringHelper helper) {
         helper.add("from", from)
               .add("to", to)
-              .add("pathPattern", pathPattern);
+              .add("pathPattern", pathPattern)
+              .add("diffOption", diffOption);
     }
 }
