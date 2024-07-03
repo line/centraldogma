@@ -226,7 +226,8 @@ class MirroringMigrationServiceTest {
                                   "Create a new mirrors.json",
                                   Change.ofJsonUpsert(PATH_LEGACY_MIRRORS, mirrorsJson)).join();
         final MirroringMigrationService migrationService = new MirroringMigrationService(
-                projectManager, projectManagerExtension.executor());
+                projectManager, projectManagerExtension.executor(),
+                projectManagerExtension.internalProjectInitializer());
         migrationService.migrate();
 
         final Map<String, Entry<?>> entries = project.metaRepo()
@@ -274,7 +275,8 @@ class MirroringMigrationServiceTest {
                                   "Create a new credentials.json",
                                   Change.ofJsonUpsert(PATH_LEGACY_CREDENTIALS, credentialJson)).join();
         final MirroringMigrationService migrationService = new MirroringMigrationService(
-                projectManager, projectManagerExtension.executor());
+                projectManager, projectManagerExtension.executor(),
+                projectManagerExtension.internalProjectInitializer());
         migrationService.migrate();
 
         final Map<String, Entry<?>> entries = project.metaRepo()
@@ -300,7 +302,7 @@ class MirroringMigrationServiceTest {
 
         // Make sure that the migration log is written.
         final Repository dogmaRepo = projectManager.get(InternalProjectInitializer.INTERNAL_PROJECT_DOGMA)
-                                                    .repos().get(Project.REPO_DOGMA);
+                                                   .repos().get(Project.REPO_DOGMA);
         final Map<String, Entry<?>> log = dogmaRepo.find(Revision.HEAD, MIRROR_MIGRATION_JOB_LOG).join();
         final JsonNode data = log.get(MIRROR_MIGRATION_JOB_LOG).contentAsJson();
         assertThat(Jackson.readValue(data.get("timestamp").asText(), Instant.class)).isBefore(Instant.now());
@@ -323,7 +325,8 @@ class MirroringMigrationServiceTest {
                                   Change.ofJsonUpsert(PATH_LEGACY_CREDENTIALS, credentialJson)).join();
 
         final MirroringMigrationService migrationService = new MirroringMigrationService(
-                projectManager, projectManagerExtension.executor());
+                projectManager, projectManagerExtension.executor(),
+                projectManagerExtension.internalProjectInitializer());
         migrationService.migrate();
 
         final List<Mirror> mirrors = project.metaRepo().mirrors().join();
