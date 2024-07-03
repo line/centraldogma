@@ -136,7 +136,8 @@ public final class DefaultMirroringService implements MirroringService {
 
         // Migrate the old mirrors.json to the new format if exists.
         try {
-            new MirroringMigrationService(projectManager, commandExecutor, internalProjectInitializer).migrate();
+            new MirroringMigrationService(projectManager, commandExecutor, internalProjectInitializer)
+                    .migrate();
         } catch (Throwable e) {
             logger.error("Git mirroring stopped due to an unexpected exception while migrating mirrors.json:",
                          e);
