@@ -351,8 +351,10 @@ final class MirroringMigrationService {
         final JsonNode idNode = credential.get("id");
         final String projectName = repository.parent().name();
         if (idNode == null) {
+            final JsonNode typeNode = credential.get("type");
+            final String type = typeNode.isTextual() ? typeNode.asText() : "";
             // Fill the 'id' field with a random value if not exists.
-            id = generateIdForCredential(projectName);
+            id = generateIdForCredential(projectName, type);
         } else {
             id = idNode.asText();
         }
@@ -406,11 +408,10 @@ final class MirroringMigrationService {
 
     /**
      * Generates a reproducible ID for the given mirror.
-     * Pattern: {@code mirror-<projectName>-<localRepo>-<shortWord>}.
+     * Pattern: {@code mirror-<projectName>-<localRepo>}.
      */
-    private String generateIdForMirror(String projectName, ObjectNode mirror) {
-        final String id = "mirror-" + projectName + '-' + mirror.get("localRepo").asText();
-        return id + '-' + getShortWord(id);
+    private static String generateIdForMirror(String projectName, ObjectNode mirror) {
+        return "mirror-" + projectName + '-' + mirror.get("localRepo").asText();
     }
 
     private String getShortWord(String id) {
@@ -423,18 +424,20 @@ final class MirroringMigrationService {
 
     /**
      * Generates a reproducible ID for the given credential.
-     * Pattern: {@code credential-<projectName>-<shortWord>}.
+     * Pattern: {@code credential-<projectName>-<type>}.
      */
-    private String generateIdForCredential(String projectName) {
-        final String id = "credential-" + projectName;
-        return id + '-' + getShortWord(projectName);
+    private static String generateIdForCredential(String projectName, String type) {
+        String id = "credential-" + projectName;
+        if (!type.isEmpty()) {
+            id += '-' + type;
+        }
+        return id;
     }
 
-    private static String uniquify(String id, Set<String> existingIds) {
-        int suffix = 1;
+    private String uniquify(String id, Set<String> existingIds) {
         String maybeUnique = id;
         while (existingIds.contains(maybeUnique)) {
-            maybeUnique = id + '-' + suffix++;
+            maybeUnique = id + '-' + getShortWord(maybeUnique);
         }
         return maybeUnique;
     }

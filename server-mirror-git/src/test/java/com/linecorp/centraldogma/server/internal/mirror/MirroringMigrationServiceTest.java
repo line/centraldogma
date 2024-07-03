@@ -244,13 +244,13 @@ class MirroringMigrationServiceTest {
                            }
                        }, Function.identity()));
 
-        assertMirrorConfig(mirrors.get(TEST_REPO0), "mirror-" + TEST_PROJ + '-' + TEST_REPO0 + "-[a-z]+",
+        assertMirrorConfig(mirrors.get(TEST_REPO0), "mirror-" + TEST_PROJ + '-' + TEST_REPO0,
                            REPO0_MIRROR);
         assertMirrorConfig(mirrors.get(TEST_REPO1), "mirror-1", REPO1_MIRROR);
-        // "-1" suffix is added because the mirror ID is duplicated.
-        assertMirrorConfig(mirrors.get(TEST_REPO2), "mirror-1-1", REPO2_MIRROR);
-        // "-2" suffix is added because the mirror ID is duplicated.
-        assertMirrorConfig(mirrors.get(TEST_REPO3), "mirror-1-2", REPO3_MIRROR);
+        // "-khaki" suffix is added because the mirror ID is duplicated.
+        assertMirrorConfig(mirrors.get(TEST_REPO2), "mirror-1-khaki", REPO2_MIRROR);
+        // "-speakers" suffix is added because the mirror ID is duplicated.
+        assertMirrorConfig(mirrors.get(TEST_REPO3), "mirror-1-speakers", REPO3_MIRROR);
     }
 
     static void assertMirrorConfig(Map.Entry<String, Entry<?>> actualMirrorConfig, String mirrorId,
@@ -292,11 +292,11 @@ class MirroringMigrationServiceTest {
                            }
                        }, Function.identity()));
 
-        assertCredential(credentials.get("public_key"), "credential-" + TEST_PROJ + "-[a-z]+",
+        assertCredential(credentials.get("public_key"), "credential-" + TEST_PROJ + "-public_key",
                          PUBLIC_KEY_CREDENTIAL);
         assertCredential(credentials.get("password"), "credential-1", PASSWORD_CREDENTIAL);
-        // "-1" suffix is added because the credential ID is duplicated.
-        assertCredential(credentials.get("access_token"), "credential-1-1", ACCESS_TOKEN_CREDENTIAL);
+        // "-slingshot" suffix is added because the credential ID is duplicated.
+        assertCredential(credentials.get("access_token"), "credential-1-slingshot", ACCESS_TOKEN_CREDENTIAL);
 
         // Make sure that the migration log is written.
         final Repository dogmaRepo = projectManager.get(InternalProjectInitializer.INTERNAL_PROJECT_DOGMA)
@@ -332,7 +332,7 @@ class MirroringMigrationServiceTest {
             if ("mirror-1".equals(mirror.id())) {
                 assertThat(mirror.credential().id()).isEqualTo("credential-1");
             } else if (mirror.id().startsWith("mirror-" + TEST_PROJ + '-' + TEST_REPO0)) {
-                assertThat(mirror.credential().id()).matches("credential-" + TEST_PROJ + "-[a-z]+");
+                assertThat(mirror.credential().id()).matches("credential-" + TEST_PROJ + "-public_key");
             } else if (mirror.id().startsWith("mirror-1-")) {
                 // No matched credential was found.
                 assertThat(mirror.credential().id()).matches("");
