@@ -798,10 +798,10 @@ public class CentralDogma implements AutoCloseable {
         if (GIT_MIRROR_ENABLED) {
             sb.annotatedService(API_V1_PATH_PREFIX,
                                 new MirroringServiceV1(projectApiManager, executor), decorator,
-                                v1RequestConverter, jacksonRequestConverterFunction, v1RequestConverter);
+                                v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
             sb.annotatedService(API_V1_PATH_PREFIX,
                                 new CredentialServiceV1(projectApiManager, executor), decorator,
-                                v1RequestConverter, jacksonRequestConverterFunction, v1RequestConverter);
+                                v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
         }
 
         sb.annotatedService()
