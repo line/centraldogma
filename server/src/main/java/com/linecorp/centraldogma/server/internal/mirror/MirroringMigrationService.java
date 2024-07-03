@@ -48,7 +48,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.Author;
@@ -440,14 +439,13 @@ final class MirroringMigrationService {
         return maybeUnique;
     }
 
-    private static List<String> buildShortWords() {
+    @VisibleForTesting
+    static List<String> buildShortWords() {
         // TODO(ikhoon) Remove 'short_wordlist.txt' if Central Dogma version has been updated enough and
         //              we can assume that all users have already migrated.
         final InputStream is = MirroringMigrationService.class.getResourceAsStream("short_wordlist.txt");
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
-            final ImmutableList.Builder<String> words = ImmutableList.builder();
-            words.add(reader.readLine());
-            return words.build();
+            return reader.lines().collect(toImmutableList());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

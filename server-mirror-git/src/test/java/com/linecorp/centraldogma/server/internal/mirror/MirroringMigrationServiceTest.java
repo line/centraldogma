@@ -343,6 +343,15 @@ class MirroringMigrationServiceTest {
         }
     }
 
+    @Test
+    void shouldBuildShortWords() {
+        final List<String> words = MirroringMigrationService.buildShortWords();
+        final int expectedSize = 1296;
+        assertThat(words).hasSize(expectedSize);
+        assertThat(words.get(0)).isEqualTo("aardvark");
+        assertThat(words.get(expectedSize - 1)).isEqualTo("zucchini");
+    }
+
     static void assertCredential(Map.Entry<String, Entry<?>> actualCredential, String credentialId,
                                  String expectedCredential) throws JsonParseException {
         assertThat(actualCredential.getKey()).matches("/credentials/" + credentialId + "\\.json");
