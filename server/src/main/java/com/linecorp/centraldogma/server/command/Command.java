@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.command;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;
@@ -31,6 +32,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -52,6 +54,8 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = PushAsIsCommand.class, name = "PUSH"),
         @Type(value = CreateSessionCommand.class, name = "CREATE_SESSIONS"),
         @Type(value = RemoveSessionCommand.class, name = "REMOVE_SESSIONS"),
+        @Type(value = UpdateServerStatusCommand.class, name = "UPDATE_SERVER_STATUS"),
+        @Type(value = ForcePushCommand.class, name = "FORCE_PUSH_COMMAND"),
 })
 public interface Command<T> {
 
@@ -353,6 +357,27 @@ public interface Command<T> {
      */
     static Command<Void> removeSession(String sessionId) {
         return new RemoveSessionCommand(null, null, sessionId);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to update the status of the server.
+     */
+    static Command<Void> updateServerStatus(ServerStatus serverStatus) {
+        return new UpdateServerStatusCommand(null, null, serverStatus);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to force-push {@link Command} even the server is in
+     * read-only mode. This command is useful for migrating the repository content during maintenance mode.
+     *
+     * <p>Note that {@link CommandType#NORMALIZING_PUSH} and {@link CommandType#PUSH} are allowed as the
+     * delegate.
+     */
+    static <T> Command<T> forcePush(Command<T> delegate) {
+        requireNonNull(delegate, "delegate");
+        checkArgument(delegate.type() == CommandType.NORMALIZING_PUSH || delegate.type() == CommandType.PUSH,
+                      "delegate: %s (expected: NORMALIZING_PUSH or PUSH)", delegate);
+        return new ForcePushCommand<>(delegate);
     }
 
     /**

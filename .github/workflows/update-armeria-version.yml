@@ -1,0 +1,51 @@
+name: Update Armeria version
+
+on:
+  workflow_dispatch:
+    inputs:
+      armeria_version:
+        description: 'New Armeria version'
+        required: true
+        type: string
+
+jobs:
+  update-armeria-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Wait for Armeria artifacts to be available
+        uses: nev7n/wait_for_response@v1
+        with:
+          url: "https://repo.maven.apache.org/maven2/com/linecorp/armeria/armeria-bom/${{ inputs.armeria_version }}/armeria-bom-${{ inputs.armeria_version }}.pom"
+          responseCode: 200
+          timeout: 18000000 # Timeout before giving up in milliseconds. 5 hours
+          interval: 60000 # 1 minute
+
+      - name: Update Armeria version to ${{ inputs.armeria_version }}
+        run: |
+          sed -i "s/armeria = \".*\"/armeria = \"${{ inputs.armeria_version }}\"/" dependencies.toml
+
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSWORD }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          token: ${{ secrets.GH_ACCESS_TOKEN }}
+          title: Update Armeria version to ${{ inputs.armeria_version }}
+          body : ''
+          commit-message: Update Armeria version to ${{ inputs.armeria_version }}
+          author: Meri Kim <dl_armeria@linecorp.com>
+          branch: update-armeria-version
+          committer: Meri Kim <dl_armeria@linecorp.com>
+          delete-branch: true
+          label: dependencies
+          add-paths: |
+            dependencies.toml

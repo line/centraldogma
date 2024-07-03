@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.testing.junit;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -28,11 +29,13 @@ import com.spotify.futures.CompletableFutures;
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.WebClientBuilder;
+import com.linecorp.armeria.common.annotation.UnstableApi;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaRuleDelegate;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolder;
 
@@ -116,6 +119,16 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
     }
 
     /**
+     * Returns the {@link Path} to the server's data directory.
+     *
+     * @throws IllegalStateException if the data directory is not created yet
+     */
+    @UnstableApi
+    public final Path dataDir() {
+        return dataDir.getRoot();
+    }
+
+    /**
      * Creates a new server, configures it with {@link #configure(CentralDogmaBuilder)} and starts the server.
      * Note that you don't need to call this method if you did not stop the server with {@link #stop()},
      * because the server is automatically started up by JUnit.
@@ -171,6 +184,15 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
      */
     public final com.linecorp.centraldogma.server.CentralDogma dogma() {
         return delegate.dogma();
+    }
+
+    /**
+     * Returns the {@link ProjectManager} of the server.
+     *
+     * @throws IllegalStateException if Central Dogma did not start yet
+     */
+    public ProjectManager projectManager() {
+        return delegate.projectManager();
     }
 
     /**

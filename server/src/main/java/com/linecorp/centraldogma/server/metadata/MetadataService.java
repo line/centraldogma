@@ -19,15 +19,13 @@ package com.linecorp.centraldogma.server.metadata;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
-import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
-import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.PATH_CREDENTIALS;
-import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.PATH_MIRRORS;
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager.listProjectsWithoutDogma;
 import static com.linecorp.centraldogma.server.metadata.RepositorySupport.convertWithJackson;
 import static com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static java.util.Objects.requireNonNull;
 
-import java.net.URI;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
@@ -40,7 +38,6 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.spotify.futures.CompletableFutures;
 
@@ -51,7 +48,6 @@ import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.internal.jsonpatch.AddOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.RemoveIfExistsOperation;
@@ -60,12 +56,6 @@ import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.TestAbsenceOperation;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
-import com.linecorp.centraldogma.server.mirror.Mirror;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
-import com.linecorp.centraldogma.server.mirror.MirrorDirection;
-import com.linecorp.centraldogma.server.mirror.MirrorUtil;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -416,9 +406,21 @@ public class MetadataService {
         requireNonNull(repoName, "repoName");
         requireNonNull(perRolePermissions, "perRolePermissions");
 
-        if (Project.isReservedRepoName(repoName)) {
+        if (Project.REPO_DOGMA.equals(repoName)) {
             throw new UnsupportedOperationException(
-                    "can't update the per role permission for internal repository: " + repoName);
+                    "Can't update the per role permission for internal repository: " + repoName);
+        }
+
+        final Set<Permission> anonymous = perRolePermissions.anonymous();
+        if (Project.REPO_META.equals(repoName)) {
+            final Set<Permission> guest = perRolePermissions.guest();
+            if (!guest.isEmpty() || !anonymous.isEmpty()) {
+                throw new UnsupportedOperationException(
+                        "Can't give a permission to guest or anonymous for internal repository: " + repoName);
+            }
+        }
+        if (anonymous.contains(Permission.WRITE)) {
+            throw new IllegalArgumentException("Anonymous users cannot have write permission.");
         }
 
         final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) +
@@ -767,9 +769,10 @@ public class MetadataService {
             final RepositoryMetadata repositoryMetadata = metadata.repo(repoName);
             final Member member = metadata.memberOrDefault(user.id(), null);
 
-            // If the member is guest.
+            // If the member is guest or using anonymous token.
             if (member == null) {
-                return repositoryMetadata.perRolePermissions().guest();
+                return !user.isAnonymous() ? repositoryMetadata.perRolePermissions().guest()
+                                           : repositoryMetadata.perRolePermissions().anonymous();
             }
             final Collection<Permission> p = repositoryMetadata.perUserPermissions().get(member.id());
             if (p != null) {
@@ -786,8 +789,10 @@ public class MetadataService {
                 return repositoryMetadata.perRolePermissions().owner();
             case MEMBER:
                 return repositoryMetadata.perRolePermissions().member();
-            default:
+            case GUEST:
                 return repositoryMetadata.perRolePermissions().guest();
+            default:
+                return repositoryMetadata.perRolePermissions().anonymous();
         }
     }
 
@@ -878,31 +883,65 @@ public class MetadataService {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
-        // Remove the token from every project.
-        final Collection<Project> projects = new SafeProjectManager(projectManager).list().values();
-        final CompletableFuture<?>[] futures = new CompletableFuture<?>[projects.size()];
-        int i = 0;
-        for (final Project p : projects) {
-            futures[i++] = removeToken(p.name(), author, appId, true).toCompletableFuture();
+        return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
+                              "Delete the token: " + appId,
+                              () -> tokenRepo
+                                      .fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
+                                      .thenApply(tokens -> {
+                                          final JsonPointer deletionPath =
+                                                  JsonPointer.compile("/appIds" + encodeSegment(appId) +
+                                                                      "/deletion");
+                                          final Change<?> change = Change.ofJsonPatch(
+                                                  TOKEN_JSON,
+                                                  asJsonArray(new TestAbsenceOperation(deletionPath),
+                                                              new AddOperation(deletionPath,
+                                                                               Jackson.valueToTree(
+                                                                                       UserAndTimestamp.of(
+                                                                                               author)))));
+                                          return HolderWithRevision.of(change, tokens.revision());
+                                      }));
+    }
+
+    /**
+     * Purges the {@link Token} of the specified {@code appId} that was removed before.
+     *
+     * <p>Note that this is a blocking method that should not be invoked in an event loop.
+     */
+    public Revision purgeToken(Author author, String appId) {
+        requireNonNull(author, "author");
+        requireNonNull(appId, "appId");
+
+        final Collection<Project> projects = listProjectsWithoutDogma(projectManager.list()).values();
+        // Remove the token from projects that only have the token.
+        for (Project project : projects) {
+            final ProjectMetadata projectMetadata = fetchMetadata(project.name()).join().object();
+            final boolean containsTargetTokenInTheProject =
+                    projectMetadata.tokens().values()
+                                   .stream()
+                                   .anyMatch(token -> token.appId().equals(appId));
+
+            if (containsTargetTokenInTheProject) {
+                removeToken(project.name(), author, appId, true).join();
+            }
         }
-        return CompletableFuture.allOf(futures).thenCompose(unused -> tokenRepo.push(
-                INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, "Remove the token: " + appId,
-                () -> tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
-                               .thenApply(tokens -> {
-                                   final Token token = tokens.object().get(appId);
-                                   final JsonPointer appIdPath =
-                                           JsonPointer.compile("/appIds" + encodeSegment(appId));
-                                   final String secret = token.secret();
-                                   assert secret != null;
-                                   final JsonPointer secretPath =
-                                           JsonPointer.compile("/secrets" + encodeSegment(secret));
-                                   final Change<?> change = Change.ofJsonPatch(
-                                           TOKEN_JSON,
-                                           asJsonArray(new RemoveOperation(appIdPath),
-                                                       new RemoveIfExistsOperation(secretPath)));
-                                   return HolderWithRevision.of(change, tokens.revision());
-                               }))
-        );
+
+        return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, "Remove the token: " + appId,
+                              () -> tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
+                                             .thenApply(tokens -> {
+                                                 final Token token = tokens.object().get(appId);
+                                                 final JsonPointer appIdPath =
+                                                         JsonPointer.compile("/appIds" + encodeSegment(appId));
+                                                 final String secret = token.secret();
+                                                 assert secret != null;
+                                                 final JsonPointer secretPath =
+                                                         JsonPointer.compile(
+                                                                 "/secrets" + encodeSegment(secret));
+                                                 final Change<?> change = Change.ofJsonPatch(
+                                                         TOKEN_JSON,
+                                                         asJsonArray(new RemoveOperation(appIdPath),
+                                                                     new RemoveIfExistsOperation(secretPath)));
+                                                 return HolderWithRevision.of(change, tokens.revision());
+                                             })).join();
     }
 
     /**
@@ -984,95 +1023,6 @@ public class MetadataService {
         validateSecret(secret);
         return tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
                         .thenApply(tokens -> tokens.object().findBySecret(secret));
-    }
-
-    /**
-     * Creates a new {@link Mirror} for the {@code projectName}.
-     */
-    public CompletableFuture<Revision> createMirror(String projectName, MirrorDto mirrorDto, Author author) {
-        final String summary;
-        if (MirrorDirection.valueOf(mirrorDto.direction()) == MirrorDirection.REMOTE_TO_LOCAL) {
-            summary = "Create a new mirror from " + mirrorDto.remoteUrl() + mirrorDto.remotePath() + '#' +
-                      mirrorDto.remoteBranch() + " into " + mirrorDto.localRepo() + mirrorDto.localPath();
-        } else {
-            summary = "Create a new mirror from " + mirrorDto.localRepo() + mirrorDto.localPath() + " into " +
-                      mirrorDto.remoteUrl() + mirrorDto.remotePath() + '#' + mirrorDto.remoteBranch();
-        }
-        final MirrorConfig mirrorConfig = converterToMirrorConfig(mirrorDto);
-        final JsonNode jsonNode = convertToJsonNodeAndRemoveIndex(mirrorConfig);
-        final Change<JsonNode> change = Change.ofJsonPatch(
-                PATH_MIRRORS, asJsonArray(new AddOperation(JsonPointer.compile("/-"), jsonNode)));
-        return metadataRepo.push(projectName, Project.REPO_META, author, summary, change);
-    }
-
-    /**
-     * Update the {@link Mirror} for the {@code projectName}.
-     */
-    public CompletableFuture<Revision> updateMirror(String projectName, int index,
-                                                    MirrorDto mirrorDto, Author author) {
-
-        final String summary = "Update the mirror '" + mirrorDto.id() + '\'';
-        final MirrorConfig mirrorConfig = converterToMirrorConfig(mirrorDto);
-        final JsonNode jsonNode = convertToJsonNodeAndRemoveIndex(mirrorConfig);
-        final Change<JsonNode> change = Change.ofJsonPatch(
-                PATH_MIRRORS, asJsonArray(new ReplaceOperation(JsonPointer.compile("/" + index), jsonNode)));
-
-        return metadataRepo.push(projectName, Project.REPO_META, author, summary, change);
-    }
-
-    private static MirrorConfig converterToMirrorConfig(MirrorDto mirrorDto) {
-        final String remoteUri =
-                mirrorDto.remoteScheme() + "://" + mirrorDto.remoteUrl() +
-                MirrorUtil.normalizePath(mirrorDto.remotePath()) + '#' + mirrorDto.remoteBranch();
-
-        return new MirrorConfig(
-                mirrorDto.id(),
-                mirrorDto.enabled(),
-                mirrorDto.schedule(),
-                MirrorDirection.valueOf(mirrorDto.direction()),
-                mirrorDto.localRepo(),
-                mirrorDto.localPath(),
-                URI.create(remoteUri),
-                mirrorDto.gitignore(),
-                mirrorDto.credentialId());
-    }
-
-    /**
-     * Creates a new {@link MirrorCredential} for the {@code projectName}.
-     */
-    public CompletableFuture<Revision> createCredential(String projectName, MirrorCredential credential,
-                                                        Author author) {
-        checkArgument(credential.id().isPresent(), "Credential ID should not be null");
-
-        final String summary = "Create a new mirror credential for " + credential.id().get();
-        final JsonNode jsonNode = convertToJsonNodeAndRemoveIndex(credential);
-        final Change<JsonNode> change = Change.ofJsonPatch(
-                PATH_CREDENTIALS, asJsonArray(new AddOperation(JsonPointer.compile("/-"), jsonNode)));
-
-        return metadataRepo.push(projectName, Project.REPO_META, author, summary, change);
-    }
-
-    /**
-     * Updates the {@link MirrorCredential} for the {@code projectName}.
-     */
-    public CompletableFuture<Revision> updateCredential(String projectName, int index,
-                                                        MirrorCredential credential, Author author) {
-        checkArgument(credential.id().isPresent(), "Credential ID should not be null");
-
-        final String summary = "Update the mirror credential '" + credential.id().get() + '\'';
-        final JsonNode jsonNode = convertToJsonNodeAndRemoveIndex(credential);
-        final Change<JsonNode> change = Change.ofJsonPatch(
-                PATH_CREDENTIALS, asJsonArray(new ReplaceOperation(JsonPointer.compile("/" + index),
-                                                                   jsonNode)));
-
-        return metadataRepo.push(projectName, Project.REPO_META, author, summary, change);
-    }
-
-    private static <T> JsonNode convertToJsonNodeAndRemoveIndex(T credential) {
-        final ObjectNode jsonNode = Jackson.valueToTree(credential);
-        // Remove the 'index' field because it is computed from the offset of the value in the array.
-        jsonNode.remove("index");
-        return jsonNode;
     }
 
     /**

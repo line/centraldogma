@@ -24,11 +24,14 @@ import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nullable;
 
+import com.google.common.collect.Iterables;
+
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.SessionProtocol;
+import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.internal.common.util.SelfSignedCertificate;
 import com.linecorp.armeria.server.ServerPort;
@@ -40,6 +43,7 @@ import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.TlsConfig;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 import io.netty.util.NetUtil;
@@ -95,7 +99,8 @@ public class CentralDogmaRuleDelegate {
         if (useTls) {
             try {
                 final SelfSignedCertificate ssc = new SelfSignedCertificate();
-                builder.tls(new TlsConfig(ssc.certificate(), ssc.privateKey(), null));
+                builder.tls(new TlsConfig(null, null,
+                                          "file:" + ssc.certificate(), "file:" + ssc.privateKey(), null));
             } catch (Exception e) {
                 Exceptions.throwUnsafely(e);
             }
@@ -110,7 +115,8 @@ public class CentralDogmaRuleDelegate {
         final com.linecorp.centraldogma.server.CentralDogma dogma = builder.build();
         this.dogma = dogma;
         return dogma.start().thenRun(() -> {
-            final ServerPort activePort = dogma.activePort();
+            // A custom port may be added to the server during the configuration.
+            final ServerPort activePort = Iterables.getLast(dogma.activePorts().values());
             if (activePort == null) {
                 // Stopped already.
                 return;
@@ -127,6 +133,12 @@ public class CentralDogmaRuleDelegate {
             configureClient(clientBuilder);
             configureClient(legacyClientBuilder);
 
+            final String accessToken = accessToken();
+            if (accessToken != null) {
+                clientBuilder.accessToken(accessToken);
+                legacyClientBuilder.accessToken(accessToken);
+            }
+
             try {
                 client = clientBuilder.build();
                 legacyClient = legacyClientBuilder.build();
@@ -137,6 +149,9 @@ public class CentralDogmaRuleDelegate {
 
             final String uri = "h2c://" + serverAddress.getHostString() + ':' + serverAddress.getPort();
             final WebClientBuilder webClientBuilder = WebClient.builder(uri);
+            if (accessToken != null) {
+                webClientBuilder.auth(AuthToken.ofOAuth2(accessToken));
+            }
             configureHttpClient(webClientBuilder);
             webClient = webClientBuilder.build();
         });
@@ -174,6 +189,15 @@ public class CentralDogmaRuleDelegate {
             throw new IllegalStateException("Central Dogma not available");
         }
         return dogma;
+    }
+
+    /**
+     * Returns the {@link ProjectManager} of the server.
+     *
+     * @throws IllegalStateException if Central Dogma did not start yet
+     */
+    public ProjectManager projectManager() {
+        return dogma().projectManager();
     }
 
     /**
@@ -265,6 +289,14 @@ public class CentralDogmaRuleDelegate {
      * Override this method to configure the {@link WebClient} builder.
      */
     protected void configureHttpClient(WebClientBuilder builder) {}
+
+    /**
+     * Override this method to inject an access token to the clients.
+     */
+    @Nullable
+    protected String accessToken() {
+        return null;
+    }
 
     /**
      * Override this method to perform the initial updates on the server,

@@ -12,23 +12,15 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations
  * under the License.
- *
  */
 
 package com.linecorp.centraldogma.server.internal.api;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
-import com.cronutils.model.Cron;
-import com.cronutils.model.field.CronField;
-import com.cronutils.model.field.CronFieldName;
-import com.google.common.base.Strings;
 
 import com.linecorp.armeria.server.annotation.ConsumesJson;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
@@ -39,30 +31,32 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.common.EntryNotFoundException;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
-import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
-import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.ProjectRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.mirror.Mirror;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 
 /**
  * Annotated service object for managing mirroring service.
  */
 @ProducesJson
-@RequiresRole(roles = ProjectRole.OWNER)
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class MirroringServiceV1 extends AbstractService {
 
-    private final MetadataService mds;
+    // TODO(ikhoon):
+    //  - Write documentation for the REST API specification
+    //  - Add Java APIs to the CentralDogma client
 
-    public MirroringServiceV1(ProjectManager projectManager, CommandExecutor executor, MetadataService mds) {
-        super(projectManager, executor);
-        this.mds = mds;
+    private final ProjectApiManager projectApiManager;
+
+    public MirroringServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor) {
+        super(executor);
+        this.projectApiManager = projectApiManager;
     }
 
     /**
@@ -70,12 +64,27 @@ public class MirroringServiceV1 extends AbstractService {
      *
      * <p>Returns the list of the mirrors in the project.
      */
+    @RequiresReadPermission(repository = Project.REPO_META)
     @Get("/projects/{projectName}/mirrors")
     public CompletableFuture<List<MirrorDto>> listMirrors(@Param String projectName) {
-        return projectManager().get(projectName).metaRepo().mirrors(true).thenApply(mirrors -> {
+        return metaRepo(projectName).mirrors(true).thenApply(mirrors -> {
             return mirrors.stream()
                           .map(mirror -> convertToMirrorDto(projectName, mirror))
                           .collect(toImmutableList());
+        });
+    }
+
+    /**
+     * GET /projects/{projectName}/mirrors/{id}
+     *
+     * <p>Returns the mirror of the ID in the project mirror list.
+     */
+    @RequiresReadPermission(repository = Project.REPO_META)
+    @Get("/projects/{projectName}/mirrors/{id}")
+    public CompletableFuture<MirrorDto> getMirror(@Param String projectName, @Param String id) {
+
+        return metaRepo(projectName).mirror(id).thenApply(mirror -> {
+            return convertToMirrorDto(projectName, mirror);
         });
     }
 
@@ -84,59 +93,42 @@ public class MirroringServiceV1 extends AbstractService {
      *
      * <p>Creates a new mirror.
      */
+    @RequiresWritePermission(repository = Project.REPO_META)
     @Post("/projects/{projectName}/mirrors")
     @ConsumesJson
     @StatusCode(201)
-    public CompletableFuture<Revision> createMirror(@Param String projectName, MirrorDto newMirror,
-                                                    Author author) {
-        validateMirror(newMirror);
-        return mds.createMirror(projectName, newMirror, author);
-    }
-
-    private static void validateMirror(MirrorDto mirror) {
-        checkArgument(!Strings.isNullOrEmpty(mirror.id()), "Mirror ID is empty");
-        final Cron schedule = MirrorConfig.cronParser.parse(mirror.schedule());
-        final CronField secondField = schedule.retrieve(CronFieldName.SECOND);
-        checkArgument(!secondField.getExpression().asString().contains("*"),
-                      "The second field of the schedule must be specified. (seconds: *, expected: 0-59)");
+    public CompletableFuture<PushResultDto> createMirror(@Param String projectName, MirrorDto newMirror,
+                                                         Author author) {
+        return createOrUpdate(projectName, newMirror, author, false);
     }
 
     /**
-     * GET /projects/{projectName}/mirrors/{index}
-     *
-     * <p>Returns the mirror at the specified index in the project mirror list.
-     */
-    @Get("/projects/{projectName}/mirrors/{index}")
-    public CompletableFuture<MirrorDto> getMirror(@Param String projectName, @Param int index) {
-        checkArgument(index >= 0, "index: %s (expected: >= 0)", index);
-
-        return projectManager().get(projectName).metaRepo().mirrors(true).thenApply(mirrors -> {
-            if (index >= mirrors.size()) {
-                throw new EntryNotFoundException(
-                        "No such mirror at the index " + index + " in " + projectName);
-            }
-            return convertToMirrorDto(projectName, mirrors.get(index));
-        });
-    }
-
-    /**
-     * PUT /projects/{projectName}/mirrors/{index}
+     * PUT /projects/{projectName}/mirrors
      *
      * <p>Update the exising mirror.
      */
-    @Put("/projects/{projectName}/mirrors/{index}")
+    @RequiresWritePermission(repository = Project.REPO_META)
+    @Put("/projects/{projectName}/mirrors")
     @ConsumesJson
-    public CompletableFuture<Revision> updateMirror(@Param String projectName, @Param int index,
-                                                    MirrorDto mirror, Author author) {
-        validateMirror(mirror);
-        return mds.updateMirror(projectName, index, mirror, author);
+    public CompletableFuture<PushResultDto> updateMirror(@Param String projectName, MirrorDto mirror,
+                                                         Author author) {
+        return createOrUpdate(projectName, mirror, author, true);
+    }
+
+    private CompletableFuture<PushResultDto> createOrUpdate(String projectName,
+                                                            MirrorDto newMirror,
+                                                            Author author, boolean update) {
+        return metaRepo(projectName).createPushCommand(newMirror, author, update).thenCompose(command -> {
+            return executor().execute(command).thenApply(result -> {
+                return new PushResultDto(result.revision(), command.timestamp());
+            });
+        });
     }
 
     private static MirrorDto convertToMirrorDto(String projectName, Mirror mirror) {
         final URI remoteRepoUri = mirror.remoteRepoUri();
-        return new MirrorDto(mirror.index(),
-                             mirror.id(),
-                             projectName,
+        return new MirrorDto(mirror.id(),
+                             mirror.enabled(), projectName,
                              mirror.schedule().asString(),
                              mirror.direction().name(),
                              mirror.localRepo().name(),
@@ -144,9 +136,12 @@ public class MirroringServiceV1 extends AbstractService {
                              remoteRepoUri.getScheme(),
                              remoteRepoUri.getHost() + remoteRepoUri.getPath(),
                              mirror.remotePath(),
-                             firstNonNull(mirror.remoteBranch(), "master"),
+                             mirror.remoteBranch(),
                              mirror.gitignore(),
-                             mirror.credential().id().orElse(null),
-                             mirror.enabled());
+                             mirror.credential().id());
+    }
+
+    private MetaRepository metaRepo(String projectName) {
+        return projectApiManager.getProject(projectName).metaRepo();
     }
 }

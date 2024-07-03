@@ -33,15 +33,8 @@ import com.google.common.base.MoreObjects;
 @JsonInclude(Include.NON_NULL)
 public final class MirrorDto {
 
-    /**
-     * The index of this credential in the array at {@code path.json}.
-     * {@code null} if newly created.
-     */
-    @Nullable
-    private final Integer index;
-
-    @Nullable
     private final String id;
+    private final boolean enabled;
     private final String projectName;
     private final String schedule;
     private final String direction;
@@ -53,13 +46,11 @@ public final class MirrorDto {
     private final String remoteBranch;
     @Nullable
     private final String gitignore;
-    @Nullable
     private final String credentialId;
-    private final boolean enabled;
 
     @JsonCreator
-    public MirrorDto(@JsonProperty("index") @Nullable Integer index,
-                     @JsonProperty("id") @Nullable String id,
+    public MirrorDto(@JsonProperty("id") String id,
+                     @JsonProperty("enabled") @Nullable Boolean enabled,
                      @JsonProperty("projectName") String projectName,
                      @JsonProperty("schedule") String schedule,
                      @JsonProperty("direction") String direction,
@@ -70,10 +61,9 @@ public final class MirrorDto {
                      @JsonProperty("remotePath") String remotePath,
                      @JsonProperty("remoteBranch") String remoteBranch,
                      @JsonProperty("gitignore") @Nullable String gitignore,
-                     @JsonProperty("credentialId") @Nullable String credentialId,
-                     @JsonProperty("enabled") @Nullable Boolean enabled) {
-        this.index = index;
-        this.id = id;
+                     @JsonProperty("credentialId") String credentialId) {
+        this.id = requireNonNull(id, "id");
+        this.enabled = firstNonNull(enabled, true);
         this.projectName = requireNonNull(projectName, "projectName");
         this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");
@@ -84,20 +74,17 @@ public final class MirrorDto {
         this.remotePath = requireNonNull(remotePath, "remotePath");
         this.remoteBranch = requireNonNull(remoteBranch, "remoteBranch");
         this.gitignore = gitignore;
-        this.credentialId = credentialId;
-        this.enabled = firstNonNull(enabled, true);
-    }
-
-    @JsonProperty("index")
-    @Nullable
-    public Integer index() {
-        return index;
+        this.credentialId = requireNonNull(credentialId, "credentialId");
     }
 
     @JsonProperty("id")
-    @Nullable
     public String id() {
         return id;
+    }
+
+    @JsonProperty("enabled")
+    public boolean enabled() {
+        return enabled;
     }
 
     @JsonProperty("projectName")
@@ -145,20 +132,15 @@ public final class MirrorDto {
         return remoteBranch;
     }
 
+    @Nullable
     @JsonProperty("gitignore")
     public String gitignore() {
         return gitignore;
     }
 
-    @Nullable
     @JsonProperty("credentialId")
     public String credentialId() {
         return credentialId;
-    }
-
-    @JsonProperty("enabled")
-    public boolean enabled() {
-        return enabled;
     }
 
     @Override
@@ -170,9 +152,8 @@ public final class MirrorDto {
             return false;
         }
         final MirrorDto mirrorDto = (MirrorDto) o;
-        return enabled == mirrorDto.enabled &&
-               Objects.equals(index, mirrorDto.index) &&
-               Objects.equals(id, mirrorDto.id) &&
+        return id.equals(mirrorDto.id) &&
+               enabled == mirrorDto.enabled &&
                projectName.equals(mirrorDto.projectName) &&
                schedule.equals(mirrorDto.schedule) &&
                direction.equals(mirrorDto.direction) &&
@@ -183,12 +164,12 @@ public final class MirrorDto {
                remotePath.equals(mirrorDto.remotePath) &&
                remoteBranch.equals(mirrorDto.remoteBranch) &&
                Objects.equals(gitignore, mirrorDto.gitignore) &&
-               Objects.equals(credentialId, mirrorDto.credentialId);
+               credentialId.equals(mirrorDto.credentialId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(index, id, projectName, schedule, direction, localRepo, localPath, remoteScheme,
+        return Objects.hash(id, projectName, schedule, direction, localRepo, localPath, remoteScheme,
                             remoteUrl, remotePath, remoteBranch, gitignore, credentialId, enabled);
     }
 
@@ -196,8 +177,8 @@ public final class MirrorDto {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .omitNullValues()
-                          .add("index", index)
                           .add("id", id)
+                          .add("enabled", enabled)
                           .add("projectName", projectName)
                           .add("schedule", schedule)
                           .add("direction", direction)
@@ -208,7 +189,6 @@ public final class MirrorDto {
                           .add("remotePath", remotePath)
                           .add("gitignore", gitignore)
                           .add("credentialId", credentialId)
-                          .add("enabled", enabled)
                           .toString();
     }
 }

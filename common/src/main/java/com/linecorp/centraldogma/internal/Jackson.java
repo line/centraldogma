@@ -226,12 +226,12 @@ public final class Jackson {
             final JsonGenerator g = prettyMapper.getFactory().createGenerator(sw);
             g.setPrettyPrinter(new PrettyPrinterImpl());
             prettyMapper.writeValue(g, value);
+            return sw.getAndClear();
         } catch (JsonProcessingException e) {
             throw e;
         } catch (IOException e) {
             throw new IOError(e);
         }
-        return sw.getAndClear();
     }
 
     public static <T extends JsonNode> T valueToTree(Object value) {

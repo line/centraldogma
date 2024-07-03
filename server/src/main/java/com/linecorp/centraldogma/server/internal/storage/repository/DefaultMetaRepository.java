@@ -16,186 +16,302 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
-import java.util.Collections;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
-import javax.annotation.Nullable;
-
+import com.cronutils.model.Cron;
+import com.cronutils.model.field.CronField;
+import com.cronutils.model.field.CronFieldName;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
+import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.internal.mirror.credential.AbstractMirrorCredential;
+import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.mirror.MirrorUtil;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepository {
+public final class DefaultMetaRepository extends RepositoryWrapper implements MetaRepository {
 
-    public static final String PATH_CREDENTIALS = "/credentials.json";
+    public static final String PATH_CREDENTIALS = "/credentials/";
 
-    public static final String PATH_MIRRORS = "/mirrors.json";
+    public static final String PATH_MIRRORS = "/mirrors/";
 
-    public static final Set<String> metaRepoFiles = ImmutableSet.of(PATH_CREDENTIALS, PATH_MIRRORS);
+    public static boolean isMetaFile(String path) {
+        return "/mirrors.json".equals(path) || "/credentials.json".equals(path) ||
+               (path.endsWith(".json") && (path.startsWith(PATH_CREDENTIALS) || path.startsWith(PATH_MIRRORS)));
+    }
 
-    private static final String PATH_CREDENTIALS_AND_MIRRORS = PATH_CREDENTIALS + ',' + PATH_MIRRORS;
+    public static boolean isMirrorFile(String path) {
+        return path.endsWith(".json") && (path.startsWith(PATH_CREDENTIALS) || path.startsWith(PATH_MIRRORS));
+    }
 
-    private static final Map.Entry<List<Mirror>, List<MirrorCredential>> EMPTY_MIRRORS_AND_CREDENTIALS =
-            Maps.immutableEntry(ImmutableList.of(), ImmutableList.of());
+    public static String credentialFile(String credentialId) {
+        return PATH_CREDENTIALS + credentialId + ".json";
+    }
 
-    private final Lock mirrorLock = new ReentrantLock();
-
-    /**
-     * The revision number of the /credentials.json and /mirrors.json who generated {@link #mirrors}.
-     */
-    private int mirrorRev = -1;
-
-    @Nullable
-    private Map.Entry<List<Mirror>, List<MirrorCredential>> mirrorsAndCredentials;
+    public static String mirrorFile(String mirrorId) {
+        return PATH_MIRRORS + mirrorId + ".json";
+    }
 
     public DefaultMetaRepository(Repository repo) {
         super(repo);
     }
 
     @Override
+    public org.eclipse.jgit.lib.Repository jGitRepository() {
+        return unwrap().jGitRepository();
+    }
+
+    @Override
     public CompletableFuture<List<Mirror>> mirrors(boolean includeDisabled) {
-        return mirrorsAndCredentials().thenApply(mirrorsAndCredentials -> {
-            final List<Mirror> mirrors = mirrorsAndCredentials.getKey();
-            if (includeDisabled) {
-                return mirrors;
+        if (includeDisabled) {
+            return allMirrors();
+        }
+        return allMirrors().thenApply(mirrors -> {
+            return mirrors.stream().filter(Mirror::enabled).collect(toImmutableList());
+        });
+    }
+
+    @Override
+    public CompletableFuture<Mirror> mirror(String id) {
+        final String mirrorFile = mirrorFile(id);
+        return find(mirrorFile).thenCompose(entries -> {
+            @SuppressWarnings("unchecked")
+            final Entry<JsonNode> entry = (Entry<JsonNode>) entries.get(mirrorFile);
+            if (entry == null) {
+                throw new EntryNotFoundException("failed to find credential '" + mirrorFile + "' in " +
+                                                 parent().name() + '/' + name());
+            }
+
+            final JsonNode mirrorJson = entry.content();
+            if (!mirrorJson.isObject()) {
+                throw newInvalidJsonTypeException(mirrorFile, mirrorJson);
+            }
+            final MirrorConfig c;
+            try {
+                c = Jackson.treeToValue(mirrorJson, MirrorConfig.class);
+            } catch (JsonProcessingException e) {
+                throw new RepositoryMetadataException("failed to load the mirror configuration", e);
+            }
+
+            final CompletableFuture<List<MirrorCredential>> credentials;
+            if (Strings.isNullOrEmpty(c.credentialId())) {
+                credentials = credentials();
             } else {
-                return mirrors.stream().filter(Mirror::enabled).collect(toImmutableList());
+                credentials = credential(c.credentialId()).thenApply(ImmutableList::of);
+            }
+            return credentials.thenApply(credentials0 -> {
+                final Mirror mirror = c.toMirror(parent(), credentials0);
+                if (mirror == null) {
+                    throw new EntryNotFoundException("failed to find a mirror config for '" + mirrorFile +
+                                                     "' in " + parent().name() + '/' + name());
+                }
+                return mirror;
+            });
+        });
+    }
+
+    private CompletableFuture<List<Mirror>> allMirrors() {
+        return find(PATH_MIRRORS + "*.json").thenCompose(entries -> {
+            if (entries.isEmpty()) {
+                return UnmodifiableFuture.completedFuture(ImmutableList.of());
+            }
+
+            return credentials().thenApply(credentials -> {
+                try {
+                    return parseMirrors(entries, credentials);
+                } catch (JsonProcessingException e) {
+                    return Exceptions.throwUnsafely(e);
+                }
+            });
+        });
+    }
+
+    private List<Mirror> parseMirrors(Map<String, Entry<?>> entries, List<MirrorCredential> credentials)
+            throws JsonProcessingException {
+
+        return entries.entrySet().stream().map(entry -> {
+                          final JsonNode mirrorJson = (JsonNode) entry.getValue().content();
+                          if (!mirrorJson.isObject()) {
+                              throw newInvalidJsonTypeException(entry.getKey(), mirrorJson);
+                          }
+                          final MirrorConfig c;
+                          try {
+                              c = Jackson.treeToValue(mirrorJson, MirrorConfig.class);
+                          } catch (JsonProcessingException e) {
+                              return Exceptions.throwUnsafely(e);
+                          }
+                          return c.toMirror(parent(), credentials);
+                      })
+                      .filter(Objects::nonNull)
+                      .collect(toImmutableList());
+    }
+
+    @Override
+    public CompletableFuture<List<MirrorCredential>> credentials() {
+        return find(PATH_CREDENTIALS + "*.json").thenApply(entries -> {
+            if (entries.isEmpty()) {
+                return ImmutableList.of();
+            }
+            try {
+                return parseCredentials(entries);
+            } catch (Exception e) {
+                throw new RepositoryMetadataException("failed to load the credential configuration", e);
             }
         });
     }
 
     @Override
-    public CompletableFuture<List<MirrorCredential>> credentials() {
-        return mirrorsAndCredentials().thenApply(Map.Entry::getValue);
+    public CompletableFuture<MirrorCredential> credential(String credentialId) {
+        final String credentialFile = credentialFile(credentialId);
+        return find(credentialFile).thenApply(entries -> {
+            @SuppressWarnings("unchecked")
+            final Entry<JsonNode> entry = (Entry<JsonNode>) entries.get(credentialFile);
+            if (entry == null) {
+                throw new EntryNotFoundException("failed to find credential '" + credentialId + "' in " +
+                                                 parent().name() + '/' + name());
+            }
+
+            try {
+                return parseCredential(credentialFile, entry);
+            } catch (Exception e) {
+                throw new RepositoryMetadataException("failed to load the credential configuration", e);
+            }
+        });
     }
 
-    public CompletableFuture<Map.Entry<List<Mirror>, List<MirrorCredential>>> mirrorsAndCredentials() {
-        // The head revision of meta repo will be increased if a mirror configuration is updated or
-        // a repository is created or removed.
-        final int headRev = normalizeNow(Revision.HEAD).major();
-        if (headRev > mirrorRev) {
-            return mirrorsAndCredentials(headRev).handle((mirrorsAndCredentials, cause) -> {
-                if (cause != null) {
-                    return Exceptions.throwUnsafely(cause);
-                }
+    private List<MirrorCredential> parseCredentials(Map<String, Entry<?>> entries)
+            throws JsonProcessingException {
+        return entries.entrySet().stream()
+                      .map(entry -> {
+                          try {
+                              //noinspection unchecked
+                              return parseCredential(entry.getKey(), (Entry<JsonNode>) entry.getValue());
+                          } catch (JsonProcessingException e) {
+                              return Exceptions.throwUnsafely(e);
+                          }
+                      })
+                      .collect(toImmutableList());
+    }
 
-                mirrorLock.lock();
-                final int mirrorRev = this.mirrorRev;
-                if (headRev > mirrorRev) {
-                    this.mirrorsAndCredentials = mirrorsAndCredentials;
-                    this.mirrorRev = headRev;
-                } else {
-                    // `mirrors` was updated by other threads with the latest revision.
-                }
+    private MirrorCredential parseCredential(String credentialFile, Entry<JsonNode> entry)
+            throws JsonProcessingException {
+        final JsonNode credentialJson = entry.content();
+        if (!credentialJson.isObject()) {
+            throw newInvalidJsonTypeException(credentialFile, credentialJson);
+        }
+        return Jackson.treeToValue(credentialJson, MirrorCredential.class);
+    }
 
-                mirrorLock.unlock();
-                return mirrorsAndCredentials;
+    private RepositoryMetadataException newInvalidJsonTypeException(String fileName, JsonNode credentialJson) {
+        return new RepositoryMetadataException(parent().name() + '/' + name() + fileName +
+                                               " must be an object: " + credentialJson.getNodeType());
+    }
+
+    private CompletableFuture<Map<String, Entry<?>>> find(String filePattern) {
+        return find(Revision.HEAD, filePattern, ImmutableMap.of());
+    }
+
+    @Override
+    public CompletableFuture<Command<CommitResult>> createPushCommand(MirrorDto mirrorDto, Author author,
+                                                                      boolean update) {
+        validateMirror(mirrorDto);
+        if (update) {
+            final String summary = "Update the mirror '" + mirrorDto.id() + '\'';
+            return mirror(mirrorDto.id()).thenApply(mirror -> {
+                // Perform the update operation only if the mirror exists.
+                return newCommand(mirrorDto, author, summary);
             });
         } else {
-            return UnmodifiableFuture.completedFuture(mirrorsAndCredentials);
+            String summary = "Create a new mirror from " + mirrorDto.remoteUrl() +
+                             mirrorDto.remotePath() + '#' + mirrorDto.remoteBranch() + " into " +
+                             mirrorDto.localRepo() + mirrorDto.localPath();
+            if (MirrorDirection.valueOf(mirrorDto.direction()) == MirrorDirection.REMOTE_TO_LOCAL) {
+                summary = "[Remote-to-local] " + summary;
+            } else {
+                summary = "[Local-to-remote] " + summary;
+            }
+            return UnmodifiableFuture.completedFuture(newCommand(mirrorDto, author, summary));
         }
     }
 
-    private CompletableFuture<Map.Entry<List<Mirror>, List<MirrorCredential>>> mirrorsAndCredentials(int rev) {
-        return find(new Revision(rev), PATH_CREDENTIALS_AND_MIRRORS, Collections.emptyMap()).thenApply(
-                entries -> {
-                    if (entries.isEmpty()) {
-                        return EMPTY_MIRRORS_AND_CREDENTIALS;
-                    }
+    @Override
+    public CompletableFuture<Command<CommitResult>> createPushCommand(MirrorCredential credential,
+                                                                      Author author, boolean update) {
+        checkArgument(!credential.id().isEmpty(), "Credential ID should not be empty");
 
-                    try {
-                        final List<MirrorCredential> credentials = parseCredentials(entries);
-                        final List<Mirror> mirrors = parseMirrors(entries, credentials);
-                        return Maps.immutableEntry(mirrors, credentials);
-                    } catch (RepositoryMetadataException e) {
-                        throw e;
-                    } catch (Exception e) {
-                        throw new RepositoryMetadataException("failed to load the mirror configuration", e);
-                    }
-                });
+        if (update) {
+            return credential(credential.id()).thenApply(c -> {
+                assert c.id().equals(credential.id());
+                final String summary = "Update the mirror credential '" + credential.id() + '\'';
+                return newCommand(credential, author, summary);
+            });
+        } else {
+            final String summary = "Create a new mirror credential for " + credential.id();
+            return UnmodifiableFuture.completedFuture(newCommand(credential, author, summary));
+        }
     }
 
-    private List<Mirror> parseMirrors(Map<String, Entry<?>> entries, List<MirrorCredential> credentials)
-            throws JsonProcessingException {
-        final Entry<?> e = entries.get(PATH_MIRRORS);
-        if (e == null) {
-            return ImmutableList.of();
-        }
-
-        final JsonNode mirrorsJson = (JsonNode) e.content();
-        if (!mirrorsJson.isArray()) {
-            throw new RepositoryMetadataException(
-                    PATH_MIRRORS + " must be an array: " + mirrorsJson.getNodeType());
-        }
-        if (mirrorsJson.isEmpty()) {
-            return ImmutableList.of();
-        }
-
-        final ImmutableList.Builder<Mirror> mirrors = ImmutableList.builder();
-
-        int index = 0;
-        for (JsonNode m : mirrorsJson) {
-            final MirrorConfig c = Jackson.treeToValue(m, MirrorConfig.class);
-            if (c == null) {
-                throw new RepositoryMetadataException(PATH_MIRRORS + " contains null.");
-            }
-            final Mirror mirror = c.toMirror(parent(), credentials, index++);
-            if (mirror != null) {
-                mirrors.add(mirror);
-            }
-        }
-        return mirrors.build();
+    private Command<CommitResult> newCommand(MirrorDto mirrorDto, Author author, String summary) {
+        final MirrorConfig mirrorConfig = converterToMirrorConfig(mirrorDto);
+        final JsonNode jsonNode = Jackson.valueToTree(mirrorConfig);
+        final Change<JsonNode> change = Change.ofJsonUpsert(mirrorFile(mirrorConfig.id()), jsonNode);
+        return Command.push(author, parent().name(), name(), Revision.HEAD, summary, "", Markup.PLAINTEXT,
+                            change);
     }
 
-    private static List<MirrorCredential> parseCredentials(Map<String, Entry<?>> entries)
-            throws JsonProcessingException {
-        final Entry<?> e = entries.get(PATH_CREDENTIALS);
-        if (e == null) {
-            return ImmutableList.of();
-        }
+    private Command<CommitResult> newCommand(MirrorCredential credential, Author author, String summary) {
+        final JsonNode jsonNode = Jackson.valueToTree(credential);
+        final Change<JsonNode> change = Change.ofJsonUpsert(credentialFile(credential.id()), jsonNode);
+        return Command.push(author, parent().name(), name(), Revision.HEAD, summary, "", Markup.PLAINTEXT,
+                            change);
+    }
 
-        final JsonNode credentialsJson = (JsonNode) e.content();
-        if (!credentialsJson.isArray()) {
-            throw new RepositoryMetadataException(
-                    PATH_CREDENTIALS + " must be an array: " + credentialsJson.getNodeType());
-        }
-        if (credentialsJson.isEmpty()) {
-            return ImmutableList.of();
-        }
+    private static void validateMirror(MirrorDto mirror) {
+        checkArgument(!Strings.isNullOrEmpty(mirror.id()), "Mirror ID is empty");
+        final Cron schedule = MirrorConfig.CRON_PARSER.parse(mirror.schedule());
+        final CronField secondField = schedule.retrieve(CronFieldName.SECOND);
+        checkArgument(!secondField.getExpression().asString().contains("*"),
+                      "The second field of the schedule must be specified. (seconds: *, expected: 0-59)");
+    }
 
-        final ImmutableList.Builder<MirrorCredential> builder = ImmutableList.builder();
-        int index = 0;
-        for (JsonNode c : credentialsJson) {
-            final MirrorCredential credential = Jackson.treeToValue(c, MirrorCredential.class);
-            if (credential == null) {
-                throw new RepositoryMetadataException(PATH_CREDENTIALS + " contains null.");
-            }
-            assert credential instanceof AbstractMirrorCredential;
-            ((AbstractMirrorCredential) credential).setIndex(index);
-            builder.add(credential);
-            index++;
-        }
+    private static MirrorConfig converterToMirrorConfig(MirrorDto mirrorDto) {
+        final String remoteUri =
+                mirrorDto.remoteScheme() + "://" + mirrorDto.remoteUrl() +
+                MirrorUtil.normalizePath(mirrorDto.remotePath()) + '#' + mirrorDto.remoteBranch();
 
-        return builder.build();
+        return new MirrorConfig(
+                mirrorDto.id(),
+                mirrorDto.enabled(),
+                mirrorDto.schedule(),
+                MirrorDirection.valueOf(mirrorDto.direction()),
+                mirrorDto.localRepo(),
+                mirrorDto.localPath(),
+                URI.create(remoteUri),
+                mirrorDto.gitignore(),
+                mirrorDto.credentialId());
     }
 }

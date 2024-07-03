@@ -24,6 +24,7 @@ import java.net.URI;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
+import java.util.Optional;
 
 import javax.annotation.Nullable;
 
@@ -44,11 +45,12 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public abstract class AbstractMirror implements Mirror {
 
+    private static final CronDescriptor CRON_DESCRIPTOR = CronDescriptor.instance();
+
     protected static final Author MIRROR_AUTHOR = new Author("Mirror", "mirror@localhost.localdomain");
 
-    private final int index;
-    @Nullable
     private final String id;
+    private final boolean enabled;
     private final Cron schedule;
     private final MirrorDirection direction;
     private final MirrorCredential credential;
@@ -56,21 +58,18 @@ public abstract class AbstractMirror implements Mirror {
     private final String localPath;
     private final URI remoteRepoUri;
     private final String remotePath;
-    @Nullable
     private final String remoteBranch;
     @Nullable
     private final String gitignore;
     private final ExecutionTime executionTime;
     private final long jitterMillis;
-    private final boolean enabled;
 
-    protected AbstractMirror(int index, @Nullable String id, Cron schedule, MirrorDirection direction,
+    protected AbstractMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
                              MirrorCredential credential, Repository localRepo, String localPath,
-                             URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
-                             @Nullable String gitignore, boolean enabled) {
-
-        this.index = index;
-        this.id = id;
+                             URI remoteRepoUri, String remotePath, String remoteBranch,
+                             @Nullable String gitignore) {
+        this.id = requireNonNull(id, "id");
+        this.enabled = enabled;
         this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");
         this.credential = requireNonNull(credential, "credential");
@@ -78,9 +77,8 @@ public abstract class AbstractMirror implements Mirror {
         this.localPath = normalizePath(requireNonNull(localPath, "localPath"));
         this.remoteRepoUri = requireNonNull(remoteRepoUri, "remoteRepoUri");
         this.remotePath = normalizePath(requireNonNull(remotePath, "remotePath"));
-        this.remoteBranch = remoteBranch;
+        this.remoteBranch = requireNonNull(remoteBranch, "remoteBranch");
         this.gitignore = gitignore;
-        this.enabled = enabled;
 
         executionTime = ExecutionTime.forCron(this.schedule);
 
@@ -90,11 +88,6 @@ public abstract class AbstractMirror implements Mirror {
                                              this.localRepo.parent().name(), this.localRepo.name(),
                                              this.remoteRepoUri, this.remotePath, this.remoteBranch) /
                                 (Integer.MAX_VALUE / 60000));
-    }
-
-    @Override
-    public int index() {
-        return index;
     }
 
     @Override
@@ -115,9 +108,14 @@ public abstract class AbstractMirror implements Mirror {
     @VisibleForTesting
     ZonedDateTime nextExecutionTime(ZonedDateTime lastExecutionTime, long jitterMillis) {
         requireNonNull(lastExecutionTime, "lastExecutionTime");
-        final ZonedDateTime next =
-                executionTime.nextExecution(lastExecutionTime.minus(jitterMillis, ChronoUnit.MILLIS));
-        return next.plus(jitterMillis, ChronoUnit.MILLIS);
+        final Optional<ZonedDateTime> next = executionTime.nextExecution(
+                lastExecutionTime.minus(jitterMillis, ChronoUnit.MILLIS));
+        if (next.isPresent()) {
+            return next.get().plus(jitterMillis, ChronoUnit.MILLIS);
+        }
+        throw new IllegalArgumentException(
+                "no next execution time for " + CRON_DESCRIPTOR.describe(schedule) + ", lastExecutionTime: " +
+                lastExecutionTime);
     }
 
     @Override

@@ -65,6 +65,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
             Pattern.compile("^[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$");
     private static final String SUFFIX_REMOVED = ".removed";
     private static final String SUFFIX_PURGED = ".purged";
+    private static final String GIT_EXTENSION = ".git";
 
     private final String childTypeName;
     private final File rootDir;
@@ -437,7 +438,8 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
             return false;
         }
 
-        return !name.endsWith(SUFFIX_REMOVED) && !name.endsWith(SUFFIX_PURGED);
+        return !name.endsWith(SUFFIX_REMOVED) && !name.endsWith(SUFFIX_PURGED) &&
+               !name.endsWith(GIT_EXTENSION); // Git repository whose name ends with '.git' is not allowed.
     }
 
     @Override

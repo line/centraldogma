@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.internal.admin.auth;
 
 import static java.util.Objects.requireNonNull;
 
+import javax.annotation.Nullable;
+
 import com.google.common.annotations.VisibleForTesting;
 
 import com.linecorp.armeria.common.RequestContext;
@@ -53,6 +55,15 @@ public final class AuthUtil {
 
     public static User currentUser() {
         return currentUser(RequestContext.current());
+    }
+
+    @Nullable
+    public static User currentUserOrNull() {
+        final ServiceRequestContext currentOrNull = ServiceRequestContext.currentOrNull();
+        if (currentOrNull == null) {
+            return null;
+        }
+        return currentUser(currentOrNull);
     }
 
     public static void setCurrentUser(ServiceRequestContext ctx, User currentUser) {

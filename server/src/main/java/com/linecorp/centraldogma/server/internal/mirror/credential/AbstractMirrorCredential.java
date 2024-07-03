@@ -21,7 +21,6 @@ import static com.linecorp.centraldogma.internal.Util.requireNonNullElements;
 import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
-import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -38,56 +37,36 @@ import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
 public abstract class AbstractMirrorCredential implements MirrorCredential {
 
-    /**
-     * The index should be updated by {@link #setIndex(int)} before use.
-     */
-    private int index = -1;
-
-    @Nullable
     private final String id;
+    private final boolean enabled;
+    // TODO(ikhoon): Consider changing 'type' to an enum.
     private final String type;
     private final Set<Pattern> hostnamePatterns;
     private final Set<String> hostnamePatternStrings;
-    private final boolean enabled;
 
-    AbstractMirrorCredential(@Nullable String id, String type, @Nullable Iterable<Pattern> hostnamePatterns,
-                             @Nullable Boolean enabled) {
-        this.id = id;
+    AbstractMirrorCredential(String id, @Nullable Boolean enabled, String type,
+                             @Nullable Iterable<Pattern> hostnamePatterns) {
+        this.id = requireNonNull(id, "id");
+        this.enabled = firstNonNull(enabled, true);
         // JsonTypeInfo is ignored when serializing collections.
         // As a workaround, manually set the type hint to serialize.
         this.type = requireNonNull(type, "type");
         this.hostnamePatterns = validateHostnamePatterns(hostnamePatterns);
         hostnamePatternStrings = this.hostnamePatterns.stream().map(Pattern::pattern)
                                                       .collect(Collectors.toSet());
-        this.enabled = firstNonNull(enabled, true);
     }
 
     private static Set<Pattern> validateHostnamePatterns(@Nullable Iterable<Pattern> hostnamePatterns) {
         if (hostnamePatterns == null || Iterables.isEmpty(hostnamePatterns)) {
             return ImmutableSet.of();
         }
-        if (Iterables.size(hostnamePatterns) == 1 && Iterables.getFirst(hostnamePatterns, null) == null) {
-            // Web browsers may send an empty array `[]` as a value of hostnamePatterns
-            // which is converted into `[null]`.
-            return ImmutableSet.of();
-        }
-
         return ImmutableSet.copyOf(
                 requireNonNullElements(hostnamePatterns, "hostnamePatterns"));
     }
 
     @Override
-    public int index() {
-        return index;
-    }
-
-    public void setIndex(int index) {
-        this.index = index;
-    }
-
-    @Override
-    public final Optional<String> id() {
-        return Optional.ofNullable(id);
+    public final String id() {
+        return id;
     }
 
     @JsonProperty("type")

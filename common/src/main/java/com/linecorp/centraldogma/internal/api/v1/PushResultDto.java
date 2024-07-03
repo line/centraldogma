@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Instant;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -34,9 +35,15 @@ public class PushResultDto {
     private final Revision revision;
     private final String pushedAt;
 
-    public PushResultDto(Revision revision, long commitTimeMillis) {
+    @JsonCreator
+    public PushResultDto(@JsonProperty("revision") Revision revision,
+                         @JsonProperty("pushedAt") Instant pushedAt) {
         this.revision = requireNonNull(revision, "revision");
-        pushedAt = ISO_INSTANT.format(Instant.ofEpochMilli(commitTimeMillis));
+        this.pushedAt = ISO_INSTANT.format(pushedAt);
+    }
+
+    public PushResultDto(Revision revision, long pushAt) {
+        this(revision, Instant.ofEpochMilli(pushAt));
     }
 
     @JsonProperty("revision")

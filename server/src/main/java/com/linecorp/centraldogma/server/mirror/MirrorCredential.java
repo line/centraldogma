@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.server.mirror;
 
 import java.net.URI;
 import java.util.Collections;
-import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -47,19 +46,13 @@ import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirr
 public interface MirrorCredential {
 
     MirrorCredential FALLBACK =
-            new NoneMirrorCredential(null, Collections.singleton(Pattern.compile("^.*$")), true);
-
-    /**
-     * Returns the unique index of the credential.
-     */
-    @JsonProperty("index")
-    int index();
+            new NoneMirrorCredential("", true, Collections.singleton(Pattern.compile("^.*$")));
 
     /**
      * Returns the ID of the credential.
      */
     @JsonProperty("id")
-    Optional<String> id();
+    String id();
 
     /**
      * Returns the {@link Pattern}s compiled from the regular expressions that match a host name.

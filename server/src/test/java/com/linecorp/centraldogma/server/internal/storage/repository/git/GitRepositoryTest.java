@@ -52,6 +52,8 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.storage.file.FileBasedConfig;
+import org.eclipse.jgit.util.FS;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -75,6 +77,7 @@ import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -159,6 +162,27 @@ class GitRepositoryTest {
         }
 
         watchConsumer = null;
+    }
+
+    @Test
+    void defaultSettings() throws Exception {
+        // Make sure the Git config file has been created.
+        final File configFile = repoDir.toPath().resolve("test_repo").resolve("config").toFile();
+        assertThat(configFile).exists();
+
+        // Load the Git config file.
+        final FileBasedConfig config = new FileBasedConfig(configFile, FS.DETECTED);
+        config.load();
+        final String configText = config.toText();
+
+        // All properties set by JGitUtil must be set already,
+        // leading `applyDefaults()` to return `false` (means 'not modified').
+        assertThat(JGitUtil.applyDefaults(config))
+                .withFailMessage("A repository has unexpected config value(s): %s\n" +
+                                 "actual:\n%s\n\n\n" +
+                                 "expected:\n%s\n\n\n",
+                                 configFile, configText, config.toText())
+                .isFalse();
     }
 
     @Test
@@ -1044,8 +1068,8 @@ class GitRepositoryTest {
                                                  "}]");
 
         final Entry<JsonNode> res3 = repo.get(HEAD, Query.ofJsonPath(
-                "/instances.json", "$[?(@.groups[?(@.type == 'phase' && @.name == 'alpha')] empty false)]"))
-                                         .join();
+                "/instances.json",
+                "$[?(@.groups[?(@.type == 'phase' && @.name == 'alpha')] empty false)]")).join();
 
         assertThatJson(res3.content()).isEqualTo("[{" +
                                                  "  \"name\": \"a\"," +
@@ -1154,11 +1178,11 @@ class GitRepositoryTest {
                 .isInstanceOf(TimeoutException.class);
 
         // Here comes the interesting change; make sure notification is triggered.
-        final Revision rev3 = repo.commit(
-                HEAD, 0L, Author.UNKNOWN, SUMMARY,
-                Change.ofJsonUpsert(jsonPaths[0], "{ \"hello\": \"jupiter\", \"goodbye\": \"mars\" }"))
-                                  .join()
-                                  .revision();
+        final Revision rev3 =
+                repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                            Change.ofJsonUpsert(jsonPaths[0],
+                                                "{ \"hello\": \"jupiter\", \"goodbye\": \"mars\" }"))
+                    .join().revision();
 
         final Entry<JsonNode> res = f.get(3, TimeUnit.SECONDS);
         assertThat(res.revision()).isEqualTo(rev3);

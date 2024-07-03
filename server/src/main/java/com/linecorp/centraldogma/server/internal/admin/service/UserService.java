@@ -26,15 +26,14 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.metadata.User;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 /**
  * Annotated service object for managing users.
  */
 public class UserService extends AbstractService {
 
-    public UserService(ProjectManager projectManager, CommandExecutor executor) {
-        super(projectManager, executor);
+    public UserService(CommandExecutor executor) {
+        super(executor);
     }
 
     /**

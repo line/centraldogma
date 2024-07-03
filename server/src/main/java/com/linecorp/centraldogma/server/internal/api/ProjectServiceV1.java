@@ -29,6 +29,8 @@ import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import com.linecorp.armeria.common.ContextAwareBlockingTaskExecutor;
+import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.Delete;
@@ -43,29 +45,25 @@ import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.CreateProjectRequest;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
-import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
-import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 /**
  * Annotated service object for managing projects.
  */
 @ProducesJson
 @ExceptionHandler(HttpApiExceptionHandler.class)
-public class ProjectServiceV1 extends AbstractService {
+public class ProjectServiceV1 {
 
-    private final MetadataService mds;
+    private final ProjectApiManager projectApiManager;
 
-    public ProjectServiceV1(ProjectManager projectManager, CommandExecutor executor, MetadataService mds) {
-        super(projectManager, executor);
-        this.mds = requireNonNull(mds, "mds");
+    public ProjectServiceV1(ProjectApiManager projectApiManager) {
+        this.projectApiManager = requireNonNull(projectApiManager, "projectApiManager");
     }
 
     /**
@@ -75,17 +73,19 @@ public class ProjectServiceV1 extends AbstractService {
      */
     @Get("/projects")
     public CompletableFuture<List<ProjectDto>> listProjects(@Param @Nullable String status) {
+        final ContextAwareBlockingTaskExecutor executor =
+                ServiceRequestContext.current().blockingTaskExecutor();
         if (status != null) {
             checkStatusArgument(status);
-            return CompletableFuture.supplyAsync(() -> projectManager().listRemoved().keySet()
-                                                                       .stream()
-                                                                       .map(ProjectDto::new)
-                                                                       .collect(toImmutableList()));
+            return CompletableFuture.supplyAsync(() -> projectApiManager.listRemovedProjects().keySet()
+                                                                        .stream()
+                                                                        .map(ProjectDto::new)
+                                                                        .collect(toImmutableList()), executor);
         }
 
-        return CompletableFuture.supplyAsync(() -> projectManager().list().values().stream()
-                                                                   .map(DtoConverter::convert)
-                                                                   .collect(toImmutableList()));
+        return CompletableFuture.supplyAsync(() -> projectApiManager.listProjects().values().stream()
+                                                                    .map(DtoConverter::convert)
+                                                                    .collect(toImmutableList()), executor);
     }
 
     /**
@@ -97,8 +97,9 @@ public class ProjectServiceV1 extends AbstractService {
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
     public CompletableFuture<ProjectDto> createProject(CreateProjectRequest request, Author author) {
-        return execute(Command.createProject(author, request.name()))
-                .handle(returnOrThrow(() -> DtoConverter.convert(projectManager().get(request.name()))));
+        return projectApiManager.createProject(request.name(), author)
+                                .handle(returnOrThrow(() -> DtoConverter.convert(
+                                        projectApiManager.getProject(request.name()))));
     }
 
     /**
@@ -116,7 +117,7 @@ public class ProjectServiceV1 extends AbstractService {
         if (isCheckPermissionOnly) {
             return CompletableFuture.completedFuture(null);
         }
-        return mds.getProject(projectName);
+        return projectApiManager.getProjectMetadata(projectName);
     }
 
     /**
@@ -127,10 +128,7 @@ public class ProjectServiceV1 extends AbstractService {
     @Delete("/projects/{projectName}")
     @RequiresRole(roles = ProjectRole.OWNER)
     public CompletableFuture<Void> removeProject(Project project, Author author) {
-        // Metadata must be updated first because it cannot be updated if the project is removed.
-        return mds.removeProject(author, project.name())
-                  .thenCompose(unused -> execute(Command.removeProject(author, project.name())))
-                  .handle(HttpApiUtil::throwUnsafelyIfNonNull);
+        return projectApiManager.removeProject(project.name(), author);
     }
 
     /**
@@ -141,8 +139,7 @@ public class ProjectServiceV1 extends AbstractService {
     @Delete("/projects/{projectName}/removed")
     @RequiresRole(roles = ProjectRole.OWNER)
     public CompletableFuture<Void> purgeProject(@Param String projectName, Author author) {
-        return execute(Command.purgeProject(author, projectName))
-                .handle(HttpApiUtil::throwUnsafelyIfNonNull);
+        return projectApiManager.purgeProject(projectName, author);
     }
 
     /**
@@ -155,9 +152,8 @@ public class ProjectServiceV1 extends AbstractService {
     @RequiresAdministrator
     public CompletableFuture<ProjectDto> patchProject(@Param String projectName, JsonNode node, Author author) {
         checkUnremoveArgument(node);
-        // Restore the project first then update its metadata as 'active'.
-        return execute(Command.unremoveProject(author, projectName))
-                .thenCompose(unused -> mds.restoreProject(author, projectName))
-                .handle(returnOrThrow(() -> DtoConverter.convert(projectManager().get(projectName))));
+        return projectApiManager.unremoveProject(projectName, author)
+                                .handle(returnOrThrow(() -> DtoConverter.convert(
+                                        projectApiManager.getProject(projectName))));
     }
 }

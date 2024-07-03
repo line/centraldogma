@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.server.command;
 
-import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
@@ -37,6 +37,7 @@ import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionManager;
+import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -58,6 +59,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     // if permitsPerSecond is -1, a quota is checked by ZooKeeperCommandExecutor.
     private final double permitsPerSecond;
     private final MetadataService metadataService;
+    private final ServerStatusManager serverStatusManager;
 
     @VisibleForTesting
     final Map<String, RateLimiter> writeRateLimiters;
@@ -67,6 +69,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
      *
      * @param projectManager the project manager for accessing the storage
      * @param repositoryWorker the executor which is used for performing storage operations
+     * @param serverStatusManager the server status manager for updating the server status
      * @param writeQuota the write quota for limiting {@link NormalizingPushCommand}
      * @param sessionManager the session manager for creating/removing a session
      * @param onTakeLeadership the callback to be invoked after the replica has taken the leadership
@@ -74,11 +77,12 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
      */
     public StandaloneCommandExecutor(ProjectManager projectManager,
                                      Executor repositoryWorker,
+                                     ServerStatusManager serverStatusManager,
                                      @Nullable SessionManager sessionManager,
                                      @Nullable QuotaConfig writeQuota,
                                      @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                      @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
-        this(projectManager, repositoryWorker, sessionManager,
+        this(projectManager, repositoryWorker, serverStatusManager, sessionManager,
              writeQuota != null ? writeQuota.permitsPerSecond() : 0,
              onTakeLeadership, onReleaseLeadership);
     }
@@ -94,14 +98,17 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
      */
     public StandaloneCommandExecutor(ProjectManager projectManager,
                                      Executor repositoryWorker,
+                                     ServerStatusManager serverStatusManager,
                                      @Nullable SessionManager sessionManager,
                                      @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                      @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
-        this(projectManager, repositoryWorker, sessionManager, -1, onTakeLeadership, onReleaseLeadership);
+        this(projectManager, repositoryWorker, serverStatusManager, sessionManager, -1, onTakeLeadership,
+             onReleaseLeadership);
     }
 
     private StandaloneCommandExecutor(ProjectManager projectManager,
                                       Executor repositoryWorker,
+                                      ServerStatusManager serverStatusManager,
                                       @Nullable SessionManager sessionManager,
                                       double permitsPerSecond,
                                       @Nullable Consumer<CommandExecutor> onTakeLeadership,
@@ -109,6 +116,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         super(onTakeLeadership, onReleaseLeadership);
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
+        this.serverStatusManager = requireNonNull(serverStatusManager, "serverStatusManager");
         this.sessionManager = sessionManager;
         this.permitsPerSecond = permitsPerSecond;
         writeRateLimiters = new ConcurrentHashMap<>();
@@ -185,6 +193,15 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
         if (command instanceof RemoveSessionCommand) {
             return (CompletableFuture<T>) removeSession((RemoveSessionCommand) command);
+        }
+
+        if (command instanceof UpdateServerStatusCommand) {
+            return (CompletableFuture<T>) updateServerStatus((UpdateServerStatusCommand) command);
+        }
+
+        if (command instanceof ForcePushCommand) {
+            //noinspection TailRecursion
+            return doExecute(((ForcePushCommand<T>) command).delegate());
         }
 
         throw new UnsupportedOperationException(command.toString());
@@ -349,5 +366,13 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             logger.warn("Failed to replicate a session removal: {}", sessionId, cause);
             return null;
         });
+    }
+
+    private CompletableFuture<Void> updateServerStatus(UpdateServerStatusCommand c) {
+        return CompletableFuture.supplyAsync(() -> {
+            serverStatusManager.updateStatus(c.serverStatus());
+            statusManager().updateStatus(c);
+            return null;
+        }, serverStatusManager.sequentialExecutor());
     }
 }

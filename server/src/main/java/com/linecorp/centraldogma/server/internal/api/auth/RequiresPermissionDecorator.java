@@ -25,6 +25,10 @@ import java.util.Collection;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
+import javax.annotation.Nullable;
+
+import com.google.common.base.Strings;
+
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
@@ -35,11 +39,11 @@ import com.linecorp.armeria.server.SimpleDecoratingHttpService;
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.DecoratorFactoryFunction;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+import com.linecorp.centraldogma.server.internal.api.GitHttpService;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.metadata.Permission;
-import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
@@ -49,10 +53,18 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 public final class RequiresPermissionDecorator extends SimpleDecoratingHttpService {
 
     private final Permission requiredPermission;
+    @Nullable
+    private final String projectName;
+    @Nullable
+    private final String repoName;
 
-    RequiresPermissionDecorator(HttpService delegate, Permission requiredPermission) {
+    RequiresPermissionDecorator(HttpService delegate, Permission requiredPermission,
+                                @Nullable String projectName,
+                                @Nullable String repoName) {
         super(delegate);
         this.requiredPermission = requireNonNull(requiredPermission, "requiredPermission");
+        this.projectName = projectName;
+        this.repoName = repoName;
     }
 
     @Override
@@ -60,42 +72,24 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
         final MetadataService mds = MetadataServiceInjector.getMetadataService(ctx);
         final User user = AuthUtil.currentUser(ctx);
 
-        final String projectName = ctx.pathParam("projectName");
+        String projectName = this.projectName;
+        if (projectName == null) {
+            projectName = ctx.pathParam("projectName");
+        }
         checkArgument(!isNullOrEmpty(projectName), "no project name is specified");
-        final String repoName = ctx.pathParam("repoName");
+        String repoName = this.repoName;
+        if (repoName == null) {
+            repoName = ctx.pathParam("repoName");
+        }
         checkArgument(!isNullOrEmpty(repoName), "no repository name is specified");
 
-        if (Project.isReservedRepoName(repoName)) {
-            return serveInternalRepo(ctx, req, mds, user, projectName, repoName);
-        } else {
-            return serveUserRepo(ctx, req, mds, user, projectName, repoName);
-        }
-    }
-
-    private HttpResponse serveInternalRepo(ServiceRequestContext ctx, HttpRequest req,
-                                           MetadataService mds, User user,
-                                           String projectName, String repoName) throws Exception {
-        if (user.isAdmin()) {
+        if (Project.REPO_DOGMA.equals(repoName)) {
+            if (!user.isAdmin()) {
+                return throwForbiddenResponse(ctx, projectName, repoName, "administrator");
+            }
             return unwrap().serve(ctx, req);
         }
-        if (Project.REPO_DOGMA.equals(repoName)) {
-            return throwForbiddenResponse(ctx, projectName, repoName, "administrator");
-        }
-        assert Project.REPO_META.equals(repoName);
-
-        return HttpResponse.from(mds.findRole(projectName, user).handle((role, cause) -> {
-            if (cause != null) {
-                return handleException(ctx, cause);
-            }
-            if (role != ProjectRole.OWNER) {
-                return throwForbiddenResponse(ctx, projectName, repoName, "owner");
-            }
-            try {
-                return unwrap().serve(ctx, req);
-            } catch (Exception e) {
-                return Exceptions.throwUnsafely(e);
-            }
-        }));
+        return serveUserRepo(ctx, req, mds, user, projectName, maybeRemoveGitSuffix(repoName));
     }
 
     private static HttpResponse throwForbiddenResponse(ServiceRequestContext ctx, String projectName,
@@ -103,6 +97,17 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
         return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
                                          "Repository '%s/%s' can be accessed only by an %s.",
                                          projectName, repoName, adminOrOwner);
+    }
+
+    /**
+     * Removes the trailing ".git" suffix from the repository name if it exists. This is added for
+     * GitHttpService. See {@link GitHttpService}.
+     */
+    private static String maybeRemoveGitSuffix(String repoName) {
+        if (repoName.length() >= 5 && repoName.endsWith(".git")) {
+            repoName = repoName.substring(0, repoName.length() - 4);
+        }
+        return repoName;
     }
 
     private HttpResponse serveUserRepo(ServiceRequestContext ctx, HttpRequest req,
@@ -115,7 +120,7 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
             return handleException(ctx, cause);
         }
 
-        return HttpResponse.from(f.handle((permission, cause) -> {
+        return HttpResponse.of(f.handle((permission, cause) -> {
             if (cause != null) {
                 return handleException(ctx, cause);
             }
@@ -142,7 +147,9 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
         @Override
         public Function<? super HttpService, ? extends HttpService>
         newDecorator(RequiresReadPermission parameter) {
-            return delegate -> new RequiresPermissionDecorator(delegate, Permission.READ);
+            return delegate -> new RequiresPermissionDecorator(delegate, Permission.READ,
+                                                               Strings.emptyToNull(parameter.project()),
+                                                               Strings.emptyToNull(parameter.repository()));
         }
     }
 
@@ -155,7 +162,9 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
         @Override
         public Function<? super HttpService, ? extends HttpService>
         newDecorator(RequiresWritePermission parameter) {
-            return delegate -> new RequiresPermissionDecorator(delegate, Permission.WRITE);
+            return delegate -> new RequiresPermissionDecorator(delegate, Permission.WRITE,
+                                                               Strings.emptyToNull(parameter.project()),
+                                                               Strings.emptyToNull(parameter.repository()));
         }
     }
 }

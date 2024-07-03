@@ -19,6 +19,10 @@ package com.linecorp.centraldogma.server.storage.repository;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
@@ -26,6 +30,7 @@ import com.linecorp.centraldogma.server.mirror.MirrorCredential;
  * A Revision-controlled filesystem-like repository which is named {@code "meta"}.
  */
 public interface MetaRepository extends Repository {
+
     /**
      * Returns active mirroring tasks.
      */
@@ -34,13 +39,35 @@ public interface MetaRepository extends Repository {
     }
 
     /**
-     * Returns a set of mirroring tasks. If {@code includeDisabled} is @{code true}, disabled mirroring tasks
+     * Returns a set of mirroring tasks. If {@code includeDisabled} is {@code true}, disabled mirroring tasks
      * are also included in the returned {@link Mirror}s.
      */
     CompletableFuture<List<Mirror>> mirrors(boolean includeDisabled);
 
     /**
+     * Returns a mirroring task of the specified {@code id}.
+     */
+    CompletableFuture<Mirror> mirror(String id);
+
+    /**
      * Returns a list of mirroring credentials.
      */
     CompletableFuture<List<MirrorCredential>> credentials();
+
+    /**
+     * Returns a mirroring credential of the specified {@code id}.
+     */
+    CompletableFuture<MirrorCredential> credential(String id);
+
+    /**
+     * Create a push {@link Command} for the {@link MirrorDto}.
+     */
+    CompletableFuture<Command<CommitResult>> createPushCommand(MirrorDto mirrorDto, Author author,
+                                                               boolean update);
+
+    /**
+     * Create a push {@link Command} for the {@link MirrorCredential}.
+     */
+    CompletableFuture<Command<CommitResult>> createPushCommand(MirrorCredential credential, Author author,
+                                                               boolean update);
 }

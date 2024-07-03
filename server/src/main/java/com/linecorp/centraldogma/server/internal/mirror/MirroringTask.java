@@ -16,8 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-
 import java.io.File;
 
 import com.google.common.collect.ImmutableList;
@@ -31,10 +29,11 @@ import io.micrometer.core.instrument.Tag;
 
 final class MirroringTask {
 
-    private static Iterable<Tag> generateTags(Mirror mirror) {
+    private static Iterable<Tag> generateTags(Mirror mirror, String projectName) {
         return ImmutableList.of(
+                Tag.of("project", projectName),
                 Tag.of("direction", mirror.direction().name()),
-                Tag.of("remoteBranch", firstNonNull(mirror.remoteBranch(), "")),
+                Tag.of("remoteBranch", mirror.remoteBranch()),
                 Tag.of("remotePath", mirror.remotePath()),
                 Tag.of("localRepo", mirror.localRepo().name()),
                 Tag.of("localPath", mirror.localPath()));
@@ -44,10 +43,10 @@ final class MirroringTask {
     private final Mirror mirror;
     private final Iterable<Tag> tags;
 
-    MirroringTask(Mirror mirror, MeterRegistry meterRegistry) {
+    MirroringTask(Mirror mirror, String projectName, MeterRegistry meterRegistry) {
         this.mirror = mirror;
         this.meterRegistry = meterRegistry;
-        tags = generateTags(mirror);
+        tags = generateTags(mirror, projectName);
     }
 
     private Counter counter(boolean success) {

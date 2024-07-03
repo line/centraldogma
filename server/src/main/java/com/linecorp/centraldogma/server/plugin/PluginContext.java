@@ -22,6 +22,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -30,13 +31,14 @@ import io.micrometer.core.instrument.MeterRegistry;
 /**
  * A class which is used to pass internally-created instances into the {@link Plugin}.
  */
-public final class PluginContext {
+public class PluginContext {
 
     private final CentralDogmaConfig config;
     private final ProjectManager projectManager;
     private final CommandExecutor commandExecutor;
     private final MeterRegistry meterRegistry;
     private final ScheduledExecutorService purgeWorker;
+    private final InternalProjectInitializer internalProjectInitializer;
 
     /**
      * Creates a new instance.
@@ -51,12 +53,15 @@ public final class PluginContext {
                          ProjectManager projectManager,
                          CommandExecutor commandExecutor,
                          MeterRegistry meterRegistry,
-                         ScheduledExecutorService purgeWorker) {
+                         ScheduledExecutorService purgeWorker,
+                         InternalProjectInitializer internalProjectInitializer) {
         this.config = requireNonNull(config, "config");
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
         this.purgeWorker = requireNonNull(purgeWorker, "purgeWorker");
+        this.internalProjectInitializer = requireNonNull(internalProjectInitializer,
+                                                         "internalProjectInitializer");
     }
 
     /**
@@ -92,5 +97,12 @@ public final class PluginContext {
      */
     public ScheduledExecutorService purgeWorker() {
         return purgeWorker;
+    }
+
+    /**
+     * Returns the {@link InternalProjectInitializer}.
+     */
+    public InternalProjectInitializer internalProjectInitializer() {
+        return internalProjectInitializer;
     }
 }

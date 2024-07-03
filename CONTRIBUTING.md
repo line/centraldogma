@@ -2,7 +2,7 @@
 
 First of all, thank you so much for taking your time to contribute! Central Dogma is not very different from any other open source projects you are aware of. It will be amazing if you could help us by doing any of the following:
 
-- Join [our Slack workspace](https://join.slack.com/t/central-dogma/shared_invite/enQtNjA5NDk5MTExODQzLWFhOWU2NGZhNDk3MjBmNzczZDYyZjRmMTI1MzdiNGI3OTcwNWZlOTkyY2U3Nzk4YTM2NzQ2NGJhMjQ1NzJlNzQ) to chat with us.
+- Join [our Discord Server](https://armeria.dev/s/discord) to chat with us.
 - File an issue in [the issue tracker](https://github.com/line/centraldogma/issues) to report bugs and propose new features and improvements.
 - Ask a question by creating a new issue in [the issue tracker](https://github.com/line/centraldogma/issues).
   - Browse [the list of previously answered questions](https://github.com/line/centraldogma/issues?q=label%3Aquestion-answered).

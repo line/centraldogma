@@ -21,8 +21,9 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Performs mirroring of an external repository into a Central Dogma repository.
  */
-@SuppressWarnings("InterfaceMayBeAnnotatedFunctional")
+@FunctionalInterface
 public interface MirroringService {
+
     /**
      * Schedules an immediate mirroring.
      *

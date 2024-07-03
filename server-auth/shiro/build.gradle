@@ -1,6 +1,5 @@
 dependencies {
     api project(':server')
-    testImplementation project(':testing-internal')
 
     // Caffeine
     implementation libs.caffeine

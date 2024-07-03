@@ -1,6 +1,3 @@
-import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
-import com.google.common.base.CaseFormat
-
 buildscript {
     repositories {
         mavenCentral()
@@ -12,14 +9,25 @@ buildscript {
 }
 
 plugins {
-    alias libs.plugins.docker
+    alias libs.plugins.docker apply false
     alias libs.plugins.download
 }
+
+if (JavaVersion.current() < JavaVersion.VERSION_11 || project.ext.testJavaVersion < 11) {
+    // Gradle Docker plugin requires Java >= 11
+    return
+}
+
+apply plugin: 'com.bmuschko.docker-remote-api'
+
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+import com.google.common.base.CaseFormat
 
 evaluationDependsOn(':server')
 evaluationDependsOn(':server-auth:saml')
 evaluationDependsOn(':server-auth:shiro')
-evaluationDependsOn(':server-jgit6')
+evaluationDependsOn(':server-mirror-git')
+evaluationDependsOn(':xds')
 
 ext {
     distDir = "${project.buildDir}/dist"
@@ -30,10 +38,10 @@ ext {
 
 dependencies {
     // Logging
-    runtimeOnly libs.logback
-    runtimeOnly libs.slf4j.jcl.over.slf4j
-    runtimeOnly libs.slf4j.jul.to.slf4j
-    runtimeOnly libs.slf4j.log4j.over.slf4j
+    runtimeOnly libs.logback12
+    runtimeOnly libs.slf4j1.jcl.over.slf4j
+    runtimeOnly libs.slf4j1.jul.to.slf4j
+    runtimeOnly libs.slf4j1.log4j.over.slf4j
 }
 
 // Do not generate a JAR for this project.
@@ -56,24 +64,45 @@ task copyLib(group: 'Build',
              dependsOn: project(':server').tasks.jar,
              type: Copy) {
 
-    from project(':server').configurations.runtimeClasspath
+    from project(':server').configurations.runtimeClasspath {
+        exclude group: 'org.eclipse.jgit'
+    }
     from project(':server').tasks.jar
     from project.configurations.runtimeClasspath
-    from project(':server-auth:saml').configurations.runtimeClasspath
+    from project(':server-auth:saml').configurations.runtimeClasspath {
+        exclude group: 'org.eclipse.jgit'
+    }
     from project(':server-auth:saml').tasks.jar
-    from project(':server-auth:shiro').configurations.runtimeClasspath
+    from project(':server-auth:shiro').configurations.runtimeClasspath {
+        exclude group: 'org.eclipse.jgit'
+    }
     from project(':server-auth:shiro').tasks.jar
-    from project(':server-jgit6').configurations.runtimeClasspath
-    from project(':server-jgit6').tasks.jar
-    into "${project.ext.distDir}/lib"
+    from project(':server-mirror-git').configurations.runtimeClasspath
+    from project(':server-mirror-git').tasks.jar
+    from project(':xds').configurations.runtimeClasspath {
+        exclude group: 'org.eclipse.jgit'
+    }
+    from project(':xds').tasks.jar
+
+    File libDir = new File("${project.ext.distDir}/lib")
+    into libDir
 
     doLast {
         // Create an empty directory for keeping external JARs such as authentication module.
-        project.mkdir("${project.ext.distDir}/lib/ext")
+        project.mkdir("${libDir}/ext")
+
+        // Check if only JGit 6.x JARs are included.
+        FileCollection jgits = layout.files { libDir.listFiles() }.filter { File file ->
+            file.name.contains("jgit")
+        }
+        // org.eclipse.jgit-6.x is required.
+        if (jgits.size() != 1 || !jgits.first().name.startsWith("org.eclipse.jgit-6")) {
+            throw new IllegalStateException("Unexpected JGit JARs: $jgits.files")
+        }
     }
 }
 
-def cliVersion = "0.0.1"
+def cliVersion = "0.1.0"
 
 task downloadClientBinaries(group: 'Build',
         description: "Downloads client binaries into ${project.ext.cliDownloadDir}") {
@@ -81,7 +110,7 @@ task downloadClientBinaries(group: 'Build',
     outputs.dir("${project.ext.cliDownloadDir}/$cliVersion")
 
     doLast {
-        ["darwin-amd64", "linux-amd64", "windows-amd64.exe"].each { platform ->
+        ["darwin-amd64", "darwin-arm64", "linux-amd64", "windows-amd64.exe"].each { platform ->
             download.run {
                 src "https://github.com/line/centraldogma-go/releases/download/$cliVersion/dogma.$platform"
                 dest "${project.ext.cliDownloadDir}/$cliVersion/dogma.$platform"
@@ -136,13 +165,18 @@ task tarball(group: 'Build',
              dependsOn: tasks.distDir,
              type: Tar) {
 
-    baseName = rootProject.name
-    destinationDir = project.file("${project.buildDir}")
+    archiveBaseName = rootProject.name
+    destinationDirectory = project.file("${project.buildDir}")
     compression = Compression.GZIP
     includeEmptyDirs = true
 
+    def copyAlpnAgentTask = tasks.findByName("copyAlpnAgent")
+    if (copyAlpnAgentTask) {
+        dependsOn(copyAlpnAgentTask)
+    }
+
     from "${project.ext.distDir}"
-    into baseName + '-' + project.version
+    into archiveBaseName.get() + '-' + project.version
 }
 
 tasks.assemble.dependsOn(tasks.tarball)
@@ -153,7 +187,7 @@ task docker(group: 'Build',
             dependsOn: tasks.distDir,
             type: DockerBuildImage) {
     inputDir = file('.')
-    def name = 'line/centraldogma:'
+    def name = 'ghcr.io/line/centraldogma:'
     images = [name + "${project.version}"]
     if (!(project.version =~ /-SNAPSHOT$/)) {
         images.add(name + "latest")
