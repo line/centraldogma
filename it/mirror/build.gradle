@@ -1,0 +1,10 @@
+dependencies {
+    testImplementation project(':server-auth:shiro')
+    testImplementation project(':server-mirror-git')
+
+    testImplementation libs.jgit6
+    testImplementation libs.jgit.ssh.jsch6
+    testImplementation libs.jsch
+    testImplementation libs.mina.sshd.core
+    testImplementation libs.mina.sshd.git
+}

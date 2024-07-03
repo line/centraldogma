@@ -35,7 +35,7 @@ import javax.annotation.Nullable;
 
 import org.apache.curator.test.InstanceSpec;
 
-import com.linecorp.armeria.common.metric.PrometheusMeterRegistries;
+import com.linecorp.armeria.common.prometheus.PrometheusMeterRegistries;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
@@ -91,6 +91,7 @@ final class Replica {
             }
         }, meterRegistry, mock(ProjectManager.class), writeQuota, null, null);
         commandExecutor.setMetadataService(mockMetaService());
+        commandExecutor.setLockTimeoutMillis(10000);
 
         startFuture = start ? commandExecutor.start() : null;
     }

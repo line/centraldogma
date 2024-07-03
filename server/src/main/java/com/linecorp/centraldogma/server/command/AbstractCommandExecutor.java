@@ -26,15 +26,21 @@ import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.StartStopSupport;
+import com.linecorp.centraldogma.common.ReadOnlyException;
 
 /**
  * Helps to implement a concrete {@link CommandExecutor}.
  */
 public abstract class AbstractCommandExecutor implements CommandExecutor {
+
+    private static final Logger logger = LoggerFactory.getLogger(AbstractCommandExecutor.class);
 
     @Nullable
     private final Consumer<CommandExecutor> onTakeLeadership;
@@ -45,6 +51,7 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     private volatile boolean started;
     private volatile boolean writable = true;
     private final AtomicInteger numPendingStopRequests = new AtomicInteger();
+    private final CommandExecutorStatusManager statusManager;
 
     /**
      * Creates a new instance.
@@ -56,6 +63,7 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
                                       @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
         this.onTakeLeadership = onTakeLeadership;
         this.onReleaseLeadership = onReleaseLeadership;
+        statusManager = new CommandExecutorStatusManager(this);
     }
 
     @Override
@@ -69,7 +77,12 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
 
     @Override
     public final CompletableFuture<Void> start() {
-        return startStop.start(false).thenRun(() -> started = true);
+        return startStop.start(false).thenRun(() -> {
+            started = true;
+            if (!writable) {
+                logger.warn("Started a command executor with read-only mode.");
+            }
+        });
     }
 
     protected abstract void doStart(@Nullable Runnable onTakeLeadership,
@@ -97,8 +110,14 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     @Override
     public final <T> CompletableFuture<T> execute(Command<T> command) {
         requireNonNull(command, "command");
-        if (!isWritable()) {
-            throw new IllegalStateException("running in read-only mode");
+        if (!isStarted()) {
+            throw new ReadOnlyException("running in read-only mode. command: " + command);
+        }
+        if (!writable && !(command instanceof AdministrativeCommand)) {
+            // Reject all commands except for AdministrativeCommand when the replica is in read-only mode.
+            // AdministrativeCommand is allowed because it is used to change the read-only mode or migrate
+            // metadata under maintenance mode.
+            throw new ReadOnlyException("running in read-only mode. command: " + command);
         }
 
         try {
@@ -111,6 +130,11 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     }
 
     protected abstract <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception;
+
+    @Override
+    public CommandExecutorStatusManager statusManager() {
+        return statusManager;
+    }
 
     @Override
     public String toString() {

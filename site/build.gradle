@@ -5,9 +5,15 @@ import java.util.stream.Collectors
 
 plugins {
     id 'base'
-    alias libs.plugins.sphinx
+    alias libs.plugins.sphinx apply false
     alias libs.plugins.jxr
 }
+
+if (project.hasProperty("noSite")) {
+    return
+}
+
+apply plugin: "kr.motd.sphinx"
 
 sphinx {
     group = 'Documentation'
@@ -44,6 +50,7 @@ task xref(group: 'Documentation',
 
     inputs.files sourceDirs
     outputs.dir outputDir
+
 
     doLast {
         JXR jxr = new JXR()
@@ -135,7 +142,13 @@ tasks.check {
     dependsOn tasks.test
 }
 
+tasks.test.dependsOn tasks.sphinx
 tasks.sphinx.dependsOn tasks.javadoc
 
 tasks.build.dependsOn tasks.assemble
 tasks.build.dependsOn tasks.check
+
+def siteProject = project
+rootProject.subprojects { prj ->
+    siteProject.tasks.xref.dependsOn(prj.ext.getGenerateSourcesTask())
+}

@@ -24,7 +24,9 @@ import static com.linecorp.centraldogma.internal.Util.isValidDirPath;
 import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
-import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.metaRepoFiles;
+import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1.increaseCounterIfOldRevisionUsed;
+import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMetaFile;
+import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMirrorFile;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -58,6 +60,7 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.RequestConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.Markup;
@@ -65,6 +68,7 @@ import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.api.v1.ChangeDto;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
@@ -74,6 +78,7 @@ import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
@@ -82,12 +87,13 @@ import com.linecorp.centraldogma.server.internal.api.converter.MergeQueryRequest
 import com.linecorp.centraldogma.server.internal.api.converter.QueryRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
-import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+
+import io.micrometer.core.instrument.MeterRegistry;
 
 /**
  * Annotated service object for managing and watching contents.
@@ -101,11 +107,12 @@ public class ContentServiceV1 extends AbstractService {
     private static final String MIRROR_LOCAL_REPO = "localRepo";
 
     private final WatchService watchService;
+    private final MeterRegistry meterRegistry;
 
-    public ContentServiceV1(ProjectManager projectManager, CommandExecutor executor,
-                            WatchService watchService) {
-        super(projectManager, executor);
+    public ContentServiceV1(CommandExecutor executor, WatchService watchService, MeterRegistry meterRegistry) {
+        super(executor);
         this.watchService = requireNonNull(watchService, "watchService");
+        this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
     }
 
     /**
@@ -114,11 +121,13 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Returns the list of files in the path.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/list(?<path>(|/.*))$")
-    public CompletableFuture<List<EntryDto<?>>> listFiles(@Param String path,
+    public CompletableFuture<List<EntryDto<?>>> listFiles(ServiceRequestContext ctx,
+                                                          @Param String path,
                                                           @Param @Default("-1") String revision,
                                                           Repository repository) {
         final String normalizedPath = normalizePath(path);
         final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
+        increaseCounterIfOldRevisionUsed(ctx, repository, normalizedRev);
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
         listFiles(repository, normalizedPath, normalizedRev, false, future);
         return future;
@@ -182,12 +191,18 @@ public class ContentServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/repos/{repoName}/contents")
     @RequiresWritePermission
     public CompletableFuture<PushResultDto> push(
+            ServiceRequestContext ctx,
             @Param @Default("-1") String revision,
             Repository repository,
             Author author,
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
-        checkPush(repository.name(), changes);
+        final User user = AuthUtil.currentUser(ctx);
+        checkPush(repository.name(), changes, user.isAdmin());
+        meterRegistry.counter("commits.push",
+                              "project", repository.parent().name(),
+                              "repository", repository.name())
+                     .increment();
 
         final long commitTimeMillis = System.currentTimeMillis();
         return push(commitTimeMillis, author, repository, new Revision(revision), commitMessage, changes)
@@ -214,12 +229,14 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Post("/projects/{projectName}/repos/{repoName}/preview")
     public CompletableFuture<Iterable<ChangeDto<?>>> preview(
+            ServiceRequestContext ctx,
             @Param @Default("-1") String revision,
             Repository repository,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
-
+        final Revision baseRevision = new Revision(revision);
+        increaseCounterIfOldRevisionUsed(ctx, repository, baseRevision);
         final CompletableFuture<Map<String, Change<?>>> changesFuture =
-                repository.previewDiff(new Revision(revision), changes);
+                repository.previewDiff(baseRevision, changes);
 
         return changesFuture.thenApply(previewDiffs -> previewDiffs.values().stream()
                                                                    .map(DtoConverter::convert)
@@ -231,7 +248,8 @@ public class ContentServiceV1 extends AbstractService {
      * jsonpath={jsonpath}
      *
      * <p>Returns the entry of files in the path. This is same with
-     * {@link #listFiles(String, String, Repository)} except that containing the content of the files.
+     * {@link #listFiles(ServiceRequestContext, String, String, Repository)} except that containing
+     * the content of the files.
      * Note that if the {@link HttpHeaderNames#IF_NONE_MATCH} in which has a revision is sent with,
      * this will await for the time specified in {@link HttpHeaderNames#PREFER}.
      * During the time if the specified revision becomes different with the latest revision, this will
@@ -245,6 +263,7 @@ public class ContentServiceV1 extends AbstractService {
             Repository repository,
             @RequestConverter(WatchRequestConverter.class) @Nullable WatchRequest watchRequest,
             @RequestConverter(QueryRequestConverter.class) @Nullable Query<?> query) {
+        increaseCounterIfOldRevisionUsed(ctx, repository, new Revision(revision));
         final String normalizedPath = normalizePath(path);
 
         // watch repository or a file
@@ -309,7 +328,8 @@ public class ContentServiceV1 extends AbstractService {
     }
 
     private static Object handleWatchFailure(Throwable thrown) {
-        if (Throwables.getRootCause(thrown) instanceof CancellationException) {
+        final Throwable rootCause = Throwables.getRootCause(thrown);
+        if (rootCause instanceof CancellationException || rootCause instanceof ShuttingDownException) {
             // timeout happens
             return HttpResponse.of(HttpStatus.NOT_MODIFIED);
         }
@@ -325,7 +345,8 @@ public class ContentServiceV1 extends AbstractService {
      * specify {@code to}, this will return the list of commits.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/commits(?<revision>(|/.*))$")
-    public CompletableFuture<?> listCommits(@Param String revision,
+    public CompletableFuture<?> listCommits(ServiceRequestContext ctx,
+                                            @Param String revision,
                                             @Param @Default("/**") String path,
                                             @Param @Nullable String to,
                                             @Param @Nullable Integer maxCommits,
@@ -346,6 +367,10 @@ public class ContentServiceV1 extends AbstractService {
         }
 
         final RevisionRange range = repository.normalizeNow(fromRevision, toRevision).toDescending();
+
+        increaseCounterIfOldRevisionUsed(ctx, repository, range.from());
+        increaseCounterIfOldRevisionUsed(ctx, repository, range.to());
+
         final int maxCommits0 = firstNonNull(maxCommits, Repository.DEFAULT_MAX_COMMITS);
         return repository
                 .history(range.from(), range.to(), normalizePath(path), maxCommits0)
@@ -368,17 +393,21 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Get("/projects/{projectName}/repos/{repoName}/compare")
     public CompletableFuture<?> getDiff(
+            ServiceRequestContext ctx,
             @Param @Default("/**") String pathPattern,
             @Param @Default("1") String from, @Param @Default("head") String to,
             Repository repository,
             @RequestConverter(QueryRequestConverter.class) @Nullable Query<?> query) {
-
+        final Revision fromRevision = new Revision(from);
+        final Revision toRevision = new Revision(to);
+        increaseCounterIfOldRevisionUsed(ctx, repository, fromRevision);
+        increaseCounterIfOldRevisionUsed(ctx, repository, toRevision);
         if (query != null) {
-            return repository.diff(new Revision(from), new Revision(to), query)
+            return repository.diff(fromRevision, toRevision, query)
                              .thenApply(DtoConverter::convert);
         } else {
             return repository
-                    .diff(new Revision(from), new Revision(to), normalizePath(pathPattern))
+                    .diff(fromRevision, toRevision, normalizePath(pathPattern))
                     .thenApply(changeMap -> changeMap.values().stream()
                                                      .map(DtoConverter::convert).collect(toImmutableList()));
         }
@@ -402,42 +431,70 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Get("/projects/{projectName}/repos/{repoName}/merge")
     public <T> CompletableFuture<MergedEntryDto<T>> mergeFiles(
+            ServiceRequestContext ctx,
             @Param @Default("-1") String revision, Repository repository,
             @RequestConverter(MergeQueryRequestConverter.class) MergeQuery<T> query) {
-        return repository.mergeFiles(new Revision(revision), query).thenApply(DtoConverter::convert);
+        final Revision rev = new Revision(revision);
+        increaseCounterIfOldRevisionUsed(ctx, repository, rev);
+        return repository.mergeFiles(rev, query).thenApply(DtoConverter::convert);
     }
 
     /**
      * Checks if the commit is for creating a file and raises a {@link InvalidPushException} if the
      * given {@code repoName} field is one of {@code meta} and {@code dogma} which are internal repositories.
      */
-    public static void checkPush(String repoName, Iterable<Change<?>> changes) {
+    public static void checkPush(String repoName, Iterable<Change<?>> changes, boolean isAdmin) {
         if (Project.REPO_META.equals(repoName)) {
             final boolean hasChangesOtherThanMetaRepoFiles =
-                    Streams.stream(changes).anyMatch(change -> !metaRepoFiles.contains(change.path()));
+                    Streams.stream(changes).anyMatch(change -> !isMetaFile(change.path()));
             if (hasChangesOtherThanMetaRepoFiles) {
                 throw new InvalidPushException(
                         "The " + Project.REPO_META + " repository is reserved for internal usage.");
             }
 
+            if (isAdmin) {
+                // Admin may push the legacy files to test the mirror migration.
+            } else {
+                for (Change<?> change : changes) {
+                    // 'mirrors.json' and 'credentials.json' are disallowed to be created or modified.
+                    // 'mirrors/{id}.json' and 'credentials/{id}.json' must be used instead.
+                    final String path = change.path();
+                    if (change.type() == ChangeType.REMOVE) {
+                        continue;
+                    }
+                    if ("/mirrors.json".equals(path)) {
+                        throw new InvalidPushException(
+                                "'/mirrors.json' file is not allowed to create. " +
+                                "Use '/mirrors/{id}.json' file or " +
+                                "'/api/v1/projects/{projectName}/mirrors' API instead.");
+                    }
+                    if ("/credentials.json".equals(path)) {
+                        throw new InvalidPushException(
+                                "'/credentials.json' file is not allowed to create. " +
+                                "Use '/credentials/{id}.json' file or " +
+                                "'/api/v1/projects/{projectName}/credentials' API instead.");
+                    }
+                }
+            }
+
+            // TODO(ikhoon): Disallow creating a mirror with the commit API. Mirroring REST API should be used
+            //               to validate the input.
             final Optional<String> notAllowedLocalRepo =
                     Streams.stream(changes)
-                           .filter(change -> DefaultMetaRepository.PATH_MIRRORS.equals(change.path()))
+                           .filter(change -> isMirrorFile(change.path()))
                            .filter(change -> change.content() != null)
                            .map(change -> {
                                final Object content = change.content();
                                if (content instanceof JsonNode) {
                                    final JsonNode node = (JsonNode) content;
-                                   if (!node.isArray()) {
+                                   if (!node.isObject()) {
                                        return null;
                                    }
-                                   for (JsonNode jsonNode : node) {
-                                       final JsonNode localRepoNode = jsonNode.get(MIRROR_LOCAL_REPO);
-                                       if (localRepoNode != null) {
-                                           final String localRepo = localRepoNode.textValue();
-                                           if (Project.isReservedRepoName(localRepo)) {
-                                               return localRepo;
-                                           }
+                                   final JsonNode localRepoNode = node.get(MIRROR_LOCAL_REPO);
+                                   if (localRepoNode != null) {
+                                       final String localRepo = localRepoNode.textValue();
+                                       if (Project.isReservedRepoName(localRepo)) {
+                                           return localRepo;
                                        }
                                    }
                                }

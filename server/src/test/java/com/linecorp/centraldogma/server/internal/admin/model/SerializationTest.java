@@ -67,7 +67,7 @@ class SerializationTest {
         final Member member = new Member(userLogin, ProjectRole.MEMBER, newCreationTag());
         final RepositoryMetadata repositoryMetadata = new RepositoryMetadata("sample", newCreationTag(),
                                                                              PerRolePermissions.ofDefault());
-        final Token token = new Token("testApp", "testSecret", false, newCreationTag(), null);
+        final Token token = new Token("testApp", "testSecret", false, newCreationTag(), null, null);
         final ProjectMetadata metadata =
                 new ProjectMetadata("test",
                                     ImmutableMap.of(repositoryMetadata.name(), repositoryMetadata),
@@ -86,7 +86,8 @@ class SerializationTest {
                                            "      \"perRolePermissions\" : {\n" +
                                            "        \"owner\" : [ \"READ\", \"WRITE\" ],\n" +
                                            "        \"member\" : [ \"READ\", \"WRITE\" ],\n" +
-                                           "        \"guest\" : []\n" +
+                                           "        \"guest\" : [],\n" +
+                                           "        \"anonymous\" : []\n" +
                                            "      },\n" +
                                            "      \"perUserPermissions\" : { },\n" +
                                            "      \"perTokenPermissions\" : { },\n" +
@@ -141,7 +142,7 @@ class SerializationTest {
                                          newCreationTag());
         final RepositoryMetadata repositoryMetadata = new RepositoryMetadata("sample", newCreationTag(),
                                                                              PerRolePermissions.ofDefault());
-        final Token token = new Token("testApp", "testSecret", false, newCreationTag(), null);
+        final Token token = new Token("testApp", "testSecret", false, newCreationTag(), null, null);
         final ProjectMetadata metadata =
                 new ProjectMetadata("test",
                                     ImmutableMap.of(repositoryMetadata.name(), repositoryMetadata),
@@ -161,7 +162,8 @@ class SerializationTest {
                                            "      \"perRolePermissions\" : {\n" +
                                            "        \"owner\" : [ \"READ\", \"WRITE\" ],\n" +
                                            "        \"member\" : [ \"READ\", \"WRITE\" ],\n" +
-                                           "        \"guest\" : []\n" +
+                                           "        \"guest\" : [],\n" +
+                                           "        \"anonymous\" : []\n" +
                                            "      },\n" +
                                            "      \"perUserPermissions\" : { },\n" +
                                            "      \"perTokenPermissions\" : { },\n" +

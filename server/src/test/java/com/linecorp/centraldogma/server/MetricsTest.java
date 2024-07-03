@@ -18,21 +18,29 @@ package com.linecorp.centraldogma.server;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.client.CentralDogmaRepository;
+import com.linecorp.centraldogma.client.WatchRequest;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.testing.internal.FlakyTest;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
-import io.micrometer.prometheus.PrometheusMeterRegistry;
-import io.prometheus.client.exporter.common.TextFormat;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
+@FlakyTest
+@Timeout(30)
 class MetricsTest {
 
     @RegisterExtension
@@ -55,23 +63,44 @@ class MetricsTest {
         assertThat(((CompositeMeterRegistry) meterRegistry).getRegistries())
                 .hasAtLeastOneElementOfType(PrometheusMeterRegistry.class);
 
-        AggregatedHttpResponse res = dogma.httpClient().get("/monitor/metrics").aggregate().join();
+        final AggregatedHttpResponse res = dogma.httpClient().get("/monitor/metrics").aggregate().join();
         String content = res.contentUtf8();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
-        assertThat(res.contentType()).isEqualTo(MediaType.parse(TextFormat.CONTENT_TYPE_004));
+        assertThat(res.contentType()).isEqualTo(MediaType.parse("text/plain; version=0.0.4; charset=utf-8"));
         assertThat(content).isNotEmpty();
         assertThat(content).doesNotContain(
                 "com.linecorp.centraldogma.server.internal.api.WatchContentServiceV1");
 
-        dogma.client()
-             .forRepo("foo", "bar")
-             .watch(Query.ofJson("/foo.json"))
-             .timeoutMillis(100)
-             .errorOnEntryNotFound(false)
-             .start()
-             .join();
-        res = dogma.httpClient().get("/monitor/metrics").aggregate().join();
-        content = res.contentUtf8();
+        final WatchRequest<JsonNode> jsonNodeWatchRequest = dogma.client()
+                                                                 .forRepo("foo", "bar")
+                                                                 .watch(Query.ofJson("/foo.json"))
+                                                                 .timeoutMillis(100)
+                                                                 .errorOnEntryNotFound(false);
+        jsonNodeWatchRequest.start().join();
+        content = dogma.httpClient().get("/monitor/metrics").aggregate().join().contentUtf8();
         assertThat(content).contains("com.linecorp.centraldogma.server.internal.api.WatchContentServiceV1");
+        assertThat(content).doesNotContain("revisions_init");
+
+        // Trigger old revision recording
+        jsonNodeWatchRequest.start(Revision.INIT).join();
+        content = dogma.httpClient().get("/monitor/metrics").aggregate().join().contentUtf8();
+        assertThat(content).contains("revisions_init");
+        assertThat(content).doesNotContain("revisions_old");
+
+        final CentralDogmaRepository centralDogmaRepo = dogma.client().forRepo("foo", "bar");
+        for (int i = 0; i < 5000; i++) {
+            centralDogmaRepo.commit("Add a commit", Change.ofTextUpsert("/foo.txt", Integer.toString(i)))
+                            .push().join();
+        }
+
+        jsonNodeWatchRequest.start(Revision.INIT).join();
+        content = dogma.httpClient().get("/monitor/metrics").aggregate().join().contentUtf8();
+        assertThat(content).contains("revisions_old");
+        assertThat(content).contains("init=\"true\"");
+        assertThat(content).doesNotContain("init=\"false\"");
+
+        jsonNodeWatchRequest.start(new Revision(2)).join();
+        content = dogma.httpClient().get("/monitor/metrics").aggregate().join().contentUtf8();
+        assertThat(content).contains("init=\"false\"");
     }
 }

@@ -17,18 +17,10 @@ package com.linecorp.centraldogma.server.mirror;
 
 import static java.util.Objects.requireNonNull;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.net.URLDecoder;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 /**
  * A utility class for creating a mirroring task.
  */
 public final class MirrorUtil {
-
-    static final Pattern DOGMA_PATH_PATTERN = Pattern.compile("^/([^/]+)/([^/]+)\\.dogma$");
 
     /**
      * Normalizes the specified {@code path}. A path which starts and ends with {@code /} would be returned.
@@ -49,66 +41,6 @@ public final class MirrorUtil {
         }
 
         return path.replaceAll("//+", "/");
-    }
-
-    /**
-     * Splits the specified 'remoteUri' into:
-     * - the actual remote repository URI
-     * - the path in the remote repository
-     * - the branch name.
-     *
-     * <p>e.g. git+ssh://foo.com/bar.git/some-path#master is split into:
-     * - remoteRepoUri: git+ssh://foo.com/bar.git
-     * - remotePath:    /some-path/
-     * - remoteBranch:  master
-     *
-     * <p>e.g. dogma://foo.com/bar/qux.dogma is split into:
-     * - remoteRepoUri: dogma://foo.com/bar/qux.dogma
-     * - remotePath:    / (default)
-     * - remoteBranch:  {@code defaultBranch}
-     */
-    static String[] split(URI remoteUri, String suffix) {
-        final String host = remoteUri.getHost();
-        if (host == null && !remoteUri.getScheme().endsWith("+file")) {
-            throw new IllegalArgumentException("no host in remoteUri: " + remoteUri);
-        }
-
-        final String path = remoteUri.getRawPath();
-        if (path == null) {
-            throw new IllegalArgumentException("no path in remoteUri: " + remoteUri);
-        }
-
-        final Matcher matcher = Pattern.compile("^(.*?\\." + suffix + ")(?:$|/)").matcher(path);
-        if (!matcher.find()) {
-            throw new IllegalArgumentException("no '." + suffix + "' in remoteUri path: " + remoteUri);
-        }
-
-        final String newRemoteUri;
-        final int port = remoteUri.getPort();
-        if (host != null) {
-            if (port > 0) {
-                newRemoteUri = remoteUri.getScheme() + "://" + host + ':' + port +
-                               matcher.group(1);
-            } else {
-                newRemoteUri = remoteUri.getScheme() + "://" + host + matcher.group(1);
-            }
-        } else {
-            newRemoteUri = remoteUri.getScheme() + "://" + matcher.group(1);
-        }
-
-        final String remotePath;
-        try {
-            String decoded = URLDecoder.decode(path.substring(matcher.group(1).length()), "UTF-8");
-            decoded = normalizePath(decoded);
-
-            remotePath = decoded;
-        } catch (UnsupportedEncodingException e) {
-            throw new Error(e);
-        }
-
-        final String remoteBranch = remoteUri.getFragment();
-
-        return new String[] { newRemoteUri, remotePath, remoteBranch };
     }
 
     private MirrorUtil() {}

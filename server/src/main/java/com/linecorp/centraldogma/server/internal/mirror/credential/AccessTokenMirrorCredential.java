@@ -16,11 +16,15 @@
 
 package com.linecorp.centraldogma.server.internal.mirror.credential;
 
+import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 import static com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredentialUtil.requireNonEmpty;
 
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -29,20 +33,34 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 public final class AccessTokenMirrorCredential extends AbstractMirrorCredential {
 
+    private static final Logger logger = LoggerFactory.getLogger(AccessTokenMirrorCredential.class);
+
     private final String accessToken;
 
     @JsonCreator
-    public AccessTokenMirrorCredential(@JsonProperty("id") @Nullable String id,
+    public AccessTokenMirrorCredential(@JsonProperty("id") String id,
+                                       @JsonProperty("enabled") @Nullable Boolean enabled,
                                        @JsonProperty("hostnamePatterns") @Nullable
                                        @JsonDeserialize(contentAs = Pattern.class)
                                        Iterable<Pattern> hostnamePatterns,
                                        @JsonProperty("accessToken") String accessToken) {
-        super(id, hostnamePatterns);
+        super(id, enabled, "access_token", hostnamePatterns);
 
         this.accessToken = requireNonEmpty(accessToken, "accessToken");
     }
 
     public String accessToken() {
+        try {
+            return convertValue(accessToken, "credentials.accessToken");
+        } catch (Throwable t) {
+            // The accessToken probably has `:` without prefix. Just return it as is for backward compatibility.
+            logger.debug("Failed to convert the access token of the credential: {}", id(), t);
+            return accessToken;
+        }
+    }
+
+    @JsonProperty("accessToken")
+    public String rawAccessToken() {
         return accessToken;
     }
 

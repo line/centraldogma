@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.checkUnremoveArgument;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
@@ -28,9 +29,11 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.logging.RequestOnlyLog;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
@@ -55,8 +58,9 @@ import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+
+import io.micrometer.core.instrument.Tag;
 
 /**
  * Annotated service object for managing repositories.
@@ -67,9 +71,8 @@ public class RepositoryServiceV1 extends AbstractService {
 
     private final MetadataService mds;
 
-    public RepositoryServiceV1(ProjectManager projectManager, CommandExecutor executor,
-                               MetadataService mds) {
-        super(projectManager, executor);
+    public RepositoryServiceV1(CommandExecutor executor, MetadataService mds) {
+        super(executor);
         this.mds = requireNonNull(mds, "mds");
     }
 
@@ -186,8 +189,48 @@ public class RepositoryServiceV1 extends AbstractService {
      */
     @Get("/projects/{projectName}/repos/{repoName}/revision/{revision}")
     @RequiresReadPermission
-    public Map<String, Integer> normalizeRevision(Repository repository, @Param String revision) {
+    public Map<String, Integer> normalizeRevision(ServiceRequestContext ctx,
+                                                  Repository repository, @Param String revision) {
         final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));
+        final Revision head = repository.normalizeNow(Revision.HEAD);
+        increaseCounterIfOldRevisionUsed(ctx, repository, normalizedRevision, head);
         return ImmutableMap.of("revision", normalizedRevision.major());
+    }
+
+    static void increaseCounterIfOldRevisionUsed(ServiceRequestContext ctx, Repository repository,
+                                                 Revision revision) {
+        final Revision normalized = repository.normalizeNow(revision);
+        final Revision head = repository.normalizeNow(Revision.HEAD);
+        increaseCounterIfOldRevisionUsed(ctx, repository, normalized, head);
+    }
+
+    public static void increaseCounterIfOldRevisionUsed(
+            ServiceRequestContext ctx, Repository repository, Revision normalized, Revision head) {
+        final String projectName = repository.parent().name();
+        final String repoName = repository.name();
+        if (normalized.major() == 1) {
+            ctx.log().whenRequestComplete().thenAccept(
+                    log -> ctx.meterRegistry()
+                              .counter("revisions.init", generateTags(projectName, repoName, log).build())
+                              .increment());
+        }
+        if (head.major() - normalized.major() >= 5000) {
+            ctx.log().whenRequestComplete().thenAccept(
+                    log -> ctx.meterRegistry()
+                              .summary("revisions.old",
+                                       generateTags(projectName, repoName, log)
+                                               .add(Tag.of("init", Boolean.toString(normalized.major() == 1)))
+                                               .build())
+                              .record(head.major() - normalized.major()));
+        }
+    }
+
+    private static ImmutableList.Builder<Tag> generateTags(
+            String projectName, String repoName, RequestOnlyLog log) {
+        final ImmutableList.Builder<Tag> builder = ImmutableList.builder();
+        return builder.add(Tag.of("project", projectName),
+                           Tag.of("repo", repoName),
+                           Tag.of("service", firstNonNull(log.serviceName(), "none")),
+                           Tag.of("method", log.name()));
     }
 }

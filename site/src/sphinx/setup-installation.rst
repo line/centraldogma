@@ -52,10 +52,10 @@ To stop the server, use the ``bin/shutdown`` script:
 
 Running on Docker
 -----------------
-You can also pull Central Dogma image from `Docker Hub <https://hub.docker.com/r/line/centraldogma/>`_
+You can also pull Central Dogma image from `Github Packages registry <https://github.com/line/centraldogma/pkgs/container/centraldogma>`_
 and then run it on your Docker:
 
 .. code-block:: shell
 
-    $ docker run -p 36462:36462 line/centraldogma
+    $ docker run -p 36462:36462 ghcr.io/line/centraldogma
 

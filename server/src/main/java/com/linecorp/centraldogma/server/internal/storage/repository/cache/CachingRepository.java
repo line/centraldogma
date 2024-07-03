@@ -63,6 +63,11 @@ final class CachingRepository implements Repository {
     }
 
     @Override
+    public org.eclipse.jgit.lib.Repository jGitRepository() {
+        return repo.jGitRepository();
+    }
+
+    @Override
     public long creationTimeMillis() {
         return repo.creationTimeMillis();
     }

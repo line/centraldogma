@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 import static java.util.Objects.requireNonNull;
 
 import java.net.InetAddress;
@@ -53,6 +54,7 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
 
     private final int serverId;
     private final Map<Integer, ZooKeeperServerConfig> servers;
+    @Nullable
     private final String secret;
     private final Map<String, String> additionalProperties;
     private final int timeoutMillis;
@@ -96,9 +98,8 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
         requireNonNull(servers, "servers");
         this.serverId = serverId != null ? serverId : findServerId(servers);
         checkArgument(this.serverId > 0, "serverId: %s (expected: > 0)", serverId);
-
-        this.secret = firstNonNull(secret, DEFAULT_SECRET);
-        checkArgument(!this.secret.isEmpty(), "secret is empty.");
+        this.secret = secret;
+        checkArgument(!secret().isEmpty(), "secret is empty.");
 
         servers.forEach((id, server) -> {
             checkArgument(id > 0, "'servers' contains non-positive server ID: %s (expected: > 0)", id);
@@ -210,7 +211,7 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
      * Returns the secret string used for authenticating the ZooKeeper peers.
      */
     public String secret() {
-        return secret;
+        return firstNonNull(convertValue(secret, "replication.secret"), DEFAULT_SECRET);
     }
 
     /**

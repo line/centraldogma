@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.command;
 
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 
@@ -25,15 +26,19 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.RateLimiter;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.QuotaConfig;
+import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
@@ -42,6 +47,7 @@ class StandaloneCommandExecutorTest {
     private static final String TEST_PRJ = "test_prj";
     private static final String TEST_REPO = "test_repo";
     private static final String TEST_REPO2 = "test_repo2";
+    private static final String TEST_REPO3 = "test_repo3";
 
     @RegisterExtension
     static ProjectManagerExtension extension = new ProjectManagerExtension();
@@ -53,13 +59,19 @@ class StandaloneCommandExecutorTest {
         executor.execute(Command.createProject(Author.SYSTEM, TEST_PRJ)).join();
         executor.execute(Command.createRepository(Author.SYSTEM, TEST_PRJ, TEST_REPO)).join();
         executor.execute(Command.createRepository(Author.SYSTEM, TEST_PRJ, TEST_REPO2)).join();
+        executor.execute(Command.createRepository(Author.SYSTEM, TEST_PRJ, TEST_REPO3)).join();
+
+        final MetadataService mds = new MetadataService(extension.projectManager(), executor);
+        // Metadata should be created before entering read-only mode.
+        mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO).join();
+        mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO2).join();
+        mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO3).join();
     }
 
     @Test
     void setWriteQuota() {
         final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) extension.executor();
         final MetadataService mds = new MetadataService(extension.projectManager(), executor);
-        mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO).join();
 
         final RateLimiter rateLimiter1 = executor.writeRateLimiters.get("test_prj/test_repo");
         assertThat(rateLimiter1).isNull();
@@ -82,7 +94,8 @@ class StandaloneCommandExecutorTest {
         Change<JsonNode> change = Change.ofJsonUpsert("/foo.json", "{\"a\": \"b\"}");
         CommitResult commitResult =
                 executor.execute(Command.push(
-                        Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD, "", "", Markup.PLAINTEXT, change))
+                                Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD, "", "",
+                                Markup.PLAINTEXT, change))
                         .join();
         // The same json upsert.
         assertThat(commitResult).isEqualTo(CommitResult.of(new Revision(2), ImmutableList.of(change)));
@@ -91,7 +104,8 @@ class StandaloneCommandExecutorTest {
         change = Change.ofJsonUpsert("/foo.json", "{\"a\": \"c\"}");
         commitResult =
                 executor.execute(Command.push(
-                        Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD, "", "", Markup.PLAINTEXT, change))
+                                Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD, "", "",
+                                Markup.PLAINTEXT, change))
                         .join();
 
         assertThat(commitResult.revision()).isEqualTo(new Revision(3));
@@ -110,5 +124,29 @@ class StandaloneCommandExecutorTest {
                 new PushAsIsCommand(0L, Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD,
                                     "", "", Markup.PLAINTEXT, ImmutableList.of(change))).join();
         assertThat(revision).isEqualTo(new Revision(4));
+    }
+
+    @Test
+    void shouldPerformAdministrativeCommandWithReadOnly() throws JsonParseException {
+        final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) extension.executor();
+        executor.execute(Command.updateServerStatus(ServerStatus.REPLICATION_ONLY)).join();
+        assertThat(executor.isWritable()).isFalse();
+
+        final Change<JsonNode> change = Change.ofJsonUpsert("/foo.json", "{\"a\": \"b\"}");
+        final Command<CommitResult> push = Command.push(
+                Author.SYSTEM, TEST_PRJ, TEST_REPO3, Revision.HEAD, "", "", Markup.PLAINTEXT, change);
+        assertThatThrownBy(() -> executor.execute(push))
+                .isInstanceOf(ReadOnlyException.class)
+                .hasMessageContaining("running in read-only mode.");
+        // The same json upsert.
+        final CommitResult commitResult = executor.execute(Command.forcePush(push)).join();
+        assertThat(commitResult).isEqualTo(CommitResult.of(new Revision(2), ImmutableList.of(change)));
+        final ObjectNode json = (ObjectNode) extension.projectManager()
+                                                      .get(TEST_PRJ)
+                                                      .repos().get(TEST_REPO3)
+                                                      .get(Revision.HEAD, "/foo.json")
+                                                      .join()
+                                                      .contentAsJson();
+        assertThat(json.get("a").asText()).isEqualTo("b");
     }
 }

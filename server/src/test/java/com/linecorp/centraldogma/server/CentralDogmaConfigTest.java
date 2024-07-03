@@ -18,13 +18,18 @@ package com.linecorp.centraldogma.server;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchException;
 import static org.assertj.core.api.Assertions.fail;
 
 import java.net.InetAddress;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.linecorp.armeria.server.ClientAddressSource;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -384,5 +389,43 @@ class CentralDogmaConfigTest {
                                                      '}',
                                                      CentralDogmaConfig.class)
         ).hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+
+    private static Stream<Arguments> gracefulShutdownTimeoutArgs() {
+        return Stream.of(
+                Arguments.of("{\"quietPeriodMillis\": \"0\", \"timeoutMillis\": -10}", true),
+                Arguments.of("{\"quietPeriodMillis\": \"0\", \"timeoutMillis\": 0}", false),
+                Arguments.of(null, false)
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("gracefulShutdownTimeoutArgs")
+    void gracefulShutdownTimeout(String gracefulShutdownTimeout, boolean expectException) throws Exception {
+        final Exception caughtException = catchException(
+                () -> Jackson.readValue("{\n" +
+                                        "  \"dataDir\": \"./data\",\n" +
+                                        "  \"ports\": [\n" +
+                                        "    {\n" +
+                                        "      \"localAddress\": {\n" +
+                                        "        \"host\": \"*\",\n" +
+                                        "        \"port\": 36462\n" +
+                                        "      },\n" +
+                                        "      \"protocols\": [\n" +
+                                        "        \"https\",\n" +
+                                        "        \"http\",\n" +
+                                        "        \"proxy\"\n" +
+                                        "      ]\n" +
+                                        "    }\n" +
+                                        "  ],\n" +
+                                        "  \"gracefulShutdownTimeout\":" + gracefulShutdownTimeout +
+                                        '}',
+                                        CentralDogmaConfig.class));
+
+        if (expectException) {
+            assertThat(caughtException).hasCauseInstanceOf(IllegalArgumentException.class);
+        } else {
+            assertThat(caughtException).isNull();
+        }
     }
 }

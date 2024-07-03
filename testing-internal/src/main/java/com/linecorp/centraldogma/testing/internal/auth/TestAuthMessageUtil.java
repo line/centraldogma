@@ -15,16 +15,23 @@
  */
 package com.linecorp.centraldogma.testing.internal.auth;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Base64.Encoder;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
+import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 
 /**
  * A utility class which helps to create messages for authentication.
@@ -33,6 +40,8 @@ public final class TestAuthMessageUtil {
 
     public static final String USERNAME = "foo";
     public static final String PASSWORD = "bar";
+    public static final String USERNAME2 = "foo2";
+    public static final String PASSWORD2 = "bar2";
     public static final String WRONG_PASSWORD = "baz";
     public static final String WRONG_SESSION_ID = "00000000-0000-0000-0000-000000000000";
     public static final String MALFORMED_SESSION_ID = "not_a_session_id";
@@ -49,11 +58,10 @@ public final class TestAuthMessageUtil {
 
     public static AggregatedHttpResponse loginWithBasicAuth(WebClient client, String username,
                                                             String password) {
-        return client.execute(
-                RequestHeaders.of(HttpMethod.POST, "/api/v1/login",
-                                  HttpHeaderNames.AUTHORIZATION,
-                                  "basic " + encoder.encodeToString(
-                                          (username + ':' + password).getBytes(StandardCharsets.US_ASCII))))
+        final String token = "basic " + encoder.encodeToString(
+                (username + ':' + password).getBytes(StandardCharsets.US_ASCII));
+        return client.execute(RequestHeaders.of(HttpMethod.POST, "/api/v1/login",
+                                                HttpHeaderNames.AUTHORIZATION, token))
                      .aggregate().join();
     }
 
@@ -67,6 +75,14 @@ public final class TestAuthMessageUtil {
         return client.execute(
                 RequestHeaders.of(HttpMethod.GET, "/api/v0/users/me",
                                   HttpHeaderNames.AUTHORIZATION, "Bearer " + sessionId)).aggregate().join();
+    }
+
+    public static String getAccessToken(WebClient client, String username, String password)
+            throws JsonProcessingException {
+        final AggregatedHttpResponse response = login(client, username, password);
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
+        return Jackson.readValue(response.content().array(), AccessToken.class)
+                      .accessToken();
     }
 
     private TestAuthMessageUtil() {}

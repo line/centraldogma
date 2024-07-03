@@ -38,7 +38,6 @@ public final class CreateRepositoryCommand extends ProjectCommand<Void> {
                             @JsonProperty("author") @Nullable Author author,
                             @JsonProperty("projectName") String projectName,
                             @JsonProperty("repositoryName") String repositoryName) {
-
         super(CommandType.CREATE_REPOSITORY, timestamp, author, projectName);
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
     }

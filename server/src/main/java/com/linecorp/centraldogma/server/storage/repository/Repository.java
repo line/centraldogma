@@ -69,6 +69,11 @@ public interface Repository {
     String ALL_PATH = "/**";
 
     /**
+     * Returns the jGit {@link org.eclipse.jgit.lib.Repository}.
+     */
+    org.eclipse.jgit.lib.Repository jGitRepository();
+
+    /**
      * Returns the parent {@link Project} of this {@link Repository}.
      */
     Project parent();

@@ -274,21 +274,21 @@ example shows the configuration of the first replica in a 3-replica cluster:
             "quorumPort": 36463,
             "electionPort": 36464,
             "groupId": null,
-            "weight": null,
+            "weight": null
           },
           "2": {
             "host": "replica2.example.com",
             "quorumPort": 36463,
             "electionPort": 36464,
             "groupId": null,
-            "weight": null,
+            "weight": null
           },
           "3": {
             "host": "replica3.example.com",
             "quorumPort": 36463,
             "electionPort": 36464,
             "groupId": null,
-            "weight": null,
+            "weight": null
           }
         },
         "secret": "JqJAkZ!oZ6MNx4rBpIH8M*yuVWXDULgR",
@@ -358,7 +358,7 @@ example shows the configuration of the first replica in a 3-replica cluster:
 
   - the secret string which is used for replicas to authenticate each other. The replicas in the same
     cluster must have the same secret. If ``null`` or unspecified, the default value of ``ch4n63m3``
-    is used.
+    is used. You can secure this property by :ref:`hiding_sensitive_property_values`.
 
 - ``additionalProperties`` (map of string key-value pairs)
 
@@ -411,8 +411,8 @@ in ``dogma.json`` as follows.
         }
       ],
       "tls": {
-        "keyCertChainFile": "./cert/centraldogma.crt",
-        "keyFile": "./cert/centraldogma.key",
+        "keyCertChain": "file:./cert/centraldogma.crt",
+        "key": "file:./cert/centraldogma.key",
         "keyPassword": null
       },
       "trustedProxyAddresses": null,
@@ -445,18 +445,21 @@ in ``dogma.json`` as follows.
 
   - the configuration for TLS support. It will be applied to the port which is configured with ``https``
     protocol. If ``null``, a self-signed certificate will be generated for ``https`` protocol.
-  - ``keyCertChainFile`` (string)
+  - ``keyCertChain`` (string)
 
-    - the path to the certificate chain file.
+    - the content of the certificate chain. If you want to use a file, specify ``file:<path>``.
+      You can secure this property by :ref:`hiding_sensitive_property_values`.
 
-  - ``keyFile`` (string)
+  - ``key`` (string)
 
-    - the path to the private key file.
+    - the content of the private key. If you want to use a file, specify ``file:<path>``.
+      You can secure this property by :ref:`hiding_sensitive_property_values`.
 
   - ``keyPassword`` (string)
 
     - the password of the private key file. Specify ``null`` if no password is set. Note that ``null``
       (no password) and ``"null"`` (password is 'null') are different.
+      You can secure this property by :ref:`hiding_sensitive_property_values`.
 
 If you run your Central Dogma with TLS, you need to enable TLS on the client side as well. In case of
 Java client, call the ``useTls()`` method when building a ``CentralDogma`` instance:
@@ -468,3 +471,57 @@ Java client, call the ``useTls()`` method when building a ``CentralDogma`` insta
             .accessToken("appToken-********")
             .useTls()
             .build();
+
+.. _hiding_sensitive_property_values:
+
+Hiding sensitive property values
+--------------------------------
+Central Dogma supports property value substitution through the use of
+:api:`com.linecorp.centraldogma.server.ConfigValueConverter`.
+If you want to hide sensitive information such as ``tls.keyPasswords``, you can implement the converting logic
+with your own :api:`com.linecorp.centraldogma.server.ConfigValueConverter` and register it via
+`SPI <https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html>`_:
+
+- Your configuration file:
+
+.. code-block:: json
+
+    {
+      "tls": {
+        "keyCertChain": "file:./cert/centraldogma.crt",
+        "key": "file:./cert/centraldogma.key",
+        "keyPassword": "encryption:encrypted-password"
+      }
+    }
+
+- Your converter:
+
+.. code-block:: java
+
+    import com.linecorp.centraldogma.server.ConfigValueConverter;
+
+    public class MyConfigValueConverter implements ConfigValueConverter {
+        @Override
+        public List<String> supportedPrefixes() {
+            return List.of("encryption");
+        }
+
+        @Override
+        public String convert(String prefix, String value) {
+            assert "encryption".equals(prefix);
+            if ("encrypted-password".equals(value)) {
+                // return the decrypted password that is stored in a safe place such as Vault.
+            }
+            ...
+        }
+    }
+
+This feature enables you to enhance the security of your Central Dogma configuration by avoiding the
+exposure of sensitive information. Below is a list of properties that can be substituted:
+
+- ``replication.secret``
+- ``tls.keyCertChain``
+- ``tls.key``
+- ``tls.keyPassword``
+- ``authentication.properties.keyStore.password`` (when SAML is used.)
+- ``authentication.properties.keyStore.keyPasswords`` (when SAML is used.)

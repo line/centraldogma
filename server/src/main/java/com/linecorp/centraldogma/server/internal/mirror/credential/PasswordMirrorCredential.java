@@ -16,12 +16,16 @@
 
 package com.linecorp.centraldogma.server.internal.mirror.credential;
 
+import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 import static com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredentialUtil.requireNonEmpty;
 import static java.util.Objects.requireNonNull;
 
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -30,27 +34,43 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 public final class PasswordMirrorCredential extends AbstractMirrorCredential {
 
+    private static final Logger logger = LoggerFactory.getLogger(PasswordMirrorCredential.class);
+
     private final String username;
     private final String password;
 
     @JsonCreator
-    public PasswordMirrorCredential(@JsonProperty("id") @Nullable String id,
+    public PasswordMirrorCredential(@JsonProperty("id") String id,
+                                    @JsonProperty("enabled") @Nullable Boolean enabled,
                                     @JsonProperty("hostnamePatterns") @Nullable
                                     @JsonDeserialize(contentAs = Pattern.class)
                                     Iterable<Pattern> hostnamePatterns,
                                     @JsonProperty("username") String username,
                                     @JsonProperty("password") String password) {
-        super(id, hostnamePatterns);
+        super(id, enabled, "password", hostnamePatterns);
 
         this.username = requireNonEmpty(username, "username");
         this.password = requireNonNull(password, "password");
     }
 
+    @JsonProperty("username")
     public String username() {
         return username;
     }
 
     public String password() {
+        try {
+            return convertValue(password, "credentials.password");
+        } catch (Throwable t) {
+            // The password probably has `:` without prefix. Just return it as is for backward compatibility.
+            logger.debug("Failed to convert the password of the credential. username: {}, id: {}",
+                         username, id(), t);
+            return password;
+        }
+    }
+
+    @JsonProperty("password")
+    public String rawPassword() {
         return password;
     }
 
