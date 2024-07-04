@@ -148,7 +148,9 @@ class PermissionTest {
                                          @Param String repoName) {
                     return HttpResponse.of(HttpStatus.OK);
                 }
-            }, decorator, new HttpApiExceptionHandler());
+            }, decorator);
+
+            sb.errorHandler(new HttpApiExceptionHandler());
         }
     };
 

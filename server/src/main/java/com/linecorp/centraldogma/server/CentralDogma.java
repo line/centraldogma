@@ -67,6 +67,7 @@ import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.DependencyInjector;
 import com.linecorp.armeria.common.Flags;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
@@ -83,7 +84,10 @@ import com.linecorp.armeria.common.util.EventLoopGroups;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.StartStopSupport;
 import com.linecorp.armeria.common.util.SystemInfo;
+import com.linecorp.armeria.internal.common.ReflectiveDependencyInjector;
 import com.linecorp.armeria.server.AbstractHttpService;
+import com.linecorp.armeria.server.ContextPathServicesBuilder;
+import com.linecorp.armeria.server.DecoratingServiceBindingBuilder;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.Route;
 import com.linecorp.armeria.server.Server;
@@ -127,11 +131,11 @@ import com.linecorp.centraldogma.server.internal.admin.auth.SessionTokenAuthoriz
 import com.linecorp.centraldogma.server.internal.admin.service.DefaultLogoutService;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
 import com.linecorp.centraldogma.server.internal.admin.service.UserService;
-import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
 import com.linecorp.centraldogma.server.internal.api.AdministrativeService;
 import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
 import com.linecorp.centraldogma.server.internal.api.CredentialServiceV1;
 import com.linecorp.centraldogma.server.internal.api.GitHttpService;
+import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService;
 import com.linecorp.centraldogma.server.internal.api.MirroringServiceV1;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
@@ -140,7 +144,6 @@ import com.linecorp.centraldogma.server.internal.api.TokenService;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
-import com.linecorp.centraldogma.server.internal.api.converter.HttpApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
@@ -585,8 +588,6 @@ public class CentralDogma implements AutoCloseable {
         sb.clientAddressSources(cfg.clientAddressSourceList());
         sb.clientAddressTrustedProxyFilter(cfg.trustedProxyAddressPredicate());
 
-        configCors(sb, config().corsConfig());
-
         cfg.numWorkers().ifPresent(
                 numWorkers -> sb.workerGroup(EventLoopGroups.newEventLoopGroup(numWorkers), true));
         cfg.maxNumConnections().ifPresent(sb::maxNumConnections);
@@ -620,6 +621,9 @@ public class CentralDogma implements AutoCloseable {
                          meterRegistry);
 
         configureMetrics(sb, meterRegistry);
+        // Add the CORS service as the last decorator(executed first) so that the CORS service is applied
+        // before AuthService.
+        configCors(sb, config().corsConfig());
 
         // Configure access log format.
         final String accessLogFormat = cfg.accessLogFormat();
@@ -773,37 +777,45 @@ public class CentralDogma implements AutoCloseable {
                     .andThen(AuthService.newDecorator(new CsrfTokenAuthorizer()));
         }
 
-        final HttpApiRequestConverter v1RequestConverter = new HttpApiRequestConverter(projectApiManager);
-        final JacksonRequestConverterFunction jacksonRequestConverterFunction =
+        final DependencyInjector dependencyInjector = DependencyInjector.ofSingletons(
                 // Use the default ObjectMapper without any configuration.
                 // See JacksonRequestConverterFunctionTest
-                new JacksonRequestConverterFunction(new ObjectMapper());
-        // Do not need jacksonResponseConverterFunction because HttpApiResponseConverter handles the JSON data.
-        final HttpApiResponseConverter v1ResponseConverter = new HttpApiResponseConverter();
+                new JacksonRequestConverterFunction(new ObjectMapper()),
+                new HttpApiRequestConverter(projectApiManager)
+        );
+        sb.dependencyInjector(dependencyInjector, false)
+          // TODO(ikhoon): Consider exposing ReflectiveDependencyInjector as a public API via
+          //               DependencyInjector.ofReflective()
+          .dependencyInjector(new ReflectiveDependencyInjector(), false);
 
         // Enable content compression for API responses.
         decorator = decorator.andThen(contentEncodingDecorator());
-
-        assert statusManager != null;
-        sb.annotatedService(API_V1_PATH_PREFIX,
-                            new AdministrativeService(executor, statusManager), decorator,
-                            v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
-        sb.annotatedService(API_V1_PATH_PREFIX,
-                            new ProjectServiceV1(projectApiManager), decorator,
-                            v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
-        sb.annotatedService(API_V1_PATH_PREFIX,
-                            new RepositoryServiceV1(executor, mds), decorator,
-                            v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
-
-        if (GIT_MIRROR_ENABLED) {
-            sb.annotatedService(API_V1_PATH_PREFIX,
-                                new MirroringServiceV1(projectApiManager, executor), decorator,
-                                v1RequestConverter, jacksonRequestConverterFunction, v1RequestConverter);
-            sb.annotatedService(API_V1_PATH_PREFIX,
-                                new CredentialServiceV1(projectApiManager, executor), decorator,
-                                v1RequestConverter, jacksonRequestConverterFunction, v1RequestConverter);
+        for (String path : ImmutableList.of(API_V0_PATH_PREFIX, API_V1_PATH_PREFIX)) {
+            final DecoratingServiceBindingBuilder decoratorBuilder =
+                    sb.routeDecorator().pathPrefix(path);
+            for (Route loginRoute : LOGIN_API_ROUTES) {
+                decoratorBuilder.exclude(loginRoute);
+            }
+            for (Route logoutRoute : LOGOUT_API_ROUTES) {
+                decoratorBuilder.exclude(logoutRoute);
+            }
+            decoratorBuilder.build(decorator);
         }
 
+        assert statusManager != null;
+        final ContextPathServicesBuilder apiV0ServiceBuilder = sb.contextPath(API_V0_PATH_PREFIX);
+        final ContextPathServicesBuilder apiV1ServiceBuilder = sb.contextPath(API_V1_PATH_PREFIX);
+        apiV1ServiceBuilder
+                .annotatedService(new AdministrativeService(executor, statusManager))
+                .annotatedService(new ProjectServiceV1(projectApiManager, executor))
+                .annotatedService(new RepositoryServiceV1(executor, mds));
+
+        if (GIT_MIRROR_ENABLED) {
+            apiV1ServiceBuilder.annotatedService(new MirroringServiceV1(projectApiManager, executor))
+                               .annotatedService(new CredentialServiceV1(projectApiManager, executor));
+        }
+
+        // TODO(ikhoon): Use context-path API once https://github.com/line/armeria/pull/5797 is fixed.
         sb.annotatedService()
           .pathPrefix(API_V1_PATH_PREFIX)
           .defaultServiceNaming(new ServiceNaming() {
@@ -819,25 +831,19 @@ public class CentralDogma implements AutoCloseable {
                   return serviceName;
               }
           })
-          .decorator(decorator)
-          .requestConverters(v1RequestConverter, jacksonRequestConverterFunction)
-          .responseConverters(v1ResponseConverter)
           .build(new ContentServiceV1(executor, watchService, meterRegistry));
 
-        sb.annotatedService().decorator(decorator)
+        sb.annotatedService()
+          .decorator(decorator)
           .decorator(DecodingService.newDecorator())
           .build(new GitHttpService(projectApiManager));
 
         if (authProvider != null) {
             final AuthConfig authCfg = cfg.authConfig();
             assert authCfg != null : "authCfg";
-            sb.annotatedService(API_V1_PATH_PREFIX,
-                                new MetadataApiService(mds, authCfg.loginNameNormalizer()),
-                                decorator, v1RequestConverter, jacksonRequestConverterFunction,
-                                v1ResponseConverter);
-            sb.annotatedService(API_V1_PATH_PREFIX, new TokenService(executor, mds),
-                                decorator, v1RequestConverter, jacksonRequestConverterFunction,
-                                v1ResponseConverter);
+            apiV1ServiceBuilder
+                    .annotatedService(new MetadataApiService(executor, mds, authCfg.loginNameNormalizer()))
+                    .annotatedService(new TokenService(executor, mds));
 
             // authentication services:
             Optional.ofNullable(authProvider.loginApiService())
@@ -855,13 +861,9 @@ public class CentralDogma implements AutoCloseable {
         }
 
         if (cfg.isWebAppEnabled()) {
-            final RestfulJsonResponseConverter httpApiV0Converter = new RestfulJsonResponseConverter();
-
-            // TODO(hyangtack): Simplify this if https://github.com/line/armeria/issues/582 is resolved.
-            sb.annotatedService(API_V0_PATH_PREFIX, new UserService(executor),
-                                decorator, jacksonRequestConverterFunction, httpApiV0Converter)
-              .annotatedService(API_V0_PATH_PREFIX, new RepositoryService(projectApiManager, executor),
-                                decorator, jacksonRequestConverterFunction, httpApiV0Converter);
+            apiV0ServiceBuilder
+                    .annotatedService(new UserService(executor))
+                    .annotatedService(new RepositoryService(projectApiManager, executor));
 
             if (authProvider != null) {
                 // Will redirect to /web/auth/login by default.
@@ -882,6 +884,8 @@ public class CentralDogma implements AutoCloseable {
                                        .cacheControl(ServerCacheControl.REVALIDATED)
                                        .build());
         }
+
+        sb.errorHandler(new HttpApiExceptionHandler());
     }
 
     private static void configCors(ServerBuilder sb, @Nullable CorsConfig corsConfig) {
