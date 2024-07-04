@@ -108,7 +108,6 @@ import com.linecorp.armeria.server.metric.MetricCollectingService;
 import com.linecorp.armeria.server.prometheus.PrometheusExpositionService;
 import com.linecorp.armeria.server.thrift.THttpService;
 import com.linecorp.armeria.server.thrift.ThriftCallService;
-import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -453,8 +452,8 @@ public class CentralDogma implements AutoCloseable {
                 try {
                     // Wait until the internal project is initialized.
                     projectInitializer.whenInitialized().get();
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new CentralDogmaException("Failed to initialize the internal projects", e);
+                } catch (InterruptedException | ExecutionException ignored) {
+                    // If an exception is raised, the server will be stopped.
                 }
 
                 pluginsForLeaderOnly
