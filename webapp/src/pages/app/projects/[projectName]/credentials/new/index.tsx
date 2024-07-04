@@ -14,23 +14,22 @@
  * under the License.
  */
 
-import Router, {useRouter} from 'next/router';
+import Router, { useRouter } from 'next/router';
 import CredentialForm from 'dogma/features/credential/CredentialForm';
-import {useAppDispatch} from 'dogma/store';
-import {CredentialDto} from 'dogma/features/credential/CredentialDto';
-import {FetchBaseQueryError} from '@reduxjs/toolkit/query';
-import {SerializedError} from '@reduxjs/toolkit';
-import {createMessage} from 'dogma/features/message/messageSlice';
+import { useAppDispatch } from 'dogma/store';
+import { CredentialDto } from 'dogma/features/credential/CredentialDto';
+import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
+import { SerializedError } from '@reduxjs/toolkit';
+import { createMessage } from 'dogma/features/message/messageSlice';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
-import {useAddNewCredentialMutation} from 'dogma/features/api/apiSlice';
-import {Breadcrumbs} from 'dogma/common/components/Breadcrumbs';
+import { useAddNewCredentialMutation } from 'dogma/features/api/apiSlice';
+import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import React from 'react';
 
 const EMPTY_CREDENTIAL: CredentialDto = {
   id: '',
-  index: -1, // Unknown index
   type: 'public_key',
-  hostnamePatterns: [''],
+  hostnamePatterns: [],
   enabled: true,
 };
 const NewCredentialPage = () => {

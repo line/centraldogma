@@ -21,7 +21,6 @@ const mirrors: Map<number, MirrorDto> = new Map();
 
 function newMirror(index: number, projectName: string): MirrorDto {
   return {
-    index: index,
     id: `mirror-${index}`,
     projectName: projectName,
     credentialId: `credential-${index}`,

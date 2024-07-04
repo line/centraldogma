@@ -15,8 +15,7 @@
  */
 
 export interface CredentialDto {
-  readonly index: number;
-  id?: string;
+  id: string;
   type: 'password' | 'public_key' | 'access_token' | 'none';
   hostnamePatterns: string[];
   enabled: boolean;

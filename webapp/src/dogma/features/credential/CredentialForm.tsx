@@ -33,16 +33,16 @@ import {
   Textarea,
   VStack,
 } from '@chakra-ui/react';
-import {HiOutlineIdentification, HiOutlineUser} from 'react-icons/hi';
-import {VscRegex} from 'react-icons/vsc';
-import {AddIcon} from '@chakra-ui/icons';
-import {MdDelete, MdPublic} from 'react-icons/md';
-import {GoKey, GoLock} from 'react-icons/go';
-import {CredentialDto} from 'dogma/features/credential/CredentialDto';
-import {RiGitRepositoryPrivateLine} from 'react-icons/ri';
-import {useFieldArray, useForm} from 'react-hook-form';
-import React, {useState} from 'react';
-import {LabelledIcon} from 'dogma/common/components/LabelledIcon';
+import { HiOutlineIdentification, HiOutlineUser } from 'react-icons/hi';
+import { VscRegex } from 'react-icons/vsc';
+import { AddIcon } from '@chakra-ui/icons';
+import { MdDelete, MdPublic } from 'react-icons/md';
+import { GoKey, GoLock } from 'react-icons/go';
+import { CredentialDto } from 'dogma/features/credential/CredentialDto';
+import { RiGitRepositoryPrivateLine } from 'react-icons/ri';
+import { useFieldArray, useForm } from 'react-hook-form';
+import React, { useState } from 'react';
+import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
 import FieldErrorMessage from 'dogma/common/components/form/FieldErrorMessage';
 
 interface CredentialFormProps {
@@ -114,8 +114,8 @@ const CredentialForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse
     <form onSubmit={handleSubmit((credential) => onSubmit(filterCredential(credential), reset))}>
       <Center>
         <VStack width="80%" align="left">
-          <Heading color="teal.500" size='lg' alignSelf="center" mb={4}>
-            {defaultValue?.index >= 0 ? 'Edit credential' : 'New credential'}
+          <Heading color="teal.500" size="lg" alignSelf="center" mb={4}>
+            {defaultValue.id !== '' ? 'Edit credential' : 'New credential'}
           </Heading>
           <FormControl isRequired isInvalid={errors.id != null}>
             <FormLabel>
@@ -220,7 +220,7 @@ const CredentialForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse
                 <Input
                   id="username"
                   name="username"
-                  placeholder="username"
+                  placeholder="git"
                   defaultValue={defaultValue.username}
                   {...register('username', { required: true })}
                 />
@@ -332,7 +332,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           {credentialType === 'none' && <>{/* No additional information is required */}</>}
 
           <Spacer />
-          {defaultValue.index >= 0 ? (
+          {defaultValue.id !== '' ? (
             <Button type="submit" colorScheme="green" isLoading={isWaitingResponse} loadingText="Updating">
               Update the credential
             </Button>

@@ -1,5 +1,4 @@
 export interface MirrorDto {
-  index: number;
   id: string;
   projectName: string;
   schedule: string;

@@ -19,6 +19,7 @@ node {
 dependencies {
     // Dependencies to run test servers for testing the web application
     testImplementation(project(":server"))
+    testImplementation(project(":server-mirror-git"))
     testImplementation(project(":server-auth:shiro"))
     testImplementation libs.shiro.core
 }

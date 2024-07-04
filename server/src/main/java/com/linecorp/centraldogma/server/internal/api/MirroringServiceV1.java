@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import java.net.URI;
@@ -108,10 +109,11 @@ public class MirroringServiceV1 extends AbstractService {
      * <p>Update the exising mirror.
      */
     @RequiresWritePermission(repository = Project.REPO_META)
-    @Put("/projects/{projectName}/mirrors")
+    @Put("/projects/{projectName}/mirrors/{id}")
     @ConsumesJson
     public CompletableFuture<PushResultDto> updateMirror(@Param String projectName, MirrorDto mirror,
-                                                         Author author) {
+                                                         @Param String id, Author author) {
+        checkArgument(id.equals(mirror.id()), "The mirror ID (%s) can't be updated", id);
         return createOrUpdate(projectName, mirror, author, true);
     }
 
