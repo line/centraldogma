@@ -187,13 +187,13 @@ class MirroringMigrationServiceClusterTest {
                                  }
                              }, Function.identity()));
 
-        assertMirrorConfig(mirrors.get(TEST_REPO0), "mirror-" + TEST_PROJ + '-' + TEST_REPO0 + "-[a-z]+",
+        assertMirrorConfig(mirrors.get(TEST_REPO0), "mirror-" + TEST_PROJ + '-' + TEST_REPO0,
                            REPO0_MIRROR);
         assertMirrorConfig(mirrors.get(TEST_REPO1), "mirror-1", REPO1_MIRROR);
-        // "-1" suffix is added because the mirror ID is duplicated.
-        assertMirrorConfig(mirrors.get(TEST_REPO2), "mirror-1-1", REPO2_MIRROR);
-        // "-2" suffix is added because the mirror ID is duplicated.
-        assertMirrorConfig(mirrors.get(TEST_REPO3), "mirror-1-2", REPO3_MIRROR);
+        // "-khaki" suffix is added because the mirror ID is duplicated.
+        assertMirrorConfig(mirrors.get(TEST_REPO2), "mirror-1-khaki", REPO2_MIRROR);
+        // "-speakers" suffix is added because the mirror ID is duplicated.
+        assertMirrorConfig(mirrors.get(TEST_REPO3), "mirror-1-speakers", REPO3_MIRROR);
 
         final Map<String, Entry<?>> credentialEntries = repo.file(PathPattern.of("/credentials/*.json"))
                                                             .get()
@@ -210,11 +210,11 @@ class MirroringMigrationServiceClusterTest {
                                      }
                                  }, Function.identity()));
 
-        assertCredential(credentials.get("public_key"), "credential-" + TEST_PROJ + "-[a-z]+",
+        assertCredential(credentials.get("public_key"), "credential-" + TEST_PROJ + "-public_key",
                          PUBLIC_KEY_CREDENTIAL);
         assertCredential(credentials.get("password"), "credential-1", PASSWORD_CREDENTIAL);
         // "-1" suffix is added because the credential ID is duplicated.
-        assertCredential(credentials.get("access_token"), "credential-1-1", ACCESS_TOKEN_CREDENTIAL);
+        assertCredential(credentials.get("access_token"), "credential-1-slingshot", ACCESS_TOKEN_CREDENTIAL);
 
         // Make sure that the legacy files are renamed.
         assertThatThrownBy(() -> repo.file(PATH_LEGACY_MIRRORS).get().join())
