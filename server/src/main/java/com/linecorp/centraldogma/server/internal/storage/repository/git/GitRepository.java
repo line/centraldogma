@@ -117,7 +117,7 @@ import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.repository.DiffOption;
+import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -674,7 +674,7 @@ class GitRepository implements Repository {
 
     @Override
     public CompletableFuture<Map<String, Change<?>>> diff(Revision from, Revision to, String pathPattern,
-                                                          DiffOption diffOption) {
+                                                          DiffResultType diffResultType) {
         final ServiceRequestContext ctx = context();
         return CompletableFuture.supplyAsync(() -> {
             requireNonNull(from, "from");
@@ -692,7 +692,7 @@ class GitRepository implements Repository {
                 // Compare the two Git trees.
                 // Note that we do not cache here because CachingRepository caches the final result already.
                 return toChangeMap(blockingCompareTreesUncached(
-                        treeA, treeB, pathPatternFilterOrTreeFilter(pathPattern)), diffOption);
+                        treeA, treeB, pathPatternFilterOrTreeFilter(pathPattern)), diffResultType);
             } catch (StorageException e) {
                 throw e;
             } catch (Exception e) {
@@ -743,7 +743,7 @@ class GitRepository implements Repository {
             p.reset(reader, baseTreeId);
             diffFormatter.setRepository(jGitRepository);
             final List<DiffEntry> result = diffFormatter.scan(p, new DirCacheIterator(dirCache));
-            return toChangeMap(result, DiffOption.NORMAL);
+            return toChangeMap(result, DiffResultType.NORMAL);
         } catch (IOException e) {
             throw new StorageException("failed to perform a dry-run diff", e);
         } finally {
@@ -751,7 +751,7 @@ class GitRepository implements Repository {
         }
     }
 
-    private Map<String, Change<?>> toChangeMap(List<DiffEntry> diffEntryList, DiffOption diffOption) {
+    private Map<String, Change<?>> toChangeMap(List<DiffEntry> diffEntryList, DiffResultType diffResultType) {
         try (ObjectReader reader = jGitRepository.newObjectReader()) {
             final Map<String, Change<?>> changeMap = new LinkedHashMap<>();
 
@@ -778,7 +778,7 @@ class GitRepository implements Repository {
                                         JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE);
 
                                 if (!patch.isEmpty()) {
-                                    if (diffOption == DiffOption.PATCH_TO_UPSERT) {
+                                    if (diffResultType == DiffResultType.PATCH_TO_UPSERT) {
                                         putChange(changeMap, newPath,
                                                   Change.ofJsonUpsert(newPath, newJsonNode));
                                     } else {
@@ -799,7 +799,7 @@ class GitRepository implements Repository {
                                 }
 
                                 if (!oldText.equals(newText)) {
-                                    if (diffOption == DiffOption.PATCH_TO_UPSERT) {
+                                    if (diffResultType == DiffResultType.PATCH_TO_UPSERT) {
                                         putChange(changeMap, newPath, Change.ofTextUpsert(newPath, newText));
                                     } else {
                                         putChange(changeMap, newPath,

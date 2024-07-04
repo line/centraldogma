@@ -230,18 +230,18 @@ public interface Repository {
      * Query a file at two different revisions and return the diff of the two query results.
      */
     default CompletableFuture<Change<?>> diff(Revision from, Revision to, Query<?> query) {
-       return diff(from, to, query, DiffOption.NORMAL);
+       return diff(from, to, query, DiffResultType.NORMAL);
     }
 
     /**
      * Query a file at two different revisions and return the diff of the two query results.
      */
     default CompletableFuture<Change<?>> diff(Revision from, Revision to, Query<?> query,
-                                              DiffOption diffOption) {
+                                              DiffResultType diffResultType) {
         requireNonNull(from, "from");
         requireNonNull(to, "to");
         requireNonNull(query, "query");
-        requireNonNull(diffOption, "diffOption");
+        requireNonNull(diffResultType, "diffResultType");
 
         final RevisionRange range;
         try {
@@ -302,12 +302,12 @@ public interface Repository {
 
                     switch (entryType) {
                         case JSON:
-                            if (diffOption == DiffOption.PATCH_TO_UPSERT) {
+                            if (diffResultType == DiffResultType.PATCH_TO_UPSERT) {
                                 return Change.ofJsonUpsert(path, (JsonNode) toContent);
                             }
                             return Change.ofJsonPatch(path, (JsonNode) fromContent, (JsonNode) toContent);
                         case TEXT:
-                            if (diffOption == DiffOption.PATCH_TO_UPSERT) {
+                            if (diffResultType == DiffResultType.PATCH_TO_UPSERT) {
                                 return Change.ofTextUpsert(path, (String) toContent);
                             }
                             return Change.ofTextPatch(path, (String) fromContent, (String) toContent);
@@ -325,7 +325,7 @@ public interface Repository {
      * @throws StorageException if {@code from} or {@code to} does not exist.
      */
     default CompletableFuture<Map<String, Change<?>>> diff(Revision from, Revision to, String pathPattern) {
-        return diff(from, to, pathPattern, DiffOption.NORMAL);
+        return diff(from, to, pathPattern, DiffResultType.NORMAL);
     }
 
     /**
@@ -335,7 +335,7 @@ public interface Repository {
      * @throws StorageException if {@code from} or {@code to} does not exist.
      */
     CompletableFuture<Map<String, Change<?>>> diff(Revision from, Revision to, String pathPattern,
-                                                   DiffOption diffOption);
+                                                   DiffResultType diffResultType);
 
     /**
      * Generates the preview diff against the specified {@code baseRevision} and {@code changes}.

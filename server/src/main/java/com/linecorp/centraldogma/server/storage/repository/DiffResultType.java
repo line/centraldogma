@@ -20,7 +20,7 @@ import com.linecorp.centraldogma.common.Change;
 /**
  * The options for diffing a repository.
  */
-public enum DiffOption {
+public enum DiffResultType {
 
     /**
      * Normal diff.

@@ -61,7 +61,7 @@ import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.repository.DiffOption;
+import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -290,7 +290,7 @@ class CachingRepositoryTest {
         // Uncached
         when(delegateRepo.diff(any(), any(), any(String.class), any())).thenReturn(completedFuture(changes));
         assertThat(repo.diff(HEAD, INIT, "/**").join()).isEqualTo(changes);
-        verify(delegateRepo).diff(INIT, new Revision(10), "/**", DiffOption.NORMAL);
+        verify(delegateRepo).diff(INIT, new Revision(10), "/**", DiffResultType.NORMAL);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached

@@ -46,7 +46,7 @@ import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.repository.DiffOption;
+import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -158,14 +158,15 @@ final class CachingRepository implements Repository {
 
     @Override
     public CompletableFuture<Map<String, Change<?>>> diff(Revision from, Revision to, String pathPattern,
-                                                          DiffOption diffOption) {
+                                                          DiffResultType diffResultType) {
         requireNonNull(from, "from");
         requireNonNull(to, "to");
         requireNonNull(pathPattern, "pathPattern");
-        requireNonNull(diffOption, "diffOption");
+        requireNonNull(diffResultType, "diffResultType");
 
         final RevisionRange range = normalizeNow(from, to).toAscending();
-        return cache.get(new CacheableMultiDiffCall(repo, range.from(), range.to(), pathPattern, diffOption))
+        return cache.get(new CacheableMultiDiffCall(repo, range.from(), range.to(),
+                                                    pathPattern, diffResultType))
                     .handleAsync((unused, cause) -> {
                         throwUnsafelyIfNonNull(cause);
                         return unused;

@@ -47,7 +47,7 @@ import com.linecorp.centraldogma.server.plugin.PluginInitContext;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
-import com.linecorp.centraldogma.server.storage.repository.DiffOption;
+import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
@@ -119,7 +119,9 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
             }
             // A Central Dogma repository is an xDS project.
             watchingXdsProjects.add(repoName);
+
             final Revision normalizedRevision = repository.normalizeNow(Revision.HEAD);
+            logger.info("Creating xDS resources from {} project at revision: {}", repoName, normalizedRevision);
             final Map<String, Entry<?>> entries = repository.find(normalizedRevision, "/**").join();
             for (Entry<?> entry : entries.values()) {
                 final String path = entry.path();
@@ -242,7 +244,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                 return null;
             }
             final CompletableFuture<Map<String, Change<?>>> diffFuture =
-                    repository.diff(lastKnownRevision, newRevision, "/**", DiffOption.PATCH_TO_UPSERT);
+                    repository.diff(lastKnownRevision, newRevision, "/**", DiffResultType.PATCH_TO_UPSERT);
             handleDiff(repository, newRevision, diffFuture, lastKnownRevision);
             return null;
         }, CONTROL_PLANE_EXECUTOR);
@@ -264,6 +266,8 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                 return null;
             }
 
+            logger.info("Creating xDS resources from {} project using {} to {}. The number of changes: {}",
+                        repoName, lastKnownRevision, newRevision, changes.size());
             for (Change<?> change : changes.values()) {
                 final String path = change.path();
                 switch (change.type()) {
@@ -291,6 +295,10 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                         // No APPLY_JSON_PATCH because the diff option.
                         // No RENAME because the resource name in the content always have to be
                         // changed if the file is renamed.
+                        if (lastKnownRevision.major() != 1) {
+                            logger.warn("Unexpected change type: {} from {} to {} at {}.",
+                                        change.type(), lastKnownRevision, newRevision, path);
+                        }
                         break;
                 }
             }

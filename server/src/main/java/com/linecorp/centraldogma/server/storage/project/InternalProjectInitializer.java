@@ -60,7 +60,8 @@ public final class InternalProjectInitializer {
      * Creates an internal project and repositories and a token storage to {@code dogma/dogma/tokens.json}.
      */
     public void initialize() {
-        initialize(INTERNAL_PROJECT_DOGMA, true);
+        initialize0(INTERNAL_PROJECT_DOGMA);
+        initializeTokens();
     }
 
     /**
@@ -70,10 +71,10 @@ public final class InternalProjectInitializer {
         requireNonNull(projectName, "projectName");
         checkArgument(!INTERNAL_PROJECT_DOGMA.equals(projectName),
                       "Use initialize() to create %s", projectName);
-        initialize(projectName, false);
+        initialize0(projectName);
     }
 
-    private void initialize(String projectName, boolean createTokenFile) {
+    private void initialize0(String projectName) {
         final long creationTimeMillis = System.currentTimeMillis();
         try {
             executor.execute(createProject(creationTimeMillis, Author.SYSTEM, projectName))
@@ -92,23 +93,23 @@ public final class InternalProjectInitializer {
         // These repositories might be created when creating an internal project, but we try to create them
         // again here in order to make sure them exist because sometimes their names are changed.
         initializeInternalRepos(projectName, Project.internalRepos(), creationTimeMillis);
+    }
 
-        if (createTokenFile) {
-            try {
-                final Change<?> change = Change.ofJsonPatch(MetadataService.TOKEN_JSON,
-                                                            null, Jackson.valueToTree(new Tokens()));
-                final String commitSummary = "Initialize the token list file: /" + projectName + '/' +
-                                             Project.REPO_DOGMA + MetadataService.TOKEN_JSON;
-                executor.execute(push(Author.SYSTEM, projectName, Project.REPO_DOGMA, Revision.HEAD,
-                                      commitSummary, "", Markup.PLAINTEXT, ImmutableList.of(change)))
-                        .get();
-            } catch (Throwable cause) {
-                final Throwable peeled = Exceptions.peel(cause);
-                if (peeled instanceof ReadOnlyException || peeled instanceof ChangeConflictException) {
-                    return;
-                }
-                throw new Error("failed to initialize the token list file", peeled);
+    private void initializeTokens() {
+        try {
+            final Change<?> change = Change.ofJsonPatch(MetadataService.TOKEN_JSON,
+                                                        null, Jackson.valueToTree(new Tokens()));
+            final String commitSummary = "Initialize the token list file: /" + INTERNAL_PROJECT_DOGMA + '/' +
+                                         Project.REPO_DOGMA + MetadataService.TOKEN_JSON;
+            executor.execute(push(Author.SYSTEM, INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, Revision.HEAD,
+                                  commitSummary, "", Markup.PLAINTEXT, ImmutableList.of(change)))
+                    .get();
+        } catch (Throwable cause) {
+            final Throwable peeled = Exceptions.peel(cause);
+            if (peeled instanceof ReadOnlyException || peeled instanceof ChangeConflictException) {
+                return;
             }
+            throw new Error("failed to initialize the token list file", peeled);
         }
     }
 
