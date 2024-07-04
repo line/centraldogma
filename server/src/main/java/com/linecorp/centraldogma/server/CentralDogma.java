@@ -40,7 +40,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -449,13 +448,6 @@ public class CentralDogma implements AutoCloseable {
         final Consumer<CommandExecutor> onTakeLeadership = exec -> {
             if (pluginsForLeaderOnly != null) {
                 logger.info("Starting plugins on the leader replica ..");
-                try {
-                    // Wait until the internal project is initialized.
-                    projectInitializer.whenInitialized().get();
-                } catch (InterruptedException | ExecutionException ignored) {
-                    // If an exception is raised, the server will be stopped.
-                }
-
                 pluginsForLeaderOnly
                         .start(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer)
                         .handle((unused, cause) -> {
