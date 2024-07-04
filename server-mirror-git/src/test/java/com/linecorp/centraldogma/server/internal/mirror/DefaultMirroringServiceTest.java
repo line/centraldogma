@@ -101,11 +101,10 @@ class DefaultMirroringServiceTest {
 
         when(mr.mirrors()).thenReturn(CompletableFuture.completedFuture(ImmutableList.of(mirror)));
 
+        final DefaultMirroringService service = new DefaultMirroringService(
+                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1);
         final CommandExecutor executor = mock(CommandExecutor.class);
         when(executor.execute(any(Command.class))).thenReturn(UnmodifiableFuture.completedFuture(null));
-        final DefaultMirroringService service = new DefaultMirroringService(
-                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1,
-                1);
         service.start(executor);
 
         try {

@@ -117,13 +117,6 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
     }
 
     /**
-     * Returns an {@link InternalProjectInitializer}.
-     */
-    public InternalProjectInitializer internalProjectInitializer() {
-        return internalProjectInitializer;
-    }
-
-    /**
      * Override this method to configure a project after the executor started.
      */
     protected void afterExecutorStarted() {}
