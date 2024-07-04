@@ -226,8 +226,7 @@ class MirroringMigrationServiceTest {
                                   "Create a new mirrors.json",
                                   Change.ofJsonUpsert(PATH_LEGACY_MIRRORS, mirrorsJson)).join();
         final MirroringMigrationService migrationService = new MirroringMigrationService(
-                projectManager, projectManagerExtension.executor(),
-                projectManagerExtension.internalProjectInitializer());
+                projectManager, projectManagerExtension.executor());
         migrationService.migrate();
 
         final Map<String, Entry<?>> entries = project.metaRepo()
@@ -275,8 +274,7 @@ class MirroringMigrationServiceTest {
                                   "Create a new credentials.json",
                                   Change.ofJsonUpsert(PATH_LEGACY_CREDENTIALS, credentialJson)).join();
         final MirroringMigrationService migrationService = new MirroringMigrationService(
-                projectManager, projectManagerExtension.executor(),
-                projectManagerExtension.internalProjectInitializer());
+                projectManager, projectManagerExtension.executor());
         migrationService.migrate();
 
         final Map<String, Entry<?>> entries = project.metaRepo()
@@ -325,8 +323,7 @@ class MirroringMigrationServiceTest {
                                   Change.ofJsonUpsert(PATH_LEGACY_CREDENTIALS, credentialJson)).join();
 
         final MirroringMigrationService migrationService = new MirroringMigrationService(
-                projectManager, projectManagerExtension.executor(),
-                projectManagerExtension.internalProjectInitializer());
+                projectManager, projectManagerExtension.executor());
         migrationService.migrate();
 
         final List<Mirror> mirrors = project.metaRepo().mirrors().join();

@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -107,6 +108,7 @@ import com.linecorp.armeria.server.metric.MetricCollectingService;
 import com.linecorp.armeria.server.prometheus.PrometheusExpositionService;
 import com.linecorp.armeria.server.thrift.THttpService;
 import com.linecorp.armeria.server.thrift.ThriftCallService;
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -448,6 +450,13 @@ public class CentralDogma implements AutoCloseable {
         final Consumer<CommandExecutor> onTakeLeadership = exec -> {
             if (pluginsForLeaderOnly != null) {
                 logger.info("Starting plugins on the leader replica ..");
+                try {
+                    // Wait until the internal project is initialized.
+                    projectInitializer.whenInitialized().get();
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new CentralDogmaException("Failed to initialize the internal projects", e);
+                }
+
                 pluginsForLeaderOnly
                         .start(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer)
                         .handle((unused, cause) -> {

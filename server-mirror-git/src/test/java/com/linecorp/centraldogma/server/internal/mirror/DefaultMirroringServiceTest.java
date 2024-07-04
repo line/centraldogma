@@ -46,7 +46,6 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
-import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
@@ -104,10 +103,8 @@ class DefaultMirroringServiceTest {
 
         final CommandExecutor executor = mock(CommandExecutor.class);
         when(executor.execute(any(Command.class))).thenReturn(UnmodifiableFuture.completedFuture(null));
-        final InternalProjectInitializer internalProjectInitializer = new InternalProjectInitializer(executor);
-        internalProjectInitializer.whenInitialized().complete(null);
         final DefaultMirroringService service = new DefaultMirroringService(
-                temporaryFolder, pm, new SimpleMeterRegistry(), internalProjectInitializer, 1, 1,
+                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1,
                 1);
         service.start(executor);
 

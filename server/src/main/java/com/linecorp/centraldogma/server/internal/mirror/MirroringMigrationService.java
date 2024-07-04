@@ -88,22 +88,16 @@ final class MirroringMigrationService {
 
     private final ProjectManager projectManager;
     private final CommandExecutor commandExecutor;
-    private final InternalProjectInitializer internalProjectInitializer;
 
     @Nullable
     private List<String> shortWords;
 
-    MirroringMigrationService(ProjectManager projectManager, CommandExecutor commandExecutor,
-                              InternalProjectInitializer internalProjectInitializer) {
+    MirroringMigrationService(ProjectManager projectManager, CommandExecutor commandExecutor) {
         this.projectManager = projectManager;
         this.commandExecutor = commandExecutor;
-        this.internalProjectInitializer = internalProjectInitializer;
     }
 
     void migrate() throws Exception {
-        // Wait until the internal project is initialized.
-        internalProjectInitializer.whenInitialized().get();
-
         if (hasMigrationLog()) {
             logger.debug("Mirrors and credentials have already been migrated. Skipping auto migration...");
             return;
