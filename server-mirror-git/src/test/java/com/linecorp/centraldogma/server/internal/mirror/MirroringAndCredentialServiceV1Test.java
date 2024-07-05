@@ -16,9 +16,20 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+
 import com.fasterxml.jackson.core.JsonParseException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
@@ -32,15 +43,6 @@ import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirro
 import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
-
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Pattern;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class MirroringAndCredentialServiceV1Test {
 
