@@ -30,16 +30,16 @@ import React from 'react';
 const MirrorEditPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName as string;
-  const index = parseInt(router.query.index as string, 10);
+  const id = router.query.id as string;
 
-  const { data, isLoading: isMirrorLoading, error } = useGetMirrorQuery({ projectName, index });
+  const { data, isLoading: isMirrorLoading, error } = useGetMirrorQuery({ projectName, id });
   const [updateMirror, { isLoading: isWaitingMutationResponse }] = useUpdateMirrorMutation();
   const dispatch = useAppDispatch();
 
   const onSubmit = async (mirror: MirrorDto, onSuccess: () => void) => {
     try {
       mirror.projectName = projectName;
-      const response = await updateMirror({ projectName, index, mirror }).unwrap();
+      const response = await updateMirror({ projectName, id, mirror }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
@@ -51,7 +51,7 @@ const MirrorEditPage = () => {
         }),
       );
       onSuccess();
-      Router.push(`/app/projects/${projectName}/mirrors/${index}`);
+      Router.push(`/app/projects/${projectName}/mirrors/${id}`);
     } catch (error) {
       dispatch(
         createMessage({

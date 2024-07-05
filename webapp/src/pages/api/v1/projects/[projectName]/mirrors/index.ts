@@ -20,7 +20,6 @@ import { MirrorDto } from 'dogma/features/mirror/MirrorDto';
 let mirrors: MirrorDto[] = [];
 for (let i = 0; i < 10; i++) {
   mirrors.push({
-    index: i,
     id: `mirror-${i}`,
     projectName: `project-${i}`,
     credentialId: `credential-${i}`,

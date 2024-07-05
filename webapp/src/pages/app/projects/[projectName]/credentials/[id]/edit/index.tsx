@@ -30,15 +30,15 @@ import React from 'react';
 const CredentialEditPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName as string;
-  const index = parseInt(router.query.index as string, 10);
+  const id = router.query.id as string;
 
-  const { data, isLoading: isCredentialLoading, error } = useGetCredentialQuery({ projectName, index });
+  const { data, isLoading: isCredentialLoading, error } = useGetCredentialQuery({ projectName, id });
   const [updateCredential, { isLoading: isWaitingMutationResponse }] = useUpdateCredentialMutation();
   const dispatch = useAppDispatch();
 
   const onSubmit = async (credential: CredentialDto, onSuccess: () => void) => {
     try {
-      const response = await updateCredential({ projectName, index, credential }).unwrap();
+      const response = await updateCredential({ projectName, id, credential }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
@@ -50,7 +50,7 @@ const CredentialEditPage = () => {
         }),
       );
       onSuccess();
-      Router.push(`/app/projects/${projectName}/credentials/${index}`);
+      Router.push(`/app/projects/${projectName}/credentials/${id}`);
     } catch (error) {
       dispatch(
         createMessage({

@@ -104,7 +104,7 @@ const CredentialView = ({ projectName, credential }: CredentialViewProps) => {
     <Center>
       <VStack width="100%" align="left">
         <Heading color="teal.500" size="lg" alignSelf="center" mb={4}>
-          Credential - {credential.id || credential.index}
+          Credential - {credential.id}
         </Heading>
         <TableContainer mt="7">
           <Table fontSize={'lg'} variant="unstyled">
@@ -209,7 +209,7 @@ const CredentialView = ({ projectName, credential }: CredentialViewProps) => {
         </TableContainer>
 
         <Center mt={10}>
-          <Link href={`/app/projects/${projectName}/credentials/${credential.index}/edit`}>
+          <Link href={`/app/projects/${projectName}/credentials/${credential.id}/edit`}>
             <Button colorScheme="teal">
               <EditIcon mr={2} />
               Edit credential

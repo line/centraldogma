@@ -83,6 +83,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
     control,
   } = useForm<MirrorDto>();
 
+  const isNew = defaultValue.id === '';
   const { data: repos } = useGetReposQuery(projectName);
   const { data: credentials } = useGetCredentialsQuery(projectName);
 
@@ -101,7 +102,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
   useMemo(() => {
     // `defaultValue` property is not working when using `react-select` with `react-hook-form`. So we have to
     // set the value manually. https://stackoverflow.com/a/66723262/1736581
-    if (defaultValue?.index >= 0) {
+    if (!isNew) {
       setValue('localRepo', defaultValue.localRepo);
       setValue('remoteScheme', defaultValue.remoteScheme);
       setValue('credentialId', defaultValue.credentialId);
@@ -120,7 +121,9 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
     <form onSubmit={handleSubmit((mirror) => onSubmit(mirror, reset, setError))}>
       <Center>
         <VStack width="80%" align="left">
-          <Heading color={'teal.500'} alignSelf="center">{defaultValue?.index >= 0 ? 'Edit mirror' : 'New mirror'}</Heading>
+          <Heading color={'teal.500'} alignSelf="center">
+            {isNew ? 'New mirror' : 'Edit mirror'}
+          </Heading>
           <FormControl isRequired isInvalid={errors.id != null}>
             <FormLabel>
               <LabelledIcon icon={GiMirrorMirror} text="Mirror ID" />
@@ -377,17 +380,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
           <Spacer />
           <Spacer />
 
-          {defaultValue.index >= 0 ? (
-            <Button
-              type="submit"
-              colorScheme="green"
-              isLoading={isWaitingResponse}
-              loadingText="Updating"
-              marginTop="10px"
-            >
-              Update the mirror
-            </Button>
-          ) : (
+          {isNew ? (
             <Button
               type="submit"
               colorScheme="blue"
@@ -396,6 +389,16 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
               marginTop="10px"
             >
               Create a new mirror
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              colorScheme="green"
+              isLoading={isWaitingResponse}
+              loadingText="Updating"
+              marginTop="10px"
+            >
+              Update the mirror
             </Button>
           )}
         </VStack>

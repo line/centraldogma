@@ -33,7 +33,6 @@ const NewMirrorPage = () => {
 
   const emptyMirror: MirrorDto = {
     id: '',
-    index: -1, // Unknown index
     direction: null,
     schedule: '0 * * * * ?',
     projectName: projectName,

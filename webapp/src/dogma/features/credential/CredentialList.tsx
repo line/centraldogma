@@ -20,7 +20,7 @@ const CredentialList = <Data extends object>({ projectName }: CredentialListProp
           const id = info.getValue() || 'undefined';
           return (
             <ChakraLink
-              href={`/app/projects/${projectName}/credentials/${info.row.original.index}`}
+              href={`/app/projects/${projectName}/credentials/${info.row.original.id}`}
               fontWeight="semibold"
             >
               {id}

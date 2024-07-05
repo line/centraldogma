@@ -24,7 +24,7 @@ import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 const CredentialViewPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName as string;
-  const id = router.query.id;
+  const id = router.query.id as string;
   const { data, isLoading, error } = useGetCredentialQuery({ projectName, id });
   return (
     <Deferred isLoading={isLoading} error={error}>

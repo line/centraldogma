@@ -2,7 +2,8 @@ import {
   Badge,
   Button,
   Center,
-  Code, Heading,
+  Code,
+  Heading,
   Icon,
   Link,
   Table,
@@ -10,25 +11,26 @@ import {
   Tbody,
   Td,
   Text,
-  Tr, VStack
-} from "@chakra-ui/react";
-import {GiMirrorMirror, GiPowerButton} from "react-icons/gi";
-import {BiTimer} from "react-icons/bi";
-import {GoKey, GoMirror, GoRepo, GoRepoClone} from "react-icons/go";
-import {IoBanSharp} from "react-icons/io5";
-import {EditIcon} from "@chakra-ui/icons";
-import React, {ReactNode} from "react";
-import {CredentialDto} from "dogma/features/credential/CredentialDto";
-import {MirrorDto} from "dogma/features/mirror/MirrorDto";
-import {IconType} from "react-icons";
+  Tr,
+  VStack,
+} from '@chakra-ui/react';
+import { GiMirrorMirror, GiPowerButton } from 'react-icons/gi';
+import { BiTimer } from 'react-icons/bi';
+import { GoKey, GoMirror, GoRepo, GoRepoClone } from 'react-icons/go';
+import { IoBanSharp } from 'react-icons/io5';
+import { EditIcon } from '@chakra-ui/icons';
+import React, { ReactNode } from 'react';
+import { CredentialDto } from 'dogma/features/credential/CredentialDto';
+import { MirrorDto } from 'dogma/features/mirror/MirrorDto';
+import { IconType } from 'react-icons';
 
-const HeadRow = ({children}: { children: ReactNode }) => (
+const HeadRow = ({ children }: { children: ReactNode }) => (
   <Td width="250px" fontWeight="semibold">
     {children}
   </Td>
 );
 
-const AlignedIcon = ({as}: { as: IconType }) => <Icon as={as} marginBottom="-4px" marginRight={2}/>;
+const AlignedIcon = ({ as }: { as: IconType }) => <Icon as={as} marginBottom="-4px" marginRight={2} />;
 
 interface MirrorViewProps {
   projectName: string;
@@ -36,25 +38,25 @@ interface MirrorViewProps {
   credential: CredentialDto;
 }
 
-const MirrorView = ({projectName, mirror, credential}: MirrorViewProps) => {
+const MirrorView = ({ projectName, mirror, credential }: MirrorViewProps) => {
   return (
     <Center>
-      <VStack width="80%" align='left'>
-        <Heading color='teal.500' size='lg' alignSelf="center" mb={4}>
-          Mirror - {credential.id || credential.index}
+      <VStack width="80%" align="left">
+        <Heading color="teal.500" size="lg" alignSelf="center" mb={4}>
+          Mirror - {credential.id}
         </Heading>
         <TableContainer mt="7">
           <Table fontSize={'lg'} variant="unstyled">
             <Tbody>
               <Tr>
                 <HeadRow>
-                  <AlignedIcon as={GiMirrorMirror}/> Mirror ID
+                  <AlignedIcon as={GiMirrorMirror} /> Mirror ID
                 </HeadRow>
                 <Td fontWeight="semibold">{mirror.id}</Td>
               </Tr>
               <Tr>
                 <HeadRow>
-                  <AlignedIcon as={BiTimer}/> Schedule
+                  <AlignedIcon as={BiTimer} /> Schedule
                 </HeadRow>
                 <Td>
                   <Code variant="outline" p={1}>
@@ -64,7 +66,7 @@ const MirrorView = ({projectName, mirror, credential}: MirrorViewProps) => {
               </Tr>
               <Tr>
                 <HeadRow>
-                  <AlignedIcon as={GoMirror}/> Direction
+                  <AlignedIcon as={GoMirror} /> Direction
                 </HeadRow>
                 <Td>
                   <Badge colorScheme={'blue'}>{mirror.direction}</Badge>
@@ -73,7 +75,7 @@ const MirrorView = ({projectName, mirror, credential}: MirrorViewProps) => {
 
               <Tr>
                 <HeadRow>
-                  <AlignedIcon as={GoRepo}/> Local path
+                  <AlignedIcon as={GoRepo} /> Local path
                 </HeadRow>
                 <Td>
                   <Link
@@ -88,7 +90,7 @@ const MirrorView = ({projectName, mirror, credential}: MirrorViewProps) => {
               </Tr>
               <Tr>
                 <HeadRow>
-                  <AlignedIcon as={GoRepoClone}/> Remote path
+                  <AlignedIcon as={GoRepoClone} /> Remote path
                 </HeadRow>
                 <Td>
                   <Code fontSize="md" padding="2px 10px 2px 10px">
@@ -99,11 +101,11 @@ const MirrorView = ({projectName, mirror, credential}: MirrorViewProps) => {
               </Tr>
               <Tr>
                 <HeadRow>
-                  <AlignedIcon as={GoKey}/> Credential
+                  <AlignedIcon as={GoKey} /> Credential
                 </HeadRow>
                 <Td>
                   {credential && (
-                    <Link href={`/app/projects/${projectName}/credentials/${credential.index}`}>
+                    <Link href={`/app/projects/${projectName}/credentials/${credential.id}`}>
                       {mirror.credentialId}
                     </Link>
                   )}
@@ -111,7 +113,7 @@ const MirrorView = ({projectName, mirror, credential}: MirrorViewProps) => {
               </Tr>
               <Tr>
                 <HeadRow>
-                  <AlignedIcon as={IoBanSharp}/> gitignore
+                  <AlignedIcon as={IoBanSharp} /> gitignore
                 </HeadRow>
                 <Td>
                   <Text>{mirror.gitignore}</Text>
@@ -119,7 +121,7 @@ const MirrorView = ({projectName, mirror, credential}: MirrorViewProps) => {
               </Tr>
               <Tr>
                 <HeadRow>
-                  <AlignedIcon as={GiPowerButton}/> Status
+                  <AlignedIcon as={GiPowerButton} /> Status
                 </HeadRow>
                 <Td>
                   {mirror.enabled ? (
@@ -134,16 +136,16 @@ const MirrorView = ({projectName, mirror, credential}: MirrorViewProps) => {
         </TableContainer>
 
         <Center mt={10}>
-          <Link href={`/app/projects/${projectName}/mirrors/${mirror.index}/edit`}>
+          <Link href={`/app/projects/${projectName}/mirrors/${mirror.id}/edit`}>
             <Button colorScheme="teal">
-              <EditIcon mr={2}/>
+              <EditIcon mr={2} />
               Edit mirror
             </Button>
           </Link>
         </Center>
       </VStack>
     </Center>
-  )
-}
+  );
+};
 
 export default MirrorView;

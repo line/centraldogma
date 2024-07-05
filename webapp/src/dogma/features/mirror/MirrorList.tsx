@@ -20,10 +20,7 @@ const MirrorList = <Data extends object>({ projectName }: MirrorListProps<Data>)
         cell: (info) => {
           const id = info.getValue();
           return (
-            <Link
-              href={`/app/projects/${projectName}/mirrors/${info.row.original.index}`}
-              fontWeight="semibold"
-            >
+            <Link href={`/app/projects/${projectName}/mirrors/${info.row.original.id}`} fontWeight="semibold">
               {id ?? 'unknown'}
             </Link>
           );

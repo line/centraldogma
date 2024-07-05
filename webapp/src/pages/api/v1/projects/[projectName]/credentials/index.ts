@@ -24,7 +24,6 @@ export function newRandomCredential(index: number): CredentialDto {
   switch (index % 4) {
     case 0:
       return {
-        index: index,
         id: `password-id-${index}`,
         type: 'password',
         hostnamePatterns: [`hostname-${index}.com`],
@@ -34,7 +33,6 @@ export function newRandomCredential(index: number): CredentialDto {
       };
     case 1:
       return {
-        index: index,
         id: `public-key-id-${index}`,
         type: 'public_key',
         hostnamePatterns: [`hostname-${index}.com`],
@@ -46,7 +44,6 @@ export function newRandomCredential(index: number): CredentialDto {
       };
     case 2:
       return {
-        index: index,
         id: `access-token-id-${index}`,
         type: 'access_token',
         hostnamePatterns: [`hostname-${index}.com`],
@@ -55,7 +52,6 @@ export function newRandomCredential(index: number): CredentialDto {
       };
     case 3:
       return {
-        index: index,
         id: `none-id-${index}`,
         type: 'none',
         hostnamePatterns: [`hostname-${index}.com`],

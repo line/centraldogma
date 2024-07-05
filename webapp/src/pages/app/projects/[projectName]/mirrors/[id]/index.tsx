@@ -26,7 +26,7 @@ import { CredentialDto } from 'dogma/features/credential/CredentialDto';
 const MirrorViewPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName as string;
-  const id = router.query.id;
+  const id = router.query.id as string;
   const {
     data: mirror,
     isLoading: isMirrorLoading,

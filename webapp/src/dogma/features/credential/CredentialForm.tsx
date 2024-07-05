@@ -67,6 +67,7 @@ const CREDENTIAL_TYPES: CredentialType[] = [
 const CredentialForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: CredentialFormProps) => {
   const [credentialType, setCredentialType] = useState<string>(defaultValue.type);
 
+  const isNew = defaultValue.id === '';
   const {
     register,
     handleSubmit,
@@ -115,7 +116,7 @@ const CredentialForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse
       <Center>
         <VStack width="80%" align="left">
           <Heading color="teal.500" size="lg" alignSelf="center" mb={4}>
-            {defaultValue.id !== '' ? 'Edit credential' : 'New credential'}
+            {isNew ? 'New credential' : 'Edit credential'}
           </Heading>
           <FormControl isRequired isInvalid={errors.id != null}>
             <FormLabel>
@@ -332,13 +333,13 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           {credentialType === 'none' && <>{/* No additional information is required */}</>}
 
           <Spacer />
-          {defaultValue.id !== '' ? (
-            <Button type="submit" colorScheme="green" isLoading={isWaitingResponse} loadingText="Updating">
-              Update the credential
-            </Button>
-          ) : (
+          {isNew ? (
             <Button type="submit" colorScheme="blue" isLoading={isWaitingResponse} loadingText="Creating">
               Create a new credential
+            </Button>
+          ) : (
+            <Button type="submit" colorScheme="green" isLoading={isWaitingResponse} loadingText="Updating">
+              Update the credential
             </Button>
           )}
         </VStack>
