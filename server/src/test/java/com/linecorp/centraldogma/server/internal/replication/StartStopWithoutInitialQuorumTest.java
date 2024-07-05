@@ -15,19 +15,21 @@
  */
 package com.linecorp.centraldogma.server.internal.replication;
 
-import com.google.common.collect.ImmutableMap;
-import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
-import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
-import com.linecorp.centraldogma.testing.internal.FlakyTest;
-import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.curator.test.InstanceSpec;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
+import com.google.common.collect.ImmutableMap;
+
+import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
+import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
+import com.linecorp.centraldogma.testing.internal.FlakyTest;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 /**
  * Makes sure that we can stop a replica that's waiting for the initial quorum.
