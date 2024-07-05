@@ -141,51 +141,6 @@ const CredentialForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse
           </FormControl>
           <Spacer />
 
-          <FormControl>
-            <FormLabel>
-              <LabelledIcon icon={VscRegex} text="Hostname patterns" />
-              <IconButton
-                aria-label="Add"
-                color="teal.500"
-                variant="ghost"
-                icon={<AddIcon />}
-                ml={1}
-                mb={0.5}
-                size={'sm'}
-                onClick={() => append('')}
-              />
-            </FormLabel>
-            {hostnamePatterns.map((item, index) => {
-              return (
-                <>
-                  <InputGroup>
-                    <Input
-                      id="hostnamePatterns"
-                      name="hostnamePatterns"
-                      type="text"
-                      placeholder="^git\.repo\.com$"
-                      {...register(`hostnamePatterns.${index}`, { required: true })}
-                    />
-                    <InputLeftElement>
-                      <IconButton
-                        aria-label="Remove"
-                        color={'red.200'}
-                        variant="ghost"
-                        icon={<MdDelete />}
-                        mr={1}
-                        size={'sm'}
-                        onClick={() => remove(index)}
-                      ></IconButton>
-                    </InputLeftElement>
-                  </InputGroup>
-                </>
-              );
-            })}
-            <FormHelperText>
-              The credential whose hostname pattern matches first will be used when accessing a host.
-            </FormHelperText>
-          </FormControl>
-          <Spacer />
 
           <FormControl isRequired isInvalid={errors.type != null}>
             <FormLabel>
@@ -331,7 +286,52 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           )}
 
           {credentialType === 'none' && <>{/* No additional information is required */}</>}
+          <Spacer />
 
+          <FormControl>
+            <FormLabel>
+              <LabelledIcon icon={VscRegex} text="Hostname patterns" />
+              <IconButton
+                aria-label="Add"
+                color="teal.500"
+                variant="ghost"
+                icon={<AddIcon />}
+                ml={1}
+                mb={0.5}
+                size={'sm'}
+                onClick={() => append('')}
+              />
+            </FormLabel>
+            {hostnamePatterns.map((item, index) => {
+              return (
+                <>
+                  <InputGroup>
+                    <Input
+                      id="hostnamePatterns"
+                      name="hostnamePatterns"
+                      type="text"
+                      placeholder="^git\.repo\.com$"
+                      {...register(`hostnamePatterns.${index}`, { required: true })}
+                    />
+                    <InputLeftElement>
+                      <IconButton
+                        aria-label="Remove"
+                        color={'red.200'}
+                        variant="ghost"
+                        icon={<MdDelete />}
+                        mr={1}
+                        size={'sm'}
+                        onClick={() => remove(index)}
+                      ></IconButton>
+                    </InputLeftElement>
+                  </InputGroup>
+                </>
+              );
+            })}
+            <FormHelperText>
+              The credential whose hostname pattern matches first will be used when accessing a host.
+            </FormHelperText>
+          </FormControl>
           <Spacer />
           {isNew ? (
             <Button type="submit" colorScheme="blue" isLoading={isWaitingResponse} loadingText="Creating">

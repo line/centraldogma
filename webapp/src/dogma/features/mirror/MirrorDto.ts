@@ -10,6 +10,6 @@ export interface MirrorDto {
   remoteBranch: string;
   remotePath: string;
   gitignore?: string;
-  credentialId?: string;
+  credentialId: string;
   enabled: boolean;
 }

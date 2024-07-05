@@ -88,7 +88,7 @@ const ProjectMetadataView = ({ projectName, currentTab, children }: ProjectMetad
         <Box p="2">
           <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
           <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-            <Heading size="lg">Project {projectName} - Metadata</Heading>
+            <Heading size="lg">Settings</Heading>
           </Flex>
           <Tabs variant="enclosed-colored" size="lg" index={tabIndex}>
             <TabList>

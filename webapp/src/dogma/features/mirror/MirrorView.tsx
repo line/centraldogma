@@ -16,13 +16,15 @@ import {
 } from '@chakra-ui/react';
 import { GiMirrorMirror, GiPowerButton } from 'react-icons/gi';
 import { BiTimer } from 'react-icons/bi';
-import { GoKey, GoMirror, GoRepo, GoRepoClone } from 'react-icons/go';
+import { GoKey, GoMirror, GoRepo} from 'react-icons/go';
 import { IoBanSharp } from 'react-icons/io5';
 import { EditIcon } from '@chakra-ui/icons';
 import React, { ReactNode } from 'react';
 import { CredentialDto } from 'dogma/features/credential/CredentialDto';
 import { MirrorDto } from 'dogma/features/mirror/MirrorDto';
 import { IconType } from 'react-icons';
+import {GrOrganization} from "react-icons/gr";
+import {VscRepoClone} from "react-icons/vsc";
 
 const HeadRow = ({ children }: { children: ReactNode }) => (
   <Td width="250px" fontWeight="semibold">
@@ -41,13 +43,19 @@ interface MirrorViewProps {
 const MirrorView = ({ projectName, mirror, credential }: MirrorViewProps) => {
   return (
     <Center>
-      <VStack width="80%" align="left">
+      <VStack width="90%" align="left">
         <Heading color="teal.500" size="lg" alignSelf="center" mb={4}>
-          Mirror - {credential.id}
+          {mirror.id}
         </Heading>
-        <TableContainer mt="7">
+        <TableContainer>
           <Table fontSize={'lg'} variant="unstyled">
             <Tbody>
+              <Tr>
+                <HeadRow>
+                  <AlignedIcon as={GrOrganization} /> Project
+                </HeadRow>
+                <Td fontWeight="semibold">{projectName}</Td>
+              </Tr>
               <Tr>
                 <HeadRow>
                   <AlignedIcon as={GiMirrorMirror} /> Mirror ID
@@ -90,7 +98,7 @@ const MirrorView = ({ projectName, mirror, credential }: MirrorViewProps) => {
               </Tr>
               <Tr>
                 <HeadRow>
-                  <AlignedIcon as={GoRepoClone} /> Remote path
+                  <AlignedIcon as={VscRepoClone} /> Remote path
                 </HeadRow>
                 <Td>
                   <Code fontSize="md" padding="2px 10px 2px 10px">

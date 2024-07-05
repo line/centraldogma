@@ -50,13 +50,14 @@ export const Projects = () => {
       }),
       columnHelper.accessor((row: ProjectDto) => row.name, {
         cell: (info) =>
-          info.row.original.createdAt ? (
+          info.row.original.name === 'dogma' ? null :
+            (info.row.original.createdAt ? (
             <ChakraLink href={`/app/projects/${info.getValue()}/metadata`}>
               <IconButton icon={<FcServices />} variant="ghost" colorScheme="teal" aria-label="metadata" />
             </ChakraLink>
           ) : (
             <RestoreProject projectName={info.getValue()} />
-          ),
+            )),
         header: 'Action',
         enableSorting: false,
       }),

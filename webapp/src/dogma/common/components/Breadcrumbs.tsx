@@ -26,7 +26,7 @@ export const Breadcrumbs = ({
   }
   const prefixes: string[] = [];
   return (
-    <Breadcrumb spacing="8px" separator={<FcNext />} mb={8} fontWeight="medium" fontSize="lg">
+    <Breadcrumb spacing="8px" separator={<FcNext />} mb={8} fontWeight="medium" fontSize="2xl">
       {asPathNestedRoutes.map((page, i) => {
         prefixes.push(page);
         const item = replaces[i] || page;
@@ -34,11 +34,11 @@ export const Breadcrumbs = ({
           return (
             <BreadcrumbItem key={i}>
               {i < asPathNestedRoutes.length - 1 ? (
-                <BreadcrumbLink as={NextLink} href={`/${prefixes.join('/')}${suffixes[i] || ''}`}>
+                <BreadcrumbLink as={NextLink} href={`/${prefixes.join('/')}${suffixes[i] || ''}`} paddingBottom={1}>
                   {decodeURI(item)}
                 </BreadcrumbLink>
               ) : (
-                <Text> {decodeURI(item)}</Text>
+                <Text paddingBottom={1}> {decodeURI(item)}</Text>
               )}
             </BreadcrumbItem>
           );

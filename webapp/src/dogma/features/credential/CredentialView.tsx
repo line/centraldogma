@@ -22,7 +22,7 @@ import {
   Flex,
   Heading,
   Icon,
-  Link,
+  Link, Spacer,
   Table,
   TableContainer,
   Tbody,
@@ -38,6 +38,8 @@ import { AppDispatch, useAppDispatch } from 'dogma/store';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import { IconType } from 'react-icons';
 import { HiOutlineIdentification, HiOutlineUser } from 'react-icons/hi';
+import {GrOrganization} from "react-icons/gr";
+
 import { VscRegex } from 'react-icons/vsc';
 import { MdPublic } from 'react-icons/md';
 import { RiGitRepositoryPrivateLine } from 'react-icons/ri';
@@ -57,12 +59,11 @@ const SecretViewer = ({ dispatch, secretProvider }: SecretViewerProps) => {
   const [showSecret, setShowSecret] = useState(false);
   return (
     <Flex wrap="wrap">
-      <Code width="700px" p={10} whiteSpace="pre-wrap">
+      <Code width="500px" p={10} whiteSpace="pre-wrap">
         {showSecret ? secretProvider() : '********'}
-        {}
       </Code>
       <Button
-        aria-label="show public key"
+        aria-label="Show key"
         size="xs"
         color="teal.500"
         marginTop={1}
@@ -73,7 +74,7 @@ const SecretViewer = ({ dispatch, secretProvider }: SecretViewerProps) => {
         {showSecret ? 'Hide' : 'Show'}
       </Button>
       <Button
-        aria-label="Copy public key"
+        aria-label="Copy key"
         size="xs"
         color="purple"
         marginTop={1}
@@ -102,18 +103,25 @@ const CredentialView = ({ projectName, credential }: CredentialViewProps) => {
 
   return (
     <Center>
-      <VStack width="100%" align="left">
+      <VStack width="90%" align="left">
         <Heading color="teal.500" size="lg" alignSelf="center" mb={4}>
-          Credential - {credential.id}
+          {credential.id}
         </Heading>
-        <TableContainer mt="7">
+        <Spacer/>
+        <TableContainer>
           <Table fontSize={'lg'} variant="unstyled">
             <Tbody>
               <Tr>
                 <HeadRow>
+                  <AlignedIcon as={GrOrganization}/> Project
+                </HeadRow>
+                <Td fontWeight="semibold">{projectName}</Td>
+              </Tr>
+              <Tr>
+                <HeadRow>
                   <AlignedIcon as={HiOutlineIdentification} /> Credential ID
                 </HeadRow>
-                <Td fontWeight="bold">{credential.id}</Td>
+                <Td fontWeight="semibold">{credential.id}</Td>
               </Tr>
               <Tr>
                 <HeadRow>
@@ -121,20 +129,6 @@ const CredentialView = ({ projectName, credential }: CredentialViewProps) => {
                 </HeadRow>
                 <Td>
                   <Badge colorScheme="purple">{credential.type}</Badge>
-                </Td>
-              </Tr>
-              <Tr>
-                <HeadRow>
-                  <AlignedIcon as={VscRegex} /> Hostname patterns
-                </HeadRow>
-                <Td>
-                  {credential.hostnamePatterns.length === 0 ? (
-                    '-'
-                  ) : (
-                    <Code p={2} variant="outline">
-                      {credential.hostnamePatterns.join(', ')}
-                    </Code>
-                  )}
                 </Td>
               </Tr>
               {credential.type === 'public_key' && (
@@ -204,6 +198,20 @@ const CredentialView = ({ projectName, credential }: CredentialViewProps) => {
                   </Td>
                 </Tr>
               )}
+              <Tr>
+                <HeadRow>
+                  <AlignedIcon as={VscRegex}/> Hostname patterns
+                </HeadRow>
+                <Td>
+                  {credential.hostnamePatterns.length === 0 ? (
+                    '-'
+                  ) : (
+                    <Code p={2} variant="outline">
+                      {credential.hostnamePatterns.join(', ')}
+                    </Code>
+                  )}
+                </Td>
+              </Tr>
             </Tbody>
           </Table>
         </TableContainer>

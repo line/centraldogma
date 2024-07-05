@@ -4,7 +4,7 @@ import { Provider } from 'react-redux';
 import { ChakraProvider, theme } from '@chakra-ui/react';
 import { Authorized } from 'dogma/features/auth/Authorized';
 import { NextPage } from 'next';
-import { ReactElement, ReactNode, useEffect } from 'react';
+import { ReactElement, ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import { Layout } from 'dogma/common/components/Layout';
 import { ErrorWrapper } from 'dogma/common/components/ErrorWrapper';
