@@ -16,6 +16,49 @@
 
 package com.linecorp.centraldogma.server;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V0_PATH_PREFIX;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.HEALTH_CHECK_PATH;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.METRICS_PATH;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.BUILTIN_WEB_BASE_PATH;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_API_ROUTES;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_PATH;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_API_ROUTES;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_PATH;
+import static java.util.Objects.requireNonNull;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.InetSocketAddress;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
+import javax.annotation.Nullable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
@@ -23,14 +66,31 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.linecorp.armeria.common.*;
+
+import com.linecorp.armeria.common.Flags;
+import com.linecorp.armeria.common.HttpData;
+import com.linecorp.armeria.common.HttpHeaderNames;
+import com.linecorp.armeria.common.HttpHeaders;
+import com.linecorp.armeria.common.HttpMethod;
+import com.linecorp.armeria.common.HttpRequest;
+import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.common.metric.MeterIdPrefixFunction;
 import com.linecorp.armeria.common.prometheus.PrometheusMeterRegistries;
 import com.linecorp.armeria.common.util.EventLoopGroups;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.StartStopSupport;
 import com.linecorp.armeria.common.util.SystemInfo;
-import com.linecorp.armeria.server.*;
+import com.linecorp.armeria.server.AbstractHttpService;
+import com.linecorp.armeria.server.HttpService;
+import com.linecorp.armeria.server.Route;
+import com.linecorp.armeria.server.Server;
+import com.linecorp.armeria.server.ServerBuilder;
+import com.linecorp.armeria.server.ServerPort;
+import com.linecorp.armeria.server.ServiceNaming;
+import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.JacksonRequestConverterFunction;
 import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.armeria.server.auth.Authorizer;
@@ -58,12 +118,26 @@ import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
-import com.linecorp.centraldogma.server.internal.admin.auth.*;
+import com.linecorp.centraldogma.server.internal.admin.auth.CachedSessionManager;
+import com.linecorp.centraldogma.server.internal.admin.auth.CsrfTokenAuthorizer;
+import com.linecorp.centraldogma.server.internal.admin.auth.ExpiredSessionDeletingSessionManager;
+import com.linecorp.centraldogma.server.internal.admin.auth.FileBasedSessionManager;
+import com.linecorp.centraldogma.server.internal.admin.auth.OrElseDefaultHttpFileService;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.service.DefaultLogoutService;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
 import com.linecorp.centraldogma.server.internal.admin.service.UserService;
 import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
-import com.linecorp.centraldogma.server.internal.api.*;
+import com.linecorp.centraldogma.server.internal.api.AdministrativeService;
+import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
+import com.linecorp.centraldogma.server.internal.api.CredentialServiceV1;
+import com.linecorp.centraldogma.server.internal.api.GitHttpService;
+import com.linecorp.centraldogma.server.internal.api.MetadataApiService;
+import com.linecorp.centraldogma.server.internal.api.MirroringServiceV1;
+import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
+import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
+import com.linecorp.centraldogma.server.internal.api.TokenService;
+import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiResponseConverter;
@@ -87,8 +161,14 @@ import com.linecorp.centraldogma.server.plugin.PluginInitContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.binder.jvm.*;
+import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics;
+import io.micrometer.core.instrument.binder.jvm.DiskSpaceMetrics;
+import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
 import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics;
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.core.instrument.binder.system.UptimeMetrics;
@@ -96,31 +176,6 @@ import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.GlobalEventExecutor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.InetSocketAddress;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
-
-import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.*;
-import static com.linecorp.centraldogma.server.auth.AuthProvider.*;
-import static java.util.Objects.requireNonNull;
 
 /**
  * Central Dogma server.
@@ -745,10 +800,10 @@ public class CentralDogma implements AutoCloseable {
         if (GIT_MIRROR_ENABLED) {
             sb.annotatedService(API_V1_PATH_PREFIX,
                                 new MirroringServiceV1(projectApiManager, executor), decorator,
-                                v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
+                                v1RequestConverter, jacksonRequestConverterFunction, v1RequestConverter);
             sb.annotatedService(API_V1_PATH_PREFIX,
                                 new CredentialServiceV1(projectApiManager, executor), decorator,
-                                v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
+                                v1RequestConverter, jacksonRequestConverterFunction, v1RequestConverter);
         }
 
         sb.annotatedService()
