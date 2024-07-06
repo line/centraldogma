@@ -1,4 +1,4 @@
-import { Box, Flex, Heading, Tabs, TabList, Tab, TabPanels, TabPanel, Spacer } from '@chakra-ui/react';
+import { Box, Flex, Heading, Spacer, Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import {
   useAddTokenPermissionMutation,
@@ -14,12 +14,12 @@ import { useRouter } from 'next/router';
 import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
 import { NewRepoTokenPermission } from 'dogma/features/repo/permissions/NewRepoTokenPermission';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-
-let tabs = ['role', 'user', 'token'];
+import { useEffect, useState } from 'react';
 import { Deferred } from 'dogma/common/components/Deferred';
 
-const RepoMetadata = () => {
+let tabs = ['role', 'user', 'token'];
+
+const RepoMetadataPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   const repoName = router.query.repoName ? (router.query.repoName as string) : '';
@@ -62,7 +62,7 @@ const RepoMetadata = () => {
                   key={tabName}
                   replace
                   href={{
-                    pathname: `/app/projects/metadata/${projectName}/${repoName}`,
+                    pathname: `/app/projects/${projectName}/permissions/repos/${repoName}`,
                     query: { tab: tabName },
                   }}
                 >
@@ -141,4 +141,4 @@ const RepoMetadata = () => {
   );
 };
 
-export default RepoMetadata;
+export default RepoMetadataPage;

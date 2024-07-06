@@ -2,16 +2,20 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, Text } from '@chakra-ui/rea
 import { FcNext } from 'react-icons/fc';
 import NextLink from 'next/link';
 
+interface BreadcrumbsProps {
+  path: string;
+  omitIndexList?: number[];
+  replaces?: { [key: number]: string };
+  suffixes?: { [key: number]: string };
+}
+
 export const Breadcrumbs = ({
   path,
-  omitIndexList,
+  omitIndexList = [],
+  replaces = {},
   // /project/projectName/repos/repoName -> /project/projectName/repos/repoName/list/head
-  suffixes,
-}: {
-  path: string;
-  omitIndexList: number[];
-  suffixes: { [key: number]: string };
-}) => {
+  suffixes = {},
+}: BreadcrumbsProps) => {
   const asPathNestedRoutes = path
     // If the path belongs to a file, the top level should be a directory
     .replace('/files/head', '/list/head')
@@ -22,18 +26,19 @@ export const Breadcrumbs = ({
   }
   const prefixes: string[] = [];
   return (
-    <Breadcrumb spacing="8px" separator={<FcNext />} mb={5} fontWeight="medium" fontSize="sm">
+    <Breadcrumb spacing="8px" separator={<FcNext />} mb={8} fontWeight="medium" fontSize="2xl">
       {asPathNestedRoutes.map((page, i) => {
         prefixes.push(page);
+        const item = replaces[i] || page;
         if (!omitIndexList.includes(i)) {
           return (
             <BreadcrumbItem key={i}>
               {i < asPathNestedRoutes.length - 1 ? (
-                <BreadcrumbLink as={NextLink} href={`/${prefixes.join('/')}${suffixes[i] || ''}`}>
-                  {decodeURI(page)}
+                <BreadcrumbLink as={NextLink} href={`/${prefixes.join('/')}${suffixes[i] || ''}`} paddingBottom={1}>
+                  {decodeURI(item)}
                 </BreadcrumbLink>
               ) : (
-                <Text> {decodeURI(page)}</Text>
+                <Text paddingBottom={1}> {decodeURI(item)}</Text>
               )}
             </BreadcrumbItem>
           );

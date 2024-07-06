@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -88,15 +90,17 @@ public class CredentialServiceV1 extends AbstractService {
     }
 
     /**
-     * PUT /projects/{projectName}/credentials
+     * PUT /projects/{projectName}/credentials/{id}
      *
      * <p>Update the existing credential.
      */
     @RequiresWritePermission(repository = Project.REPO_META)
-    @Put("/projects/{projectName}/credentials")
+    @Put("/projects/{projectName}/credentials/{id}")
     @ConsumesJson
     public CompletableFuture<PushResultDto> updateCredential(@Param String projectName,
+                                                             @Param String id,
                                                              MirrorCredential credential, Author author) {
+        checkArgument(id.equals(credential.id()), "The credential ID (%s) can't be updated", id);
         return createOrUpdate(projectName, credential, author, true);
     }
 

@@ -140,10 +140,13 @@ cat ${project}/${repo}${path}`;
               <TabPanel>
                 <Flex gap={2}>
                   <Spacer />
-                  <MetadataButton
-                    href={`/app/projects/metadata/${projectName}/${repoName}`}
-                    props={{ size: 'sm' }}
-                  />
+                  {projectName == 'dogma' ? null : (
+                    <MetadataButton
+                      href={`/app/projects/${projectName}/permissions/repos/${repoName}`}
+                      props={{ size: 'sm' }}
+                      text={'Repository permission'}
+                    />
+                  )}
                   <Button
                     as={Link}
                     href={`/app/projects/${projectName}/repos/${repoName}/new_file/head${filePath}`}

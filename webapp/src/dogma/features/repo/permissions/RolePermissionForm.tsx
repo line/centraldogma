@@ -65,7 +65,7 @@ export const RolePermissionForm = ({
       </VStack>
       <Flex gap={4} mt={10}>
         <Spacer />
-        <MetadataButton href={`/app/projects/metadata/${projectName}`} text="Project Metadata" />
+        <MetadataButton href={`/app/projects/${projectName}/metadata`} text="Project Metadata" />
         <ConfirmUpdateRolePermission
           projectName={projectName}
           repoName={repoName}
