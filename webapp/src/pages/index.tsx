@@ -20,7 +20,7 @@ import { ProjectOptionType } from 'dogma/common/components/Navbar';
 import { components, DropdownIndicatorProps, GroupBase, Select } from 'chakra-react-select';
 import { useEffect, useState } from 'react';
 import Router from 'next/router';
-import { Box, Center, Flex, Heading, HStack, Kbd, Spacer, useColorMode, VStack } from '@chakra-ui/react';
+import { Box, Heading, useColorMode, VStack } from '@chakra-ui/react';
 import { SearchIcon } from '@chakra-ui/icons';
 
 const initialState: ProjectOptionType = {

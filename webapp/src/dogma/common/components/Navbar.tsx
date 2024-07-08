@@ -49,8 +49,10 @@ interface TopMenu {
   path: string;
 }
 
-// TODO(ikhoon): Add more top menus
-const Links: TopMenu[] = [{ name: 'Projects', path: '/app/projects' }];
+const topMenus: TopMenu[] = [
+  { name: 'Central Dogma', path: '/' },
+  { name: 'Projects', path: '/app/projects' },
+];
 
 const NavLink = ({ link, children }: { link: string; children: ReactNode }) => (
   <Link
@@ -141,9 +143,8 @@ export const Navbar = () => {
           onClick={isOpen ? onClose : onOpen}
         />
         <HStack spacing={8} alignItems="center">
-          <Box>Central Dogma</Box>
           <HStack as="nav" spacing={4} display={{ base: 'none', md: 'flex' }}>
-            {Links.map(({ path, name }) => (
+            {topMenus.map(({ path, name }) => (
               <NavLink link={path} key={name}>
                 {name}
               </NavLink>
@@ -220,7 +221,7 @@ export const Navbar = () => {
       {isOpen ? (
         <Box pb={4} display={{ md: 'none' }}>
           <Stack as="nav" spacing={4}>
-            {Links.map(({ path, name }) => (
+            {topMenus.map(({ path, name }) => (
               <NavLink link={path} key={name}>
                 {name}
               </NavLink>
