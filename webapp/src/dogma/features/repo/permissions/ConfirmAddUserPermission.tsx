@@ -10,12 +10,12 @@ import {
   ModalOverlay,
 } from '@chakra-ui/react';
 import { SerializedError } from '@reduxjs/toolkit';
-import { FetchBaseQueryError, } from '@reduxjs/toolkit/query';
+import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import { useAppDispatch } from 'dogma/store';
-import { ApiAction } from "dogma/features/api/apiSlice";
-import { AddUserPermissionDto } from "dogma/features/repo/permissions/AddUserPermissionDto";
+import { ApiAction } from 'dogma/features/api/apiSlice';
+import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
 
 const constructPermissions = (permission: string): Array<'READ' | 'WRITE'> =>
   permission === 'write' ? ['READ', 'WRITE'] : permission === 'read' ? ['READ'] : [];
@@ -47,10 +47,9 @@ export const ConfirmAddUserPermission = ({
     permissions: constructPermissions(permission),
   };
 
-
   const handleUpdate = async () => {
     try {
-      const response = await addUserPermission({projectName, repoName, data}).unwrap();
+      const response = await addUserPermission({ projectName, repoName, data }).unwrap();
       if ((response as unknown as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as unknown as { error: FetchBaseQueryError | SerializedError }).error;
       }

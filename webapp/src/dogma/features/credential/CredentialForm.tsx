@@ -141,7 +141,6 @@ const CredentialForm = ({ defaultValue, onSubmit, isWaitingResponse }: Credentia
           </FormControl>
           <Spacer />
 
-
           <FormControl isRequired isInvalid={errors.type != null}>
             <FormLabel>
               <LabelledIcon icon={GoLock} text="Authentication" />

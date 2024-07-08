@@ -32,8 +32,8 @@ import { MirrorDto } from 'dogma/features/mirror/MirrorDto';
 import { CredentialDto } from 'dogma/features/credential/CredentialDto';
 
 export type ApiAction<Arg, Result> = {
-  (arg: Arg): { unwrap: () => Promise<Result> }
-}
+  (arg: Arg): { unwrap: () => Promise<Result> };
+};
 
 export type GetHistory = {
   projectName: string;

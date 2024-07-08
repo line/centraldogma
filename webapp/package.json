@@ -11,6 +11,8 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix --ext .json,.js,.jsx,.ts,.tsx .",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
     "pretest": "npm run lint",
     "analyze": "ANALYZE=true next build"
   },

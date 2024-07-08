@@ -22,7 +22,8 @@ import {
   Flex,
   Heading,
   Icon,
-  Link, Spacer,
+  Link,
+  Spacer,
   Table,
   TableContainer,
   Tbody,
@@ -38,7 +39,7 @@ import { AppDispatch, useAppDispatch } from 'dogma/store';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import { IconType } from 'react-icons';
 import { HiOutlineIdentification, HiOutlineUser } from 'react-icons/hi';
-import {GrOrganization} from "react-icons/gr";
+import { GrOrganization } from 'react-icons/gr';
 
 import { VscRegex } from 'react-icons/vsc';
 import { MdPublic } from 'react-icons/md';
@@ -107,13 +108,13 @@ const CredentialView = ({ projectName, credential }: CredentialViewProps) => {
         <Heading color="teal.500" size="lg" alignSelf="center" mb={4}>
           {credential.id}
         </Heading>
-        <Spacer/>
+        <Spacer />
         <TableContainer>
           <Table fontSize={'lg'} variant="unstyled">
             <Tbody>
               <Tr>
                 <HeadRow>
-                  <AlignedIcon as={GrOrganization}/> Project
+                  <AlignedIcon as={GrOrganization} /> Project
                 </HeadRow>
                 <Td fontWeight="semibold">{projectName}</Td>
               </Tr>
@@ -200,7 +201,7 @@ const CredentialView = ({ projectName, credential }: CredentialViewProps) => {
               )}
               <Tr>
                 <HeadRow>
-                  <AlignedIcon as={VscRegex}/> Hostname patterns
+                  <AlignedIcon as={VscRegex} /> Hostname patterns
                 </HeadRow>
                 <Td>
                   {credential.hostnamePatterns.length === 0 ? (

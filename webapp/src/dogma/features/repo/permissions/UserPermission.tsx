@@ -5,7 +5,7 @@ import { DeleteMember } from 'dogma/features/metadata/DeleteMember';
 import { DeleteUserPermissionDto } from 'dogma/features/repo/permissions/DeleteUserPermissionDto';
 import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
 import { useMemo } from 'react';
-import { ApiAction } from "dogma/features/api/apiSlice";
+import { ApiAction } from 'dogma/features/api/apiSlice';
 
 type UserAndPermission = [string, string[]];
 
