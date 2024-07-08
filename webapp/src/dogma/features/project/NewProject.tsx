@@ -21,7 +21,7 @@ import { useAppDispatch } from 'dogma/store';
 import Router from 'next/router';
 import { useForm } from 'react-hook-form';
 import { SerializedError } from '@reduxjs/toolkit';
-import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
+import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import { IoMdArrowDropdown } from 'react-icons/io';
 

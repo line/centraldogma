@@ -14,7 +14,7 @@
  * under the License.
  */
 import { Spinner, Text, VStack, useColorMode } from '@chakra-ui/react';
-import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
+import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import Error from 'next/error';
 import { ReactNode } from 'react';
 

@@ -4,8 +4,8 @@ plugins {
 }
 
 node {
-    version = '18.11.0'
-    npmVersion = '9.1.1'
+    version = '22.3.0'
+    npmVersion = '10.8.1'
     download = true
     npmInstallCommand = "ci"
 
@@ -43,14 +43,14 @@ task copyWeb(type: Copy) {
     into 'build/javaweb/com/linecorp/centraldogma/webapp'
 }
 
-task simpleTestServer(type: JavaExec) {
+task runTestServer(type: JavaExec) {
     group = "Execution"
     description = "Run the simple Central Dogma server"
     classpath = sourceSets.test.runtimeClasspath
     main = "com.linecorp.centraldogma.webapp.SimpleCentralDogmaTestServer"
 }
 
-task simpleTestShiroServer(type: JavaExec) {
+task runTestShiroServer(type: JavaExec) {
     group = "Execution"
     description = "Run the Central Dogma server with Apache Shiro"
     classpath = sourceSets.test.runtimeClasspath

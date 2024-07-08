@@ -14,12 +14,9 @@
  * under the License.
  */
 
-import {MirrorDto} from 'dogma/features/mirror/MirrorDto';
-import {Controller, useForm, UseFormSetError} from 'react-hook-form';
+import { MirrorDto } from 'dogma/features/mirror/MirrorDto';
+import { Controller, useForm, UseFormSetError } from 'react-hook-form';
 import {
-  Alert,
-  AlertDescription,
-  AlertIcon,
   Button,
   Center,
   FormControl,
@@ -36,18 +33,18 @@ import {
   Textarea,
   VStack,
 } from '@chakra-ui/react';
-import {LabelledIcon} from 'dogma/common/components/LabelledIcon';
-import {GiMirrorMirror, GiPowerButton} from 'react-icons/gi';
-import {BiTimer} from 'react-icons/bi';
-import {ExternalLinkIcon} from '@chakra-ui/icons';
-import {GoArrowBoth, GoArrowDown, GoArrowUp, GoKey, GoRepo} from 'react-icons/go';
-import {Select} from 'chakra-react-select';
-import {IoBanSharp} from 'react-icons/io5';
-import {useGetCredentialsQuery, useGetReposQuery} from 'dogma/features/api/apiSlice';
-import {useMemo} from 'react';
+import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
+import { GiMirrorMirror, GiPowerButton } from 'react-icons/gi';
+import { BiTimer } from 'react-icons/bi';
+import { ExternalLinkIcon } from '@chakra-ui/icons';
+import { GoArrowBoth, GoArrowDown, GoArrowUp, GoKey, GoRepo } from 'react-icons/go';
+import { Select } from 'chakra-react-select';
+import { IoBanSharp } from 'react-icons/io5';
+import { useGetCredentialsQuery, useGetReposQuery } from 'dogma/features/api/apiSlice';
+import { useMemo } from 'react';
 import FieldErrorMessage from 'dogma/common/components/form/FieldErrorMessage';
-import {RepoDto} from 'dogma/features/repo/RepoDto';
-import {CredentialDto} from 'dogma/features/credential/CredentialDto';
+import { RepoDto } from 'dogma/features/repo/RepoDto';
+import { CredentialDto } from 'dogma/features/credential/CredentialDto';
 
 interface MirrorFormProps {
   projectName: string;

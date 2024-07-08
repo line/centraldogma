@@ -17,23 +17,16 @@ import {
   Stack,
   useDisclosure,
 } from '@chakra-ui/react';
-import { Controller, useForm } from 'react-hook-form';
-import { IoMdArrowDropdown } from 'react-icons/io';
-import { useState } from 'react';
-import { OptionBase, Select } from 'chakra-react-select';
-import { AppMemberDetailDto } from 'dogma/features/metadata/AppMemberDto';
-import { ConfirmAddUserPermission } from 'dogma/features/repo/permissions/ConfirmAddUserPermission';
-import {
-  MutationDefinition,
-  BaseQueryFn,
-  FetchArgs,
-  FetchBaseQueryError,
-  FetchBaseQueryMeta,
-} from '@reduxjs/toolkit/dist/query';
-import { MutationTrigger } from '@reduxjs/toolkit/dist/query/react/buildHooks';
-import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
-import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
-import { ChakraLink } from 'dogma/common/components/ChakraLink';
+import {Controller, useForm} from 'react-hook-form';
+import {IoMdArrowDropdown} from 'react-icons/io';
+import {useState} from 'react';
+import {OptionBase, Select} from 'chakra-react-select';
+import {AppMemberDetailDto} from 'dogma/features/metadata/AppMemberDto';
+import {ConfirmAddUserPermission} from 'dogma/features/repo/permissions/ConfirmAddUserPermission';
+import {AddUserPermissionDto} from 'dogma/features/repo/permissions/AddUserPermissionDto';
+import {PerUserPermissionDto} from 'dogma/features/repo/RepoPermissionDto';
+import {ChakraLink} from 'dogma/common/components/ChakraLink';
+import { ApiAction } from "dogma/features/api/apiSlice";
 
 interface MemberOptionType extends OptionBase {
   value: string;
@@ -56,21 +49,7 @@ export const NewRepoUserPermission = ({
   projectName: string;
   repoName: string;
   members: AppMemberDetailDto[];
-  addUserPermission: MutationTrigger<
-    MutationDefinition<
-      AddUserPermissionDto,
-      BaseQueryFn<
-        string | FetchArgs,
-        unknown,
-        FetchBaseQueryError,
-        Record<string, unknown>,
-        FetchBaseQueryMeta
-      >,
-      'Metadata',
-      void,
-      'api'
-    >
-  >;
+  addUserPermission: ApiAction<AddUserPermissionDto, void>;
   isLoading: boolean;
   perUserPermissions: PerUserPermissionDto;
 }) => {

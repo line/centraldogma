@@ -10,18 +10,12 @@ import {
   ModalOverlay,
 } from '@chakra-ui/react';
 import { SerializedError } from '@reduxjs/toolkit';
-import {
-  BaseQueryFn,
-  FetchArgs,
-  FetchBaseQueryError,
-  FetchBaseQueryMeta,
-  MutationDefinition,
-} from '@reduxjs/toolkit/dist/query';
-import { MutationTrigger } from '@reduxjs/toolkit/dist/query/react/buildHooks';
+import { FetchBaseQueryError, } from '@reduxjs/toolkit/query';
 import { createMessage } from 'dogma/features/message/messageSlice';
-import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import { useAppDispatch } from 'dogma/store';
+import { ApiAction } from "dogma/features/api/apiSlice";
+import { AddUserPermissionDto } from "dogma/features/repo/permissions/AddUserPermissionDto";
 
 const constructPermissions = (permission: string): Array<'READ' | 'WRITE'> =>
   permission === 'write' ? ['READ', 'WRITE'] : permission === 'read' ? ['READ'] : [];
@@ -44,21 +38,7 @@ export const ConfirmAddUserPermission = ({
   isOpen: boolean;
   onClose: () => void;
   resetForm: () => void;
-  addUserPermission: MutationTrigger<
-    MutationDefinition<
-      AddUserPermissionDto,
-      BaseQueryFn<
-        string | FetchArgs,
-        unknown,
-        FetchBaseQueryError,
-        Record<string, unknown>,
-        FetchBaseQueryMeta
-      >,
-      'Metadata',
-      void,
-      'api'
-    >
-  >;
+  addUserPermission: ApiAction<AddUserPermissionDto, void>;
   isLoading: boolean;
 }) => {
   const dispatch = useAppDispatch();
@@ -66,9 +46,11 @@ export const ConfirmAddUserPermission = ({
     id: loginId,
     permissions: constructPermissions(permission),
   };
+
+
   const handleUpdate = async () => {
     try {
-      const response = await addUserPermission({ projectName, repoName, data }).unwrap();
+      const response = await addUserPermission({projectName, repoName, data}).unwrap();
       if ((response as unknown as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as unknown as { error: FetchBaseQueryError | SerializedError }).error;
       }
