@@ -15,7 +15,7 @@ import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { useAddNewMemberMutation } from 'dogma/features/api/apiSlice';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch } from 'dogma/hooks';
 
 export const ConfirmAddMember = ({
   projectName,

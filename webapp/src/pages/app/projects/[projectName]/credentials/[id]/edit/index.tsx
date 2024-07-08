@@ -16,7 +16,7 @@
 
 import Router, { useRouter } from 'next/router';
 import { useGetCredentialQuery, useUpdateCredentialMutation } from 'dogma/features/api/apiSlice';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch } from 'dogma/hooks';
 import { Deferred } from 'dogma/common/components/Deferred';
 import CredentialForm from 'dogma/features/credential/CredentialForm';
 import { CredentialDto } from 'dogma/features/credential/CredentialDto';

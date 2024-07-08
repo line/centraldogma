@@ -13,7 +13,7 @@ import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch } from 'dogma/hooks';
 import { ApiAction } from 'dogma/features/api/apiSlice';
 import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
 

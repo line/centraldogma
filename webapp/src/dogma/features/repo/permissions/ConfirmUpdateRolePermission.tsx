@@ -16,7 +16,7 @@ import { useUpdateRolePermissionMutation } from 'dogma/features/api/apiSlice';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import { RepoRolePermissionDto } from 'dogma/features/repo/RepoPermissionDto';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch } from 'dogma/hooks';
 
 export const ConfirmUpdateRolePermission = ({
   projectName,

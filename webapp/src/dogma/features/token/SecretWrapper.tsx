@@ -11,7 +11,7 @@ import {
   Text,
 } from '@chakra-ui/react';
 import { createMessage } from 'dogma/features/message/messageSlice';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch } from 'dogma/hooks';
 import { MdArrowDropDown, MdContentCopy } from 'react-icons/md';
 
 export const SecretWrapper = ({ appId, secret }: { appId: string; secret: string }) => {

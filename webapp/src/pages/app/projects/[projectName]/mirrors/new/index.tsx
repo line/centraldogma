@@ -17,7 +17,7 @@
 import { UseFormSetError } from 'react-hook-form';
 import { MirrorDto } from 'dogma/features/mirror/MirrorDto';
 import { useAddNewMirrorMutation } from 'dogma/features/api/apiSlice';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch } from 'dogma/hooks';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { SerializedError } from '@reduxjs/toolkit';
 import { createMessage } from 'dogma/features/message/messageSlice';

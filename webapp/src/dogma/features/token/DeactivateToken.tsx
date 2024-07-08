@@ -15,7 +15,7 @@ import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { useDeactivateTokenMutation } from 'dogma/features/api/apiSlice';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch } from 'dogma/hooks';
 import { FcNoIdea } from 'react-icons/fc';
 
 export const DeactivateToken = ({ appId, hidden }: { appId: string; hidden: boolean }) => {

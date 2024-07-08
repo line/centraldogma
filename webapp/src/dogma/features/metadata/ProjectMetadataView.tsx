@@ -15,7 +15,6 @@
  */
 
 import { Box, Flex, Heading, Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react';
-import { useAppSelector } from 'dogma/store';
 import { useGetMetadataByProjectNameQuery } from 'dogma/features/api/apiSlice';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { ReactNode } from 'react';
@@ -24,6 +23,7 @@ import Link from 'next/link';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { useRouter } from 'next/router';
 import { AppMemberDetailDto } from 'dogma/features/metadata/AppMemberDto';
+import { useAppSelector } from 'dogma/hooks';
 
 interface ProjectMetadataViewProps {
   projectName: string;

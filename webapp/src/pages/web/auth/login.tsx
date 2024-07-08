@@ -1,8 +1,8 @@
 import Head from 'next/head';
 import { LoginForm } from 'dogma/features/auth/LoginForm';
-import { useAppSelector } from 'dogma/store';
 import { useEffect } from 'react';
 import Router from 'next/router';
+import { useAppSelector } from 'dogma/hooks';
 
 const LoginPage = () => {
   const { isInAnonymousMode, sessionId } = useAppSelector((state) => state.auth);

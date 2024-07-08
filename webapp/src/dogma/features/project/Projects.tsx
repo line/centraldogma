@@ -18,13 +18,13 @@ import { IconButton } from '@chakra-ui/react';
 import { FcServices } from 'react-icons/fc';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
-import { useAppSelector } from 'dogma/store';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { useMemo } from 'react';
 import { RestoreProject } from 'dogma/features/project/RestoreProject';
 import { Deferred } from 'dogma/common/components/Deferred';
+import { useAppSelector } from 'dogma/hooks';
 
 export const Projects = () => {
   const { user } = useAppSelector((state) => state.auth);

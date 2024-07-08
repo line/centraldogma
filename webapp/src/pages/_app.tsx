@@ -1,6 +1,4 @@
 import type { AppProps } from 'next/app';
-import { store } from 'dogma/store';
-import { Provider } from 'react-redux';
 import { ChakraProvider, theme } from '@chakra-ui/react';
 import { Authorized } from 'dogma/features/auth/Authorized';
 import { NextPage } from 'next';
@@ -9,6 +7,7 @@ import { useRouter } from 'next/router';
 import { Layout } from 'dogma/common/components/Layout';
 import { ErrorWrapper } from 'dogma/common/components/ErrorWrapper';
 import dynamic from 'next/dynamic';
+import StoreProvider from 'dogma/StoreProvider';
 
 const WEB_AUTH_LOGIN = '/web/auth/login';
 
@@ -43,13 +42,13 @@ const DogmaApp = ({ Component, pageProps }: AppPropsWithLayout) => {
       : (page: ReactElement) => <Layout>{page}</Layout>;
 
   return (
-    <Provider store={store}>
+    <StoreProvider>
       <ChakraProvider theme={theme}>
         <ErrorWrapper>
           <Authorized>{getLayout(<Component {...pageProps} />)}</Authorized>
         </ErrorWrapper>
       </ChakraProvider>
-    </Provider>
+    </StoreProvider>
   );
 };
 

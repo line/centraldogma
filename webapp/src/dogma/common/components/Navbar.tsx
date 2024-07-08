@@ -35,7 +35,6 @@ import {
 } from '@chakra-ui/react';
 import { CloseIcon, HamburgerIcon, MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { default as RouteLink } from 'next/link';
-import { useAppSelector, useAppDispatch } from 'dogma/store';
 import { logout } from 'dogma/features/auth/authSlice';
 import Router from 'next/router';
 import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
@@ -43,6 +42,7 @@ import { ProjectDto } from 'dogma/features/project/ProjectDto';
 import { components, DropdownIndicatorProps, GroupBase, OptionBase, Select } from 'chakra-react-select';
 import { NewProject } from 'dogma/features/project/NewProject';
 import { usePathname } from 'next/navigation';
+import { useAppDispatch, useAppSelector } from 'dogma/hooks';
 
 interface TopMenu {
   name: string;

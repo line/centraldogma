@@ -19,7 +19,7 @@ import {
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import { TokenDto } from 'dogma/features/token/TokenDto';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch } from 'dogma/hooks';
 import { MdContentCopy } from 'react-icons/md';
 
 export const DisplaySecretModal = ({

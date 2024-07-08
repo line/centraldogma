@@ -17,7 +17,7 @@
 import { Deferred } from 'dogma/common/components/Deferred';
 import Router, { useRouter } from 'next/router';
 import { useGetMirrorQuery, useUpdateMirrorMutation } from 'dogma/features/api/apiSlice';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch } from 'dogma/hooks';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { SerializedError } from '@reduxjs/toolkit';
 import { createMessage } from 'dogma/features/message/messageSlice';

@@ -17,7 +17,7 @@ import {
 } from '@chakra-ui/react';
 import { useAddNewRepoMutation } from 'dogma/features/api/apiSlice';
 import { createMessage } from 'dogma/features/message/messageSlice';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch } from 'dogma/hooks';
 import Router from 'next/router';
 import { useForm } from 'react-hook-form';
 import { SerializedError } from '@reduxjs/toolkit';
