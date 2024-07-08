@@ -15,7 +15,7 @@
  */
 import { Box, Button, Flex, FormControl, Input, VStack, useColorMode } from '@chakra-ui/react';
 import { login } from 'dogma/features/auth/authSlice';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch } from 'dogma/hooks';
 import { useForm } from 'react-hook-form';
 
 type FormData = {

@@ -13,7 +13,7 @@ import {
 import { useDeleteTokenMutation } from 'dogma/features/api/apiSlice';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch } from 'dogma/hooks';
 import { MdDelete } from 'react-icons/md';
 
 export const DeleteToken = ({ appId, hidden }: { appId: string; hidden: boolean }) => {

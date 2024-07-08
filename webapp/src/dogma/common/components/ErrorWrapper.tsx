@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from 'react';
 import { useToast } from '@chakra-ui/react';
-import { useAppSelector } from 'dogma/store';
+import { useAppSelector } from 'dogma/hooks';
 
 export const ErrorWrapper = (props: { children: ReactNode }) => {
   const { title, text, type } = useAppSelector((state) => state.message);

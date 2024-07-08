@@ -35,21 +35,24 @@ import {
 } from '@chakra-ui/react';
 import { CloseIcon, HamburgerIcon, MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { default as RouteLink } from 'next/link';
-import { useAppSelector, useAppDispatch } from 'dogma/store';
 import { logout } from 'dogma/features/auth/authSlice';
 import Router from 'next/router';
 import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
 import { components, DropdownIndicatorProps, GroupBase, OptionBase, Select } from 'chakra-react-select';
 import { NewProject } from 'dogma/features/project/NewProject';
+import { usePathname } from 'next/navigation';
+import { useAppDispatch, useAppSelector } from 'dogma/hooks';
 
 interface TopMenu {
   name: string;
   path: string;
 }
 
-// TODO(ikhoon): Add more top menus
-const Links: TopMenu[] = [{ name: 'Projects', path: '/app/projects' }];
+const topMenus: TopMenu[] = [
+  { name: 'Central Dogma', path: '/' },
+  { name: 'Projects', path: '/app/projects' },
+];
 
 const NavLink = ({ link, children }: { link: string; children: ReactNode }) => (
   <Link
@@ -127,6 +130,8 @@ export const Navbar = () => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const pathname = usePathname();
+
   return (
     <Box bg={useColorModeValue('gray.100', 'gray.900')} px={4}>
       <Flex h={16} alignItems="center" justifyContent="space-between" fontWeight="semibold">
@@ -138,37 +143,40 @@ export const Navbar = () => {
           onClick={isOpen ? onClose : onOpen}
         />
         <HStack spacing={8} alignItems="center">
-          <Box>Central Dogma</Box>
           <HStack as="nav" spacing={4} display={{ base: 'none', md: 'flex' }}>
-            {Links.map(({ path, name }) => (
+            {topMenus.map(({ path, name }) => (
               <NavLink link={path} key={name}>
                 {name}
               </NavLink>
             ))}
           </HStack>
         </HStack>
-        <Box w="40%">
-          <Select
-            id="color-select"
-            name="project-search"
-            options={projectOptions}
-            value={selectedOption?.value}
-            onChange={(option: ProjectOptionType) => option && handleChange(option)}
-            placeholder="Jump to project ..."
-            closeMenuOnSelect={true}
-            openMenuOnFocus={true}
-            isClearable={true}
-            isSearchable={true}
-            ref={selectRef}
-            components={{ DropdownIndicator }}
-            chakraStyles={{
-              control: (baseStyles) => ({
-                ...baseStyles,
-                backgroundColor: colorMode === 'light' ? 'white' : 'whiteAlpha.50',
-              }),
-            }}
-          />
-        </Box>
+        {pathname === '/' ? (
+          <div />
+        ) : (
+          <Box w="40%">
+            <Select
+              id="color-select"
+              name="project-search"
+              options={projectOptions}
+              value={selectedOption?.value}
+              onChange={(option: ProjectOptionType) => option && handleChange(option)}
+              placeholder="Jump to project ..."
+              closeMenuOnSelect={true}
+              openMenuOnFocus={true}
+              isClearable={true}
+              isSearchable={true}
+              ref={selectRef}
+              components={{ DropdownIndicator }}
+              chakraStyles={{
+                control: (baseStyles) => ({
+                  ...baseStyles,
+                  backgroundColor: colorMode === 'light' ? 'white' : 'whiteAlpha.50',
+                }),
+              }}
+            />
+          </Box>
+        )}
         <Flex alignItems="center" gap={2}>
           <NewProject />
           <IconButton
@@ -213,7 +221,7 @@ export const Navbar = () => {
       {isOpen ? (
         <Box pb={4} display={{ md: 'none' }}>
           <Stack as="nav" spacing={4}>
-            {Links.map(({ path, name }) => (
+            {topMenus.map(({ path, name }) => (
               <NavLink link={path} key={name}>
                 {name}
               </NavLink>

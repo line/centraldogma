@@ -5,8 +5,8 @@
   "scripts": {
     "test": "jest --watch",
     "test:ci": "jest --ci",
-    "develop": "NEXT_PUBLIC_HOST=\"http://127.0.0.1:36462\" next dev",
-    "mock": "next dev",
+    "develop": "NEXT_PUBLIC_HOST=\"http://127.0.0.1:36462\" NEXT_ENV=\"development\" next dev",
+    "mock": "NEXT_ENV=\"development\" next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

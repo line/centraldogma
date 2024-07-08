@@ -3,10 +3,12 @@
 const withBundleAnalyzer = require('@next/bundle-analyzer')({
   enabled: process.env.ANALYZE === 'true',
 });
+
+const isDev = process.env.NEXT_ENV === 'development';
 const nextConfig = {
-  productionBrowserSourceMaps: process.env.NEXT_ENV === 'development',
+  productionBrowserSourceMaps: isDev,
   trailingSlash: true,
-  output: 'export',
+  output: isDev ? 'standalone' : 'export',
   distDir: 'build/web/'
 };
 module.exports = withBundleAnalyzer(nextConfig);

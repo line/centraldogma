@@ -15,10 +15,10 @@
  */
 
 import { ReactNode, useEffect } from 'react';
-import { useAppDispatch, useAppSelector } from 'dogma/store';
 import { getUser, checkSecurityEnabled } from 'dogma/features/auth/authSlice';
 import { useRouter } from 'next/router';
 import { isFulfilled } from '@reduxjs/toolkit';
+import { useAppDispatch, useAppSelector } from 'dogma/hooks';
 
 const WEB_AUTH_LOGIN = '/web/auth/login';
 

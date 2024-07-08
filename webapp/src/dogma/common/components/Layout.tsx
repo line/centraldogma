@@ -20,7 +20,6 @@ import { Navbar } from 'dogma/common/components/Navbar';
 export const Layout = ({ children }: { children: ReactNode }) => (
   <Box>
     <Navbar />
-    {/* TODO(ikhoon): Add side menus */}
     <Container p={10} maxW="container.xl">
       {children}
     </Container>

@@ -23,10 +23,10 @@ import { DisplaySecretModal } from 'dogma/features/token/DisplaySecretModal';
 import { useAddNewTokenMutation } from 'dogma/features/api/apiSlice';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
-import { useAppDispatch, useAppSelector } from 'dogma/store';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { IoMdArrowDropdown } from 'react-icons/io';
+import { useAppDispatch, useAppSelector } from 'dogma/hooks';
 
 const APP_ID_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/;
 

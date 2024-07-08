@@ -23,7 +23,7 @@ import { AiOutlineDelete } from 'react-icons/ai';
 import { DiscardChangesModal } from 'dogma/common/components/editor/DiscardChangesModal';
 import { DeleteFileModal } from 'dogma/common/components/editor/DeleteFileModal';
 import { CommitForm } from 'dogma/common/components/CommitForm';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch } from 'dogma/hooks';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 

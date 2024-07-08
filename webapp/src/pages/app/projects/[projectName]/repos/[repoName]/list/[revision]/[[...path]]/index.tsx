@@ -19,7 +19,7 @@ import { useRouter } from 'next/router';
 import HistoryList from 'dogma/features/history/HistoryList';
 import { useState } from 'react';
 import { createMessage, resetState } from 'dogma/features/message/messageSlice';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch } from 'dogma/hooks';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import { CopySupport } from 'dogma/features/file/CopySupport';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';

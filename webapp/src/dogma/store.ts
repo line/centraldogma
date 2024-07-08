@@ -14,27 +14,27 @@
  * under the License.
  */
 
-import { configureStore } from '@reduxjs/toolkit';
+import { combineReducers, configureStore } from '@reduxjs/toolkit';
 import { authReducer } from 'dogma/features/auth/authSlice';
-import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import { apiSlice } from 'dogma/features/api/apiSlice';
-import { setupListeners } from '@reduxjs/toolkit/query';
 import { messageReducer } from 'dogma/features/message/messageSlice';
 
-const reducer = {
+const rootReducer = combineReducers({
   auth: authReducer,
   message: messageReducer,
   [apiSlice.reducerPath]: apiSlice.reducer,
-};
-export const store = configureStore({
-  reducer,
-  middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(apiSlice.middleware),
 });
 
-setupListeners(store.dispatch);
+export function setupStore(preloadedState?: Partial<RootState>) {
+  return configureStore({
+    reducer: rootReducer,
+    preloadedState,
+    // Adding the api middleware enables caching, invalidation, polling,
+    // and other useful features of `rtk-query`.
+    middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(apiSlice.middleware),
+  });
+}
 
-export type RootState = ReturnType<typeof store.getState>;
-export type AppDispatch = typeof store.dispatch;
-
-export const useAppDispatch: () => AppDispatch = useDispatch;
-export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
+export type RootState = ReturnType<typeof rootReducer>;
+export type AppStore = ReturnType<typeof setupStore>;
+export type AppDispatch = AppStore['dispatch'];

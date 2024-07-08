@@ -16,7 +16,7 @@
 
 import Router, { useRouter } from 'next/router';
 import CredentialForm from 'dogma/features/credential/CredentialForm';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch } from 'dogma/hooks';
 import { CredentialDto } from 'dogma/features/credential/CredentialDto';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { SerializedError } from '@reduxjs/toolkit';
