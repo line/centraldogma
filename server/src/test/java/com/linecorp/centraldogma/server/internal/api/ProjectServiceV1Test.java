@@ -109,6 +109,14 @@ class ProjectServiceV1Test {
     }
 
     @Test
+    void createInvalidProject() throws IOException {
+        // Underscore is only allowed for internal projects.
+        final AggregatedHttpResponse aRes = createProject(normalClient, "_myPro");
+        final ResponseHeaders headers = ResponseHeaders.of(aRes.headers());
+        assertThat(headers.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
     void createProjectWithSameName() {
         createProject(normalClient, "myNewPro");
         final AggregatedHttpResponse res = createProject(normalClient, "myNewPro");

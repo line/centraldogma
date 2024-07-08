@@ -55,9 +55,20 @@ public final class Util {
      * Start with an alphanumeric character.
      * An alphanumeric character, minus, plus, underscore and dot are allowed in the middle.
      * End with an alphanumeric character.
+     * Use this pattern for project and repository names that are entered by users.
      */
-    private static final Pattern PROJECT_AND_REPO_NAME_PATTERN =
+    public static final Pattern USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN =
             Pattern.compile("^(?!.*\\.git$)[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$");
+
+    public static final String INTERNAL_PROJECT_PREFIX = "_dogma_";
+
+    /**
+     * The difference between this and {@link #USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN} is that this
+     * allows an underscore at the beginning for internal projects.
+     */
+    public static final Pattern PROJECT_AND_REPO_NAME_PATTERN =
+            Pattern.compile("^(?!.*\\.git$)(" + INTERNAL_PROJECT_PREFIX +
+                            "|[0-9A-Za-z])(?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$");
 
     public static String validateFileName(String name, String paramName) {
         requireNonNull(name, paramName);
@@ -148,25 +159,26 @@ public final class Util {
     public static String validateProjectName(String projectName, String paramName) {
         requireNonNull(projectName, paramName);
         checkArgument(isValidProjectName(projectName),
-                      "%s: %s (expected: %s)", paramName, projectName, PROJECT_AND_REPO_NAME_PATTERN);
+                      "%s: %s (expected: %s)", paramName, projectName,
+                      USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN);
         return projectName;
     }
 
     public static boolean isValidProjectName(String projectName) {
         requireNonNull(projectName, "projectName");
-        return PROJECT_AND_REPO_NAME_PATTERN.matcher(projectName).matches();
+        return USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN.matcher(projectName).matches();
     }
 
     public static String validateRepositoryName(String repoName, String paramName) {
         requireNonNull(repoName, paramName);
         checkArgument(isValidRepositoryName(repoName),
-                      "%s: %s (expected: %s)", paramName, repoName, PROJECT_AND_REPO_NAME_PATTERN);
+                      "%s: %s (expected: %s)", paramName, repoName, USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN);
         return repoName;
     }
 
     public static boolean isValidRepositoryName(String repoName) {
         requireNonNull(repoName, "repoName");
-        return PROJECT_AND_REPO_NAME_PATTERN.matcher(repoName).matches();
+        return USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN.matcher(repoName).matches();
     }
 
     public static String validateEmailAddress(String emailAddr, String paramName) {

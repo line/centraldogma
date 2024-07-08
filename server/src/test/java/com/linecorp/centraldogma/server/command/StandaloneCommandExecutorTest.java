@@ -149,4 +149,24 @@ class StandaloneCommandExecutorTest {
                                                       .contentAsJson();
         assertThat(json.get("a").asText()).isEqualTo("b");
     }
+
+    @Test
+    void createInternalProject() {
+        final CommandExecutor executor = extension.executor();
+        final String internalProjectName = "_dogma_project";
+        executor.execute(Command.createProject(Author.SYSTEM, internalProjectName)).join();
+        final MetadataService mds = new MetadataService(extension.projectManager(), executor);
+        mds.addRepo(Author.SYSTEM, internalProjectName, TEST_REPO).join();
+        // Can create an internal project that starts with an underscore.
+        executor.execute(Command.createRepository(Author.SYSTEM, internalProjectName, TEST_REPO))
+                .join();
+        final Change<JsonNode> change = Change.ofJsonUpsert("/foo.json", "{\"a\": \"b\"}");
+        // Can push to an internal project.
+        final CommitResult commitResult =
+                executor.execute(Command.push(
+                                Author.SYSTEM, internalProjectName, TEST_REPO, Revision.HEAD, "", "",
+                                Markup.PLAINTEXT, change))
+                        .join();
+        assertThat(commitResult).isEqualTo(CommitResult.of(new Revision(2), ImmutableList.of(change)));
+    }
 }

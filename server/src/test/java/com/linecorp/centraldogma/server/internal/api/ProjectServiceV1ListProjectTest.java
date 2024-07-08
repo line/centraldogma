@@ -36,6 +36,7 @@ import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.auth.AuthToken;
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
@@ -74,6 +75,9 @@ class ProjectServiceV1ListProjectTest {
 
     @Test
     void listProjects() {
+        // Create an internal project.
+        dogma.projectManager().create("_dogma_foo", Author.SYSTEM);
+
         createProject(normalClient, "trustin");
         createProject(normalClient, "hyangtack");
         createProject(normalClient, "minwoox");
@@ -118,6 +122,15 @@ class ProjectServiceV1ListProjectTest {
         assertThat(aRes.headers().status()).isEqualTo(HttpStatus.OK);
         assertThatJson(aRes.contentUtf8()).isEqualTo(
                 String.format(withoutDogma,
+                              "   {" +
+                              "       \"name\": \"_dogma_foo\"," +
+                              "       \"creator\": {" +
+                              "           \"name\": \"System\"," +
+                              "           \"email\": \"system@localhost.localdomain\"" +
+                              "        }," +
+                              "        \"url\": \"/api/v1/projects/_dogma_foo\"," +
+                              "        \"createdAt\": \"${json-unit.ignore}\"" +
+                              "   }," +
                               "   {" +
                               "       \"name\": \"dogma\"," +
                               "       \"creator\": {" +
