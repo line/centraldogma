@@ -16,15 +16,15 @@ import {
 } from '@chakra-ui/react';
 import { GiMirrorMirror, GiPowerButton } from 'react-icons/gi';
 import { BiTimer } from 'react-icons/bi';
-import { GoKey, GoMirror, GoRepo} from 'react-icons/go';
+import { GoKey, GoMirror, GoRepo } from 'react-icons/go';
 import { IoBanSharp } from 'react-icons/io5';
 import { EditIcon } from '@chakra-ui/icons';
 import React, { ReactNode } from 'react';
 import { CredentialDto } from 'dogma/features/credential/CredentialDto';
 import { MirrorDto } from 'dogma/features/mirror/MirrorDto';
 import { IconType } from 'react-icons';
-import {GrOrganization} from "react-icons/gr";
-import {VscRepoClone} from "react-icons/vsc";
+import { GrOrganization } from 'react-icons/gr';
+import { VscRepoClone } from 'react-icons/vsc';
 
 const HeadRow = ({ children }: { children: ReactNode }) => (
   <Td width="250px" fontWeight="semibold">

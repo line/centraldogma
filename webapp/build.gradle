@@ -70,9 +70,21 @@ if (!rootProject.hasProperty('noLint')) {
         outputs.upToDateWhen { true }
     }
 
+    task prettier(type: NpmTask) {
+        dependsOn tasks.eslint
+
+        args = ['run', 'format']
+
+        inputs.dir('src')
+        inputs.file('package.json')
+        inputs.file('package-lock.json')
+        inputs.file('next.config.js')
+        outputs.upToDateWhen { true }
+    }
+
     Task lintTask = project.ext.getLintTask()
-    lintTask.dependsOn(tasks.eslint)
-    tasks.buildWeb.dependsOn(tasks.eslint)
+    lintTask.dependsOn(tasks.prettier)
+    tasks.buildWeb.dependsOn(tasks.prettier)
 }
 
 task testWeb(type: NpmTask) {

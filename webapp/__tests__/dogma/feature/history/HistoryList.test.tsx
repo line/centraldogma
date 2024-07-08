@@ -5,7 +5,7 @@ import HistoryList from 'dogma/features/history/HistoryList';
 // import { setupServer } from 'msw/node';
 // import { http, HttpResponse } from 'msw';
 import { apiSlice } from 'dogma/features/api/apiSlice';
-import { ApiProvider } from "@reduxjs/toolkit/query/react";
+import { ApiProvider } from '@reduxjs/toolkit/query/react';
 const expectedProps = {
   projectName: 'ProjectAlpha',
   repoName: 'RepoGamma',

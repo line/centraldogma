@@ -69,20 +69,20 @@ const MIRROR_SCHEMES: OptionType[] = ['git+ssh', 'git+http', 'git+https'].map((s
 
 const INTERNAL_REPOS = new Set<string>(['dogma', 'meta']);
 
-const MirrorForm = ({projectName, defaultValue, onSubmit, isWaitingResponse}: MirrorFormProps) => {
+const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: MirrorFormProps) => {
   const {
     register,
     handleSubmit,
     reset,
-    formState: {errors},
+    formState: { errors },
     setError,
     setValue,
     control,
   } = useForm<MirrorDto>();
 
   const isNew = defaultValue.id === '';
-  const {data: repos} = useGetReposQuery(projectName);
-  const {data: credentials} = useGetCredentialsQuery(projectName);
+  const { data: repos } = useGetReposQuery(projectName);
+  const { data: credentials } = useGetCredentialsQuery(projectName);
 
   const repoOptions: OptionType[] = (repos || [])
     .filter((repo: RepoDto) => !INTERNAL_REPOS.has(repo.name))
@@ -110,16 +110,18 @@ const MirrorForm = ({projectName, defaultValue, onSubmit, isWaitingResponse}: Mi
   }, [defaultValue, setValue]);
 
   const defaultRemoteScheme: OptionType = defaultValue.remoteScheme
-    ? {value: defaultValue.remoteScheme, label: defaultValue.remoteScheme}
+    ? { value: defaultValue.remoteScheme, label: defaultValue.remoteScheme }
     : null;
   const defaultCredential: OptionType = defaultValue.credentialId
-    ? {value: defaultValue.credentialId, label: defaultValue.credentialId}
+    ? { value: defaultValue.credentialId, label: defaultValue.credentialId }
     : null;
 
   return (
-    <form onSubmit={handleSubmit((mirror) => {
-      return onSubmit(mirror, reset, setError);
-    })}>
+    <form
+      onSubmit={handleSubmit((mirror) => {
+        return onSubmit(mirror, reset, setError);
+      })}
+    >
       <Center>
         <VStack width="80%" align="left">
           <Heading color={'teal.500'} alignSelf="center">
@@ -127,7 +129,7 @@ const MirrorForm = ({projectName, defaultValue, onSubmit, isWaitingResponse}: Mi
           </Heading>
           <FormControl isRequired isInvalid={errors.id != null}>
             <FormLabel>
-              <LabelledIcon icon={GiMirrorMirror} text="Mirror ID"/>
+              <LabelledIcon icon={GiMirrorMirror} text="Mirror ID" />
             </FormLabel>
             <Input
               id="id"
@@ -135,10 +137,10 @@ const MirrorForm = ({projectName, defaultValue, onSubmit, isWaitingResponse}: Mi
               type="text"
               defaultValue={defaultValue.id}
               placeholder="The mirror ID"
-              {...register('id', {required: true, pattern: /^[a-zA-Z0-9-_.]+$/})}
+              {...register('id', { required: true, pattern: /^[a-zA-Z0-9-_.]+$/ })}
             />
             {errors.id ? (
-              <FieldErrorMessage error={errors.id} fieldName="ID"/>
+              <FieldErrorMessage error={errors.id} fieldName="ID" />
             ) : (
               <FormHelperText>
                 The mirror ID must be unique and contain alphanumeric characters, dashes, underscores, and
@@ -146,11 +148,11 @@ const MirrorForm = ({projectName, defaultValue, onSubmit, isWaitingResponse}: Mi
               </FormHelperText>
             )}
           </FormControl>
-          <Spacer/>
+          <Spacer />
 
           <FormControl isRequired isInvalid={errors.schedule != null}>
             <FormLabel>
-              <LabelledIcon icon={BiTimer} text="Schedule"/>
+              <LabelledIcon icon={BiTimer} text="Schedule" />
             </FormLabel>
             <Input
               id="schedule"
@@ -158,11 +160,11 @@ const MirrorForm = ({projectName, defaultValue, onSubmit, isWaitingResponse}: Mi
               type="text"
               placeholder="0 * * * * ?"
               defaultValue={defaultValue.schedule}
-              {...register('schedule', {required: true})}
+              {...register('schedule', { required: true })}
             />
 
             {errors.schedule ? (
-              <FieldErrorMessage error={errors.schedule}/>
+              <FieldErrorMessage error={errors.schedule} />
             ) : (
               <FormHelperText>
                 <Link
@@ -170,97 +172,97 @@ const MirrorForm = ({projectName, defaultValue, onSubmit, isWaitingResponse}: Mi
                   href="https://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html"
                   isExternal
                 >
-                  Quartz cron expression <ExternalLinkIcon mx="2px"/>{' '}
+                  Quartz cron expression <ExternalLinkIcon mx="2px" />{' '}
                 </Link>
                 is used to describe when the mirroring task is supposed to be triggered.
               </FormHelperText>
             )}
           </FormControl>
-          <Spacer/>
+          <Spacer />
 
           <FormControl isRequired isInvalid={errors.direction != null}>
             <FormLabel>
-              <LabelledIcon icon={GoArrowBoth} text="Direction"/>
+              <LabelledIcon icon={GoArrowBoth} text="Direction" />
             </FormLabel>
             <Controller
               name="direction"
-              rules={{required: true}}
+              rules={{ required: true }}
               control={control}
-              render={({field: {onChange, value}}) => (
+              render={({ field: { onChange, value } }) => (
                 <RadioGroup onChange={onChange} value={value} defaultValue={defaultValue.direction}>
                   <Stack direction="row">
                     <Radio value="REMOTE_TO_LOCAL" marginRight={2}>
-                      <LabelledIcon icon={GoArrowDown} text="Remote to Central Dogma"/>
+                      <LabelledIcon icon={GoArrowDown} text="Remote to Central Dogma" />
                     </Radio>
                     <Radio value="LOCAL_TO_REMOTE">
-                      <LabelledIcon icon={GoArrowUp} text="Central Dogma to Remote"/>
+                      <LabelledIcon icon={GoArrowUp} text="Central Dogma to Remote" />
                     </Radio>
                   </Stack>
                 </RadioGroup>
               )}
             />
-            <FieldErrorMessage error={errors.direction}/>
+            <FieldErrorMessage error={errors.direction} />
           </FormControl>
-          <Spacer/>
+          <Spacer />
 
-            <Stack direction="row" width="100%">
-              <FormControl isRequired isInvalid={errors.localRepo != null}>
-                <FormLabel>
-                  <LabelledIcon icon={GoRepo} text={'Local repository'}/>
-                </FormLabel>
-                <Controller
-                  control={control}
-                  name="localRepo"
-                  rules={{required: true}}
-                  render={({field: {onChange, value, name, ref}}) => (
-                    <Select
-                      ref={ref}
-                      id="localRepo"
-                      name={name}
-                      isDisabled={repoOptions.length === 0}
-                      options={repoOptions}
-                      // The default value of React Select must be null (and not undefined)
-                      value={repoOptions.find((option) => option.value === value) || null}
-                      onChange={(option) => onChange(option?.value || '')}
-                      placeholder={
-                        repoOptions.length === 0
-                          ? "No local repository is found. You need to create a local repository first."
-                          : "Enter repo name..."
-                      }
-                      closeMenuOnSelect={true}
-                      openMenuOnFocus={true}
-                      isSearchable={true}
-                      isClearable={true}
-                    />
-                  )}
-                />
-                <FieldErrorMessage error={errors.localRepo} fieldName="Local repository"/>
-              </FormControl>
-              <FormControl width="50%" isRequired isInvalid={errors.localPath != null}>
-                <FormLabel>path</FormLabel>
-                <Input
-                  id="localPath"
-                  name="localPath"
-                  type="text"
-                  defaultValue={defaultValue.localPath}
-                  placeholder="/"
-                  {...register('localPath', {required: true})}
-                />
-                <FieldErrorMessage error={errors.localPath} fieldName="Local path"/>
-              </FormControl>
-            </Stack>
-          <Spacer/>
+          <Stack direction="row" width="100%">
+            <FormControl isRequired isInvalid={errors.localRepo != null}>
+              <FormLabel>
+                <LabelledIcon icon={GoRepo} text={'Local repository'} />
+              </FormLabel>
+              <Controller
+                control={control}
+                name="localRepo"
+                rules={{ required: true }}
+                render={({ field: { onChange, value, name, ref } }) => (
+                  <Select
+                    ref={ref}
+                    id="localRepo"
+                    name={name}
+                    isDisabled={repoOptions.length === 0}
+                    options={repoOptions}
+                    // The default value of React Select must be null (and not undefined)
+                    value={repoOptions.find((option) => option.value === value) || null}
+                    onChange={(option) => onChange(option?.value || '')}
+                    placeholder={
+                      repoOptions.length === 0
+                        ? 'No local repository is found. You need to create a local repository first.'
+                        : 'Enter repo name...'
+                    }
+                    closeMenuOnSelect={true}
+                    openMenuOnFocus={true}
+                    isSearchable={true}
+                    isClearable={true}
+                  />
+                )}
+              />
+              <FieldErrorMessage error={errors.localRepo} fieldName="Local repository" />
+            </FormControl>
+            <FormControl width="50%" isRequired isInvalid={errors.localPath != null}>
+              <FormLabel>path</FormLabel>
+              <Input
+                id="localPath"
+                name="localPath"
+                type="text"
+                defaultValue={defaultValue.localPath}
+                placeholder="/"
+                {...register('localPath', { required: true })}
+              />
+              <FieldErrorMessage error={errors.localPath} fieldName="Local path" />
+            </FormControl>
+          </Stack>
+          <Spacer />
 
           <Stack direction="row" width="100%">
             <FormControl width="50%" isRequired isInvalid={errors.remoteScheme != null}>
               <FormLabel>
-                <LabelledIcon icon={GoRepo} text={'Remote'}/>
+                <LabelledIcon icon={GoRepo} text={'Remote'} />
               </FormLabel>
               <Controller
                 control={control}
                 name="remoteScheme"
-                rules={{required: true}}
-                render={({field: {onChange, value, name, ref}}) => (
+                rules={{ required: true }}
+                render={({ field: { onChange, value, name, ref } }) => (
                   <Select
                     ref={ref}
                     id="remoteScheme"
@@ -278,7 +280,7 @@ const MirrorForm = ({projectName, defaultValue, onSubmit, isWaitingResponse}: Mi
                   />
                 )}
               />
-              <FieldErrorMessage error={errors.remoteScheme} fieldName="scheme"/>
+              <FieldErrorMessage error={errors.remoteScheme} fieldName="scheme" />
             </FormControl>
             <FormControl isInvalid={errors.remoteUrl != null} isRequired>
               <FormLabel>repo</FormLabel>
@@ -288,9 +290,9 @@ const MirrorForm = ({projectName, defaultValue, onSubmit, isWaitingResponse}: Mi
                 type="text"
                 defaultValue={defaultValue.remoteUrl}
                 placeholder="my.git.com/org/myrepo.git"
-                {...register('remoteUrl', {required: true, pattern: /^.*\.git$/})}
+                {...register('remoteUrl', { required: true, pattern: /^.*\.git$/ })}
               />
-              <FieldErrorMessage error={errors.remoteUrl} fieldName="remote URL"/>
+              <FieldErrorMessage error={errors.remoteUrl} fieldName="remote URL" />
             </FormControl>
             <FormControl width="50%" isRequired isInvalid={errors.remoteBranch != null}>
               <FormLabel>branch</FormLabel>
@@ -300,9 +302,9 @@ const MirrorForm = ({projectName, defaultValue, onSubmit, isWaitingResponse}: Mi
                 type="text"
                 defaultValue={defaultValue.remoteBranch}
                 placeholder="main"
-                {...register('remoteBranch', {required: true})}
+                {...register('remoteBranch', { required: true })}
               />
-              <FieldErrorMessage error={errors.remoteBranch} fieldName="remote branch"/>
+              <FieldErrorMessage error={errors.remoteBranch} fieldName="remote branch" />
             </FormControl>
             <FormControl width="50%" isRequired isInvalid={errors.remotePath != null}>
               <FormLabel>path</FormLabel>
@@ -312,22 +314,22 @@ const MirrorForm = ({projectName, defaultValue, onSubmit, isWaitingResponse}: Mi
                 type="text"
                 defaultValue={defaultValue.remotePath}
                 placeholder="/"
-                {...register('remotePath', {required: true})}
+                {...register('remotePath', { required: true })}
               />
-              <FieldErrorMessage error={errors.remotePath} fieldName="remote path"/>
+              <FieldErrorMessage error={errors.remotePath} fieldName="remote path" />
             </FormControl>
           </Stack>
-          <Spacer/>
+          <Spacer />
 
           <FormControl width="65%" alignItems="left" isInvalid={errors.credentialId != null}>
             <FormLabel>
-              <LabelledIcon icon={GoKey} text={'Credential'}/>
+              <LabelledIcon icon={GoKey} text={'Credential'} />
             </FormLabel>
             <Controller
               control={control}
               name="credentialId"
-              rules={{required: true}}
-              render={({field: {onChange, value, name, ref}}) => (
+              rules={{ required: true }}
+              render={({ field: { onChange, value, name, ref } }) => (
                 <Select
                   ref={ref}
                   id="credentialId"
@@ -340,8 +342,8 @@ const MirrorForm = ({projectName, defaultValue, onSubmit, isWaitingResponse}: Mi
                   onChange={(option) => onChange(option?.value || '')}
                   placeholder={
                     credentialOptions.length === 0
-                      ? "No credential is found. You need to create credentials first."
-                      : "Enter credential ID ..."
+                      ? 'No credential is found. You need to create credentials first.'
+                      : 'Enter credential ID ...'
                   }
                   closeMenuOnSelect={true}
                   openMenuOnFocus={true}
@@ -350,13 +352,13 @@ const MirrorForm = ({projectName, defaultValue, onSubmit, isWaitingResponse}: Mi
                 />
               )}
             />
-            <FieldErrorMessage error={errors.credentialId} fieldName="Credential"/>
+            <FieldErrorMessage error={errors.credentialId} fieldName="Credential" />
           </FormControl>
-          <Spacer/>
+          <Spacer />
 
           <FormControl>
             <FormLabel>
-              <LabelledIcon icon={IoBanSharp} text={'gitignore'}/>
+              <LabelledIcon icon={IoBanSharp} text={'gitignore'} />
             </FormLabel>
             <Textarea
               id="gitignore"
@@ -367,21 +369,21 @@ const MirrorForm = ({projectName, defaultValue, onSubmit, isWaitingResponse}: Mi
             />
             <FormHelperText>
               <Link color="teal.500" href="https://git-scm.com/docs/gitignore" isExternal>
-                gitignore <ExternalLinkIcon mx="2px"/>
+                gitignore <ExternalLinkIcon mx="2px" />
               </Link>{' '}
               describes files that should be excluded from the mirroring.
             </FormHelperText>
           </FormControl>
-          <Spacer/>
+          <Spacer />
 
           <FormControl display="flex" alignItems="center">
             <FormLabel htmlFor="enabled" mb="0">
-              <LabelledIcon icon={GiPowerButton} text={'Enable mirror?'}/>
+              <LabelledIcon icon={GiPowerButton} text={'Enable mirror?'} />
             </FormLabel>
             <Switch id="enabled" defaultChecked={defaultValue.enabled} {...register('enabled')} />
           </FormControl>
-          <Spacer/>
-          <Spacer/>
+          <Spacer />
+          <Spacer />
 
           {isNew ? (
             <Button

@@ -71,7 +71,6 @@ const HistoryList = ({ projectName, repoName, handleTabChange, totalRevision }: 
     revision: -pageIndex * pageSize - 1,
     to: Math.max(-totalRevision, -(pageIndex + 1) * pageSize),
   });
-  console.log("history data: " + data);
   return (
     <Deferred isLoading={isLoading} error={error}>
       {() => (

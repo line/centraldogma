@@ -14,9 +14,9 @@
  * under the License.
  */
 
-import {NextApiRequest, NextApiResponse} from 'next';
-import {CredentialDto} from "dogma/features/credential/CredentialDto";
-import {newRandomCredential} from "pages/api/v1/projects/[projectName]/credentials/index";
+import { NextApiRequest, NextApiResponse } from 'next';
+import { CredentialDto } from 'dogma/features/credential/CredentialDto';
+import { newRandomCredential } from 'pages/api/v1/projects/[projectName]/credentials/index';
 
 const credentials: Map<number, CredentialDto> = new Map();
 

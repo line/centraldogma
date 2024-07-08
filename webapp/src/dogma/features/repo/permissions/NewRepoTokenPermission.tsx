@@ -17,16 +17,16 @@ import {
   Stack,
   useDisclosure,
 } from '@chakra-ui/react';
-import {Controller, useForm} from 'react-hook-form';
-import {IoMdArrowDropdown} from 'react-icons/io';
-import {useState} from 'react';
-import {OptionBase, Select} from 'chakra-react-select';
-import {ConfirmAddUserPermission} from 'dogma/features/repo/permissions/ConfirmAddUserPermission';
-import {ChakraLink} from 'dogma/common/components/ChakraLink';
-import {PerUserPermissionDto} from 'dogma/features/repo/RepoPermissionDto';
-import {AppTokenDetailDto} from "dogma/features/metadata/AppTokenDto";
-import { AddUserPermissionDto } from "dogma/features/repo/permissions/AddUserPermissionDto";
-import { ApiAction } from "dogma/features/api/apiSlice";
+import { Controller, useForm } from 'react-hook-form';
+import { IoMdArrowDropdown } from 'react-icons/io';
+import { useState } from 'react';
+import { OptionBase, Select } from 'chakra-react-select';
+import { ConfirmAddUserPermission } from 'dogma/features/repo/permissions/ConfirmAddUserPermission';
+import { ChakraLink } from 'dogma/common/components/ChakraLink';
+import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
+import { AppTokenDetailDto } from 'dogma/features/metadata/AppTokenDto';
+import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
+import { ApiAction } from 'dogma/features/api/apiSlice';
 
 interface TokenOptionType extends OptionBase {
   value: string;
@@ -145,7 +145,7 @@ export const NewRepoTokenPermission = ({
                 repoName={repoName}
                 loginId={appId}
                 permission={permission}
-                     isOpen={isConfirmAddOpen}
+                isOpen={isConfirmAddOpen}
                 onClose={onConfirmAddClose}
                 resetForm={reset}
                 addUserPermission={addTokenPermission}

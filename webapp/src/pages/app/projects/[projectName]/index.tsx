@@ -36,13 +36,13 @@ const ProjectDetailPage = () => {
               <TabPanel>
                 <Flex gap={2}>
                   <Spacer />
-                  {
-                    projectName === 'dogma' ? null : (
-                      <MetadataButton
-                        href={`/app/projects/${projectName}/metadata`} props={{size: 'sm'}}
-                        text={'Project settings'}/>
-                    )
-                  }
+                  {projectName === 'dogma' ? null : (
+                    <MetadataButton
+                      href={`/app/projects/${projectName}/metadata`}
+                      props={{ size: 'sm' }}
+                      text={'Project settings'}
+                    />
+                  )}
                   <NewRepo projectName={projectName} />
                 </Flex>
                 <RepoList data={repoData || []} projectName={projectName} />

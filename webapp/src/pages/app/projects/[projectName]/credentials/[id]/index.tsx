@@ -20,7 +20,7 @@ import { Deferred } from 'dogma/common/components/Deferred';
 import React from 'react';
 import CredentialView from 'dogma/features/credential/CredentialView';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
-import {Flex, Spacer} from "@chakra-ui/react";
+import { Flex, Spacer } from '@chakra-ui/react';
 
 const CredentialViewPage = () => {
   const router = useRouter();
@@ -33,8 +33,8 @@ const CredentialViewPage = () => {
         return (
           <>
             <Flex>
-            <Breadcrumbs path={router.asPath} omitIndexList={[0]} replaces={{ 4: data.id }} />
-              <Spacer/>
+              <Breadcrumbs path={router.asPath} omitIndexList={[0]} replaces={{ 4: data.id }} />
+              <Spacer />
             </Flex>
             <CredentialView projectName={projectName} credential={data} />
           </>

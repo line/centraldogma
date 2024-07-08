@@ -8,8 +8,8 @@ const getPermission = (permissions: Array<'READ' | 'WRITE'>) => {
   return permissions.find((permission) => permission === 'WRITE')
     ? 'write'
     : permissions.find((permission) => permission === 'READ')
-    ? 'read'
-    : 'none';
+      ? 'read'
+      : 'none';
 };
 const constructPermissions = (permission: string): Array<'READ' | 'WRITE'> =>
   permission === 'write' ? ['READ', 'WRITE'] : permission === 'read' ? ['READ'] : [];

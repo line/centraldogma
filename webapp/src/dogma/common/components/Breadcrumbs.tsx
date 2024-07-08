@@ -34,7 +34,11 @@ export const Breadcrumbs = ({
           return (
             <BreadcrumbItem key={i}>
               {i < asPathNestedRoutes.length - 1 ? (
-                <BreadcrumbLink as={NextLink} href={`/${prefixes.join('/')}${suffixes[i] || ''}`} paddingBottom={1}>
+                <BreadcrumbLink
+                  as={NextLink}
+                  href={`/${prefixes.join('/')}${suffixes[i] || ''}`}
+                  paddingBottom={1}
+                >
                   {decodeURI(item)}
                 </BreadcrumbLink>
               ) : (
