@@ -42,6 +42,7 @@ import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
 import { components, DropdownIndicatorProps, GroupBase, OptionBase, Select } from 'chakra-react-select';
 import { NewProject } from 'dogma/features/project/NewProject';
+import { usePathname } from 'next/navigation';
 
 interface TopMenu {
   name: string;
@@ -127,6 +128,8 @@ export const Navbar = () => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const pathname = usePathname();
+
   return (
     <Box bg={useColorModeValue('gray.100', 'gray.900')} px={4}>
       <Flex h={16} alignItems="center" justifyContent="space-between" fontWeight="semibold">
@@ -147,28 +150,32 @@ export const Navbar = () => {
             ))}
           </HStack>
         </HStack>
-        <Box w="40%">
-          <Select
-            id="color-select"
-            name="project-search"
-            options={projectOptions}
-            value={selectedOption?.value}
-            onChange={(option: ProjectOptionType) => option && handleChange(option)}
-            placeholder="Jump to project ..."
-            closeMenuOnSelect={true}
-            openMenuOnFocus={true}
-            isClearable={true}
-            isSearchable={true}
-            ref={selectRef}
-            components={{ DropdownIndicator }}
-            chakraStyles={{
-              control: (baseStyles) => ({
-                ...baseStyles,
-                backgroundColor: colorMode === 'light' ? 'white' : 'whiteAlpha.50',
-              }),
-            }}
-          />
-        </Box>
+        {pathname === '/' ? (
+          <div />
+        ) : (
+          <Box w="40%">
+            <Select
+              id="color-select"
+              name="project-search"
+              options={projectOptions}
+              value={selectedOption?.value}
+              onChange={(option: ProjectOptionType) => option && handleChange(option)}
+              placeholder="Jump to project ..."
+              closeMenuOnSelect={true}
+              openMenuOnFocus={true}
+              isClearable={true}
+              isSearchable={true}
+              ref={selectRef}
+              components={{ DropdownIndicator }}
+              chakraStyles={{
+                control: (baseStyles) => ({
+                  ...baseStyles,
+                  backgroundColor: colorMode === 'light' ? 'white' : 'whiteAlpha.50',
+                }),
+              }}
+            />
+          </Box>
+        )}
         <Flex alignItems="center" gap={2}>
           <NewProject />
           <IconButton
