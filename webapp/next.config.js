@@ -9,6 +9,9 @@ const nextConfig = {
   productionBrowserSourceMaps: isDev,
   trailingSlash: true,
   output: isDev ? 'standalone' : 'export',
-  distDir: 'build/web/'
+  distDir: 'build/web/',
+  images: {
+    unoptimized: true,
+  },
 };
 module.exports = withBundleAnalyzer(nextConfig);
