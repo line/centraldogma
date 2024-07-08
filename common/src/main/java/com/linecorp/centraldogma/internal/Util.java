@@ -64,7 +64,7 @@ public final class Util {
 
     /**
      * The difference between this and {@link #USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN} is that this
-     * allows an underscore at the beginning for internal projects.
+     * allows {@value INTERNAL_PROJECT_PREFIX} at the beginning for internal projects.
      */
     public static final Pattern PROJECT_AND_REPO_NAME_PATTERN =
             Pattern.compile("^(?!.*\\.git$)(" + INTERNAL_PROJECT_PREFIX +
