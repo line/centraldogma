@@ -25,7 +25,7 @@ import { useAppDispatch } from 'dogma/store';
 import Router from 'next/router';
 import { useForm } from 'react-hook-form';
 import { SerializedError } from '@reduxjs/toolkit';
-import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
+import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import Editor, { OnMount } from '@monaco-editor/react';
 import { ChangeEvent, KeyboardEvent, useRef, useState } from 'react';

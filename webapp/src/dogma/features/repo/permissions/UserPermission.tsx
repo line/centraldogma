@@ -1,18 +1,11 @@
 import { Tag, TagLabel, Wrap, WrapItem } from '@chakra-ui/react';
-import {
-  MutationDefinition,
-  BaseQueryFn,
-  FetchArgs,
-  FetchBaseQueryError,
-  FetchBaseQueryMeta,
-} from '@reduxjs/toolkit/dist/query';
-import { MutationTrigger } from '@reduxjs/toolkit/dist/query/react/buildHooks';
 import { createColumnHelper } from '@tanstack/react-table';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { DeleteMember } from 'dogma/features/metadata/DeleteMember';
 import { DeleteUserPermissionDto } from 'dogma/features/repo/permissions/DeleteUserPermissionDto';
 import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
 import { useMemo } from 'react';
+import { ApiAction } from "dogma/features/api/apiSlice";
 
 type UserAndPermission = [string, string[]];
 
@@ -26,15 +19,7 @@ export const UserPermission = ({
   projectName: string;
   repoName: string;
   perUserPermissions: PerUserPermissionDto;
-  deleteMember: MutationTrigger<
-    MutationDefinition<
-      DeleteUserPermissionDto,
-      BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError, Record<string, never>, FetchBaseQueryMeta>,
-      'Metadata',
-      void,
-      'api'
-    >
-  >;
+  deleteMember: ApiAction<DeleteUserPermissionDto, void>;
   isLoading: boolean;
 }) => {
   const columnHelper = createColumnHelper<UserAndPermission>();

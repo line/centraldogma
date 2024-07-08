@@ -25,11 +25,15 @@ import { FileContentDto } from 'dogma/features/file/FileContentDto';
 import { RevisionDto } from 'dogma/features/history/RevisionDto';
 import { TokenDto } from 'dogma/features/token/TokenDto';
 import { DeleteMemberDto } from 'dogma/features/metadata/DeleteMemberDto';
-import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
+import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { DeleteUserPermissionDto } from 'dogma/features/repo/permissions/DeleteUserPermissionDto';
 import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
 import { MirrorDto } from 'dogma/features/mirror/MirrorDto';
 import { CredentialDto } from 'dogma/features/credential/CredentialDto';
+
+export type ApiAction<Arg, Result> = {
+  (arg: Arg): { unwrap: () => Promise<Result> }
+}
 
 export type GetHistory = {
   projectName: string;

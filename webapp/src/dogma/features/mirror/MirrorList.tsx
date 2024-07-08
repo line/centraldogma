@@ -7,12 +7,13 @@ import { Badge, Code, Link } from '@chakra-ui/react';
 import { GoRepo } from 'react-icons/go';
 import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type MirrorListProps<Data extends object> = {
   projectName: string;
 };
 
 const MirrorList = <Data extends object>({ projectName }: MirrorListProps<Data>) => {
-  const { data, error } = useGetMirrorsQuery(projectName);
+  const { data } = useGetMirrorsQuery(projectName);
   const columnHelper = createColumnHelper<MirrorDto>();
   const columns = useMemo(
     () => [

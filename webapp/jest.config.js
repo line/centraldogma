@@ -12,6 +12,7 @@ const customJestConfig = {
   moduleDirectories: ['node_modules', 'src'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   verbose: true,
+  setupFiles: ['./jest.polyfills.js'],
 };
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async

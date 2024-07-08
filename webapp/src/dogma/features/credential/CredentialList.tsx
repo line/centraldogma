@@ -6,6 +6,7 @@ import { CredentialDto } from 'dogma/features/credential/CredentialDto';
 import { Badge, Code } from '@chakra-ui/react';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type CredentialListProps<Data extends object> = {
   projectName: string;
 };

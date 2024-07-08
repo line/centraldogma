@@ -1,11 +1,11 @@
-import { render, waitFor, fireEvent } from '@testing-library/react';
+import { fireEvent, render, waitFor } from '@testing-library/react';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
 import HistoryList from 'dogma/features/history/HistoryList';
-import { setupServer } from 'msw/node';
-import { rest } from 'msw';
-import { ApiProvider } from '@reduxjs/toolkit/dist/query/react';
+// Disabled to due to https://github.com/mswjs/msw/issues/1786
+// import { setupServer } from 'msw/node';
+// import { http, HttpResponse } from 'msw';
 import { apiSlice } from 'dogma/features/api/apiSlice';
-
+import { ApiProvider } from "@reduxjs/toolkit/query/react";
 const expectedProps = {
   projectName: 'ProjectAlpha',
   repoName: 'RepoGamma',
@@ -27,30 +27,30 @@ const mockHistoryList: HistoryDto[] = [
   },
 ];
 
-const handlers = [
-  rest.get(
-    `/api/v1/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/commits/-1`,
-    (_, res, ctx) => {
-      return res(ctx.status(200), ctx.json<HistoryDto[]>(mockHistoryList));
-    },
-  ),
-];
+// const handlers = [
+//   http.get(
+//     `/api/v1/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/commits/-1`,
+//     () => {
+//       return HttpResponse.json(mockHistoryList);
+//     },
+//   ),
+// ];
 
 // TODO(ikhoon): Revive this tests
 
 xdescribe('HistoryList', () => {
-  const server = setupServer(...handlers);
-  beforeAll(() => {
-    server.listen({ onUnhandledRequest: 'error' });
-  });
-
-  afterEach(() => {
-    server.resetHandlers();
-  });
-
-  afterAll(() => {
-    server.close();
-  });
+  // const server = setupServer(...handlers);
+  // beforeAll(() => {
+  //   server.listen({ onUnhandledRequest: 'error' });
+  // });
+  //
+  // afterEach(() => {
+  //   server.resetHandlers();
+  // });
+  //
+  // afterAll(() => {
+  //   server.close();
+  // });
 
   it('renders a table with a row for each revision', async () => {
     const { container } = render(

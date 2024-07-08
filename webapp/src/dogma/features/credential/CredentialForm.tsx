@@ -64,7 +64,7 @@ const CREDENTIAL_TYPES: CredentialType[] = [
   { type: 'none', description: 'No authentication' },
 ];
 
-const CredentialForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: CredentialFormProps) => {
+const CredentialForm = ({ defaultValue, onSubmit, isWaitingResponse }: CredentialFormProps) => {
   const [credentialType, setCredentialType] = useState<string>(defaultValue.type);
 
   const isNew = defaultValue.id === '';
