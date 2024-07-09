@@ -15,11 +15,11 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTERS_DIRECTORY;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ENDPOINTS_DIRECTORY;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENERS_DIRECTORY;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ROUTES_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.CLUSTERS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ENDPOINTS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.LISTENERS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.ROUTES_DIRECTORY;
 
 import java.net.URI;
 
@@ -68,11 +68,12 @@ import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter;
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.Rds;
 
-final class XdsTestUtil {
+public final class XdsTestUtil {
 
     static final String CONFIG_SOURCE_CLUSTER_NAME = "dogma/cluster";
 
-    static void createXdsProject(ProjectManager pm, MetadataService metadataService, String xdsProjectName) {
+    public static void createXdsProject(ProjectManager pm, MetadataService metadataService,
+                                        String xdsProjectName) {
         pm.get(XDS_CENTRAL_DOGMA_PROJECT).repos().create(xdsProjectName, Author.SYSTEM);
         metadataService.addRepo(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, xdsProjectName).join();
     }

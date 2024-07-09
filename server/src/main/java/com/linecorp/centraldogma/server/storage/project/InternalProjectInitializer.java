@@ -49,13 +49,15 @@ public final class InternalProjectInitializer {
     public static final String INTERNAL_PROJECT_DOGMA = "dogma";
 
     private final CommandExecutor executor;
+    private final ProjectManager projectManager;
     private final CompletableFuture<Void> initialFuture = new CompletableFuture<>();
 
     /**
      * Creates a new instance.
      */
-    public InternalProjectInitializer(CommandExecutor executor) {
+    public InternalProjectInitializer(CommandExecutor executor, ProjectManager projectManager) {
         this.executor = executor;
+        this.projectManager = projectManager;
     }
 
     /**
@@ -85,6 +87,10 @@ public final class InternalProjectInitializer {
      * Creates an internal project and repositories such as a token storage.
      */
     public void initialize0(String projectName) {
+        if (projectManager.exists(projectName)) {
+            return;
+        }
+
         final long creationTimeMillis = System.currentTimeMillis();
         try {
             executor.execute(createProject(creationTimeMillis, Author.SYSTEM, projectName))

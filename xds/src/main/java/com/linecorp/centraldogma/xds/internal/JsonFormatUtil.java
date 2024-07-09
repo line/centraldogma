@@ -24,7 +24,7 @@ import com.google.protobuf.util.JsonFormat.TypeRegistry;
 import io.envoyproxy.envoy.extensions.filters.http.router.v3.Router;
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager;
 
-final class JsonFormatUtil {
+public final class JsonFormatUtil {
 
     private static final Printer PRINTER;
     private static final Parser PARSER;
@@ -38,11 +38,11 @@ final class JsonFormatUtil {
         PARSER = JsonFormat.parser().usingTypeRegistry(typeRegistry);
     }
 
-    static Printer printer() {
+    public static Printer printer() {
         return PRINTER;
     }
 
-    static Parser parser() {
+    public static Parser parser() {
         return PARSER;
     }
 

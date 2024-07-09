@@ -1,1 +1,2 @@
 com.linecorp.centraldogma.xds.internal.ControlPlanePlugin
+com.linecorp.centraldogma.xds.internal.k8s.XdsKubernetesEndpointFetchingPlugin

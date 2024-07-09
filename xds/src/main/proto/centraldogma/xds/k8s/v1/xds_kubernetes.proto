@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package centraldogma.xds.k8s.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "XdsKubernetesProto";
+option java_package = "com.linecorp.centraldogma.xds.k8s.v1";
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+
+service XdsKubernetesService {
+
+  rpc CreateWatcher(CreateWatcherRequest) returns (Watcher) {
+    option (google.api.http) = {
+      post: "/api/v1/xds/{project=projects/*}/k8s/watchers"
+      body: "watcher"
+    };
+    option (google.api.method_signature) = "project,watcher";
+  }
+
+  rpc UpdateWatcher(UpdateWatcherRequest) returns (Watcher) {
+    option (google.api.http) = {
+      patch: "/api/v1/xds/{watcher.name=projects/*/k8s/watchers/**}"
+      body: "watcher"
+    };
+  }
+
+  rpc DeleteWatcher(DeleteWatcherRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/api/v1/xds/{name=projects/*/k8s/watchers/**}"
+    };
+  }
+}
+
+message CreateWatcherRequest {
+  string project = 1 [(google.api.field_behavior) = REQUIRED];
+  string watcher_id = 2 [(google.api.field_behavior) = REQUIRED];
+  Watcher watcher = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message UpdateWatcherRequest {
+  Watcher watcher = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // TODO(minwoox): Implement these fields
+  // google.protobuf.FieldMask update_mask = 2;
+  //
+  // bool allow_missing = 3;
+}
+
+message DeleteWatcherRequest {
+  string name = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message KubernetesConfig {
+  string control_plane_url = 1 [(google.api.field_behavior) = REQUIRED];
+  string namespace = 2 [(google.api.field_behavior) = OPTIONAL];
+  string oauth_token = 3 [(google.api.field_behavior) = OPTIONAL];
+  bool trust_certs = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message Watcher {
+  // The resource name of the book.
+  // Format: projects/{project_name}/k8s/watchers/{watcher_id}
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+  string service_name = 2 [(google.api.field_behavior) = REQUIRED];
+  string port_name = 3 [(google.api.field_behavior) = OPTIONAL];
+  KubernetesConfig kubernetes_config = 4 [(google.api.field_behavior) = REQUIRED];
+
+  // TODO(minwoox): Implement this field
+  // string etag = 5;
+}

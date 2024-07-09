@@ -97,7 +97,7 @@ class PermissionTest {
             final CommandExecutor executor = new StandaloneCommandExecutor(
                     pm, ForkJoinPool.commonPool(), statusManager, null, null, null);
             executor.start().join();
-            new InternalProjectInitializer(executor).initialize();
+            new InternalProjectInitializer(executor, pm).initialize();
 
             executor.execute(Command.createProject(AUTHOR, "project1")).join();
 
