@@ -76,7 +76,7 @@ class ProjectServiceV1ListProjectTest {
     @Test
     void listProjects() {
         // Create an internal project.
-        dogma.projectManager().create("_dogma_foo", Author.SYSTEM);
+        dogma.projectManager().create("@foo", Author.SYSTEM);
 
         createProject(normalClient, "trustin");
         createProject(normalClient, "hyangtack");
@@ -123,12 +123,12 @@ class ProjectServiceV1ListProjectTest {
         assertThatJson(aRes.contentUtf8()).isEqualTo(
                 String.format(withoutDogma,
                               "   {" +
-                              "       \"name\": \"_dogma_foo\"," +
+                              "       \"name\": \"@foo\"," +
                               "       \"creator\": {" +
                               "           \"name\": \"System\"," +
                               "           \"email\": \"system@localhost.localdomain\"" +
                               "        }," +
-                              "        \"url\": \"/api/v1/projects/_dogma_foo\"," +
+                              "        \"url\": \"/api/v1/projects/@foo\"," +
                               "        \"createdAt\": \"${json-unit.ignore}\"" +
                               "   }," +
                               "   {" +

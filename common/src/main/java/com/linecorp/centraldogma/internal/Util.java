@@ -60,7 +60,7 @@ public final class Util {
     public static final Pattern USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN =
             Pattern.compile("^(?!.*\\.git$)[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$");
 
-    public static final String INTERNAL_PROJECT_PREFIX = "_dogma_";
+    public static final String INTERNAL_PROJECT_PREFIX = "@";
 
     /**
      * The difference between this and {@link #USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN} is that this

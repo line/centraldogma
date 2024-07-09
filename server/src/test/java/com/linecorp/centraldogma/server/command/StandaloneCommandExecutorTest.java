@@ -153,7 +153,7 @@ class StandaloneCommandExecutorTest {
     @Test
     void createInternalProject() {
         final CommandExecutor executor = extension.executor();
-        final String internalProjectName = "_dogma_project";
+        final String internalProjectName = "@project";
         executor.execute(Command.createProject(Author.SYSTEM, internalProjectName)).join();
         final MetadataService mds = new MetadataService(extension.projectManager(), executor);
         mds.addRepo(Author.SYSTEM, internalProjectName, TEST_REPO).join();
