@@ -13,9 +13,8 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import { ReactNode, useEffect, useState, useRef } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
-  Avatar,
   Box,
   Button,
   Flex,
@@ -43,6 +42,8 @@ import { components, DropdownIndicatorProps, GroupBase, OptionBase, Select } fro
 import { NewProject } from 'dogma/features/project/NewProject';
 import { usePathname } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from 'dogma/hooks';
+import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
+import { FaUser } from 'react-icons/fa';
 
 interface TopMenu {
   name: string;
@@ -187,9 +188,9 @@ export const Navbar = () => {
           />
           {user ? (
             <Menu>
-              <MenuButton as={Button} rounded="full" variant="link" cursor="pointer" minW={0}>
+              <MenuButton as={Button} rounded="full" variant="link" cursor="pointer" marginRight={2} minW={0}>
                 {/* TODO(ikhoon): Use a profile image if an auth provider provides? */}
-                <Avatar name={user.login} size="sm" />
+                <LabelledIcon icon={FaUser} text={user.login} />
               </MenuButton>
               <MenuList>
                 <MenuItem as={RouteLink} href="/app/settings/tokens">

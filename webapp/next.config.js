@@ -6,7 +6,8 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 
 const isDev = process.env.NEXT_ENV === 'development';
 const nextConfig = {
-  productionBrowserSourceMaps: isDev,
+  // TODO(ikhoon): Replace 'true' with 'isDev' when all features are tested.
+  productionBrowserSourceMaps: true,
   trailingSlash: true,
   output: isDev ? 'standalone' : 'export',
   distDir: 'build/web/',
