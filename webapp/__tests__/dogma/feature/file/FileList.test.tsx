@@ -2,7 +2,7 @@ import { fireEvent, render } from '@testing-library/react';
 import FileList, { FileListProps } from 'dogma/features/file/FileList';
 import { FileDto } from 'dogma/features/file/FileDto';
 import { CopySupport } from 'dogma/features/file/CopySupport';
-import { renderWithProviders } from "dogma/util/test-utils";
+import { renderWithProviders } from 'dogma/util/test-utils';
 
 describe('FileList', () => {
   let expectedProps: JSX.IntrinsicAttributes & FileListProps<object>;

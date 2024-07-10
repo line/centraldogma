@@ -5,8 +5,8 @@ import { useRouter } from 'next/router';
 import FileEditor from 'dogma/common/components/editor/FileEditor';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { Deferred } from 'dogma/common/components/Deferred';
-import React from "react";
-import { LuFile, LuFileJson } from "react-icons/lu";
+import React from 'react';
+import { LuFile, LuFileJson } from 'react-icons/lu';
 
 const FileContentPage = () => {
   const router = useRouter();
@@ -37,8 +37,8 @@ const FileContentPage = () => {
           />
           <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
             <Heading size="lg">
-              <HStack color='teal'>
-                <Box>{ fileName.endsWith('.json') ? <LuFileJson /> : <LuFile />}</Box>
+              <HStack color="teal">
+                <Box>{fileName.endsWith('.json') ? <LuFileJson /> : <LuFile />}</Box>
                 <Box>{fileName}</Box>
               </HStack>
             </Heading>

@@ -44,7 +44,6 @@ function makeTraversalFileLinks(projectName: string, repoName: string, path: str
     const url = `/app/projects/${projectName}/repos/${repoName}/tree/head/${segments.slice(1, i + 1).join('/')}`;
     links.push({ segment: segments[i], url });
   }
-  console.log(links);
   return links;
 }
 
