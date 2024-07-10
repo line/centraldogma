@@ -153,6 +153,8 @@ final class PluginGroup {
         @Override
         protected CompletionStage<Void> doStart(@Nullable PluginContext arg) throws Exception {
             assert arg != null;
+            // Wait until the internal project is initialized.
+            arg.internalProjectInitializer().whenInitialized().get();
             final List<CompletionStage<Void>> futures = plugins.stream().map(
                     plugin -> plugin.start(arg)
                                     .thenAccept(unused -> logger.info("Plugin started: {}", plugin))

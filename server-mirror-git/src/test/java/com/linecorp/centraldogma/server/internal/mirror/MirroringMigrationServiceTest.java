@@ -300,7 +300,7 @@ class MirroringMigrationServiceTest {
 
         // Make sure that the migration log is written.
         final Repository dogmaRepo = projectManager.get(InternalProjectInitializer.INTERNAL_PROJECT_DOGMA)
-                                                    .repos().get(Project.REPO_DOGMA);
+                                                   .repos().get(Project.REPO_DOGMA);
         final Map<String, Entry<?>> log = dogmaRepo.find(Revision.HEAD, MIRROR_MIGRATION_JOB_LOG).join();
         final JsonNode data = log.get(MIRROR_MIGRATION_JOB_LOG).contentAsJson();
         assertThat(Jackson.readValue(data.get("timestamp").asText(), Instant.class)).isBefore(Instant.now());
