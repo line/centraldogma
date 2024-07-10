@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.Author;
@@ -45,7 +46,6 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.internal.storage.repository.cache.CachingRepositoryManager;
@@ -240,6 +240,10 @@ public class DefaultProject implements Project {
 
     @Override
     public String toString() {
-        return Util.simpleTypeName(getClass()) + '(' + repos + ')';
+        return MoreObjects.toStringHelper(this)
+                          .add("name", name)
+                          .add("author", author)
+                          .add("repos", repos)
+                          .toString();
     }
 }

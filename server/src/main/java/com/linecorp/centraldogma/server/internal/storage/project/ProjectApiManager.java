@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.project;
 
+import static com.linecorp.centraldogma.internal.Util.INTERNAL_PROJECT_PREFIX;
 import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
 
 import java.time.Instant;
@@ -57,7 +58,7 @@ public final class ProjectApiManager {
             return projects;
         }
 
-        return listProjectsWithoutDogma(projects);
+        return listProjectsWithoutInternal(projects);
     }
 
     private static boolean isAdmin() {
@@ -69,10 +70,10 @@ public final class ProjectApiManager {
         return currentUserOrNull.isAdmin();
     }
 
-    public static Map<String, Project> listProjectsWithoutDogma(Map<String, Project> projects) {
+    public static Map<String, Project> listProjectsWithoutInternal(Map<String, Project> projects) {
         final Map<String, Project> result = new LinkedHashMap<>(projects.size() - 1);
         for (Map.Entry<String, Project> entry : projects.entrySet()) {
-            if (!INTERNAL_PROJECT_DOGMA.equals(entry.getKey())) {
+            if (!isInternalProject(entry.getKey())) {
                 result.put(entry.getKey(), entry.getValue());
             }
         }
@@ -84,12 +85,12 @@ public final class ProjectApiManager {
     }
 
     public CompletableFuture<Void> createProject(String projectName, Author author) {
-        checkInternalDogmaProject(projectName, "create");
+        checkInternalProject(projectName, "create");
         return commandExecutor.execute(Command.createProject(author, projectName));
     }
 
-    private static void checkInternalDogmaProject(String projectName, String operation) {
-        if (INTERNAL_PROJECT_DOGMA.equals(projectName)) {
+    private static void checkInternalProject(String projectName, String operation) {
+        if (isInternalProject(projectName)) {
             throw new IllegalArgumentException("Cannot " + operation + ' ' + projectName);
         }
     }
@@ -99,7 +100,7 @@ public final class ProjectApiManager {
     }
 
     public CompletableFuture<Void> removeProject(String projectName, Author author) {
-        checkInternalDogmaProject(projectName, "remove");
+        checkInternalProject(projectName, "remove");
         // Metadata must be updated first because it cannot be updated if the project is removed.
         return metadataService.removeProject(author, projectName)
                               .thenCompose(unused -> commandExecutor.execute(
@@ -107,26 +108,30 @@ public final class ProjectApiManager {
     }
 
     public CompletableFuture<Void> purgeProject(String projectName, Author author) {
-        checkInternalDogmaProject(projectName, "purge");
+        checkInternalProject(projectName, "purge");
         return commandExecutor.execute(Command.purgeProject(author, projectName));
     }
 
     public CompletableFuture<Revision> unremoveProject(String projectName, Author author) {
-        checkInternalDogmaProject(projectName, "unremove");
+        checkInternalProject(projectName, "unremove");
         // Restore the project first then update its metadata as 'active'.
         return commandExecutor.execute(Command.unremoveProject(author, projectName))
                 .thenCompose(unused -> metadataService.restoreProject(author, projectName));
     }
 
     public Project getProject(String projectName) {
-        if (INTERNAL_PROJECT_DOGMA.equals(projectName) && !isAdmin()) {
+        if (isInternalProject(projectName) && !isAdmin()) {
             throw new IllegalArgumentException("Cannot access " + projectName);
         }
         return projectManager.get(projectName);
     }
 
+    private static boolean isInternalProject(String projectName) {
+        return projectName.startsWith(INTERNAL_PROJECT_PREFIX) || INTERNAL_PROJECT_DOGMA.equals(projectName);
+    }
+
     public boolean exists(String projectName) {
-        if (INTERNAL_PROJECT_DOGMA.equals(projectName) && !isAdmin()) {
+        if (isInternalProject(projectName) && !isAdmin()) {
             throw new IllegalArgumentException("Cannot access " + projectName);
         }
         return projectManager.exists(projectName);

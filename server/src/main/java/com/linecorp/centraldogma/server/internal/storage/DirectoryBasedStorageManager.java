@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.storage;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.linecorp.centraldogma.internal.Util.PROJECT_AND_REPO_NAME_PATTERN;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -37,7 +38,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
@@ -56,13 +56,6 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
     private static final Logger logger = LoggerFactory.getLogger(DirectoryBasedStorageManager.class);
 
-    /**
-     * Start with an alphanumeric character.
-     * An alphanumeric character, minus, plus, underscore and dot are allowed in the middle.
-     * End with an alphanumeric character.
-     */
-    private static final Pattern CHILD_NAME =
-            Pattern.compile("^[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$");
     private static final String SUFFIX_REMOVED = ".removed";
     private static final String SUFFIX_PURGED = ".purged";
     private static final String GIT_EXTENSION = ".git";
@@ -434,7 +427,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
             return false;
         }
 
-        if (!CHILD_NAME.matcher(name).matches()) {
+        if (!PROJECT_AND_REPO_NAME_PATTERN.matcher(name).matches()) {
             return false;
         }
 
