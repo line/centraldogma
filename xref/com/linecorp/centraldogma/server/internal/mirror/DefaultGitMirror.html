@@ -50,12 +50,12 @@
 <a class="jxr_linenumber" name="L42" href="#L42">42</a>  
 <a class="jxr_linenumber" name="L43" href="#L43">43</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Consumer&lt;TransportCommand&lt;?, ?&gt;&gt; NOOP_CONFIGURATOR = command -&gt; {};
 <a class="jxr_linenumber" name="L44" href="#L44">44</a>  
-<a class="jxr_linenumber" name="L45" href="#L45">45</a>      <a href="../../../../../../com/linecorp/centraldogma/server/internal/mirror/DefaultGitMirror.html">DefaultGitMirror</a>(Cron schedule, <a href="../../../../../../com/linecorp/centraldogma/server/mirror/MirrorDirection.html">MirrorDirection</a> direction, <a href="../../../../../../com/linecorp/centraldogma/server/mirror/MirrorCredential.html">MirrorCredential</a> credential,
-<a class="jxr_linenumber" name="L46" href="#L46">46</a>                       <a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> localRepo, String localPath,
-<a class="jxr_linenumber" name="L47" href="#L47">47</a>                       URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
+<a class="jxr_linenumber" name="L45" href="#L45">45</a>      <a href="../../../../../../com/linecorp/centraldogma/server/internal/mirror/DefaultGitMirror.html">DefaultGitMirror</a>(String id, <strong class="jxr_keyword">boolean</strong> enabled, Cron schedule, <a href="../../../../../../com/linecorp/centraldogma/server/mirror/MirrorDirection.html">MirrorDirection</a> direction,
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>                       <a href="../../../../../../com/linecorp/centraldogma/server/mirror/MirrorCredential.html">MirrorCredential</a> credential, <a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> localRepo, String localPath,
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>                       URI remoteRepoUri, String remotePath, String remoteBranch,
 <a class="jxr_linenumber" name="L48" href="#L48">48</a>                       @Nullable String gitignore) {
-<a class="jxr_linenumber" name="L49" href="#L49">49</a>          <strong class="jxr_keyword">super</strong>(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, remoteBranch,
-<a class="jxr_linenumber" name="L50" href="#L50">50</a>                gitignore);
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>          <strong class="jxr_keyword">super</strong>(id, enabled, schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath,
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>                remoteBranch, gitignore);
 <a class="jxr_linenumber" name="L51" href="#L51">51</a>      }
 <a class="jxr_linenumber" name="L52" href="#L52">52</a>  
 <a class="jxr_linenumber" name="L53" href="#L53">53</a>      @Override

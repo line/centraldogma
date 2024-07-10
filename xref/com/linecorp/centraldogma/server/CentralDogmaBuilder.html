@@ -544,50 +544,59 @@
 <a class="jxr_linenumber" name="L536" href="#L536">536</a>     }
 <a class="jxr_linenumber" name="L537" href="#L537">537</a> 
 <a class="jxr_linenumber" name="L538" href="#L538">538</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L539" href="#L539">539</a> <em class="jxr_javadoccomment">     * Sets CORS related configurations.</em>
+<a class="jxr_linenumber" name="L539" href="#L539">539</a> <em class="jxr_javadoccomment">     * Enables CORS with the specified allowed origins.</em>
 <a class="jxr_linenumber" name="L540" href="#L540">540</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L541" href="#L541">541</a>     <strong class="jxr_keyword">public</strong> <a href="../../../../com/linecorp/centraldogma/server/CentralDogmaBuilder.html">CentralDogmaBuilder</a> cors(<a href="../../../../com/linecorp/centraldogma/server/CorsConfig.html">CorsConfig</a> corsConfig) {
-<a class="jxr_linenumber" name="L542" href="#L542">542</a>         <strong class="jxr_keyword">this</strong>.corsConfig = requireNonNull(corsConfig, <span class="jxr_string">"corsConfig"</span>);
-<a class="jxr_linenumber" name="L543" href="#L543">543</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L544" href="#L544">544</a>     }
-<a class="jxr_linenumber" name="L545" href="#L545">545</a> 
-<a class="jxr_linenumber" name="L546" href="#L546">546</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L547" href="#L547">547</a> <em class="jxr_javadoccomment">     * Returns a newly-created {@link CentralDogma} server.</em>
-<a class="jxr_linenumber" name="L548" href="#L548">548</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L549" href="#L549">549</a>     <strong class="jxr_keyword">public</strong> <a href="../../../../com/linecorp/centraldogma/server/CentralDogma.html">CentralDogma</a> build() {
-<a class="jxr_linenumber" name="L550" href="#L550">550</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/CentralDogma.html">CentralDogma</a>(buildConfig(), meterRegistry);
-<a class="jxr_linenumber" name="L551" href="#L551">551</a>     }
-<a class="jxr_linenumber" name="L552" href="#L552">552</a> 
-<a class="jxr_linenumber" name="L553" href="#L553">553</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../com/linecorp/centraldogma/server/CentralDogmaConfig.html">CentralDogmaConfig</a> buildConfig() {
-<a class="jxr_linenumber" name="L554" href="#L554">554</a>         <strong class="jxr_keyword">final</strong> List&lt;ServerPort&gt; ports = !<strong class="jxr_keyword">this</strong>.ports.isEmpty() ? <strong class="jxr_keyword">this</strong>.ports
-<a class="jxr_linenumber" name="L555" href="#L555">555</a>                                                              : Collections.singletonList(DEFAULT_PORT);
-<a class="jxr_linenumber" name="L556" href="#L556">556</a>         <strong class="jxr_keyword">final</strong> Set&lt;String&gt; adminSet = administrators.build();
-<a class="jxr_linenumber" name="L557" href="#L557">557</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../com/linecorp/centraldogma/server/auth/AuthConfig.html">AuthConfig</a> authCfg;
-<a class="jxr_linenumber" name="L558" href="#L558">558</a>         <strong class="jxr_keyword">if</strong> (authProviderFactory != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L559" href="#L559">559</a>             authCfg = <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/auth/AuthConfig.html">AuthConfig</a>(
-<a class="jxr_linenumber" name="L560" href="#L560">560</a>                     authProviderFactory, adminSet, caseSensitiveLoginNames,
-<a class="jxr_linenumber" name="L561" href="#L561">561</a>                     sessionCacheSpec, sessionTimeoutMillis, sessionValidationSchedule,
-<a class="jxr_linenumber" name="L562" href="#L562">562</a>                     authProviderProperties != <strong class="jxr_keyword">null</strong> ? Jackson.valueToTree(authProviderProperties) : <strong class="jxr_keyword">null</strong>);
-<a class="jxr_linenumber" name="L563" href="#L563">563</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L564" href="#L564">564</a>             authCfg = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L565" href="#L565">565</a>             logger.info(<span class="jxr_string">"{} is not specified, so {} will not be configured."</span>,
-<a class="jxr_linenumber" name="L566" href="#L566">566</a>                         AuthProviderFactory.<strong class="jxr_keyword">class</strong>.getSimpleName(),
-<a class="jxr_linenumber" name="L567" href="#L567">567</a>                         AuthConfig.<strong class="jxr_keyword">class</strong>.getSimpleName());
-<a class="jxr_linenumber" name="L568" href="#L568">568</a>         }
-<a class="jxr_linenumber" name="L569" href="#L569">569</a> 
-<a class="jxr_linenumber" name="L570" href="#L570">570</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../com/linecorp/centraldogma/server/QuotaConfig.html">QuotaConfig</a> quotaConfig = writeQuota &gt; 0 ? <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/QuotaConfig.html">QuotaConfig</a>(writeQuota, timeWindowSeconds) : <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L571" href="#L571">571</a> 
-<a class="jxr_linenumber" name="L572" href="#L572">572</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/CentralDogmaConfig.html">CentralDogmaConfig</a>(dataDir, ports, tls, trustedProxyAddresses, clientAddressSources,
-<a class="jxr_linenumber" name="L573" href="#L573">573</a>                                       numWorkers, maxNumConnections,
-<a class="jxr_linenumber" name="L574" href="#L574">574</a>                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
-<a class="jxr_linenumber" name="L575" href="#L575">575</a>                                       numRepositoryWorkers, repositoryCacheSpec,
-<a class="jxr_linenumber" name="L576" href="#L576">576</a>                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
-<a class="jxr_linenumber" name="L577" href="#L577">577</a>                                       webAppEnabled, webAppTitle, mirroringEnabled, numMirroringThreads,
-<a class="jxr_linenumber" name="L578" href="#L578">578</a>                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
-<a class="jxr_linenumber" name="L579" href="#L579">579</a>                                       <strong class="jxr_keyword">null</strong>, accessLogFormat, authCfg, quotaConfig,
-<a class="jxr_linenumber" name="L580" href="#L580">580</a>                                       corsConfig);
-<a class="jxr_linenumber" name="L581" href="#L581">581</a>     }
-<a class="jxr_linenumber" name="L582" href="#L582">582</a> }
+<a class="jxr_linenumber" name="L541" href="#L541">541</a>     <strong class="jxr_keyword">public</strong> <a href="../../../../com/linecorp/centraldogma/server/CentralDogmaBuilder.html">CentralDogmaBuilder</a> cors(String... allowedOrigins) {
+<a class="jxr_linenumber" name="L542" href="#L542">542</a>         requireNonNull(allowedOrigins, <span class="jxr_string">"allowedOrigins"</span>);
+<a class="jxr_linenumber" name="L543" href="#L543">543</a>         corsConfig = <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/CorsConfig.html">CorsConfig</a>(ImmutableList.copyOf(allowedOrigins), <strong class="jxr_keyword">null</strong>);
+<a class="jxr_linenumber" name="L544" href="#L544">544</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L545" href="#L545">545</a>     }
+<a class="jxr_linenumber" name="L546" href="#L546">546</a> 
+<a class="jxr_linenumber" name="L547" href="#L547">547</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L548" href="#L548">548</a> <em class="jxr_javadoccomment">     * Enables CORS with the specified {@link CorsConfig}.</em>
+<a class="jxr_linenumber" name="L549" href="#L549">549</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L550" href="#L550">550</a>     <strong class="jxr_keyword">public</strong> <a href="../../../../com/linecorp/centraldogma/server/CentralDogmaBuilder.html">CentralDogmaBuilder</a> cors(<a href="../../../../com/linecorp/centraldogma/server/CorsConfig.html">CorsConfig</a> corsConfig) {
+<a class="jxr_linenumber" name="L551" href="#L551">551</a>         <strong class="jxr_keyword">this</strong>.corsConfig = requireNonNull(corsConfig, <span class="jxr_string">"corsConfig"</span>);
+<a class="jxr_linenumber" name="L552" href="#L552">552</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L553" href="#L553">553</a>     }
+<a class="jxr_linenumber" name="L554" href="#L554">554</a> 
+<a class="jxr_linenumber" name="L555" href="#L555">555</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L556" href="#L556">556</a> <em class="jxr_javadoccomment">     * Returns a newly-created {@link CentralDogma} server.</em>
+<a class="jxr_linenumber" name="L557" href="#L557">557</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L558" href="#L558">558</a>     <strong class="jxr_keyword">public</strong> <a href="../../../../com/linecorp/centraldogma/server/CentralDogma.html">CentralDogma</a> build() {
+<a class="jxr_linenumber" name="L559" href="#L559">559</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/CentralDogma.html">CentralDogma</a>(buildConfig(), meterRegistry);
+<a class="jxr_linenumber" name="L560" href="#L560">560</a>     }
+<a class="jxr_linenumber" name="L561" href="#L561">561</a> 
+<a class="jxr_linenumber" name="L562" href="#L562">562</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../com/linecorp/centraldogma/server/CentralDogmaConfig.html">CentralDogmaConfig</a> buildConfig() {
+<a class="jxr_linenumber" name="L563" href="#L563">563</a>         <strong class="jxr_keyword">final</strong> List&lt;ServerPort&gt; ports = !<strong class="jxr_keyword">this</strong>.ports.isEmpty() ? <strong class="jxr_keyword">this</strong>.ports
+<a class="jxr_linenumber" name="L564" href="#L564">564</a>                                                              : Collections.singletonList(DEFAULT_PORT);
+<a class="jxr_linenumber" name="L565" href="#L565">565</a>         <strong class="jxr_keyword">final</strong> Set&lt;String&gt; adminSet = administrators.build();
+<a class="jxr_linenumber" name="L566" href="#L566">566</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../com/linecorp/centraldogma/server/auth/AuthConfig.html">AuthConfig</a> authCfg;
+<a class="jxr_linenumber" name="L567" href="#L567">567</a>         <strong class="jxr_keyword">if</strong> (authProviderFactory != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L568" href="#L568">568</a>             authCfg = <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/auth/AuthConfig.html">AuthConfig</a>(
+<a class="jxr_linenumber" name="L569" href="#L569">569</a>                     authProviderFactory, adminSet, caseSensitiveLoginNames,
+<a class="jxr_linenumber" name="L570" href="#L570">570</a>                     sessionCacheSpec, sessionTimeoutMillis, sessionValidationSchedule,
+<a class="jxr_linenumber" name="L571" href="#L571">571</a>                     authProviderProperties != <strong class="jxr_keyword">null</strong> ? Jackson.valueToTree(authProviderProperties) : <strong class="jxr_keyword">null</strong>);
+<a class="jxr_linenumber" name="L572" href="#L572">572</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L573" href="#L573">573</a>             authCfg = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L574" href="#L574">574</a>             logger.info(<span class="jxr_string">"{} is not specified, so {} will not be configured."</span>,
+<a class="jxr_linenumber" name="L575" href="#L575">575</a>                         AuthProviderFactory.<strong class="jxr_keyword">class</strong>.getSimpleName(),
+<a class="jxr_linenumber" name="L576" href="#L576">576</a>                         AuthConfig.<strong class="jxr_keyword">class</strong>.getSimpleName());
+<a class="jxr_linenumber" name="L577" href="#L577">577</a>         }
+<a class="jxr_linenumber" name="L578" href="#L578">578</a> 
+<a class="jxr_linenumber" name="L579" href="#L579">579</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../com/linecorp/centraldogma/server/QuotaConfig.html">QuotaConfig</a> quotaConfig = writeQuota &gt; 0 ? <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/QuotaConfig.html">QuotaConfig</a>(writeQuota, timeWindowSeconds) : <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L580" href="#L580">580</a> 
+<a class="jxr_linenumber" name="L581" href="#L581">581</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/CentralDogmaConfig.html">CentralDogmaConfig</a>(dataDir, ports, tls, trustedProxyAddresses, clientAddressSources,
+<a class="jxr_linenumber" name="L582" href="#L582">582</a>                                       numWorkers, maxNumConnections,
+<a class="jxr_linenumber" name="L583" href="#L583">583</a>                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
+<a class="jxr_linenumber" name="L584" href="#L584">584</a>                                       numRepositoryWorkers, repositoryCacheSpec,
+<a class="jxr_linenumber" name="L585" href="#L585">585</a>                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
+<a class="jxr_linenumber" name="L586" href="#L586">586</a>                                       webAppEnabled, webAppTitle, mirroringEnabled, numMirroringThreads,
+<a class="jxr_linenumber" name="L587" href="#L587">587</a>                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
+<a class="jxr_linenumber" name="L588" href="#L588">588</a>                                       <strong class="jxr_keyword">null</strong>, accessLogFormat, authCfg, quotaConfig,
+<a class="jxr_linenumber" name="L589" href="#L589">589</a>                                       corsConfig);
+<a class="jxr_linenumber" name="L590" href="#L590">590</a>     }
+<a class="jxr_linenumber" name="L591" href="#L591">591</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2024 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

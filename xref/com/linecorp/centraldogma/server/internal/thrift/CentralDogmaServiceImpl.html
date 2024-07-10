@@ -320,7 +320,7 @@
 <a class="jxr_linenumber" name="L312" href="#L312">312</a>         <strong class="jxr_keyword">final</strong> List&lt;com.linecorp.centraldogma.common.Change&lt;?&gt;&gt; convertedChanges =
 <a class="jxr_linenumber" name="L313" href="#L313">313</a>                 convert(changes, Converter::convert);
 <a class="jxr_linenumber" name="L314" href="#L314">314</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L315" href="#L315">315</a>             checkPush(repositoryName, convertedChanges);
+<a class="jxr_linenumber" name="L315" href="#L315">315</a>             checkPush(repositoryName, convertedChanges, false);
 <a class="jxr_linenumber" name="L316" href="#L316">316</a>         } <strong class="jxr_keyword">catch</strong> (Exception e) {
 <a class="jxr_linenumber" name="L317" href="#L317">317</a>             resultHandler.onError(e);
 <a class="jxr_linenumber" name="L318" href="#L318">318</a>             <strong class="jxr_keyword">return</strong>;

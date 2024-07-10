@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Better configuration change workflow with Git-to-CD mirroring &mdash; Central Dogma 0.66.1 documentation</title>
+  <title>Better configuration change workflow with Git-to-CD mirroring &mdash; Central Dogma 0.67.0 documentation</title>
   
 
   
@@ -72,7 +72,7 @@
             
             
               <div class="version">
-                0.66
+                0.67
               </div>
             
           
@@ -103,7 +103,11 @@
 <li class="toctree-l1"><a class="reference internal" href="client-cli.html">Command-line client</a></li>
 <li class="toctree-l1"><a class="reference internal" href="client-java.html">Java client library</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Better configuration change workflow with Git-to-CD mirroring</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#setting-up-a-git-to-cd-mirror">Setting up a Git-to-CD mirror</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setting-up-a-git-to-cd-mirror">Setting up a Git-to-CD mirror</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#setting-up-a-mirroring-task">Setting up a mirroring task</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#setting-up-a-credential">Setting up a credential</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#setting-up-a-cd-to-git-mirror">Setting up a CD-to-Git mirror</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#mirror-limit-settings">Mirror limit settings</a></li>
 </ul>
@@ -220,26 +224,37 @@ applications access Central Dogma repositories instead:</p>
 </ul>
 <div class="section" id="setting-up-a-git-to-cd-mirror">
 <h2>Setting up a Git-to-CD mirror<a class="headerlink" href="#setting-up-a-git-to-cd-mirror" title="Permalink to this headline">¶</a></h2>
-<p>You need to put two files into the <code class="docutils literal notranslate"><span class="pre">meta</span></code> repository of your Central Dogma project: <code class="docutils literal notranslate"><span class="pre">/mirrors.json</span></code> and
-<code class="docutils literal notranslate"><span class="pre">/credentials.json</span></code>.</p>
-<p><code class="docutils literal notranslate"><span class="pre">/mirrors.json</span></code> contains an array of periodic mirroring tasks. For example:</p>
-<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">[
-  {
-    &quot;enabled&quot;: true,
-    &quot;schedule&quot;: &quot;0 * * * * ?&quot;,
-    &quot;direction&quot;: &quot;REMOTE_TO_LOCAL&quot;,
-    &quot;localRepo&quot;: &quot;foo&quot;,
-    &quot;localPath&quot;: &quot;/&quot;,
-    &quot;remoteUri&quot;: &quot;git+ssh://git.example.com/foo.git/settings#release&quot;,
-    &quot;credentialId&quot;: &quot;my_private_key&quot;,
-    &quot;gitignore&quot;: [
-        &quot;/credential.txt&quot;,
-        &quot;private_dir&quot;
-    ]
-  }
-]</pre></div>
+<p>You need to put two files into the <code class="docutils literal notranslate"><span class="pre">meta</span></code> repository of your Central Dogma project:
+<code class="docutils literal notranslate"><span class="pre">/mirrors/{mirror-id}.json</span></code> and <code class="docutils literal notranslate"><span class="pre">/credentials/{credential-id}.json</span></code>.</p>
+<div class="section" id="setting-up-a-mirroring-task">
+<h3>Setting up a mirroring task<a class="headerlink" href="#setting-up-a-mirroring-task" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">/mirrors/{mirror-id}.json</span></code> contains an object of a periodic mirroring task. For example:</p>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">foo-settings-mirror.json</span><a class="headerlink" href="#id1" title="Permalink to this code">¶</a></div>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;id&quot;: &quot;foo-settings-mirror&quot;,
+  &quot;enabled&quot;: true,
+  &quot;schedule&quot;: &quot;0 * * * * ?&quot;,
+  &quot;direction&quot;: &quot;REMOTE_TO_LOCAL&quot;,
+  &quot;localRepo&quot;: &quot;foo&quot;,
+  &quot;localPath&quot;: &quot;/&quot;,
+  &quot;remoteUri&quot;: &quot;git+ssh://git.example.com/foo.git/settings#release&quot;,
+  &quot;credentialId&quot;: &quot;my_private_key&quot;,
+  &quot;gitignore&quot;: [
+      &quot;/credential.txt&quot;,
+      &quot;private_dir&quot;
+  ]
+}</pre></div>
+</div>
 </div>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">id</span></code> (string)</p>
+<ul>
+<li><p>the ID of the mirroring task. You should set the same value specified in the file name.
+For example, if the file name is <code class="docutils literal notranslate"><span class="pre">/mirrors/foo-settings-mirror.json</span></code>, the value of this field should be
+<code class="docutils literal notranslate"><span class="pre">foo-settings-mirror</span></code>.</p></li>
+</ul>
+</li>
 <li><p><code class="docutils literal notranslate"><span class="pre">enabled</span></code> (boolean, optional)</p>
 <ul>
 <li><p>whether the mirroring task is enabled. Enabled by default if unspecified.</p></li>
@@ -289,9 +304,9 @@ the repository’s default branch is mirrored.</p></li>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">credentialId</span></code> (string, optional)</p>
 <ul>
-<li><p>the ID of the credential to use for authentication, as defined in <code class="docutils literal notranslate"><span class="pre">/credentials.json</span></code>. If unspecified,
-the credential whose <code class="docutils literal notranslate"><span class="pre">hostnamePattern</span></code> is matched by the host name part of the <code class="docutils literal notranslate"><span class="pre">remoteUri</span></code> value will
-be selected automatically.</p></li>
+<li><p>the ID of the credential to use for authentication, as defined in <code class="docutils literal notranslate"><span class="pre">/credentials/{credential-id}.json</span></code>.
+If unspecified, the credential whose <code class="docutils literal notranslate"><span class="pre">hostnamePattern</span></code> is matched by the host name part of the
+<code class="docutils literal notranslate"><span class="pre">remoteUri</span></code> value will be selected automatically.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">gitignore</span></code> (string or array of strings, optional)</p>
@@ -303,46 +318,78 @@ path of <code class="docutils literal notranslate"><span class="pre">remoteUri</
 </ul>
 </li>
 </ul>
-<p><code class="docutils literal notranslate"><span class="pre">/credentials.json</span></code> contains the authentication credentials which are required when accessing the Git
-repositories defined in <code class="docutils literal notranslate"><span class="pre">/mirrors.json</span></code>:</p>
-<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">[
-  {
-    &quot;type&quot;: &quot;none&quot;,
-    &quot;hostnamePatterns&quot;: [
-      &quot;^git\.insecure\.com$&quot;
-    ]
-  },
-  {
-    &quot;type&quot;: &quot;password&quot;,
-    &quot;hostnamePatterns&quot;: [
-      &quot;^git\.password-protected\.com$&quot;
-    ],
-    &quot;username&quot;: &quot;alice&quot;,
-    &quot;password&quot;: &quot;secret!&quot;
-  },
-  {
-    &quot;id&quot;: &quot;my_private_key&quot;,
-    &quot;type&quot;: &quot;public_key&quot;,
-    &quot;hostnamePatterns&quot;: [
-      &quot;^.*\.secure\.com$&quot;
-    ],
-    &quot;username&quot;: &quot;git&quot;,
-    &quot;publicKey&quot;: &quot;ssh-ed25519 ... user@host&quot;,
-    &quot;privateKey&quot;: &quot;-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----\n&quot;,
-    &quot;passphrase&quot;: null
-  },
-  {
-    &quot;id&quot;: &quot;my_access_token&quot;,
-    &quot;type&quot;: &quot;access_token&quot;,
-    &quot;accessToken&quot;: &quot;github_pat_...&quot;
-  }
-]</pre></div>
+</div>
+<div class="section" id="setting-up-a-credential">
+<h3>Setting up a credential<a class="headerlink" href="#setting-up-a-credential" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">/credentials/{credential-id}.json</span></code> contains the authentication credential which is required when accessing
+the Git repositories defined in <code class="docutils literal notranslate"><span class="pre">/mirrors/{mirror-id}.json</span></code>:</p>
+<ul class="simple">
+<li><p>No authentication</p></li>
+</ul>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text">no_auth.json</span><a class="headerlink" href="#id2" title="Permalink to this code">¶</a></div>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;id&quot;: &quot;no_auth&quot;,
+  &quot;type&quot;: &quot;none&quot;,
+  &quot;hostnamePatterns&quot;: [
+    &quot;^git\.insecure\.com$&quot;
+  ]
+}</pre></div>
+</div>
+</div>
+<ul class="simple">
+<li><p>Password-based authentication</p></li>
+</ul>
+<div class="literal-block-wrapper docutils container" id="id3">
+<div class="code-block-caption"><span class="caption-text">my_password.json</span><a class="headerlink" href="#id3" title="Permalink to this code">¶</a></div>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;id&quot;: &quot;my_password&quot;,
+  &quot;type&quot;: &quot;password&quot;,
+  &quot;hostnamePatterns&quot;: [
+    &quot;^git\.password-protected\.com$&quot;
+  ],
+  &quot;username&quot;: &quot;alice&quot;,
+  &quot;password&quot;: &quot;secret!&quot;
+}</pre></div>
+</div>
+</div>
+<ul class="simple">
+<li><p>SSH public key authentication</p></li>
+</ul>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">my_private_key.json</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;id&quot;: &quot;my_private_key&quot;,
+  &quot;type&quot;: &quot;public_key&quot;,
+  &quot;hostnamePatterns&quot;: [
+    &quot;^.*\.secure\.com$&quot;
+  ],
+  &quot;username&quot;: &quot;git&quot;,
+  &quot;publicKey&quot;: &quot;ssh-ed25519 ... user@host&quot;,
+  &quot;privateKey&quot;: &quot;-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----\n&quot;,
+  &quot;passphrase&quot;: null
+}</pre></div>
+</div>
+</div>
+<ul class="simple">
+<li><p>Access token-based authentication</p></li>
+</ul>
+<div class="literal-block-wrapper docutils container" id="id5">
+<div class="code-block-caption"><span class="caption-text">my_access_token.json</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;id&quot;: &quot;my_access_token&quot;,
+  &quot;type&quot;: &quot;access_token&quot;,
+  &quot;accessToken&quot;: &quot;github_pat_...&quot;
+}</pre></div>
+</div>
 </div>
 <ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">id</span></code> (string, optional)</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">id</span></code> (string)</p>
 <ul class="simple">
-<li><p>the ID of the credential. You can specify the value of this field in the <code class="docutils literal notranslate"><span class="pre">credentialId</span></code> field of the
-mirror definitions in <code class="docutils literal notranslate"><span class="pre">/mirrors.json</span></code>.</p></li>
+<li><p>the ID of the credential. You should set the same value specified in the file name. For example, if the file
+name is <code class="docutils literal notranslate"><span class="pre">/credentials/my_private_key.json</span></code>, the value of this field should be <code class="docutils literal notranslate"><span class="pre">my_private_key</span></code>.
+You can specify the value of this field in the <code class="docutils literal notranslate"><span class="pre">credentialId</span></code> field of the mirror definitions in
+<code class="docutils literal notranslate"><span class="pre">/mirrors/{mirror-id}.json</span></code>.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (string)</p>
@@ -352,7 +399,7 @@ mirror definitions in <code class="docutils literal notranslate"><span class="pr
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">hostnamePatterns</span></code> (array of strings, optional)</p>
 <ul class="simple">
-<li><p>the regular repressions that matches a host name. The credential whose hostname pattern matches first will
+<li><p>the regular expression that matches a host name. The credential whose hostname pattern matches first will
 be used when accessing a host. You may want to omit this field if you do not want the credential to be
 selected automatically, i.e. a mirror has to specify the <code class="docutils literal notranslate"><span class="pre">credentialId</span></code> field.</p></li>
 </ul>
@@ -404,6 +451,7 @@ If unspecified or <code class="docutils literal notranslate"><span class="pre">n
 <div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
   &quot;sourceRevision&quot;: &quot;22fb176e4d8096d709d34ffe985c5f3acea83ef2&quot;
 }</pre></div>
+</div>
 </div>
 </div>
 <div class="section" id="setting-up-a-cd-to-git-mirror">

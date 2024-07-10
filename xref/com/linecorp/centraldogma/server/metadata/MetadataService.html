@@ -27,11 +27,11 @@
 <a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.google.common.base.Preconditions.checkArgument;
 <a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 <a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
-<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager.listProjectsWithoutDogma;
-<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
-<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.RepositorySupport.convertWithJackson;
-<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
-<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
+<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager.listProjectsWithoutInternal;
+<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.RepositorySupport.convertWithJackson;
+<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
+<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
 <a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> java.util.Objects.requireNonNull;
 <a class="jxr_linenumber" name="L28" href="#L28">28</a>  
 <a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> java.util.Collection;
@@ -919,7 +919,7 @@
 <a class="jxr_linenumber" name="L911" href="#L911">911</a>         requireNonNull(author, <span class="jxr_string">"author"</span>);
 <a class="jxr_linenumber" name="L912" href="#L912">912</a>         requireNonNull(appId, <span class="jxr_string">"appId"</span>);
 <a class="jxr_linenumber" name="L913" href="#L913">913</a> 
-<a class="jxr_linenumber" name="L914" href="#L914">914</a>         <strong class="jxr_keyword">final</strong> Collection&lt;Project&gt; projects = listProjectsWithoutDogma(projectManager.list()).values();
+<a class="jxr_linenumber" name="L914" href="#L914">914</a>         <strong class="jxr_keyword">final</strong> Collection&lt;Project&gt; projects = listProjectsWithoutInternal(projectManager.list()).values();
 <a class="jxr_linenumber" name="L915" href="#L915">915</a>         <em class="jxr_comment">// Remove the token from projects that only have the token.</em>
 <a class="jxr_linenumber" name="L916" href="#L916">916</a>         <strong class="jxr_keyword">for</strong> (Project project : projects) {
 <a class="jxr_linenumber" name="L917" href="#L917">917</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/server/metadata/ProjectMetadata.html">ProjectMetadata</a> projectMetadata = fetchMetadata(project.name()).join().object();
