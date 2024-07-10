@@ -35,6 +35,7 @@ import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -139,8 +140,9 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
-    public CompletableFuture<Map<String, Change<?>>> diff(Revision from, Revision to, String pathPattern) {
-        return unwrap().diff(from, to, pathPattern);
+    public CompletableFuture<Map<String, Change<?>>> diff(Revision from, Revision to, String pathPattern,
+                                                          DiffResultType diffResultType) {
+        return unwrap().diff(from, to, pathPattern, diffResultType);
     }
 
     @Override

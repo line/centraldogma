@@ -80,6 +80,7 @@ import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 
@@ -624,33 +625,58 @@ class GitRepositoryTest {
     }
 
     /**
-     * Run a sequence of add operation on the same path, valid the diff after each push.
+     * Run a sequence of add operation on the same path, validate the diff after each push.
      */
     @Test
     void testDiff_add() {
         final String jsonPath = jsonUpserts[0].path();
         final String textPath = textUpserts[0].path();
 
-        Revision prevRevison = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
-                                           jsonUpserts[0], textUpserts[0]).join().revision();
+        Revision prevRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                            jsonUpserts[0], textUpserts[0]).join().revision();
 
         for (int i = 1; i < NUM_ITERATIONS; i++) {
+            // Create a new json and text upsert with the same path.
+            final Change<JsonNode> jsonUpsert = Change.ofJsonUpsert(jsonPath, jsonUpserts[i].content());
+            final Change<String> textUpsert = Change.ofTextUpsert(
+                    textPath, textUpserts[i].content() + '\n'); // Create with the sanitized text.
             final Revision currRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
-                                                      jsonPatches[i], textPatches[i]).join().revision();
+                                                      jsonUpsert, textUpsert).join().revision();
 
-            final Map<String, Change<?>> diff = repo.diff(prevRevison, currRevision,
+            final Map<String, Change<?>> diff = repo.diff(prevRevision, currRevision,
                                                           Repository.ALL_PATH).join();
-
             assertThat(diff).hasSize(2)
                             .containsEntry(jsonPath, jsonPatches[i])
                             .containsEntry(textPath, textPatches[i]);
 
             final Map<String, Change<?>> diff2 =
                     repo.diff(HEAD.backward(1), HEAD, Repository.ALL_PATH).join();
-
             assertThat(diff2).isEqualTo(diff);
 
-            prevRevison = currRevision;
+            final Change<?> jsonQuery = repo.diff(prevRevision, currRevision, Query.ofJson(jsonPath))
+                                            .join();
+            assertThat(jsonQuery).isEqualTo(jsonPatches[i]);
+            final Change<?> textQuery = repo.diff(prevRevision, currRevision, Query.ofText(textPath))
+                                            .join();
+            assertThat(textQuery).isEqualTo(textPatches[i]);
+
+            // PATCH_TO_UPSERT diff option.
+            final Map<String, Change<?>> diffUpsert = repo.diff(
+                    prevRevision, currRevision, Repository.ALL_PATH, DiffResultType.PATCH_TO_UPSERT)
+                                                          .join();
+            assertThat(diffUpsert).hasSize(2)
+                                  .containsEntry(jsonPath, jsonUpsert)
+                                  .containsEntry(textPath, textUpsert);
+            final Change<?> jsonQueryUpsert = repo.diff(prevRevision, currRevision,
+                                                        Query.ofJson(jsonPath), DiffResultType.PATCH_TO_UPSERT)
+                                                  .join();
+            assertThat(jsonQueryUpsert).isEqualTo(jsonUpsert);
+            final Change<?> textQueryUpsert = repo.diff(prevRevision, currRevision, Query.ofText(textPath),
+                                                        DiffResultType.PATCH_TO_UPSERT)
+                                                  .join();
+            assertThat(textQueryUpsert).isEqualTo(textUpsert);
+
+            prevRevision = currRevision;
         }
     }
 
@@ -709,15 +735,50 @@ class GitRepositoryTest {
                                                       jsonPatches[i], textPatches[i]).join().revision();
 
             final Map<String, Change<?>> changes = repo.diff(prevRevision, currRevision, allPattern).join();
-
             assertThat(changes).hasSize(2)
                                .containsEntry(jsonNodePath, jsonPatches[i])
                                .containsEntry(textNodePath, textPatches[i]);
 
             final Map<String, Change<?>> changesRelative =
                     repo.diff(HEAD.backward(1), HEAD, allPattern).join();
-
             assertThat(changesRelative).isEqualTo(changes);
+
+            final Change<?> jsonQuery = repo.diff(prevRevision, currRevision, Query.ofJson(jsonNodePath))
+                                            .join();
+            assertThat(jsonQuery).isEqualTo(jsonPatches[i]);
+            final Change<?> textQuery = repo.diff(prevRevision, currRevision, Query.ofText(textNodePath))
+                                            .join();
+            assertThat(textQuery).isEqualTo(textPatches[i]);
+
+            // PATCH_TO_UPSERT diff option.
+            final Map<String, Change<?>> upsertChanges = repo.diff(prevRevision, currRevision,
+                                                                   Repository.ALL_PATH,
+                                                                   DiffResultType.PATCH_TO_UPSERT)
+                                                             .join();
+            final Change<JsonNode> expectedJsonUpsert =
+                    Change.ofJsonUpsert(jsonNodePath, jsonUpserts[i].content());
+            final Change<String> expectedTextUpsert =
+                    // Text must be sanitized so that the last line ends with \n.
+                    Change.ofTextUpsert(textNodePath, textUpserts[i].content() + '\n');
+            assertThat(upsertChanges).hasSize(2)
+                                     .containsEntry(jsonNodePath, expectedJsonUpsert)
+                                     .containsEntry(textNodePath, expectedTextUpsert);
+
+            // PATCH_TO_UPSERT diff option.
+            final Map<String, Change<?>> diffUpsert = repo.diff(
+                    prevRevision, currRevision, Repository.ALL_PATH, DiffResultType.PATCH_TO_UPSERT)
+                                                          .join();
+            assertThat(diffUpsert).hasSize(2)
+                                  .containsEntry(jsonNodePath, expectedJsonUpsert)
+                                  .containsEntry(textNodePath, expectedTextUpsert);
+            final Change<?> jsonQueryUpsert = repo.diff(
+                    prevRevision, currRevision, Query.ofJson(jsonNodePath), DiffResultType.PATCH_TO_UPSERT)
+                                                  .join();
+            assertThat(jsonQueryUpsert).isEqualTo(expectedJsonUpsert);
+            final Change<?> textQueryUpsert = repo.diff(prevRevision, currRevision, Query.ofText(textNodePath),
+                                                        DiffResultType.PATCH_TO_UPSERT)
+                                                  .join();
+            assertThat(textQueryUpsert).isEqualTo(expectedTextUpsert);
 
             prevRevision = currRevision;
         }

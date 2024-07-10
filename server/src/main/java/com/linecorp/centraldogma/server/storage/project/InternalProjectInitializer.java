@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.storage.project;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.server.command.Command.createProject;
 import static com.linecorp.centraldogma.server.command.Command.createRepository;
 import static com.linecorp.centraldogma.server.command.Command.push;
@@ -58,11 +59,12 @@ public final class InternalProjectInitializer {
     }
 
     /**
-     * Creates an internal project and repositories such as a token storage.
+     * Creates an internal project and repositories and a token storage to {@code dogma/dogma/tokens.json}.
      */
     public void initialize() {
         try {
-            initialize0();
+            initialize0(INTERNAL_PROJECT_DOGMA);
+            initializeTokens();
             initialFuture.complete(null);
         } catch (Exception cause) {
             initialFuture.completeExceptionally(cause);
@@ -70,12 +72,22 @@ public final class InternalProjectInitializer {
     }
 
     /**
+     * Creates the specified internal project and its internal repositories.
+     */
+    public void initialize(String projectName) {
+        requireNonNull(projectName, "projectName");
+        checkArgument(!INTERNAL_PROJECT_DOGMA.equals(projectName),
+                      "Use initialize() to create %s", projectName);
+        initialize0(projectName);
+    }
+
+    /**
      * Creates an internal project and repositories such as a token storage.
      */
-    public void initialize0() {
+    public void initialize0(String projectName) {
         final long creationTimeMillis = System.currentTimeMillis();
         try {
-            executor.execute(createProject(creationTimeMillis, Author.SYSTEM, INTERNAL_PROJECT_DOGMA))
+            executor.execute(createProject(creationTimeMillis, Author.SYSTEM, projectName))
                     .get();
         } catch (Throwable cause) {
             final Throwable peeled = Exceptions.peel(cause);
@@ -84,14 +96,16 @@ public final class InternalProjectInitializer {
                 return;
             }
             if (!(peeled instanceof ProjectExistsException)) {
-                throw new Error("failed to initialize an internal project: " + INTERNAL_PROJECT_DOGMA, peeled);
+                throw new Error("failed to initialize an internal project: " + projectName, peeled);
             }
         }
 
         // These repositories might be created when creating an internal project, but we try to create them
         // again here in order to make sure them exist because sometimes their names are changed.
-        initializeInternalRepos(Project.internalRepos(), creationTimeMillis);
+        initializeInternalRepos(projectName, Project.internalRepos(), creationTimeMillis);
+    }
 
+    private void initializeTokens() {
         try {
             final Change<?> change = Change.ofJsonPatch(MetadataService.TOKEN_JSON,
                                                         null, Jackson.valueToTree(new Tokens()));
@@ -120,17 +134,12 @@ public final class InternalProjectInitializer {
     /**
      * Creates the specified internal repositories in the internal project.
      */
-    public void initializeInternalRepos(List<String> internalRepos) {
+    private void initializeInternalRepos(String projectName, List<String> internalRepos,
+                                         long creationTimeMillis) {
         requireNonNull(internalRepos, "internalRepos");
-        final long creationTimeMillis = System.currentTimeMillis();
-        initializeInternalRepos(internalRepos, creationTimeMillis);
-    }
-
-    private void initializeInternalRepos(List<String> internalRepos, long creationTimeMillis) {
         for (final String repo : internalRepos) {
             try {
-                executor.execute(createRepository(creationTimeMillis, Author.SYSTEM,
-                                                  INTERNAL_PROJECT_DOGMA, repo))
+                executor.execute(createRepository(creationTimeMillis, Author.SYSTEM, projectName, repo))
                         .get();
             } catch (Throwable cause) {
                 final Throwable peeled = Exceptions.peel(cause);
@@ -139,7 +148,7 @@ public final class InternalProjectInitializer {
                     return;
                 }
                 if (!(peeled instanceof RepositoryExistsException)) {
-                    throw new Error("failed to initialize an internal repository: " + INTERNAL_PROJECT_DOGMA +
+                    throw new Error("failed to initialize an internal repository: " + projectName +
                                     '/' + repo, peeled);
                 }
             }
