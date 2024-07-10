@@ -68,8 +68,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
 
     private static final Logger logger = LoggerFactory.getLogger(ControlPlanePlugin.class);
 
-    // TODO(minwoox): Add _ prefix to internal project name
-    static final String XDS_CENTRAL_DOGMA_PROJECT = "xds";
+    static final String XDS_CENTRAL_DOGMA_PROJECT = "@xds";
 
     static final String CLUSTERS_DIRECTORY = "/clusters/";
     static final String ENDPOINTS_DIRECTORY = "/endpoints/";

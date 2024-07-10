@@ -28,11 +28,14 @@ import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.routeFileName;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import java.io.File;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.testcontainers.containers.Network;
@@ -44,6 +47,9 @@ import com.google.protobuf.Any;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
+import com.linecorp.centraldogma.server.management.ServerStatusManager;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
@@ -83,6 +89,9 @@ final class DiscoveryServiceItTest {
         }
     };
 
+    @TempDir
+    static File tempDir;
+
     private static final Network NETWORK = Network.newNetwork();
 
     @Container
@@ -97,7 +106,12 @@ final class DiscoveryServiceItTest {
 
     @BeforeEach
     void setUp() {
-        createXdsProject(dogma.client(), FOO_XDS_PROJECT_NAME);
+        final StandaloneCommandExecutor executor = new StandaloneCommandExecutor(
+                dogma.projectManager(), ForkJoinPool.commonPool(),
+                new ServerStatusManager(tempDir), null, null, null);
+        executor.start().join();
+        final MetadataService metadataService = new MetadataService(dogma.projectManager(), executor);
+        createXdsProject(dogma.projectManager(), metadataService, FOO_XDS_PROJECT_NAME);
         final Cluster echoCluster = createEchoCluster(true);
         commit(echoCluster, dogma.projectManager(), FOO_XDS_PROJECT_NAME, ECHO_CLUSTER,
                clusterFileName(FOO_XDS_PROJECT_NAME, ECHO_CLUSTER));

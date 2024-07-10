@@ -26,18 +26,26 @@ import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createXdsProjec
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import java.io.File;
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.linecorp.armeria.xds.ClusterSnapshot;
 import com.linecorp.armeria.xds.ListenerRoot;
 import com.linecorp.armeria.xds.ListenerSnapshot;
 import com.linecorp.armeria.xds.RouteSnapshot;
 import com.linecorp.armeria.xds.XdsBootstrap;
+import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
+import com.linecorp.centraldogma.server.management.ServerStatusManager;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.envoyproxy.envoy.config.bootstrap.v3.Bootstrap;
@@ -51,6 +59,22 @@ final class LdsStreamingMultipleClientsTest {
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension();
 
+    @TempDir
+    static File tempDir;
+
+    @SuppressWarnings("NotNullFieldNotInitialized")
+    static MetadataService metadataService;
+
+    // This method will be remove once XdsProjectService is added in a follow-up PR.
+    @BeforeAll
+    static void setup() {
+        final StandaloneCommandExecutor executor = new StandaloneCommandExecutor(
+                dogma.projectManager(), ForkJoinPool.commonPool(),
+                new ServerStatusManager(tempDir), null, null, null);
+        executor.start().join();
+        metadataService = new MetadataService(dogma.projectManager(), executor);
+    }
+
     @Test
     void updateListenerRootWithCorrespondingResource() throws Exception {
         final String fooXdsProjectName = "foo";
@@ -59,15 +83,15 @@ final class LdsStreamingMultipleClientsTest {
         final String fooRouteName = "foo/route";
         final String fooClusterName = "foo/cluster";
         final String barListenerName = "bar/listener";
-        createXdsProject(dogma.client(), fooXdsProjectName);
+        final ProjectManager projectManager = dogma.projectManager();
+        createXdsProject(projectManager, metadataService, fooXdsProjectName);
         final ClusterLoadAssignment fooEndpoint =
-                createEndpointAndCommit(fooXdsProjectName, fooClusterName, dogma.projectManager());
-        final Cluster fooCluster = createClusterAndCommit(fooXdsProjectName, fooClusterName, 1,
-                                                          dogma.projectManager());
+                createEndpointAndCommit(fooXdsProjectName, fooClusterName, projectManager);
+        final Cluster fooCluster = createClusterAndCommit(fooXdsProjectName, fooClusterName, 1, projectManager);
         final RouteConfiguration fooRoute = createRouteConfigurationAndCommit(fooXdsProjectName,
                                                                               fooRouteName,
                                                                               fooClusterName,
-                                                                              dogma.projectManager());
+                                                                              projectManager);
 
         final Bootstrap bootstrap = bootstrap(dogma.httpClient().uri(), CONFIG_SOURCE_CLUSTER_NAME);
         try (XdsBootstrap xdsBootstrap = XdsBootstrap.of(bootstrap)) {
@@ -86,7 +110,7 @@ final class LdsStreamingMultipleClientsTest {
 
             Listener fooListener =
                     createListenerAndCommit(fooXdsProjectName, fooListenerName, fooRouteName, "a",
-                                            dogma.projectManager());
+                                            projectManager);
 
             await().until(() -> fooSnapshotCaptor.get() != null);
             ListenerSnapshot fooListenerSnapshot = fooSnapshotCaptor.getAndSet(null);
@@ -101,10 +125,10 @@ final class LdsStreamingMultipleClientsTest {
 
             // bar is not updated.
             await().pollDelay(200, TimeUnit.MILLISECONDS).until(() -> barSnapshotCaptor.get() == null);
-            createXdsProject(dogma.client(), barXdsProjectName);
+            createXdsProject(projectManager, metadataService, barXdsProjectName);
             final Listener barListener =
                     createListenerAndCommit(barXdsProjectName, barListenerName, fooRouteName, "a",
-                                            dogma.projectManager());
+                                            projectManager);
             await().until(() -> barSnapshotCaptor.get() != null);
             final ListenerSnapshot barListenerSnapshot = barSnapshotCaptor.getAndSet(null);
             assertThat(barListenerSnapshot.xdsResource().resource()).isEqualTo(barListener);
@@ -112,7 +136,7 @@ final class LdsStreamingMultipleClientsTest {
 
             // Change the configuration.
             fooListener = createListenerAndCommit(fooXdsProjectName, fooListenerName, fooRouteName, "b",
-                                                  dogma.projectManager());
+                                                  projectManager);
             await().until(() -> fooSnapshotCaptor.get() != null);
             fooListenerSnapshot = fooSnapshotCaptor.getAndSet(null);
             assertThat(fooListenerSnapshot.xdsResource().resource()).isEqualTo(fooListener);

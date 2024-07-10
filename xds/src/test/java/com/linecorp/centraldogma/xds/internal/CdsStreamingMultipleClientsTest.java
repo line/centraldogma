@@ -24,15 +24,23 @@ import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createXdsProjec
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import java.io.File;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.linecorp.armeria.xds.ClusterRoot;
 import com.linecorp.armeria.xds.ClusterSnapshot;
 import com.linecorp.armeria.xds.XdsBootstrap;
+import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
+import com.linecorp.centraldogma.server.management.ServerStatusManager;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.envoyproxy.envoy.config.bootstrap.v3.Bootstrap;
@@ -43,6 +51,22 @@ final class CdsStreamingMultipleClientsTest {
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension();
+
+    @TempDir
+    static File tempDir;
+
+    @SuppressWarnings("NotNullFieldNotInitialized")
+    static MetadataService metadataService;
+
+    // This method will be remove once XdsProjectService is added in a follow-up PR.
+    @BeforeAll
+    static void setup() {
+        final StandaloneCommandExecutor executor = new StandaloneCommandExecutor(
+                dogma.projectManager(), ForkJoinPool.commonPool(),
+                new ServerStatusManager(tempDir), null, null, null);
+        executor.start().join();
+        metadataService = new MetadataService(dogma.projectManager(), executor);
+    }
 
     @Test
     void updateClusterRootWithCorrespondingResource() throws Exception {
@@ -65,11 +89,11 @@ final class CdsStreamingMultipleClientsTest {
                 return fooSnapshotCaptor.get() == null && barSnapshotCaptor.get() == null;
             });
 
-            createXdsProject(dogma.client(), fooXdsProjectName);
+            final ProjectManager projectManager = dogma.projectManager();
+            createXdsProject(projectManager, metadataService, fooXdsProjectName);
             final ClusterLoadAssignment fooEndpoint =
-                    createEndpointAndCommit(fooXdsProjectName, fooClusterName, dogma.projectManager());
-            Cluster fooCluster = createClusterAndCommit(fooXdsProjectName, fooClusterName, 1,
-                                                        dogma.projectManager());
+                    createEndpointAndCommit(fooXdsProjectName, fooClusterName, projectManager);
+            Cluster fooCluster = createClusterAndCommit(fooXdsProjectName, fooClusterName, 1, projectManager);
 
             await().until(() -> fooSnapshotCaptor.get() != null);
             ClusterSnapshot fooClusterSnapshot = fooSnapshotCaptor.getAndSet(null);
@@ -78,11 +102,11 @@ final class CdsStreamingMultipleClientsTest {
 
             // bar is not updated.
             await().pollDelay(200, TimeUnit.MILLISECONDS).until(() -> barSnapshotCaptor.get() == null);
-            createXdsProject(dogma.client(), barXdsProjectName);
+            createXdsProject(projectManager, metadataService, barXdsProjectName);
             final ClusterLoadAssignment barEndpoint =
-                    createEndpointAndCommit(barXdsProjectName, barClusterName, dogma.projectManager());
+                    createEndpointAndCommit(barXdsProjectName, barClusterName, projectManager);
             final Cluster barCluster = createClusterAndCommit(barXdsProjectName, barClusterName, 1,
-                                                              dogma.projectManager());
+                                                              projectManager);
             await().until(() -> barSnapshotCaptor.get() != null);
             final ClusterSnapshot barClusterSnapshot = barSnapshotCaptor.getAndSet(null);
             assertThat(barClusterSnapshot.xdsResource().resource()).isEqualTo(barCluster);
@@ -92,7 +116,7 @@ final class CdsStreamingMultipleClientsTest {
             await().pollDelay(200, TimeUnit.MILLISECONDS).until(() -> fooSnapshotCaptor.get() == null);
 
             // Change the configuration.
-            fooCluster = createClusterAndCommit(fooXdsProjectName, fooClusterName, 2, dogma.projectManager());
+            fooCluster = createClusterAndCommit(fooXdsProjectName, fooClusterName, 2, projectManager);
             await().until(() -> fooSnapshotCaptor.get() != null);
             fooClusterSnapshot = fooSnapshotCaptor.getAndSet(null);
             assertThat(fooClusterSnapshot.xdsResource().resource()).isEqualTo(fooCluster);

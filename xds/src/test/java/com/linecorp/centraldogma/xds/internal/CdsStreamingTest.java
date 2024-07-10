@@ -21,18 +21,26 @@ import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createXdsProjec
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.removeXdsProject;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.File;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import com.linecorp.armeria.client.grpc.GrpcClients;
+import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
+import com.linecorp.centraldogma.server.management.ServerStatusManager;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.envoyproxy.controlplane.cache.Resources;
@@ -47,14 +55,30 @@ final class CdsStreamingTest {
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension();
 
+    @TempDir
+    static File tempDir;
+
+    @SuppressWarnings("NotNullFieldNotInitialized")
+    static MetadataService metadataService;
+
+    // This method will be remove once XdsProjectService is added in a follow-up PR.
+    @BeforeAll
+    static void setup() {
+        final StandaloneCommandExecutor executor = new StandaloneCommandExecutor(
+                dogma.projectManager(), ForkJoinPool.commonPool(),
+                new ServerStatusManager(tempDir), null, null, null);
+        executor.start().join();
+        metadataService = new MetadataService(dogma.projectManager(), executor);
+    }
+
     @Test
     void cdsStream() throws Exception {
         final String fooXdsProjectName = "foo";
-        createXdsProject(dogma.client(), fooXdsProjectName);
+        final ProjectManager projectManager = dogma.projectManager();
+        createXdsProject(projectManager, metadataService, fooXdsProjectName);
 
         final String fooClusterName = "foo/cluster";
-        Cluster fooCluster = createClusterAndCommit(fooXdsProjectName, fooClusterName, 1,
-                                                    dogma.projectManager());
+        Cluster fooCluster = createClusterAndCommit(fooXdsProjectName, fooClusterName, 1, projectManager);
         final ClusterDiscoveryServiceStub client = GrpcClients.newClient(
                 dogma.httpClient().uri(), ClusterDiscoveryServiceStub.class);
         final BlockingQueue<DiscoveryResponse> queue = new ArrayBlockingQueue<>(2);
@@ -83,7 +107,7 @@ final class CdsStreamingTest {
         assertThat(queue.poll(300, TimeUnit.MILLISECONDS)).isNull();
 
         // Change the configuration.
-        fooCluster = createClusterAndCommit(fooXdsProjectName, fooClusterName, 2, dogma.projectManager());
+        fooCluster = createClusterAndCommit(fooXdsProjectName, fooClusterName, 2, projectManager);
         discoveryResponse = queue.take();
         final String versionInfo2 = discoveryResponse.getVersionInfo();
         assertThat(versionInfo2).isNotEqualTo(versionInfo1);
@@ -95,10 +119,10 @@ final class CdsStreamingTest {
 
         // Add another cluster
         final String barXdsProjectName = "bar";
-        createXdsProject(dogma.client(), barXdsProjectName);
+        createXdsProject(projectManager, metadataService, barXdsProjectName);
         final String barClusterName = "bar/cluster";
         final Cluster barCluster = createClusterAndCommit(barXdsProjectName, barClusterName, 2,
-                                                          dogma.projectManager());
+                                                          projectManager);
         discoveryResponse = queue.take();
         final String versionInfo3 = discoveryResponse.getVersionInfo();
         assertThat(versionInfo3.length()).isEqualTo(64);
@@ -119,7 +143,7 @@ final class CdsStreamingTest {
         assertThat(queue.poll(300, TimeUnit.MILLISECONDS)).isNull();
 
         // Remove bar xDS project.
-        removeXdsProject(dogma.client(), barXdsProjectName);
+        removeXdsProject(projectManager, metadataService, barXdsProjectName);
         discoveryResponse = queue.take();
         final String versionInfo4 = discoveryResponse.getVersionInfo();
         assertDiscoveryResponse(versionInfo4, discoveryResponse, fooCluster, queue, "3");

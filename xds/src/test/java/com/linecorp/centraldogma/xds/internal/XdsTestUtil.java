@@ -31,10 +31,10 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.Durations;
 
-import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.envoyproxy.envoy.config.bootstrap.v3.Bootstrap;
@@ -72,12 +72,14 @@ final class XdsTestUtil {
 
     static final String CONFIG_SOURCE_CLUSTER_NAME = "dogma/cluster";
 
-    static void createXdsProject(CentralDogma client, String xdsProjectName) {
-        client.createRepository(XDS_CENTRAL_DOGMA_PROJECT, xdsProjectName).join();
+    static void createXdsProject(ProjectManager pm, MetadataService metadataService, String xdsProjectName) {
+        pm.get(XDS_CENTRAL_DOGMA_PROJECT).repos().create(xdsProjectName, Author.SYSTEM);
+        metadataService.addRepo(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, xdsProjectName).join();
     }
 
-    static void removeXdsProject(CentralDogma client, String xdsProjectName) {
-        client.removeRepository(XDS_CENTRAL_DOGMA_PROJECT, xdsProjectName).join();
+    static void removeXdsProject(ProjectManager pm, MetadataService metadataService, String xdsProjectName) {
+        pm.get(XDS_CENTRAL_DOGMA_PROJECT).repos().remove(xdsProjectName);
+        metadataService.removeRepo(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, xdsProjectName).join();
     }
 
     static LbEndpoint endpoint(String address, int port) {
