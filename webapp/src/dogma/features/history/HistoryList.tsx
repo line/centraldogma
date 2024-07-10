@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { useGetHistoryQuery } from 'dogma/features/api/apiSlice';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { Deferred } from 'dogma/common/components/Deferred';
+import { Author } from 'dogma/common/components/Author';
 
 export type HistoryListProps = {
   projectName: string;
@@ -23,7 +24,7 @@ const HistoryList = ({ projectName, repoName, handleTabChange, totalRevision }: 
         cell: (info) => (
           <ChakraLink
             fontWeight="semibold"
-            href={`/app/projects/${projectName}/repos/${repoName}/list/${info.row.original.revision}/`}
+            href={`/app/projects/${projectName}/repos/${repoName}/tree/${info.row.original.revision}/`}
             onClick={() => handleTabChange(0)}
           >
             <HStack>
@@ -41,7 +42,7 @@ const HistoryList = ({ projectName, repoName, handleTabChange, totalRevision }: 
         header: 'Detail',
       }),
       columnHelper.accessor((row: HistoryDto) => row.author.name, {
-        cell: (info) => info.getValue(),
+        cell: (info) => <Author name={info.getValue()} />,
         header: 'Author',
       }),
       columnHelper.accessor((row: HistoryDto) => row.pushedAt, {

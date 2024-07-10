@@ -15,8 +15,8 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { CredentialDto } from 'dogma/features/credential/CredentialDto';
 import _ from 'lodash';
+import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 
 const credentials: CredentialDto[] = _.range(0, 20).map((i) => newRandomCredential(i));
 

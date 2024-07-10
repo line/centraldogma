@@ -14,7 +14,7 @@
  * under the License.
  */
 import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
-import { IconButton } from '@chakra-ui/react';
+import { Box, HStack, IconButton, Tooltip } from '@chakra-ui/react';
 import { FcServices } from 'react-icons/fc';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
@@ -25,6 +25,12 @@ import { useMemo } from 'react';
 import { RestoreProject } from 'dogma/features/project/RestoreProject';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { useAppSelector } from 'dogma/hooks';
+import { isInternalProject } from 'dogma/util/repo-util';
+import { LuFileWarning } from 'react-icons/lu';
+import { CgFolderRemove } from 'react-icons/cg';
+import { Author } from 'dogma/common/components/Author';
+import { FiBox } from 'react-icons/fi';
+import { FaTrashAlt } from 'react-icons/fa';
 
 export const Projects = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -37,12 +43,48 @@ export const Projects = () => {
   const columns = useMemo(
     () => [
       columnHelper.accessor((row: ProjectDto) => row.name, {
-        cell: (info) => (
-          <ChakraLink href={`/app/projects/${info.getValue()}`} fontWeight="bold">
-            {info.getValue()}
-          </ChakraLink>
-        ),
+        cell: (info) =>
+          info.row.original.createdAt ? (
+            <ChakraLink href={`/app/projects/${info.getValue()}`} fontWeight="bold">
+              {isInternalProject(info.getValue()) ? (
+                <HStack color="brown">
+                  <Box>
+                    <LuFileWarning />
+                  </Box>
+                  <Box>{info.getValue()}</Box>
+                </HStack>
+              ) : (
+                <HStack>
+                  <Box>
+                    <FiBox />
+                  </Box>
+                  <Box>{info.getValue()}</Box>
+                </HStack>
+              )}
+            </ChakraLink>
+          ) : (
+            <HStack color="gray">
+              <Box>
+                <CgFolderRemove />
+              </Box>
+              <Box>{info.getValue()}</Box>
+            </HStack>
+          ),
         header: 'Name',
+      }),
+      columnHelper.accessor((row: ProjectDto) => row.creator?.name, {
+        cell: (info) =>
+          info.getValue() ? (
+            <Author name={info.getValue()} />
+          ) : (
+            <HStack>
+              <Box>
+                <FaTrashAlt />
+              </Box>
+              <Box>Removed</Box>
+            </HStack>
+          ),
+        header: 'Creator',
       }),
       columnHelper.accessor((row: ProjectDto) => row.createdAt, {
         cell: (info) => info.getValue() && <DateWithTooltip date={info.getValue()} />,
@@ -50,9 +92,16 @@ export const Projects = () => {
       }),
       columnHelper.accessor((row: ProjectDto) => row.name, {
         cell: (info) =>
-          info.row.original.name === 'dogma' ? null : info.row.original.createdAt ? (
-            <ChakraLink href={`/app/projects/${info.getValue()}/metadata`}>
-              <IconButton icon={<FcServices />} variant="ghost" colorScheme="teal" aria-label="metadata" />
+          isInternalProject(info.row.original.name) ? null : info.row.original.createdAt ? (
+            <ChakraLink href={`/app/projects/${info.getValue()}/settings`}>
+              <Tooltip label="Project settings" fontSize="md">
+                <IconButton
+                  icon={<FcServices />}
+                  variant="ghost"
+                  colorScheme="teal"
+                  aria-label="Project Settings"
+                />
+              </Tooltip>
             </ChakraLink>
           ) : (
             <RestoreProject projectName={info.getValue()} />

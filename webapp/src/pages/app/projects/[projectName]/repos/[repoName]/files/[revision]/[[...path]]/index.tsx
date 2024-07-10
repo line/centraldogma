@@ -1,10 +1,12 @@
 import { InfoIcon } from '@chakra-ui/icons';
-import { Box, Flex, Heading, Tag, Tooltip } from '@chakra-ui/react';
+import { Box, Flex, Heading, HStack, Tag, Tooltip } from '@chakra-ui/react';
 import { useGetFileContentQuery } from 'dogma/features/api/apiSlice';
 import { useRouter } from 'next/router';
 import FileEditor from 'dogma/common/components/editor/FileEditor';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { Deferred } from 'dogma/common/components/Deferred';
+import React from "react";
+import { LuFile, LuFileJson } from "react-icons/lu";
 
 const FileContentPage = () => {
   const router = useRouter();
@@ -27,9 +29,19 @@ const FileContentPage = () => {
     <Deferred isLoading={isLoading} error={error}>
       {() => (
         <Box p="2">
-          <Breadcrumbs path={router.asPath} omitIndexList={[0, 3, 5, 6]} suffixes={{ 4: '/list/head' }} />
+          <Breadcrumbs
+            path={router.asPath}
+            omitIndexList={[0, 5, 6]}
+            unlinkedList={[3]}
+            suffixes={{ 4: '/tree/head' }}
+          />
           <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-            <Heading size="lg">{fileName}</Heading>
+            <Heading size="lg">
+              <HStack color='teal'>
+                <Box>{ fileName.endsWith('.json') ? <LuFileJson /> : <LuFile />}</Box>
+                <Box>{fileName}</Box>
+              </HStack>
+            </Heading>
             <Tooltip label="Go to History to view all revisions">
               <Tag borderRadius="full" colorScheme="blue">
                 Revision {revision} <InfoIcon ml={2} />

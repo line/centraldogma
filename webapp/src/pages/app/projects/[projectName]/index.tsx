@@ -1,4 +1,4 @@
-import { Box, Flex, Heading, Spacer, Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react';
+import { Box, Flex, Heading, HStack, Spacer, Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { MetadataButton } from 'dogma/common/components/MetadataButton';
 import { Deferred } from 'dogma/common/components/Deferred';
@@ -6,6 +6,7 @@ import { useGetReposQuery } from 'dogma/features/api/apiSlice';
 import { NewRepo } from 'dogma/features/repo/NewRepo';
 import RepoList from 'dogma/features/repo/RepoList';
 import { useRouter } from 'next/router';
+import { FiBox } from 'react-icons/fi';
 
 const ProjectDetailPage = () => {
   const router = useRouter();
@@ -24,7 +25,14 @@ const ProjectDetailPage = () => {
         <Box p="2">
           <Breadcrumbs path={router.asPath.split('?')[0]} omitIndexList={[0]} />
           <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-            <Heading size="lg">Project {projectName}</Heading>
+            <Heading size="lg">
+              <HStack color="teal">
+                <Box>
+                  <FiBox />
+                </Box>
+                <Box>{projectName}</Box>
+              </HStack>
+            </Heading>
           </Flex>
           <Tabs variant="enclosed-colored" size="lg">
             <TabList>
@@ -38,9 +46,9 @@ const ProjectDetailPage = () => {
                   <Spacer />
                   {projectName === 'dogma' ? null : (
                     <MetadataButton
-                      href={`/app/projects/${projectName}/metadata`}
+                      href={`/app/projects/${projectName}/settings`}
                       props={{ size: 'sm' }}
-                      text={'Project settings'}
+                      text={'Project Settings'}
                     />
                   )}
                   <NewRepo projectName={projectName} />

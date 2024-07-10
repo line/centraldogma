@@ -49,23 +49,23 @@ describe('RepoList', () => {
     expect(container.querySelector('tbody').children.length).toBe(3);
   });
 
-  it('has `${projectName}/repos/${repoName}/files/head{fileName}/list/head` on the view icon', () => {
+  it('has `${projectName}/repos/${repoName}/files/head{fileName}/tree/head` on the view icon', () => {
     const { container } = render(<RepoList {...expectedProps} />);
     const actionCell = container.querySelector('tbody').firstChild.firstChild.lastChild;
     const firstRepoName = 'meta';
     expect(actionCell).toHaveAttribute(
       'href',
-      `/app/projects/${expectedProps.projectName}/repos/${firstRepoName}/list/head`,
+      `/app/projects/${expectedProps.projectName}/repos/${firstRepoName}/tree/head`,
     );
   });
 
-  it('has `${projectName}/repos/${repoName}/files/head{fileName}/list/head` on the file path cell', () => {
+  it('has `${projectName}/repos/${repoName}/files/head{fileName}/tree/head` on the file path cell', () => {
     const { container } = render(<RepoList {...expectedProps} />);
     const firstCell = container.querySelector('tbody').firstChild.firstChild.firstChild;
     const firstRepoName = 'meta';
     expect(firstCell).toHaveAttribute(
       'href',
-      `/app/projects/${expectedProps.projectName}/repos/${firstRepoName}/list/head`,
+      `/app/projects/${expectedProps.projectName}/repos/${firstRepoName}/tree/head`,
     );
   });
 });

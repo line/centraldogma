@@ -63,7 +63,7 @@ xdescribe('HistoryList', () => {
     });
   });
 
-  it('links the revision cell to `${projectName}/repos/${repoName}/list/${revisionNumber}`', async () => {
+  it('links the revision cell to `${projectName}/repos/${repoName}/tree/${revisionNumber}`', async () => {
     const { container } = render(
       <ApiProvider api={apiSlice}>
         <HistoryList {...expectedProps} />
@@ -73,7 +73,7 @@ xdescribe('HistoryList', () => {
       const firstCell = container.querySelector('tbody').firstChild.firstChild.firstChild;
       expect(firstCell).toHaveAttribute(
         'href',
-        `/app/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/list/${2}`,
+        `/app/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/tree/${2}`,
       );
     });
   });

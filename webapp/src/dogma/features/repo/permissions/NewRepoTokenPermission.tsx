@@ -24,9 +24,9 @@ import { OptionBase, Select } from 'chakra-react-select';
 import { ConfirmAddUserPermission } from 'dogma/features/repo/permissions/ConfirmAddUserPermission';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
-import { AppTokenDetailDto } from 'dogma/features/metadata/AppTokenDto';
 import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
 import { ApiAction } from 'dogma/features/api/apiSlice';
+import { AppTokenDetailDto } from 'dogma/features/project/settings/tokens/AppTokenDto';
 
 interface TokenOptionType extends OptionBase {
   value: string;
@@ -152,7 +152,7 @@ export const NewRepoTokenPermission = ({
                 isLoading={isLoading}
               />
             ) : (
-              <ChakraLink href={`/app/projects/${projectName}/metadata/#tokens`} color="teal">
+              <ChakraLink href={`/app/projects/${projectName}/settings/tokens`} color="teal">
                 Go to project {projectName}&apos;s token page
               </ChakraLink>
             )}
