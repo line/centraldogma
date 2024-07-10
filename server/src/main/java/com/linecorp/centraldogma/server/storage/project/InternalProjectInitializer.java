@@ -23,6 +23,7 @@ import static com.linecorp.centraldogma.server.command.Command.push;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import com.google.common.collect.ImmutableList;
 
@@ -48,6 +49,7 @@ public final class InternalProjectInitializer {
     public static final String INTERNAL_PROJECT_DOGMA = "dogma";
 
     private final CommandExecutor executor;
+    private final CompletableFuture<Void> initialFuture = new CompletableFuture<>();
 
     /**
      * Creates a new instance.
@@ -60,8 +62,13 @@ public final class InternalProjectInitializer {
      * Creates an internal project and repositories and a token storage to {@code dogma/dogma/tokens.json}.
      */
     public void initialize() {
-        initialize0(INTERNAL_PROJECT_DOGMA);
-        initializeTokens();
+        try {
+            initialize0(INTERNAL_PROJECT_DOGMA);
+            initializeTokens();
+            initialFuture.complete(null);
+        } catch (Exception cause) {
+            initialFuture.completeExceptionally(cause);
+        }
     }
 
     /**
@@ -74,7 +81,10 @@ public final class InternalProjectInitializer {
         initialize0(projectName);
     }
 
-    private void initialize0(String projectName) {
+    /**
+     * Creates an internal project and repositories such as a token storage.
+     */
+    public void initialize0(String projectName) {
         final long creationTimeMillis = System.currentTimeMillis();
         try {
             executor.execute(createProject(creationTimeMillis, Author.SYSTEM, projectName))
@@ -113,8 +123,20 @@ public final class InternalProjectInitializer {
         }
     }
 
+    /**
+     * Returns a {@link CompletableFuture} which is completed when the internal project and repositories are
+     * ready.
+     */
+    public CompletableFuture<Void> whenInitialized() {
+        return initialFuture;
+    }
+
+    /**
+     * Creates the specified internal repositories in the internal project.
+     */
     private void initializeInternalRepos(String projectName, List<String> internalRepos,
                                          long creationTimeMillis) {
+        requireNonNull(internalRepos, "internalRepos");
         for (final String repo : internalRepos) {
             try {
                 executor.execute(createRepository(creationTimeMillis, Author.SYSTEM, projectName, repo))
