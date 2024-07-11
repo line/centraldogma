@@ -1,11 +1,11 @@
 import { Tag, TagLabel, Wrap, WrapItem } from '@chakra-ui/react';
 import { createColumnHelper } from '@tanstack/react-table';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
-import { DeleteMember } from 'dogma/features/metadata/DeleteMember';
 import { DeleteUserPermissionDto } from 'dogma/features/repo/permissions/DeleteUserPermissionDto';
 import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
 import { useMemo } from 'react';
 import { ApiAction } from 'dogma/features/api/apiSlice';
+import { DeleteMember } from 'dogma/features/project/settings/members/DeleteMember';
 
 type UserAndPermission = [string, string[]];
 

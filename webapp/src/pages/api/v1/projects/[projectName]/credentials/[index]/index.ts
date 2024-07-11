@@ -15,8 +15,8 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { CredentialDto } from 'dogma/features/credential/CredentialDto';
 import { newRandomCredential } from 'pages/api/v1/projects/[projectName]/credentials/index';
+import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 
 const credentials: Map<number, CredentialDto> = new Map();
 

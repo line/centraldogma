@@ -1,6 +1,6 @@
-import { AppMemberDto } from 'dogma/features/metadata/AppMemberDto';
 import { RepoPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
-import { AppTokenDto } from 'dogma/features/metadata/AppTokenDto';
+import { AppMemberDto } from 'dogma/features/project/settings/members/AppMemberDto';
+import { AppTokenDto } from 'dogma/features/project/settings/tokens/AppTokenDto';
 
 export interface ProjectCreatorDto {
   user: string;

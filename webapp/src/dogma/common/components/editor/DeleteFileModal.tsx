@@ -18,7 +18,6 @@ import { usePushFileChangesMutation } from 'dogma/features/api/apiSlice';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import { useAppDispatch } from 'dogma/hooks';
-import Router from 'next/router';
 import { useForm } from 'react-hook-form';
 
 type FormData = {
@@ -26,19 +25,23 @@ type FormData = {
   detail: string;
 };
 
-export const DeleteFileModal = ({
-  isOpen,
-  onClose,
-  path,
-  projectName,
-  repoName,
-}: {
+type DeleteFileModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess: () => void;
   path: string;
   projectName: string;
   repoName: string;
-}) => {
+};
+
+export const DeleteFileModal = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  path,
+  projectName,
+  repoName,
+}: DeleteFileModalProps) => {
   const {
     register,
     handleSubmit,
@@ -74,7 +77,7 @@ export const DeleteFileModal = ({
         }),
       );
       reset();
-      Router.push(`/app/projects/${projectName}/repos/${repoName}/list/head/`);
+      onSuccess();
     } catch (error) {
       dispatch(
         createMessage({

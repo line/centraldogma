@@ -3,9 +3,9 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { RepoPermissionDetailDto } from 'dogma/features/repo/RepoPermissionDto';
 import { useMemo } from 'react';
-import { AppMemberDetailDto } from 'dogma/features/metadata/AppMemberDto';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { RiGitRepositoryPrivateLine } from 'react-icons/ri';
+import { AppMemberDetailDto } from 'dogma/features/project/settings/members/AppMemberDto';
 
 export type RepoPermissionListProps<Data extends object> = {
   data: Data[];
@@ -21,7 +21,7 @@ const RepoPermissionList = <Data extends object>({ data, projectName }: RepoPerm
         cell: (info) => (
           <ChakraLink
             fontWeight={'semibold'}
-            href={`/app/projects/${projectName}/permissions/repos/${info.getValue()}`}
+            href={`/app/projects/${projectName}/repos/${info.getValue()}/permissions`}
           >
             <Icon as={RiGitRepositoryPrivateLine} marginBottom={-0.5} /> {info.getValue()}
           </ChakraLink>

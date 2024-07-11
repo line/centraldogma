@@ -19,12 +19,12 @@ describe('Breadcrumbs', () => {
       <Breadcrumbs
         path={'/app/projects/my-project-name/repos/repo1'}
         omitIndexList={[]}
-        suffixes={{ 2: '/list/head' }}
+        suffixes={{ 2: '/tree/head' }}
       />,
     );
     const crumb = container.querySelector('nav').firstChild.childNodes[2].firstChild;
     expect(crumb).toHaveTextContent('my-project-name');
-    expect(crumb).toHaveAttribute('href', '/app/projects/my-project-name/list/head');
+    expect(crumb).toHaveAttribute('href', '/app/projects/my-project-name/tree/head');
   });
 
   it('renders the directory link', () => {
@@ -41,7 +41,7 @@ describe('Breadcrumbs', () => {
     expect(crumb).toHaveTextContent('subfolder');
     expect(crumb).toHaveAttribute(
       'href',
-      '/app/projects/my-project-name/repos/my-repo-name/list/head/folder/subfolder',
+      '/app/projects/my-project-name/repos/my-repo-name/tree/head/folder/subfolder',
     );
   });
 });

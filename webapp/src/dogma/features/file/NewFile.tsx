@@ -78,7 +78,7 @@ export const NewFile = ({
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      Router.push(`/app/projects/${projectName}/repos/${repoName}/list/head${`/${prefixes.join('/')}`}`);
+      Router.push(`/app/projects/${projectName}/repos/${repoName}/tree/head${`/${prefixes.join('/')}`}`);
       reset();
       dispatch(
         createMessage({

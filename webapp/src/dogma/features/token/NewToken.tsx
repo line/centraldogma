@@ -70,7 +70,7 @@ export const NewToken = () => {
     } catch (error) {
       dispatch(
         createMessage({
-          title: 'Failed to create a new file',
+          title: 'Failed to create a new token',
           text: ErrorHandler.handle(error),
           type: 'error',
         }),

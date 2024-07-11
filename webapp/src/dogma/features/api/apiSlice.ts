@@ -24,12 +24,12 @@ import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
 import { FileContentDto } from 'dogma/features/file/FileContentDto';
 import { RevisionDto } from 'dogma/features/history/RevisionDto';
 import { TokenDto } from 'dogma/features/token/TokenDto';
-import { DeleteMemberDto } from 'dogma/features/metadata/DeleteMemberDto';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { DeleteUserPermissionDto } from 'dogma/features/repo/permissions/DeleteUserPermissionDto';
 import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
-import { MirrorDto } from 'dogma/features/mirror/MirrorDto';
-import { CredentialDto } from 'dogma/features/credential/CredentialDto';
+import { DeleteMemberDto } from 'dogma/features/project/settings/members/DeleteMemberDto';
+import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
+import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 
 export type ApiAction<Arg, Result> = {
   (arg: Arg): { unwrap: () => Promise<Result> };
@@ -68,8 +68,8 @@ export const apiSlice = createApi({
     prepareHeaders: (headers, { getState, type }) => {
       const { auth } = getState() as { auth: AuthState };
       headers.set('Authorization', `Bearer ${auth?.sessionId || 'anonymous'}`);
-      if (type === 'mutation') {
-        headers.set('Content-type', 'application/json; charset=UTF-8');
+      if (type === 'mutation' && !headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json; charset=UTF-8');
       }
       return headers;
     },
@@ -113,6 +113,9 @@ export const apiSlice = createApi({
       query: ({ projectName }) => ({
         url: `/v1/projects/${projectName}`,
         method: 'PATCH',
+        headers: {
+          'Content-type': 'application/json-patch+json; charset=UTF-8',
+        },
         body: [{ op: 'replace', path: '/status', value: 'active' }],
       }),
       invalidatesTags: ['Project'],
@@ -212,6 +215,9 @@ export const apiSlice = createApi({
       query: ({ projectName, repoName }) => ({
         url: `/v1/projects/${projectName}/repos/${repoName}`,
         method: 'PATCH',
+        headers: {
+          'Content-type': 'application/json-patch+json; charset=UTF-8',
+        },
         body: [{ op: 'replace', path: '/status', value: 'active' }],
       }),
       invalidatesTags: ['Repo'],
@@ -253,6 +259,9 @@ export const apiSlice = createApi({
         url: `/v1/tokens`,
         method: 'POST',
         body: data,
+        headers: {
+          'Content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        },
       }),
       invalidatesTags: ['Token'],
     }),
@@ -261,6 +270,9 @@ export const apiSlice = createApi({
         url: `/v1/tokens/${appId}`,
         method: 'PATCH',
         body: [{ op: 'replace', path: '/status', value: 'inactive' }],
+        headers: {
+          'Content-type': 'application/json-patch+json; charset=UTF-8',
+        },
       }),
       invalidatesTags: ['Token'],
     }),
@@ -269,6 +281,9 @@ export const apiSlice = createApi({
         url: `/v1/tokens/${appId}`,
         method: 'PATCH',
         body: [{ op: 'replace', path: '/status', value: 'active' }],
+        headers: {
+          'Content-type': 'application/json-patch+json; charset=UTF-8',
+        },
       }),
       invalidatesTags: ['Token'],
     }),

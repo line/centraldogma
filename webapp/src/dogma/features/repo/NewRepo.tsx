@@ -47,7 +47,7 @@ export const NewRepo = ({ projectName }: { projectName: string }) => {
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      Router.push(`/app/projects/${projectName}/repos/${data.name}/list/head/`);
+      Router.push(`/app/projects/${projectName}/repos/${data.name}/tree/head/`);
       reset();
       onClose();
       dispatch(

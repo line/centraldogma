@@ -28,6 +28,18 @@ const projects: ProjectDto[] = [
     url: '/api/v1/projects/xyz',
     createdAt: '2022-11-02T04:16:03.175Z',
   },
+  {
+    name: 'dogma',
+    creator: { name: 'System', email: 'system@localhost.localdomain' },
+    url: '/api/v1/projects/dogma',
+    createdAt: '2022-11-02T04:16:03.175Z',
+  },
+  {
+    name: 'project-removed',
+    creator: { name: 'System', email: 'system@localhost.localdomain' },
+    url: '/api/v1/projects/dogma',
+    createdAt: null,
+  },
 ];
 
 const makeData = (len: number) => {

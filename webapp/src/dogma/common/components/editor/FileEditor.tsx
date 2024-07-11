@@ -26,6 +26,7 @@ import { CommitForm } from 'dogma/common/components/CommitForm';
 import { useAppDispatch } from 'dogma/hooks';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import Router from 'next/router';
 
 export type FileEditorProps = {
   projectName: string;
@@ -212,6 +213,9 @@ const FileEditor = ({ projectName, repoName, language, originalContent, path, na
         path={path}
         projectName={projectName}
         repoName={repoName}
+        onSuccess={() => {
+          Router.push(`/app/projects/${projectName}/repos/${repoName}/tree/head/`);
+        }}
       />
     </Box>
   );
