@@ -654,6 +654,7 @@ public class CentralDogma implements AutoCloseable {
     }
 
     static HttpFile webAppTitleFile(@Nullable String webAppTitle, String hostname) {
+
         requireNonNull(hostname, "hostname");
         final Map<String, String> titleAndHostname = ImmutableMap.of(
                 "title", firstNonNull(webAppTitle, "Central Dogma at {{hostname}}"),

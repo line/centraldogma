@@ -25,6 +25,8 @@ import { useRouter } from 'next/router';
 import { useAppSelector } from 'dogma/hooks';
 import { AppMemberDetailDto } from 'dogma/features/project/settings/members/AppMemberDto';
 import { FiBox } from 'react-icons/fi';
+import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
+import { HttpStatusCode } from 'dogma/features/api/HttpStatusCode';
 
 interface ProjectSettingsViewProps {
   projectName: string;
@@ -76,16 +78,22 @@ const ProjectSettingsView = ({ projectName, currentTab, children }: ProjectSetti
   });
 
   let accessRole = 'GUEST';
-  if (metadata && user) {
-    const appUser = Array.from(Object.values(metadata.members)).find(
-      (m: AppMemberDetailDto) => m.login === user.email,
-    );
-    if (appUser != null) {
-      accessRole = appUser.role;
+  let queryError = error as FetchBaseQueryError;
+  if (queryError?.status == HttpStatusCode.Forbidden) {
+    // 403 Forbidden means the user has a GUEST role
+    queryError = null;
+  } else {
+    if (metadata && user) {
+      const appUser = Array.from(Object.values(metadata.members)).find(
+        (m: AppMemberDetailDto) => m.login === user.email,
+      );
+      if (appUser != null) {
+        accessRole = appUser.role;
+      }
     }
   }
   return (
-    <Deferred isLoading={isLoading} error={error}>
+    <Deferred isLoading={isLoading} error={queryError}>
       {() => (
         <Box p="2">
           <Breadcrumbs path={router.asPath} omitIndexList={[0]} />

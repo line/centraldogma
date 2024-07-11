@@ -67,5 +67,10 @@ class MirrorCredentialTest {
 
         @Override
         void addProperties(ToStringHelper helper) {}
+
+        @Override
+        public MirrorCredential withoutSecret() {
+            return this;
+        }
     }
 }

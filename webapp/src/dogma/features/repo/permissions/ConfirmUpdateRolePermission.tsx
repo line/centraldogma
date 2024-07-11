@@ -13,9 +13,9 @@ import {
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { useUpdateRolePermissionMutation } from 'dogma/features/api/apiSlice';
-import { createMessage } from 'dogma/features/message/messageSlice';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
 import { RepoRolePermissionDto } from 'dogma/features/repo/RepoPermissionDto';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 
 export const ConfirmUpdateRolePermission = ({
@@ -37,20 +37,10 @@ export const ConfirmUpdateRolePermission = ({
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
       dispatch(
-        createMessage({
-          title: 'Repository permissions updated',
-          text: `Successfully updated ${repoName}`,
-          type: 'success',
-        }),
+        newNotification('Repository permissions updated', `Successfully updated ${repoName}`, 'success'),
       );
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to update ${repoName}`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to update ${repoName}`, ErrorMessageParser.parse(error), 'error'));
     }
     onClose();
   };

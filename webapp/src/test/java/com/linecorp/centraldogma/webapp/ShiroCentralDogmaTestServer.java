@@ -17,7 +17,9 @@
 package com.linecorp.centraldogma.webapp;
 
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD2;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME2;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.login;
 
 import java.io.IOException;
@@ -53,11 +55,13 @@ final class ShiroCentralDogmaTestServer {
                 // Enable the legacy webapp
                 // .webAppEnabled(true)
                 .port(PORT, SessionProtocol.HTTP)
-                .administrators("foo")
+                .administrators(USERNAME)
                 .cors("*")
                 .authProviderFactory(new ShiroAuthProviderFactory(unused -> {
                     final Ini iniConfig = new Ini();
-                    iniConfig.addSection("users").put(USERNAME, PASSWORD);
+                    final Ini.Section users = iniConfig.addSection("users");
+                    users.put(USERNAME, PASSWORD);
+                    users.put(USERNAME2, PASSWORD2);
                     return iniConfig;
                 }))
                 .build();

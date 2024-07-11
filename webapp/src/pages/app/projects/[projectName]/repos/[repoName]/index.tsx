@@ -2,6 +2,9 @@ import { useRouter } from 'next/router';
 
 const RepoPage = () => {
   const router = useRouter();
+  if (!router.isReady) {
+    return null;
+  }
 
   const repoName = router.query.repoName ? (router.query.repoName as string) : '';
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';

@@ -24,8 +24,8 @@ import { DiscardChangesModal } from 'dogma/common/components/editor/DiscardChang
 import { DeleteFileModal } from 'dogma/common/components/editor/DeleteFileModal';
 import { CommitForm } from 'dogma/common/components/CommitForm';
 import { useAppDispatch } from 'dogma/hooks';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import Router from 'next/router';
 
 export type FileEditorProps = {
@@ -47,9 +47,9 @@ const FileEditor = ({ projectName, repoName, language, originalContent, path, na
       );
     } catch (error) {
       dispatch(
-        createMessage({
+        newNotification({
           title: `Failed to format json content.`,
-          text: ErrorHandler.handle(error),
+          text: ErrorMessageParser.parse(error),
           type: 'error',
         }),
       );

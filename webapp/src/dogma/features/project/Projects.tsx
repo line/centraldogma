@@ -31,14 +31,11 @@ import { CgFolderRemove } from 'react-icons/cg';
 import { Author } from 'dogma/common/components/Author';
 import { FiBox } from 'react-icons/fi';
 import { FaTrashAlt } from 'react-icons/fa';
+import { WithProjectRole } from 'dogma/features/auth/ProjectRole';
 
 export const Projects = () => {
   const { user } = useAppSelector((state) => state.auth);
-  const {
-    data: projects,
-    error,
-    isLoading,
-  } = useGetProjectsQuery({ admin: user?.roles?.includes('LEVEL_ADMIN') || false });
+  const { data: projects, error, isLoading } = useGetProjectsQuery({ admin: user?.admin || false });
   const columnHelper = createColumnHelper<ProjectDto>();
   const columns = useMemo(
     () => [
@@ -92,19 +89,25 @@ export const Projects = () => {
       }),
       columnHelper.accessor((row: ProjectDto) => row.name, {
         cell: (info) =>
-          isInternalProject(info.row.original.name) ? null : info.row.original.createdAt ? (
-            <ChakraLink href={`/app/projects/${info.getValue()}/settings`}>
-              <Tooltip label="Project settings" fontSize="md">
-                <IconButton
-                  icon={<FcServices />}
-                  variant="ghost"
-                  colorScheme="teal"
-                  aria-label="Project Settings"
-                />
-              </Tooltip>
-            </ChakraLink>
-          ) : (
-            <RestoreProject projectName={info.getValue()} />
+          isInternalProject(info.row.original.name) ? null : (
+            <WithProjectRole projectName={info.row.original.name} roles={['OWNER', 'MEMBER']}>
+              {() =>
+                info.row.original.createdAt ? (
+                  <ChakraLink href={`/app/projects/${info.getValue()}/settings`}>
+                    <Tooltip label="Project settings" fontSize="md">
+                      <IconButton
+                        icon={<FcServices />}
+                        variant="ghost"
+                        colorScheme="teal"
+                        aria-label="Project Settings"
+                      />
+                    </Tooltip>
+                  </ChakraLink>
+                ) : (
+                  <RestoreProject projectName={info.getValue()} />
+                )
+              }
+            </WithProjectRole>
           ),
         header: 'Action',
         enableSorting: false,

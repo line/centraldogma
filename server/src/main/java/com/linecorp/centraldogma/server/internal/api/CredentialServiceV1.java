@@ -16,28 +16,23 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-
-import com.linecorp.armeria.server.annotation.ConsumesJson;
-import com.linecorp.armeria.server.annotation.ExceptionHandler;
-import com.linecorp.armeria.server.annotation.Get;
-import com.linecorp.armeria.server.annotation.Param;
-import com.linecorp.armeria.server.annotation.Post;
-import com.linecorp.armeria.server.annotation.ProducesJson;
-import com.linecorp.armeria.server.annotation.Put;
-import com.linecorp.armeria.server.annotation.StatusCode;
+import com.linecorp.armeria.server.annotation.*;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 
 /**
  * Annotated service object for managing credential service.
@@ -60,8 +55,17 @@ public class CredentialServiceV1 extends AbstractService {
      */
     @RequiresReadPermission(repository = Project.REPO_META)
     @Get("/projects/{projectName}/credentials")
-    public CompletableFuture<List<MirrorCredential>> listCredentials(@Param String projectName) {
-        return metaRepo(projectName).credentials();
+    public CompletableFuture<List<MirrorCredential>> listCredentials(User loginUser, @Param String projectName) {
+        final CompletableFuture<List<MirrorCredential>> future = metaRepo(projectName).credentials();
+        if (loginUser.isAdmin()) {
+            return future;
+        }
+        return future.thenApply(credentials -> {
+            return credentials
+                    .stream()
+                    .map(MirrorCredential::withoutSecret)
+                    .collect(toImmutableList());
+        });
     }
 
     /**
@@ -71,8 +75,12 @@ public class CredentialServiceV1 extends AbstractService {
      */
     @RequiresReadPermission(repository = Project.REPO_META)
     @Get("/projects/{projectName}/credentials/{id}")
-    public CompletableFuture<MirrorCredential> getCredentialById(@Param String projectName, @Param String id) {
-        return metaRepo(projectName).credential(id);
+    public CompletableFuture<MirrorCredential> getCredentialById(User loginUser, @Param String projectName, @Param String id) {
+        final CompletableFuture<MirrorCredential> future = metaRepo(projectName).credential(id);
+        if (loginUser.isAdmin()) {
+            return future;
+        }
+        return future.thenApply(MirrorCredential::withoutSecret);
     }
 
     /**

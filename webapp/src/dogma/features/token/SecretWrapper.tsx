@@ -10,7 +10,7 @@ import {
   PopoverTrigger,
   Text,
 } from '@chakra-ui/react';
-import { createMessage } from 'dogma/features/message/messageSlice';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
 import { useAppDispatch } from 'dogma/hooks';
 import { MdArrowDropDown, MdContentCopy } from 'react-icons/md';
 
@@ -39,7 +39,7 @@ export const SecretWrapper = ({ appId, secret }: { appId: string; secret: string
               variant="ghost"
               onClick={async () => {
                 await navigator.clipboard.writeText(secret);
-                dispatch(createMessage({ title: '', text: 'copied to clipboard', type: 'success' }));
+                dispatch(newNotification('', 'copied to clipboard', 'success'));
               }}
             />
           </HStack>

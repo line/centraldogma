@@ -34,7 +34,7 @@ const ProjectSettingsPage = () => {
               <DeleteProject projectName={projectName} />
               <NewRepo projectName={projectName} />
             </Flex>
-            <RepoMetaList data={Array.from(Object.values(metadata.repos))} projectName={projectName} />
+            <RepoMetaList data={Array.from(Object.values(metadata?.repos || {}))} projectName={projectName} />
           </>
         )}
       </ProjectSettingsView>

@@ -17,7 +17,7 @@ import {
   Tr,
 } from '@chakra-ui/react';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
-import { createMessage } from 'dogma/features/message/messageSlice';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
 import { TokenDto } from 'dogma/features/token/TokenDto';
 import { useAppDispatch } from 'dogma/hooks';
 import { MdContentCopy } from 'react-icons/md';
@@ -59,7 +59,7 @@ export const DisplaySecretModal = ({
                         variant="ghost"
                         onClick={async () => {
                           await navigator.clipboard.writeText(secret);
-                          dispatch(createMessage({ title: '', text: 'copied to clipboard', type: 'success' }));
+                          dispatch(newNotification('', 'copied to clipboard', 'success'));
                         }}
                       />
                     </HStack>

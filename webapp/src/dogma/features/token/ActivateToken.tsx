@@ -13,8 +13,8 @@ import {
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { useActivateTokenMutation } from 'dogma/features/api/apiSlice';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { FcIdea } from 'react-icons/fc';
 
@@ -28,22 +28,10 @@ export const ActivateToken = ({ appId, hidden }: { appId: string; hidden: boolea
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      dispatch(
-        createMessage({
-          title: 'Token activated',
-          text: `Successfully activated ${appId}`,
-          type: 'success',
-        }),
-      );
+      dispatch(newNotification('Token activated', `Successfully activated ${appId}`, 'success'));
       onClose();
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to activate ${appId}`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to activate ${appId}`, ErrorMessageParser.parse(error), 'error'));
     }
   };
   return (
