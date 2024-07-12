@@ -46,13 +46,7 @@ const FileEditor = ({ projectName, repoName, language, originalContent, path, na
         typeof originalContent === 'string' ? originalContent : JSON.stringify(originalContent),
       );
     } catch (error) {
-      dispatch(
-        newNotification(
-          `Failed to format json content.`,
-          ErrorMessageParser.parse(error),
-          'error',
-        ),
-      );
+      dispatch(newNotification(`Failed to format json content.`, ErrorMessageParser.parse(error), 'error'));
     }
   }
   const [tabIndex, setTabIndex] = useState(0);

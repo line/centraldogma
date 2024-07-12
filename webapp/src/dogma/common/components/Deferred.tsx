@@ -13,9 +13,9 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import {Spinner, Text, useColorMode, VStack} from '@chakra-ui/react';
+import { Spinner, Text, useColorMode, VStack } from '@chakra-ui/react';
 import Error from 'next/error';
-import {ReactNode} from 'react';
+import { ReactNode } from 'react';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 
 interface LoadingProps {
