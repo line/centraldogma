@@ -18,9 +18,11 @@ import { combineReducers, configureStore } from '@reduxjs/toolkit';
 import { authReducer } from 'dogma/features/auth/authSlice';
 import { apiSlice } from 'dogma/features/api/apiSlice';
 import { notificationReducer } from 'dogma/features/notification/notificationSlice';
+import { filterReducer } from 'dogma/features/filter/filterSlice';
 
 const rootReducer = combineReducers({
   auth: authReducer,
+  filter: filterReducer,
   notification: notificationReducer,
   [apiSlice.reducerPath]: apiSlice.reducer,
 });

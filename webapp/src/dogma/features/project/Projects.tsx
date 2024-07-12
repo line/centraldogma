@@ -34,10 +34,10 @@ import { ProjectDto } from 'dogma/features/project/ProjectDto';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { RestoreProject } from 'dogma/features/project/RestoreProject';
 import { Deferred } from 'dogma/common/components/Deferred';
-import { useAppSelector } from 'dogma/hooks';
+import { useAppDispatch, useAppSelector } from 'dogma/hooks';
 import { isInternalProject } from 'dogma/util/repo-util';
 import { LuFileWarning } from 'react-icons/lu';
 import { CgFolderRemove } from 'react-icons/cg';
@@ -46,16 +46,21 @@ import { FiBox } from 'react-icons/fi';
 import { FaTrashAlt } from 'react-icons/fa';
 import { WithProjectRole } from 'dogma/features/auth/ProjectRole';
 import { ChevronDownIcon } from '@chakra-ui/icons';
+import { FilterType, setProjectFilter } from 'dogma/features/filter/filterSlice';
 
 export const Projects = () => {
+  const columnHelper = createColumnHelper<ProjectDto>();
+  const dispatch = useAppDispatch();
+
   const { user, isInAnonymousMode } = useAppSelector((state) => state.auth);
   const { data: projects, error, isLoading } = useGetProjectsQuery({ admin: user?.admin || false });
-  const columnHelper = createColumnHelper<ProjectDto>();
-  const [filterType, setFilterType] = useState('all');
+
+  const projectFilter = useAppSelector((state) => state.filter.projectFilter);
   let filteredProjects = projects;
-  if (projects && !isInAnonymousMode && filterType === 'me') {
+  if (projects && !isInAnonymousMode && projectFilter === 'me') {
     filteredProjects = projects.filter((project) => project.creator?.name === user?.name);
   }
+
   const columns = useMemo(
     () => [
       columnHelper.accessor((row: ProjectDto) => row.name, {
@@ -147,9 +152,9 @@ export const Projects = () => {
                 </MenuButton>
                 <MenuList>
                   <MenuOptionGroup
-                    defaultValue="all"
+                    defaultValue={projectFilter}
                     type="radio"
-                    onChange={(type) => setFilterType(type as string)}
+                    onChange={(type) => dispatch(setProjectFilter(type as FilterType))}
                   >
                     <MenuItemOption value="all">All</MenuItemOption>
                     <MenuItemOption value="me">Created by me</MenuItemOption>
