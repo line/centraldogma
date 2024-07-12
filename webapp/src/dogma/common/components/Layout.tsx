@@ -14,14 +14,17 @@
  * under the License.
  */
 import { ReactNode } from 'react';
-import { Box, Container } from '@chakra-ui/react';
+import { Container, Flex, Spacer } from '@chakra-ui/react';
 import { Navbar } from 'dogma/common/components/Navbar';
+import { Footer } from 'dogma/common/components/Footer';
 
 export const Layout = ({ children }: { children: ReactNode }) => (
-  <Box>
+  <Flex direction="column" minH="100vh">
     <Navbar />
     <Container p={10} maxW="container.xl">
       {children}
     </Container>
-  </Box>
+    <Spacer />
+    <Footer />
+  </Flex>
 );

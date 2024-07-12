@@ -12,8 +12,8 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import { useDeleteProjectMutation } from 'dogma/features/api/apiSlice';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import Router from 'next/router';
 
@@ -24,23 +24,11 @@ export const DeleteProject = ({ projectName }: { projectName: string }) => {
   const handleDelete = async () => {
     try {
       await deleteProject({ projectName }).unwrap();
-      dispatch(
-        createMessage({
-          title: 'Project deleted.',
-          text: `Successfully deleted ${projectName}`,
-          type: 'success',
-        }),
-      );
+      dispatch(newNotification('Project deleted.', `Successfully deleted ${projectName}`, 'success'));
       onClose();
       Router.push('/app/projects');
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to delete ${projectName}`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to delete ${projectName}`, ErrorMessageParser.parse(error), 'error'));
     }
   };
   return (

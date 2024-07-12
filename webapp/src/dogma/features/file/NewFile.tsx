@@ -20,13 +20,13 @@ import {
   useColorMode,
 } from '@chakra-ui/react';
 import { usePushFileChangesMutation } from 'dogma/features/api/apiSlice';
-import { createMessage } from 'dogma/features/message/messageSlice';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
 import { useAppDispatch } from 'dogma/hooks';
 import Router from 'next/router';
 import { useForm } from 'react-hook-form';
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import Editor, { OnMount } from '@monaco-editor/react';
 import { ChangeEvent, KeyboardEvent, useRef, useState } from 'react';
 
@@ -80,21 +80,9 @@ export const NewFile = ({
       }
       Router.push(`/app/projects/${projectName}/repos/${repoName}/tree/head${`/${prefixes.join('/')}`}`);
       reset();
-      dispatch(
-        createMessage({
-          title: 'New file created',
-          text: `Successfully created ${formData.name}`,
-          type: 'success',
-        }),
-      );
+      dispatch(newNotification('New file created', `Successfully created ${formData.name}`, 'success'));
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: 'Failed to create a new file',
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification('Failed to create a new file', ErrorMessageParser.parse(error), 'error'));
     }
   };
   const [markup, setMarkup] = useState('PLAINTEXT');

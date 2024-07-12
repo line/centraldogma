@@ -13,10 +13,10 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import { Spinner, Text, VStack, useColorMode } from '@chakra-ui/react';
-import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
+import { Spinner, Text, useColorMode, VStack } from '@chakra-ui/react';
 import Error from 'next/error';
 import { ReactNode } from 'react';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 
 interface LoadingProps {
   isLoading: boolean;
@@ -34,12 +34,9 @@ export const Deferred = (props: LoadingProps) => {
     );
   }
   if (props.error) {
-    return (
-      <Error
-        statusCode={(props.error as FetchBaseQueryError).status as number}
-        withDarkMode={colorMode === 'dark'}
-      />
-    );
+    const error = props.error;
+    const message = ErrorMessageParser.parse(error);
+    return <Error statusCode={error.status as number} withDarkMode={colorMode === 'dark'} title={message} />;
   }
   return <>{props.children()}</>;
 };

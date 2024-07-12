@@ -19,9 +19,9 @@ import { useAddNewMirrorMutation } from 'dogma/features/api/apiSlice';
 import { useAppDispatch } from 'dogma/hooks';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { SerializedError } from '@reduxjs/toolkit';
-import { createMessage } from 'dogma/features/message/messageSlice';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
 import Router, { useRouter } from 'next/router';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import React from 'react';
 import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
@@ -62,23 +62,11 @@ const NewMirrorPage = () => {
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      dispatch(
-        createMessage({
-          title: 'New mirror is created',
-          text: `Successfully created`,
-          type: 'success',
-        }),
-      );
+      dispatch(newNotification('New mirror is created', `Successfully created`, 'success'));
       onSuccess();
       Router.push(`/app/projects/${projectName}/settings/mirrors`);
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to create a new mirror`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to create a new mirror`, ErrorMessageParser.parse(error), 'error'));
     }
   };
 

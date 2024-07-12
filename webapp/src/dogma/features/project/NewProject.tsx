@@ -16,13 +16,13 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import { useAddNewProjectMutation } from 'dogma/features/api/apiSlice';
-import { createMessage } from 'dogma/features/message/messageSlice';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
 import { useAppDispatch } from 'dogma/hooks';
 import Router from 'next/router';
 import { useForm } from 'react-hook-form';
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { IoMdArrowDropdown } from 'react-icons/io';
 
 const ENTITY_NAME_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$/;
@@ -45,24 +45,18 @@ export const NewProject = () => {
     const response = await addNewProject(data);
     if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
       dispatch(
-        createMessage({
-          title: 'Failed to create a new project',
-          text: ErrorHandler.handle((response as { error: FetchBaseQueryError | SerializedError }).error),
-          type: 'error',
-        }),
+        newNotification(
+          'Failed to create a new project',
+          ErrorMessageParser.parse((response as { error: FetchBaseQueryError | SerializedError }).error),
+          'error',
+        ),
       );
       return;
     }
     Router.push(`/app/projects/${data.name}/`);
     reset();
     onClose();
-    dispatch(
-      createMessage({
-        title: 'New project created',
-        text: `Successfully created ${data.name}`,
-        type: 'success',
-      }),
-    );
+    dispatch(newNotification('New project created', `Successfully created ${data.name}`, 'success'));
   };
   return (
     <Popover placement="bottom" isOpen={isOpen} onClose={onClose}>

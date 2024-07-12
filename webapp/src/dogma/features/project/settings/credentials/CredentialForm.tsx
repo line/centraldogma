@@ -134,6 +134,7 @@ const CredentialForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse
               id="id"
               name="id"
               type="text"
+              readOnly={!isNew}
               placeholder="The credential ID"
               defaultValue={defaultValue.id}
               {...register('id', { required: true, pattern: /^[a-zA-Z0-9-_.]+$/ })}
@@ -217,7 +218,6 @@ const CredentialForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse
                   height="xs"
                   fontFamily="monospace"
                   name="privateKey"
-                  defaultValue={defaultValue.privateKey}
                   placeholder={`-----BEGIN EC PRIVATE KEY-----
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -237,7 +237,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
                 <Input
                   id="passphrase"
                   name="passphrase"
-                  defaultValue={defaultValue.passphrase}
                   placeholder="passphrase..."
                   {...register('passphrase')}
                 />
@@ -267,7 +266,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
                 <Input
                   id="password"
                   name="password"
-                  defaultValue={defaultValue.password}
                   placeholder="password"
                   {...register('password', { required: true })}
                 />
@@ -284,7 +282,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
               <Input
                 id="accessToken"
                 name="accessToken"
-                defaultValue={defaultValue.accessToken}
                 placeholder="YOUR_SECRET_ACCESS_TOKEN"
                 {...register('accessToken', { required: true })}
               />
@@ -341,7 +338,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           </FormControl>
           <Spacer />
           {isNew ? (
-            <Button type="submit" colorScheme="blue" isLoading={isWaitingResponse} loadingText="Creating">
+            <Button type="submit" colorScheme="blue" loadingText="Creating">
               Create a new credential
             </Button>
           ) : (

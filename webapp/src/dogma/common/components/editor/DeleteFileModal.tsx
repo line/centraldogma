@@ -15,8 +15,8 @@ import {
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { usePushFileChangesMutation } from 'dogma/features/api/apiSlice';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { useForm } from 'react-hook-form';
 
@@ -69,23 +69,11 @@ export const DeleteFileModal = ({
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      dispatch(
-        createMessage({
-          title: 'File deleted',
-          text: `Successfully deleted ${path}`,
-          type: 'success',
-        }),
-      );
+      dispatch(newNotification('File deleted', `Successfully deleted ${path}`, 'success'));
       reset();
       onSuccess();
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to delete ${path}`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to delete ${path}`, ErrorMessageParser.parse(error), 'error'));
     }
   };
   return (

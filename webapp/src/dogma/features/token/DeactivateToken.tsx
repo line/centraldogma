@@ -13,8 +13,8 @@ import {
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { useDeactivateTokenMutation } from 'dogma/features/api/apiSlice';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { FcNoIdea } from 'react-icons/fc';
 
@@ -28,22 +28,10 @@ export const DeactivateToken = ({ appId, hidden }: { appId: string; hidden: bool
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      dispatch(
-        createMessage({
-          title: 'Token deactivated',
-          text: `Successfully deactivated ${appId}`,
-          type: 'success',
-        }),
-      );
+      dispatch(newNotification('Token deactivated', `Successfully deactivated ${appId}`, 'success'));
       onClose();
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to deactivate ${appId}`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to deactivate ${appId}`, ErrorMessageParser.parse(error), 'error'));
     }
   };
   return (

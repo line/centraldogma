@@ -11,8 +11,8 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import { useDeleteRepoMutation } from 'dogma/features/api/apiSlice';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { MdDelete } from 'react-icons/md';
 
@@ -31,22 +31,10 @@ export const DeleteRepo = ({
   const handleDelete = async () => {
     try {
       await deleteRepo({ projectName, repoName }).unwrap();
-      dispatch(
-        createMessage({
-          title: 'Repo deleted.',
-          text: `Successfully deleted ${repoName}`,
-          type: 'success',
-        }),
-      );
+      dispatch(newNotification('Repo deleted.', `Successfully deleted ${repoName}`, 'success'));
       onClose();
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to delete ${repoName}`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to delete ${repoName}`, ErrorMessageParser.parse(error), 'error'));
     }
   };
   return (

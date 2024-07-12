@@ -36,7 +36,7 @@ import { CloseIcon, HamburgerIcon, MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { default as RouteLink } from 'next/link';
 import { logout } from 'dogma/features/auth/authSlice';
 import Router from 'next/router';
-import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
+import { useGetProjectsQuery, useGetTitleQuery } from 'dogma/features/api/apiSlice';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
 import { components, DropdownIndicatorProps, GroupBase, OptionBase, Select } from 'chakra-react-select';
 import { NewProject } from 'dogma/features/project/NewProject';
@@ -49,11 +49,6 @@ interface TopMenu {
   name: string;
   path: string;
 }
-
-const topMenus: TopMenu[] = [
-  { name: 'Central Dogma', path: '/' },
-  { name: 'Projects', path: '/app/projects' },
-];
 
 const NavLink = ({ link, children }: { link: string; children: ReactNode }) => (
   <Link
@@ -106,6 +101,7 @@ export const Navbar = () => {
   const handleChange = (option: ProjectOptionType) => {
     setSelectedOption(option);
   };
+
   useEffect(() => {
     if (selectedOption?.value) {
       Router.push(`/app/projects/${selectedOption.value}`);
@@ -132,6 +128,13 @@ export const Navbar = () => {
   }, []);
 
   const pathname = usePathname();
+
+  const { data: titleDto } = useGetTitleQuery();
+  const title = titleDto?.title.replace('{{hostname}}', titleDto.hostname) || 'Central Dogma';
+  const topMenus: TopMenu[] = [
+    { name: title, path: '/' },
+    { name: 'Projects', path: '/app/projects' },
+  ];
 
   return (
     <Box bg={useColorModeValue('gray.100', 'gray.900')} px={4}>

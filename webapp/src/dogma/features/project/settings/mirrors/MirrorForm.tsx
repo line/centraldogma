@@ -144,6 +144,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
               id="id"
               name="id"
               type="text"
+              readOnly={!isNew}
               defaultValue={defaultValue.id}
               placeholder="The mirror ID"
               {...register('id', { required: true, pattern: /^[a-zA-Z0-9-_.]+$/ })}

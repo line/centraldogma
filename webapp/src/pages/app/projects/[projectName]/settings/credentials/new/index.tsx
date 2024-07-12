@@ -18,8 +18,8 @@ import Router, { useRouter } from 'next/router';
 import { useAppDispatch } from 'dogma/hooks';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { SerializedError } from '@reduxjs/toolkit';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAddNewCredentialMutation } from 'dogma/features/api/apiSlice';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import React from 'react';
@@ -45,23 +45,11 @@ const NewCredentialPage = () => {
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      dispatch(
-        createMessage({
-          title: 'New credential is created',
-          text: `Successfully created`,
-          type: 'success',
-        }),
-      );
+      dispatch(newNotification('New credential is created', `Successfully created`, 'success'));
       onSuccess();
       Router.push(`/app/projects/${projectName}/settings/credentials`);
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to create a new credential`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to create a new credential`, ErrorMessageParser.parse(error), 'error'));
     }
   };
 

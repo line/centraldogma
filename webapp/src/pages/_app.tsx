@@ -5,7 +5,7 @@ import { NextPage } from 'next';
 import { ReactElement, ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import { Layout } from 'dogma/common/components/Layout';
-import { ErrorWrapper } from 'dogma/common/components/ErrorWrapper';
+import { NotificationWrapper } from 'dogma/common/components/NotificationWrapper';
 import dynamic from 'next/dynamic';
 import StoreProvider from 'dogma/StoreProvider';
 
@@ -22,6 +22,9 @@ type AppPropsWithLayout = AppProps & {
 let urlRewrite = false;
 const DogmaApp = ({ Component, pageProps }: AppPropsWithLayout) => {
   const router = useRouter();
+  if (!router.isReady) {
+    return null;
+  }
   if (!urlRewrite) {
     // Next.js uses a path pattern to dynamically match the request path to a specific HTML file.
     // For example, `/app/projects/[projectNames]/index.html' is generated to render `/app/projects/myProj`
@@ -30,7 +33,7 @@ const DogmaApp = ({ Component, pageProps }: AppPropsWithLayout) => {
     // try to find '/app/projects/myProj/index.html' as is and fails, which in turn 'index.html' is returned as
     // a fallback. As a workaround, this triggers Next.js router to route to the desired page when a page is
     // loaded for the first time.
-    if (router.asPath !== '/' && router.isReady) {
+    if (router.asPath !== '/') {
       router.replace(router.asPath);
       urlRewrite = true;
     }
@@ -44,9 +47,9 @@ const DogmaApp = ({ Component, pageProps }: AppPropsWithLayout) => {
   return (
     <StoreProvider>
       <ChakraProvider theme={theme}>
-        <ErrorWrapper>
+        <NotificationWrapper>
           <Authorized>{getLayout(<Component {...pageProps} />)}</Authorized>
-        </ErrorWrapper>
+        </NotificationWrapper>
       </ChakraProvider>
     </StoreProvider>
   );

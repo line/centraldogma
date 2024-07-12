@@ -11,8 +11,8 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import { useRestoreRepoMutation } from 'dogma/features/api/apiSlice';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { MdOutlineRestore } from 'react-icons/md';
 
@@ -31,22 +31,10 @@ export const RestoreRepo = ({
   const handleRestore = async () => {
     try {
       await restoreRepo({ projectName, repoName }).unwrap();
-      dispatch(
-        createMessage({
-          title: 'Repo restored.',
-          text: `Successfully restored ${repoName}`,
-          type: 'success',
-        }),
-      );
+      dispatch(newNotification('Repo restored.', `Successfully restored ${repoName}`, 'success'));
       onClose();
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to restore ${repoName}`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to restore ${repoName}`, ErrorMessageParser.parse(error), 'error'));
     }
   };
   return (

@@ -21,8 +21,8 @@ import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { DisplaySecretModal } from 'dogma/features/token/DisplaySecretModal';
 import { useAddNewTokenMutation } from 'dogma/features/api/apiSlice';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { IoMdArrowDropdown } from 'react-icons/io';
@@ -68,13 +68,7 @@ export const NewToken = () => {
       onNewTokenFormClose();
       onSecretModalToggle();
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: 'Failed to create a new token',
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification('Failed to create a new token', ErrorMessageParser.parse(error), 'error'));
     }
   };
 
