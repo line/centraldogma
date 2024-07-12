@@ -2,8 +2,8 @@ import { Button, FormControl, Heading, Input, Stack, Textarea, VStack } from '@c
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { usePushFileChangesMutation } from 'dogma/features/api/apiSlice';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { useForm } from 'react-hook-form';
 
@@ -56,13 +56,7 @@ export const CommitForm = ({
       try {
         JSON.parse(content);
       } catch (error) {
-        dispatch(
-          createMessage({
-            title: `Failed to format json content.`,
-            text: ErrorHandler.handle(error),
-            type: 'error',
-          }),
-        );
+        dispatch(newNotification(`Failed to format json content.`, ErrorMessageParser.parse(error), 'error'));
         return;
       }
     }
@@ -71,24 +65,12 @@ export const CommitForm = ({
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      dispatch(
-        createMessage({
-          title: 'File updated',
-          text: `Successfully updated ${path}`,
-          type: 'success',
-        }),
-      );
+      dispatch(newNotification('File updated', `Successfully updated ${path}`, 'success'));
       setReadOnly(true);
       reset();
       handleTabChange(0);
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to update ${path}`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to update ${path}`, ErrorMessageParser.parse(error), 'error'));
     }
   };
   return (

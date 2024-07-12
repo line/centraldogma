@@ -20,8 +20,8 @@ import { useGetMirrorQuery, useUpdateMirrorMutation } from 'dogma/features/api/a
 import { useAppDispatch } from 'dogma/hooks';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { SerializedError } from '@reduxjs/toolkit';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import React from 'react';
 import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
@@ -43,23 +43,11 @@ const MirrorEditPage = () => {
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      dispatch(
-        createMessage({
-          title: `Mirror '${mirror.id}' is updated`,
-          text: `Successfully updated`,
-          type: 'success',
-        }),
-      );
+      dispatch(newNotification(`Mirror '${mirror.id}' is updated`, `Successfully updated`, 'success'));
       onSuccess();
       Router.push(`/app/projects/${projectName}/settings/mirrors/${id}`);
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to update the mirror`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to update the mirror`, ErrorMessageParser.parse(error), 'error'));
     }
   };
   return (

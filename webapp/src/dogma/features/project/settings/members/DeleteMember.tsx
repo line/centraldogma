@@ -10,8 +10,8 @@ import {
   ModalOverlay,
   useDisclosure,
 } from '@chakra-ui/react';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { MdDelete } from 'react-icons/md';
 
@@ -33,22 +33,10 @@ export const DeleteMember = ({
   const handleDelete = async () => {
     try {
       await deleteMember(projectName, id, repoName);
-      dispatch(
-        createMessage({
-          title: 'Member deleted.',
-          text: `Successfully deleted ${id}`,
-          type: 'success',
-        }),
-      );
+      dispatch(newNotification('Member deleted.', `Successfully deleted ${id}`, 'success'));
       onClose();
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to delete ${id}`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to delete ${id}`, ErrorMessageParser.parse(error), 'error'));
     }
   };
   return (

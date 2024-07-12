@@ -11,8 +11,8 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import { useDeleteTokenMutation } from 'dogma/features/api/apiSlice';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { MdDelete } from 'react-icons/md';
 
@@ -23,22 +23,10 @@ export const DeleteToken = ({ appId, hidden }: { appId: string; hidden: boolean 
   const handleDelete = async () => {
     try {
       await deleteToken({ appId }).unwrap();
-      dispatch(
-        createMessage({
-          title: 'Token deleted.',
-          text: `Successfully deleted ${appId}`,
-          type: 'success',
-        }),
-      );
+      dispatch(newNotification('Token deleted.', `Successfully deleted ${appId}`, 'success'));
       onClose();
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to delete ${appId}`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to delete ${appId}`, ErrorMessageParser.parse(error), 'error'));
     }
   };
   return (

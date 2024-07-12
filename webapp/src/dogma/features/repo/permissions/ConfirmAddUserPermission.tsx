@@ -11,8 +11,8 @@ import {
 } from '@chakra-ui/react';
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { ApiAction } from 'dogma/features/api/apiSlice';
 import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
@@ -54,20 +54,10 @@ export const ConfirmAddUserPermission = ({
         throw (response as unknown as { error: FetchBaseQueryError | SerializedError }).error;
       }
       dispatch(
-        createMessage({
-          title: 'Repository user permissions added',
-          text: `Successfully updated ${repoName}`,
-          type: 'success',
-        }),
+        newNotification('Repository user permissions added', `Successfully updated ${repoName}`, 'success'),
       );
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to update ${repoName}`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to update ${repoName}`, ErrorMessageParser.parse(error), 'error'));
     }
     onClose();
     resetForm();

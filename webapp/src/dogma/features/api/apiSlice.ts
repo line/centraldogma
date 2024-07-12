@@ -61,10 +61,15 @@ export type GetFileContent = {
   filePath: string;
 };
 
+export type TitleDto = {
+  title: string;
+  hostname: string;
+};
+
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: `${process.env.NEXT_PUBLIC_HOST || ''}/api`,
+    baseUrl: `${process.env.NEXT_PUBLIC_HOST || ''}/`,
     prepareHeaders: (headers, { getState, type }) => {
       const { auth } = getState() as { auth: AuthState };
       headers.set('Authorization', `Bearer ${auth?.sessionId || 'anonymous'}`);
@@ -78,10 +83,10 @@ export const apiSlice = createApi({
   endpoints: (builder) => ({
     getProjects: builder.query<ProjectDto[], { admin: boolean }>({
       async queryFn(arg, _queryApi, _extraOptions, fetchWithBQ) {
-        const projects = await fetchWithBQ('/v1/projects');
+        const projects = await fetchWithBQ('/api/v1/projects');
         if (projects.error) return { error: projects.error as FetchBaseQueryError };
         if (arg.admin) {
-          const removedProjects = await fetchWithBQ('/v1/projects?status=removed');
+          const removedProjects = await fetchWithBQ('/api/v1/projects?status=removed');
           if (removedProjects.error) return { error: removedProjects.error as FetchBaseQueryError };
           return {
             data: [
@@ -96,7 +101,7 @@ export const apiSlice = createApi({
     }),
     addNewProject: builder.mutation({
       query: (payload) => ({
-        url: `/v1/projects`,
+        url: `/api/v1/projects`,
         method: 'POST',
         body: payload,
       }),
@@ -104,14 +109,14 @@ export const apiSlice = createApi({
     }),
     deleteProject: builder.mutation({
       query: ({ projectName }) => ({
-        url: `/v1/projects/${projectName}`,
+        url: `/api/v1/projects/${projectName}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Project'],
     }),
     restoreProject: builder.mutation({
       query: ({ projectName }) => ({
-        url: `/v1/projects/${projectName}`,
+        url: `/api/v1/projects/${projectName}`,
         method: 'PATCH',
         headers: {
           'Content-type': 'application/json-patch+json; charset=UTF-8',
@@ -121,12 +126,12 @@ export const apiSlice = createApi({
       invalidatesTags: ['Project'],
     }),
     getMetadataByProjectName: builder.query<ProjectMetadataDto, string>({
-      query: (projectName) => `/v1/projects/${projectName}`,
+      query: (projectName) => `/api/v1/projects/${projectName}`,
       providesTags: ['Repo', 'Metadata'],
     }),
     addNewMember: builder.mutation({
       query: ({ projectName, id, role }) => ({
-        url: `/v1/metadata/${projectName}/members`,
+        url: `/api/v1/metadata/${projectName}/members`,
         method: 'POST',
         body: { id, role: role.toUpperCase() },
       }),
@@ -134,14 +139,14 @@ export const apiSlice = createApi({
     }),
     deleteMember: builder.mutation<void, DeleteMemberDto>({
       query: ({ projectName, id }) => ({
-        url: `/v1/metadata/${projectName}/members/${id}`,
+        url: `/api/v1/metadata/${projectName}/members/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Metadata'],
     }),
     addNewTokenMember: builder.mutation({
       query: ({ projectName, id, role }) => ({
-        url: `/v1/metadata/${projectName}/tokens`,
+        url: `/api/v1/metadata/${projectName}/tokens`,
         method: 'POST',
         body: { id, role: role.toUpperCase() },
       }),
@@ -149,14 +154,14 @@ export const apiSlice = createApi({
     }),
     deleteTokenMember: builder.mutation<void, DeleteMemberDto>({
       query: ({ projectName, id }) => ({
-        url: `/v1/metadata/${projectName}/tokens/${id}`,
+        url: `/api/v1/metadata/${projectName}/tokens/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Metadata'],
     }),
     updateRolePermission: builder.mutation({
       query: ({ projectName, repoName, data }) => ({
-        url: `/v1/metadata/${projectName}/repos/${repoName}/perm/role`,
+        url: `/api/v1/metadata/${projectName}/repos/${repoName}/perm/role`,
         method: 'POST',
         body: data,
       }),
@@ -164,7 +169,7 @@ export const apiSlice = createApi({
     }),
     addUserPermission: builder.mutation<void, AddUserPermissionDto>({
       query: ({ projectName, repoName, data }) => ({
-        url: `/v1/metadata/${projectName}/repos/${repoName}/perm/users`,
+        url: `/api/v1/metadata/${projectName}/repos/${repoName}/perm/users`,
         method: 'POST',
         body: data,
       }),
@@ -172,14 +177,14 @@ export const apiSlice = createApi({
     }),
     deleteUserPermission: builder.mutation<void, DeleteUserPermissionDto>({
       query: ({ projectName, repoName, id }) => ({
-        url: `/v1/metadata/${projectName}/repos/${repoName}/perm/users/${id}`,
+        url: `/api/v1/metadata/${projectName}/repos/${repoName}/perm/users/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Metadata'],
     }),
     addTokenPermission: builder.mutation<void, AddUserPermissionDto>({
       query: ({ projectName, repoName, data }) => ({
-        url: `/v1/metadata/${projectName}/repos/${repoName}/perm/tokens`,
+        url: `/api/v1/metadata/${projectName}/repos/${repoName}/perm/tokens`,
         method: 'POST',
         body: data,
       }),
@@ -187,18 +192,18 @@ export const apiSlice = createApi({
     }),
     deleteTokenPermission: builder.mutation<void, DeleteUserPermissionDto>({
       query: ({ projectName, repoName, id }) => ({
-        url: `/v1/metadata/${projectName}/repos/${repoName}/perm/tokens/${id}`,
+        url: `/api/v1/metadata/${projectName}/repos/${repoName}/perm/tokens/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Metadata'],
     }),
     getRepos: builder.query<RepoDto[], string>({
-      query: (projectName) => `/v1/projects/${projectName}/repos`,
+      query: (projectName) => `/api/v1/projects/${projectName}/repos`,
       providesTags: ['Repo'],
     }),
     addNewRepo: builder.mutation({
       query: ({ projectName, data }) => ({
-        url: `/v1/projects/${projectName}/repos`,
+        url: `/api/v1/projects/${projectName}/repos`,
         method: 'POST',
         body: data,
       }),
@@ -206,14 +211,14 @@ export const apiSlice = createApi({
     }),
     deleteRepo: builder.mutation({
       query: ({ projectName, repoName }) => ({
-        url: `/v1/projects/${projectName}/repos/${repoName}`,
+        url: `/api/v1/projects/${projectName}/repos/${repoName}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Repo'],
     }),
     restoreRepo: builder.mutation({
       query: ({ projectName, repoName }) => ({
-        url: `/v1/projects/${projectName}/repos/${repoName}`,
+        url: `/api/v1/projects/${projectName}/repos/${repoName}`,
         method: 'PATCH',
         headers: {
           'Content-type': 'application/json-patch+json; charset=UTF-8',
@@ -224,17 +229,17 @@ export const apiSlice = createApi({
     }),
     getFiles: builder.query<FileDto[], GetFilesByProjectAndRepoName>({
       query: ({ projectName, repoName, revision, filePath }) =>
-        `/v1/projects/${projectName}/repos/${repoName}/list${filePath || ''}?revision=${revision || 'head'}`,
+        `/api/v1/projects/${projectName}/repos/${repoName}/list${filePath || ''}?revision=${revision || 'head'}`,
       providesTags: ['File'],
     }),
     getFileContent: builder.query<FileContentDto, GetFileContent>({
       query: ({ projectName, repoName, filePath }) =>
-        `/v1/projects/${projectName}/repos/${repoName}/contents/${filePath}`,
+        `/api/v1/projects/${projectName}/repos/${repoName}/contents/${filePath}`,
       providesTags: ['File'],
     }),
     pushFileChanges: builder.mutation({
       query: ({ projectName, repoName, data }) => ({
-        url: `/v1/projects/${projectName}/repos/${repoName}/contents`,
+        url: `/api/v1/projects/${projectName}/repos/${repoName}/contents`,
         method: 'POST',
         body: data,
       }),
@@ -242,21 +247,21 @@ export const apiSlice = createApi({
     }),
     getHistory: builder.query<HistoryDto[], GetHistory>({
       query: ({ projectName, repoName, revision, to }) =>
-        `/v1/projects/${projectName}/repos/${repoName}/commits/${revision}?to=${to}`,
+        `/api/v1/projects/${projectName}/repos/${repoName}/commits/${revision}?to=${to}`,
       providesTags: ['File'],
     }),
     getNormalisedRevision: builder.query<RevisionDto, GetNormalisedRevision>({
       query: ({ projectName, repoName, revision }) =>
-        `/v1/projects/${projectName}/repos/${repoName}/revision/${revision}`,
+        `/api/v1/projects/${projectName}/repos/${repoName}/revision/${revision}`,
       providesTags: ['File'],
     }),
     getTokens: builder.query<TokenDto[], void>({
-      query: () => '/v1/tokens',
+      query: () => '/api/v1/tokens',
       providesTags: ['Token'],
     }),
     addNewToken: builder.mutation({
       query: ({ data }) => ({
-        url: `/v1/tokens`,
+        url: `/api/v1/tokens`,
         method: 'POST',
         body: data,
         headers: {
@@ -267,7 +272,7 @@ export const apiSlice = createApi({
     }),
     deactivateToken: builder.mutation({
       query: ({ appId }) => ({
-        url: `/v1/tokens/${appId}`,
+        url: `/api/v1/tokens/${appId}`,
         method: 'PATCH',
         body: [{ op: 'replace', path: '/status', value: 'inactive' }],
         headers: {
@@ -278,7 +283,7 @@ export const apiSlice = createApi({
     }),
     activateToken: builder.mutation({
       query: ({ appId }) => ({
-        url: `/v1/tokens/${appId}`,
+        url: `/api/v1/tokens/${appId}`,
         method: 'PATCH',
         body: [{ op: 'replace', path: '/status', value: 'active' }],
         headers: {
@@ -289,22 +294,22 @@ export const apiSlice = createApi({
     }),
     deleteToken: builder.mutation({
       query: ({ appId }) => ({
-        url: `/v1/tokens/${appId}`,
+        url: `/api/v1/tokens/${appId}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Token'],
     }),
     getMirrors: builder.query<MirrorDto[], string>({
-      query: (projectName) => `/v1/projects/${projectName}/mirrors`,
+      query: (projectName) => `/api/v1/projects/${projectName}/mirrors`,
       providesTags: ['Metadata'],
     }),
     getMirror: builder.query<MirrorDto, { projectName: string; id: string }>({
-      query: ({ projectName, id }) => `/v1/projects/${projectName}/mirrors/${id}`,
+      query: ({ projectName, id }) => `/api/v1/projects/${projectName}/mirrors/${id}`,
       providesTags: ['Metadata'],
     }),
     addNewMirror: builder.mutation<any, MirrorDto>({
       query: (mirror) => ({
-        url: `/v1/projects/${mirror.projectName}/mirrors`,
+        url: `/api/v1/projects/${mirror.projectName}/mirrors`,
         method: 'POST',
         body: mirror,
       }),
@@ -312,23 +317,23 @@ export const apiSlice = createApi({
     }),
     updateMirror: builder.mutation<any, { projectName: string; id: string; mirror: MirrorDto }>({
       query: ({ projectName, id, mirror }) => ({
-        url: `/v1/projects/${projectName}/mirrors/${id}`,
+        url: `/api/v1/projects/${projectName}/mirrors/${id}`,
         method: 'PUT',
         body: mirror,
       }),
       invalidatesTags: ['Metadata'],
     }),
     getCredentials: builder.query<CredentialDto[], string>({
-      query: (projectName) => `/v1/projects/${projectName}/credentials`,
+      query: (projectName) => `/api/v1/projects/${projectName}/credentials`,
       providesTags: ['Metadata'],
     }),
     getCredential: builder.query<CredentialDto, { projectName: string; id: string }>({
-      query: ({ projectName, id }) => `/v1/projects/${projectName}/credentials/${id}`,
+      query: ({ projectName, id }) => `/api/v1/projects/${projectName}/credentials/${id}`,
       providesTags: ['Metadata'],
     }),
     addNewCredential: builder.mutation<any, { projectName: string; credential: CredentialDto }>({
       query: ({ projectName, credential }) => ({
-        url: `/v1/projects/${projectName}/credentials`,
+        url: `/api/v1/projects/${projectName}/credentials`,
         method: 'POST',
         body: credential,
       }),
@@ -336,11 +341,18 @@ export const apiSlice = createApi({
     }),
     updateCredential: builder.mutation<any, { projectName: string; id: string; credential: CredentialDto }>({
       query: ({ projectName, id, credential }) => ({
-        url: `/v1/projects/${projectName}/credentials/${id}`,
+        url: `/api/v1/projects/${projectName}/credentials/${id}`,
         method: 'PUT',
         body: credential,
       }),
       invalidatesTags: ['Metadata'],
+    }),
+    getTitle: builder.query<TitleDto, void>({
+      query: () => ({
+        baseUrl: '',
+        url: `/title`,
+        method: 'GET',
+      }),
     }),
   }),
 });
@@ -390,4 +402,6 @@ export const {
   useGetCredentialQuery,
   useAddNewCredentialMutation,
   useUpdateCredentialMutation,
+  // Title
+  useGetTitleQuery,
 } = apiSlice;

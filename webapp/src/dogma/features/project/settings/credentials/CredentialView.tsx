@@ -37,8 +37,8 @@ import { GoKey, GoLock } from 'react-icons/go';
 import { EditIcon } from '@chakra-ui/icons';
 import React, { ReactNode, useState } from 'react';
 import { AppDispatch } from 'dogma/store';
-import { useAppDispatch } from 'dogma/hooks';
-import { createMessage } from 'dogma/features/message/messageSlice';
+import { useAppDispatch, useAppSelector } from 'dogma/hooks';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
 import { IconType } from 'react-icons';
 import { HiOutlineIdentification, HiOutlineUser } from 'react-icons/hi';
 
@@ -62,36 +62,42 @@ interface SecretViewerProps {
 
 const SecretViewer = ({ dispatch, secretProvider }: SecretViewerProps) => {
   const [showSecret, setShowSecret] = useState(false);
+  const admin = useAppSelector((state) => state.auth.user.admin);
   return (
     <Flex wrap="wrap">
       <Code width="500px" p={10} whiteSpace="pre-wrap">
-        {showSecret ? secretProvider() : '********'}
+        {showSecret ? secretProvider() : '****'}
       </Code>
-      <Button
-        aria-label="Show key"
-        size="xs"
-        color="teal.500"
-        marginTop={1}
-        bottom={-2}
-        right={28}
-        onClick={() => setShowSecret(!showSecret)}
-      >
-        {showSecret ? 'Hide' : 'Show'}
-      </Button>
-      <Button
-        aria-label="Copy key"
-        size="xs"
-        color="purple"
-        marginTop={1}
-        bottom={-2}
-        right={28}
-        onClick={async () => {
-          await navigator.clipboard.writeText(secretProvider());
-          dispatch(createMessage({ title: '', text: 'copied to clipboard', type: 'success' }));
-        }}
-      >
-        Copy
-      </Button>
+
+      {admin ? (
+        <div>
+          <Button
+            aria-label="Show key"
+            size="xs"
+            color="teal.500"
+            marginTop={1}
+            bottom={-2}
+            right={28}
+            onClick={() => setShowSecret(!showSecret)}
+          >
+            {showSecret ? 'Hide' : 'Show'}
+          </Button>
+          <Button
+            aria-label="Copy key"
+            size="xs"
+            color="purple"
+            marginTop={1}
+            bottom={-2}
+            right={28}
+            onClick={async () => {
+              await navigator.clipboard.writeText(secretProvider());
+              dispatch(newNotification('', 'copied to clipboard', 'success'));
+            }}
+          >
+            Copy
+          </Button>
+        </div>
+      ) : null}
     </Flex>
   );
 };

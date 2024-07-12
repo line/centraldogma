@@ -17,8 +17,8 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { UserDto } from 'dogma/features/auth/UserDto';
 import axios from 'axios';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
-import { createMessage } from 'dogma/features/message/messageSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
 
 axios.defaults.baseURL = process.env.NEXT_PUBLIC_HOST || '';
 
@@ -39,8 +39,8 @@ export const getUser = createAsyncThunk('/auth/user', async (_, { getState, disp
     if (typeof window !== 'undefined') {
       localStorage.removeItem('sessionId');
     }
-    const error: string = ErrorHandler.handle(err);
-    dispatch(createMessage({ title: '', text: error, type: 'error' }));
+    const error: string = ErrorMessageParser.parse(err);
+    dispatch(newNotification('', error, 'error'));
     return rejectWithValue(error);
   }
 });
@@ -67,8 +67,8 @@ export const login = createAsyncThunk(
       if (typeof window !== 'undefined') {
         localStorage.removeItem('sessionId');
       }
-      const error: string = ErrorHandler.handle(err);
-      dispatch(createMessage({ title: '', text: error, type: 'error' }));
+      const error: string = ErrorMessageParser.parse(err);
+      dispatch(newNotification('', error, 'error'));
       return rejectWithValue(error);
     }
   },
@@ -84,9 +84,9 @@ export const checkSecurityEnabled = createAsyncThunk(
         localStorage.removeItem('sessionId');
       }
 
-      const error: string = ErrorHandler.handle(err);
+      const error: string = ErrorMessageParser.parse(err);
       if (err.response && err.response.status === 404) {
-        dispatch(createMessage({ title: '', text: 'Accessing Central Dogma in anonymous mode', type: 'info' }));
+        dispatch(newNotification('', 'Accessing Central Dogma in anonymous mode', 'info'));
       }
 
       return rejectWithValue(error);
@@ -106,13 +106,14 @@ export const logout = createAsyncThunk('/auth/logout', async (_, { getState, dis
       localStorage.removeItem('sessionId');
     }
   } catch (err) {
-    const error: string = ErrorHandler.handle(err);
-    dispatch(createMessage({ title: '', text: error, type: 'error' }));
+    const error: string = ErrorMessageParser.parse(err);
+    dispatch(newNotification('', error, 'error'));
     return rejectWithValue(error);
   }
 });
 
 const sessionId = typeof window !== 'undefined' && localStorage.getItem('sessionId');
+
 export interface AuthState {
   isInAnonymousMode: boolean;
   sessionId: string;

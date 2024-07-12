@@ -13,8 +13,8 @@ import {
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { useAddNewTokenMemberMutation } from 'dogma/features/api/apiSlice';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 
 export const ConfirmAddToken = ({
@@ -40,23 +40,11 @@ export const ConfirmAddToken = ({
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      dispatch(
-        createMessage({
-          title: 'New token saved',
-          text: `Successfully added ${id}`,
-          type: 'success',
-        }),
-      );
+      dispatch(newNotification('New token saved', `Successfully added ${id}`, 'success'));
       onClose();
       resetForm();
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to add ${id}`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to add ${id}`, ErrorMessageParser.parse(error), 'error'));
     }
   };
   return (

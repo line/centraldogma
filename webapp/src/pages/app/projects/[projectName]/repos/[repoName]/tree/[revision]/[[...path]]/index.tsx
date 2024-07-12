@@ -19,9 +19,9 @@ import FileList from 'dogma/features/file/FileList';
 import { useRouter } from 'next/router';
 import HistoryList from 'dogma/features/history/HistoryList';
 import React, { useState } from 'react';
-import { createMessage, resetState } from 'dogma/features/message/messageSlice';
+import { newNotification, resetState } from 'dogma/features/notification/notificationSlice';
 import { useAppDispatch } from 'dogma/hooks';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { CopySupport } from 'dogma/features/file/CopySupport';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { AiOutlinePlus } from 'react-icons/ai';
@@ -31,6 +31,7 @@ import { Deferred } from 'dogma/common/components/Deferred';
 import { FcOpenedFolder } from 'react-icons/fc';
 import { GoRepo } from 'react-icons/go';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
+import { WithProjectRole } from 'dogma/features/auth/ProjectRole';
 
 type UrlAndSegment = {
   segment: string;
@@ -64,10 +65,10 @@ const RepositoryDetailPage = () => {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      dispatch(createMessage({ title: '', text: 'copied to clipboard', type: 'success' }));
+      dispatch(newNotification('', 'copied to clipboard', 'success'));
     } catch (err) {
-      const error: string = ErrorHandler.handle(err);
-      dispatch(createMessage({ title: 'failed to copy to clipboard', text: error, type: 'error' }));
+      const error: string = ErrorMessageParser.parse(err);
+      dispatch(newNotification('failed to copy to clipboard', error, 'error'));
     } finally {
       dispatch(resetState());
     }
@@ -121,7 +122,6 @@ cat ${project}/${repo}${path}`;
     { projectName, repoName, revision, filePath },
     {
       refetchOnMountOrArgChange: true,
-      skip: false,
     },
   );
   const {
@@ -188,11 +188,15 @@ cat ${project}/${repo}${path}`;
                 <Flex gap={2}>
                   <Spacer />
                   {projectName == 'dogma' ? null : (
-                    <MetadataButton
-                      href={`/app/projects/${projectName}/repos/${repoName}/permissions`}
-                      props={{ size: 'sm' }}
-                      text={'Repository Permissions'}
-                    />
+                    <WithProjectRole projectName={projectName} roles={['OWNER']}>
+                      {() => (
+                        <MetadataButton
+                          href={`/app/projects/${projectName}/repos/${repoName}/permissions`}
+                          props={{ size: 'sm' }}
+                          text={'Repository Permissions'}
+                        />
+                      )}
+                    </WithProjectRole>
                   )}
                   <Button
                     as={Link}

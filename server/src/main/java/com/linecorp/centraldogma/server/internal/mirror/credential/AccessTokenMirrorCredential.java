@@ -31,6 +31,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+
 public final class AccessTokenMirrorCredential extends AbstractMirrorCredential {
 
     private static final Logger logger = LoggerFactory.getLogger(AccessTokenMirrorCredential.class);
@@ -92,5 +94,10 @@ public final class AccessTokenMirrorCredential extends AbstractMirrorCredential 
     @Override
     void addProperties(ToStringHelper helper) {
         // Access token must be kept secret.
+    }
+
+    @Override
+    public MirrorCredential withoutSecret() {
+        return new AccessTokenMirrorCredential(id(), enabled(), hostnamePatterns(), "****");
     }
 }

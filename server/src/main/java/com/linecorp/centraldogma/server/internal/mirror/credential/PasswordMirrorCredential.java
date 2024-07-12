@@ -32,6 +32,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+
 public final class PasswordMirrorCredential extends AbstractMirrorCredential {
 
     private static final Logger logger = LoggerFactory.getLogger(PasswordMirrorCredential.class);
@@ -64,7 +66,7 @@ public final class PasswordMirrorCredential extends AbstractMirrorCredential {
         } catch (Throwable t) {
             // The password probably has `:` without prefix. Just return it as is for backward compatibility.
             logger.debug("Failed to convert the password of the credential. username: {}, id: {}",
-                         username, id(), t);
+                    username, id(), t);
             return password;
         }
     }
@@ -103,5 +105,10 @@ public final class PasswordMirrorCredential extends AbstractMirrorCredential {
     @Override
     void addProperties(ToStringHelper helper) {
         helper.add("username", username);
+    }
+
+    @Override
+    public MirrorCredential withoutSecret() {
+        return new PasswordMirrorCredential(id(), enabled(), hostnamePatterns(), username(), "****");
     }
 }

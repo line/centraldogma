@@ -24,8 +24,8 @@ import { DiscardChangesModal } from 'dogma/common/components/editor/DiscardChang
 import { DeleteFileModal } from 'dogma/common/components/editor/DeleteFileModal';
 import { CommitForm } from 'dogma/common/components/CommitForm';
 import { useAppDispatch } from 'dogma/hooks';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { newNotification } from 'dogma/features/notification/notificationSlice';
+import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import Router from 'next/router';
 
 export type FileEditorProps = {
@@ -46,13 +46,7 @@ const FileEditor = ({ projectName, repoName, language, originalContent, path, na
         typeof originalContent === 'string' ? originalContent : JSON.stringify(originalContent),
       );
     } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to format json content.`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
+      dispatch(newNotification(`Failed to format json content.`, ErrorMessageParser.parse(error), 'error'));
     }
   }
   const [tabIndex, setTabIndex] = useState(0);
