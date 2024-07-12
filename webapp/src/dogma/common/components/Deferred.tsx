@@ -16,7 +16,6 @@
 import {Spinner, Text, useColorMode, VStack} from '@chakra-ui/react';
 import Error from 'next/error';
 import {ReactNode} from 'react';
-import {useRouter} from 'next/router';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 
 interface LoadingProps {
