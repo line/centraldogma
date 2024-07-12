@@ -15,15 +15,11 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTER_FILE;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTER_REPO;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ENDPOINT_FILE;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ENDPOINT_REPO;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENER_FILE;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENER_REPO;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ROUTE_FILE;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ROUTE_REPO;
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTERS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ENDPOINTS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENERS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ROUTES_DIRECTORY;
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 
 import java.net.URI;
 
@@ -38,6 +34,7 @@ import com.google.protobuf.util.Durations;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.envoyproxy.envoy.config.bootstrap.v3.Bootstrap;
@@ -74,6 +71,16 @@ import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3
 final class XdsTestUtil {
 
     static final String CONFIG_SOURCE_CLUSTER_NAME = "dogma/cluster";
+
+    static void createXdsProject(ProjectManager pm, MetadataService metadataService, String xdsProjectName) {
+        pm.get(XDS_CENTRAL_DOGMA_PROJECT).repos().create(xdsProjectName, Author.SYSTEM);
+        metadataService.addRepo(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, xdsProjectName).join();
+    }
+
+    static void removeXdsProject(ProjectManager pm, MetadataService metadataService, String xdsProjectName) {
+        pm.get(XDS_CENTRAL_DOGMA_PROJECT).repos().remove(xdsProjectName);
+        metadataService.removeRepo(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, xdsProjectName).join();
+    }
 
     static LbEndpoint endpoint(String address, int port) {
         final SocketAddress socketAddress = SocketAddress.newBuilder()
@@ -249,35 +256,60 @@ final class XdsTestUtil {
         return builder.build();
     }
 
-    static ClusterLoadAssignment createEndpointAndCommit(String clusterName, ProjectManager projectManager) {
+    static ClusterLoadAssignment createEndpointAndCommit(String xdsProjectName, String clusterName,
+                                                         ProjectManager projectManager) {
+        final String fileName = endpointFileName(xdsProjectName, clusterName);
         final ClusterLoadAssignment endpoint = loadAssignment(clusterName, "localhost", 1);
-        commit(endpoint, projectManager, ENDPOINT_REPO, clusterName, ENDPOINT_FILE);
+        commit(endpoint, projectManager, xdsProjectName, clusterName, fileName);
         return endpoint;
     }
 
-    static Cluster createClusterAndCommit(String clusterName, int connectTimeoutSeconds,
+    static Cluster createClusterAndCommit(String xdsProjectName, String clusterName, int connectTimeoutSeconds,
                                           ProjectManager projectManager) {
+        final String fileName = clusterFileName(xdsProjectName, clusterName);
         final Cluster cluster = cluster(clusterName, connectTimeoutSeconds);
-        commit(cluster, projectManager, CLUSTER_REPO, clusterName, CLUSTER_FILE);
+        commit(cluster, projectManager, xdsProjectName, clusterName, fileName);
         return cluster;
     }
 
-    static RouteConfiguration createRouteConfigurationAndCommit(String routeName, String clusterName,
-                                                                ProjectManager projectManager) {
+    static RouteConfiguration createRouteConfigurationAndCommit(
+            String xdsProjectName, String routeName, String clusterName, ProjectManager projectManager) {
+        final String fileName = routeFileName(xdsProjectName, routeName);
         final RouteConfiguration routeConfiguration = routeConfiguration(routeName, clusterName);
-        commit(routeConfiguration, projectManager, ROUTE_REPO, routeName, ROUTE_FILE);
+        commit(routeConfiguration, projectManager, xdsProjectName, routeName, fileName);
         return routeConfiguration;
     }
 
-    static Listener createListenerAndCommit(String listenerName, String routeName, String statPrefix,
-                                            ProjectManager projectManager) {
+    static Listener createListenerAndCommit(String xdsProjectName, String listenerName, String routeName,
+                                            String statPrefix, ProjectManager projectManager) {
+        final String fileName = listenerFileName(xdsProjectName, listenerName);
         final Listener listener = exampleListener(listenerName, routeName, statPrefix);
-        commit(listener, projectManager, LISTENER_REPO, routeName, LISTENER_FILE);
+        commit(listener, projectManager, xdsProjectName, routeName, fileName);
         return listener;
     }
 
+    static String clusterFileName(String xdsProjectName, String clusterName) {
+        assert clusterName.startsWith(xdsProjectName + '/');
+        return CLUSTERS_DIRECTORY + clusterName.substring(xdsProjectName.length() + 1) + ".json";
+    }
+
+    static String endpointFileName(String xdsProjectName, String clusterName) {
+        assert clusterName.startsWith(xdsProjectName + '/');
+        return ENDPOINTS_DIRECTORY + clusterName.substring(xdsProjectName.length() + 1) + ".json";
+    }
+
+    static String listenerFileName(String xdsProjectName, String listenerName) {
+        assert listenerName.startsWith(xdsProjectName + '/');
+        return LISTENERS_DIRECTORY + listenerName.substring(xdsProjectName.length() + 1) + ".json";
+    }
+
+    static String routeFileName(String xdsProjectName, String routeName) {
+        assert routeName.startsWith(xdsProjectName + '/');
+        return ROUTES_DIRECTORY + routeName.substring(xdsProjectName.length() + 1) + ".json";
+    }
+
     static void commit(MessageOrBuilder message, ProjectManager projectManager,
-                       String repoName, String clusterName, String fileName) {
+                       String repoName, String resourceName, String fileName) {
         final String json;
         try {
             json = JsonFormatUtil.printer().print(message);
@@ -285,12 +317,11 @@ final class XdsTestUtil {
             // Should never reach here.
             throw new Error(e);
         }
-        final Change<JsonNode> echoCluster =
-                Change.ofJsonUpsert('/' + clusterName + '/' + fileName, json);
-        projectManager.get(INTERNAL_PROJECT_DOGMA)
+        final Change<JsonNode> xdsResource = Change.ofJsonUpsert(fileName, json);
+        projectManager.get(XDS_CENTRAL_DOGMA_PROJECT)
                       .repos()
                       .get(repoName)
-                      .commit(Revision.HEAD, 0, Author.SYSTEM, "Add " + clusterName, echoCluster).join();
+                      .commit(Revision.HEAD, 0, Author.SYSTEM, "Add " + resourceName, xdsResource).join();
     }
 
     private XdsTestUtil() {}

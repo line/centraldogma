@@ -414,7 +414,6 @@ public class CentralDogma implements AutoCloseable {
             assert projectInitializer != null;
             if (executor.isWritable()) {
                 logger.info("Started the command executor.");
-                projectInitializer.initialize();
             }
 
             logger.info("Starting the RPC server.");
@@ -498,6 +497,7 @@ public class CentralDogma implements AutoCloseable {
         final ServerStatus initialServerStatus = statusManager.serverStatus();
         executor.setWritable(initialServerStatus.writable());
         if (!initialServerStatus.replicating()) {
+            projectInitializer.whenInitialized().complete(null);
             return executor;
         }
         try {
@@ -518,7 +518,9 @@ public class CentralDogma implements AutoCloseable {
 
             // Trigger the exception if any.
             startFuture.get();
+            projectInitializer.initialize();
         } catch (Exception e) {
+            projectInitializer.whenInitialized().complete(null);
             logger.warn("Failed to start the command executor. Entering read-only.", e);
         }
 
