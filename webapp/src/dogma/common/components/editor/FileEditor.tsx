@@ -190,7 +190,7 @@ const FileEditor = ({ projectName, repoName, language, originalContent, path, na
         repoName={repoName}
         path={path}
         name={name}
-        content={editorRef?.current?.getValue()}
+        content={() => editorRef?.current?.getValue()}
         readOnly={readOnly}
         setReadOnly={setReadOnly}
         switchMode={switchMode}

@@ -14,14 +14,27 @@
  * under the License.
  */
 import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
-import { Box, HStack, IconButton, Tooltip } from '@chakra-ui/react';
+import {
+  Box,
+  Button,
+  Flex,
+  HStack,
+  IconButton,
+  Menu,
+  MenuButton,
+  MenuItemOption,
+  MenuList,
+  MenuOptionGroup,
+  Spacer,
+  Tooltip,
+} from '@chakra-ui/react';
 import { FcServices } from 'react-icons/fc';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { RestoreProject } from 'dogma/features/project/RestoreProject';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { useAppSelector } from 'dogma/hooks';
@@ -32,11 +45,17 @@ import { Author } from 'dogma/common/components/Author';
 import { FiBox } from 'react-icons/fi';
 import { FaTrashAlt } from 'react-icons/fa';
 import { WithProjectRole } from 'dogma/features/auth/ProjectRole';
+import { ChevronDownIcon } from '@chakra-ui/icons';
 
 export const Projects = () => {
-  const { user } = useAppSelector((state) => state.auth);
+  const { user, isInAnonymousMode } = useAppSelector((state) => state.auth);
   const { data: projects, error, isLoading } = useGetProjectsQuery({ admin: user?.admin || false });
   const columnHelper = createColumnHelper<ProjectDto>();
+  const [filterType, setFilterType] = useState('all');
+  let filteredProjects = projects;
+  if (projects && !isInAnonymousMode && filterType === 'me') {
+    filteredProjects = projects.filter((project) => project.creator?.name === user?.name);
+  }
   const columns = useMemo(
     () => [
       columnHelper.accessor((row: ProjectDto) => row.name, {
@@ -117,7 +136,31 @@ export const Projects = () => {
   );
   return (
     <Deferred isLoading={isLoading} error={error}>
-      {() => <DataTableClientPagination columns={columns} data={projects} />}
+      {() => (
+        <Box>
+          {!isInAnonymousMode && (
+            <Flex gap={2}>
+              <Spacer />
+              <Menu>
+                <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
+                  Type
+                </MenuButton>
+                <MenuList>
+                  <MenuOptionGroup
+                    defaultValue="all"
+                    type="radio"
+                    onChange={(type) => setFilterType(type as string)}
+                  >
+                    <MenuItemOption value="all">All</MenuItemOption>
+                    <MenuItemOption value="me">Created by me</MenuItemOption>
+                  </MenuOptionGroup>
+                </MenuList>
+              </Menu>
+            </Flex>
+          )}
+          <DataTableClientPagination columns={columns} data={filteredProjects} />
+        </Box>
+      )}
     </Deferred>
   );
 };
