@@ -17,7 +17,7 @@ export type CommitFormProps = {
   repoName: string;
   path: string;
   name: string;
-  content: string;
+  content: () => string;
   readOnly: boolean;
   setReadOnly: (readOnly: boolean) => void;
   switchMode: () => void;
@@ -39,6 +39,7 @@ export const CommitForm = ({
   const { register, handleSubmit, reset } = useForm<FormData>();
   const dispatch = useAppDispatch();
   const onSubmit = async (formData: FormData) => {
+    const newContent = content();
     const data = {
       commitMessage: {
         summary: formData.summary,
@@ -48,13 +49,13 @@ export const CommitForm = ({
         {
           path: path,
           type: name.endsWith('.json') ? 'UPSERT_JSON' : 'UPSERT_TEXT',
-          content: content,
+          content: newContent,
         },
       ],
     };
     if (name.endsWith('.json')) {
       try {
-        JSON.parse(content);
+        JSON.parse(newContent);
       } catch (error) {
         dispatch(newNotification(`Failed to format json content.`, ErrorMessageParser.parse(error), 'error'));
         return;
