@@ -62,7 +62,8 @@ public class CredentialServiceV1 extends AbstractService {
      */
     @RequiresReadPermission(repository = Project.REPO_META)
     @Get("/projects/{projectName}/credentials")
-    public CompletableFuture<List<MirrorCredential>> listCredentials(User loginUser, @Param String projectName) {
+    public CompletableFuture<List<MirrorCredential>> listCredentials(User loginUser,
+                                                                     @Param String projectName) {
         final CompletableFuture<List<MirrorCredential>> future = metaRepo(projectName).credentials();
         if (loginUser.isAdmin()) {
             return future;
@@ -82,7 +83,8 @@ public class CredentialServiceV1 extends AbstractService {
      */
     @RequiresReadPermission(repository = Project.REPO_META)
     @Get("/projects/{projectName}/credentials/{id}")
-    public CompletableFuture<MirrorCredential> getCredentialById(User loginUser, @Param String projectName, @Param String id) {
+    public CompletableFuture<MirrorCredential> getCredentialById(User loginUser,
+                                                                 @Param String projectName, @Param String id) {
         final CompletableFuture<MirrorCredential> future = metaRepo(projectName).credential(id);
         if (loginUser.isAdmin()) {
             return future;

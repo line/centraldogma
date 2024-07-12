@@ -164,6 +164,7 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
 
     @Override
     public MirrorCredential withoutSecret() {
-        return new PublicKeyMirrorCredential(id(), enabled(), hostnamePatterns(), username(), publicKey(), "****", "****");
+        return new PublicKeyMirrorCredential(id(), enabled(), hostnamePatterns(), username(), publicKey(),
+                                             "****", "****");
     }
 }
