@@ -47,11 +47,11 @@ const FileEditor = ({ projectName, repoName, language, originalContent, path, na
       );
     } catch (error) {
       dispatch(
-        newNotification({
-          title: `Failed to format json content.`,
-          text: ErrorMessageParser.parse(error),
-          type: 'error',
-        }),
+        newNotification(
+          `Failed to format json content.`,
+          ErrorMessageParser.parse(error),
+          'error',
+        ),
       );
     }
   }
