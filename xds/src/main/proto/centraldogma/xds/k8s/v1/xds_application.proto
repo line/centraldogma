@@ -1,0 +1,62 @@
+// Copyright 2024 LINE Corporation
+//
+// LINE Corporation licenses this file to you under the Apache License,
+// version 2.0 (the "License"); you may not use this file except in compliance
+// with the License. You may obtain a copy of the License at:
+//
+//   https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+syntax = "proto3";
+
+package centraldogma.xds.application.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "XdsApplicationProto";
+option java_package = "com.linecorp.centraldogma.xds.application.v1";
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+
+// An XdsApplicationService provides methods to manage applications.
+service XdsApplicationService {
+
+  // Creates a new application.
+  rpc CreateApplication(CreateApplicationRequest) returns (Application) {
+    option (google.api.http) = {
+      post: "/api/v1/xds/applications"
+      body: "application"
+    };
+  }
+
+  // Deletes an application.
+  rpc DeleteApplication(DeleteApplicationRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/api/v1/xds/{name=applications/*}"
+    };
+  }
+}
+
+message CreateApplicationRequest {
+  Application application = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message DeleteApplicationRequest {
+  // Format: applications/{application}
+  string name = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // If set to true, any xds Resources from this application will also be deleted.
+  // (Otherwise, the request will only work if the application has no xDS resources.)
+  // bool force = 2;
+}
+
+message Application {
+  // Format: applications/{application}
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+}
