@@ -48,7 +48,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.Author;
@@ -352,8 +351,10 @@ final class MirroringMigrationService {
         final JsonNode idNode = credential.get("id");
         final String projectName = repository.parent().name();
         if (idNode == null) {
+            final JsonNode typeNode = credential.get("type");
+            final String type = typeNode.isTextual() ? typeNode.asText() : "";
             // Fill the 'id' field with a random value if not exists.
-            id = generateIdForCredential(projectName);
+            id = generateIdForCredential(projectName, type);
         } else {
             id = idNode.asText();
         }
@@ -407,11 +408,10 @@ final class MirroringMigrationService {
 
     /**
      * Generates a reproducible ID for the given mirror.
-     * Pattern: {@code mirror-<projectName>-<localRepo>-<shortWord>}.
+     * Pattern: {@code mirror-<projectName>-<localRepo>}.
      */
-    private String generateIdForMirror(String projectName, ObjectNode mirror) {
-        final String id = "mirror-" + projectName + '-' + mirror.get("localRepo").asText();
-        return id + '-' + getShortWord(id);
+    private static String generateIdForMirror(String projectName, ObjectNode mirror) {
+        return "mirror-" + projectName + '-' + mirror.get("localRepo").asText();
     }
 
     private String getShortWord(String id) {
@@ -424,30 +424,31 @@ final class MirroringMigrationService {
 
     /**
      * Generates a reproducible ID for the given credential.
-     * Pattern: {@code credential-<projectName>-<shortWord>}.
+     * Pattern: {@code credential-<projectName>-<type>}.
      */
-    private String generateIdForCredential(String projectName) {
-        final String id = "credential-" + projectName;
-        return id + '-' + getShortWord(projectName);
+    private static String generateIdForCredential(String projectName, String type) {
+        String id = "credential-" + projectName;
+        if (!type.isEmpty()) {
+            id += '-' + type;
+        }
+        return id;
     }
 
-    private static String uniquify(String id, Set<String> existingIds) {
-        int suffix = 1;
+    private String uniquify(String id, Set<String> existingIds) {
         String maybeUnique = id;
         while (existingIds.contains(maybeUnique)) {
-            maybeUnique = id + '-' + suffix++;
+            maybeUnique = id + '-' + getShortWord(maybeUnique);
         }
         return maybeUnique;
     }
 
-    private static List<String> buildShortWords() {
+    @VisibleForTesting
+    static List<String> buildShortWords() {
         // TODO(ikhoon) Remove 'short_wordlist.txt' if Central Dogma version has been updated enough and
         //              we can assume that all users have already migrated.
         final InputStream is = MirroringMigrationService.class.getResourceAsStream("short_wordlist.txt");
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
-            final ImmutableList.Builder<String> words = ImmutableList.builder();
-            words.add(reader.readLine());
-            return words.build();
+            return reader.lines().collect(toImmutableList());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
