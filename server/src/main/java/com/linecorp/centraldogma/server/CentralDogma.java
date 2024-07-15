@@ -817,23 +817,21 @@ public class CentralDogma implements AutoCloseable {
                                .annotatedService(new CredentialServiceV1(projectApiManager, executor));
         }
 
-        // TODO(ikhoon): Use context-path API once https://github.com/line/armeria/pull/5797 is fixed.
-        sb.annotatedService()
-          .pathPrefix(API_V1_PATH_PREFIX)
-          .defaultServiceNaming(new ServiceNaming() {
-              private final String serviceName = ContentServiceV1.class.getName();
-              private final String watchServiceName =
-                      serviceName.replace("ContentServiceV1", "WatchContentServiceV1");
+        apiV1ServiceBuilder.annotatedService()
+                           .defaultServiceNaming(new ServiceNaming() {
+                               private final String serviceName = ContentServiceV1.class.getName();
+                               private final String watchServiceName =
+                                       serviceName.replace("ContentServiceV1", "WatchContentServiceV1");
 
-              @Override
-              public String serviceName(ServiceRequestContext ctx) {
-                  if (ctx.request().headers().contains(HttpHeaderNames.IF_NONE_MATCH)) {
-                      return watchServiceName;
-                  }
-                  return serviceName;
-              }
-          })
-          .build(new ContentServiceV1(executor, watchService, meterRegistry));
+                               @Override
+                               public String serviceName(ServiceRequestContext ctx) {
+                                   if (ctx.request().headers().contains(HttpHeaderNames.IF_NONE_MATCH)) {
+                                       return watchServiceName;
+                                   }
+                                   return serviceName;
+                               }
+                           })
+                           .build(new ContentServiceV1(executor, watchService, meterRegistry));
 
         sb.annotatedService()
           .decorator(decorator)
