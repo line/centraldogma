@@ -20,12 +20,21 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
 
+import com.linecorp.armeria.server.annotation.JacksonRequestConverterFunction;
+import com.linecorp.armeria.server.annotation.RequestConverter;
+import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
+import com.linecorp.centraldogma.server.internal.api.converter.HttpApiResponseConverter;
 
 /**
  * A base service class for HTTP API.
  */
+@RequestConverter(HttpApiRequestConverter.class)
+@RequestConverter(JacksonRequestConverterFunction.class)
+// Do not need jacksonResponseConverterFunction because HttpApiResponseConverter handles the JSON data.
+@ResponseConverter(HttpApiResponseConverter.class)
 public class AbstractService {
 
     private final CommandExecutor executor;

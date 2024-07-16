@@ -34,7 +34,6 @@ import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
-import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.HttpResult;
 import com.linecorp.armeria.server.annotation.Param;
@@ -58,7 +57,6 @@ import com.linecorp.centraldogma.server.metadata.User;
  * Annotated service object for managing {@link Token}s.
  */
 @ProducesJson
-@ExceptionHandler(HttpApiExceptionHandler.class)
 public class TokenService extends AbstractService {
 
     private static final JsonNode activation = Jackson.valueToTree(

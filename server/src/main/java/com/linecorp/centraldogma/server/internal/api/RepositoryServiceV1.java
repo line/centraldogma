@@ -37,7 +37,6 @@ import com.linecorp.armeria.common.logging.RequestOnlyLog;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
-import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
@@ -66,7 +65,6 @@ import io.micrometer.core.instrument.Tag;
  * Annotated service object for managing repositories.
  */
 @ProducesJson
-@ExceptionHandler(HttpApiExceptionHandler.class)
 public class RepositoryServiceV1 extends AbstractService {
 
     private final MetadataService mds;
