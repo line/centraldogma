@@ -57,16 +57,17 @@ public final class XdsApplicationService extends XdsApplicationServiceImplBase {
         final String applicationName = request.getApplication().getName();
         final String name = removePrefix("applications/", applicationName);
         if (projectManager.get(XDS_CENTRAL_DOGMA_PROJECT).repos().exists(name)) {
-            throwAlreadyExists(name);
+            throw alreadyExistsException(name);
         }
         createRepository(commandExecutor, mds, currentAuthor(), XDS_CENTRAL_DOGMA_PROJECT, name)
                 .handle((unused, cause) -> {
                     if (cause != null) {
                         if (cause instanceof RepositoryExistsException) {
-                            throwAlreadyExists(name);
+                            responseObserver.onError(alreadyExistsException(name));
+                        } else {
+                            responseObserver.onError(
+                                    Status.INTERNAL.withCause(cause).asRuntimeException());
                         }
-                        responseObserver.onError(
-                                Status.INTERNAL.withCause(cause).asRuntimeException());
                         return null;
                     }
                     responseObserver.onNext(Application.newBuilder().setName(applicationName).build());
@@ -83,9 +84,9 @@ public final class XdsApplicationService extends XdsApplicationServiceImplBase {
         return name.substring(prefix.length());
     }
 
-    private static void throwAlreadyExists(String applicationName) {
-        throw Status.ALREADY_EXISTS.withDescription("Application already exists: " + applicationName)
-                                   .asRuntimeException();
+    private static RuntimeException alreadyExistsException(String applicationName) {
+        return Status.ALREADY_EXISTS.withDescription("Application already exists: " + applicationName)
+                                    .asRuntimeException();
     }
 
     @Override
@@ -108,6 +109,7 @@ public final class XdsApplicationService extends XdsApplicationServiceImplBase {
                         responseObserver.onError(
                                 Status.INTERNAL.withDescription("Failed to delete " + applicationName)
                                                .withCause(cause1).asRuntimeException());
+                        return null;
                     }
                     responseObserver.onNext(Empty.getDefaultInstance());
                     responseObserver.onCompleted();
