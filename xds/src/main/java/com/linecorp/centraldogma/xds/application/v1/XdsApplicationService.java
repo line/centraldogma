@@ -59,7 +59,6 @@ public final class XdsApplicationService extends XdsApplicationServiceImplBase {
         if (projectManager.get(XDS_CENTRAL_DOGMA_PROJECT).repos().exists(name)) {
             throwAlreadyExists(name);
         }
-        // Use the real author after https://github.com/line/centraldogma/pull/969 is merged
         createRepository(commandExecutor, mds, currentAuthor(), XDS_CENTRAL_DOGMA_PROJECT, name)
                 .handle((unused, cause) -> {
                     if (cause != null) {

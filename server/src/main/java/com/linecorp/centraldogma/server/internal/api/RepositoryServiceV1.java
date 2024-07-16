@@ -145,13 +145,9 @@ public class RepositoryServiceV1 extends AbstractService {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
                                              "A reserved repository cannot be removed.");
         }
-        final String projectName = repository.parent().name();
-        final MetadataService mds = this.mds;
-        final CommandExecutor commandExecutor = executor();
-        final CompletableFuture<Revision> future =
-                RepositoryServiceUtil.removeRepository(commandExecutor, mds, author, projectName, repoName);
-        return future
-                .handle(HttpApiUtil::throwUnsafelyIfNonNull);
+        return RepositoryServiceUtil.removeRepository(executor(), mds, author,
+                                                      repository.parent().name(), repoName)
+                                    .handle(HttpApiUtil::throwUnsafelyIfNonNull);
     }
 
     /**

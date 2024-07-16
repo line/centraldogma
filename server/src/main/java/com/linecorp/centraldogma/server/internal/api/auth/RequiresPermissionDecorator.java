@@ -63,7 +63,7 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
                                 @Nullable String projectName,
                                 @Nullable String repoName) {
         super(delegate);
-        this.mds = mds;
+        this.mds = requireNonNull(mds, "mds");
         this.requiredPermission = requireNonNull(requiredPermission, "requiredPermission");
         this.projectName = projectName;
         this.repoName = repoName;
