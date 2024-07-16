@@ -25,6 +25,7 @@ import com.google.protobuf.Empty;
 
 import com.linecorp.armeria.client.grpc.GrpcClients;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
@@ -59,6 +60,7 @@ class XdsApplicationServiceTest {
 
     private static AggregatedHttpResponse createApplication(String applicationName) {
         final RequestHeaders headers = RequestHeaders.builder(HttpMethod.POST, "/api/v1/xds/applications")
+                                                     .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                                                      .contentType(MediaType.JSON_UTF_8).build();
         return dogma.httpClient().execute(headers, "{\"application\": {\"name\":\"" + applicationName + "\"}}")
             .aggregate().join();
@@ -81,13 +83,19 @@ class XdsApplicationServiceTest {
     }
 
     private static AggregatedHttpResponse deleteApplication(String applicationName) {
-        return dogma.httpClient().delete("/api/v1/xds/" + applicationName).aggregate().join();
+        final RequestHeaders headers =
+                RequestHeaders.builder(HttpMethod.DELETE, "/api/v1/xds/" + applicationName)
+                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                              .build();
+        return dogma.httpClient().execute(headers).aggregate().join();
     }
 
     @Test
     void createAndDeleteApplicationViaStub() {
-        final XdsApplicationServiceBlockingStub client = GrpcClients.newClient(
-                dogma.httpClient().uri(), XdsApplicationServiceBlockingStub.class);
+        final XdsApplicationServiceBlockingStub client =
+                GrpcClients.builder(dogma.httpClient().uri())
+                           .setHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                           .build(XdsApplicationServiceBlockingStub.class);
         final Application application = client.createApplication(
                 CreateApplicationRequest.newBuilder()
                                         .setApplication(Application.newBuilder()

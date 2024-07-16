@@ -146,12 +146,15 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                                                    .addService(server.getListenerDiscoveryServiceImpl())
                                                    .addService(server.getRouteDiscoveryServiceImpl())
                                                    .addService(server.getAggregatedDiscoveryServiceImpl())
-                                                   .addService(new XdsApplicationService(
-                                                           projectManager, pluginInitContext.commandExecutor()))
-                                                   .enableHttpJsonTranscoding(true)
                                                    .useBlockingTaskExecutor(true)
                                                    .build();
         sb.route().build(grpcService);
+        final GrpcService xdsApplicationService =
+                GrpcService.builder()
+                           .addService(new XdsApplicationService(
+                                   projectManager, pluginInitContext.commandExecutor()))
+                           .enableHttpJsonTranscoding(true).build();
+        sb.service(xdsApplicationService, pluginInitContext.authService());
     }
 
     private void setXdsResources(String path, String contentAsText, String repoName)

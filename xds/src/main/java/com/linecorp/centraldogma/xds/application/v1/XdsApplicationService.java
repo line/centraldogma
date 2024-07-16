@@ -15,13 +15,13 @@
  */
 package com.linecorp.centraldogma.xds.application.v1;
 
+import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil.createRepository;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil.removeRepository;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 
 import com.google.protobuf.Empty;
 
-import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
@@ -60,14 +60,14 @@ public final class XdsApplicationService extends XdsApplicationServiceImplBase {
             throwAlreadyExists(name);
         }
         // Use the real author after https://github.com/line/centraldogma/pull/969 is merged
-        createRepository(commandExecutor, mds, Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, name)
+        createRepository(commandExecutor, mds, currentAuthor(), XDS_CENTRAL_DOGMA_PROJECT, name)
                 .handle((unused, cause) -> {
                     if (cause != null) {
                         if (cause instanceof RepositoryExistsException) {
                             throwAlreadyExists(name);
                         }
                         responseObserver.onError(
-                                new StatusRuntimeException(Status.INTERNAL.withCause(cause)));
+                                Status.INTERNAL.withCause(cause).asRuntimeException());
                         return null;
                     }
                     responseObserver.onNext(Application.newBuilder().setName(applicationName).build());
@@ -85,8 +85,8 @@ public final class XdsApplicationService extends XdsApplicationServiceImplBase {
     }
 
     private static void throwAlreadyExists(String applicationName) {
-        throw new StatusRuntimeException(
-                Status.ALREADY_EXISTS.withDescription("Application already exists: " + applicationName));
+        throw Status.ALREADY_EXISTS.withDescription("Application already exists: " + applicationName)
+                                   .asRuntimeException();
     }
 
     @Override
@@ -94,25 +94,25 @@ public final class XdsApplicationService extends XdsApplicationServiceImplBase {
         final String applicationName = request.getName();
         final String name = removePrefix("applications/", applicationName);
         if (!projectManager.get(XDS_CENTRAL_DOGMA_PROJECT).repos().exists(name)) {
-            throw new StatusRuntimeException(
-                    Status.NOT_FOUND.withDescription("Application does not exist: " + applicationName));
+            throw Status.NOT_FOUND.withDescription("Application does not exist: " + applicationName)
+                                  .asRuntimeException();
         }
         if (Project.isReservedRepoName(name)) {
-            throw new StatusRuntimeException(
-                    Status.PERMISSION_DENIED.withDescription("Now allowed to delete " + applicationName));
+            throw Status.PERMISSION_DENIED.withDescription("Now allowed to delete " + applicationName)
+                                          .asRuntimeException();
         }
 
-        // Check the permission and return PERMISSION_DENIED if the user does not have the permission.
-        removeRepository(commandExecutor, mds, Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, name)
-                       .handle((unused, cause) -> {
-                           if (cause != null) {
-                               responseObserver.onError(new StatusRuntimeException(
-                                       Status.INTERNAL.withDescription("Failed to delete " + applicationName)
-                                                      .withCause(cause)));
-                           }
-                           responseObserver.onNext(Empty.getDefaultInstance());
-                           responseObserver.onCompleted();
-                           return null;
-                       });
+        // TODO(minwoox): Check the permission.
+        removeRepository(commandExecutor, mds, currentAuthor(), XDS_CENTRAL_DOGMA_PROJECT, name)
+                .handle((unused, cause1) -> {
+                    if (cause1 != null) {
+                        responseObserver.onError(
+                                Status.INTERNAL.withDescription("Failed to delete " + applicationName)
+                                               .withCause(cause1).asRuntimeException());
+                    }
+                    responseObserver.onNext(Empty.getDefaultInstance());
+                    responseObserver.onCompleted();
+                    return null;
+                });
     }
 }

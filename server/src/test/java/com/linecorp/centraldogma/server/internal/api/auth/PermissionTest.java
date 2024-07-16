@@ -24,7 +24,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.File;
 import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Order;
@@ -39,13 +38,13 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.DependencyInjector;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.metric.NoopMeterRegistry;
-import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Get;
@@ -59,10 +58,12 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresPermissionDecorator.RequiresReadPermissionDecoratorFactory;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresPermissionDecorator.RequiresWritePermissionDecoratorFactory;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRoleDecorator.RequiresRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.metadata.Permission;
 import com.linecorp.centraldogma.server.metadata.ProjectRole;
@@ -124,10 +125,11 @@ class PermissionTest {
             // app-2 is a member and it has read-only permission.
             mds.addToken(AUTHOR, "project1", APP_ID_2, ProjectRole.MEMBER)
                .toCompletableFuture().join();
-
-            final Function<? super HttpService, ? extends HttpService> decorator =
-                    MetadataServiceInjector.newDecorator(mds).andThen(AuthService.newDecorator(
-                            new ApplicationTokenAuthorizer(mds::findTokenBySecret)));
+            sb.dependencyInjector(
+                    DependencyInjector.ofSingletons(new RequiresReadPermissionDecoratorFactory(mds),
+                                                    new RequiresWritePermissionDecoratorFactory(mds),
+                                                    new RequiresRoleDecoratorFactory(mds)),
+                    false);
             sb.annotatedService(new Object() {
                 @Get("/projects/{projectName}")
                 @RequiresRole(roles = { ProjectRole.OWNER, ProjectRole.MEMBER })
@@ -148,7 +150,7 @@ class PermissionTest {
                                          @Param String repoName) {
                     return HttpResponse.of(HttpStatus.OK);
                 }
-            }, decorator);
+            }, AuthService.newDecorator(new ApplicationTokenAuthorizer(mds::findTokenBySecret)));
 
             sb.errorHandler(new HttpApiExceptionHandler());
         }

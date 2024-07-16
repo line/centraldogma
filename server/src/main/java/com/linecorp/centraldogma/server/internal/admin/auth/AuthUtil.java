@@ -41,12 +41,16 @@ public final class AuthUtil {
     public static Author currentAuthor(ServiceRequestContext ctx) {
         final User user = ctx.attr(CURRENT_USER);
         assert user != null;
-        return user == User.DEFAULT ? Author.DEFAULT
-                                    : new Author(user.name(), user.email());
+        return getAuthor(user);
     }
 
     public static Author currentAuthor() {
         return currentAuthor(RequestContext.current());
+    }
+
+    public static Author getAuthor(User user) {
+        return user == User.DEFAULT ? Author.DEFAULT
+                                    : new Author(user.name(), user.email());
     }
 
     public static User currentUser(ServiceRequestContext ctx) {
