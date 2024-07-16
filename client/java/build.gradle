@@ -1,3 +1,4 @@
 dependencies {
     implementation libs.javassist
+    optionalImplementation libs.armeria
 }

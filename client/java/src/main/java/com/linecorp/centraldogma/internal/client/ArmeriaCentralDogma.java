@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.client.armeria;
+package com.linecorp.centraldogma.internal.client;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -108,7 +108,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 
-final class ArmeriaCentralDogma extends AbstractCentralDogma {
+public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private static final MediaType JSON_PATCH_UTF8 = MediaType.JSON_PATCH.withCharset(StandardCharsets.UTF_8);
 
@@ -138,7 +138,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     private final WebClient client;
     private final String authorization;
 
-    ArmeriaCentralDogma(ScheduledExecutorService blockingTaskExecutor, WebClient client, String accessToken) {
+    public ArmeriaCentralDogma(ScheduledExecutorService blockingTaskExecutor,
+                               WebClient client, String accessToken) {
         super(blockingTaskExecutor);
         this.client = requireNonNull(client, "client");
         authorization = "Bearer " + requireNonNull(accessToken, "accessToken");

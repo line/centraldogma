@@ -24,6 +24,7 @@ import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.encoding.DecodingClient;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.internal.client.ArmeriaCentralDogma;
 import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
 
 /**
