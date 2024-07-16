@@ -1,0 +1,11 @@
+dependencies {
+    api project(':client:java-armeria')
+
+    // Armeria
+    api libs.armeria.xds
+
+    testImplementation libs.controlplane.server
+    testImplementation libs.controlplane.cache
+    testImplementation libs.armeria.junit5
+    testImplementation libs.jackson.dataformat.yaml
+}

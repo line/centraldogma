@@ -633,6 +633,11 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
         return convertedCause;
     }
 
+    @Override
+    public void close() {
+        endpointGroup.close();
+    }
+
     @FunctionalInterface
     private interface ThriftCall<T> {
         void apply(ThriftFuture<T> callback) throws TException;
