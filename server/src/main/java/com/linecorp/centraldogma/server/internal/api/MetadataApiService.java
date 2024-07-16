@@ -35,7 +35,6 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
-import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
@@ -47,6 +46,7 @@ import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.server.QuotaConfig;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
@@ -61,8 +61,7 @@ import com.linecorp.centraldogma.server.metadata.User;
  */
 @ProducesJson
 @RequiresRole(roles = ProjectRole.OWNER)
-@ExceptionHandler(HttpApiExceptionHandler.class)
-public class MetadataApiService {
+public class MetadataApiService extends AbstractService {
 
     private static final TypeReference<Collection<Permission>> permissionsTypeRef =
             new TypeReference<Collection<Permission>>() {};
@@ -70,7 +69,9 @@ public class MetadataApiService {
     private final MetadataService mds;
     private final Function<String, String> loginNameNormalizer;
 
-    public MetadataApiService(MetadataService mds, Function<String, String> loginNameNormalizer) {
+    public MetadataApiService(CommandExecutor executor, MetadataService mds,
+                              Function<String, String> loginNameNormalizer) {
+        super(executor);
         this.mds = requireNonNull(mds, "mds");
         this.loginNameNormalizer = requireNonNull(loginNameNormalizer, "loginNameNormalizer");
     }

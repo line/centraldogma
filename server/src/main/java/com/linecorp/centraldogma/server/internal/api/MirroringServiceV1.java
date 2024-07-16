@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.armeria.server.annotation.ConsumesJson;
-import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
@@ -45,7 +44,6 @@ import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
  * Annotated service object for managing mirroring service.
  */
 @ProducesJson
-@ExceptionHandler(HttpApiExceptionHandler.class)
 public class MirroringServiceV1 extends AbstractService {
 
     // TODO(ikhoon):

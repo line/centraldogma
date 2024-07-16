@@ -34,7 +34,6 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.Delete;
-import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
@@ -45,6 +44,7 @@ import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.CreateProjectRequest;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
@@ -57,12 +57,12 @@ import com.linecorp.centraldogma.server.storage.project.Project;
  * Annotated service object for managing projects.
  */
 @ProducesJson
-@ExceptionHandler(HttpApiExceptionHandler.class)
-public class ProjectServiceV1 {
+public class ProjectServiceV1 extends AbstractService {
 
     private final ProjectApiManager projectApiManager;
 
-    public ProjectServiceV1(ProjectApiManager projectApiManager) {
+    public ProjectServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor) {
+        super(executor);
         this.projectApiManager = requireNonNull(projectApiManager, "projectApiManager");
     }
 

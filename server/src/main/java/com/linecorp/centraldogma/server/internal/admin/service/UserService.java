@@ -21,15 +21,18 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.server.annotation.Get;
+import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.metadata.User;
 
 /**
  * Annotated service object for managing users.
  */
+@ResponseConverter(RestfulJsonResponseConverter.class)
 public class UserService extends AbstractService {
 
     public UserService(CommandExecutor executor) {
