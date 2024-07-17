@@ -61,7 +61,6 @@ import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -288,9 +287,9 @@ class CachingRepositoryTest {
         doReturn(new RevisionRange(10, 1)).when(delegateRepo).normalizeNow(new Revision(10), new Revision(-10));
 
         // Uncached
-        when(delegateRepo.diff(any(), any(), any(String.class), any())).thenReturn(completedFuture(changes));
+        when(delegateRepo.diff(any(), any(), any(String.class))).thenReturn(completedFuture(changes));
         assertThat(repo.diff(HEAD, INIT, "/**").join()).isEqualTo(changes);
-        verify(delegateRepo).diff(INIT, new Revision(10), "/**", DiffResultType.NORMAL);
+        verify(delegateRepo).diff(INIT, new Revision(10), "/**");
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
@@ -299,7 +298,7 @@ class CachingRepositoryTest {
         assertThat(repo.diff(HEAD, INIT, "/**").join()).isEqualTo(changes);
         assertThat(repo.diff(new Revision(10), new Revision(-10), "/**").join()).isEqualTo(changes);
         assertThat(repo.diff(new Revision(10), INIT, "/**").join()).isEqualTo(changes);
-        verify(delegateRepo, never()).diff(any(), any(), any(Query.class), any());
+        verify(delegateRepo, never()).diff(any(), any(), any(Query.class));
         verifyNoMoreInteractions(delegateRepo);
     }
 

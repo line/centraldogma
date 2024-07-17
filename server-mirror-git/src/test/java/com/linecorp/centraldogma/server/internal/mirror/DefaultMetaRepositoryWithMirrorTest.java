@@ -21,6 +21,7 @@ import static com.linecorp.centraldogma.server.internal.storage.repository.Mirro
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.File;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletionException;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -91,6 +93,9 @@ class DefaultMetaRepositoryWithMirrorTest {
 
     private static final CronParser cronParser = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
+
+    @TempDir
+    static File rootDir;
 
     private static ProjectManager pm;
 

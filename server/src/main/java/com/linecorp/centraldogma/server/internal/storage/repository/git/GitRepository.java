@@ -117,7 +117,6 @@ import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -672,9 +671,17 @@ class GitRepository implements Repository {
         }
     }
 
+    /**
+     * Get the diff between any two valid revisions.
+     *
+     * @param from revision from
+     * @param to revision to
+     * @param pathPattern target path pattern
+     * @return the map of changes mapped by path
+     * @throws StorageException if {@code from} or {@code to} does not exist.
+     */
     @Override
-    public CompletableFuture<Map<String, Change<?>>> diff(Revision from, Revision to, String pathPattern,
-                                                          DiffResultType diffResultType) {
+    public CompletableFuture<Map<String, Change<?>>> diff(Revision from, Revision to, String pathPattern) {
         final ServiceRequestContext ctx = context();
         return CompletableFuture.supplyAsync(() -> {
             requireNonNull(from, "from");
@@ -691,8 +698,8 @@ class GitRepository implements Repository {
 
                 // Compare the two Git trees.
                 // Note that we do not cache here because CachingRepository caches the final result already.
-                return toChangeMap(blockingCompareTreesUncached(
-                        treeA, treeB, pathPatternFilterOrTreeFilter(pathPattern)), diffResultType);
+                return toChangeMap(blockingCompareTreesUncached(treeA, treeB,
+                                                                pathPatternFilterOrTreeFilter(pathPattern)));
             } catch (StorageException e) {
                 throw e;
             } catch (Exception e) {
@@ -743,7 +750,7 @@ class GitRepository implements Repository {
             p.reset(reader, baseTreeId);
             diffFormatter.setRepository(jGitRepository);
             final List<DiffEntry> result = diffFormatter.scan(p, new DirCacheIterator(dirCache));
-            return toChangeMap(result, DiffResultType.NORMAL);
+            return toChangeMap(result);
         } catch (IOException e) {
             throw new StorageException("failed to perform a dry-run diff", e);
         } finally {
@@ -751,7 +758,7 @@ class GitRepository implements Repository {
         }
     }
 
-    private Map<String, Change<?>> toChangeMap(List<DiffEntry> diffEntryList, DiffResultType diffResultType) {
+    private Map<String, Change<?>> toChangeMap(List<DiffEntry> diffEntryList) {
         try (ObjectReader reader = jGitRepository.newObjectReader()) {
             final Map<String, Change<?>> changeMap = new LinkedHashMap<>();
 
@@ -778,13 +785,8 @@ class GitRepository implements Repository {
                                         JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE);
 
                                 if (!patch.isEmpty()) {
-                                    if (diffResultType == DiffResultType.PATCH_TO_UPSERT) {
-                                        putChange(changeMap, newPath,
-                                                  Change.ofJsonUpsert(newPath, newJsonNode));
-                                    } else {
-                                        putChange(changeMap, newPath,
-                                                  Change.ofJsonPatch(newPath, Jackson.valueToTree(patch)));
-                                    }
+                                    putChange(changeMap, newPath,
+                                              Change.ofJsonPatch(newPath, Jackson.valueToTree(patch)));
                                 }
                                 break;
                             case TEXT:
@@ -799,12 +801,8 @@ class GitRepository implements Repository {
                                 }
 
                                 if (!oldText.equals(newText)) {
-                                    if (diffResultType == DiffResultType.PATCH_TO_UPSERT) {
-                                        putChange(changeMap, newPath, Change.ofTextUpsert(newPath, newText));
-                                    } else {
-                                        putChange(changeMap, newPath,
-                                                  Change.ofTextPatch(newPath, oldText, newText));
-                                    }
+                                    putChange(changeMap, newPath,
+                                              Change.ofTextPatch(newPath, oldText, newText));
                                 }
                                 break;
                             default:

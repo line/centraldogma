@@ -18,60 +18,43 @@ package com.linecorp.centraldogma.xds.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Map;
-
 import org.junit.jupiter.api.Test;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
-import io.envoyproxy.controlplane.cache.Resources.ResourceType;
+import com.linecorp.centraldogma.common.Revision;
+
 import io.envoyproxy.controlplane.cache.SnapshotResources;
-import io.envoyproxy.controlplane.cache.VersionedResource;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 
 class CentralDogmaSnapshotResourcesTest {
 
     @Test
     void resourceVersion() {
-        final ImmutableMap.Builder<String, Map<String, VersionedResource<Cluster>>> builder =
-                ImmutableMap.builder();
-        builder.put("foo", ImmutableMap.<String, VersionedResource<Cluster>>builder()
-                                       .put("foo/cluster", VersionedResource.create(
-                                               Cluster.newBuilder().setName("foo/cluster").build()))
-                                       .build());
-        builder.put("bar", ImmutableMap.<String, VersionedResource<Cluster>>builder()
-                                       .put("bar/cluster", VersionedResource.create(
-                                               Cluster.newBuilder().setName("bar/cluster").build()))
-                                       .build());
-        builder.put("baz", ImmutableMap.<String, VersionedResource<Cluster>>builder()
-                                       .put("baz/cluster", VersionedResource.create(
-                                               Cluster.newBuilder().setName("baz/cluster").build()))
-                                       .build());
+        final Cluster fooCluster = Cluster.newBuilder().setName("foo").build();
+        final Cluster barCluster = Cluster.newBuilder().setName("bar").build();
+        final Cluster bazCluster = Cluster.newBuilder().setName("baz").build();
         final SnapshotResources<Cluster> snapshotResources = CentralDogmaSnapshotResources.create(
-                builder.build(), ResourceType.CLUSTER);
+                ImmutableList.of(fooCluster, barCluster, bazCluster), new Revision(3));
 
         // Each resource has different versions.
-        final String fooVersion = snapshotResources.version(ImmutableList.of("foo/cluster"));
-        assertThat(fooVersion.length()).isEqualTo(64); // sha 256 hash length is 64. 256/4
-        final String barVersion = snapshotResources.version(ImmutableList.of("bar/cluster"));
-        assertThat(barVersion.length()).isEqualTo(64);
+        final String fooVersion = snapshotResources.version(ImmutableList.of("foo"));
+        final String barVersion = snapshotResources.version(ImmutableList.of("bar"));
         assertThat(fooVersion).isNotEqualTo(barVersion);
 
-        assertThat(snapshotResources.version(ImmutableList.of())).isEqualTo(
-                snapshotResources.version(ImmutableList.of("foo/cluster", "bar/cluster", "baz/cluster")));
+        // The version of all resources is the revision of the snapshot.
+        assertThat(snapshotResources.version(ImmutableList.of())).isEqualTo("3");
+        assertThat(snapshotResources.version(ImmutableList.of("foo", "bar", "baz"))).isEqualTo("3");
 
         // The version for more than one resource is a hash of the versions of the resources.
-        final String fooBarVersion = snapshotResources.version(ImmutableList.of("foo/cluster", "bar/cluster"));
-        assertThat(fooBarVersion.length()).isEqualTo(64);
+        final String fooBarVersion = snapshotResources.version(ImmutableList.of("foo", "bar"));
         assertThat(fooBarVersion).isNotEqualTo(fooVersion);
         assertThat(fooBarVersion).isNotEqualTo(barVersion);
 
         // Order of resource names does not matter.
-        assertThat(fooBarVersion).isEqualTo(snapshotResources.version(
-                ImmutableList.of("bar/cluster", "foo/cluster")));
+        assertThat(fooBarVersion).isEqualTo(snapshotResources.version(ImmutableList.of("bar", "foo")));
 
         // Resources that do not exist are ignored.
-        assertThat(snapshotResources.version(ImmutableList.of("foo/cluster", "bar/cluster", "qux/cluster")))
+        assertThat(snapshotResources.version(ImmutableList.of("foo", "bar", "qux"))) // qux does not exist
                 .isEqualTo(fooBarVersion);
     }
 }

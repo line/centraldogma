@@ -16,26 +16,25 @@
 
 package com.linecorp.centraldogma.xds.internal;
 
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTER_FILE;
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTER_REPO;
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENER_FILE;
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENER_REPO;
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ROUTE_FILE;
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ROUTE_REPO;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.cluster;
-import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.clusterFileName;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.commit;
-import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createXdsProject;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.httpConnectionManager;
-import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.listenerFileName;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.rdsConfigSource;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.routeConfiguration;
-import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.routeFileName;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import java.io.File;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.testcontainers.containers.Network;
@@ -47,9 +46,6 @@ import com.google.protobuf.Any;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
-import com.linecorp.centraldogma.server.management.ServerStatusManager;
-import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
@@ -67,14 +63,13 @@ import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3
 @Testcontainers(disabledWithoutDocker = true)
 final class DiscoveryServiceItTest {
 
-    private static final String FOO_XDS_PROJECT_NAME = "foo";
-    private static final String ECHO_CLUSTER = "foo/echo_cluster";
+    private static final String ECHO_CLUSTER = "echo_cluster";
     private static final String ECHO_CLUSTER_ADDRESS = "echo_upstream";
-    private static final String NO_ECHO_CLUSTER = "foo/no_echo_cluster";
+    private static final String NO_ECHO_CLUSTER = "no_echo_cluster";
     private static final String NO_ECHO_CLUSTER_ADDRESS = "no_echo_upstream";
 
-    private static final String ECHO_ROUTE = "foo/echo_route";
-    private static final String ECHO_LISTENER = "foo/echo_listener";
+    private static final String ECHO_ROUTE = "echo_route";
+    private static final String ECHO_LISTENER = "echo_listener";
 
     // Using 10000 is fine because this port is used in the container. The port is exposed with a different
     // port number which you can get via ContainerState.getMappedPort().
@@ -88,9 +83,6 @@ final class DiscoveryServiceItTest {
             return true;
         }
     };
-
-    @TempDir
-    static File tempDir;
 
     private static final Network NETWORK = Network.newNetwork();
 
@@ -106,24 +98,14 @@ final class DiscoveryServiceItTest {
 
     @BeforeEach
     void setUp() {
-        final StandaloneCommandExecutor executor = new StandaloneCommandExecutor(
-                dogma.projectManager(), ForkJoinPool.commonPool(),
-                new ServerStatusManager(tempDir), null, null, null);
-        executor.start().join();
-        final MetadataService metadataService = new MetadataService(dogma.projectManager(), executor);
-        createXdsProject(dogma.projectManager(), metadataService, FOO_XDS_PROJECT_NAME);
         final Cluster echoCluster = createEchoCluster(true);
-        commit(echoCluster, dogma.projectManager(), FOO_XDS_PROJECT_NAME, ECHO_CLUSTER,
-               clusterFileName(FOO_XDS_PROJECT_NAME, ECHO_CLUSTER));
+        commit(echoCluster, dogma.projectManager(), CLUSTER_REPO, ECHO_CLUSTER, CLUSTER_FILE);
         final Cluster noEchoCluster = createEchoCluster(false);
-        commit(noEchoCluster, dogma.projectManager(), FOO_XDS_PROJECT_NAME, NO_ECHO_CLUSTER,
-               clusterFileName(FOO_XDS_PROJECT_NAME, NO_ECHO_CLUSTER));
+        commit(noEchoCluster, dogma.projectManager(), CLUSTER_REPO, NO_ECHO_CLUSTER, CLUSTER_FILE);
         final RouteConfiguration route = createEchoRoute(true);
-        commit(route, dogma.projectManager(), FOO_XDS_PROJECT_NAME, ECHO_ROUTE,
-               routeFileName(FOO_XDS_PROJECT_NAME, ECHO_ROUTE));
+        commit(route, dogma.projectManager(), ROUTE_REPO, ECHO_ROUTE, ROUTE_FILE);
         final Listener listener = createEchoListener();
-        commit(listener, dogma.projectManager(), FOO_XDS_PROJECT_NAME, ECHO_LISTENER,
-               listenerFileName(FOO_XDS_PROJECT_NAME, ECHO_LISTENER));
+        commit(listener, dogma.projectManager(), LISTENER_REPO, ECHO_LISTENER, LISTENER_FILE);
     }
 
     @AfterAll
@@ -150,8 +132,7 @@ final class DiscoveryServiceItTest {
 
             // Change the route to noEchoCluster.
             final RouteConfiguration route = createEchoRoute(false);
-            commit(route, dogma.projectManager(), FOO_XDS_PROJECT_NAME, ECHO_ROUTE,
-                   routeFileName(FOO_XDS_PROJECT_NAME, ECHO_ROUTE));
+            commit(route, dogma.projectManager(), ROUTE_REPO, ECHO_ROUTE, ROUTE_FILE);
 
             await().atMost(5, TimeUnit.SECONDS)
                    .ignoreExceptions()
