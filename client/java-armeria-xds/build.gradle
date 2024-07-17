@@ -7,4 +7,5 @@ dependencies {
     testImplementation libs.controlplane.server
     testImplementation libs.controlplane.cache
     testImplementation libs.armeria.junit5
+    testImplementation libs.jackson.dataformat.yaml
 }

@@ -198,11 +198,14 @@ javadocs = "https://fasterxml.github.io/jackson-core/javadoc/2.13/"
 [libraries.jackson-databind]
 module = "com.fasterxml.jackson.core:jackson-databind"
 javadocs = "https://fasterxml.github.io/jackson-databind/javadoc/2.13/"
+[libraries.jackson-dataformat-yaml]
+module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml"
 [libraries.jackson-datatype-jsr310]
 module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
 # Only used for testing. See JacksonRequestConverterFunctionTest for more information.
 [libraries.jackson-module-scala]
 module = "com.fasterxml.jackson.module:jackson-module-scala_3"
+
 
 [libraries.javassist]
 module = "org.javassist:javassist"
