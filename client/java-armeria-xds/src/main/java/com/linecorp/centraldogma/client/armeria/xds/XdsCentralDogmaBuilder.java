@@ -188,7 +188,6 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
      * Returns a newly-created {@link CentralDogma} instance.
      */
     public CentralDogma build() {
-        // FIXME: need to close this
         final XdsBootstrap xdsBootstrap = xdsBootstrap();
         final EndpointGroup endpointGroup = XdsEndpointGroup.of(xdsBootstrap.listenerRoot(LISTENER_NAME));
         final String scheme = "none+" + (isUseTls() ? "https" : "http");
@@ -202,7 +201,7 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
 
         final CentralDogma dogma = new ArmeriaCentralDogma(blockingTaskExecutor,
                                                            builder.build(WebClient.class),
-                                                           accessToken());
+                                                           accessToken(), xdsBootstrap);
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;
         } else {

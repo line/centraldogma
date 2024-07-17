@@ -28,6 +28,7 @@ import java.util.function.Function;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
@@ -48,7 +49,7 @@ import com.linecorp.centraldogma.common.RevisionNotFoundException;
 /**
  * Central Dogma client.
  */
-public interface CentralDogma {
+public interface CentralDogma extends SafeCloseable {
 
     /**
      * Returns a new {@link CentralDogmaRepository} that is used to send a request to the specified

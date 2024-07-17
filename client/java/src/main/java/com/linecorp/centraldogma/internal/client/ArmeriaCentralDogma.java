@@ -137,12 +137,14 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private final WebClient client;
     private final String authorization;
+    private final SafeCloseable safeCloseable;
 
     public ArmeriaCentralDogma(ScheduledExecutorService blockingTaskExecutor,
-                               WebClient client, String accessToken) {
+                               WebClient client, String accessToken, SafeCloseable safeCloseable) {
         super(blockingTaskExecutor);
         this.client = requireNonNull(client, "client");
         authorization = "Bearer " + requireNonNull(accessToken, "accessToken");
+        this.safeCloseable = safeCloseable;
     }
 
     @Override
@@ -1136,5 +1138,10 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
 
         throw new CentralDogmaException("unexpected response: " + res.headers() + ", " + res.contentUtf8());
+    }
+
+    @Override
+    public void close() {
+        safeCloseable.close();
     }
 }

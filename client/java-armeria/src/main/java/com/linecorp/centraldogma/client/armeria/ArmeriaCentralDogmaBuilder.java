@@ -51,7 +51,8 @@ public final class ArmeriaCentralDogmaBuilder
 
         final CentralDogma dogma = new ArmeriaCentralDogma(blockingTaskExecutor,
                                                            builder.build(WebClient.class),
-                                                           accessToken());
+                                                           accessToken(),
+                                                           endpointGroup::close);
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;
         } else {
