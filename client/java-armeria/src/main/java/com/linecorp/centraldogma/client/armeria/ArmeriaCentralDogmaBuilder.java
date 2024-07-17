@@ -24,8 +24,8 @@ import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.encoding.DecodingClient;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.internal.client.ArmeriaCentralDogma;
 import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
+import com.linecorp.centraldogma.internal.client.armeria.ArmeriaCentralDogma;
 
 /**
  * Builds a {@link CentralDogma} client based on an <a href="https://line.github.io/armeria/">Armeria</a>

@@ -42,8 +42,8 @@ import com.linecorp.armeria.xds.client.endpoint.XdsEndpointGroup;
 import com.linecorp.centraldogma.client.AbstractCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaClientConfigurator;
-import com.linecorp.centraldogma.internal.client.ArmeriaCentralDogma;
 import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
+import com.linecorp.centraldogma.internal.client.armeria.ArmeriaCentralDogma;
 
 import io.envoyproxy.envoy.config.bootstrap.v3.Bootstrap;
 import io.envoyproxy.envoy.config.bootstrap.v3.Bootstrap.DynamicResources;

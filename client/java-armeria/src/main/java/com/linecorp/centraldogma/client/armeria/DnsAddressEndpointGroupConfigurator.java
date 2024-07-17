@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.client.armeria;
 
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroupBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.internal.client.ArmeriaCentralDogma;
+import com.linecorp.centraldogma.internal.client.armeria.ArmeriaCentralDogma;
 
 /**
  * Configures the DNS resolution of the <a href="https://line.github.io/armeria/">Armeria</a> client of

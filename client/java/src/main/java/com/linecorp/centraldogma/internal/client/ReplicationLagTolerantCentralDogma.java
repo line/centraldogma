@@ -798,7 +798,7 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     }
 
     @Override
-    public void close() {
+    public void close() throws Exception {
         delegate.close();
     }
 
