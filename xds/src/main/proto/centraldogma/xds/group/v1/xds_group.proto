@@ -13,50 +13,50 @@
 // under the License.
 syntax = "proto3";
 
-package centraldogma.xds.application.v1;
+package centraldogma.xds.group.v1;
 
 option java_multiple_files = true;
-option java_outer_classname = "XdsApplicationProto";
-option java_package = "com.linecorp.centraldogma.xds.application.v1";
+option java_outer_classname = "XdsGroupProto";
+option java_package = "com.linecorp.centraldogma.xds.group.v1";
 
 import "google/api/annotations.proto";
 import "google/api/client.proto";
 import "google/api/field_behavior.proto";
 import "google/protobuf/empty.proto";
 
-// An XdsApplicationService provides methods to manage applications.
-service XdsApplicationService {
+// An XdsGroupService provides methods to manage groups.
+service XdsGroupService {
 
-  // Creates a new application.
-  rpc CreateApplication(CreateApplicationRequest) returns (Application) {
+  // Creates a new group.
+  rpc CreateGroup(CreateGroupRequest) returns (Group) {
     option (google.api.http) = {
-      post: "/api/v1/xds/applications"
-      body: "application"
+      post: "/api/v1/xds/groups"
+      body: "group"
     };
   }
 
-  // Deletes an application.
-  rpc DeleteApplication(DeleteApplicationRequest) returns (google.protobuf.Empty) {
+  // Deletes an group.
+  rpc DeleteGroup(DeleteGroupRequest) returns (google.protobuf.Empty) {
     option (google.api.http) = {
-      delete: "/api/v1/xds/{name=applications/*}"
+      delete: "/api/v1/xds/{name=groups/*}"
     };
   }
 }
 
-message CreateApplicationRequest {
-  Application application = 1 [(google.api.field_behavior) = REQUIRED];
+message CreateGroupRequest {
+  Group group = 1 [(google.api.field_behavior) = REQUIRED];
 }
 
-message DeleteApplicationRequest {
-  // Format: applications/{application}
+message DeleteGroupRequest {
+  // Format: groups/{group}
   string name = 1 [(google.api.field_behavior) = REQUIRED];
 
-  // If set to true, any xds Resources from this application will also be deleted.
-  // (Otherwise, the request will only work if the application has no xDS resources.)
+  // If set to true, any xds Resources from this group will also be deleted.
+  // (Otherwise, the request will only work if the group has no xDS resources.)
   // bool force = 2;
 }
 
-message Application {
-  // Format: applications/{application}
+message Group {
+  // Format: groups/{group}
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 }

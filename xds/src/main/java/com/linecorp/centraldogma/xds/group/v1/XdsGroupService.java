@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.xds.application.v1;
+package com.linecorp.centraldogma.xds.group.v1;
 
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil.createRepository;
@@ -27,16 +27,16 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
-import com.linecorp.centraldogma.xds.application.v1.XdsApplicationServiceGrpc.XdsApplicationServiceImplBase;
+import com.linecorp.centraldogma.xds.group.v1.XdsGroupServiceGrpc.XdsGroupServiceImplBase;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 
 /**
- * An {@link XdsApplicationServiceImplBase} implementation that provides methods to manage XDS applications.
+ * An {@link XdsGroupServiceImplBase} implementation that provides methods to manage XDS groups.
  */
-public final class XdsApplicationService extends XdsApplicationServiceImplBase {
+public final class XdsGroupService extends XdsGroupServiceImplBase {
 
     private final ProjectManager projectManager;
     private final CommandExecutor commandExecutor;
@@ -45,17 +45,17 @@ public final class XdsApplicationService extends XdsApplicationServiceImplBase {
     /**
      * Creates a new instance.
      */
-    public XdsApplicationService(ProjectManager projectManager, CommandExecutor commandExecutor) {
+    public XdsGroupService(ProjectManager projectManager, CommandExecutor commandExecutor) {
         this.projectManager = projectManager;
         this.commandExecutor = commandExecutor;
         mds = new MetadataService(projectManager, commandExecutor);
     }
 
     @Override
-    public void createApplication(CreateApplicationRequest request,
-                                  StreamObserver<Application> responseObserver) {
-        final String applicationName = request.getApplication().getName();
-        final String name = removePrefix("applications/", applicationName);
+    public void createGroup(CreateGroupRequest request,
+                            StreamObserver<Group> responseObserver) {
+        final String groupName = request.getGroup().getName();
+        final String name = removePrefix("groups/", groupName);
         if (projectManager.get(XDS_CENTRAL_DOGMA_PROJECT).repos().exists(name)) {
             throw alreadyExistsException(name);
         }
@@ -70,7 +70,7 @@ public final class XdsApplicationService extends XdsApplicationServiceImplBase {
                         }
                         return null;
                     }
-                    responseObserver.onNext(Application.newBuilder().setName(applicationName).build());
+                    responseObserver.onNext(Group.newBuilder().setName(groupName).build());
                     responseObserver.onCompleted();
                     return null;
                 });
@@ -84,21 +84,21 @@ public final class XdsApplicationService extends XdsApplicationServiceImplBase {
         return name.substring(prefix.length());
     }
 
-    private static RuntimeException alreadyExistsException(String applicationName) {
-        return Status.ALREADY_EXISTS.withDescription("Application already exists: " + applicationName)
+    private static RuntimeException alreadyExistsException(String groupName) {
+        return Status.ALREADY_EXISTS.withDescription("Group already exists: " + groupName)
                                     .asRuntimeException();
     }
 
     @Override
-    public void deleteApplication(DeleteApplicationRequest request, StreamObserver<Empty> responseObserver) {
-        final String applicationName = request.getName();
-        final String name = removePrefix("applications/", applicationName);
+    public void deleteGroup(DeleteGroupRequest request, StreamObserver<Empty> responseObserver) {
+        final String groupName = request.getName();
+        final String name = removePrefix("groups/", groupName);
         if (!projectManager.get(XDS_CENTRAL_DOGMA_PROJECT).repos().exists(name)) {
-            throw Status.NOT_FOUND.withDescription("Application does not exist: " + applicationName)
+            throw Status.NOT_FOUND.withDescription("Group does not exist: " + groupName)
                                   .asRuntimeException();
         }
         if (Project.isReservedRepoName(name)) {
-            throw Status.PERMISSION_DENIED.withDescription("Now allowed to delete " + applicationName)
+            throw Status.PERMISSION_DENIED.withDescription("Now allowed to delete " + groupName)
                                           .asRuntimeException();
         }
 
@@ -107,7 +107,7 @@ public final class XdsApplicationService extends XdsApplicationServiceImplBase {
                 .handle((unused, cause1) -> {
                     if (cause1 != null) {
                         responseObserver.onError(
-                                Status.INTERNAL.withDescription("Failed to delete " + applicationName)
+                                Status.INTERNAL.withDescription("Failed to delete " + groupName)
                                                .withCause(cause1).asRuntimeException());
                         return null;
                     }

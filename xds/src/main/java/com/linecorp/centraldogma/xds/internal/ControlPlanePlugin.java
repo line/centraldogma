@@ -50,7 +50,7 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
-import com.linecorp.centraldogma.xds.application.v1.XdsApplicationService;
+import com.linecorp.centraldogma.xds.group.v1.XdsGroupService;
 
 import io.envoyproxy.controlplane.cache.v3.SimpleCache;
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks;
@@ -151,7 +151,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         sb.route().build(grpcService);
         final GrpcService xdsApplicationService =
                 GrpcService.builder()
-                           .addService(new XdsApplicationService(
+                           .addService(new XdsGroupService(
                                    projectManager, pluginInitContext.commandExecutor()))
                            .enableHttpJsonTranscoding(true).build();
         sb.service(xdsApplicationService, pluginInitContext.authService());

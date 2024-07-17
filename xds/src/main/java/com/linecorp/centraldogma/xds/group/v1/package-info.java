@@ -14,9 +14,9 @@
  * under the License.
  */
 /**
- * xDS application service.
+ * xDS group service.
  */
 @NonNullByDefault
-package com.linecorp.centraldogma.xds.application.v1;
+package com.linecorp.centraldogma.xds.group.v1;
 
 import com.linecorp.centraldogma.common.util.NonNullByDefault;
