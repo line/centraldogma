@@ -39,7 +39,16 @@ export const CommitForm = ({
   const { register, handleSubmit, reset } = useForm<FormData>();
   const dispatch = useAppDispatch();
   const onSubmit = async (formData: FormData) => {
-    const newContent = content();
+    let newContent = content();
+    if (name.endsWith('.json')) {
+      try {
+        newContent = JSON.parse(newContent);
+      } catch (error) {
+        dispatch(newNotification(`Failed to format json content.`, ErrorMessageParser.parse(error), 'error'));
+        return;
+      }
+    }
+
     const data = {
       commitMessage: {
         summary: formData.summary,
@@ -53,14 +62,6 @@ export const CommitForm = ({
         },
       ],
     };
-    if (name.endsWith('.json')) {
-      try {
-        JSON.parse(newContent);
-      } catch (error) {
-        dispatch(newNotification(`Failed to format json content.`, ErrorMessageParser.parse(error), 'error'));
-        return;
-      }
-    }
     try {
       const response = await updateFile({ projectName, repoName, data }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
