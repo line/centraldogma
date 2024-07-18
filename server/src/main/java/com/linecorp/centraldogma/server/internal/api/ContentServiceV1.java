@@ -52,7 +52,6 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Default;
-import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
@@ -101,7 +100,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 @ProducesJson
 @RequiresReadPermission
 @RequestConverter(CommitMessageRequestConverter.class)
-@ExceptionHandler(HttpApiExceptionHandler.class)
 public class ContentServiceV1 extends AbstractService {
 
     private static final String MIRROR_LOCAL_REPO = "localRepo";

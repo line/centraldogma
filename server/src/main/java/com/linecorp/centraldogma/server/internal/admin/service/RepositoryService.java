@@ -36,12 +36,12 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Default;
-import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Path;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.Put;
+import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
@@ -57,8 +57,8 @@ import com.linecorp.centraldogma.server.internal.admin.dto.CommitDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.CommitMessageDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.EntryDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.RevisionDto;
+import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
-import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
@@ -68,7 +68,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
  * Annotated service object for managing repositories.
  */
 @RequiresReadPermission
-@ExceptionHandler(HttpApiExceptionHandler.class)
+@ResponseConverter(RestfulJsonResponseConverter.class)
 public class RepositoryService extends AbstractService {
 
     private static final Object VOID = new Object();

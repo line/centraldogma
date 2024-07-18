@@ -20,15 +20,16 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newResponse;
 
 import java.util.Map;
+import java.util.function.BiFunction;
 
 import com.google.common.collect.ImmutableMap;
 
-import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.HttpStatusException;
+import com.linecorp.armeria.server.ServerErrorHandler;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ExceptionHandlerFunction;
 import com.linecorp.centraldogma.common.ChangeConflictException;
@@ -51,80 +52,82 @@ import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMe
 /**
  * A default {@link ExceptionHandlerFunction} of HTTP API.
  */
-public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
+public final class HttpApiExceptionHandler implements ServerErrorHandler {
 
     /**
      * A map of exception handler functions for well known exceptions.
      */
-    private static final Map<Class<?>, ExceptionHandlerFunction> exceptionHandlers;
+    private static final Map<Class<?>, BiFunction<ServiceRequestContext, Throwable, HttpResponse>>
+            exceptionHandlers;
 
     static {
         final ImmutableMap.Builder<Class<?>,
-                ExceptionHandlerFunction> builder = ImmutableMap.builder();
+                BiFunction<ServiceRequestContext, Throwable, HttpResponse>> builder = ImmutableMap.builder();
 
         builder.put(ChangeConflictException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
-                                                     "The given changeset or revision has a conflict."))
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
+                                                "The given changeset or revision has a conflict."))
                .put(EntryNotFoundException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
-                                                     "Entry '%s' does not exist.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
+                                                "Entry '%s' does not exist.", cause.getMessage()))
                .put(EntryNoContentException.class,
-                    (ctx, req, cause) -> HttpResponse.of(HttpStatus.NO_CONTENT))
+                    (ctx, cause) -> HttpResponse.of(HttpStatus.NO_CONTENT))
                .put(ProjectExistsException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
-                                                     "Project '%s' exists already.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
+                                                "Project '%s' exists already.", cause.getMessage()))
                .put(ProjectNotFoundException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
-                                                     "Project '%s' does not exist.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
+                                                "Project '%s' does not exist.", cause.getMessage()))
                .put(RedundantChangeException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
-                                                     "The given changeset does not change anything."))
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
+                                                "The given changeset does not change anything."))
                .put(RepositoryExistsException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
-                                                     "Repository '%s' exists already.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
+                                                "Repository '%s' exists already.", cause.getMessage()))
                .put(RepositoryMetadataException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause))
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause))
                .put(RepositoryNotFoundException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
-                                                     "Repository '%s' does not exist.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
+                                                "Repository '%s' does not exist.", cause.getMessage()))
                .put(RevisionNotFoundException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
-                                                     "Revision %s does not exist.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
+                                                "Revision %s does not exist.", cause.getMessage()))
                .put(TokenNotFoundException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
-                                                     "Token '%s' does not exist.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
+                                                "Token '%s' does not exist.", cause.getMessage()))
                .put(QueryExecutionException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
                .put(UnsupportedOperationException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
                .put(TooManyRequestsException.class,
-                    (ctx, req, cause) -> {
+                    (ctx, cause) -> {
                         final TooManyRequestsException cast = (TooManyRequestsException) cause;
                         final Object type = firstNonNull(cast.type(), "requests");
                         return newResponse(ctx, HttpStatus.TOO_MANY_REQUESTS, cast,
                                            "Too many %s are sent to %s", type, cause.getMessage());
                     })
                .put(InvalidPushException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
-                .put(ReadOnlyException.class,
-                     (ctx, req, cause) -> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause));
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
+               .put(ReadOnlyException.class,
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause));
 
         exceptionHandlers = builder.build();
     }
 
     @Override
-    public HttpResponse handleException(ServiceRequestContext ctx, HttpRequest req, Throwable cause) {
+    public HttpResponse onServiceException(ServiceRequestContext ctx, Throwable cause) {
         final Throwable peeledCause = Exceptions.peel(cause);
 
         if (peeledCause instanceof HttpStatusException ||
             peeledCause instanceof HttpResponseException) {
-            return ExceptionHandlerFunction.fallthrough();
+            return null;
         }
 
         // Use precomputed map if the cause is instance of CentralDogmaException to access in a faster way.
-        final ExceptionHandlerFunction func = exceptionHandlers.get(peeledCause.getClass());
+        final BiFunction<ServiceRequestContext, Throwable, HttpResponse> func =
+                exceptionHandlers.get(peeledCause.getClass());
         if (func != null) {
-            return func.handleException(ctx, req, peeledCause);
+            return func.apply(ctx, peeledCause);
         }
 
         if (peeledCause instanceof IllegalArgumentException) {
