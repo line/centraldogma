@@ -1,0 +1,101 @@
+plugins {
+    id 'base'
+    alias(libs.plugins.node.gradle)
+}
+
+node {
+    version = '22.3.0'
+    npmVersion = '10.8.1'
+    download = true
+    npmInstallCommand = "ci"
+
+    // Change the cache location under Gradle user home directory so that it's cached by CI.
+    if (System.getenv('CI') != null) {
+        workDir = file("${gradle.gradleUserHomeDir}/caches/nodejs/${project.name}")
+        npmWorkDir = file("${gradle.gradleUserHomeDir}/caches/npm/${project.name}")
+    }
+}
+
+dependencies {
+    // Dependencies to run test servers for testing the web application
+    testImplementation(project(":server"))
+    testImplementation(project(":server-mirror-git"))
+    testImplementation(project(":server-auth:shiro"))
+    testImplementation libs.shiro.core
+}
+
+// Set `NEXT_ENV=development` to `.env.local` file to produce source maps for the minified JavaScript files.
+task buildWeb(type: NpmTask) {
+    dependsOn tasks.npmInstall
+    args = ['run', 'build']
+    inputs.dir('src')
+    inputs.file('package.json')
+    inputs.file('package-lock.json')
+    inputs.file('next.config.js')
+
+    outputs.dir('build/web')
+}
+
+task copyWeb(type: Copy) {
+    dependsOn buildWeb
+
+    from 'build/web'
+    into 'build/javaweb/com/linecorp/centraldogma/webapp'
+}
+
+task runTestServer(type: JavaExec) {
+    group = "Execution"
+    description = "Run the simple Central Dogma server"
+    classpath = sourceSets.test.runtimeClasspath
+    main = "com.linecorp.centraldogma.webapp.SimpleCentralDogmaTestServer"
+}
+
+task runTestShiroServer(type: JavaExec) {
+    group = "Execution"
+    description = "Run the Central Dogma server with Apache Shiro"
+    classpath = sourceSets.test.runtimeClasspath
+    main = "com.linecorp.centraldogma.webapp.ShiroCentralDogmaTestServer"
+}
+
+if (!rootProject.hasProperty('noLint')) {
+    task eslint(type: NpmTask) {
+        dependsOn tasks.npmInstall
+
+        args = ['run', 'lint']
+
+        inputs.dir('src')
+        inputs.file('package.json')
+        inputs.file('package-lock.json')
+        inputs.file('next.config.js')
+        outputs.upToDateWhen { true }
+    }
+
+    task prettier(type: NpmTask) {
+        dependsOn tasks.eslint
+
+        args = ['run', 'format']
+
+        inputs.dir('src')
+        inputs.file('package.json')
+        inputs.file('package-lock.json')
+        inputs.file('next.config.js')
+        outputs.upToDateWhen { true }
+    }
+
+    Task lintTask = project.ext.getLintTask()
+    lintTask.dependsOn(tasks.prettier)
+    tasks.buildWeb.dependsOn(tasks.prettier)
+}
+
+task testWeb(type: NpmTask) {
+    dependsOn tasks.npmInstall
+
+    args = ['run', 'test:ci']
+
+    inputs.dir('src')
+    inputs.file('package.json')
+    inputs.file('package-lock.json')
+    inputs.file('next.config.js')
+    outputs.upToDateWhen { true }
+}
+tasks.test.dependsOn(tasks.testWeb)

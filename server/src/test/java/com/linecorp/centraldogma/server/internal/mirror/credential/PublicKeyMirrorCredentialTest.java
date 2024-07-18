@@ -172,6 +172,19 @@ public class PublicKeyMirrorCredentialTest {
                                      '}', MirrorCredential.class))
                 .isEqualTo(converterExpected);
         assertThat(converterExpected.passphrase()).isEqualTo("bar");
+
+        // Empty hostnamePatterns
+        assertThat(Jackson.readValue('{' +
+                                     "  \"type\": \"public_key\"," +
+                                     "  \"id\": \"foo\"," +
+                                     "  \"hostnamePatterns\": []," +
+                                     "  \"username\": \"trustin\"," +
+                                     "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
+                                     "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
+                                     "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE) + '"' +
+                                     '}', MirrorCredential.class))
+                .isEqualTo(new PublicKeyMirrorCredential("foo", true, ImmutableList.of(), USERNAME,
+                                                         PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
     }
 
     public static class PasswordConfigValueConverter implements ConfigValueConverter {
