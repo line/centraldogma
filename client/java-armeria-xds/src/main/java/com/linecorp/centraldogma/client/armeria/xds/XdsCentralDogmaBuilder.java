@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
+import com.google.protobuf.Any;
 
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientFactory;
@@ -56,10 +57,12 @@ import io.envoyproxy.envoy.config.core.v3.ApiConfigSource.ApiType;
 import io.envoyproxy.envoy.config.core.v3.GrpcService;
 import io.envoyproxy.envoy.config.core.v3.GrpcService.EnvoyGrpc;
 import io.envoyproxy.envoy.config.core.v3.SocketAddress;
+import io.envoyproxy.envoy.config.core.v3.TransportSocket;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.config.endpoint.v3.Endpoint;
 import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint;
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext;
 
 /**
  * TBU.
@@ -86,7 +89,7 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
         return builder;
     }
 
-    private void validateHosts() {
+    private boolean isUnresolved() {
         final Set<InetSocketAddress> hosts = hosts();
         checkState(!hosts.isEmpty(), "No hosts were added.");
         final Map<Boolean, List<InetSocketAddress>> addrByUnresolved =
@@ -95,10 +98,11 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
         checkState(addrByUnresolved.get(true).isEmpty() ||
                    addrByUnresolved.get(false).isEmpty(),
                    "Cannot mix resolved and unresolved hosts (%s)", addrByUnresolved);
+        final InetSocketAddress firstHost = Iterables.get(hosts(), 0);
+        return firstHost.isUnresolved();
     }
 
     private XdsBootstrap xdsBootstrap() {
-        validateHosts();
         final GrpcService grpcService = GrpcService
                 .newBuilder()
                 .setEnvoyGrpc(EnvoyGrpc.newBuilder()
@@ -119,10 +123,10 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     }
 
     private Cluster bootstrapCluster() {
-        final InetSocketAddress firstHost = Iterables.get(hosts(), 0);
+        final boolean isUnresolved = isUnresolved();
 
         final Cluster.Builder clusterBuilder = Cluster.newBuilder();
-        if (firstHost.isUnresolved()) {
+        if (isUnresolved) {
             clusterBuilder.setType(DiscoveryType.STRICT_DNS);
         } else {
             clusterBuilder.setType(DiscoveryType.STATIC);
@@ -135,6 +139,13 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
         }
         final ClusterLoadAssignment clusterLoadAssignment =
                 ClusterLoadAssignment.newBuilder().addEndpoints(localityLbEndpointsBuilder.build()).build();
+
+        if (isUseTls()) {
+            clusterBuilder.setTransportSocket(
+                    TransportSocket.newBuilder()
+                                   .setName("envoy.transport_sockets.tls")
+                                   .setTypedConfig(Any.pack(UpstreamTlsContext.getDefaultInstance())));
+        }
 
         clusterBuilder.setLoadAssignment(clusterLoadAssignment)
                       .setName(BOOTSTRAP_CLUSTER_NAME);
