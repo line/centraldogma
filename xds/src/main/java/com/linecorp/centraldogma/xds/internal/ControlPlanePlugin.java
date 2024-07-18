@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import com.linecorp.armeria.common.grpc.GrpcJsonMarshaller;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.grpc.GrpcService;
@@ -51,6 +52,7 @@ import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 import com.linecorp.centraldogma.xds.group.v1.XdsGroupService;
+import com.linecorp.centraldogma.xds.listener.v1.XdsListenerService;
 
 import io.envoyproxy.controlplane.cache.v3.SimpleCache;
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks;
@@ -60,6 +62,8 @@ import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
+import io.envoyproxy.envoy.extensions.filters.http.router.v3.Router;
+import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager;
 import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
@@ -71,10 +75,10 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
 
     public static final String XDS_CENTRAL_DOGMA_PROJECT = "@xds";
 
-    static final String CLUSTERS_DIRECTORY = "/clusters/";
-    static final String ENDPOINTS_DIRECTORY = "/endpoints/";
-    static final String LISTENERS_DIRECTORY = "/listeners/";
-    static final String ROUTES_DIRECTORY = "/routes/";
+    public static final String CLUSTERS_DIRECTORY = "/clusters/";
+    public static final String ENDPOINTS_DIRECTORY = "/endpoints/";
+    public static final String LISTENERS_DIRECTORY = "/listeners/";
+    public static final String ROUTES_DIRECTORY = "/routes/";
 
     public static final String DEFAULT_GROUP = "default_group";
 
@@ -151,8 +155,18 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         sb.route().build(grpcService);
         final GrpcService xdsApplicationService =
                 GrpcService.builder()
-                           .addService(new XdsGroupService(
-                                   projectManager, pluginInitContext.commandExecutor()))
+                           .addService(new XdsGroupService(projectManager,
+                                                           pluginInitContext.commandExecutor()))
+                           .addService(new XdsListenerService(projectManager,
+                                                              pluginInitContext.commandExecutor()))
+                           .jsonMarshallerFactory(
+                                   serviceDescriptor -> GrpcJsonMarshaller
+                                           .builder()
+                                           .jsonMarshallerCustomizer(builder -> {
+                                               builder.register(HttpConnectionManager.getDefaultInstance())
+                                                      .register(Router.getDefaultInstance());
+                                           })
+                                           .build(serviceDescriptor))
                            .enableHttpJsonTranscoding(true).build();
         sb.service(xdsApplicationService, pluginInitContext.authService());
     }

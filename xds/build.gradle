@@ -2,6 +2,7 @@ dependencies {
     implementation project(':server')
 
     implementation libs.armeria.grpc
+    implementation libs.controlplane.api
     implementation libs.controlplane.cache
     implementation libs.controlplane.server
 

@@ -298,6 +298,9 @@ module = "ch.qos.logback:logback-classic"
 version.ref = "logback15"
 javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.5.4/"
 
+[libraries.controlplane-api]
+module = "io.envoyproxy.controlplane:api"
+version.ref = "controlplane"
 [libraries.controlplane-cache]
 module = "io.envoyproxy.controlplane:cache"
 version.ref = "controlplane"

@@ -1,0 +1,86 @@
+// Copyright 2024 LINE Corporation
+//
+// LINE Corporation licenses this file to you under the Apache License,
+// version 2.0 (the "License"); you may not use this file except in compliance
+// with the License. You may obtain a copy of the License at:
+//
+//   https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+syntax = "proto3";
+
+package centraldogma.xds.route.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "XdsRouteProto";
+option java_package = "com.linecorp.centraldogma.xds.route.v1";
+
+import "envoy/config/route/v3/route.proto";
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+
+// An XdsRouteService provides methods to manage routes.
+service XdsRouteService {
+
+  // Creates a new route.
+  rpc CreateRoute(CreateRouteRequest) returns (envoy.config.route.v3.RouteConfiguration) {
+    option (google.api.http) = {
+      post: "/api/v1/xds/{parent=groups/*}/routes"
+      body: "route"
+    };
+  }
+
+  // Updates an existing route.
+  rpc UpdateRoute(UpdateRouteRequest) returns (envoy.config.route.v3.RouteConfiguration) {
+    option (google.api.http) = {
+      post: "/api/v1/xds/{route.name=groups/*/routes/**}"
+      body: "route"
+    };
+  }
+
+  // Deletes a route.
+  rpc DeleteRoute(DeleteRouteRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/api/v1/xds/{name=groups/*}"
+    };
+  }
+}
+
+message CreateRouteRequest {
+  // The parent resource where this route will be created.
+  // Format: groups/{group}
+  string parent = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The ID to use for the route, which will become the final component of
+  // the route's resource name.
+  //
+  // Valid pattern is "^[a-z]([a-z0-9-/]*[a-z0-9])?$"
+  string route_id = 2 [(google.api.field_behavior) = REQUIRED];
+  envoy.config.route.v3.RouteConfiguration route = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message UpdateRouteRequest {
+  // The route's `name` field is used to identify the route to update.
+  // Format: groups/{group}/routes/{route}
+  envoy.config.route.v3.RouteConfiguration route = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // TODO(minwoox): Add the following fields.
+  // The list of fields to be updated.
+  // google.protobuf.FieldMask update_mask = 2;
+
+  // If set to true, and the route is not found, a new route will be created.
+  // In this situation, `update_mask` is ignored.
+  // bool allow_missing = 3;
+}
+
+message DeleteRouteRequest {
+  // Format: groups/{group}/routes/{route}
+  string name = 1 [(google.api.field_behavior) = REQUIRED];
+}

@@ -1,0 +1,90 @@
+// Copyright 2024 LINE Corporation
+//
+// LINE Corporation licenses this file to you under the Apache License,
+// version 2.0 (the "License"); you may not use this file except in compliance
+// with the License. You may obtain a copy of the License at:
+//
+//   https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+syntax = "proto3";
+
+package centraldogma.xds.listener.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "XdsListenerProto";
+option java_package = "com.linecorp.centraldogma.xds.listener.v1";
+
+import "envoy/config/listener/v3/listener.proto";
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+
+// An XdsListenerService provides methods to manage listeners.
+service XdsListenerService {
+
+  // Creates a new listener.
+  rpc CreateListener(CreateListenerRequest) returns (envoy.config.listener.v3.Listener) {
+    option (google.api.http) = {
+      post: "/api/v1/xds/{parent=groups/*}/listeners"
+      body: "listener"
+    };
+  }
+
+  // Updates an existing listener.
+  rpc UpdateListener(UpdateListenerRequest) returns (envoy.config.listener.v3.Listener) {
+    option (google.api.http) = {
+      patch: "/api/v1/xds/{listener.name=groups/*/listeners/**}"
+      body: "listener"
+    };
+  }
+
+  // Deletes a listener.
+  rpc DeleteListener(DeleteListenerRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/api/v1/xds/{name=groups/*/listeners/*}"
+    };
+  }
+}
+
+message CreateListenerRequest {
+  // The parent resource where this listener will be created.
+  // Format: groups/{group}
+  string parent = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The ID to use for the listener, which will become the final component of
+  // the listener's resource name.
+  //
+  // Valid pattern is "^[a-z]([a-z0-9-/]*[a-z0-9])?$"
+  string listener_id = 2 [(google.api.field_behavior) = REQUIRED];
+  envoy.config.listener.v3.Listener listener = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message UpdateListenerRequest {
+  // The listener's `name` field is used to identify the listener to update.
+  // Format: groups/{group}/listeners/{listener}
+  envoy.config.listener.v3.Listener listener = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // TODO(minwoox): Add the following fields.
+  // The list of fields to be updated.
+  // google.protobuf.FieldMask update_mask = 2;
+
+  // If set to true, and the listener is not found, a new listener will be created.
+  // In this situation, `update_mask` is ignored.
+  // bool allow_missing = 3;
+}
+
+message DeleteListenerRequest {
+  // Format: groups/{group}/listeners/{listener}
+  string name = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // If set to true, and the listener is not found, the request will succeed
+  // but no action will be taken on the server
+  // bool allow_missing = 2;
+}

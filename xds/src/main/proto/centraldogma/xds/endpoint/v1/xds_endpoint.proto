@@ -1,0 +1,96 @@
+// Copyright 2024 LINE Corporation
+//
+// LINE Corporation licenses this file to you under the Apache License,
+// version 2.0 (the "License"); you may not use this file except in compliance
+// with the License. You may obtain a copy of the License at:
+//
+//   https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+syntax = "proto3";
+
+package centraldogma.xds.endpoint.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "XdsEndpointProto";
+option java_package = "com.linecorp.centraldogma.xds.endpoint.v1";
+
+import "envoy/config/endpoint/v3/endpoint.proto";
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+
+// An XdsEndpointService provides methods to manage endpoints.
+service XdsEndpointService {
+
+  // Creates a new endpoint.
+  rpc CreateEndpoint(CreateEndpointRequest) returns (envoy.config.endpoint.v3.ClusterLoadAssignment) {
+    option (google.api.http) = {
+      post: "/api/v1/xds/{parent=groups/*}/endpoints"
+      body: "endpoint"
+    };
+  }
+
+  // Updates an existing endpoint.
+  rpc UpdateEndpoint(UpdateEndpointRequest) returns (envoy.config.endpoint.v3.ClusterLoadAssignment) {
+    option (google.api.http) = {
+      post: "/api/v1/xds/{endpoint.name=groups/*/endpoints/**}"
+      body: "endpoint"
+    };
+  }
+
+  // Deletes a endpoint.
+  rpc DeleteEndpoint(DeleteEndpointRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/api/v1/xds/{name=groups/*}"
+    };
+  }
+
+  // TODO(minwoox): Implement the following methods.
+  //rpc addLocalityLbEndpoint(addLocalityLbEndpointRequest) returns
+  //    (envoy.config.endpoint.v3.ClusterLoadAssignment) {
+  //  ..
+  //}
+  //rpc removeLocalityLbEndpoint(addLocalityLbEndpointRequest) returns
+  //    (envoy.config.endpoint.v3.ClusterLoadAssignment) {
+  //  ..
+  //}
+}
+
+message CreateEndpointRequest {
+  // The parent resource where this endpoint will be created.
+  // Format: groups/{group}
+  string parent = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The ID to use for the endpoint, which will become the final component of
+  // the endpoint's resource name.
+  //
+  // Valid pattern is "^[a-z]([a-z0-9-/]*[a-z0-9])?$"
+  string endpoint_id = 2 [(google.api.field_behavior) = REQUIRED];
+  envoy.config.endpoint.v3.ClusterLoadAssignment endpoint = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message UpdateEndpointRequest {
+  // The endpoint's `name` field is used to identify the endpoint to update.
+  // Format: groups/{group}/endpoints/{endpoint}
+  envoy.config.endpoint.v3.ClusterLoadAssignment endpoint = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // TODO(minwoox): Add the following fields.
+  // The list of fields to be updated.
+  // google.protobuf.FieldMask update_mask = 2;
+
+  // If set to true, and the endpoint is not found, a new endpoint will be created.
+  // In this situation, `update_mask` is ignored.
+  // bool allow_missing = 3;
+}
+
+message DeleteEndpointRequest {
+  // Format: groups/{group}/endpoints/{endpoint}
+  string name = 1 [(google.api.field_behavior) = REQUIRED];
+}

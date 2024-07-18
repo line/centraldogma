@@ -68,7 +68,7 @@ import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter;
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.Rds;
 
-final class XdsTestUtil {
+public final class XdsTestUtil {
 
     static final String CONFIG_SOURCE_CLUSTER_NAME = "dogma/cluster";
 
@@ -211,7 +211,7 @@ final class XdsTestUtil {
         return cluster(clusterName, loadAssignment, discoveryType);
     }
 
-    static Listener exampleListener(String listenerName, String routeName, String statPrefix) {
+    public static Listener exampleListener(String listenerName, String routeName, String statPrefix) {
         final HttpConnectionManager manager = httpConnectionManager(routeName, rdsConfigSource());
         return Listener.newBuilder()
                        .setName(listenerName)
