@@ -102,7 +102,7 @@ class SimpleXdsUpstreamTest {
         final Listener listener = XdsResourceReader.readResourcePath(
                 "/test-listener.yaml",
                 Listener.newBuilder(),
-                ImmutableMap.of("<LISTENER_NAME>", XdsCentralDogmaBuilder.LISTENER_NAME,
+                ImmutableMap.of("<LISTENER_NAME>", XdsCentralDogmaBuilder.DEFAULT_LISTENER_NAME,
                                 "<CLUSTER_NAME>", "my-cluster"));
         final Cluster cluster = XdsResourceReader.readResourcePath(
                 "/test-cluster.yaml",
@@ -135,7 +135,7 @@ class SimpleXdsUpstreamTest {
         final Listener listener = XdsResourceReader.readResourcePath(
                 "/test-listener.yaml",
                 Listener.newBuilder(),
-                ImmutableMap.of("<LISTENER_NAME>", XdsCentralDogmaBuilder.LISTENER_NAME,
+                ImmutableMap.of("<LISTENER_NAME>", XdsCentralDogmaBuilder.DEFAULT_LISTENER_NAME,
                                 "<CLUSTER_NAME>", "my-cluster"));
         final Cluster cluster = XdsResourceReader.readResourcePath(
                 "/test-cluster-multiendpoint.yaml",
@@ -171,5 +171,34 @@ class SimpleXdsUpstreamTest {
             }
         }
         assertThat(selectedPorts).containsExactlyInAnyOrderElementsOf(dogmaPorts);
+    }
+
+    @Test
+    void customListenerName() throws Exception {
+        final Listener listener = XdsResourceReader.readResourcePath(
+                "/test-listener.yaml",
+                Listener.newBuilder(),
+                ImmutableMap.of("<LISTENER_NAME>", "my-listener",
+                                "<CLUSTER_NAME>", "my-cluster"));
+        final Cluster cluster = XdsResourceReader.readResourcePath(
+                "/test-cluster.yaml",
+                Cluster.newBuilder(),
+                ImmutableMap.of("<NAME>", "my-cluster", "<TYPE>", "STATIC",
+                                "<PORT>", dogma.serverAddress().getPort()));
+        cache.setSnapshot(
+                GROUP,
+                Snapshot.create(ImmutableList.of(cluster), ImmutableList.of(),
+                                ImmutableList.of(listener), ImmutableList.of(), ImmutableList.of(),
+                                String.valueOf(VERSION_NUMBER.incrementAndGet())));
+
+        try (CentralDogma client = new XdsCentralDogmaBuilder()
+                .listenerName("my-listener")
+                .host("127.0.0.1", server.httpPort()).build()) {
+            final Entry<JsonNode> entry = client.forRepo("foo", "bar")
+                                                .file(Query.ofJsonPath("/foo.json"))
+                                                .get()
+                                                .get();
+            assertThatJson(entry.content()).node("a").isStringEqualTo("bar");
+        }
     }
 }

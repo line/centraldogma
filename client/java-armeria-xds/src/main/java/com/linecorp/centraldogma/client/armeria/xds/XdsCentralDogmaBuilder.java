@@ -38,6 +38,8 @@ import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.encoding.DecodingClient;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.common.CommonPools;
+import com.linecorp.armeria.common.HttpHeaderNames;
+import com.linecorp.armeria.common.annotation.UnstableApi;
 import com.linecorp.armeria.xds.XdsBootstrap;
 import com.linecorp.armeria.xds.client.endpoint.XdsEndpointGroup;
 import com.linecorp.centraldogma.client.AbstractCentralDogmaBuilder;
@@ -56,29 +58,52 @@ import io.envoyproxy.envoy.config.core.v3.ApiConfigSource;
 import io.envoyproxy.envoy.config.core.v3.ApiConfigSource.ApiType;
 import io.envoyproxy.envoy.config.core.v3.GrpcService;
 import io.envoyproxy.envoy.config.core.v3.GrpcService.EnvoyGrpc;
+import io.envoyproxy.envoy.config.core.v3.HeaderValue;
 import io.envoyproxy.envoy.config.core.v3.SocketAddress;
 import io.envoyproxy.envoy.config.core.v3.TransportSocket;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.config.endpoint.v3.Endpoint;
 import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint;
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
+import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext;
 
 /**
- * TBU.
+ * Builds a {@link CentralDogma} client based on an <a href="https://line.github.io/armeria/">Armeria</a>
+ * HTTP client.
+ * This client differs from {@link ArmeriaCentralDogma} in that making requests is done in two phases.
+ * <ol>
+ *     <li>
+ *         An xDS request is made to xDS servers to fetch a {@link Listener} resource which represents
+ *         how to connect to {@link CentralDogma} servers.
+ *     </li>
+ *     <li>
+ *         Actual {@link CentralDogma} client requests are made based on the watched Listener resource.
+ *     </li>
+ * </ol>
+ * Because connection to the actual {@link CentralDogma} is determined by the watched {@link Listener},
+ * {@link #hosts()} and {@link #isUseTls()} apply to connecting to the bootstrap only.
+ * However, because Armeria's xDS implementation isn't complete, the following parameters are applied
+ * to both xDS and Central Dogma requests.
+ * <ul>
+ *     <li>{@link #accessToken(String)}</li>
+ *     <li>{@link #clientConfigurator(ArmeriaClientConfigurator)}</li>
+ *     <li>{@link #clientFactory(ClientFactory)}</li>
+ * </ul>
+ *
+ * <p>Note that this module is considered experimental and subject to behavioral change.
  */
+@UnstableApi
 public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<XdsCentralDogmaBuilder> {
 
     private static final String BOOTSTRAP_CLUSTER_NAME = "centraldogma-bootstrap-cluster";
     @VisibleForTesting
-    static final String LISTENER_NAME = "centraldogma-listener";
+    static final String DEFAULT_LISTENER_NAME = "centraldogma-listener";
 
     private ScheduledExecutorService blockingTaskExecutor = CommonPools.blockingTaskExecutor();
     private ClientFactory clientFactory = ClientFactory.ofDefault();
     private ArmeriaClientConfigurator clientConfigurator = cb -> {};
-
-    XdsCentralDogmaBuilder() {
-    }
+    private String listenerName = DEFAULT_LISTENER_NAME;
 
     private ClientBuilder newClientBuilder(String scheme, EndpointGroup endpointGroup,
                                            Consumer<ClientBuilder> customizer, String path) {
@@ -106,7 +131,11 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
         final GrpcService grpcService = GrpcService
                 .newBuilder()
                 .setEnvoyGrpc(EnvoyGrpc.newBuilder()
-                                       .setClusterName(BOOTSTRAP_CLUSTER_NAME)).build();
+                                       .setClusterName(BOOTSTRAP_CLUSTER_NAME))
+                .addInitialMetadata(HeaderValue.newBuilder()
+                                               .setKey(HttpHeaderNames.AUTHORIZATION.toString())
+                                               .setValue("Bearer " + accessToken()))
+                .build();
         final ApiConfigSource apiConfigSource = ApiConfigSource
                 .newBuilder()
                 .addGrpcServices(grpcService)
@@ -166,6 +195,16 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     }
 
     /**
+     * Sets the name of the {@link Listener} that should be requested to the xDS bootstrap servers.
+     * The default is {@value #DEFAULT_LISTENER_NAME}.
+     */
+    public XdsCentralDogmaBuilder listenerName(String listenerName) {
+        requireNonNull(listenerName, "listenerName");
+        this.listenerName = listenerName;
+        return self();
+    }
+
+    /**
      * Sets the {@link ScheduledExecutorService} dedicated to the execution of blocking tasks or invocations.
      * If not set, {@linkplain CommonPools#blockingTaskExecutor() the common pool} is used.
      * The {@link ScheduledExecutorService} which will be used for scheduling the tasks related with
@@ -180,6 +219,8 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     /**
      * Sets the {@link ArmeriaClientConfigurator} that will configure an underlying
      * <a href="https://line.github.io/armeria/">Armeria</a> client which performs the actual socket I/O.
+     *
+     * <p>Note that this doesn't affect the client making requests to the bootstrap servers.
      */
     public XdsCentralDogmaBuilder clientConfigurator(ArmeriaClientConfigurator clientConfigurator) {
         this.clientConfigurator = requireNonNull(clientConfigurator, "clientConfigurator");
@@ -189,6 +230,8 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     /**
      * Sets the {@link ClientFactory} that will create an underlying
      * <a href="https://line.github.io/armeria/">Armeria</a> client which performs the actual socket I/O.
+     *
+     * <p>Note that this doesn't affect the client making requests to the bootstrap servers.
      */
     public XdsCentralDogmaBuilder clientFactory(ClientFactory clientFactory) {
         this.clientFactory = requireNonNull(clientFactory, "clientFactory");
@@ -200,7 +243,8 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
      */
     public CentralDogma build() {
         final XdsBootstrap xdsBootstrap = xdsBootstrap();
-        final EndpointGroup endpointGroup = XdsEndpointGroup.of(xdsBootstrap.listenerRoot(LISTENER_NAME));
+        final String listenerName = this.listenerName;
+        final EndpointGroup endpointGroup = XdsEndpointGroup.of(xdsBootstrap.listenerRoot(listenerName));
         final String scheme = "none+" + (isUseTls() ? "https" : "http");
         final ClientBuilder builder =
                 newClientBuilder(scheme, endpointGroup, cb -> cb.decorator(DecodingClient.newDecorator()), "/");
