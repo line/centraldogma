@@ -13,10 +13,10 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.xds.listener.v1;
+package com.linecorp.centraldogma.xds.route.v1;
 
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENERS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ROUTES_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.RESOURCE_ID_PATTERN;
 import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.RESOURCE_ID_PATTERN_STRING;
@@ -35,19 +35,19 @@ import com.google.protobuf.Empty;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
-import com.linecorp.centraldogma.xds.listener.v1.XdsListenerServiceGrpc.XdsListenerServiceImplBase;
+import com.linecorp.centraldogma.xds.route.v1.XdsRouteServiceGrpc.XdsRouteServiceImplBase;
 
-import io.envoyproxy.envoy.config.listener.v3.Listener;
+import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
 /**
- * Service for managing listeners.
+ * Service for managing routes.
  */
-public final class XdsListenerService extends XdsListenerServiceImplBase {
+public final class XdsRouteService extends XdsRouteServiceImplBase {
 
-    private static final Pattern LISTENER_NAME_PATTERN =
-            Pattern.compile("^groups/([^/]+)/listeners/" + RESOURCE_ID_PATTERN_STRING + '$');
+    private static final Pattern ROUTE_NAME_PATTERN =
+            Pattern.compile("^groups/([^/]+)/routes/" + RESOURCE_ID_PATTERN_STRING + '$');
 
     private final Project xdsCentralDogmaProject;
     private final CommandExecutor commandExecutor;
@@ -55,58 +55,58 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
     /**
      * Creates a new instance.
      */
-    public XdsListenerService(ProjectManager projectManager, CommandExecutor commandExecutor) {
+    public XdsRouteService(ProjectManager projectManager, CommandExecutor commandExecutor) {
         xdsCentralDogmaProject = requireNonNull(projectManager, "projectManager")
                 .get(XDS_CENTRAL_DOGMA_PROJECT);
         this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
     }
 
     @Override
-    public void createListener(CreateListenerRequest request, StreamObserver<Listener> responseObserver) {
+    public void createRoute(CreateRouteRequest request, StreamObserver<RouteConfiguration> responseObserver) {
         final String parent = request.getParent();
         final String group = removePrefix("groups/", parent);
         checkGroup(xdsCentralDogmaProject, group);
 
-        final String listenerId = request.getListenerId();
-        if (!RESOURCE_ID_PATTERN.matcher(listenerId).matches()) {
-            throw Status.INVALID_ARGUMENT.withDescription("Invalid listener_id: " + listenerId +
+        final String routeId = request.getRouteId();
+        if (!RESOURCE_ID_PATTERN.matcher(routeId).matches()) {
+            throw Status.INVALID_ARGUMENT.withDescription("Invalid route_id: " + routeId +
                                                           " (expected: " + RESOURCE_ID_PATTERN + ')')
                                          .asRuntimeException();
         }
 
-        final String listenerName = parent + LISTENERS_DIRECTORY + listenerId;
-        // Ignore the specified name in the listener and set the name
-        // with the format of "groups/{group}/listeners/{listener}".
+        final String routeName = parent + ROUTES_DIRECTORY + routeId;
+        // Ignore the specified name in the route and set the name
+        // with the format of "groups/{group}/routes/{route}".
         // https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids
-        final Listener listener = request.getListener().toBuilder().setName(listenerName).build();
-        push(commandExecutor, responseObserver, group, LISTENERS_DIRECTORY + listenerId + ".json",
-             "Create listener: " + listenerName, listener, currentAuthor());
+        final RouteConfiguration route = request.getRoute().toBuilder().setName(routeName).build();
+        push(commandExecutor, responseObserver, group, ROUTES_DIRECTORY + routeId + ".json",
+             "Create route: " + routeName, route, currentAuthor());
     }
 
     @Override
-    public void updateListener(UpdateListenerRequest request, StreamObserver<Listener> responseObserver) {
-        final Listener listener = request.getListener();
-        final String listenerName = listener.getName();
-        final Matcher matcher = checkListenerName(listenerName);
-        update(commandExecutor, xdsCentralDogmaProject, matcher.group(1),
-               responseObserver, listenerName, "Update listener: " + listenerName, listener);
+    public void updateRoute(UpdateRouteRequest request, StreamObserver<RouteConfiguration> responseObserver) {
+        final RouteConfiguration route = request.getRoute();
+        final String routeName = route.getName();
+        final Matcher matcher = checkRouteName(routeName);
+        update(commandExecutor, xdsCentralDogmaProject, matcher.group(1), responseObserver, routeName,
+               "Update route: " + routeName, route);
     }
 
-    private static Matcher checkListenerName(String listenerName) {
-        final Matcher matcher = LISTENER_NAME_PATTERN.matcher(listenerName);
+    private static Matcher checkRouteName(String routeName) {
+        final Matcher matcher = ROUTE_NAME_PATTERN.matcher(routeName);
         if (!matcher.matches()) {
-            throw Status.INVALID_ARGUMENT.withDescription("Invalid listener name: " + listenerName +
-                                                          " (expected: " + LISTENER_NAME_PATTERN + ')')
+            throw Status.INVALID_ARGUMENT.withDescription("Invalid route name: " + routeName +
+                                                          " (expected: " + ROUTE_NAME_PATTERN + ')')
                                          .asRuntimeException();
         }
         return matcher;
     }
 
     @Override
-    public void deleteListener(DeleteListenerRequest request, StreamObserver<Empty> responseObserver) {
-        final String listenerName = request.getName();
-        final Matcher matcher = checkListenerName(listenerName);
+    public void deleteRoute(DeleteRouteRequest request, StreamObserver<Empty> responseObserver) {
+        final String routeName = request.getName();
+        final Matcher matcher = checkRouteName(routeName);
         delete(commandExecutor, xdsCentralDogmaProject, matcher.group(1), responseObserver,
-               listenerName, "Delete listener: " + listenerName);
+               routeName, "Delete route: " + routeName);
     }
 }

@@ -40,7 +40,8 @@ service XdsEndpointService {
   // Updates an existing endpoint.
   rpc UpdateEndpoint(UpdateEndpointRequest) returns (envoy.config.endpoint.v3.ClusterLoadAssignment) {
     option (google.api.http) = {
-      post: "/api/v1/xds/{endpoint.name=groups/*/endpoints/**}"
+      // ClusterLoadAssignment does not have the name field, so use endpoint_name.
+      patch: "/api/v1/xds/{endpoint_name=groups/*/endpoints/**}"
       body: "endpoint"
     };
   }
@@ -48,7 +49,7 @@ service XdsEndpointService {
   // Deletes a endpoint.
   rpc DeleteEndpoint(DeleteEndpointRequest) returns (google.protobuf.Empty) {
     option (google.api.http) = {
-      delete: "/api/v1/xds/{name=groups/*}"
+      delete: "/api/v1/xds/{name=groups/*/endpoints/**}"
     };
   }
 
@@ -77,8 +78,9 @@ message CreateEndpointRequest {
 }
 
 message UpdateEndpointRequest {
-  // The endpoint's `name` field is used to identify the endpoint to update.
   // Format: groups/{group}/endpoints/{endpoint}
+  string endpoint_name = 1 [(google.api.field_behavior) = REQUIRED];
+
   envoy.config.endpoint.v3.ClusterLoadAssignment endpoint = 2 [(google.api.field_behavior) = REQUIRED];
 
   // TODO(minwoox): Add the following fields.
@@ -93,4 +95,8 @@ message UpdateEndpointRequest {
 message DeleteEndpointRequest {
   // Format: groups/{group}/endpoints/{endpoint}
   string name = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // If set to true, and the endpoint is not found, the request will succeed
+  // but no action will be taken on the server
+  // bool allow_missing = 2;
 }

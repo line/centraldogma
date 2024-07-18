@@ -168,7 +168,7 @@ public final class XdsTestUtil {
                 .build();
     }
 
-    static Cluster cluster(String clusterName, int connectTimeoutSeconds) {
+    public static Cluster cluster(String clusterName, int connectTimeoutSeconds) {
         final GrpcService.Builder grpcServiceBuilder =
                 GrpcService.newBuilder().setEnvoyGrpc(
                         EnvoyGrpc.newBuilder()
@@ -240,7 +240,7 @@ public final class XdsTestUtil {
                                  .build();
     }
 
-    static RouteConfiguration routeConfiguration(String routeName, String clusterName) {
+    public static RouteConfiguration routeConfiguration(String routeName, String clusterName) {
         return routeConfiguration(routeName, virtualHost(routeName, clusterName));
     }
 

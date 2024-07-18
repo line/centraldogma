@@ -40,7 +40,7 @@ service XdsClusterService {
   // Updates an existing cluster.
   rpc UpdateCluster(UpdateClusterRequest) returns (envoy.config.cluster.v3.Cluster) {
     option (google.api.http) = {
-      post: "/api/v1/xds/{cluster.name=groups/*/clusters/**}"
+      patch: "/api/v1/xds/{cluster.name=groups/*/clusters/**}"
       body: "cluster"
     };
   }
@@ -48,7 +48,7 @@ service XdsClusterService {
   // Deletes a cluster.
   rpc DeleteCluster(DeleteClusterRequest) returns (google.protobuf.Empty) {
     option (google.api.http) = {
-      delete: "/api/v1/xds/{name=groups/*}"
+      delete: "/api/v1/xds/{name=groups/*/clusters/**}"
     };
   }
 }
@@ -69,7 +69,7 @@ message CreateClusterRequest {
 message UpdateClusterRequest {
   // The cluster's `name` field is used to identify the cluster to update.
   // Format: groups/{group}/clusters/{cluster}
-  envoy.config.cluster.v3.Cluster cluster = 2 [(google.api.field_behavior) = REQUIRED];
+  envoy.config.cluster.v3.Cluster cluster = 1 [(google.api.field_behavior) = REQUIRED];
 
   // TODO(minwoox): Add the following fields.
   // The list of fields to be updated.
@@ -83,4 +83,8 @@ message UpdateClusterRequest {
 message DeleteClusterRequest {
   // Format: groups/{group}/clusters/{cluster}
   string name = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // If set to true, and the cluster is not found, the request will succeed
+  // but no action will be taken on the server
+  // bool allow_missing = 2;
 }

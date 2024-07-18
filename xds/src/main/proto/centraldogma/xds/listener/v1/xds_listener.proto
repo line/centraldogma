@@ -48,7 +48,7 @@ service XdsListenerService {
   // Deletes a listener.
   rpc DeleteListener(DeleteListenerRequest) returns (google.protobuf.Empty) {
     option (google.api.http) = {
-      delete: "/api/v1/xds/{name=groups/*/listeners/*}"
+      delete: "/api/v1/xds/{name=groups/*/listeners/**}"
     };
   }
 }
@@ -69,7 +69,7 @@ message CreateListenerRequest {
 message UpdateListenerRequest {
   // The listener's `name` field is used to identify the listener to update.
   // Format: groups/{group}/listeners/{listener}
-  envoy.config.listener.v3.Listener listener = 2 [(google.api.field_behavior) = REQUIRED];
+  envoy.config.listener.v3.Listener listener = 1 [(google.api.field_behavior) = REQUIRED];
 
   // TODO(minwoox): Add the following fields.
   // The list of fields to be updated.

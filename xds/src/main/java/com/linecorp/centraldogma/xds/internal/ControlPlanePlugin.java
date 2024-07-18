@@ -41,6 +41,7 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
@@ -51,8 +52,11 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
+import com.linecorp.centraldogma.xds.cluster.v1.XdsClusterService;
+import com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointService;
 import com.linecorp.centraldogma.xds.group.v1.XdsGroupService;
 import com.linecorp.centraldogma.xds.listener.v1.XdsListenerService;
+import com.linecorp.centraldogma.xds.route.v1.XdsRouteService;
 
 import io.envoyproxy.controlplane.cache.v3.SimpleCache;
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks;
@@ -153,12 +157,14 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                                                    .useBlockingTaskExecutor(true)
                                                    .build();
         sb.route().build(grpcService);
+        final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
         final GrpcService xdsApplicationService =
                 GrpcService.builder()
-                           .addService(new XdsGroupService(projectManager,
-                                                           pluginInitContext.commandExecutor()))
-                           .addService(new XdsListenerService(projectManager,
-                                                              pluginInitContext.commandExecutor()))
+                           .addService(new XdsGroupService(projectManager, commandExecutor))
+                           .addService(new XdsListenerService(projectManager, commandExecutor))
+                           .addService(new XdsRouteService(projectManager, commandExecutor))
+                           .addService(new XdsClusterService(projectManager, commandExecutor))
+                           .addService(new XdsEndpointService(projectManager, commandExecutor))
                            .jsonMarshallerFactory(
                                    serviceDescriptor -> GrpcJsonMarshaller
                                            .builder()
@@ -253,7 +259,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                 if (cause instanceof RepositoryNotFoundException) {
                     // Repository is removed.
                     watchingXdsProjects.remove(repository.name());
-                    centralDogmaXdsResources.removeProject(repository.name());
+                    centralDogmaXdsResources.removeGroup(repository.name());
                     cache.setSnapshot(DEFAULT_GROUP, centralDogmaXdsResources.snapshot());
                     return null;
                 }
@@ -280,7 +286,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
             if (cause != null) {
                 logger.warn("Unexpected exception while diffing {} from {} to {}. Building from the first.",
                             repoName, lastKnownRevision, newRevision, cause);
-                centralDogmaXdsResources.removeProject(repoName);
+                centralDogmaXdsResources.removeGroup(repoName);
                 // Do not call cache.setSnapshot(). Let watchXdsProject() create a new snapshot.
                 watchXdsProject(repository, Revision.INIT);
                 return null;

@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.xds.listener.v1;
+package com.linecorp.centraldogma.xds.endpoint.v1;
 
 import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.exampleListener;
@@ -42,6 +42,9 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
+import com.linecorp.centraldogma.xds.listener.v1.CreateListenerRequest;
+import com.linecorp.centraldogma.xds.listener.v1.DeleteListenerRequest;
+import com.linecorp.centraldogma.xds.listener.v1.UpdateListenerRequest;
 import com.linecorp.centraldogma.xds.listener.v1.XdsListenerServiceGrpc.XdsListenerServiceBlockingStub;
 
 import io.envoyproxy.controlplane.cache.Resources.V3;
@@ -51,7 +54,7 @@ import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
 import io.envoyproxy.envoy.service.listener.v3.ListenerDiscoveryServiceGrpc.ListenerDiscoveryServiceStub;
 import io.grpc.stub.StreamObserver;
 
-class XdsListenerServiceTest {
+class XdsEndpointServiceTest {
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension();

@@ -13,10 +13,10 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.xds.listener.v1;
+package com.linecorp.centraldogma.xds.cluster.v1;
 
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENERS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.RESOURCE_ID_PATTERN;
 import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.RESOURCE_ID_PATTERN_STRING;
@@ -35,19 +35,19 @@ import com.google.protobuf.Empty;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
-import com.linecorp.centraldogma.xds.listener.v1.XdsListenerServiceGrpc.XdsListenerServiceImplBase;
+import com.linecorp.centraldogma.xds.cluster.v1.XdsClusterServiceGrpc.XdsClusterServiceImplBase;
 
-import io.envoyproxy.envoy.config.listener.v3.Listener;
+import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
 /**
- * Service for managing listeners.
+ * Service for managing clusters.
  */
-public final class XdsListenerService extends XdsListenerServiceImplBase {
+public final class XdsClusterService extends XdsClusterServiceImplBase {
 
-    private static final Pattern LISTENER_NAME_PATTERN =
-            Pattern.compile("^groups/([^/]+)/listeners/" + RESOURCE_ID_PATTERN_STRING + '$');
+    private static final Pattern CLUSTER_NAME_PATTERN =
+            Pattern.compile("^groups/([^/]+)/clusters/(" + RESOURCE_ID_PATTERN_STRING + ")$");
 
     private final Project xdsCentralDogmaProject;
     private final CommandExecutor commandExecutor;
@@ -55,58 +55,58 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
     /**
      * Creates a new instance.
      */
-    public XdsListenerService(ProjectManager projectManager, CommandExecutor commandExecutor) {
+    public XdsClusterService(ProjectManager projectManager, CommandExecutor commandExecutor) {
         xdsCentralDogmaProject = requireNonNull(projectManager, "projectManager")
                 .get(XDS_CENTRAL_DOGMA_PROJECT);
         this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
     }
 
     @Override
-    public void createListener(CreateListenerRequest request, StreamObserver<Listener> responseObserver) {
+    public void createCluster(CreateClusterRequest request, StreamObserver<Cluster> responseObserver) {
         final String parent = request.getParent();
         final String group = removePrefix("groups/", parent);
         checkGroup(xdsCentralDogmaProject, group);
 
-        final String listenerId = request.getListenerId();
-        if (!RESOURCE_ID_PATTERN.matcher(listenerId).matches()) {
-            throw Status.INVALID_ARGUMENT.withDescription("Invalid listener_id: " + listenerId +
+        final String clusterId = request.getClusterId();
+        if (!RESOURCE_ID_PATTERN.matcher(clusterId).matches()) {
+            throw Status.INVALID_ARGUMENT.withDescription("Invalid cluster_id: " + clusterId +
                                                           " (expected: " + RESOURCE_ID_PATTERN + ')')
                                          .asRuntimeException();
         }
 
-        final String listenerName = parent + LISTENERS_DIRECTORY + listenerId;
-        // Ignore the specified name in the listener and set the name
-        // with the format of "groups/{group}/listeners/{listener}".
+        final String clusterName = parent + CLUSTERS_DIRECTORY + clusterId;
+        // Ignore the specified name in the cluster and set the name
+        // with the format of "groups/{group}/clusters/{cluster}".
         // https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids
-        final Listener listener = request.getListener().toBuilder().setName(listenerName).build();
-        push(commandExecutor, responseObserver, group, LISTENERS_DIRECTORY + listenerId + ".json",
-             "Create listener: " + listenerName, listener, currentAuthor());
+        final Cluster cluster = request.getCluster().toBuilder().setName(clusterName).build();
+        push(commandExecutor, responseObserver, group, CLUSTERS_DIRECTORY + clusterId + ".json",
+             "Create cluster: " + clusterName, cluster, currentAuthor());
     }
 
     @Override
-    public void updateListener(UpdateListenerRequest request, StreamObserver<Listener> responseObserver) {
-        final Listener listener = request.getListener();
-        final String listenerName = listener.getName();
-        final Matcher matcher = checkListenerName(listenerName);
+    public void updateCluster(UpdateClusterRequest request, StreamObserver<Cluster> responseObserver) {
+        final Cluster cluster = request.getCluster();
+        final String clusterName = cluster.getName();
+        final Matcher matcher = checkClusterName(clusterName);
         update(commandExecutor, xdsCentralDogmaProject, matcher.group(1),
-               responseObserver, listenerName, "Update listener: " + listenerName, listener);
+               responseObserver, clusterName, "Update cluster: " + clusterName, cluster);
     }
 
-    private static Matcher checkListenerName(String listenerName) {
-        final Matcher matcher = LISTENER_NAME_PATTERN.matcher(listenerName);
+    @Override
+    public void deleteCluster(DeleteClusterRequest request, StreamObserver<Empty> responseObserver) {
+        final String clusterName = request.getName();
+        final Matcher matcher = checkClusterName(clusterName);
+        delete(commandExecutor, xdsCentralDogmaProject, matcher.group(1), responseObserver,
+               clusterName, "Delete cluster: " + clusterName);
+    }
+
+    private static Matcher checkClusterName(String clusterName) {
+        final Matcher matcher = CLUSTER_NAME_PATTERN.matcher(clusterName);
         if (!matcher.matches()) {
-            throw Status.INVALID_ARGUMENT.withDescription("Invalid listener name: " + listenerName +
-                                                          " (expected: " + LISTENER_NAME_PATTERN + ')')
+            throw Status.INVALID_ARGUMENT.withDescription("Invalid cluster name: " + clusterName +
+                                                          " (expected: " + CLUSTER_NAME_PATTERN + ')')
                                          .asRuntimeException();
         }
         return matcher;
-    }
-
-    @Override
-    public void deleteListener(DeleteListenerRequest request, StreamObserver<Empty> responseObserver) {
-        final String listenerName = request.getName();
-        final Matcher matcher = checkListenerName(listenerName);
-        delete(commandExecutor, xdsCentralDogmaProject, matcher.group(1), responseObserver,
-               listenerName, "Delete listener: " + listenerName);
     }
 }

@@ -40,7 +40,7 @@ service XdsRouteService {
   // Updates an existing route.
   rpc UpdateRoute(UpdateRouteRequest) returns (envoy.config.route.v3.RouteConfiguration) {
     option (google.api.http) = {
-      post: "/api/v1/xds/{route.name=groups/*/routes/**}"
+      patch: "/api/v1/xds/{route.name=groups/*/routes/**}"
       body: "route"
     };
   }
@@ -48,7 +48,7 @@ service XdsRouteService {
   // Deletes a route.
   rpc DeleteRoute(DeleteRouteRequest) returns (google.protobuf.Empty) {
     option (google.api.http) = {
-      delete: "/api/v1/xds/{name=groups/*}"
+      delete: "/api/v1/xds/{name=groups/*/routes/**}"
     };
   }
 }
@@ -69,7 +69,7 @@ message CreateRouteRequest {
 message UpdateRouteRequest {
   // The route's `name` field is used to identify the route to update.
   // Format: groups/{group}/routes/{route}
-  envoy.config.route.v3.RouteConfiguration route = 2 [(google.api.field_behavior) = REQUIRED];
+  envoy.config.route.v3.RouteConfiguration route = 1 [(google.api.field_behavior) = REQUIRED];
 
   // TODO(minwoox): Add the following fields.
   // The list of fields to be updated.
@@ -83,4 +83,8 @@ message UpdateRouteRequest {
 message DeleteRouteRequest {
   // Format: groups/{group}/routes/{route}
   string name = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // If set to true, and the Route is not found, the request will succeed
+  // but no action will be taken on the server
+  // bool allow_missing = 2;
 }
