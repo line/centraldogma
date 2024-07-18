@@ -112,7 +112,7 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     private String serviceCluster = "";
 
     // TODO: @jrhee17 remove this once xDS TLS is fully supported
-    private Function<Bootstrap, XdsBootstrap> xdsBootstrapFactory;
+    private Function<Bootstrap, XdsBootstrap> xdsBootstrapFactory = XdsBootstrap::of;
 
     /**
      * Sets the name of the {@link Listener} that should be requested to the xDS bootstrap servers.
