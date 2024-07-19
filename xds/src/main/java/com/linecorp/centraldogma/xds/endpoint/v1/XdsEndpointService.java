@@ -48,7 +48,7 @@ import io.grpc.stub.StreamObserver;
 public final class XdsEndpointService extends XdsEndpointServiceImplBase {
 
     private static final Pattern ENDPONT_NAME_PATTERN =
-            Pattern.compile("^groups/([^/]+)/endpoints/" + RESOURCE_ID_PATTERN_STRING + '$');
+            Pattern.compile("^groups/([^/]+)/endpoints/(" + RESOURCE_ID_PATTERN_STRING + ")$");
 
     private final Project xdsCentralDogmaProject;
     private final CommandExecutor commandExecutor;
@@ -76,7 +76,8 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
                                          .asRuntimeException();
         }
 
-        // Use /clusters/ instead of /endpoints/. /endpoints/ will be used for the file name.
+        // Use /clusters/ instead of /endpoints/ for the cluster name.
+        // /endpoints/ will be used for the file name.
         final String clusterName = parent + CLUSTERS_DIRECTORY + endpointId;
         // Ignore the specified name in the endpoint and set the name
         // with the format of "groups/{group}/clusters/{endpoint}".
@@ -85,7 +86,7 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
                                                       .toBuilder()
                                                       .setClusterName(clusterName)
                                                       .build();
-        push(commandExecutor, responseObserver, group, ENDPOINTS_DIRECTORY + endpointId + ".json",
+        push(commandExecutor, responseObserver, group, fileName(endpointId),
              "Create endpoint: " + clusterName, endpoint, currentAuthor());
     }
 

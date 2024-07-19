@@ -16,7 +16,8 @@
 package com.linecorp.centraldogma.xds.endpoint.v1;
 
 import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.JSON_MESSAGE_MARSHALLER;
-import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.exampleListener;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.endpoint;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.loadAssignment;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -41,17 +42,16 @@ import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
-import com.linecorp.centraldogma.xds.listener.v1.CreateListenerRequest;
-import com.linecorp.centraldogma.xds.listener.v1.DeleteListenerRequest;
-import com.linecorp.centraldogma.xds.listener.v1.UpdateListenerRequest;
-import com.linecorp.centraldogma.xds.listener.v1.XdsListenerServiceGrpc.XdsListenerServiceBlockingStub;
+import com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceGrpc.XdsEndpointServiceBlockingStub;
 
 import io.envoyproxy.controlplane.cache.Resources.V3;
-import io.envoyproxy.envoy.config.listener.v3.Listener;
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
+import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
-import io.envoyproxy.envoy.service.listener.v3.ListenerDiscoveryServiceGrpc.ListenerDiscoveryServiceStub;
+import io.envoyproxy.envoy.service.endpoint.v3.EndpointDiscoveryServiceGrpc.EndpointDiscoveryServiceStub;
 import io.grpc.stub.StreamObserver;
 
 class XdsEndpointServiceTest {
@@ -74,34 +74,35 @@ class XdsEndpointServiceTest {
     }
 
     @Test
-    void createListenerViaHttp() throws Exception {
-        final Listener listener = exampleListener("this_listener_name_will_be_ignored_and_replaced",
-                                                  "groups/foo/routes/foo-route", "stats");
-        AggregatedHttpResponse response = createListener("foo", "@invalid_listener_id", listener);
+    void createEndpointViaHttp() throws Exception {
+        final ClusterLoadAssignment endpoint = loadAssignment("this_endpoint_name_will_be_ignored_and_replaced",
+                                                              "127.0.0.1", 8080);
+        AggregatedHttpResponse response = createEndpoint("foo", "@invalid_endpoint_id", endpoint);
         assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
 
-        response = createListener("non-existent-group", "foo-listener/1", listener);
+        response = createEndpoint("non-existent-group", "foo-endpoint/1", endpoint);
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createListener("foo", "foo-listener/1", listener);
+        response = createEndpoint("foo", "foo-endpoint/1", endpoint);
         assertOk(response);
-        final Listener.Builder listenerBuilder = Listener.newBuilder();
-        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), listenerBuilder);
-        final Listener actualListener = listenerBuilder.build();
-        final String listenerName = "groups/foo/listeners/foo-listener/1";
-        assertThat(actualListener).isEqualTo(listener.toBuilder().setName(listenerName).build());
-        checkResourceViaDiscoveryRequest(actualListener, listenerName, true);
+        final ClusterLoadAssignment.Builder endpointBuilder = ClusterLoadAssignment.newBuilder();
+        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), endpointBuilder);
+        final ClusterLoadAssignment actualEndpoint = endpointBuilder.build();
+        final String clusterName = "groups/foo/clusters/foo-endpoint/1";
+        assertThat(actualEndpoint).isEqualTo(
+                endpoint.toBuilder().setClusterName(clusterName).build());
+        checkResourceViaDiscoveryRequest(actualEndpoint, clusterName);
     }
 
-    private static AggregatedHttpResponse createListener(
-            String groupName, String listenerId, Listener listener) throws IOException {
+    private static AggregatedHttpResponse createEndpoint(
+            String groupName, String endpointId, ClusterLoadAssignment endpoint) throws IOException {
         final RequestHeaders headers =
                 RequestHeaders.builder(HttpMethod.POST,
-                                       "/api/v1/xds/groups/" + groupName + "/listeners?listener_id=" +
-                                       listenerId)
+                                       "/api/v1/xds/groups/" + groupName + "/endpoints?endpoint_id=" +
+                                       endpointId)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                               .contentType(MediaType.JSON_UTF_8).build();
-        return dogma.httpClient().execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(listener))
+        return dogma.httpClient().execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(endpoint))
                     .aggregate().join();
     }
 
@@ -110,13 +111,13 @@ class XdsEndpointServiceTest {
         assertThat(response.headers().get("grpc-status")).isEqualTo("0");
     }
 
-    private static void checkResourceViaDiscoveryRequest(Listener actualListener, String resourceName,
-                                                         boolean created)
+    private static void checkResourceViaDiscoveryRequest(
+            @Nullable ClusterLoadAssignment actualEndpoint, String resourceName)
             throws InterruptedException, InvalidProtocolBufferException {
-        final ListenerDiscoveryServiceStub client = GrpcClients.newClient(
-                dogma.httpClient().uri(), ListenerDiscoveryServiceStub.class);
+        final EndpointDiscoveryServiceStub client = GrpcClients.newClient(
+                dogma.httpClient().uri(), EndpointDiscoveryServiceStub.class);
         final BlockingQueue<DiscoveryResponse> queue = new ArrayBlockingQueue<>(2);
-        final StreamObserver<DiscoveryRequest> requestStreamObserver = client.streamListeners(
+        final StreamObserver<DiscoveryRequest> requestStreamObserver = client.streamEndpoints(
                 new StreamObserver<DiscoveryResponse>() {
                     @Override
                     public void onNext(DiscoveryResponse value) {
@@ -130,16 +131,16 @@ class XdsEndpointServiceTest {
                     public void onCompleted() {}
                 });
         requestStreamObserver.onNext(DiscoveryRequest.newBuilder()
-                                                     .setTypeUrl(V3.LISTENER_TYPE_URL)
+                                                     .setTypeUrl(V3.ENDPOINT_TYPE_URL)
                                                      .addResourceNames(resourceName)
                                                      .build());
-        if (created) {
+        if (actualEndpoint != null) {
             final DiscoveryResponse discoveryResponse = queue.take();
             final List<Any> resources = discoveryResponse.getResourcesList();
             assertThat(resources.size()).isOne();
             final Any any = resources.get(0);
-            assertThat(any.getTypeUrl()).isEqualTo(V3.LISTENER_TYPE_URL);
-            assertThat(actualListener).isEqualTo(Listener.parseFrom(any.getValue()));
+            assertThat(any.getTypeUrl()).isEqualTo(V3.ENDPOINT_TYPE_URL);
+            assertThat(actualEndpoint).isEqualTo(ClusterLoadAssignment.parseFrom(any.getValue()));
         } else {
             final DiscoveryResponse discoveryResponse = queue.poll(300, TimeUnit.MILLISECONDS);
             assertThat(discoveryResponse).isNull();
@@ -147,104 +148,119 @@ class XdsEndpointServiceTest {
     }
 
     @Test
-    void updateListenerViaHttp() throws Exception {
-        final Listener listener = exampleListener("this_listener_name_will_be_ignored_and_replaced",
-                                                  "groups/foo/routes/foo-route", "stats");
-        AggregatedHttpResponse response = updateListener("foo-listener/2", listener);
+    void updateEndpointViaHttp() throws Exception {
+        final ClusterLoadAssignment endpoint = loadAssignment("this_endpoint_name_will_be_ignored_and_replaced",
+                                                              "127.0.0.1", 8080);
+        AggregatedHttpResponse response = updateEndpoint("foo-endpoint/2", endpoint);
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createListener("foo", "foo-listener/2", listener);
+        response = createEndpoint("foo", "foo-endpoint/2", endpoint);
         assertOk(response);
-        final Listener.Builder listenerBuilder = Listener.newBuilder();
-        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), listenerBuilder);
-        final Listener actualListener = listenerBuilder.build();
-        final String listenerName = "groups/foo/listeners/foo-listener/2";
-        assertThat(actualListener).isEqualTo(listener.toBuilder().setName(listenerName).build());
-        checkResourceViaDiscoveryRequest(actualListener, listenerName, true);
+        final ClusterLoadAssignment.Builder endpointBuilder = ClusterLoadAssignment.newBuilder();
+        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), endpointBuilder);
+        final ClusterLoadAssignment actualEndpoint = endpointBuilder.build();
+        final String clusterName = "groups/foo/clusters/foo-endpoint/2";
+        assertThat(actualEndpoint).isEqualTo(endpoint.toBuilder().setClusterName(clusterName).build());
+        checkResourceViaDiscoveryRequest(actualEndpoint, clusterName);
 
-        final Listener updatingListener = listener.toBuilder()
-                                                  .setStatPrefix("updated_stats")
-                                                  .setName(listenerName).build();
-        response = updateListener("foo-listener/2", updatingListener);
+        final ClusterLoadAssignment updatingEndpoint =
+                endpoint.toBuilder()
+                        .addEndpoints(LocalityLbEndpoints.newBuilder()
+                                                         .addLbEndpoints(endpoint("127.0.0.1", 8081)))
+                        .setClusterName(clusterName).build();
+        response = updateEndpoint("foo-endpoint/2", updatingEndpoint);
         assertOk(response);
-        final Listener.Builder listenerBuilder2 = Listener.newBuilder();
-        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), listenerBuilder2);
-        final Listener actualListener2 = listenerBuilder2.build();
-        assertThat(actualListener2).isEqualTo(updatingListener.toBuilder().setName(listenerName).build());
+        final ClusterLoadAssignment.Builder endpointBuilder2 = ClusterLoadAssignment.newBuilder();
+        JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), endpointBuilder2);
+        final ClusterLoadAssignment actualEndpoint2 = endpointBuilder2.build();
+        assertThat(actualEndpoint2).isEqualTo(
+                updatingEndpoint.toBuilder().setClusterName(clusterName).build());
         await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualListener2, listenerName, true));
+                () -> checkResourceViaDiscoveryRequest(actualEndpoint2, clusterName));
     }
 
-    private static AggregatedHttpResponse updateListener(
-            String listenerId, Listener listener) throws IOException {
+    private static AggregatedHttpResponse updateEndpoint(
+            String endpointId, ClusterLoadAssignment endpoint) throws IOException {
         final RequestHeaders headers = RequestHeaders.builder(HttpMethod.PATCH,
-                                                              "/api/v1/xds/groups/foo/listeners/" + listenerId)
+                                                              "/api/v1/xds/groups/foo/endpoints/" + endpointId)
                                                      .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                                                      .contentType(MediaType.JSON_UTF_8).build();
-        return dogma.httpClient().execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(listener))
+        return dogma.httpClient().execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(endpoint))
                     .aggregate().join();
     }
 
     @Test
-    void deleteListenerViaHttp() throws Exception {
-        final String listenerName = "groups/foo/listeners/foo-listener/3/4";
-        AggregatedHttpResponse response = deleteListener(listenerName);
+    void deleteEndpointViaHttp() throws Exception {
+        final String endpointName = "groups/foo/endpoints/foo-endpoint/3/4";
+        final String clusterName = "groups/foo/clusters/foo-endpoint/3/4";
+        AggregatedHttpResponse response = deleteEndpoint(endpointName);
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        final Listener listener = exampleListener("this_listener_name_will_be_ignored_and_replaced",
-                                                  "groups/foo/routes/foo-route", "stats");
-        response = createListener("foo", "foo-listener/3/4", listener);
+        final ClusterLoadAssignment endpoint = loadAssignment("this_endpoint_name_will_be_ignored_and_replaced",
+                                                              "127.0.0.1", 8080);
+        response = createEndpoint("foo", "foo-endpoint/3/4", endpoint);
         assertOk(response);
 
-        final Listener actualListener = listener.toBuilder().setName(listenerName).build();
-        checkResourceViaDiscoveryRequest(actualListener, listenerName, true);
+        final ClusterLoadAssignment actualEndpoint =
+                endpoint.toBuilder().setClusterName(clusterName).build();
+        checkResourceViaDiscoveryRequest(actualEndpoint, clusterName);
 
         // Add permission test.
 
-        response = deleteListener(listenerName);
+        response = deleteEndpoint(endpointName);
         assertOk(response);
         assertThat(response.contentUtf8()).isEqualTo("{}");
         await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualListener, listenerName, false));
+                () -> checkResourceViaDiscoveryRequest(null, clusterName));
     }
 
-    private static AggregatedHttpResponse deleteListener(String listenerName) {
+    private static AggregatedHttpResponse deleteEndpoint(String endpointName) {
         final RequestHeaders headers =
-                RequestHeaders.builder(HttpMethod.DELETE, "/api/v1/xds/" + listenerName)
+                RequestHeaders.builder(HttpMethod.DELETE, "/api/v1/xds/" + endpointName)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                               .build();
         return dogma.httpClient().execute(headers).aggregate().join();
     }
 
     @Test
-    void viaStub() {
-        final XdsListenerServiceBlockingStub client =
+    void viaStub() throws Exception {
+        final XdsEndpointServiceBlockingStub client =
                 GrpcClients.builder(dogma.httpClient().uri())
                            .setHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                           .build(XdsListenerServiceBlockingStub.class);
-        final Listener listener = exampleListener("this_listener_name_will_be_ignored_and_replaced",
-                                                  "groups/foo/routes/foo-route", "stats");
-        Listener response = client.createListener(
-                CreateListenerRequest.newBuilder()
+                           .build(XdsEndpointServiceBlockingStub.class);
+        final ClusterLoadAssignment endpoint = loadAssignment("this_endpoint_name_will_be_ignored_and_replaced",
+                                                              "127.0.0.1", 8080);
+        ClusterLoadAssignment response = client.createEndpoint(
+                CreateEndpointRequest.newBuilder()
                                      .setParent("groups/foo")
-                                     .setListenerId("foo-listener/5/6")
-                                     .setListener(listener)
+                                     .setEndpointId("foo-endpoint/5/6")
+                                     .setEndpoint(endpoint)
                                      .build());
-        final String listenerName = "groups/foo/listeners/foo-listener/5/6";
-        assertThat(response).isEqualTo(listener.toBuilder().setName(listenerName).build());
+        final String clusterName = "groups/foo/clusters/foo-endpoint/5/6";
+        assertThat(response).isEqualTo(endpoint.toBuilder().setClusterName(clusterName).build());
+        checkResourceViaDiscoveryRequest(response, clusterName);
 
-        final Listener updatingListener = listener.toBuilder()
-                                                  .setStatPrefix("updated_stats")
-                                                  .setName(listenerName).build();
-        response = client.updateListener(UpdateListenerRequest.newBuilder()
-                                                              .setListener(updatingListener)
-                                                              .build());
-        assertThat(response).isEqualTo(updatingListener);
+        final ClusterLoadAssignment updatingEndpoint =
+                endpoint.toBuilder()
+                        .addEndpoints(LocalityLbEndpoints.newBuilder()
+                                                         .addLbEndpoints(endpoint("127.0.0.1", 8081)))
+                        .setClusterName(clusterName).build();
+
+        final String endpointName = "groups/foo/endpoints/foo-endpoint/5/6";
+        response = client.updateEndpoint(
+                UpdateEndpointRequest.newBuilder()
+                                     .setEndpointName(endpointName)
+                                     .setEndpoint(updatingEndpoint)
+                                     .build());
+        assertThat(response).isEqualTo(updatingEndpoint);
+        checkResourceViaDiscoveryRequest(response, clusterName);
 
         // No exception is thrown.
-        final Empty ignored = client.deleteListener(
-                DeleteListenerRequest.newBuilder()
-                                     .setName(listenerName)
+        final Empty ignored = client.deleteEndpoint(
+                DeleteEndpointRequest.newBuilder()
+                                     .setName(endpointName)
                                      .build());
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest(null, clusterName));
     }
 }

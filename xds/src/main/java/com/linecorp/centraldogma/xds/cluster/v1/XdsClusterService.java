@@ -47,7 +47,7 @@ import io.grpc.stub.StreamObserver;
 public final class XdsClusterService extends XdsClusterServiceImplBase {
 
     private static final Pattern CLUSTER_NAME_PATTERN =
-            Pattern.compile("^groups/([^/]+)/clusters/(" + RESOURCE_ID_PATTERN_STRING + ")$");
+            Pattern.compile("^groups/([^/]+)/clusters/" + RESOURCE_ID_PATTERN_STRING + '$');
 
     private final Project xdsCentralDogmaProject;
     private final CommandExecutor commandExecutor;

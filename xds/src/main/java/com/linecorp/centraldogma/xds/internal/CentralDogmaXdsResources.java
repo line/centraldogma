@@ -100,7 +100,9 @@ final class CentralDogmaXdsResources {
         if (groupEndpoints == null) {
             return;
         }
-        endpointUpdated |= groupEndpoints.remove(getResourceName(groupName, path)) != null;
+        final String resourceName = "groups/" + groupName + "/clusters" +
+                                    path.substring("/endpoints".length(), path.length() - 5); // Remove .json
+        endpointUpdated |= groupEndpoints.remove(resourceName) != null;
     }
 
     void removeListener(String groupName, String path) {

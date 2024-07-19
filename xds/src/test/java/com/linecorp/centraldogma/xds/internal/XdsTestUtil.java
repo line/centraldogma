@@ -82,7 +82,7 @@ public final class XdsTestUtil {
         metadataService.removeRepo(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, xdsProjectName).join();
     }
 
-    static LbEndpoint endpoint(String address, int port) {
+    public static LbEndpoint endpoint(String address, int port) {
         final SocketAddress socketAddress = SocketAddress.newBuilder()
                                                          .setAddress(address)
                                                          .setPortValue(port)
@@ -97,7 +97,7 @@ public final class XdsTestUtil {
                                      .build()).build();
     }
 
-    static ClusterLoadAssignment loadAssignment(String clusterName, String address, int port) {
+    public static ClusterLoadAssignment loadAssignment(String clusterName, String address, int port) {
         return ClusterLoadAssignment.newBuilder()
                                     .setClusterName(clusterName)
                                     .addEndpoints(
