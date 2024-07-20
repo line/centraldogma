@@ -230,7 +230,7 @@ public interface Repository {
      * Query a file at two different revisions and return the diff of the two query results.
      */
     default CompletableFuture<Change<?>> diff(Revision from, Revision to, Query<?> query) {
-       return diff(from, to, query, DiffResultType.NORMAL);
+        return diff(from, to, query, DiffResultType.NORMAL);
     }
 
     /**
@@ -553,4 +553,15 @@ public interface Repository {
 
         return future;
     }
+
+    /**
+     * Adds the {@link RepositoryListener} that gets notified whenever changes matching with
+     * {@link RepositoryListener#pathPattern()} are pushed to this {@link Repository}.
+     */
+    void addListener(RepositoryListener listener);
+
+    /**
+     * Removes the {@link RepositoryListener} from this {@link Repository}.
+     */
+    void removeListener(RepositoryListener listener);
 }

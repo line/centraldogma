@@ -1,19 +1,24 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-export type FilterType = 'all' | 'me';
+export type ProjectFilterType = 'ALL' | 'MEMBER' | 'CREATOR';
 
-type FilterState = {
-  projectFilter: FilterType;
+export type FilterState = {
+  projectFilter: ProjectFilterType;
+  isInitialProjectFilter: boolean;
+};
+
+const initialState: FilterState = {
+  projectFilter: 'MEMBER',
+  isInitialProjectFilter: true,
 };
 
 const filterSlice = createSlice({
   name: 'filterState',
-  initialState: {
-    projectFilter: 'all',
-  },
+  initialState,
   reducers: {
-    setProjectFilter(state: FilterState, action: PayloadAction<FilterType>) {
+    setProjectFilter(state: FilterState, action: PayloadAction<ProjectFilterType>) {
       state.projectFilter = action.payload;
+      state.isInitialProjectFilter = false;
     },
   },
 });

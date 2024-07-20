@@ -8,6 +8,7 @@ import { Layout } from 'dogma/common/components/Layout';
 import { NotificationWrapper } from 'dogma/common/components/NotificationWrapper';
 import dynamic from 'next/dynamic';
 import StoreProvider from 'dogma/StoreProvider';
+import { Loading } from '../dogma/common/components/Loading';
 
 const WEB_AUTH_LOGIN = '/web/auth/login';
 
@@ -23,7 +24,7 @@ let urlRewrite = false;
 const DogmaApp = ({ Component, pageProps }: AppPropsWithLayout) => {
   const router = useRouter();
   if (!router.isReady) {
-    return null;
+    return <Loading />;
   }
   if (!urlRewrite) {
     // Next.js uses a path pattern to dynamically match the request path to a specific HTML file.

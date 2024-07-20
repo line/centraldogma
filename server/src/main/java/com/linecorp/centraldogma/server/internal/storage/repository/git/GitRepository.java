@@ -39,7 +39,9 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -92,6 +94,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.armeria.common.CommonPools;
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -107,6 +111,7 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
@@ -121,9 +126,11 @@ import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
 import difflib.DiffUtils;
 import difflib.Patch;
+import io.netty.channel.EventLoop;
 
 /**
  * A {@link Repository} based on Git.
@@ -186,6 +193,7 @@ class GitRepository implements Repository {
     final CommitWatchers commitWatchers = new CommitWatchers();
     private final AtomicReference<Supplier<CentralDogmaException>> closePending = new AtomicReference<>();
     private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+    private final List<RepositoryListener> listeners = new CopyOnWriteArrayList<>();
 
     /**
      * The current head revision. Initialized by the constructor and updated by commit().
@@ -1485,6 +1493,69 @@ class GitRepository implements Repository {
         });
 
         return future;
+    }
+
+    @Override
+    public void addListener(RepositoryListener listener) {
+        listeners.add(listener);
+        final EventLoop executor = CommonPools.workerGroup().next();
+        recursiveWatch(listener, Revision.INIT, executor);
+    }
+
+    private void recursiveWatch(RepositoryListener listener, Revision lastKnownRevision, EventLoop executor) {
+        if (shouldStopListening(listener)) {
+            return;
+        }
+
+        final String pathPattern = listener.pathPattern();
+        watch(lastKnownRevision, pathPattern).handle((newRevision, cause) -> {
+            if (cause != null) {
+                cause = Exceptions.peel(cause);
+                if (cause instanceof ShuttingDownException) {
+                    return null;
+                }
+
+                logger.warn("Failed to watch {} file in {}/{}. Try watching after 5 seconds.",
+                            pathPattern, parent.name(), name, cause);
+                executor.schedule(() -> recursiveWatch(listener, lastKnownRevision, executor),
+                                  5, TimeUnit.SECONDS);
+                return null;
+            }
+
+            find(newRevision, pathPattern).handle((entries, cause0) -> {
+                if (cause0 != null) {
+                    cause0 = Exceptions.peel(cause0);
+                    if (cause0 instanceof ShuttingDownException) {
+                        return null;
+                    }
+
+                    logger.warn("Unexpected exception while retrieving {} in {}/{}. " +
+                                "Try watching after 5 seconds.", pathPattern, parent.name(), name, cause0);
+                    executor.schedule(() -> recursiveWatch(listener, newRevision, executor),
+                                      5, TimeUnit.SECONDS);
+                    return null;
+                }
+
+                try {
+                    listener.onUpdate(entries);
+                } catch (Exception ex) {
+                    logger.warn("Unexpected exception while invoking {}.onUpdate(). listener: {}",
+                                RepositoryListener.class.getSimpleName(), listener);
+                }
+                recursiveWatch(listener, newRevision, executor);
+                return null;
+            });
+            return null;
+        });
+    }
+
+    private boolean shouldStopListening(RepositoryListener listener) {
+        return !listeners.contains(listener) || closePending.get() != null;
+    }
+
+    @Override
+    public void removeListener(RepositoryListener listener) {
+        listeners.remove(listener);
     }
 
     private void notifyWatchers(Revision newRevision, List<DiffEntry> diffEntries) {

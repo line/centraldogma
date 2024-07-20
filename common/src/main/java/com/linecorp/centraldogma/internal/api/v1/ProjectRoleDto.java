@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,14 +14,13 @@
  * under the License.
  */
 
-import { CreatorDto } from 'dogma/features/repo/RepoDto';
+package com.linecorp.centraldogma.internal.api.v1;
 
-export type ProjectUserRole = 'OWNER' | 'MEMBER' | 'NONE';
-
-export interface ProjectDto {
-  name: string;
-  url?: string;
-  creator?: CreatorDto;
-  createdAt?: string;
-  userRole?: ProjectUserRole;
+/**
+ * A role of a user or a token in a project.
+ */
+public enum ProjectRoleDto {
+    OWNER,
+    MEMBER,
+    NONE,
 }

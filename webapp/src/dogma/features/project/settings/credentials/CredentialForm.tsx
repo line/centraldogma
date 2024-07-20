@@ -88,7 +88,7 @@ const CredentialForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse
     remove,
   } = useFieldArray({
     control,
-    // @ts-ignore
+    // @ts-expect-error The type of the field array is not correctly inferred.
     name: 'hostnamePatterns',
   });
 

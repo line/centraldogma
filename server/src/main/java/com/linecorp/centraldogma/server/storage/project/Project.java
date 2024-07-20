@@ -21,9 +21,12 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 
+import javax.annotation.Nullable;
+
 import com.google.common.base.Ascii;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
@@ -67,6 +70,13 @@ public interface Project {
      * Returns the {@link RepositoryManager} of this project.
      */
     RepositoryManager repos();
+
+    /**
+     * Returns the {@link ProjectMetadata} of this project.
+     * {@code null} if the project is internal.
+     */
+    @Nullable
+    ProjectMetadata metadata();
 
     /**
      * Returns the list of internal repositories which are {@link #REPO_DOGMA} and {@link #REPO_META}.

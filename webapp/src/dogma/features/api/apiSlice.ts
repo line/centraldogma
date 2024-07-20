@@ -35,6 +35,10 @@ export type ApiAction<Arg, Result> = {
   (arg: Arg): { unwrap: () => Promise<Result> };
 };
 
+export type GetProjects = {
+  admin: boolean;
+};
+
 export type GetHistory = {
   projectName: string;
   repoName: string;
@@ -81,7 +85,7 @@ export const apiSlice = createApi({
   }),
   tagTypes: ['Project', 'Metadata', 'Repo', 'File', 'Token'],
   endpoints: (builder) => ({
-    getProjects: builder.query<ProjectDto[], { admin: boolean }>({
+    getProjects: builder.query<ProjectDto[], GetProjects>({
       async queryFn(arg, _queryApi, _extraOptions, fetchWithBQ) {
         const projects = await fetchWithBQ('/api/v1/projects');
         if (projects.error) return { error: projects.error as FetchBaseQueryError };

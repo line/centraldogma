@@ -33,6 +33,7 @@ import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
 import com.linecorp.centraldogma.internal.api.v1.MergedEntryDto;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
+import com.linecorp.centraldogma.internal.api.v1.ProjectRoleDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -43,9 +44,9 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
  */
 final class DtoConverter {
 
-    public static ProjectDto convert(Project project) {
+    public static ProjectDto convert(Project project, ProjectRoleDto userRole) {
         requireNonNull(project, "project");
-        return new ProjectDto(project.name(), project.author(), project.creationTimeMillis());
+        return new ProjectDto(project.name(), project.author(), userRole, project.creationTimeMillis());
     }
 
     public static RepositoryDto convert(Repository repository) {
