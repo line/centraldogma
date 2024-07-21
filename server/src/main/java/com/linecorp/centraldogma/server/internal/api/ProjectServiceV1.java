@@ -103,23 +103,29 @@ public class ProjectServiceV1 extends AbstractService {
         final ProjectMetadata metadata = project.metadata();
         if (metadata == null) {
             // Metadata is null for the internal project which belongs to administrators.
-            return user.isAdmin() ? ProjectRoleDto.OWNER : ProjectRoleDto.NONE;
+            return user.isAdmin() ? ProjectRoleDto.OWNER : ProjectRoleDto.GUEST;
         }
 
-        final ProjectRole role;
+        ProjectRole role = null;
         if (user instanceof UserWithToken) {
             final String appId = ((UserWithToken) user).token().appId();
             final TokenRegistration tokenRegistration = metadata.tokens().get(appId);
-            if (tokenRegistration == null) {
-                return ProjectRoleDto.NONE;
+            if (tokenRegistration != null) {
+                role = tokenRegistration.role();
             }
-            role = tokenRegistration.role();
         } else {
             final Member member = metadata.memberOrDefault(user.id(), null);
-            if (member == null) {
-                return ProjectRoleDto.NONE;
+            if (member != null) {
+                role = member.role();
             }
-            role = member.role();
+        }
+
+        if (role == null) {
+            if (user.isAnonymous()) {
+                role = ProjectRole.ANONYMOUS;
+            } else {
+                role = ProjectRole.GUEST;
+            }
         }
 
         switch (role) {
@@ -127,8 +133,12 @@ public class ProjectServiceV1 extends AbstractService {
                 return ProjectRoleDto.OWNER;
             case MEMBER:
                 return ProjectRoleDto.MEMBER;
+            case GUEST:
+                return ProjectRoleDto.GUEST;
+            case ANONYMOUS:
+                return ProjectRoleDto.ANONYMOUS;
             default:
-                return ProjectRoleDto.NONE;
+                throw new Error(); // Should never reach here.
         }
     }
 

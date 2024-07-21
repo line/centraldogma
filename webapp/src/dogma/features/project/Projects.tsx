@@ -15,7 +15,6 @@
  */
 import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
 import {
-  Badge,
   Box,
   Button,
   Flex,
@@ -48,6 +47,7 @@ import { FaFilter, FaTrashAlt } from 'react-icons/fa';
 import { ChevronDownIcon } from '@chakra-ui/icons';
 import { ProjectFilterType, setProjectFilter } from 'dogma/features/filter/filterSlice';
 import { UserDto } from '../auth/UserDto';
+import { UserRole } from '../../common/components/UserRole';
 
 function filterProjects(projects: ProjectDto[], projectFilterType: ProjectFilterType, user: UserDto) {
   switch (projectFilterType) {
@@ -130,16 +130,7 @@ export const Projects = () => {
         header: 'Creator',
       }),
       columnHelper.accessor((row: ProjectDto) => row.userRole, {
-        cell: (info) => {
-          switch (info.getValue()) {
-            case 'OWNER':
-              return <Badge colorScheme="green">Owner</Badge>;
-            case 'MEMBER':
-              return <Badge colorScheme="purple">Member</Badge>;
-            default:
-              return <Badge>Guest</Badge>;
-          }
-        },
+        cell: (info) => UserRole({ role: info.getValue() }),
         header: 'Role',
       }),
       columnHelper.accessor((row: ProjectDto) => row.createdAt, {

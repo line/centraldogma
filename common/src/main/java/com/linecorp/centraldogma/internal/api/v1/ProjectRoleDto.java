@@ -22,5 +22,6 @@ package com.linecorp.centraldogma.internal.api.v1;
 public enum ProjectRoleDto {
     OWNER,
     MEMBER,
-    NONE,
+    GUEST,
+    ANONYMOUS
 }

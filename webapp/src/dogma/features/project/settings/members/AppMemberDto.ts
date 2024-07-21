@@ -1,4 +1,6 @@
-export type AppMemberDto = Map<string, AppMemberDetailDto>;
+export interface AppMemberDto {
+  [key: string]: AppMemberDetailDto;
+}
 
 export interface AppMemberDetailDto {
   login: string;

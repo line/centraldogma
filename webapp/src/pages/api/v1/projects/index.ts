@@ -11,7 +11,7 @@ const newProject = (id: number): ProjectDto => {
       email: faker.internet.email(),
     },
     url: faker.internet.url(),
-    userRole: faker.helpers.arrayElement(['OWNER', 'MEMBER', 'NONE']),
+    userRole: faker.helpers.arrayElement(['OWNER', 'MEMBER', 'GUEST']),
     createdAt: faker.datatype.datetime().toString(),
   };
 };
@@ -35,7 +35,7 @@ const projects: ProjectDto[] = [
     name: 'dogma',
     creator: { name: 'System', email: 'system@localhost.localdomain' },
     url: '/api/v1/projects/dogma',
-    userRole: 'NONE',
+    userRole: 'GUEST',
     createdAt: '2022-11-02T04:16:03.175Z',
   },
   {

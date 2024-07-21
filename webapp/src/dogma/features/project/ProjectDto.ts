@@ -16,7 +16,7 @@
 
 import { CreatorDto } from 'dogma/features/repo/RepoDto';
 
-export type ProjectUserRole = 'OWNER' | 'MEMBER' | 'NONE';
+export type ProjectUserRole = 'OWNER' | 'MEMBER' | 'GUEST';
 
 export interface ProjectDto {
   name: string;

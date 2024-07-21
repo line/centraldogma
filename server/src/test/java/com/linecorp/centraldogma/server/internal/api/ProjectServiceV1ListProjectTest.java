@@ -145,7 +145,7 @@ class ProjectServiceV1ListProjectTest {
                 "           \"name\": \"" + TestAuthMessageUtil.USERNAME + "\"," +
                 "           \"email\": \"" + TestAuthMessageUtil.USERNAME + "@localhost.localdomain\"" +
                 "       }," +
-                "       \"userRole\":\"NONE\"," +
+                "       \"userRole\":\"GUEST\"," +
                 "       \"url\": \"/api/v1/projects/jrhee17\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }" +
@@ -264,7 +264,7 @@ class ProjectServiceV1ListProjectTest {
         assertThat(projects).hasSize(2);
         assertThat(projects).containsOnlyKeys("trustin", "hyangtack");
         assertThat(projects.values().stream().map(ProjectDto::userRole))
-                .containsExactlyInAnyOrder(ProjectRoleDto.NONE, ProjectRoleDto.NONE);
+                .containsExactlyInAnyOrder(ProjectRoleDto.GUEST, ProjectRoleDto.GUEST);
 
         AggregatedHttpResponse aRes =
                 adminClient.prepare()
@@ -275,7 +275,7 @@ class ProjectServiceV1ListProjectTest {
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         projects = getProjects(normalClient);
         assertThat(projects.get("trustin").userRole()).isEqualTo(ProjectRoleDto.MEMBER);
-        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRoleDto.NONE);
+        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRoleDto.GUEST);
 
         aRes = adminClient.prepare()
                           .post("/api/v1/metadata/hyangtack/members")
@@ -310,7 +310,7 @@ class ProjectServiceV1ListProjectTest {
         assertThat(projects).hasSize(2);
         assertThat(projects).containsOnlyKeys("trustin", "hyangtack");
         assertThat(projects.values().stream().map(ProjectDto::userRole))
-                .containsExactlyInAnyOrder(ProjectRoleDto.NONE, ProjectRoleDto.NONE);
+                .containsExactlyInAnyOrder(ProjectRoleDto.GUEST, ProjectRoleDto.GUEST);
 
         AggregatedHttpResponse aRes =
                 normalClient.prepare()
@@ -320,7 +320,7 @@ class ProjectServiceV1ListProjectTest {
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         projects = getProjects(tokenClient);
         assertThat(projects.get("trustin").userRole()).isEqualTo(ProjectRoleDto.MEMBER);
-        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRoleDto.NONE);
+        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRoleDto.GUEST);
 
         aRes = normalClient.prepare()
                            .post("/api/v1/metadata/hyangtack/tokens")
