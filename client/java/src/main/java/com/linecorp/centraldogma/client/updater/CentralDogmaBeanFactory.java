@@ -328,7 +328,7 @@ public class CentralDogmaBeanFactory {
                     throw ex;
                 }
             }
-            final long elapsedMillis = System.nanoTime() - t0;
+            final long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
             logger.debug("Initial value of {} obtained in {} ms: rev={}",
                          settings, elapsedMillis, latest.revision());
         }
