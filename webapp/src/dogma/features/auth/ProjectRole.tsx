@@ -18,7 +18,11 @@ export const WithProjectRole = ({ projectName, roles, children }: WithProjectRol
   let role: ProjectRole;
   const { user } = useAppSelector((state) => state.auth);
   if (metadata && user) {
-    role = metadata.members[user.email]?.role as ProjectRole;
+    if (user.admin) {
+      role = 'OWNER';
+    } else {
+      role = metadata.members[user.email]?.role as ProjectRole;
+    }
   }
   if (!role) {
     role = 'GUEST';
