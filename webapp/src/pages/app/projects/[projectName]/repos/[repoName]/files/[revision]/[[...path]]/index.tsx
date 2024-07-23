@@ -18,6 +18,8 @@ const FileContentPage = () => {
     .split('/')
     .filter((v) => v.length > 0)
     .pop();
+
+  const fileExtension = fileName.substring(fileName.lastIndexOf('.') + 1);
   const { data, isLoading, error } = useGetFileContentQuery(
     { projectName, repoName, filePath },
     {
@@ -51,7 +53,7 @@ const FileContentPage = () => {
           <FileEditor
             projectName={projectName}
             repoName={repoName}
-            language={data.type.toLowerCase()}
+            extension={fileExtension}
             originalContent={data.content}
             path={data.path}
             name={fileName}

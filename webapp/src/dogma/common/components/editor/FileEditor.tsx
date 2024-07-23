@@ -31,14 +31,34 @@ import Router from 'next/router';
 export type FileEditorProps = {
   projectName: string;
   repoName: string;
-  language: string;
+  extension: string;
   originalContent: string;
   path: string;
   name: string;
 };
 
-const FileEditor = ({ projectName, repoName, language, originalContent, path, name }: FileEditorProps) => {
+// Map file extension to language identifier
+const extensionToLanguageMap: { [key: string]: string } = {
+  js: 'javascript',
+  ts: 'typescript',
+  html: 'html',
+  css: 'css',
+  json: 'json',
+  xml: 'xml',
+  md: 'markdown',
+  py: 'python',
+  yml: 'yaml',
+  yaml: 'yaml',
+  dockerfile: 'dockerfile',
+  sass: 'sass',
+  less: 'less',
+  scss: 'scss',
+  toml: 'toml',
+};
+
+const FileEditor = ({ projectName, repoName, extension, originalContent, path, name }: FileEditorProps) => {
   const dispatch = useAppDispatch();
+  const language = extensionToLanguageMap[extension] || extension;
   let jsonContent = '';
   if (language === 'json') {
     try {
