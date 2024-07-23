@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.xds.internal;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -40,6 +42,7 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
@@ -92,6 +95,11 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     // Accessed only from CONTROL_PLANE_EXECUTOR.
     private final Set<String> watchingXdsProjects = new HashSet<>();
     private final CentralDogmaXdsResources centralDogmaXdsResources = new CentralDogmaXdsResources();
+
+    @Override
+    public boolean isEnabled(CentralDogmaConfig config) {
+        return requireNonNull(config, "config").isXdsControlPlaneEnabled();
+    }
 
     @Override
     public void init(PluginInitContext pluginInitContext) {

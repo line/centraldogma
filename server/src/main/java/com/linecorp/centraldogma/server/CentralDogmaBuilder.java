@@ -80,6 +80,22 @@ public final class CentralDogmaBuilder {
             "maximumWeight=134217728," + // Cache up to apx. 128-megachars.
             "expireAfterAccess=5m";      // Expire on 5 minutes of inactivity.
 
+    static final boolean XDS_CONTROL_PLANE_FOUND;
+
+    static {
+        XDS_CONTROL_PLANE_FOUND =
+                exists("com.linecorp.centraldogma.xds.internal.ControlPlanePlugin");
+    }
+
+    private static boolean exists(String className) {
+        try {
+            Class.forName(className, false, CentralDogmaBuilder.class.getClassLoader());
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     // Armeria properties
     // Note that we use nullable types here for optional properties.
     // When a property is null, the default value will be used implicitly.
@@ -107,9 +123,13 @@ public final class CentralDogmaBuilder {
     private int numMirroringThreads = DEFAULT_NUM_MIRRORING_THREADS;
     private int maxNumFilesPerMirror = DEFAULT_MAX_NUM_FILES_PER_MIRROR;
     private long maxNumBytesPerMirror = DEFAULT_MAX_NUM_BYTES_PER_MIRROR;
+
+    private boolean xdsControlPlaneEnabled = XDS_CONTROL_PLANE_FOUND;
+
     @Nullable
     private GracefulShutdownTimeout gracefulShutdownTimeout;
     private ReplicationConfig replicationConfig = ReplicationConfig.NONE;
+    @Nullable
     private String accessLogFormat;
 
     // AuthConfig properties
@@ -407,6 +427,15 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Sets whether xDS control plane is enabled or not.
+     * If unspecified, xDS control plane is enabled.
+     */
+    public CentralDogmaBuilder xdsControlPlaneEnabled(boolean xdsControlPlaneEnabled) {
+        this.xdsControlPlaneEnabled = xdsControlPlaneEnabled;
+        return this;
+    }
+
+    /**
      * Sets the graceful shutdown timeout. If unspecified, graceful shutdown is disabled.
      */
     public CentralDogmaBuilder gracefulShutdownTimeout(GracefulShutdownTimeout gracefulShutdownTimeout) {
@@ -584,8 +613,8 @@ public final class CentralDogmaBuilder {
                                       numRepositoryWorkers, repositoryCacheSpec,
                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
                                       webAppEnabled, webAppTitle, mirroringEnabled, numMirroringThreads,
-                                      maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
-                                      null, accessLogFormat, authCfg, quotaConfig,
+                                      maxNumFilesPerMirror, maxNumBytesPerMirror, xdsControlPlaneEnabled,
+                                      replicationConfig, null, accessLogFormat, authCfg, quotaConfig,
                                       corsConfig);
     }
 }

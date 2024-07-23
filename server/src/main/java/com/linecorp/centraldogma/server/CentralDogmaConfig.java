@@ -29,6 +29,7 @@ import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_R
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_MIRRORING_THREADS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_REPOSITORY_WORKERS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC;
+import static com.linecorp.centraldogma.server.CentralDogmaBuilder.XDS_CONTROL_PLANE_FOUND;
 import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
@@ -204,6 +205,8 @@ public final class CentralDogmaConfig {
     private final int maxNumFilesPerMirror;
     private final long maxNumBytesPerMirror;
 
+    private final boolean xdsControlPlaneEnabled;
+
     // Graceful shutdown
     @Nullable
     private final GracefulShutdownTimeout gracefulShutdownTimeout;
@@ -250,7 +253,8 @@ public final class CentralDogmaConfig {
             @JsonProperty("numMirroringThreads") @Nullable Integer numMirroringThreads,
             @JsonProperty("maxNumFilesPerMirror") @Nullable Integer maxNumFilesPerMirror,
             @JsonProperty("maxNumBytesPerMirror") @Nullable Long maxNumBytesPerMirror,
-            @JsonProperty("replication") @Nullable ReplicationConfig replicationConfig,
+            @JsonProperty("xdsControlPlaneEnabled") @Nullable Boolean xdsControlPlaneEnabled,
+            @JsonProperty("replication") ReplicationConfig replicationConfig,
             @JsonProperty("csrfTokenRequiredForThrift") @Nullable Boolean csrfTokenRequiredForThrift,
             @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
             @JsonProperty("authentication") @Nullable AuthConfig authConfig,
@@ -293,6 +297,10 @@ public final class CentralDogmaConfig {
         this.maxNumBytesPerMirror = firstNonNull(maxNumBytesPerMirror, DEFAULT_MAX_NUM_BYTES_PER_MIRROR);
         checkArgument(this.maxNumBytesPerMirror > 0,
                       "maxNumBytesPerMirror: %s (expected: > 0)", this.maxNumBytesPerMirror);
+
+        this.xdsControlPlaneEnabled = XDS_CONTROL_PLANE_FOUND ? firstNonNull(xdsControlPlaneEnabled, true)
+                                                              : false;
+
         this.gracefulShutdownTimeout = gracefulShutdownTimeout;
         this.replicationConfig = firstNonNull(replicationConfig, ReplicationConfig.NONE);
         this.csrfTokenRequiredForThrift = firstNonNull(csrfTokenRequiredForThrift, true);
@@ -501,6 +509,14 @@ public final class CentralDogmaConfig {
     @JsonProperty
     public long maxNumBytesPerMirror() {
         return maxNumBytesPerMirror;
+    }
+
+    /**
+     * Returns whether the XDS control plane is enabled.
+     */
+    @JsonProperty
+    public boolean isXdsControlPlaneEnabled() {
+        return xdsControlPlaneEnabled;
     }
 
     /**
