@@ -4,7 +4,7 @@
 
 ```sh
 # In the project directory
-./gradlew simpleTestServer
+./gradlew runTestServer
 ```
 
 ## Starting a test authentication server with Apache Shiro
@@ -13,7 +13,7 @@ Login with ID `foo` and password `bar`
 
 ```sh
 # In the project root directory
-./gradlew simpleTestShiroServer
+./gradlew runTestShiroServer
 ```
 
 ## Building and start a client application
