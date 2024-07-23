@@ -19,7 +19,7 @@ const FileContentPage = () => {
     .filter((v) => v.length > 0)
     .pop();
 
-  let fileExtension = fileName.substring(fileName.lastIndexOf('.') + 1);
+  const fileExtension = fileName.substring(fileName.lastIndexOf('.') + 1);
   const { data, isLoading, error } = useGetFileContentQuery(
     { projectName, repoName, filePath },
     {
