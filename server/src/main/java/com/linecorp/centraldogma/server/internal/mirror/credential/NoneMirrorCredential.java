@@ -25,6 +25,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+
 public final class NoneMirrorCredential extends AbstractMirrorCredential {
 
     @JsonCreator
@@ -39,5 +41,10 @@ public final class NoneMirrorCredential extends AbstractMirrorCredential {
     @Override
     void addProperties(ToStringHelper helper) {
         // No properties to add
+    }
+
+    @Override
+    public MirrorCredential withoutSecret() {
+        return this;
     }
 }

@@ -1,13 +1,10 @@
-import static org.gradle.internal.os.OperatingSystem.WINDOWS
-import static org.gradle.internal.os.OperatingSystem.current
-
 plugins {
     alias libs.plugins.node.gradle
 }
 
 node {
-    version = '16.14.0'
-    npmVersion = '8.5.2'
+    version = '22.3.0'
+    npmVersion = '10.8.1'
     download = true
     npmInstallCommand = "ci"
 
@@ -74,6 +71,14 @@ if (project.ext.testJavaVersion >= 16) {
     }
 }
 
+if (!rootProject.hasProperty('noWeb')) {
+    sourceSets {
+        main {
+            output.dir project(':webapp').file('build/javaweb'), builtBy: ':webapp:copyWeb'
+        }
+    }
+}
+
 def clientRelocations = [
         'ace-builds/src-min-noconflict/',
         'angular/angular.min.js',
@@ -120,24 +125,6 @@ task cleanClientDependencies(type: Delete) {
     delete "${project.projectDir}/src/main/resources/webapp/vendor"
 }
 
-task copyWebApp(type: Copy) {
-    dependsOn ':server-auth:webapp:buildWebApp'
-
-    def dst = "${project.ext.genSrcDir}/main/resources/auth-webapp";
-
-    from project(':server-auth:webapp').file('build')
-    into dst
-
-    doFirst {
-        delete(dst)
-    }
-
-    // gradle holds a lock even after the buildWebapp task is completed
-    if (current() == WINDOWS) {
-        exclude("**/tmp/.cache/expanded/expanded.lock")
-    }
-}
-tasks.sourcesJar.dependsOn(tasks.copyWebApp)
 tasks.sourcesJar.dependsOn(tasks.versionProperties)
 tasks.clean.dependsOn(tasks.cleanClientDependencies)
-tasks.processResources.dependsOn(tasks.copyClientDependencies, tasks.copyWebApp)
+tasks.processResources.dependsOn(tasks.copyClientDependencies)

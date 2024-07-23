@@ -36,6 +36,8 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+
 public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
 
     private static final Logger logger = LoggerFactory.getLogger(PublicKeyMirrorCredential.class);
@@ -158,5 +160,11 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
             return publicKey.substring(0, PUBLIC_KEY_PREVIEW_LEN) + "..";
         }
         return publicKey;
+    }
+
+    @Override
+    public MirrorCredential withoutSecret() {
+        return new PublicKeyMirrorCredential(id(), enabled(), hostnamePatterns(), username(), publicKey(),
+                                             "****", "****");
     }
 }
