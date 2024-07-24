@@ -21,7 +21,6 @@ import static com.linecorp.centraldogma.server.storage.project.InternalProjectIn
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
@@ -45,6 +44,7 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
@@ -57,7 +57,6 @@ import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepos
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -99,7 +98,7 @@ public class DefaultProject implements Project {
         boolean success = false;
         try {
             createReservedRepos(System.currentTimeMillis());
-            final ProjectMetadata projectedMetadata = initialMetadata(Revision.HEAD);
+            final ProjectMetadata projectedMetadata = initialMetadata();
             if (projectedMetadata != null) {
                 final UserAndTimestamp creation = projectedMetadata.creation();
                 creationTimeMillis = creation.timestampMillis();
@@ -212,12 +211,12 @@ public class DefaultProject implements Project {
     }
 
     @Nullable
-    private ProjectMetadata initialMetadata(Revision revision)
+    private ProjectMetadata initialMetadata()
             throws ExecutionException, InterruptedException, JsonProcessingException {
         if (name.equals(INTERNAL_PROJECT_DOGMA)) {
             return null;
         }
-        final Entry<JsonNode> metadata = repos.get(REPO_DOGMA).get(revision, Query.ofJson(METADATA_JSON))
+        final Entry<JsonNode> metadata = repos.get(REPO_DOGMA).get(Revision.HEAD, Query.ofJson(METADATA_JSON))
                                               .get();
         final ProjectMetadata projectMetadata = Jackson.treeToValue(metadata.content(),
                                                                     ProjectMetadata.class);
@@ -236,36 +235,27 @@ public class DefaultProject implements Project {
         }
 
         final Repository dogmaRepo = repos.get(REPO_DOGMA);
-        dogmaRepo.addListener(new RepositoryListener() {
-            @Override
-            public String pathPattern() {
-                return METADATA_JSON;
+        dogmaRepo.addListener(RepositoryListener.of(Query.ofJson(METADATA_JSON), entry -> {
+            if (entry == null) {
+                logger.warn("{} file is missing in {}/{}", METADATA_JSON, name, REPO_DOGMA);
+                return;
             }
 
-            @Override
-            public void onUpdate(Map<String, Entry<?>> entries) {
-                final Entry<?> newEntry = entries.get(METADATA_JSON);
-                if (newEntry == null) {
-                    logger.warn("{} file is missing in {}/{}", METADATA_JSON, name, REPO_DOGMA);
-                    return;
-                }
-
-                final Revision lastRevision = newEntry.revision();
-                if (lastRevision.compareTo(lastMetadataRevision) <= 0) {
-                    // An old data.
-                    return;
-                }
-
-                try {
-                    final ProjectMetadata projectMetadata = Jackson.treeToValue(newEntry.contentAsJson(),
-                                                                                ProjectMetadata.class);
-                    lastMetadataRevision = lastRevision;
-                    DefaultProject.this.projectMetadata = projectMetadata;
-                } catch (JsonParseException | JsonMappingException e) {
-                    logger.warn("Invalid {} file in {}/{}", METADATA_JSON, name, REPO_DOGMA, e);
-                }
+            final Revision lastRevision = entry.revision();
+            if (lastRevision.compareTo(lastMetadataRevision) <= 0) {
+                // An old data.
+                return;
             }
-        });
+
+            try {
+                final ProjectMetadata projectMetadata = Jackson.treeToValue(entry.content(),
+                                                                            ProjectMetadata.class);
+                lastMetadataRevision = lastRevision;
+                DefaultProject.this.projectMetadata = projectMetadata;
+            } catch (JsonParseException | JsonMappingException e) {
+                logger.warn("Invalid {} file in {}/{}", METADATA_JSON, name, REPO_DOGMA, e);
+            }
+        }));
     }
 
     @Override

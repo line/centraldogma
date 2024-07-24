@@ -16,9 +16,12 @@
 
 package com.linecorp.centraldogma.server.storage.repository;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.Map;
 
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.Query;
 
 import io.netty.util.internal.shaded.org.jctools.queues.MessagePassingQueue.Consumer;
 
@@ -31,7 +34,9 @@ public interface RepositoryListener {
     /**
      * Returns a new {@link RepositoryListener} with the specified {@code pathPattern} and {@link Consumer}.
      */
-    static RepositoryListener of(String pathPattern, Consumer<Map<String, Entry<?>>> listener) {
+    static RepositoryListener of(String pathPattern, Consumer<? super Map<String, Entry<?>>> listener) {
+        requireNonNull(pathPattern, "pathPattern");
+        requireNonNull(listener, "listener");
         return new RepositoryListener() {
             @Override
             public String pathPattern() {
@@ -41,6 +46,32 @@ public interface RepositoryListener {
             @Override
             public void onUpdate(Map<String, Entry<?>> entries) {
                 listener.accept(entries);
+            }
+        };
+    }
+
+    /**
+     * Returns a new {@link RepositoryListener} with the specified {@link Query} and {@link Consumer}.
+     */
+    static <T> RepositoryListener of(Query<T> query, Consumer<? super Entry<T>> listener) {
+        requireNonNull(query, "query");
+        requireNonNull(listener, "listener");
+        return new RepositoryListener() {
+            @Override
+            public String pathPattern() {
+                return query.path();
+            }
+
+            @Override
+            public void onUpdate(Map<String, Entry<?>> entries) {
+                @SuppressWarnings("unchecked")
+                Entry<T> entry = (Entry<T>) entries.get(query.path());
+                if (entry == null) {
+                    listener.accept(null);
+                } else {
+                    entry = RepositoryUtil.applyQuery(entry, query);
+                    listener.accept(entry);
+                }
             }
         };
     }

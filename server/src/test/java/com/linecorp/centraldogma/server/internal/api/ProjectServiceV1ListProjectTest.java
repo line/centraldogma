@@ -46,9 +46,9 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
-import com.linecorp.centraldogma.internal.api.v1.ProjectRoleDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService.IdentifierWithRole;
 import com.linecorp.centraldogma.server.metadata.Token;
@@ -264,7 +264,7 @@ class ProjectServiceV1ListProjectTest {
         assertThat(projects).hasSize(2);
         assertThat(projects).containsOnlyKeys("trustin", "hyangtack");
         assertThat(projects.values().stream().map(ProjectDto::userRole))
-                .containsExactlyInAnyOrder(ProjectRoleDto.GUEST, ProjectRoleDto.GUEST);
+                .containsExactlyInAnyOrder(ProjectRole.GUEST, ProjectRole.GUEST);
 
         AggregatedHttpResponse aRes =
                 adminClient.prepare()
@@ -274,8 +274,8 @@ class ProjectServiceV1ListProjectTest {
                            .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         projects = getProjects(normalClient);
-        assertThat(projects.get("trustin").userRole()).isEqualTo(ProjectRoleDto.MEMBER);
-        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRoleDto.GUEST);
+        assertThat(projects.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
+        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRole.GUEST);
 
         aRes = adminClient.prepare()
                           .post("/api/v1/metadata/hyangtack/members")
@@ -284,8 +284,8 @@ class ProjectServiceV1ListProjectTest {
                           .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         projects = getProjects(normalClient);
-        assertThat(projects.get("trustin").userRole()).isEqualTo(ProjectRoleDto.MEMBER);
-        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRoleDto.OWNER);
+        assertThat(projects.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
+        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRole.OWNER);
     }
 
     @Test
@@ -310,7 +310,7 @@ class ProjectServiceV1ListProjectTest {
         assertThat(projects).hasSize(2);
         assertThat(projects).containsOnlyKeys("trustin", "hyangtack");
         assertThat(projects.values().stream().map(ProjectDto::userRole))
-                .containsExactlyInAnyOrder(ProjectRoleDto.GUEST, ProjectRoleDto.GUEST);
+                .containsExactlyInAnyOrder(ProjectRole.GUEST, ProjectRole.GUEST);
 
         AggregatedHttpResponse aRes =
                 normalClient.prepare()
@@ -319,8 +319,8 @@ class ProjectServiceV1ListProjectTest {
                             .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         projects = getProjects(tokenClient);
-        assertThat(projects.get("trustin").userRole()).isEqualTo(ProjectRoleDto.MEMBER);
-        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRoleDto.GUEST);
+        assertThat(projects.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
+        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRole.GUEST);
 
         aRes = normalClient.prepare()
                            .post("/api/v1/metadata/hyangtack/tokens")
@@ -328,8 +328,8 @@ class ProjectServiceV1ListProjectTest {
                            .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         projects = getProjects(tokenClient);
-        assertThat(projects.get("trustin").userRole()).isEqualTo(ProjectRoleDto.MEMBER);
-        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRoleDto.OWNER);
+        assertThat(projects.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
+        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRole.OWNER);
     }
 
     private Map<String, ProjectDto> getProjects(BlockingWebClient client) {

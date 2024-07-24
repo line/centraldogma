@@ -304,8 +304,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                 throws RequestException {}
 
         @Override
-        public void onV3StreamResponse(long streamId, DiscoveryRequest request,
-                                       DiscoveryResponse response) {
+        public void onV3StreamResponse(long streamId, DiscoveryRequest request, DiscoveryResponse response) {
             logger.debug("Sent v3 stream response. streamId: {}, version: {}, " +
                          "response_nonce: {}, type_url: {}", streamId, response.getVersionInfo(),
                          response.getNonce(), response.getTypeUrl());

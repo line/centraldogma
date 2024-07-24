@@ -33,6 +33,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.ProjectRole;
 
 @JsonInclude(Include.NON_NULL)
 public class ProjectDto {
@@ -46,7 +47,7 @@ public class ProjectDto {
     private String url;
 
     @Nullable
-    private ProjectRoleDto userRole;
+    private ProjectRole userRole;
 
     @Nullable
     private String createdAt;
@@ -60,7 +61,7 @@ public class ProjectDto {
     public ProjectDto(@JsonProperty("name") String name,
                       @JsonProperty("creator") @Nullable Author creator,
                       @JsonProperty("url") @Nullable String url,
-                      @JsonProperty("userRole") @Nullable ProjectRoleDto userRole,
+                      @JsonProperty("userRole") @Nullable ProjectRole userRole,
                       @JsonProperty("createdAt") @Nullable String createdAt) {
         this.name = requireNonNull(name, "name");
         this.creator = creator;
@@ -69,7 +70,7 @@ public class ProjectDto {
         this.createdAt = createdAt;
     }
 
-    public ProjectDto(String name, Author creator, ProjectRoleDto userRole, long creationTimeMillis) {
+    public ProjectDto(String name, Author creator, ProjectRole userRole, long creationTimeMillis) {
         this.name = requireNonNull(name, "name");
         this.creator = requireNonNull(creator, "creator");
         createdAt = ISO_INSTANT.format(Instant.ofEpochMilli(creationTimeMillis));
@@ -96,7 +97,7 @@ public class ProjectDto {
 
     @Nullable
     @JsonProperty("userRole")
-    public ProjectRoleDto userRole() {
+    public ProjectRole userRole() {
         return userRole;
     }
 

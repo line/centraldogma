@@ -42,9 +42,9 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.api.v1.CreateProjectRequest;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
-import com.linecorp.centraldogma.internal.api.v1.ProjectRoleDto;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
@@ -52,7 +52,6 @@ import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponse
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.metadata.UserWithToken;
@@ -95,15 +94,15 @@ public class ProjectServiceV1 extends AbstractService {
         }, executor);
     }
 
-    private ProjectRoleDto getUserRole(Project project, User user) {
+    private static ProjectRole getUserRole(Project project, User user) {
         if (user.isAdmin()) {
-            return ProjectRoleDto.OWNER;
+            return ProjectRole.OWNER;
         }
 
         final ProjectMetadata metadata = project.metadata();
         if (metadata == null) {
             // Metadata is null for the internal project which belongs to administrators.
-            return user.isAdmin() ? ProjectRoleDto.OWNER : ProjectRoleDto.GUEST;
+            return ProjectRole.GUEST;
         }
 
         ProjectRole role = null;
@@ -128,18 +127,7 @@ public class ProjectServiceV1 extends AbstractService {
             }
         }
 
-        switch (role) {
-            case OWNER:
-                return ProjectRoleDto.OWNER;
-            case MEMBER:
-                return ProjectRoleDto.MEMBER;
-            case GUEST:
-                return ProjectRoleDto.GUEST;
-            case ANONYMOUS:
-                return ProjectRoleDto.ANONYMOUS;
-            default:
-                throw new Error(); // Should never reach here.
-        }
+        return role;
     }
 
     /**
@@ -153,7 +141,7 @@ public class ProjectServiceV1 extends AbstractService {
     public CompletableFuture<ProjectDto> createProject(CreateProjectRequest request, Author author) {
         return projectApiManager.createProject(request.name(), author).handle(returnOrThrow(() -> {
             final Project project = projectApiManager.getProject(request.name());
-            return DtoConverter.convert(project, ProjectRoleDto.OWNER);
+            return DtoConverter.convert(project, ProjectRole.OWNER);
         }));
     }
 
@@ -209,6 +197,6 @@ public class ProjectServiceV1 extends AbstractService {
         checkUnremoveArgument(node);
         return projectApiManager.unremoveProject(projectName, author)
                                 .handle(returnOrThrow(() -> DtoConverter.convert(
-                                        projectApiManager.getProject(projectName), ProjectRoleDto.OWNER)));
+                                        projectApiManager.getProject(projectName), ProjectRole.OWNER)));
     }
 }

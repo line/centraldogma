@@ -24,6 +24,8 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.centraldogma.common.ProjectRole;
+
 /**
  * Specifies a registration of a {@link Token}.
  */

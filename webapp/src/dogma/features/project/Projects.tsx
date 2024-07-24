@@ -159,7 +159,7 @@ export const Projects = () => {
                 </ChakraLink>
               );
             } else {
-              // If the user is not a member of the project, do not show the project settings button.
+              // If the user is not an owner of the project, do not show the project settings button.
               return null;
             }
           }

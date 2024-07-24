@@ -48,10 +48,10 @@ import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.common.ProjectExistsException;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
-import com.linecorp.centraldogma.internal.api.v1.ProjectRoleDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -109,7 +109,7 @@ class ProjectServiceV1Test {
         final ProjectDto project = response.content();
         assertThat(project.name()).isEqualTo("myPro");
         assertThat(project.createdAt()).isNotNull();
-        assertThat(project.userRole()).isEqualTo(ProjectRoleDto.OWNER);
+        assertThat(project.userRole()).isEqualTo(ProjectRole.OWNER);
     }
 
     static ResponseEntity<ProjectDto> createProject(BlockingWebClient client, String name) {
