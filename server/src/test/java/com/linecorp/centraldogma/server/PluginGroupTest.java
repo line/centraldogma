@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -69,6 +70,15 @@ class PluginGroupTest {
         final PluginGroup group3 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group3).isNotNull();
         assertThat(group3.findFirstPlugin(DefaultMirroringServicePlugin.class)).isNotPresent();
+    }
+
+    @Test
+    void duplicatePluginConfig() {
+        final CentralDogmaConfig cfg = mock(CentralDogmaConfig.class);
+        when(cfg.pluginConfigs()).thenReturn(ImmutableList.of(new MirroringServicePluginConfig(true),
+                                                              new MirroringServicePluginConfig(true)));
+        assertThatThrownBy(() -> PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     /**
