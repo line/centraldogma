@@ -38,7 +38,9 @@ import com.google.common.io.Resources;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
+import com.linecorp.centraldogma.server.PluginConfig;
 import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -46,7 +48,12 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 class GitMirrorAuthTest {
 
     @RegisterExtension
-    static final CentralDogmaExtension dogma = new CentralDogmaExtension();
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
+        @Override
+        protected void configure(CentralDogmaBuilder builder) {
+            builder.pluginConfigs(new PluginConfig("mirror", true, null));
+        }
+    };
 
     // To make this test cover all supported authentication schemes, the following environment variables
     // must be set:

@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.MoreObjects;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
@@ -321,6 +322,14 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     public CompletionStage<Void> stop(PluginContext context) {
         stop = true;
         return UnmodifiableFuture.completedFuture(null);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                          .add("name", name())
+                          .add("target", target())
+                          .toString();
     }
 
     private static final class LoggingDiscoveryServerCallbacks implements DiscoveryServerCallbacks {

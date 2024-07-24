@@ -94,7 +94,6 @@ public class CentralDogmaRuleDelegate {
         final CentralDogmaBuilder builder = new CentralDogmaBuilder(dataDir)
                 .port(TEST_PORT, useTls ? SessionProtocol.HTTPS : SessionProtocol.HTTP)
                 .webAppEnabled(false)
-                .pluginConfigs(new PluginConfig("mirror", false, null))
                 .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0));
 
         if (useTls) {
@@ -114,10 +113,25 @@ public class CentralDogmaRuleDelegate {
         configure(builder);
 
         final com.linecorp.centraldogma.server.CentralDogma dogma = builder.build();
-        this.dogma = dogma;
-        return dogma.start().thenRun(() -> {
+        boolean mirrorPluginConfigured = false;
+        for (PluginConfig pluginConfig : dogma.config().pluginConfigs()) {
+            if ("mirror".equals(pluginConfig.name())) {
+                mirrorPluginConfigured = true;
+                break;
+            }
+        }
+        final com.linecorp.centraldogma.server.CentralDogma dogma0;
+        if (!mirrorPluginConfigured) {
+            // Disable mirror plugin if not configured.
+            dogma0 = builder.pluginConfigs(new PluginConfig("mirror", false, null)).build();
+        } else {
+            dogma0 = dogma;
+        }
+
+        this.dogma = dogma0;
+        return dogma0.start().thenRun(() -> {
             // A custom port may be added to the server during the configuration.
-            final ServerPort activePort = Iterables.getLast(dogma.activePorts().values());
+            final ServerPort activePort = Iterables.getLast(dogma0.activePorts().values());
             if (activePort == null) {
                 // Stopped already.
                 return;
