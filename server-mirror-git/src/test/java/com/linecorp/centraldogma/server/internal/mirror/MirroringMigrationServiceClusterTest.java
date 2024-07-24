@@ -71,6 +71,7 @@ import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.PluginConfig;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
@@ -106,7 +107,7 @@ class MirroringMigrationServiceClusterTest {
                                  final int port = ports[i * 3 + 2];
                                  return new CentralDogmaBuilder(data)
                                          .port(port, SessionProtocol.HTTP)
-                                         .mirroringEnabled(false)
+                                         .pluginConfigs(new PluginConfig("mirror", false, null))
                                          .authProviderFactory(factory)
                                          .replication(replicationConfig)
                                          .administrators(TestAuthMessageUtil.USERNAME)
@@ -155,7 +156,6 @@ class MirroringMigrationServiceClusterTest {
                            server.stop().join();
                            return new CentralDogmaBuilder(server.config().dataDir())
                                    .port(port, SessionProtocol.HTTP)
-                                   .mirroringEnabled(true)
                                    .replication(server.config().replicationConfig())
                                    .build();
                        })

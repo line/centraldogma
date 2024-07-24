@@ -50,6 +50,7 @@ import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
+import com.linecorp.centraldogma.server.PluginConfig;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
@@ -115,7 +116,7 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
                     builder.port(new InetSocketAddress(NetUtil.LOCALHOST4, dogmaPort), SessionProtocol.HTTP)
                            .administrators(TestAuthMessageUtil.USERNAME)
                            .authProviderFactory(factory)
-                           .mirroringEnabled(false)
+                           .pluginConfigs(new PluginConfig("mirror", false, null))
                            .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
                            .replication(new ZooKeeperReplicationConfig(serverId, zooKeeperServers));
                 }

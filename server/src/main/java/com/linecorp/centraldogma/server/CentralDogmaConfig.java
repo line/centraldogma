@@ -23,13 +23,9 @@ import static com.linecorp.armeria.common.util.InetAddressPredicates.ofCidr;
 import static com.linecorp.armeria.common.util.InetAddressPredicates.ofExact;
 import static com.linecorp.armeria.server.ClientAddressSource.ofHeader;
 import static com.linecorp.armeria.server.ClientAddressSource.ofProxyProtocol;
-import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_NUM_BYTES_PER_MIRROR;
-import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_NUM_FILES_PER_MIRROR;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS;
-import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_MIRRORING_THREADS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_REPOSITORY_WORKERS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC;
-import static com.linecorp.centraldogma.server.CentralDogmaBuilder.XDS_CONTROL_PLANE_FOUND;
 import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
@@ -199,14 +195,6 @@ public final class CentralDogmaConfig {
     @Nullable
     private final String webAppTitle;
 
-    // Mirroring
-    private final boolean mirroringEnabled;
-    private final int numMirroringThreads;
-    private final int maxNumFilesPerMirror;
-    private final long maxNumBytesPerMirror;
-
-    private final boolean xdsControlPlaneEnabled;
-
     // Graceful shutdown
     @Nullable
     private final GracefulShutdownTimeout gracefulShutdownTimeout;
@@ -230,6 +218,8 @@ public final class CentralDogmaConfig {
     @Nullable
     private final CorsConfig corsConfig;
 
+    private final List<PluginConfig> pluginConfigs;
+
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
             @JsonProperty(value = "ports", required = true)
@@ -249,21 +239,16 @@ public final class CentralDogmaConfig {
             @JsonProperty("gracefulShutdownTimeout") @Nullable GracefulShutdownTimeout gracefulShutdownTimeout,
             @JsonProperty("webAppEnabled") @Nullable Boolean webAppEnabled,
             @JsonProperty("webAppTitle") @Nullable String webAppTitle,
-            @JsonProperty("mirroringEnabled") @Nullable Boolean mirroringEnabled,
-            @JsonProperty("numMirroringThreads") @Nullable Integer numMirroringThreads,
-            @JsonProperty("maxNumFilesPerMirror") @Nullable Integer maxNumFilesPerMirror,
-            @JsonProperty("maxNumBytesPerMirror") @Nullable Long maxNumBytesPerMirror,
-            @JsonProperty("xdsControlPlaneEnabled") @Nullable Boolean xdsControlPlaneEnabled,
             @JsonProperty("replication") ReplicationConfig replicationConfig,
             @JsonProperty("csrfTokenRequiredForThrift") @Nullable Boolean csrfTokenRequiredForThrift,
             @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
             @JsonProperty("authentication") @Nullable AuthConfig authConfig,
             @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository,
-            @JsonProperty("cors") @Nullable CorsConfig corsConfig) {
+            @JsonProperty("cors") @Nullable CorsConfig corsConfig,
+            @JsonProperty("plugins") @Nullable List<PluginConfig> pluginConfigs) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
-        this.corsConfig = corsConfig;
         checkArgument(!ports.isEmpty(), "ports must have at least one port.");
         this.tls = tls;
         this.trustedProxyAddresses = trustedProxyAddresses;
@@ -287,20 +272,6 @@ public final class CentralDogmaConfig {
 
         this.webAppEnabled = firstNonNull(webAppEnabled, true);
         this.webAppTitle = webAppTitle;
-        this.mirroringEnabled = firstNonNull(mirroringEnabled, true);
-        this.numMirroringThreads = firstNonNull(numMirroringThreads, DEFAULT_NUM_MIRRORING_THREADS);
-        checkArgument(this.numMirroringThreads > 0,
-                      "numMirroringThreads: %s (expected: > 0)", this.numMirroringThreads);
-        this.maxNumFilesPerMirror = firstNonNull(maxNumFilesPerMirror, DEFAULT_MAX_NUM_FILES_PER_MIRROR);
-        checkArgument(this.maxNumFilesPerMirror > 0,
-                      "maxNumFilesPerMirror: %s (expected: > 0)", this.maxNumFilesPerMirror);
-        this.maxNumBytesPerMirror = firstNonNull(maxNumBytesPerMirror, DEFAULT_MAX_NUM_BYTES_PER_MIRROR);
-        checkArgument(this.maxNumBytesPerMirror > 0,
-                      "maxNumBytesPerMirror: %s (expected: > 0)", this.maxNumBytesPerMirror);
-
-        this.xdsControlPlaneEnabled = XDS_CONTROL_PLANE_FOUND ? firstNonNull(xdsControlPlaneEnabled, true)
-                                                              : false;
-
         this.gracefulShutdownTimeout = gracefulShutdownTimeout;
         this.replicationConfig = firstNonNull(replicationConfig, ReplicationConfig.NONE);
         this.csrfTokenRequiredForThrift = firstNonNull(csrfTokenRequiredForThrift, true);
@@ -318,6 +289,8 @@ public final class CentralDogmaConfig {
                                           ports.stream().anyMatch(ServerPort::hasProxyProtocol));
 
         this.writeQuotaPerRepository = writeQuotaPerRepository;
+        this.corsConfig = corsConfig;
+        this.pluginConfigs = ImmutableList.copyOf(firstNonNull(pluginConfigs, ImmutableList.of()));
     }
 
     /**
@@ -480,46 +453,6 @@ public final class CentralDogmaConfig {
     }
 
     /**
-     * Returns whether mirroring is enabled.
-     */
-    @JsonProperty
-    public boolean isMirroringEnabled() {
-        return mirroringEnabled;
-    }
-
-    /**
-     * Returns the number of mirroring threads.
-     */
-    @JsonProperty
-    public int numMirroringThreads() {
-        return numMirroringThreads;
-    }
-
-    /**
-     * Returns the maximum allowed number of files per mirror.
-     */
-    @JsonProperty
-    public int maxNumFilesPerMirror() {
-        return maxNumFilesPerMirror;
-    }
-
-    /**
-     * Returns the maximum allowed number of bytes per mirror.
-     */
-    @JsonProperty
-    public long maxNumBytesPerMirror() {
-        return maxNumBytesPerMirror;
-    }
-
-    /**
-     * Returns whether the XDS control plane is enabled.
-     */
-    @JsonProperty
-    public boolean isXdsControlPlaneEnabled() {
-        return xdsControlPlaneEnabled;
-    }
-
-    /**
      * Returns the {@link ReplicationConfig}.
      */
     @JsonProperty("replication")
@@ -570,6 +503,14 @@ public final class CentralDogmaConfig {
     @JsonProperty("cors")
     public CorsConfig corsConfig() {
         return corsConfig;
+    }
+
+    /**
+     * Returns the list of {@link PluginConfig}s.
+     */
+    @JsonProperty("plugins")
+    public List<PluginConfig> pluginConfigs() {
+        return pluginConfigs;
     }
 
     @Override

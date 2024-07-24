@@ -42,6 +42,7 @@ import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.MirroringService;
+import com.linecorp.centraldogma.server.PluginConfig;
 import com.linecorp.centraldogma.server.TlsConfig;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -93,7 +94,7 @@ public class CentralDogmaRuleDelegate {
         final CentralDogmaBuilder builder = new CentralDogmaBuilder(dataDir)
                 .port(TEST_PORT, useTls ? SessionProtocol.HTTPS : SessionProtocol.HTTP)
                 .webAppEnabled(false)
-                .mirroringEnabled(false)
+                .pluginConfigs(new PluginConfig("mirror", false, null))
                 .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0));
 
         if (useTls) {

@@ -54,6 +54,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -65,9 +66,11 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
+import com.linecorp.centraldogma.server.PluginConfig;
 import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
@@ -85,9 +88,17 @@ class GitMirrorIntegrationTest {
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.mirroringEnabled(true);
-            builder.maxNumFilesPerMirror(MAX_NUM_FILES);
-            builder.maxNumBytesPerMirror(MAX_NUM_BYTES);
+            final JsonNode config;
+            try {
+                config = Jackson.readTree("{\"numMirroringThreads\": 1, " +
+                                          "\"maxNumFilesPerMirror\": " + MAX_NUM_FILES + ", " +
+                                          "\"maxNumBytesPerMirror\": " + MAX_NUM_BYTES + '}');
+            } catch (JsonParseException e) {
+                // Should never reach here.
+                throw new Error(e);
+            }
+
+            builder.pluginConfigs(new PluginConfig("mirror", true, config));
         }
     };
 

@@ -15,9 +15,13 @@
  */
 package com.linecorp.centraldogma.server.plugin;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+
+import java.util.List;
 import java.util.concurrent.CompletionStage;
 
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.PluginConfig;
 
 /**
  * An interface which defines callbacks for a plug-in. If you want to initialize a {@link Plugin} by configuring
@@ -28,6 +32,13 @@ public interface Plugin {
      * Returns the {@link PluginTarget} which specifies the replicas that this {@link Plugin} is applied to.
      */
     PluginTarget target();
+
+    /**
+     * Returns the name of this {@link Plugin}. The name will be used to include and exclude plugins.
+     */
+    default String name() {
+        return getClass().getName();
+    }
 
     /**
      * Invoked when this {@link Plugin} is supposed to be started.
@@ -47,6 +58,24 @@ public interface Plugin {
      * Returns {@code true} if this {@link Plugin} is enabled.
      */
     default boolean isEnabled(CentralDogmaConfig config) {
-        return true;
+        final List<PluginConfig> configs = config.pluginConfigs().stream()
+                                                 .filter(plugin -> name().equals(plugin.name()))
+                                                 .collect(toImmutableList());
+        if (configs.isEmpty()) {
+            // Enabled if not found.
+            return true;
+        }
+        if (configs.size() > 1) {
+            throw new IllegalStateException("Multiple plugin configurations found for: " + name() +
+                                            ", plugin configs: " + configs);
+        }
+        final PluginConfig pluginConfig = configs.get(0);
+        validatePluginConfig(pluginConfig);
+        return pluginConfig.enabled();
     }
+
+    /**
+     * Validates the given {@link PluginConfig}.
+     */
+    default void validatePluginConfig(PluginConfig pluginConfig) {}
 }
