@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.concurrent.CompletionStage;
 
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
-import com.linecorp.centraldogma.server.PluginConfig;
 
 /**
  * An interface which defines callbacks for a plug-in. If you want to initialize a {@link Plugin} by configuring
@@ -32,13 +31,6 @@ public interface Plugin {
      * Returns the {@link PluginTarget} which specifies the replicas that this {@link Plugin} is applied to.
      */
     PluginTarget target();
-
-    /**
-     * Returns the name of this {@link Plugin}. The name will be used to include and exclude plugins.
-     */
-    default String name() {
-        return getClass().getName();
-    }
 
     /**
      * Invoked when this {@link Plugin} is supposed to be started.
@@ -59,23 +51,21 @@ public interface Plugin {
      */
     default boolean isEnabled(CentralDogmaConfig config) {
         final List<PluginConfig> configs = config.pluginConfigs().stream()
-                                                 .filter(plugin -> name().equals(plugin.name()))
+                                                 .filter(plugin -> configType().isInstance(plugin))
                                                  .collect(toImmutableList());
         if (configs.isEmpty()) {
             // Enabled if not found.
             return true;
         }
         if (configs.size() > 1) {
-            throw new IllegalArgumentException("Multiple plugin configurations found for: " + name() +
-                                               ", plugin configs: " + configs);
+            throw new IllegalArgumentException("Multiple plugin configurations found." +
+                                               " configs: " + configs);
         }
-        final PluginConfig pluginConfig = configs.get(0);
-        validatePluginConfig(pluginConfig);
-        return pluginConfig.enabled();
+        return configs.get(0).enabled();
     }
 
     /**
-     * Validates the given {@link PluginConfig}.
+     * Returns the type of the configuration for this {@link Plugin}.
      */
-    default void validatePluginConfig(PluginConfig pluginConfig) {}
+    Class<?> configType();
 }

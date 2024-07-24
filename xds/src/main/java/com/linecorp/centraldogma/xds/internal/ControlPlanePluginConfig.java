@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,17 +13,20 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.server.plugin;
+package com.linecorp.centraldogma.xds.internal;
 
-public class NoopPluginForAllReplicas extends AbstractNoopPlugin {
-    @Override
-    public PluginTarget target() {
-        return PluginTarget.ALL_REPLICAS;
-    }
+import javax.annotation.Nullable;
 
-    @Override
-    public Class<?> configType() {
-        // Return the plugin class itself because it does not have a configuration.
-        return NoopPluginForAllReplicas.class;
+import com.linecorp.centraldogma.server.plugin.AbstractPluginConfig;
+
+/**
+ * A plugin configuration for the control plane.
+ */
+public final class ControlPlanePluginConfig extends AbstractPluginConfig {
+    /**
+     * Creates a new instance.
+     */
+    public ControlPlanePluginConfig(@Nullable Boolean enabled) {
+        super(enabled);
     }
 }

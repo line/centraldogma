@@ -42,8 +42,9 @@ import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.MirroringService;
-import com.linecorp.centraldogma.server.PluginConfig;
 import com.linecorp.centraldogma.server.TlsConfig;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
+import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
@@ -115,7 +116,7 @@ public class CentralDogmaRuleDelegate {
         final com.linecorp.centraldogma.server.CentralDogma dogma = builder.build();
         boolean mirrorPluginConfigured = false;
         for (PluginConfig pluginConfig : dogma.config().pluginConfigs()) {
-            if ("mirror".equals(pluginConfig.name())) {
+            if (pluginConfig instanceof MirroringServicePluginConfig) {
                 mirrorPluginConfigured = true;
                 break;
             }
@@ -123,7 +124,7 @@ public class CentralDogmaRuleDelegate {
         final com.linecorp.centraldogma.server.CentralDogma dogma0;
         if (!mirrorPluginConfigured) {
             // Disable mirror plugin if not configured.
-            dogma0 = builder.pluginConfigs(new PluginConfig("mirror", false, null)).build();
+            dogma0 = builder.pluginConfigs(new MirroringServicePluginConfig(false)).build();
         } else {
             dogma0 = dogma;
         }

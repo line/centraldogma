@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.storage.PurgeSchedulingServicePlugin;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.plugin.AbstractNoopPlugin;
 import com.linecorp.centraldogma.server.plugin.NoopPluginForAllReplicas;
 import com.linecorp.centraldogma.server.plugin.NoopPluginForLeader;
@@ -59,12 +60,12 @@ class PluginGroupTest {
         assertThat(group1).isNotNull();
         assertThat(group1.findFirstPlugin(DefaultMirroringServicePlugin.class)).isPresent();
 
-        when(cfg.pluginConfigs()).thenReturn(ImmutableList.of(new PluginConfig("mirror", null, null)));
+        when(cfg.pluginConfigs()).thenReturn(ImmutableList.of(new MirroringServicePluginConfig(true)));
         final PluginGroup group2 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group2).isNotNull();
         assertThat(group2.findFirstPlugin(DefaultMirroringServicePlugin.class)).isPresent();
 
-        when(cfg.pluginConfigs()).thenReturn(ImmutableList.of(new PluginConfig("mirror", false, null)));
+        when(cfg.pluginConfigs()).thenReturn(ImmutableList.of(new MirroringServicePluginConfig(false)));
         final PluginGroup group3 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group3).isNotNull();
         assertThat(group3.findFirstPlugin(DefaultMirroringServicePlugin.class)).isNotPresent();

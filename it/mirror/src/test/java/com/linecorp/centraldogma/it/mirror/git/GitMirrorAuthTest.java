@@ -40,8 +40,8 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
-import com.linecorp.centraldogma.server.PluginConfig;
 import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -51,7 +51,7 @@ class GitMirrorAuthTest {
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.pluginConfigs(new PluginConfig("mirror", true, null));
+            builder.pluginConfigs(new MirroringServicePluginConfig(true));
         }
     };
 

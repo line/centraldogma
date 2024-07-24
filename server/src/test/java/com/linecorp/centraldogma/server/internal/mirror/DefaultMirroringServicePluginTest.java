@@ -15,52 +15,49 @@
  */
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin.mirroringServicePluginConfig;
-import static com.linecorp.centraldogma.server.internal.mirror.MirroringServicePluginConfig.DEFAULT_MAX_NUM_BYTES_PER_MIRROR;
-import static com.linecorp.centraldogma.server.internal.mirror.MirroringServicePluginConfig.DEFAULT_MAX_NUM_FILES_PER_MIRROR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 
 class DefaultMirroringServicePluginTest {
 
     @Test
     void pluginConfig() throws Exception {
-        final CentralDogmaConfig centralDogmaConfig = Jackson.readValue("{\n" +
-                                                                        "  \"dataDir\": \"./data\",\n" +
-                                                                        "  \"ports\": [\n" +
-                                                                        "    {\n" +
-                                                                        "      \"localAddress\": {\n" +
-                                                                        "        \"host\": \"*\",\n" +
-                                                                        "        \"port\": 36462\n" +
-                                                                        "      },\n" +
-                                                                        "      \"protocols\": [\n" +
-                                                                        "        \"https\",\n" +
-                                                                        "        \"http\",\n" +
-                                                                        "        \"proxy\"\n" +
-                                                                        "      ]\n" +
-                                                                        "    }\n" +
-                                                                        "  ],\n" +
-                                                                        "  \"plugins\": [" +
-                                                                        "    {\n" +
-                                                                        "      \"name\": \"mirror\",\n" +
-                                                                        "      \"config\": {\n" +
-                                                                        "        \"numMirroringThreads\": 1" +
-                                                                        "      }" +
-                                                                        "    }" +
-                                                                        "  ]\n" +
-                                                                        '}',
-                                                                        CentralDogmaConfig.class);
-        final MirroringServicePluginConfig mirroringServicePluginConfig = mirroringServicePluginConfig(
-                centralDogmaConfig.pluginConfigs().get(0));
+        final CentralDogmaConfig centralDogmaConfig =
+                CentralDogmaConfig.load("{\n" +
+                                        "  \"dataDir\": \"./data\",\n" +
+                                        "  \"ports\": [\n" +
+                                        "    {\n" +
+                                        "      \"localAddress\": {\n" +
+                                        "        \"host\": \"*\",\n" +
+                                        "        \"port\": 36462\n" +
+                                        "      },\n" +
+                                        "      \"protocols\": [\n" +
+                                        "        \"https\",\n" +
+                                        "        \"http\",\n" +
+                                        "        \"proxy\"\n" +
+                                        "      ]\n" +
+                                        "    }\n" +
+                                        "  ],\n" +
+                                        "  \"plugins\": [" +
+                                        "    {\n" +
+                                        "      \"configType\": \"com.linecorp.centraldogma.server.mirror." +
+                                                                "MirroringServicePluginConfig\",\n" +
+                                        "      \"numMirroringThreads\": 1" +
+                                        "    }" +
+                                        "  ]\n" +
+                                        '}');
+        final MirroringServicePluginConfig mirroringServicePluginConfig =
+                (MirroringServicePluginConfig) centralDogmaConfig.pluginConfigs().get(0);
         assertThat(mirroringServicePluginConfig).isNotNull();
+        assertThat(mirroringServicePluginConfig.enabled()).isTrue();
         assertThat(mirroringServicePluginConfig.numMirroringThreads()).isOne();
         assertThat(mirroringServicePluginConfig.maxNumFilesPerMirror())
-                .isEqualTo(DEFAULT_MAX_NUM_FILES_PER_MIRROR);
+                .isEqualTo(MirroringServicePluginConfig.INSTANCE.maxNumFilesPerMirror());
         assertThat(mirroringServicePluginConfig.maxNumBytesPerMirror())
-                .isEqualTo(DEFAULT_MAX_NUM_BYTES_PER_MIRROR);
+                .isEqualTo(MirroringServicePluginConfig.INSTANCE.maxNumBytesPerMirror());
     }
 }

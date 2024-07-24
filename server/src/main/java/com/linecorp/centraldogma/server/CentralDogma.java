@@ -213,8 +213,7 @@ public class CentralDogma implements AutoCloseable {
      */
     public static CentralDogma forConfig(File configFile) throws IOException {
         requireNonNull(configFile, "configFile");
-        return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class),
-                                Flags.meterRegistry());
+        return new CentralDogma(CentralDogmaConfig.load(configFile), Flags.meterRegistry());
     }
 
     private final SettableHealthChecker serverHealth = new SettableHealthChecker(false);

@@ -41,4 +41,10 @@ public final class TestAllReplicasPlugin extends AllReplicasPlugin {
     public CompletionStage<Void> stop(PluginContext context) {
         return UnmodifiableFuture.completedFuture(null);
     }
+
+    @Override
+    public Class<?> configType() {
+        // Return the plugin class itself because it does not have a configuration.
+        return TestAllReplicasPlugin.class;
+    }
 }

@@ -44,10 +44,10 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
-import com.linecorp.centraldogma.server.PluginConfig;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.testing.internal.FlakyTest;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
@@ -132,7 +132,7 @@ class ReplicationWriteQuotaTest extends WriteQuotaTestBase {
                 .port(port, SessionProtocol.HTTP)
                 .administrators(TestAuthMessageUtil.USERNAME)
                 .authProviderFactory(factory)
-                .pluginConfigs(new PluginConfig("mirror", false, null))
+                .pluginConfigs(new MirroringServicePluginConfig(false))
                 .writeQuotaPerRepository(5, 1)
                 .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
                 .replication(new ZooKeeperReplicationConfig(serverId, servers))

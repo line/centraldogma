@@ -15,9 +15,6 @@
  */
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.server.internal.mirror.MirroringServicePluginConfig.DEFAULT_MAX_NUM_BYTES_PER_MIRROR;
-import static com.linecorp.centraldogma.server.internal.mirror.MirroringServicePluginConfig.DEFAULT_MAX_NUM_FILES_PER_MIRROR;
-import static com.linecorp.centraldogma.server.internal.mirror.MirroringServicePluginConfig.DEFAULT_NUM_MIRRORING_THREADS;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -27,16 +24,12 @@ import java.util.concurrent.CompletionStage;
 
 import javax.annotation.Nullable;
 
-import com.cronutils.utils.VisibleForTesting;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
-import com.linecorp.centraldogma.server.PluginConfig;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.plugin.Plugin;
+import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 
@@ -51,11 +44,6 @@ public final class DefaultMirroringServicePlugin implements Plugin {
     }
 
     @Override
-    public String name() {
-        return "mirror";
-    }
-
-    @Override
     public synchronized CompletionStage<Void> start(PluginContext context) {
         requireNonNull(context, "context");
 
@@ -63,22 +51,22 @@ public final class DefaultMirroringServicePlugin implements Plugin {
         if (mirroringService == null) {
             final CentralDogmaConfig cfg = context.config();
             final Optional<PluginConfig> optional =
-                    cfg.pluginConfigs().stream().filter(pluginConfig -> pluginConfig.name().equals(name()))
+                    cfg.pluginConfigs().stream().filter(plugin -> configType().isInstance(plugin))
                        .findFirst();
             final int numThreads;
             final int maxNumFilesPerMirror;
             final long maxNumBytesPerMirror;
 
             final MirroringServicePluginConfig mirroringServicePluginConfig =
-                    optional.map(DefaultMirroringServicePlugin::mirroringServicePluginConfig).orElse(null);
+                    (MirroringServicePluginConfig) optional.orElse(null);
             if (mirroringServicePluginConfig != null) {
                 numThreads = mirroringServicePluginConfig.numMirroringThreads();
                 maxNumFilesPerMirror = mirroringServicePluginConfig.maxNumFilesPerMirror();
                 maxNumBytesPerMirror = mirroringServicePluginConfig.maxNumBytesPerMirror();
             } else {
-                numThreads = DEFAULT_NUM_MIRRORING_THREADS;
-                maxNumFilesPerMirror = DEFAULT_MAX_NUM_FILES_PER_MIRROR;
-                maxNumBytesPerMirror = DEFAULT_MAX_NUM_BYTES_PER_MIRROR;
+                numThreads = MirroringServicePluginConfig.INSTANCE.numMirroringThreads();
+                maxNumFilesPerMirror = MirroringServicePluginConfig.INSTANCE.maxNumFilesPerMirror();
+                maxNumBytesPerMirror = MirroringServicePluginConfig.INSTANCE.maxNumBytesPerMirror();
             }
             mirroringService = new DefaultMirroringService(new File(cfg.dataDir(), "_mirrors"),
                                                            context.projectManager(),
@@ -102,24 +90,8 @@ public final class DefaultMirroringServicePlugin implements Plugin {
     }
 
     @Override
-    public void validatePluginConfig(PluginConfig pluginConfig) {
-        requireNonNull(pluginConfig, "pluginConfig");
-        mirroringServicePluginConfig(pluginConfig);
-    }
-
-    @Nullable
-    @VisibleForTesting
-    static MirroringServicePluginConfig mirroringServicePluginConfig(PluginConfig pluginConfig) {
-        final JsonNode config = pluginConfig.config();
-        if (config == null) {
-            return null;
-        }
-
-        try {
-            return Jackson.treeToValue(config, MirroringServicePluginConfig.class);
-        } catch (JsonParseException | JsonMappingException e) {
-            throw new IllegalArgumentException("Invalid plugin configuration: " + config, e);
-        }
+    public Class<?> configType() {
+        return MirroringServicePluginConfig.class;
     }
 
     @Nullable
@@ -130,7 +102,7 @@ public final class DefaultMirroringServicePlugin implements Plugin {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("name", name())
+                          .add("configType", configType())
                           .add("target", target())
                           .toString();
     }

@@ -13,59 +13,34 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.server;
+package com.linecorp.centraldogma.server.plugin;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
-import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 
 /**
- * A configuration of a plugin.
+ * An abstract {@link PluginConfig} implementation.
  */
-public final class PluginConfig {
+public abstract class AbstractPluginConfig implements PluginConfig {
 
-    private final String name;
     private final boolean enabled;
-    @Nullable
-    private final JsonNode config;
 
     /**
      * Creates a new instance.
      */
-    public PluginConfig(@JsonProperty(value = "name", required = true) String name,
-                        @JsonProperty("enabled") @Nullable Boolean enabled,
-                        @JsonProperty("config") @Nullable JsonNode config) {
-        this.name = requireNonNull(name, "name");
+    protected AbstractPluginConfig(@Nullable Boolean enabled) {
         this.enabled = firstNonNull(enabled, true);
-        this.config = config;
-    }
-
-    /**
-     * Returns the name of the plugin.
-     */
-    @JsonProperty
-    public String name() {
-        return name;
     }
 
     /**
      * Returns whether the plugin is enabled.
      */
     @JsonProperty
+    @Override
     public boolean enabled() {
         return enabled;
-    }
-
-    /**
-     * Returns the configuration of the plugin.
-     */
-    @JsonProperty
-    @Nullable
-    public JsonNode config() {
-        return config;
     }
 }

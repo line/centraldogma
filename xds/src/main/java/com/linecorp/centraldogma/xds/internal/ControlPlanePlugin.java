@@ -95,11 +95,6 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     private final CentralDogmaXdsResources centralDogmaXdsResources = new CentralDogmaXdsResources();
 
     @Override
-    public String name() {
-        return "xds";
-    }
-
-    @Override
     public void init(PluginInitContext pluginInitContext) {
         final InternalProjectInitializer projectInitializer = pluginInitContext.internalProjectInitializer();
         projectInitializer.initialize(XDS_CENTRAL_DOGMA_PROJECT);
@@ -325,9 +320,14 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     }
 
     @Override
+    public Class<?> configType() {
+        return ControlPlanePluginConfig.class;
+    }
+
+    @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("name", name())
+                          .add("configType", configType())
                           .add("target", target())
                           .toString();
     }

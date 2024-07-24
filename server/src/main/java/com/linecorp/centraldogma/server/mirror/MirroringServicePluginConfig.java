@@ -13,17 +13,26 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.server.internal.mirror;
+package com.linecorp.centraldogma.server.mirror;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import javax.annotation.Nullable;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
-final class MirroringServicePluginConfig {
+import com.linecorp.centraldogma.server.plugin.AbstractPluginConfig;
+
+/**
+ * A mirroring service plugin configuration.
+ */
+public final class MirroringServicePluginConfig extends AbstractPluginConfig {
+
+    public static final MirroringServicePluginConfig INSTANCE =
+            new MirroringServicePluginConfig(true, null, null, null);
 
     static final int DEFAULT_NUM_MIRRORING_THREADS = 16;
     static final int DEFAULT_MAX_NUM_FILES_PER_MIRROR = 8192;
@@ -33,9 +42,23 @@ final class MirroringServicePluginConfig {
     private final int maxNumFilesPerMirror;
     private final long maxNumBytesPerMirror;
 
-    MirroringServicePluginConfig(@JsonProperty("numMirroringThreads") @Nullable Integer numMirroringThreads,
-                                 @JsonProperty("maxNumFilesPerMirror") @Nullable Integer maxNumFilesPerMirror,
-                                 @JsonProperty("maxNumBytesPerMirror") @Nullable Long maxNumBytesPerMirror) {
+    /**
+     * Creates a new instance.
+     */
+    public MirroringServicePluginConfig(boolean enabled) {
+        this(enabled, null, null, null);
+    }
+
+    /**
+     * Creates a new instance.
+     */
+    @JsonCreator
+    public MirroringServicePluginConfig(
+            @JsonProperty("enabled") @Nullable Boolean enabled,
+            @JsonProperty("numMirroringThreads") @Nullable Integer numMirroringThreads,
+            @JsonProperty("maxNumFilesPerMirror") @Nullable Integer maxNumFilesPerMirror,
+            @JsonProperty("maxNumBytesPerMirror") @Nullable Long maxNumBytesPerMirror) {
+        super(enabled);
         this.numMirroringThreads = firstNonNull(numMirroringThreads, DEFAULT_NUM_MIRRORING_THREADS);
         checkArgument(this.numMirroringThreads > 0,
                       "numMirroringThreads: %s (expected: > 0)", this.numMirroringThreads);
@@ -51,7 +74,7 @@ final class MirroringServicePluginConfig {
      * Returns the number of mirroring threads.
      */
     @JsonProperty
-    int numMirroringThreads() {
+    public int numMirroringThreads() {
         return numMirroringThreads;
     }
 
@@ -59,7 +82,7 @@ final class MirroringServicePluginConfig {
      * Returns the maximum allowed number of files per mirror.
      */
     @JsonProperty
-    int maxNumFilesPerMirror() {
+    public int maxNumFilesPerMirror() {
         return maxNumFilesPerMirror;
     }
 
@@ -67,7 +90,7 @@ final class MirroringServicePluginConfig {
      * Returns the maximum allowed number of bytes per mirror.
      */
     @JsonProperty
-    long maxNumBytesPerMirror() {
+    public long maxNumBytesPerMirror() {
         return maxNumBytesPerMirror;
     }
 

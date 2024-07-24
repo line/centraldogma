@@ -72,6 +72,12 @@ public final class PurgeSchedulingServicePlugin implements Plugin {
         return requireNonNull(config, "config").maxRemovedRepositoryAgeMillis() > 0;
     }
 
+    @Override
+    public Class<?> configType() {
+        // Return the plugin class itself because it does not have a configuration.
+        return PurgeSchedulingServicePlugin.class;
+    }
+
     @Nullable
     public PurgeSchedulingService scheduledPurgingService() {
         return purgeSchedulingService;

@@ -30,6 +30,7 @@ import static com.linecorp.centraldogma.server.internal.storage.repository.Repos
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
+import java.io.IOError;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -47,8 +48,10 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.cronutils.utils.VisibleForTesting;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -56,9 +59,11 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.util.StdConverter;
 import com.google.common.collect.ImmutableList;
@@ -73,6 +78,8 @@ import com.linecorp.armeria.server.ClientAddressSource;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
+import com.linecorp.centraldogma.server.plugin.PluginConfig;
+import com.linecorp.centraldogma.server.plugin.PluginConfigDeserializer;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.netty.util.NetUtil;
@@ -84,11 +91,18 @@ public final class CentralDogmaConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaConfig.class);
 
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
     private static final Pattern PREFIX_PATTERN = Pattern.compile("^[a-z0-9_-]+$");
 
     private static final Map<String, ConfigValueConverter> CONFIG_VALUE_CONVERTERS;
 
     static {
+        final SimpleModule module = new SimpleModule();
+        module.addDeserializer(PluginConfig.class, new PluginConfigDeserializer());
+        // Use different ObjectMapper to avoid infinite recursion.
+        objectMapper.registerModule(module);
+
         final ArrayList<ConfigValueConverter> configValueConverters = new ArrayList<>();
         Streams.stream(ServiceLoader.load(ConfigValueConverter.class)).forEach(configValueConverters::add);
         configValueConverters.add(DefaultConfigValueConverter.INSTANCE);
@@ -156,6 +170,35 @@ public final class CentralDogmaConfig {
         logger.warn("No {} found for {}. prefix: {}",
                     ConfigValueConverter.class.getSimpleName(), propertyName, prefix);
         return value;
+    }
+
+    /**
+     * Loads the configuration from the specified {@link File}.
+     */
+    public static CentralDogmaConfig load(File configFile) throws JsonMappingException, JsonParseException {
+        requireNonNull(configFile, "configFile");
+        try {
+            return objectMapper.readValue(configFile, CentralDogmaConfig.class);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
+    }
+
+    /**
+     * Loads the configuration from the specified JSON string.
+     */
+    @VisibleForTesting
+    public static CentralDogmaConfig load(String json) throws JsonMappingException, JsonParseException {
+        requireNonNull(json, "json");
+        try {
+            return objectMapper.readValue(json, CentralDogmaConfig.class);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
     }
 
     private final File dataDir;

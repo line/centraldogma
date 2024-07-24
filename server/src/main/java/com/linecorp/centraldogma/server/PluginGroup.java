@@ -82,15 +82,15 @@ final class PluginGroup {
         requireNonNull(config, "config");
 
         final ServiceLoader<Plugin> loader = ServiceLoader.load(Plugin.class, classLoader);
-        final ImmutableMap.Builder<String, Plugin> plugins = new ImmutableMap.Builder<>();
+        final ImmutableMap.Builder<Class<?>, Plugin> plugins = new ImmutableMap.Builder<>();
         for (Plugin plugin : loader) {
             if (target == plugin.target() && plugin.isEnabled(config)) {
-                plugins.put(plugin.name(), plugin);
+                plugins.put(plugin.configType(), plugin);
             }
         }
 
         // IllegalArgumentException is thrown if there are duplicate keys.
-        final Map<String, Plugin> pluginMap = plugins.build();
+        final Map<Class<?>, Plugin> pluginMap = plugins.build();
         if (pluginMap.isEmpty()) {
             return null;
         }
