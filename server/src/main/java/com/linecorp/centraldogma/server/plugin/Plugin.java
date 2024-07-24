@@ -66,8 +66,8 @@ public interface Plugin {
             return true;
         }
         if (configs.size() > 1) {
-            throw new IllegalStateException("Multiple plugin configurations found for: " + name() +
-                                            ", plugin configs: " + configs);
+            throw new IllegalArgumentException("Multiple plugin configurations found for: " + name() +
+                                               ", plugin configs: " + configs);
         }
         final PluginConfig pluginConfig = configs.get(0);
         validatePluginConfig(pluginConfig);

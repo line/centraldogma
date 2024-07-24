@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;
 
@@ -38,7 +39,7 @@ public final class PluginConfig {
     public PluginConfig(@JsonProperty(value = "name", required = true) String name,
                         @JsonProperty("enabled") @Nullable Boolean enabled,
                         @JsonProperty("config") @Nullable JsonNode config) {
-        this.name = name;
+        this.name = requireNonNull(name, "name");
         this.enabled = firstNonNull(enabled, true);
         this.config = config;
     }

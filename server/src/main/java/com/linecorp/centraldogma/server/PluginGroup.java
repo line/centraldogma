@@ -84,7 +84,6 @@ final class PluginGroup {
         final ServiceLoader<Plugin> loader = ServiceLoader.load(Plugin.class, classLoader);
         final ImmutableMap.Builder<String, Plugin> plugins = new ImmutableMap.Builder<>();
         for (Plugin plugin : loader) {
-            System.err.println("plugin: " + plugin.name());
             if (target == plugin.target() && plugin.isEnabled(config)) {
                 plugins.put(plugin.name(), plugin);
             }
