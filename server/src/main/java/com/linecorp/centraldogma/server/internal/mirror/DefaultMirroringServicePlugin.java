@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
@@ -47,12 +48,27 @@ public final class DefaultMirroringServicePlugin implements Plugin {
         DefaultMirroringService mirroringService = this.mirroringService;
         if (mirroringService == null) {
             final CentralDogmaConfig cfg = context.config();
+            final MirroringServicePluginConfig mirroringServicePluginConfig =
+                    (MirroringServicePluginConfig) cfg.pluginConfigMap().get(configType());
+            final int numThreads;
+            final int maxNumFilesPerMirror;
+            final long maxNumBytesPerMirror;
+
+            if (mirroringServicePluginConfig != null) {
+                numThreads = mirroringServicePluginConfig.numMirroringThreads();
+                maxNumFilesPerMirror = mirroringServicePluginConfig.maxNumFilesPerMirror();
+                maxNumBytesPerMirror = mirroringServicePluginConfig.maxNumBytesPerMirror();
+            } else {
+                numThreads = MirroringServicePluginConfig.INSTANCE.numMirroringThreads();
+                maxNumFilesPerMirror = MirroringServicePluginConfig.INSTANCE.maxNumFilesPerMirror();
+                maxNumBytesPerMirror = MirroringServicePluginConfig.INSTANCE.maxNumBytesPerMirror();
+            }
             mirroringService = new DefaultMirroringService(new File(cfg.dataDir(), "_mirrors"),
                                                            context.projectManager(),
                                                            context.meterRegistry(),
-                                                           cfg.numMirroringThreads(),
-                                                           cfg.maxNumFilesPerMirror(),
-                                                           cfg.maxNumBytesPerMirror());
+                                                           numThreads,
+                                                           maxNumFilesPerMirror,
+                                                           maxNumBytesPerMirror);
             this.mirroringService = mirroringService;
         }
         mirroringService.start(context.commandExecutor());
@@ -69,8 +85,8 @@ public final class DefaultMirroringServicePlugin implements Plugin {
     }
 
     @Override
-    public boolean isEnabled(CentralDogmaConfig config) {
-        return requireNonNull(config, "config").isMirroringEnabled();
+    public Class<?> configType() {
+        return MirroringServicePluginConfig.class;
     }
 
     @Nullable
@@ -81,6 +97,7 @@ public final class DefaultMirroringServicePlugin implements Plugin {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                          .add("configType", configType())
                           .add("target", target())
                           .toString();
     }
