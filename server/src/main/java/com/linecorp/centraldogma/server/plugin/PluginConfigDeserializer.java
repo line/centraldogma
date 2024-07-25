@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.server.plugin;
 import java.io.IOException;
 
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
@@ -42,7 +41,7 @@ public final class PluginConfigDeserializer extends StdDeserializer<PluginConfig
 
     @Override
     public PluginConfig deserialize(JsonParser jp, DeserializationContext ctxt)
-            throws IOException, JsonProcessingException {
+            throws IOException {
         final JsonNode jsonNode = jp.readValueAsTree();
         final JsonNode configType = jsonNode.get("configType");
         if (configType == null || configType.asText() == null) {

@@ -51,7 +51,8 @@ class DefaultMirroringServicePluginTest {
                                         "  ]\n" +
                                         '}');
         final MirroringServicePluginConfig mirroringServicePluginConfig =
-                (MirroringServicePluginConfig) centralDogmaConfig.pluginConfigs().get(0);
+                (MirroringServicePluginConfig) centralDogmaConfig.pluginConfigMap()
+                                                                 .get(MirroringServicePluginConfig.class);
         assertThat(mirroringServicePluginConfig).isNotNull();
         assertThat(mirroringServicePluginConfig.enabled()).isTrue();
         assertThat(mirroringServicePluginConfig.numMirroringThreads()).isOne();

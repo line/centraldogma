@@ -15,9 +15,6 @@
  */
 package com.linecorp.centraldogma.server.plugin;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
-
-import java.util.List;
 import java.util.concurrent.CompletionStage;
 
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
@@ -50,18 +47,12 @@ public interface Plugin {
      * Returns {@code true} if this {@link Plugin} is enabled.
      */
     default boolean isEnabled(CentralDogmaConfig config) {
-        final List<PluginConfig> configs = config.pluginConfigs().stream()
-                                                 .filter(plugin -> configType().isInstance(plugin))
-                                                 .collect(toImmutableList());
-        if (configs.isEmpty()) {
+        final PluginConfig pluginConfig = config.pluginConfigMap().get(configType());
+        if (pluginConfig == null) {
             // Enabled if not found.
             return true;
         }
-        if (configs.size() > 1) {
-            throw new IllegalArgumentException("Multiple plugin configurations found." +
-                                               " configs: " + configs);
-        }
-        return configs.get(0).enabled();
+        return pluginConfig.enabled();
     }
 
     /**

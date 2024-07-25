@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -29,7 +28,6 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.plugin.Plugin;
-import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 
@@ -50,15 +48,12 @@ public final class DefaultMirroringServicePlugin implements Plugin {
         DefaultMirroringService mirroringService = this.mirroringService;
         if (mirroringService == null) {
             final CentralDogmaConfig cfg = context.config();
-            final Optional<PluginConfig> optional =
-                    cfg.pluginConfigs().stream().filter(plugin -> configType().isInstance(plugin))
-                       .findFirst();
+            final MirroringServicePluginConfig mirroringServicePluginConfig =
+                    (MirroringServicePluginConfig) cfg.pluginConfigMap().get(configType());
             final int numThreads;
             final int maxNumFilesPerMirror;
             final long maxNumBytesPerMirror;
 
-            final MirroringServicePluginConfig mirroringServicePluginConfig =
-                    (MirroringServicePluginConfig) optional.orElse(null);
             if (mirroringServicePluginConfig != null) {
                 numThreads = mirroringServicePluginConfig.numMirroringThreads();
                 maxNumFilesPerMirror = mirroringServicePluginConfig.maxNumFilesPerMirror();

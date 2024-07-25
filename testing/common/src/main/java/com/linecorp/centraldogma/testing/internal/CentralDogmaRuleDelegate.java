@@ -114,15 +114,10 @@ public class CentralDogmaRuleDelegate {
         configure(builder);
 
         final com.linecorp.centraldogma.server.CentralDogma dogma = builder.build();
-        boolean mirrorPluginConfigured = false;
-        for (PluginConfig pluginConfig : dogma.config().pluginConfigs()) {
-            if (pluginConfig instanceof MirroringServicePluginConfig) {
-                mirrorPluginConfigured = true;
-                break;
-            }
-        }
+        final PluginConfig mirroringConfig = dogma.config().pluginConfigMap().get(
+                MirroringServicePluginConfig.class);
         final com.linecorp.centraldogma.server.CentralDogma dogma0;
-        if (!mirrorPluginConfigured) {
+        if (mirroringConfig == null) {
             // Disable mirror plugin if not configured.
             dogma0 = builder.pluginConfigs(new MirroringServicePluginConfig(false)).build();
         } else {

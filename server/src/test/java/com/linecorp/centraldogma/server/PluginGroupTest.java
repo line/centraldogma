@@ -16,7 +16,6 @@
 package com.linecorp.centraldogma.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -24,7 +23,7 @@ import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.storage.PurgeSchedulingServicePlugin;
@@ -56,29 +55,22 @@ class PluginGroupTest {
     @Test
     void confirmDefaultMirroringServiceLoadedDependingOnConfig() {
         final CentralDogmaConfig cfg = mock(CentralDogmaConfig.class);
-        when(cfg.pluginConfigs()).thenReturn(ImmutableList.of());
+        when(cfg.pluginConfigMap()).thenReturn(ImmutableMap.of());
         final PluginGroup group1 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group1).isNotNull();
         assertThat(group1.findFirstPlugin(DefaultMirroringServicePlugin.class)).isPresent();
 
-        when(cfg.pluginConfigs()).thenReturn(ImmutableList.of(new MirroringServicePluginConfig(true)));
+        when(cfg.pluginConfigMap()).thenReturn(ImmutableMap.of(
+                MirroringServicePluginConfig.class, new MirroringServicePluginConfig(true)));
         final PluginGroup group2 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group2).isNotNull();
         assertThat(group2.findFirstPlugin(DefaultMirroringServicePlugin.class)).isPresent();
 
-        when(cfg.pluginConfigs()).thenReturn(ImmutableList.of(new MirroringServicePluginConfig(false)));
+        when(cfg.pluginConfigMap()).thenReturn(ImmutableMap.of(
+                MirroringServicePluginConfig.class, new MirroringServicePluginConfig(false)));
         final PluginGroup group3 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group3).isNotNull();
         assertThat(group3.findFirstPlugin(DefaultMirroringServicePlugin.class)).isNotPresent();
-    }
-
-    @Test
-    void duplicatePluginConfig() {
-        final CentralDogmaConfig cfg = mock(CentralDogmaConfig.class);
-        when(cfg.pluginConfigs()).thenReturn(ImmutableList.of(new MirroringServicePluginConfig(true),
-                                                              new MirroringServicePluginConfig(true)));
-        assertThatThrownBy(() -> PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg))
-                .isInstanceOf(IllegalArgumentException.class);
     }
 
     /**

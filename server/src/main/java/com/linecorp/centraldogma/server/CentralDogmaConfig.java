@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.linecorp.armeria.common.util.InetAddressPredicates.ofCidr;
 import static com.linecorp.armeria.common.util.InetAddressPredicates.ofExact;
 import static com.linecorp.armeria.server.ClientAddressSource.ofHeader;
@@ -262,6 +263,7 @@ public final class CentralDogmaConfig {
     private final CorsConfig corsConfig;
 
     private final List<PluginConfig> pluginConfigs;
+    private final Map<Class<?>, PluginConfig> pluginConfigMap;
 
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
@@ -333,7 +335,8 @@ public final class CentralDogmaConfig {
 
         this.writeQuotaPerRepository = writeQuotaPerRepository;
         this.corsConfig = corsConfig;
-        this.pluginConfigs = ImmutableList.copyOf(firstNonNull(pluginConfigs, ImmutableList.of()));
+        this.pluginConfigs = firstNonNull(pluginConfigs, ImmutableList.of());
+        pluginConfigMap = this.pluginConfigs.stream().collect(toImmutableMap(PluginConfig::getClass, pc -> pc));
     }
 
     /**
@@ -554,6 +557,13 @@ public final class CentralDogmaConfig {
     @JsonProperty("plugins")
     public List<PluginConfig> pluginConfigs() {
         return pluginConfigs;
+    }
+
+    /**
+     * Returns the map of {@link PluginConfig}s.
+     */
+    public Map<Class<?>, PluginConfig> pluginConfigMap() {
+        return pluginConfigMap;
     }
 
     @Override
