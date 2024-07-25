@@ -290,7 +290,7 @@ public final class CentralDogmaConfig {
             @JsonProperty("authentication") @Nullable AuthConfig authConfig,
             @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository,
             @JsonProperty("cors") @Nullable CorsConfig corsConfig,
-            @JsonProperty("plugins") @Nullable List<PluginConfig> pluginConfigs) {
+            @JsonProperty("pluginConfigs") @Nullable List<PluginConfig> pluginConfigs) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -554,7 +554,7 @@ public final class CentralDogmaConfig {
     /**
      * Returns the list of {@link PluginConfig}s.
      */
-    @JsonProperty("plugins")
+    @JsonProperty("pluginConfigs")
     public List<PluginConfig> pluginConfigs() {
         return pluginConfigs;
     }

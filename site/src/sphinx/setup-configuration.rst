@@ -50,9 +50,9 @@ defaults:
       "accessLogFormat": "common",
       "authentication": null,
       "cors": null,
-      "plugins": [
+      "pluginConfigs": [
         {
-          "configType": "com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig",
+          "type": "com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig",
           "enabled": true,
           "numMirroringThreads": null,
           "maxNumFilesPerMirror": null,
@@ -226,7 +226,7 @@ Core properties
     - how long in seconds the results of a preflight request can be cached. If not specified then the default
       value ``7200`` is applied.
 
-- ``plugins``
+- ``pluginConfigs``
 
   - the list of plugin configuration. See :ref:`plugins` for more information.
 
@@ -460,7 +460,7 @@ Java client, call the ``useTls()`` method when building a ``CentralDogma`` insta
 Configuring plugins
 -------------------
 Central Dogma supports installing a plugin that runs on Central Dogma servers. You can configure the plugin
-with ``plugins`` property in ``dogma.json`` as follows.
+with ``pluginConfigs`` property in ``dogma.json`` as follows.
 
 .. code-block:: json
 
@@ -478,9 +478,9 @@ with ``plugins`` property in ``dogma.json`` as follows.
         }
       ],
       ...
-      "plugins": [
+      "pluginConfigs": [
         {
-          "configType": "com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig",
+          "type": "com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig",
           "enabled": true,
           "numMirroringThreads": null,
           "maxNumFilesPerMirror": null,
@@ -489,7 +489,7 @@ with ``plugins`` property in ``dogma.json`` as follows.
       ]
     }
 
-Each configuration in ``plugins`` must have ``configType`` that specifies the fully qualified class name of
+Each configuration in ``pluginConfigs`` must have ``type`` that specifies the fully qualified class name of
 the plugin configuration class. The plugin configuration class must implement the ``PluginConfig`` interface
 that requires ``enabled`` property. The plugin configuration class can have additional properties that are
 specific to the plugin. The example above shows the configuration of the mirroring plugin and here are the

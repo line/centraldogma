@@ -42,9 +42,9 @@ class DefaultMirroringServicePluginTest {
                                         "      ]\n" +
                                         "    }\n" +
                                         "  ],\n" +
-                                        "  \"plugins\": [" +
+                                        "  \"pluginConfigs\": [" +
                                         "    {\n" +
-                                        "      \"configType\": \"com.linecorp.centraldogma.server.mirror." +
+                                        "      \"type\": \"com.linecorp.centraldogma.server.mirror." +
                                                                 "MirroringServicePluginConfig\",\n" +
                                         "      \"numMirroringThreads\": 1" +
                                         "    }" +

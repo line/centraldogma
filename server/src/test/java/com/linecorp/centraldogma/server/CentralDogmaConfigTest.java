@@ -446,14 +446,14 @@ class CentralDogmaConfigTest {
                                                          "      ]\n" +
                                                          "    }\n" +
                                                          "  ],\n" +
-                                                         "  \"plugins\": [" +
+                                                         "  \"pluginConfigs\": [" +
                                                          "    {\n" +
-                                                         "      \"configType\": \"com.linecorp.centraldogma" +
+                                                         "      \"type\": \"com.linecorp.centraldogma" +
                                                          ".server.mirror.MirroringServicePluginConfig\",\n" +
                                                          "      \"numMirroringThreads\": 1" +
                                                          "    }," +
                                                          "    {\n" +
-                                                         "      \"configType\": \"com.linecorp.centraldogma" +
+                                                         "      \"type\": \"com.linecorp.centraldogma" +
                                                          ".server.mirror.MirroringServicePluginConfig\",\n" +
                                                          "      \"numMirroringThreads\": 2" +
                                                          "    }" +

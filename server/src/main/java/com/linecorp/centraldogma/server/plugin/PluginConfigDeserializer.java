@@ -43,18 +43,18 @@ public final class PluginConfigDeserializer extends StdDeserializer<PluginConfig
     public PluginConfig deserialize(JsonParser jp, DeserializationContext ctxt)
             throws IOException {
         final JsonNode jsonNode = jp.readValueAsTree();
-        final JsonNode configType = jsonNode.get("configType");
-        if (configType == null || configType.asText() == null) {
+        final JsonNode type = jsonNode.get("type");
+        if (type == null || type.asText() == null) {
             ctxt.reportInputMismatch(PluginConfig.class, "plugin config should have a type.");
             // should never reach here
             throw new Error();
         }
 
-        final String configTypeText = configType.asText();
+        final String typeText = type.asText();
         try {
-            final Class<?> clazz = Class.forName(configTypeText);
+            final Class<?> clazz = Class.forName(typeText);
             if (!PluginConfig.class.isAssignableFrom(clazz)) {
-                ctxt.reportInputMismatch(PluginConfig.class, configTypeText + " is not a subtype of " +
+                ctxt.reportInputMismatch(PluginConfig.class, typeText + " is not a subtype of " +
                                                              PluginConfig.class.getSimpleName());
                 // should never reach here
                 throw new Error();
@@ -62,11 +62,11 @@ public final class PluginConfigDeserializer extends StdDeserializer<PluginConfig
 
             assert jsonNode instanceof ObjectNode;
             final ObjectNode objectNode = (ObjectNode) jsonNode;
-            objectNode.remove("configType");
+            objectNode.remove("type");
 
             return (PluginConfig) Jackson.treeToValue(objectNode, clazz);
         } catch (ClassNotFoundException e) {
-            ctxt.reportInputMismatch(PluginConfig.class, configTypeText + " is not found.");
+            ctxt.reportInputMismatch(PluginConfig.class, typeText + " is not found.");
             // should never reach here
             throw new Error();
         }
