@@ -56,7 +56,7 @@ defaults:
           "enabled": true,
           "numMirroringThreads": null,
           "maxNumFilesPerMirror": null,
-          "maxNumBytesPerMirror": null,
+          "maxNumBytesPerMirror": null
         }
       ]
     }
@@ -420,10 +420,6 @@ in ``dogma.json`` as follows.
       "replication": {
         "method": "NONE"
       },
-      "mirroringEnabled": true,
-      "numMirroringThreads": null,
-      "maxNumFilesPerMirror": null,
-      "maxNumBytesPerMirror": null,
       "accessLogFormat": "common",
       "authentication": null
     }
