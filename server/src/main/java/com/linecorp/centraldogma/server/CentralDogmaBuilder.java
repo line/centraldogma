@@ -49,6 +49,7 @@ import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
 import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -71,9 +72,6 @@ public final class CentralDogmaBuilder {
     private static final ServerPort DEFAULT_PORT = new ServerPort(36462, SessionProtocol.HTTP);
 
     static final int DEFAULT_NUM_REPOSITORY_WORKERS = 16;
-    static final int DEFAULT_NUM_MIRRORING_THREADS = 16;
-    static final int DEFAULT_MAX_NUM_FILES_PER_MIRROR = 8192;
-    static final long DEFAULT_MAX_NUM_BYTES_PER_MIRROR = 32 * 1048576; // 32 MiB
     static final long DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS = 604_800_000;  // 7 days
 
     static final String DEFAULT_REPOSITORY_CACHE_SPEC =
@@ -84,13 +82,19 @@ public final class CentralDogmaBuilder {
     // Note that we use nullable types here for optional properties.
     // When a property is null, the default value will be used implicitly.
     private final List<ServerPort> ports = new ArrayList<>(2);
+    @Nullable
     private TlsConfig tls;
-    private List<String> trustedProxyAddresses = new ArrayList<>();
-    private List<String> clientAddressSources = new ArrayList<>();
+    private final List<String> trustedProxyAddresses = new ArrayList<>();
+    private final List<String> clientAddressSources = new ArrayList<>();
+    @Nullable
     private Integer numWorkers;
+    @Nullable
     private Integer maxNumConnections;
+    @Nullable
     private Long requestTimeoutMillis;
+    @Nullable
     private Long idleTimeoutMillis;
+    @Nullable
     private Integer maxFrameLength;
 
     // Central Dogma properties
@@ -103,13 +107,11 @@ public final class CentralDogmaBuilder {
     private boolean webAppEnabled = true;
     @Nullable
     private String webAppTitle;
-    private boolean mirroringEnabled = true;
-    private int numMirroringThreads = DEFAULT_NUM_MIRRORING_THREADS;
-    private int maxNumFilesPerMirror = DEFAULT_MAX_NUM_FILES_PER_MIRROR;
-    private long maxNumBytesPerMirror = DEFAULT_MAX_NUM_BYTES_PER_MIRROR;
+
     @Nullable
     private GracefulShutdownTimeout gracefulShutdownTimeout;
     private ReplicationConfig replicationConfig = ReplicationConfig.NONE;
+    @Nullable
     private String accessLogFormat;
 
     // AuthConfig properties
@@ -128,6 +130,8 @@ public final class CentralDogmaBuilder {
 
     @Nullable
     private CorsConfig corsConfig;
+
+    private final List<PluginConfig> pluginConfigs = new ArrayList<>();
 
     /**
      * Creates a new builder with the specified data directory.
@@ -371,42 +375,6 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Sets whether {@link MirroringService} is enabled or not.
-     * If unspecified, {@link MirroringService} is enabled.
-     */
-    public CentralDogmaBuilder mirroringEnabled(boolean mirroringEnabled) {
-        this.mirroringEnabled = mirroringEnabled;
-        return this;
-    }
-
-    /**
-     * Sets the number of worker threads dedicated to mirroring between repositories.
-     * If unspecified, {@value #DEFAULT_NUM_MIRRORING_THREADS} threads are created at maximum.
-     */
-    public CentralDogmaBuilder numMirroringThreads(int numMirroringThreads) {
-        this.numMirroringThreads = numMirroringThreads;
-        return this;
-    }
-
-    /**
-     * Sets the maximum allowed number of files in a mirrored tree.
-     * If unspecified, {@value #DEFAULT_MAX_NUM_FILES_PER_MIRROR} files are allowed at maximum.
-     */
-    public CentralDogmaBuilder maxNumFilesPerMirror(int maxNumFilesPerMirror) {
-        this.maxNumFilesPerMirror = maxNumFilesPerMirror;
-        return this;
-    }
-
-    /**
-     * Sets the maximum allowed number of bytes in a mirrored tree.
-     * If unspecified, {@value #DEFAULT_MAX_NUM_BYTES_PER_MIRROR} bytes are allowed at maximum.
-     */
-    public CentralDogmaBuilder maxNumBytesPerMirror(long maxNumBytesPerMirror) {
-        this.maxNumBytesPerMirror = maxNumBytesPerMirror;
-        return this;
-    }
-
-    /**
      * Sets the graceful shutdown timeout. If unspecified, graceful shutdown is disabled.
      */
     public CentralDogmaBuilder gracefulShutdownTimeout(GracefulShutdownTimeout gracefulShutdownTimeout) {
@@ -553,6 +521,15 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Adds the {@link PluginConfig}s.
+     */
+    public CentralDogmaBuilder pluginConfigs(PluginConfig... pluginConfigs) {
+        requireNonNull(pluginConfigs, "pluginConfigs");
+        this.pluginConfigs.addAll(ImmutableList.copyOf(pluginConfigs));
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
@@ -583,9 +560,8 @@ public final class CentralDogmaBuilder {
                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
                                       numRepositoryWorkers, repositoryCacheSpec,
                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
-                                      webAppEnabled, webAppTitle, mirroringEnabled, numMirroringThreads,
-                                      maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
+                                      webAppEnabled, webAppTitle,replicationConfig,
                                       null, accessLogFormat, authCfg, quotaConfig,
-                                      corsConfig);
+                                      corsConfig, pluginConfigs);
     }
 }

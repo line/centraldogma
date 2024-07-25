@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -15,15 +15,32 @@
  */
 package com.linecorp.centraldogma.server.plugin;
 
-public class NoopPluginForAllReplicas extends AbstractNoopPlugin {
-    @Override
-    public PluginTarget target() {
-        return PluginTarget.ALL_REPLICAS;
+import static com.google.common.base.MoreObjects.firstNonNull;
+
+import javax.annotation.Nullable;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+/**
+ * An abstract {@link PluginConfig} implementation.
+ */
+public abstract class AbstractPluginConfig implements PluginConfig {
+
+    private final boolean enabled;
+
+    /**
+     * Creates a new instance.
+     */
+    protected AbstractPluginConfig(@Nullable Boolean enabled) {
+        this.enabled = firstNonNull(enabled, true);
     }
 
+    /**
+     * Returns whether the plugin is enabled.
+     */
+    @JsonProperty
     @Override
-    public Class<?> configType() {
-        // Return the plugin class itself because it does not have a configuration.
-        return getClass();
+    public boolean enabled() {
+        return enabled;
     }
 }

@@ -53,6 +53,7 @@ import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.AbstractAllOrEachExtension;
@@ -115,7 +116,7 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
                     builder.port(new InetSocketAddress(NetUtil.LOCALHOST4, dogmaPort), SessionProtocol.HTTP)
                            .administrators(TestAuthMessageUtil.USERNAME)
                            .authProviderFactory(factory)
-                           .mirroringEnabled(false)
+                           .pluginConfigs(new MirroringServicePluginConfig(false))
                            .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
                            .replication(new ZooKeeperReplicationConfig(serverId, zooKeeperServers));
                 }
