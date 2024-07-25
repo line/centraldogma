@@ -43,17 +43,22 @@ defaults:
       "replication": {
         "method": "NONE"
       },
-      "mirroringEnabled": true,
-      "numMirroringThreads": null,
-      "maxNumFilesPerMirror": null,
-      "maxNumBytesPerMirror": null,
       "writeQuotaPerRepository": {
         "requestQuota": 5,
         "timeWindowSeconds": 1
       },
       "accessLogFormat": "common",
       "authentication": null,
-      "cors": null
+      "cors": null,
+      "plugins": [
+        {
+          "configType": "com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig",
+          "enabled": true,
+          "numMirroringThreads": null,
+          "maxNumFilesPerMirror": null,
+          "maxNumBytesPerMirror": null,
+        }
+      ]
     }
 
 Core properties
@@ -138,9 +143,9 @@ Core properties
 
 - ``maxRemovedRepositoryAgeMillis`` (integer)
 
- - the maximum allowed age of removed projects and repositories before they are purged.
-   Set 0 to disable automatic purge.
-   If ``null``, the default value of '604800000 milliseconds' (7 days) is used.
+  - the maximum allowed age of removed projects and repositories before they are purged.
+    Set 0 to disable automatic purge.
+    If ``null``, the default value of '604800000 milliseconds' (7 days) is used.
 
 - ``repositoryCacheSpec`` (string)
 
@@ -181,40 +186,18 @@ Core properties
     - the replication method. ``NONE`` indicates 'standalone mode' without replication. See :ref:`replication`
       to learn how to configure ZooKeeper-based multi-master replication.
 
-- ``mirroringEnabled`` (boolean)
-
-  - whether to enable Git mirroring. It's enabled by default. For more information about mirroring,
-    refer to :ref:`mirroring`.
-
-- ``numMirroringThreads`` (integer)
-
-  - the number of worker threads dedicated to periodic mirroring tasks. If ``null``, the default value of
-    '16 threads' is used.
-
-- ``maxNumFilesPerMirror`` (integer)
-
-  - the maximum allowed number of files in a mirror. If a Git repository contains more files than this,
-    Central Dogma will reject to mirror the Git repository. If ``null``, the default value of '8192 files'
-    is used.
-
-- ``maxNumBytesPerMirror`` (integer)
-
-  - the maximum allowed number of bytes in a mirror. If the total size of the files in a Git repository exceeds
-    this, Central Dogma will reject to mirror the Git repository. If ``null``, the default value of
-    '33554432 bytes' (32 MiB) is used.
-
 -  ``writeQuotaPerRepository``
 
-  - the maximum allowed write quota per repository. If ``requestQuota`` is set to 5 and
-    ``timeWindowSeconds`` is set to 1, :ref:`pushing-a-commit`` cannot exceed 5 QPS; if exceeded,
-    `429 Too Many Requests <https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429>`_ will be returned.
-    If ``null``, no limit is enforced.
+   - the maximum allowed write quota per repository. If ``requestQuota`` is set to 5 and
+     ``timeWindowSeconds`` is set to 1, :ref:`pushing-a-commit`` cannot exceed 5 QPS; if exceeded,
+     `429 Too Many Requests <https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429>`_ will be returned.
+     If ``null``, no limit is enforced.
 
-  - ``requestQuota`` (integer)
+   - ``requestQuota`` (integer)
 
      - a maximum number of acceptable requests.
 
-  - ``timeWindowSeconds`` (integer)
+   - ``timeWindowSeconds`` (integer)
 
      - a time windows in seconds.
 
@@ -242,6 +225,10 @@ Core properties
 
     - how long in seconds the results of a preflight request can be cached. If not specified then the default
       value ``7200`` is applied.
+
+- ``plugins``
+
+  - the list of plugin configuration. See :ref:`plugins` for more information.
 
 .. _replication:
 
@@ -471,6 +458,65 @@ Java client, call the ``useTls()`` method when building a ``CentralDogma`` insta
             .accessToken("appToken-********")
             .useTls()
             .build();
+
+.. _plugins:
+
+Configuring plugins
+-------------------
+Central Dogma supports installing a plugin that runs on Central Dogma servers. You can configure the plugin
+with ``plugins`` property in ``dogma.json`` as follows.
+
+.. code-block:: json
+
+    {
+      "dataDir": "./data",
+      "ports": [
+        {
+          "localAddress": {
+            "host": "*",
+            "port": 36462
+          },
+          "protocols": [
+            "https"
+          ]
+        }
+      ],
+      ...
+      "plugins": [
+        {
+          "configType": "com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig",
+          "enabled": true,
+          "numMirroringThreads": null,
+          "maxNumFilesPerMirror": null,
+          "maxNumBytesPerMirror": null,
+        }
+      ]
+    }
+
+Each configuration in ``plugins`` must have ``configType`` that specifies the fully qualified class name of
+the plugin configuration class. The plugin configuration class must implement the ``PluginConfig`` interface
+that requires ``enabled`` property. The plugin configuration class can have additional properties that are
+specific to the plugin. The example above shows the configuration of the mirroring plugin and here are the
+properties that can be configured:
+
+- ``numMirroringThreads`` (integer)
+
+  - the number of worker threads dedicated to periodic mirroring tasks. If ``null``, the default value of
+    '16 threads' is used.
+
+- ``maxNumFilesPerMirror`` (integer)
+
+  - the maximum allowed number of files in a mirror. If a Git repository contains more files than this,
+    Central Dogma will reject to mirror the Git repository. If ``null``, the default value of '8192 files'
+    is used.
+
+- ``maxNumBytesPerMirror`` (integer)
+
+  - the maximum allowed number of bytes in a mirror. If the total size of the files in a Git repository exceeds
+    this, Central Dogma will reject to mirror the Git repository. If ``null``, the default value of
+    '33554432 bytes' (32 MiB) is used.
+
+For more information about mirroring, refer to :ref:`mirroring`.
 
 .. _hiding_sensitive_property_values:
 
