@@ -121,11 +121,11 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     public XdsCentralDogmaBuilder listenerName(String listenerName) {
         requireNonNull(listenerName, "listenerName");
         this.listenerName = listenerName;
-        return self();
+        return this;
     }
 
     /**
-     * Sets the locality of where the {@link CentralDogma} client. This may be used in applying
+     * Sets the locality of where the {@link CentralDogma} client will be running. This may be used in applying
      * <a href="https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/zone_aware">zone aware routing</a>
      * and is analogous to
      * <a href="https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-service-zone">service-zone</a>.
@@ -135,13 +135,13 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     public XdsCentralDogmaBuilder serviceZone(String serviceZone) {
         requireNonNull(serviceZone, "serviceZone");
         locality = Locality.newBuilder().setZone(serviceZone).build();
-        return self();
+        return this;
     }
 
     /**
      * Sets the name of the local service cluster which this client will be located in.
      * This may be used in applying
-     * <a href="https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/zone_aware"></a>
+     * <a href="https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/zone_aware">zone aware routing</a>
      * and is analogous to
      * <a href="https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-service-cluster">service-cluster</a>.
      * This value will be set to {@link Node#getCluster()} in the {@link Bootstrap}.
@@ -150,7 +150,7 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     public XdsCentralDogmaBuilder serviceCluster(String serviceCluster) {
         requireNonNull(serviceCluster, "serviceCluster");
         this.serviceCluster = serviceCluster;
-        return self();
+        return this;
     }
 
     /**
@@ -162,7 +162,7 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     public XdsCentralDogmaBuilder blockingTaskExecutor(ScheduledExecutorService blockingTaskExecutor) {
         requireNonNull(blockingTaskExecutor, "blockingTaskExecutor");
         this.blockingTaskExecutor = blockingTaskExecutor;
-        return self();
+        return this;
     }
 
     /**
@@ -173,7 +173,7 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
      */
     public XdsCentralDogmaBuilder clientConfigurator(ArmeriaClientConfigurator clientConfigurator) {
         this.clientConfigurator = requireNonNull(clientConfigurator, "clientConfigurator");
-        return self();
+        return this;
     }
 
     /**
@@ -184,13 +184,13 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
      */
     public XdsCentralDogmaBuilder clientFactory(ClientFactory clientFactory) {
         this.clientFactory = requireNonNull(clientFactory, "clientFactory");
-        return self();
+        return this;
     }
 
     @VisibleForTesting
     XdsCentralDogmaBuilder xdsBoostrapFactory(Function<Bootstrap, XdsBootstrap> xdsBootstrapFactory) {
         this.xdsBootstrapFactory = requireNonNull(xdsBootstrapFactory, "xdsBootstrapFactory");
-        return self();
+        return this;
     }
 
     /**
@@ -211,7 +211,11 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
 
         final CentralDogma dogma = new ArmeriaCentralDogma(blockingTaskExecutor,
                                                            builder.build(WebClient.class),
-                                                           accessToken(), xdsBootstrap);
+                                                           accessToken(),
+                                                           () -> {
+                                                               endpointGroup.close();
+                                                               xdsBootstrap.close();
+                                                           });
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;
         } else {

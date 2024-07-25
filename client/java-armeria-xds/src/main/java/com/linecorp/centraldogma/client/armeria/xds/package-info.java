@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -15,7 +15,6 @@
  */
 /**
  * <a href="https://line.github.io/armeria/">Armeria</a>'s xDS-based Central Dogma client implementation.
- *
  * @see <a href="https://line.github.io/centraldogma/client-java.html" target="_blank">Java client library</a>
  */
 @NonNullByDefault

@@ -30,7 +30,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
-import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.common.auth.OAuth2Token;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.auth.AuthService;
@@ -84,7 +83,6 @@ class AuthUpstreamTest {
     static final ServerExtension server = new ServerExtension() {
         @Override
         protected void configure(ServerBuilder sb) {
-            sb.port(0, SessionProtocol.HTTP);
             final Authorizer<OAuth2Token> tokenAuthorizer =
                     (ctx, token) -> completedFuture(accessTokenRef.get().equals(token.accessToken()));
             sb.decorator(AuthService.builder().addOAuth2(tokenAuthorizer).newDecorator());
