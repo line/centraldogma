@@ -80,20 +80,26 @@
 <a class="jxr_linenumber" name="L72" href="#L72">72</a>          <strong class="jxr_keyword">return</strong> requireNonNull(config, <span class="jxr_string">"config"</span>).maxRemovedRepositoryAgeMillis() &gt; 0;
 <a class="jxr_linenumber" name="L73" href="#L73">73</a>      }
 <a class="jxr_linenumber" name="L74" href="#L74">74</a>  
-<a class="jxr_linenumber" name="L75" href="#L75">75</a>      @Nullable
-<a class="jxr_linenumber" name="L76" href="#L76">76</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../../com/linecorp/centraldogma/server/internal/storage/PurgeSchedulingService.html">PurgeSchedulingService</a> scheduledPurgingService() {
-<a class="jxr_linenumber" name="L77" href="#L77">77</a>          <strong class="jxr_keyword">return</strong> purgeSchedulingService;
-<a class="jxr_linenumber" name="L78" href="#L78">78</a>      }
-<a class="jxr_linenumber" name="L79" href="#L79">79</a>  
-<a class="jxr_linenumber" name="L80" href="#L80">80</a>      @Override
-<a class="jxr_linenumber" name="L81" href="#L81">81</a>      <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="L82" href="#L82">82</a>          <strong class="jxr_keyword">return</strong> MoreObjects.toStringHelper(<strong class="jxr_keyword">this</strong>)
-<a class="jxr_linenumber" name="L83" href="#L83">83</a>                            .omitNullValues()
-<a class="jxr_linenumber" name="L84" href="#L84">84</a>                            .add(<span class="jxr_string">"target"</span>, target())
-<a class="jxr_linenumber" name="L85" href="#L85">85</a>                            .add(<span class="jxr_string">"purgeSchedulingService"</span>, purgeSchedulingService)
-<a class="jxr_linenumber" name="L86" href="#L86">86</a>                            .toString();
-<a class="jxr_linenumber" name="L87" href="#L87">87</a>      }
-<a class="jxr_linenumber" name="L88" href="#L88">88</a>  }
+<a class="jxr_linenumber" name="L75" href="#L75">75</a>      @Override
+<a class="jxr_linenumber" name="L76" href="#L76">76</a>      <strong class="jxr_keyword">public</strong> Class&lt;?&gt; configType() {
+<a class="jxr_linenumber" name="L77" href="#L77">77</a>          <em class="jxr_comment">// Return the plugin class itself because it does not have a configuration.</em>
+<a class="jxr_linenumber" name="L78" href="#L78">78</a>          <strong class="jxr_keyword">return</strong> getClass();
+<a class="jxr_linenumber" name="L79" href="#L79">79</a>      }
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>  
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>      @Nullable
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../../com/linecorp/centraldogma/server/internal/storage/PurgeSchedulingService.html">PurgeSchedulingService</a> scheduledPurgingService() {
+<a class="jxr_linenumber" name="L83" href="#L83">83</a>          <strong class="jxr_keyword">return</strong> purgeSchedulingService;
+<a class="jxr_linenumber" name="L84" href="#L84">84</a>      }
+<a class="jxr_linenumber" name="L85" href="#L85">85</a>  
+<a class="jxr_linenumber" name="L86" href="#L86">86</a>      @Override
+<a class="jxr_linenumber" name="L87" href="#L87">87</a>      <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>          <strong class="jxr_keyword">return</strong> MoreObjects.toStringHelper(<strong class="jxr_keyword">this</strong>)
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>                            .omitNullValues()
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>                            .add(<span class="jxr_string">"target"</span>, target())
+<a class="jxr_linenumber" name="L91" href="#L91">91</a>                            .add(<span class="jxr_string">"purgeSchedulingService"</span>, purgeSchedulingService)
+<a class="jxr_linenumber" name="L92" href="#L92">92</a>                            .toString();
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>      }
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>  }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2024 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

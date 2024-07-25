@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Configuration &mdash; Central Dogma 0.67.0 documentation</title>
+  <title>Configuration &mdash; Central Dogma 0.67.1 documentation</title>
   
 
   
@@ -104,6 +104,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#core-properties">Core properties</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#configuring-replication">Configuring replication</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#configuring-tls">Configuring TLS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configuring-plugins">Configuring plugins</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#hiding-sensitive-property-values">Hiding sensitive property values</a></li>
 </ul>
 </li>
@@ -229,17 +230,22 @@ defaults:</p>
   &quot;replication&quot;: {
     &quot;method&quot;: &quot;NONE&quot;
   },
-  &quot;mirroringEnabled&quot;: true,
-  &quot;numMirroringThreads&quot;: null,
-  &quot;maxNumFilesPerMirror&quot;: null,
-  &quot;maxNumBytesPerMirror&quot;: null,
   &quot;writeQuotaPerRepository&quot;: {
     &quot;requestQuota&quot;: 5,
     &quot;timeWindowSeconds&quot;: 1
   },
   &quot;accessLogFormat&quot;: &quot;common&quot;,
   &quot;authentication&quot;: null,
-  &quot;cors&quot;: null
+  &quot;cors&quot;: null,
+  &quot;pluginConfigs&quot;: [
+    {
+      &quot;type&quot;: &quot;com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig&quot;,
+      &quot;enabled&quot;: true,
+      &quot;numMirroringThreads&quot;: null,
+      &quot;maxNumFilesPerMirror&quot;: null,
+      &quot;maxNumBytesPerMirror&quot;: null
+    }
+  ]
 }</pre></div>
 </div>
 <div class="section" id="core-properties">
@@ -340,16 +346,13 @@ If <code class="docutils literal notranslate"><span class="pre">null</span></cod
 If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of ‘16 threads’ is used.</p></li>
 </ul>
 </li>
-<li><p><code class="docutils literal notranslate"><span class="pre">maxRemovedRepositoryAgeMillis</span></code> (integer)</p></li>
-</ul>
-<blockquote>
-<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">maxRemovedRepositoryAgeMillis</span></code> (integer)</p>
+<ul>
 <li><p>the maximum allowed age of removed projects and repositories before they are purged.
 Set 0 to disable automatic purge.
 If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of ‘604800000 milliseconds’ (7 days) is used.</p></li>
 </ul>
-</div></blockquote>
-<ul class="simple">
+</li>
 <li><p><code class="docutils literal notranslate"><span class="pre">repositoryCacheSpec</span></code> (string)</p>
 <ul>
 <li><p>the cache specification string which determines the capacity and behavior of the repository
@@ -399,57 +402,24 @@ to learn how to configure ZooKeeper-based multi-master replication.</p></li>
 </li>
 </ul>
 </li>
-<li><p><code class="docutils literal notranslate"><span class="pre">mirroringEnabled</span></code> (boolean)</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">writeQuotaPerRepository</span></code></p>
 <ul>
-<li><p>whether to enable Git mirroring. It’s enabled by default. For more information about mirroring,
-refer to <a class="reference internal" href="mirroring.html#mirroring"><span class="std std-ref">Better configuration change workflow with Git-to-CD mirroring</span></a>.</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">numMirroringThreads</span></code> (integer)</p>
-<ul>
-<li><p>the number of worker threads dedicated to periodic mirroring tasks. If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of
-‘16 threads’ is used.</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">maxNumFilesPerMirror</span></code> (integer)</p>
-<ul>
-<li><p>the maximum allowed number of files in a mirror. If a Git repository contains more files than this,
-Central Dogma will reject to mirror the Git repository. If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of ‘8192 files’
-is used.</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">maxNumBytesPerMirror</span></code> (integer)</p>
-<ul>
-<li><p>the maximum allowed number of bytes in a mirror. If the total size of the files in a Git repository exceeds
-this, Central Dogma will reject to mirror the Git repository. If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of
-‘33554432 bytes’ (32 MiB) is used.</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">writeQuotaPerRepository</span></code></p></li>
-</ul>
-<blockquote>
-<div><ul>
 <li><p>the maximum allowed write quota per repository. If <code class="docutils literal notranslate"><span class="pre">requestQuota</span></code> is set to 5 and
 <code class="docutils literal notranslate"><span class="pre">timeWindowSeconds</span></code> is set to 1, <span class="xref std std-ref">pushing-a-commit`</span> cannot exceed 5 QPS; if exceeded,
 <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429">429 Too Many Requests</a> will be returned.
 If <code class="docutils literal notranslate"><span class="pre">null</span></code>, no limit is enforced.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">requestQuota</span></code> (integer)</p>
-<blockquote>
-<div><ul class="simple">
+<ul>
 <li><p>a maximum number of acceptable requests.</p></li>
 </ul>
-</div></blockquote>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">timeWindowSeconds</span></code> (integer)</p>
-<blockquote>
-<div><ul class="simple">
+<ul>
 <li><p>a time windows in seconds.</p></li>
 </ul>
-</div></blockquote>
 </li>
 </ul>
-</div></blockquote>
-<ul class="simple">
+</li>
 <li><p><code class="docutils literal notranslate"><span class="pre">accessLogFormat</span></code> (string)</p>
 <ul>
 <li><p>the format to be used for writing an access log. <code class="docutils literal notranslate"><span class="pre">common</span></code> and <code class="docutils literal notranslate"><span class="pre">combined</span></code> are pre-defined for NCSA
@@ -479,6 +449,11 @@ all origins are allowed.</p></li>
 value <code class="docutils literal notranslate"><span class="pre">7200</span></code> is applied.</p></li>
 </ul>
 </li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pluginConfigs</span></code></p>
+<ul>
+<li><p>the list of plugin configuration. See <a class="reference internal" href="#plugins"><span class="std std-ref">Configuring plugins</span></a> for more information.</p></li>
 </ul>
 </li>
 </ul>
@@ -683,10 +658,6 @@ in <code class="docutils literal notranslate"><span class="pre">dogma.json</span
   &quot;replication&quot;: {
     &quot;method&quot;: &quot;NONE&quot;
   },
-  &quot;mirroringEnabled&quot;: true,
-  &quot;numMirroringThreads&quot;: null,
-  &quot;maxNumFilesPerMirror&quot;: null,
-  &quot;maxNumBytesPerMirror&quot;: null,
   &quot;accessLogFormat&quot;: &quot;common&quot;,
   &quot;authentication&quot;: null
 }</pre></div>
@@ -726,6 +697,64 @@ Java client, call the <code class="docutils literal notranslate"><span class="pr
         .useTls()
         .build();</pre></div>
 </div>
+</div>
+<div class="section" id="configuring-plugins">
+<span id="plugins"></span><h2>Configuring plugins<a class="headerlink" href="#configuring-plugins" title="Permalink to this headline">¶</a></h2>
+<p>Central Dogma supports installing a plugin that runs on Central Dogma servers. You can configure the plugin
+with <code class="docutils literal notranslate"><span class="pre">pluginConfigs</span></code> property in <code class="docutils literal notranslate"><span class="pre">dogma.json</span></code> as follows.</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;dataDir&quot;: &quot;./data&quot;,
+  &quot;ports&quot;: [
+    {
+      &quot;localAddress&quot;: {
+        &quot;host&quot;: &quot;*&quot;,
+        &quot;port&quot;: 36462
+      },
+      &quot;protocols&quot;: [
+        &quot;https&quot;
+      ]
+    }
+  ],
+  ...
+  &quot;pluginConfigs&quot;: [
+    {
+      &quot;type&quot;: &quot;com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig&quot;,
+      &quot;enabled&quot;: true,
+      &quot;numMirroringThreads&quot;: null,
+      &quot;maxNumFilesPerMirror&quot;: null,
+      &quot;maxNumBytesPerMirror&quot;: null,
+    }
+  ]
+}</pre></div>
+</div>
+<p>Each configuration in <code class="docutils literal notranslate"><span class="pre">pluginConfigs</span></code> must have <code class="docutils literal notranslate"><span class="pre">type</span></code> that specifies the fully qualified class name of
+the plugin configuration class. The plugin configuration class must implement the <code class="docutils literal notranslate"><span class="pre">PluginConfig</span></code> interface
+that requires <code class="docutils literal notranslate"><span class="pre">enabled</span></code> property. The plugin configuration class can have additional properties that are
+specific to the plugin. The example above shows the configuration of the mirroring plugin and here are the
+properties that can be configured:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">numMirroringThreads</span></code> (integer)</p>
+<ul>
+<li><p>the number of worker threads dedicated to periodic mirroring tasks. If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of
+‘16 threads’ is used.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">maxNumFilesPerMirror</span></code> (integer)</p>
+<ul>
+<li><p>the maximum allowed number of files in a mirror. If a Git repository contains more files than this,
+Central Dogma will reject to mirror the Git repository. If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of ‘8192 files’
+is used.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">maxNumBytesPerMirror</span></code> (integer)</p>
+<ul>
+<li><p>the maximum allowed number of bytes in a mirror. If the total size of the files in a Git repository exceeds
+this, Central Dogma will reject to mirror the Git repository. If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of
+‘33554432 bytes’ (32 MiB) is used.</p></li>
+</ul>
+</li>
+</ul>
+<p>For more information about mirroring, refer to <a class="reference internal" href="mirroring.html#mirroring"><span class="std std-ref">Better configuration change workflow with Git-to-CD mirroring</span></a>.</p>
 </div>
 <div class="section" id="hiding-sensitive-property-values">
 <span id="id2"></span><h2>Hiding sensitive property values<a class="headerlink" href="#hiding-sensitive-property-values" title="Permalink to this headline">¶</a></h2>
