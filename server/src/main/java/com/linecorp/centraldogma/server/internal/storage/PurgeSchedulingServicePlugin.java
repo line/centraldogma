@@ -75,7 +75,7 @@ public final class PurgeSchedulingServicePlugin implements Plugin {
     @Override
     public Class<?> configType() {
         // Return the plugin class itself because it does not have a configuration.
-        return PurgeSchedulingServicePlugin.class;
+        return getClass();
     }
 
     @Nullable

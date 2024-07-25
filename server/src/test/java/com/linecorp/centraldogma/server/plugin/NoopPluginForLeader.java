@@ -24,6 +24,6 @@ public class NoopPluginForLeader extends AbstractNoopPlugin {
     @Override
     public Class<?> configType() {
         // Return the plugin class itself because it does not have a configuration.
-        return NoopPluginForLeader.class;
+        return getClass();
     }
 }

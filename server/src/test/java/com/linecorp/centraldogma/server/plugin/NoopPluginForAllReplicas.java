@@ -24,6 +24,6 @@ public class NoopPluginForAllReplicas extends AbstractNoopPlugin {
     @Override
     public Class<?> configType() {
         // Return the plugin class itself because it does not have a configuration.
-        return NoopPluginForAllReplicas.class;
+        return getClass();
     }
 }

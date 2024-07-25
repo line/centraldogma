@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
@@ -336,7 +337,8 @@ public final class CentralDogmaConfig {
         this.writeQuotaPerRepository = writeQuotaPerRepository;
         this.corsConfig = corsConfig;
         this.pluginConfigs = firstNonNull(pluginConfigs, ImmutableList.of());
-        pluginConfigMap = this.pluginConfigs.stream().collect(toImmutableMap(PluginConfig::getClass, pc -> pc));
+        pluginConfigMap = this.pluginConfigs.stream().collect(
+                toImmutableMap(PluginConfig::getClass, Function.identity()));
     }
 
     /**
