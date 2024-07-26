@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.xds.internal;
 
 import javax.annotation.Nullable;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import com.linecorp.centraldogma.server.plugin.AbstractPluginConfig;
@@ -25,9 +26,11 @@ import com.linecorp.centraldogma.server.plugin.AbstractPluginConfig;
  * A plugin configuration for the control plane.
  */
 public final class ControlPlanePluginConfig extends AbstractPluginConfig {
+
     /**
      * Creates a new instance.
      */
+    @JsonCreator
     public ControlPlanePluginConfig(@JsonProperty("enabled") @Nullable Boolean enabled) {
         super(enabled);
     }
