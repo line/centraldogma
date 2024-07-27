@@ -19,11 +19,11 @@ package com.linecorp.centraldogma.server.storage.repository;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
+import java.util.function.Consumer;
 
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 
-import io.netty.util.internal.shaded.org.jctools.queues.MessagePassingQueue.Consumer;
 
 /**
  * A listener that gets notified whenever changes matching with {@link #pathPattern()}

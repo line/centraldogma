@@ -103,7 +103,7 @@ public class DefaultProject implements Project {
                 final UserAndTimestamp creation = projectedMetadata.creation();
                 creationTimeMillis = creation.timestampMillis();
                 author = Author.ofEmail(creation.user());
-                updateMetadata();
+                attachMetadataListener();
             } else {
                 creationTimeMillis = repos.get(REPO_DOGMA).creationTimeMillis();
                 author = repos.get(REPO_DOGMA).author();
@@ -139,7 +139,7 @@ public class DefaultProject implements Project {
             initializeMetadata(creationTimeMillis, author);
             this.creationTimeMillis = creationTimeMillis;
             this.author = author;
-            updateMetadata();
+            attachMetadataListener();
             success = true;
         } finally {
             if (!success) {
@@ -229,7 +229,7 @@ public class DefaultProject implements Project {
      * Listens to new changes for "metadata.json" and updates the information to {@link #lastMetadataRevision}
      * and {@link #projectMetadata}.
      */
-    private void updateMetadata() {
+    private void attachMetadataListener() {
         if (name.equals(INTERNAL_PROJECT_DOGMA)) {
             return;
         }
@@ -251,7 +251,7 @@ public class DefaultProject implements Project {
                 final ProjectMetadata projectMetadata = Jackson.treeToValue(entry.content(),
                                                                             ProjectMetadata.class);
                 lastMetadataRevision = lastRevision;
-                DefaultProject.this.projectMetadata = projectMetadata;
+                this.projectMetadata = projectMetadata;
             } catch (JsonParseException | JsonMappingException e) {
                 logger.warn("Invalid {} file in {}/{}", METADATA_JSON, name, REPO_DOGMA, e);
             }
