@@ -51,6 +51,7 @@ import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorState;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -72,7 +73,7 @@ class ForceRefUpdateTest {
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.mirroringEnabled(true);
+            builder.pluginConfigs(new MirroringServicePluginConfig(true));
         }
     };
 

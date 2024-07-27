@@ -428,4 +428,38 @@ class CentralDogmaConfigTest {
             assertThat(caughtException).isNull();
         }
     }
+
+    @Test
+    void duplicatePluginConfigs() throws Exception {
+        assertThatThrownBy(() -> CentralDogmaConfig.load("{\n" +
+                                                         "  \"dataDir\": \"./data\",\n" +
+                                                         "  \"ports\": [\n" +
+                                                         "    {\n" +
+                                                         "      \"localAddress\": {\n" +
+                                                         "        \"host\": \"*\",\n" +
+                                                         "        \"port\": 36462\n" +
+                                                         "      },\n" +
+                                                         "      \"protocols\": [\n" +
+                                                         "        \"https\",\n" +
+                                                         "        \"http\",\n" +
+                                                         "        \"proxy\"\n" +
+                                                         "      ]\n" +
+                                                         "    }\n" +
+                                                         "  ],\n" +
+                                                         "  \"pluginConfigs\": [" +
+                                                         "    {\n" +
+                                                         "      \"type\": \"com.linecorp.centraldogma" +
+                                                         ".server.mirror.MirroringServicePluginConfig\",\n" +
+                                                         "      \"numMirroringThreads\": 1" +
+                                                         "    }," +
+                                                         "    {\n" +
+                                                         "      \"type\": \"com.linecorp.centraldogma" +
+                                                         ".server.mirror.MirroringServicePluginConfig\",\n" +
+                                                         "      \"numMirroringThreads\": 2" +
+                                                         "    }" +
+                                                         "  ]\n" +
+                                                         '}')
+        ).hasCauseInstanceOf(IllegalArgumentException.class)
+         .hasMessageContaining("Multiple entries with same key");
+    }
 }
