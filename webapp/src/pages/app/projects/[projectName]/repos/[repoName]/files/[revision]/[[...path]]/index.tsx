@@ -21,7 +21,7 @@ const FileContentPage = () => {
 
   const fileExtension = fileName.substring(fileName.lastIndexOf('.') + 1);
   const { data, isLoading, error } = useGetFileContentQuery(
-    { projectName, repoName, filePath },
+    { projectName, repoName, filePath, revision },
     {
       refetchOnMountOrArgChange: true,
       skip: false,
