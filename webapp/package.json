@@ -5,7 +5,9 @@
   "scripts": {
     "test": "jest --watch",
     "test:ci": "jest --ci",
+    "test:e2e": "npx playwright test",
     "develop": "NEXT_PUBLIC_HOST=\"http://127.0.0.1:36462\" NEXT_ENV=\"development\" next dev",
+    "backend": "../gradlew runTestShiroServer -PnoWeb",
     "mock": "NEXT_ENV=\"development\" next dev",
     "build": "next build",
     "start": "next start",
@@ -39,6 +41,7 @@
   "devDependencies": {
     "@faker-js/faker": "^7.6.0",
     "@next/bundle-analyzer": "^14.2.4",
+    "@playwright/test": "^1.45.1",
     "@testing-library/jest-dom": "^6.4.6",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.2",
