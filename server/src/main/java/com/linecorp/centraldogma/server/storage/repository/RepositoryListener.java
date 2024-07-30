@@ -24,7 +24,6 @@ import java.util.function.Consumer;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 
-
 /**
  * A listener that gets notified whenever changes matching with {@link #pathPattern()}
  * are pushed to {@link Repository}.
