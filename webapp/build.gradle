@@ -18,9 +18,15 @@ dependencies {
     testImplementation libs.shiro.core
 }
 
+task installPlayWright(type: NpmTask) {
+    dependsOn tasks.npmInstall
+    args = ['run', 'playwright:install']
+}
+
 // Set `NEXT_ENV=development` to `.env.local` file to produce source maps for the minified JavaScript files.
 task buildWeb(type: NpmTask) {
     dependsOn tasks.npmInstall
+    dependsOn installPlayWright
     args = ['run', 'build']
     inputs.dir('src')
     inputs.file('package.json')

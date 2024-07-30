@@ -16,6 +16,7 @@
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "pretest": "npm run lint",
+    "playwright:install": "npx playwright install --with-deps",
     "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
