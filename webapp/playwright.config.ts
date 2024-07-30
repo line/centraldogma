@@ -1,4 +1,4 @@
-import {defineConfig, devices} from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 
 /**
  * Read environment variables from file.
@@ -12,6 +12,8 @@ import {defineConfig, devices} from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
+  /* Timeout for each test. 60 seconds */
+  timeout: 60 * 1000,
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -35,22 +37,29 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: {...devices['Desktop Chrome']},
+      use: { ...devices['Desktop Chrome'] },
     },
-
-    {
-      name: 'firefox',
-      use: {...devices['Desktop Firefox']},
-    },
-
-    {
-      name: 'webkit',
-      use: {...devices['Desktop Safari']},
-    },
+    // Uncomment the following to run tests in other browsers.
+    // {
+    //   name: 'firefox',
+    //   use: { ...devices['Desktop Firefox'] },
+    // },
+    //
+    // {
+    //   name: 'webkit',
+    //   use: { ...devices['Desktop Safari'] },
+    // },
   ],
 
   // Run your local dev server before starting the tests
   webServer: [
+    {
+      command: 'npm run backend',
+      url: 'http://127.0.0.1:36462/monitor/l7check',
+      reuseExistingServer: !process.env.CI,
+      stdout: 'ignore',
+      stderr: 'pipe',
+    },
     {
       command: 'npm run develop',
       url: 'http://127.0.0.1:3000',
@@ -58,12 +67,5 @@ export default defineConfig({
       stdout: 'ignore',
       stderr: 'pipe',
     },
-    {
-      command: 'npm run backend',
-      url: 'http://127.0.0.1:36462/monitor/l7check',
-      reuseExistingServer: !process.env.CI,
-      stdout: 'ignore',
-      stderr: 'pipe',
-    }
   ],
 });
