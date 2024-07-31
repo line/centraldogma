@@ -31,6 +31,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -39,6 +41,7 @@ import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
+import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
@@ -406,6 +409,40 @@ class ContentServiceV1Test {
             final String actualJson = aRes.contentUtf8();
             assertThatJson(actualJson).isEqualTo(expectedJson);
         }
+
+        @ParameterizedTest
+        @CsvSource({
+                "application/json, 200",
+                "text/plain, 415",
+                "text/xml, 415",
+                "application/xml, 415",
+                "application/x-www-form-urlencoded, 415"
+        })
+        void getFileWithoutSuitableContentType(String mediaType, int expectedStatusCode) {
+            // Given:
+            final WebClient client = dogma.httpClient();
+            final String body =
+                    '{' +
+                    "   \"path\" : \"/foo.json\"," +
+                    "   \"type\" : \"UPSERT_JSON\"," +
+                    "   \"content\" : {\"a\": \"bar\"}," +
+                    "   \"commitMessage\" : {" +
+                    "       \"summary\" : \"Add foo.json\"," +
+                    "       \"detail\": \"Add because we need it.\"," +
+                    "       \"markup\": \"PLAINTEXT\"" +
+                    "   }" +
+                    '}';
+
+            final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                             HttpHeaderNames.CONTENT_TYPE, mediaType);
+
+            // When:
+            final AggregatedHttpResponse aRes = client.execute(headers, body).aggregate().join();
+
+            // Then:
+            assertThatJson(aRes.headers().status().code()).isEqualTo(expectedStatusCode);
+        }
+
 
         @Test
         void getFileWithJsonPath() {
