@@ -417,7 +417,7 @@ class ContentServiceV1Test {
                 "application/xml, 415",
                 "application/x-www-form-urlencoded, 415"
         })
-        void getFileWithoutSuitableContentType(String mediaType, int expectedStatusCode) {
+        void getFileWithVariusContentType(String mediaType, int expectedStatusCode) {
             // Given:
             final WebClient client = dogma.httpClient();
             final String body =
