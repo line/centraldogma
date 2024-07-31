@@ -41,7 +41,6 @@ import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
-import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
@@ -442,7 +441,6 @@ class ContentServiceV1Test {
             // Then:
             assertThatJson(aRes.headers().status().code()).isEqualTo(expectedStatusCode);
         }
-
 
         @Test
         void getFileWithJsonPath() {
