@@ -119,13 +119,15 @@ public class RepositoryServiceV1 extends AbstractService {
     public CompletableFuture<RepositoryDto> createRepository(ServiceRequestContext ctx, Project project,
                                                              CreateRepositoryRequest request,
                                                              Author author) {
-        if (Project.isReservedRepoName(request.name())) {
+        final String repoName = request.name();
+        if (Project.isReservedRepoName(repoName)) {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
                                              "A reserved repository cannot be created.");
         }
-        return execute(Command.createRepository(author, project.name(), request.name()))
-                .thenCompose(unused -> mds.addRepo(author, project.name(), request.name()))
-                .handle(returnOrThrow(() -> DtoConverter.convert(project.repos().get(request.name()))));
+        final CommandExecutor commandExecutor = executor();
+        final CompletableFuture<Revision> future =
+                RepositoryServiceUtil.createRepository(commandExecutor, mds, author, project.name(), repoName);
+        return future.handle(returnOrThrow(() -> DtoConverter.convert(project.repos().get(repoName))));
     }
 
     /**
@@ -143,9 +145,9 @@ public class RepositoryServiceV1 extends AbstractService {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
                                              "A reserved repository cannot be removed.");
         }
-        return execute(Command.removeRepository(author, repository.parent().name(), repository.name()))
-                .thenCompose(unused -> mds.removeRepo(author, repository.parent().name(), repository.name()))
-                .handle(HttpApiUtil::throwUnsafelyIfNonNull);
+        return RepositoryServiceUtil.removeRepository(executor(), mds, author,
+                                                      repository.parent().name(), repoName)
+                                    .handle(HttpApiUtil::throwUnsafelyIfNonNull);
     }
 
     /**

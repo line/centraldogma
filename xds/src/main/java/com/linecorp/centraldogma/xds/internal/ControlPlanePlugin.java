@@ -51,6 +51,7 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
+import com.linecorp.centraldogma.xds.group.v1.XdsGroupService;
 
 import io.envoyproxy.controlplane.cache.v3.SimpleCache;
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks;
@@ -69,7 +70,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
 
     private static final Logger logger = LoggerFactory.getLogger(ControlPlanePlugin.class);
 
-    static final String XDS_CENTRAL_DOGMA_PROJECT = "@xds";
+    public static final String XDS_CENTRAL_DOGMA_PROJECT = "@xds";
 
     static final String CLUSTERS_DIRECTORY = "/clusters/";
     static final String ENDPOINTS_DIRECTORY = "/endpoints/";
@@ -149,6 +150,12 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                                                    .useBlockingTaskExecutor(true)
                                                    .build();
         sb.route().build(grpcService);
+        final GrpcService xdsApplicationService =
+                GrpcService.builder()
+                           .addService(new XdsGroupService(
+                                   projectManager, pluginInitContext.commandExecutor()))
+                           .enableHttpJsonTranscoding(true).build();
+        sb.service(xdsApplicationService, pluginInitContext.authService());
     }
 
     private void setXdsResources(String path, String contentAsText, String repoName)
