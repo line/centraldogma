@@ -23,7 +23,6 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.HEALTH_CHECK_PATH;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.METRICS_PATH;
-import static com.linecorp.centraldogma.server.auth.AuthProvider.BUILTIN_WEB_BASE_PATH;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_API_ROUTES;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_PATH;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_API_ROUTES;
@@ -126,7 +125,6 @@ import com.linecorp.centraldogma.server.internal.admin.auth.CachedSessionManager
 import com.linecorp.centraldogma.server.internal.admin.auth.CsrfTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.auth.ExpiredSessionDeletingSessionManager;
 import com.linecorp.centraldogma.server.internal.admin.auth.FileBasedSessionManager;
-import com.linecorp.centraldogma.server.internal.admin.auth.OrElseDefaultHttpFileService;
 import com.linecorp.centraldogma.server.internal.admin.auth.SessionTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.service.DefaultLogoutService;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
@@ -217,8 +215,7 @@ public class CentralDogma implements AutoCloseable {
      */
     public static CentralDogma forConfig(File configFile) throws IOException {
         requireNonNull(configFile, "configFile");
-        return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class),
-                                Flags.meterRegistry());
+        return new CentralDogma(CentralDogmaConfig.load(configFile), Flags.meterRegistry());
     }
 
     private final SettableHealthChecker serverHealth = new SettableHealthChecker(false);
@@ -873,18 +870,37 @@ public class CentralDogma implements AutoCloseable {
                 sb.service(LOGIN_PATH, authProvider.webLoginService());
                 // Will redirect to /web/auth/logout by default.
                 sb.service(LOGOUT_PATH, authProvider.webLogoutService());
-
-                sb.serviceUnder(BUILTIN_WEB_BASE_PATH, new OrElseDefaultHttpFileService(
-                        FileService.builder(CentralDogma.class.getClassLoader(), "auth-webapp")
-                                   .autoDecompress(true)
-                                   .serveCompressedFiles(true)
-                                   .cacheControl(ServerCacheControl.REVALIDATED)
-                                   .build(),
-                        "/index.html"));
             }
-            sb.serviceUnder("/",
+
+            // Folder names contain path patterns such as `[projectName]` which FileService can't infer from
+            // the request path. Return `index.html` as a fallback so that Next.js client router handles the
+            // path patterns.
+            final HttpService fallbackFileService = HttpFile.of(CentralDogma.class.getClassLoader(),
+                                                                "com/linecorp/centraldogma/webapp/index.html")
+                                                            .asService();
+            sb.serviceUnder("/app", FileService.builder(CentralDogma.class.getClassLoader(),
+                                                        "com/linecorp/centraldogma/webapp/app")
+                                               .cacheControl(ServerCacheControl.REVALIDATED)
+                                               .autoDecompress(true)
+                                               .serveCompressedFiles(true)
+                                               .build().orElse(fallbackFileService));
+
+            // Serve all web resources except for '/app'.
+            sb.route()
+              .pathPrefix("/")
+              .exclude("/app")
+              .build(FileService.builder(CentralDogma.class.getClassLoader(),
+                                         "com/linecorp/centraldogma/webapp")
+                                .cacheControl(ServerCacheControl.REVALIDATED)
+                                .autoDecompress(true)
+                                .serveCompressedFiles(true)
+                                .build());
+
+            sb.serviceUnder("/legacy-web",
                             FileService.builder(CentralDogma.class.getClassLoader(), "webapp")
                                        .cacheControl(ServerCacheControl.REVALIDATED)
+                                       .autoDecompress(true)
+                                       .serveCompressedFiles(true)
                                        .build());
         }
 

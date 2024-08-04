@@ -47,6 +47,16 @@ public interface Plugin {
      * Returns {@code true} if this {@link Plugin} is enabled.
      */
     default boolean isEnabled(CentralDogmaConfig config) {
-        return true;
+        final PluginConfig pluginConfig = config.pluginConfigMap().get(configType());
+        if (pluginConfig == null) {
+            // Enabled if not found.
+            return true;
+        }
+        return pluginConfig.enabled();
     }
+
+    /**
+     * Returns the type of the configuration for this {@link Plugin}.
+     */
+    Class<?> configType();
 }

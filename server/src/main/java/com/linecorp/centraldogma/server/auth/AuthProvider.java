@@ -25,10 +25,8 @@ import javax.annotation.Nullable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
-import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.HttpServiceWithRoutes;
 import com.linecorp.armeria.server.Route;
@@ -42,13 +40,14 @@ public interface AuthProvider {
      * A login page path for the web console. If a user, who has not logged into the web console yet,
      * opens the web console, the web browser would bring the user to the login page.
      */
-    String LOGIN_PATH = "/link/auth/login";
+    // TODO(ikhoon): Remove the trailing slash once https://github.com/line/armeria/issues/4542 is resolved.
+    String LOGIN_PATH = "/link/auth/login/";
 
     /**
      * A logout page path for the web console. If a user clicks the logout button on the navigation bar,
      * the web browser would bring the user to the logout page.
      */
-    String LOGOUT_PATH = "/link/auth/logout";
+    String LOGOUT_PATH = "/link/auth/logout/";
 
     /**
      * A base path of the built-in web app.
@@ -58,12 +57,12 @@ public interface AuthProvider {
     /**
      * A path which provides a built-in HTML login form to a user.
      */
-    String BUILTIN_WEB_LOGIN_PATH = BUILTIN_WEB_BASE_PATH + "/login";
+    String BUILTIN_WEB_LOGIN_PATH = BUILTIN_WEB_BASE_PATH + "/login/";
 
     /**
      * A path which provides a built-in HTML logout page to a user.
      */
-    String BUILTIN_WEB_LOGOUT_PATH = BUILTIN_WEB_BASE_PATH + "/logout";
+    String BUILTIN_WEB_LOGOUT_PATH = BUILTIN_WEB_BASE_PATH + "/logout/";
 
     /**
      * A set of {@link Route}s which handles a login request. It is necessary only if
@@ -86,10 +85,16 @@ public interface AuthProvider {
      * the browser would bring a user to the built-in web login page served on {@value BUILTIN_WEB_LOGIN_PATH}.
      */
     default HttpService webLoginService() {
-        // Redirect to the default page: /link/auth/login -> /web/auth/login
-        return (ctx, req) -> HttpResponse.of(
-                ResponseHeaders.of(HttpStatus.MOVED_PERMANENTLY, HttpHeaderNames.LOCATION,
-                                   BUILTIN_WEB_LOGIN_PATH));
+        // Redirect to the default page: /link/auth/login -> /web/auth/login/
+        return (ctx, req) -> {
+            String returnTo = ctx.queryParam("return_to");
+            if (returnTo != null) {
+                returnTo += BUILTIN_WEB_LOGIN_PATH;
+            } else {
+                returnTo = BUILTIN_WEB_LOGIN_PATH;
+            }
+            return HttpResponse.ofRedirect(HttpStatus.MOVED_PERMANENTLY, returnTo);
+        };
     }
 
     /**
@@ -98,10 +103,16 @@ public interface AuthProvider {
      * {@value BUILTIN_WEB_LOGOUT_PATH}.
      */
     default HttpService webLogoutService() {
-        // Redirect to the default page: /link/auth/logout -> /web/auth/logout
-        return (ctx, req) -> HttpResponse.of(
-                ResponseHeaders.of(HttpStatus.MOVED_PERMANENTLY, HttpHeaderNames.LOCATION,
-                                   BUILTIN_WEB_LOGOUT_PATH));
+        // Redirect to the default page: /link/auth/logout -> /web/auth/logout/
+        return (ctx, req) -> {
+            String returnTo = ctx.queryParam("return_to");
+            if (returnTo != null) {
+                returnTo += BUILTIN_WEB_LOGOUT_PATH;
+            } else {
+                returnTo = BUILTIN_WEB_LOGOUT_PATH;
+            }
+            return HttpResponse.ofRedirect(HttpStatus.MOVED_PERMANENTLY, returnTo);
+        };
     }
 
     /**

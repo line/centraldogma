@@ -19,20 +19,19 @@ package com.linecorp.centraldogma.server;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.linecorp.armeria.common.util.InetAddressPredicates.ofCidr;
 import static com.linecorp.armeria.common.util.InetAddressPredicates.ofExact;
 import static com.linecorp.armeria.server.ClientAddressSource.ofHeader;
 import static com.linecorp.armeria.server.ClientAddressSource.ofProxyProtocol;
-import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_NUM_BYTES_PER_MIRROR;
-import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_NUM_FILES_PER_MIRROR;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS;
-import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_MIRRORING_THREADS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_REPOSITORY_WORKERS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC;
 import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
+import java.io.IOError;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -42,6 +41,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
@@ -50,8 +50,10 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.cronutils.utils.VisibleForTesting;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -59,9 +61,11 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.util.StdConverter;
 import com.google.common.collect.ImmutableList;
@@ -76,6 +80,8 @@ import com.linecorp.armeria.server.ClientAddressSource;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
+import com.linecorp.centraldogma.server.plugin.PluginConfig;
+import com.linecorp.centraldogma.server.plugin.PluginConfigDeserializer;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.netty.util.NetUtil;
@@ -87,11 +93,18 @@ public final class CentralDogmaConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaConfig.class);
 
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
     private static final Pattern PREFIX_PATTERN = Pattern.compile("^[a-z0-9_-]+$");
 
     private static final Map<String, ConfigValueConverter> CONFIG_VALUE_CONVERTERS;
 
     static {
+        final SimpleModule module = new SimpleModule();
+        module.addDeserializer(PluginConfig.class, new PluginConfigDeserializer());
+        // Use different ObjectMapper to avoid infinite recursion.
+        objectMapper.registerModule(module);
+
         final ArrayList<ConfigValueConverter> configValueConverters = new ArrayList<>();
         Streams.stream(ServiceLoader.load(ConfigValueConverter.class)).forEach(configValueConverters::add);
         configValueConverters.add(DefaultConfigValueConverter.INSTANCE);
@@ -161,6 +174,35 @@ public final class CentralDogmaConfig {
         return value;
     }
 
+    /**
+     * Loads the configuration from the specified {@link File}.
+     */
+    public static CentralDogmaConfig load(File configFile) throws JsonMappingException, JsonParseException {
+        requireNonNull(configFile, "configFile");
+        try {
+            return objectMapper.readValue(configFile, CentralDogmaConfig.class);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
+    }
+
+    /**
+     * Loads the configuration from the specified JSON string.
+     */
+    @VisibleForTesting
+    public static CentralDogmaConfig load(String json) throws JsonMappingException, JsonParseException {
+        requireNonNull(json, "json");
+        try {
+            return objectMapper.readValue(json, CentralDogmaConfig.class);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
+    }
+
     private final File dataDir;
 
     // Armeria
@@ -198,12 +240,6 @@ public final class CentralDogmaConfig {
     @Nullable
     private final String webAppTitle;
 
-    // Mirroring
-    private final boolean mirroringEnabled;
-    private final int numMirroringThreads;
-    private final int maxNumFilesPerMirror;
-    private final long maxNumBytesPerMirror;
-
     // Graceful shutdown
     @Nullable
     private final GracefulShutdownTimeout gracefulShutdownTimeout;
@@ -227,6 +263,9 @@ public final class CentralDogmaConfig {
     @Nullable
     private final CorsConfig corsConfig;
 
+    private final List<PluginConfig> pluginConfigs;
+    private final Map<Class<?>, PluginConfig> pluginConfigMap;
+
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
             @JsonProperty(value = "ports", required = true)
@@ -246,20 +285,16 @@ public final class CentralDogmaConfig {
             @JsonProperty("gracefulShutdownTimeout") @Nullable GracefulShutdownTimeout gracefulShutdownTimeout,
             @JsonProperty("webAppEnabled") @Nullable Boolean webAppEnabled,
             @JsonProperty("webAppTitle") @Nullable String webAppTitle,
-            @JsonProperty("mirroringEnabled") @Nullable Boolean mirroringEnabled,
-            @JsonProperty("numMirroringThreads") @Nullable Integer numMirroringThreads,
-            @JsonProperty("maxNumFilesPerMirror") @Nullable Integer maxNumFilesPerMirror,
-            @JsonProperty("maxNumBytesPerMirror") @Nullable Long maxNumBytesPerMirror,
-            @JsonProperty("replication") @Nullable ReplicationConfig replicationConfig,
+            @JsonProperty("replication") ReplicationConfig replicationConfig,
             @JsonProperty("csrfTokenRequiredForThrift") @Nullable Boolean csrfTokenRequiredForThrift,
             @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
             @JsonProperty("authentication") @Nullable AuthConfig authConfig,
             @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository,
-            @JsonProperty("cors") @Nullable CorsConfig corsConfig) {
+            @JsonProperty("cors") @Nullable CorsConfig corsConfig,
+            @JsonProperty("pluginConfigs") @Nullable List<PluginConfig> pluginConfigs) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
-        this.corsConfig = corsConfig;
         checkArgument(!ports.isEmpty(), "ports must have at least one port.");
         this.tls = tls;
         this.trustedProxyAddresses = trustedProxyAddresses;
@@ -283,16 +318,6 @@ public final class CentralDogmaConfig {
 
         this.webAppEnabled = firstNonNull(webAppEnabled, true);
         this.webAppTitle = webAppTitle;
-        this.mirroringEnabled = firstNonNull(mirroringEnabled, true);
-        this.numMirroringThreads = firstNonNull(numMirroringThreads, DEFAULT_NUM_MIRRORING_THREADS);
-        checkArgument(this.numMirroringThreads > 0,
-                      "numMirroringThreads: %s (expected: > 0)", this.numMirroringThreads);
-        this.maxNumFilesPerMirror = firstNonNull(maxNumFilesPerMirror, DEFAULT_MAX_NUM_FILES_PER_MIRROR);
-        checkArgument(this.maxNumFilesPerMirror > 0,
-                      "maxNumFilesPerMirror: %s (expected: > 0)", this.maxNumFilesPerMirror);
-        this.maxNumBytesPerMirror = firstNonNull(maxNumBytesPerMirror, DEFAULT_MAX_NUM_BYTES_PER_MIRROR);
-        checkArgument(this.maxNumBytesPerMirror > 0,
-                      "maxNumBytesPerMirror: %s (expected: > 0)", this.maxNumBytesPerMirror);
         this.gracefulShutdownTimeout = gracefulShutdownTimeout;
         this.replicationConfig = firstNonNull(replicationConfig, ReplicationConfig.NONE);
         this.csrfTokenRequiredForThrift = firstNonNull(csrfTokenRequiredForThrift, true);
@@ -310,6 +335,10 @@ public final class CentralDogmaConfig {
                                           ports.stream().anyMatch(ServerPort::hasProxyProtocol));
 
         this.writeQuotaPerRepository = writeQuotaPerRepository;
+        this.corsConfig = corsConfig;
+        this.pluginConfigs = firstNonNull(pluginConfigs, ImmutableList.of());
+        pluginConfigMap = this.pluginConfigs.stream().collect(
+                toImmutableMap(PluginConfig::getClass, Function.identity()));
     }
 
     /**
@@ -472,38 +501,6 @@ public final class CentralDogmaConfig {
     }
 
     /**
-     * Returns whether mirroring is enabled.
-     */
-    @JsonProperty
-    public boolean isMirroringEnabled() {
-        return mirroringEnabled;
-    }
-
-    /**
-     * Returns the number of mirroring threads.
-     */
-    @JsonProperty
-    public int numMirroringThreads() {
-        return numMirroringThreads;
-    }
-
-    /**
-     * Returns the maximum allowed number of files per mirror.
-     */
-    @JsonProperty
-    public int maxNumFilesPerMirror() {
-        return maxNumFilesPerMirror;
-    }
-
-    /**
-     * Returns the maximum allowed number of bytes per mirror.
-     */
-    @JsonProperty
-    public long maxNumBytesPerMirror() {
-        return maxNumBytesPerMirror;
-    }
-
-    /**
      * Returns the {@link ReplicationConfig}.
      */
     @JsonProperty("replication")
@@ -554,6 +551,21 @@ public final class CentralDogmaConfig {
     @JsonProperty("cors")
     public CorsConfig corsConfig() {
         return corsConfig;
+    }
+
+    /**
+     * Returns the list of {@link PluginConfig}s.
+     */
+    @JsonProperty("pluginConfigs")
+    public List<PluginConfig> pluginConfigs() {
+        return pluginConfigs;
+    }
+
+    /**
+     * Returns the map of {@link PluginConfig}s.
+     */
+    public Map<Class<?>, PluginConfig> pluginConfigMap() {
+        return pluginConfigMap;
     }
 
     @Override

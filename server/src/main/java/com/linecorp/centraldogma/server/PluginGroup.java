@@ -19,6 +19,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
@@ -33,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableList.Builder;
+import com.google.common.collect.ImmutableMap;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.common.util.StartStopSupport;
@@ -81,19 +82,20 @@ final class PluginGroup {
         requireNonNull(config, "config");
 
         final ServiceLoader<Plugin> loader = ServiceLoader.load(Plugin.class, classLoader);
-        final Builder<Plugin> plugins = new Builder<>();
+        final ImmutableMap.Builder<Class<?>, Plugin> plugins = new ImmutableMap.Builder<>();
         for (Plugin plugin : loader) {
             if (target == plugin.target() && plugin.isEnabled(config)) {
-                plugins.add(plugin);
+                plugins.put(plugin.configType(), plugin);
             }
         }
 
-        final List<Plugin> list = plugins.build();
-        if (list.isEmpty()) {
+        // IllegalArgumentException is thrown if there are duplicate keys.
+        final Map<Class<?>, Plugin> pluginMap = plugins.build();
+        if (pluginMap.isEmpty()) {
             return null;
         }
 
-        return new PluginGroup(list, Executors.newSingleThreadExecutor(new DefaultThreadFactory(
+        return new PluginGroup(pluginMap.values(), Executors.newSingleThreadExecutor(new DefaultThreadFactory(
                 "plugins-for-" + target.name().toLowerCase().replace("_", "-"), true)));
     }
 
