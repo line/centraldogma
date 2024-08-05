@@ -89,7 +89,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
 
     public static final String DEFAULT_GROUP = "default_group";
 
-    public static final long BACKOFF_SECONDS = 10;
+    public static final long BACKOFF_SECONDS = 30;
 
     private static final ScheduledExecutorService CONTROL_PLANE_EXECUTOR =
             Executors.newSingleThreadScheduledExecutor(
