@@ -81,8 +81,7 @@ class XdsClusterServiceTest {
         final Cluster actualCluster = clusterBuilder.build();
         final String clusterName = "groups/foo/clusters/foo-cluster/1";
         assertThat(actualCluster).isEqualTo(cluster.toBuilder().setName(clusterName).build());
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualCluster, clusterName, true));
+        checkResourceViaDiscoveryRequest(actualCluster, clusterName, true);
     }
 
     private static void assertOk(AggregatedHttpResponse response) {
@@ -91,7 +90,13 @@ class XdsClusterServiceTest {
     }
 
     private static void checkResourceViaDiscoveryRequest(Cluster actualCluster, String resourceName,
-                                                         boolean created)
+                                                         boolean created) {
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest0(actualCluster, resourceName, created));
+    }
+
+    private static void checkResourceViaDiscoveryRequest0(Cluster actualCluster, String resourceName,
+                                                          boolean created)
             throws InterruptedException, InvalidProtocolBufferException {
         final ClusterDiscoveryServiceStub client = GrpcClients.newClient(dogma.httpClient().uri(),
                                                                          ClusterDiscoveryServiceStub.class);
@@ -138,8 +143,7 @@ class XdsClusterServiceTest {
         final Cluster actualCluster = clusterBuilder.build();
         final String clusterName = "groups/foo/clusters/foo-cluster/2";
         assertThat(actualCluster).isEqualTo(cluster.toBuilder().setName(clusterName).build());
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualCluster, clusterName, true));
+        checkResourceViaDiscoveryRequest(actualCluster, clusterName, true);
 
         final Cluster updatingCluster = cluster.toBuilder().setConnectTimeout(
                 Duration.newBuilder().setSeconds(2).build()).setName(clusterName).build();
@@ -149,8 +153,7 @@ class XdsClusterServiceTest {
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), clusterBuilder2);
         final Cluster actualCluster2 = clusterBuilder2.build();
         assertThat(actualCluster2).isEqualTo(updatingCluster.toBuilder().setName(clusterName).build());
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualCluster2, clusterName, true));
+        checkResourceViaDiscoveryRequest(actualCluster2, clusterName, true);
     }
 
     @Test
@@ -164,16 +167,14 @@ class XdsClusterServiceTest {
         assertOk(response);
 
         final Cluster actualCluster = cluster.toBuilder().setName(clusterName).build();
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualCluster, clusterName, true));
+        checkResourceViaDiscoveryRequest(actualCluster, clusterName, true);
 
         // Add permission test.
 
         response = deleteCluster(clusterName);
         assertOk(response);
         assertThat(response.contentUtf8()).isEqualTo("{}");
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualCluster, clusterName, false));
+        checkResourceViaDiscoveryRequest(actualCluster, clusterName, false);
     }
 
     private static AggregatedHttpResponse deleteCluster(String clusterName) {

@@ -81,8 +81,7 @@ class XdsRouteServiceTest {
         final RouteConfiguration actualRoute = routeBuilder.build();
         final String routeName = "groups/foo/routes/foo-route/1";
         assertThat(actualRoute).isEqualTo(route.toBuilder().setName(routeName).build());
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualRoute, routeName, true));
+        checkResourceViaDiscoveryRequest(actualRoute, routeName, true);
     }
 
     private static void assertOk(AggregatedHttpResponse response) {
@@ -91,7 +90,13 @@ class XdsRouteServiceTest {
     }
 
     private static void checkResourceViaDiscoveryRequest(RouteConfiguration actualRoute, String resourceName,
-                                                         boolean created)
+                                                         boolean created) {
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest0(actualRoute, resourceName, created));
+    }
+
+    private static void checkResourceViaDiscoveryRequest0(RouteConfiguration actualRoute, String resourceName,
+                                                          boolean created)
             throws InterruptedException, InvalidProtocolBufferException {
         final RouteDiscoveryServiceStub client = GrpcClients.newClient(
                 dogma.httpClient().uri(), RouteDiscoveryServiceStub.class);
@@ -140,8 +145,7 @@ class XdsRouteServiceTest {
         final RouteConfiguration actualRoute = routeBuilder.build();
         final String routeName = "groups/foo/routes/foo-route/2";
         assertThat(actualRoute).isEqualTo(route.toBuilder().setName(routeName).build());
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualRoute, routeName, true));
+        checkResourceViaDiscoveryRequest(actualRoute, routeName, true);
 
         final RouteConfiguration updatingRoute = route.toBuilder()
                                                       .addInternalOnlyHeaders("internal")
@@ -152,8 +156,7 @@ class XdsRouteServiceTest {
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), routeBuilder2);
         final RouteConfiguration actualRoute2 = routeBuilder2.build();
         assertThat(actualRoute2).isEqualTo(updatingRoute.toBuilder().setName(routeName).build());
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualRoute2, routeName, true));
+        checkResourceViaDiscoveryRequest(actualRoute2, routeName, true);
     }
 
     @Test
@@ -168,16 +171,14 @@ class XdsRouteServiceTest {
         assertOk(response);
 
         final RouteConfiguration actualRoute = route.toBuilder().setName(routeName).build();
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualRoute, routeName, true));
+        checkResourceViaDiscoveryRequest(actualRoute, routeName, true);
 
         // Add permission test.
 
         response = deleteRoute(routeName);
         assertOk(response);
         assertThat(response.contentUtf8()).isEqualTo("{}");
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualRoute, routeName, false));
+        checkResourceViaDiscoveryRequest(actualRoute, routeName, false);
     }
 
     private static AggregatedHttpResponse deleteRoute(String routeName) {

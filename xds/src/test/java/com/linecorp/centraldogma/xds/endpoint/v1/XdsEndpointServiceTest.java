@@ -86,8 +86,7 @@ class XdsEndpointServiceTest {
         final String clusterName = "groups/foo/clusters/foo-endpoint/1";
         assertThat(actualEndpoint).isEqualTo(
                 endpoint.toBuilder().setClusterName(clusterName).build());
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualEndpoint, clusterName));
+        checkResourceViaDiscoveryRequest(actualEndpoint, clusterName);
     }
 
     private static void assertOk(AggregatedHttpResponse response) {
@@ -96,8 +95,15 @@ class XdsEndpointServiceTest {
     }
 
     private static void checkResourceViaDiscoveryRequest(
+            @Nullable ClusterLoadAssignment actualEndpoint, String resourceName) {
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest0(actualEndpoint, resourceName));
+    }
+
+    private static void checkResourceViaDiscoveryRequest0(
             @Nullable ClusterLoadAssignment actualEndpoint, String resourceName)
             throws InterruptedException, InvalidProtocolBufferException {
+
         final EndpointDiscoveryServiceStub client = GrpcClients.newClient(
                 dogma.httpClient().uri(), EndpointDiscoveryServiceStub.class);
         final BlockingQueue<DiscoveryResponse> queue = new ArrayBlockingQueue<>(2);
@@ -146,8 +152,7 @@ class XdsEndpointServiceTest {
         final ClusterLoadAssignment actualEndpoint = endpointBuilder.build();
         final String clusterName = "groups/foo/clusters/foo-endpoint/2";
         assertThat(actualEndpoint).isEqualTo(endpoint.toBuilder().setClusterName(clusterName).build());
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualEndpoint, clusterName));
+        checkResourceViaDiscoveryRequest(actualEndpoint, clusterName);
 
         final ClusterLoadAssignment updatingEndpoint =
                 endpoint.toBuilder()
@@ -161,8 +166,7 @@ class XdsEndpointServiceTest {
         final ClusterLoadAssignment actualEndpoint2 = endpointBuilder2.build();
         assertThat(actualEndpoint2).isEqualTo(
                 updatingEndpoint.toBuilder().setClusterName(clusterName).build());
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualEndpoint2, clusterName));
+        checkResourceViaDiscoveryRequest(actualEndpoint2, clusterName);
     }
 
     private static AggregatedHttpResponse updateEndpoint(
@@ -189,8 +193,7 @@ class XdsEndpointServiceTest {
 
         final ClusterLoadAssignment actualEndpoint =
                 endpoint.toBuilder().setClusterName(clusterName).build();
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualEndpoint, clusterName));
+        checkResourceViaDiscoveryRequest(actualEndpoint, clusterName);
 
         // Add permission test.
 
@@ -224,8 +227,7 @@ class XdsEndpointServiceTest {
                                      .build());
         final String clusterName = "groups/foo/clusters/foo-endpoint/5/6";
         assertThat(response).isEqualTo(endpoint.toBuilder().setClusterName(clusterName).build());
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(response, clusterName));
+        checkResourceViaDiscoveryRequest(response, clusterName);
 
         final ClusterLoadAssignment updatingEndpoint =
                 endpoint.toBuilder()
@@ -240,8 +242,7 @@ class XdsEndpointServiceTest {
                                      .setEndpoint(updatingEndpoint)
                                      .build());
         assertThat(response2).isEqualTo(updatingEndpoint);
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(response2, clusterName));
+        checkResourceViaDiscoveryRequest(response2, clusterName);
 
         // No exception is thrown.
         final Empty ignored = client.deleteEndpoint(

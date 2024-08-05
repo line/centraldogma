@@ -81,8 +81,7 @@ class XdsListenerServiceTest {
         final Listener actualListener = listenerBuilder.build();
         final String listenerName = "groups/foo/listeners/foo-listener/1";
         assertThat(actualListener).isEqualTo(listener.toBuilder().setName(listenerName).build());
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualListener, listenerName, true));
+        checkResourceViaDiscoveryRequest(actualListener, listenerName, true);
     }
 
     private static void assertOk(AggregatedHttpResponse response) {
@@ -91,7 +90,13 @@ class XdsListenerServiceTest {
     }
 
     private static void checkResourceViaDiscoveryRequest(Listener actualListener, String resourceName,
-                                                         boolean created)
+                                                         boolean created) {
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest0(actualListener, resourceName, created));
+    }
+
+    private static void checkResourceViaDiscoveryRequest0(Listener actualListener, String resourceName,
+                                                          boolean created)
             throws InterruptedException, InvalidProtocolBufferException {
         final ListenerDiscoveryServiceStub client = GrpcClients.newClient(
                 dogma.httpClient().uri(), ListenerDiscoveryServiceStub.class);
@@ -141,8 +146,7 @@ class XdsListenerServiceTest {
         final Listener actualListener = listenerBuilder.build();
         final String listenerName = "groups/foo/listeners/foo-listener/2";
         assertThat(actualListener).isEqualTo(listener.toBuilder().setName(listenerName).build());
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualListener, listenerName, true));
+        checkResourceViaDiscoveryRequest(actualListener, listenerName, true);
 
         final Listener updatingListener = listener.toBuilder()
                                                   .setStatPrefix("updated_stats")
@@ -153,8 +157,7 @@ class XdsListenerServiceTest {
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), listenerBuilder2);
         final Listener actualListener2 = listenerBuilder2.build();
         assertThat(actualListener2).isEqualTo(updatingListener.toBuilder().setName(listenerName).build());
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualListener2, listenerName, true));
+        checkResourceViaDiscoveryRequest(actualListener2, listenerName, true);
     }
 
     @Test
@@ -169,16 +172,14 @@ class XdsListenerServiceTest {
         assertOk(response);
 
         final Listener actualListener = listener.toBuilder().setName(listenerName).build();
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualListener, listenerName, true));
+        checkResourceViaDiscoveryRequest(actualListener, listenerName, true);
 
         // Add permission test.
 
         response = deleteListener(listenerName);
         assertOk(response);
         assertThat(response.contentUtf8()).isEqualTo("{}");
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(actualListener, listenerName, false));
+        checkResourceViaDiscoveryRequest(actualListener, listenerName, false);
     }
 
     private static AggregatedHttpResponse deleteListener(String listenerName) {
