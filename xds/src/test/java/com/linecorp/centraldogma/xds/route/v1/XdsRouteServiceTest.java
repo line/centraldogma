@@ -16,11 +16,13 @@
 package com.linecorp.centraldogma.xds.route.v1;
 
 import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.JSON_MESSAGE_MARSHALLER;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createRoute;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.routeConfiguration;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.updateRoute;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -39,7 +41,6 @@ import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 import com.linecorp.centraldogma.xds.route.v1.XdsRouteServiceGrpc.XdsRouteServiceBlockingStub;
@@ -58,48 +59,30 @@ class XdsRouteServiceTest {
 
     @BeforeAll
     static void setup() {
-        final AggregatedHttpResponse response = createGroup("groups/foo");
+        final AggregatedHttpResponse response = createGroup("groups/foo", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-    }
-
-    private static AggregatedHttpResponse createGroup(String groupName) {
-        final RequestHeaders headers = RequestHeaders.builder(HttpMethod.POST, "/api/v1/xds/groups")
-                                                     .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                                                     .contentType(MediaType.JSON_UTF_8).build();
-        return dogma.httpClient().execute(headers, "{\"group\": {\"name\":\"" + groupName + "\"}}")
-                    .aggregate().join();
     }
 
     @Test
     void createRouteViaHttp() throws Exception {
         final RouteConfiguration route = routeConfiguration("this_route_name_will_be_ignored_and_replaced",
                                                             "groups/foo/clusters/foo-cluster");
-        AggregatedHttpResponse response = createRoute("foo", "@invalid_route_id", route);
+        AggregatedHttpResponse response = createRoute("groups/foo", "@invalid_route_id",
+                                                      route, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
 
-        response = createRoute("non-existent-group", "foo-route/1", route);
+        response = createRoute("groups/non-existent-group", "foo-route/1", route, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createRoute("foo", "foo-route/1", route);
+        response = createRoute("groups/foo", "foo-route/1", route, dogma.httpClient());
         assertOk(response);
         final RouteConfiguration.Builder routeBuilder = RouteConfiguration.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), routeBuilder);
         final RouteConfiguration actualRoute = routeBuilder.build();
         final String routeName = "groups/foo/routes/foo-route/1";
         assertThat(actualRoute).isEqualTo(route.toBuilder().setName(routeName).build());
-        checkResourceViaDiscoveryRequest(actualRoute, routeName, true);
-    }
-
-    private static AggregatedHttpResponse createRoute(
-            String groupName, String routeId, RouteConfiguration route) throws IOException {
-        final RequestHeaders headers =
-                RequestHeaders.builder(HttpMethod.POST,
-                                       "/api/v1/xds/groups/" + groupName + "/routes?route_id=" +
-                                       routeId)
-                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                              .contentType(MediaType.JSON_UTF_8).build();
-        return dogma.httpClient().execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(route))
-                    .aggregate().join();
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest(actualRoute, routeName, true));
     }
 
     private static void assertOk(AggregatedHttpResponse response) {
@@ -147,22 +130,23 @@ class XdsRouteServiceTest {
     void updateRouteViaHttp() throws Exception {
         final RouteConfiguration route = routeConfiguration("this_route_name_will_be_ignored_and_replaced",
                                                             "groups/foo/clusters/foo-cluster");
-        AggregatedHttpResponse response = updateRoute("foo-route/2", route);
+        AggregatedHttpResponse response = updateRoute("groups/foo", "foo-route/2", route, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createRoute("foo", "foo-route/2", route);
+        response = createRoute("groups/foo", "foo-route/2", route, dogma.httpClient());
         assertOk(response);
         final RouteConfiguration.Builder routeBuilder = RouteConfiguration.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), routeBuilder);
         final RouteConfiguration actualRoute = routeBuilder.build();
         final String routeName = "groups/foo/routes/foo-route/2";
         assertThat(actualRoute).isEqualTo(route.toBuilder().setName(routeName).build());
-        checkResourceViaDiscoveryRequest(actualRoute, routeName, true);
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest(actualRoute, routeName, true));
 
         final RouteConfiguration updatingRoute = route.toBuilder()
                                                       .addInternalOnlyHeaders("internal")
                                                       .setName(routeName).build();
-        response = updateRoute("foo-route/2", updatingRoute);
+        response = updateRoute("groups/foo", "foo-route/2", updatingRoute, dogma.httpClient());
         assertOk(response);
         final RouteConfiguration.Builder routeBuilder2 = RouteConfiguration.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), routeBuilder2);
@@ -170,16 +154,6 @@ class XdsRouteServiceTest {
         assertThat(actualRoute2).isEqualTo(updatingRoute.toBuilder().setName(routeName).build());
         await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
                 () -> checkResourceViaDiscoveryRequest(actualRoute2, routeName, true));
-    }
-
-    private static AggregatedHttpResponse updateRoute(
-            String routeId, RouteConfiguration route) throws IOException {
-        final RequestHeaders headers = RequestHeaders.builder(HttpMethod.PATCH,
-                                                              "/api/v1/xds/groups/foo/routes/" + routeId)
-                                                     .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                                                     .contentType(MediaType.JSON_UTF_8).build();
-        return dogma.httpClient().execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(route))
-                    .aggregate().join();
     }
 
     @Test
@@ -190,11 +164,12 @@ class XdsRouteServiceTest {
 
         final RouteConfiguration route = routeConfiguration("this_route_name_will_be_ignored_and_replaced",
                                                             "groups/foo/clusters/foo-cluster");
-        response = createRoute("foo", "foo-route/3/4", route);
+        response = createRoute("groups/foo", "foo-route/3/4", route, dogma.httpClient());
         assertOk(response);
 
         final RouteConfiguration actualRoute = route.toBuilder().setName(routeName).build();
-        checkResourceViaDiscoveryRequest(actualRoute, routeName, true);
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest(actualRoute, routeName, true));
 
         // Add permission test.
 

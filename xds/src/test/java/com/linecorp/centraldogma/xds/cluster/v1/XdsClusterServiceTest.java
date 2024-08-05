@@ -17,10 +17,12 @@ package com.linecorp.centraldogma.xds.cluster.v1;
 
 import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.cluster;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createCluster;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.updateCluster;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -40,7 +42,6 @@ import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 import com.linecorp.centraldogma.xds.cluster.v1.XdsClusterServiceGrpc.XdsClusterServiceBlockingStub;
@@ -59,45 +60,29 @@ class XdsClusterServiceTest {
 
     @BeforeAll
     static void setup() {
-        final AggregatedHttpResponse response = createGroup("groups/foo");
+        final AggregatedHttpResponse response = createGroup("groups/foo", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-    }
-
-    private static AggregatedHttpResponse createGroup(String groupName) {
-        final RequestHeaders headers = RequestHeaders.builder(HttpMethod.POST, "/api/v1/xds/groups").set(
-                HttpHeaderNames.AUTHORIZATION, "Bearer anonymous").contentType(MediaType.JSON_UTF_8).build();
-        return dogma.httpClient().execute(headers, "{\"group\": {\"name\":\"" + groupName + "\"}}").aggregate()
-                    .join();
     }
 
     @Test
     void createClusterViaHttp() throws Exception {
         final Cluster cluster = cluster("this_cluster_name_will_be_ignored_and_replaced", 1);
-        AggregatedHttpResponse response = createCluster("foo", "@invalid_cluster_id", cluster);
+        AggregatedHttpResponse response = createCluster("groups/foo", "@invalid_cluster_id", cluster,
+                                                        dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
 
-        response = createCluster("non-existent-group", "foo-cluster/1", cluster);
+        response = createCluster("groups/non-existent-group", "foo-cluster/1", cluster, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createCluster("foo", "foo-cluster/1", cluster);
+        response = createCluster("groups/foo", "foo-cluster/1", cluster, dogma.httpClient());
         assertOk(response);
         final Cluster.Builder clusterBuilder = Cluster.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), clusterBuilder);
         final Cluster actualCluster = clusterBuilder.build();
         final String clusterName = "groups/foo/clusters/foo-cluster/1";
         assertThat(actualCluster).isEqualTo(cluster.toBuilder().setName(clusterName).build());
-        checkResourceViaDiscoveryRequest(actualCluster, clusterName, true);
-    }
-
-    private static AggregatedHttpResponse createCluster(String groupName, String clusterId, Cluster cluster)
-            throws IOException {
-        final RequestHeaders headers =
-                RequestHeaders.builder(HttpMethod.POST,
-                                       "/api/v1/xds/groups/" + groupName + "/clusters?cluster_id=" + clusterId)
-                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                              .contentType(MediaType.JSON_UTF_8).build();
-        return dogma.httpClient().execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(cluster))
-                    .aggregate().join();
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest(actualCluster, clusterName, true));
     }
 
     private static void assertOk(AggregatedHttpResponse response) {
@@ -142,21 +127,23 @@ class XdsClusterServiceTest {
     @Test
     void updateClusterViaHttp() throws Exception {
         final Cluster cluster = cluster("this_cluster_name_will_be_ignored_and_replaced", 1);
-        AggregatedHttpResponse response = updateCluster("foo-cluster/2", cluster);
+        AggregatedHttpResponse response = updateCluster("groups/foo", "foo-cluster/2",
+                                                        cluster, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createCluster("foo", "foo-cluster/2", cluster);
+        response = createCluster("groups/foo", "foo-cluster/2", cluster, dogma.httpClient());
         assertOk(response);
         final Cluster.Builder clusterBuilder = Cluster.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), clusterBuilder);
         final Cluster actualCluster = clusterBuilder.build();
         final String clusterName = "groups/foo/clusters/foo-cluster/2";
         assertThat(actualCluster).isEqualTo(cluster.toBuilder().setName(clusterName).build());
-        checkResourceViaDiscoveryRequest(actualCluster, clusterName, true);
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest(actualCluster, clusterName, true));
 
         final Cluster updatingCluster = cluster.toBuilder().setConnectTimeout(
                 Duration.newBuilder().setSeconds(2).build()).setName(clusterName).build();
-        response = updateCluster("foo-cluster/2", updatingCluster);
+        response = updateCluster("groups/foo", "foo-cluster/2", updatingCluster, dogma.httpClient());
         assertOk(response);
         final Cluster.Builder clusterBuilder2 = Cluster.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), clusterBuilder2);
@@ -166,15 +153,6 @@ class XdsClusterServiceTest {
                 () -> checkResourceViaDiscoveryRequest(actualCluster2, clusterName, true));
     }
 
-    private static AggregatedHttpResponse updateCluster(String clusterId, Cluster cluster) throws IOException {
-        final RequestHeaders headers = RequestHeaders.builder(HttpMethod.PATCH,
-                                                              "/api/v1/xds/groups/foo/clusters/" + clusterId)
-                                                     .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                                                     .contentType(MediaType.JSON_UTF_8).build();
-        return dogma.httpClient().execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(cluster))
-                    .aggregate().join();
-    }
-
     @Test
     void deleteClusterViaHttp() throws Exception {
         final String clusterName = "groups/foo/clusters/foo-cluster/3/4";
@@ -182,11 +160,12 @@ class XdsClusterServiceTest {
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
         final Cluster cluster = cluster("this_cluster_name_will_be_ignored_and_replaced", 1);
-        response = createCluster("foo", "foo-cluster/3/4", cluster);
+        response = createCluster("groups/foo", "foo-cluster/3/4", cluster, dogma.httpClient());
         assertOk(response);
 
         final Cluster actualCluster = cluster.toBuilder().setName(clusterName).build();
-        checkResourceViaDiscoveryRequest(actualCluster, clusterName, true);
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest(actualCluster, clusterName, true));
 
         // Add permission test.
 

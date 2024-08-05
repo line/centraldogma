@@ -52,6 +52,7 @@ public final class XdsServiceUtil {
     public static final String RESOURCE_ID_PATTERN_STRING = "[a-z](?:[a-z0-9-_/]*[a-z0-9])?";
     public static final Pattern RESOURCE_ID_PATTERN = Pattern.compile('^' + RESOURCE_ID_PATTERN_STRING + '$');
 
+    //TODO(minwoox): Automate the registration of the extension message types.
     public static final MessageMarshaller JSON_MESSAGE_MARSHALLER =
             MessageMarshaller.builder().omittingInsignificantWhitespace(true)
                              .register(Listener.getDefaultInstance())

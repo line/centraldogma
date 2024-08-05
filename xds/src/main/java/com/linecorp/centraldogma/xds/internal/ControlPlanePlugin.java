@@ -16,6 +16,9 @@
 
 package com.linecorp.centraldogma.xds.internal;
 
+import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.JSON_MESSAGE_MARSHALLER;
+
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -31,7 +34,6 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
-import com.google.protobuf.InvalidProtocolBufferException;
 
 import com.linecorp.armeria.common.grpc.GrpcJsonMarshaller;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
@@ -179,23 +181,23 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     }
 
     private void setXdsResources(String path, String contentAsText, String repoName)
-            throws InvalidProtocolBufferException {
+            throws IOException {
         if (path.startsWith(CLUSTERS_DIRECTORY)) {
             final Cluster.Builder builder = Cluster.newBuilder();
-            JsonFormatUtil.parser().merge(contentAsText, builder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
             centralDogmaXdsResources.setCluster(repoName, builder.build());
         } else if (path.startsWith(ENDPOINTS_DIRECTORY)) {
             final ClusterLoadAssignment.Builder builder =
                     ClusterLoadAssignment.newBuilder();
-            JsonFormatUtil.parser().merge(contentAsText, builder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
             centralDogmaXdsResources.setEndpoint(repoName, builder.build());
         } else if (path.startsWith(LISTENERS_DIRECTORY)) {
             final Listener.Builder builder = Listener.newBuilder();
-            JsonFormatUtil.parser().merge(contentAsText, builder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
             centralDogmaXdsResources.setListener(repoName, builder.build());
         } else if (path.startsWith(ROUTES_DIRECTORY)) {
             final RouteConfiguration.Builder builder = RouteConfiguration.newBuilder();
-            JsonFormatUtil.parser().merge(contentAsText, builder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
             centralDogmaXdsResources.setRoute(repoName, builder.build());
         } else {
             // ignore

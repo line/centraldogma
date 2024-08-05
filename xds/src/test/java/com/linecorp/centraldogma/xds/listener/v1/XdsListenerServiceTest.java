@@ -16,11 +16,13 @@
 package com.linecorp.centraldogma.xds.listener.v1;
 
 import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.JSON_MESSAGE_MARSHALLER;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createListener;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.exampleListener;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.updateListener;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -39,7 +41,6 @@ import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 import com.linecorp.centraldogma.xds.listener.v1.XdsListenerServiceGrpc.XdsListenerServiceBlockingStub;
@@ -58,48 +59,30 @@ class XdsListenerServiceTest {
 
     @BeforeAll
     static void setup() {
-        final AggregatedHttpResponse response = createGroup("groups/foo");
+        final AggregatedHttpResponse response = createGroup("groups/foo", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-    }
-
-    private static AggregatedHttpResponse createGroup(String groupName) {
-        final RequestHeaders headers = RequestHeaders.builder(HttpMethod.POST, "/api/v1/xds/groups")
-                                                     .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                                                     .contentType(MediaType.JSON_UTF_8).build();
-        return dogma.httpClient().execute(headers, "{\"group\": {\"name\":\"" + groupName + "\"}}")
-                    .aggregate().join();
     }
 
     @Test
     void createListenerViaHttp() throws Exception {
         final Listener listener = exampleListener("this_listener_name_will_be_ignored_and_replaced",
                                                   "groups/foo/routes/foo-route", "stats");
-        AggregatedHttpResponse response = createListener("foo", "@invalid_listener_id", listener);
+        AggregatedHttpResponse response = createListener("groups/foo", "@invalid_listener_id",
+                                                         listener, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
 
-        response = createListener("non-existent-group", "foo-listener/1", listener);
+        response = createListener("groups/non-existent-group", "foo-listener/1", listener, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createListener("foo", "foo-listener/1", listener);
+        response = createListener("groups/foo", "foo-listener/1", listener, dogma.httpClient());
         assertOk(response);
         final Listener.Builder listenerBuilder = Listener.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), listenerBuilder);
         final Listener actualListener = listenerBuilder.build();
         final String listenerName = "groups/foo/listeners/foo-listener/1";
         assertThat(actualListener).isEqualTo(listener.toBuilder().setName(listenerName).build());
-        checkResourceViaDiscoveryRequest(actualListener, listenerName, true);
-    }
-
-    private static AggregatedHttpResponse createListener(
-            String groupName, String listenerId, Listener listener) throws IOException {
-        final RequestHeaders headers =
-                RequestHeaders.builder(HttpMethod.POST,
-                                       "/api/v1/xds/groups/" + groupName + "/listeners?listener_id=" +
-                                       listenerId)
-                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                              .contentType(MediaType.JSON_UTF_8).build();
-        return dogma.httpClient().execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(listener))
-                    .aggregate().join();
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest(actualListener, listenerName, true));
     }
 
     private static void assertOk(AggregatedHttpResponse response) {
@@ -147,22 +130,24 @@ class XdsListenerServiceTest {
     void updateListenerViaHttp() throws Exception {
         final Listener listener = exampleListener("this_listener_name_will_be_ignored_and_replaced",
                                                   "groups/foo/routes/foo-route", "stats");
-        AggregatedHttpResponse response = updateListener("foo-listener/2", listener);
+        AggregatedHttpResponse response = updateListener("groups/foo", "foo-listener/2", listener,
+                                                         dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createListener("foo", "foo-listener/2", listener);
+        response = createListener("groups/foo", "foo-listener/2", listener, dogma.httpClient());
         assertOk(response);
         final Listener.Builder listenerBuilder = Listener.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), listenerBuilder);
         final Listener actualListener = listenerBuilder.build();
         final String listenerName = "groups/foo/listeners/foo-listener/2";
         assertThat(actualListener).isEqualTo(listener.toBuilder().setName(listenerName).build());
-        checkResourceViaDiscoveryRequest(actualListener, listenerName, true);
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest(actualListener, listenerName, true));
 
         final Listener updatingListener = listener.toBuilder()
                                                   .setStatPrefix("updated_stats")
                                                   .setName(listenerName).build();
-        response = updateListener("foo-listener/2", updatingListener);
+        response = updateListener("groups/foo", "foo-listener/2", updatingListener, dogma.httpClient());
         assertOk(response);
         final Listener.Builder listenerBuilder2 = Listener.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), listenerBuilder2);
@@ -170,16 +155,6 @@ class XdsListenerServiceTest {
         assertThat(actualListener2).isEqualTo(updatingListener.toBuilder().setName(listenerName).build());
         await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
                 () -> checkResourceViaDiscoveryRequest(actualListener2, listenerName, true));
-    }
-
-    private static AggregatedHttpResponse updateListener(
-            String listenerId, Listener listener) throws IOException {
-        final RequestHeaders headers = RequestHeaders.builder(HttpMethod.PATCH,
-                                                              "/api/v1/xds/groups/foo/listeners/" + listenerId)
-                                                     .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                                                     .contentType(MediaType.JSON_UTF_8).build();
-        return dogma.httpClient().execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(listener))
-                    .aggregate().join();
     }
 
     @Test
@@ -190,11 +165,12 @@ class XdsListenerServiceTest {
 
         final Listener listener = exampleListener("this_listener_name_will_be_ignored_and_replaced",
                                                   "groups/foo/routes/foo-route", "stats");
-        response = createListener("foo", "foo-listener/3/4", listener);
+        response = createListener("groups/foo", "foo-listener/3/4", listener, dogma.httpClient());
         assertOk(response);
 
         final Listener actualListener = listener.toBuilder().setName(listenerName).build();
-        checkResourceViaDiscoveryRequest(actualListener, listenerName, true);
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest(actualListener, listenerName, true));
 
         // Add permission test.
 

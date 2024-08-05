@@ -16,6 +16,8 @@
 package com.linecorp.centraldogma.xds.endpoint.v1;
 
 import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.JSON_MESSAGE_MARSHALLER;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createEndpoint;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.endpoint;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.loadAssignment;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,29 +63,22 @@ class XdsEndpointServiceTest {
 
     @BeforeAll
     static void setup() {
-        final AggregatedHttpResponse response = createGroup("groups/foo");
+        final AggregatedHttpResponse response = createGroup("groups/foo", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-    }
-
-    private static AggregatedHttpResponse createGroup(String groupName) {
-        final RequestHeaders headers = RequestHeaders.builder(HttpMethod.POST, "/api/v1/xds/groups")
-                                                     .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                                                     .contentType(MediaType.JSON_UTF_8).build();
-        return dogma.httpClient().execute(headers, "{\"group\": {\"name\":\"" + groupName + "\"}}")
-                    .aggregate().join();
     }
 
     @Test
     void createEndpointViaHttp() throws Exception {
         final ClusterLoadAssignment endpoint = loadAssignment("this_endpoint_name_will_be_ignored_and_replaced",
                                                               "127.0.0.1", 8080);
-        AggregatedHttpResponse response = createEndpoint("foo", "@invalid_endpoint_id", endpoint);
+        AggregatedHttpResponse response =
+                createEndpoint("groups/foo", "@invalid_endpoint_id", endpoint, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
 
-        response = createEndpoint("non-existent-group", "foo-endpoint/1", endpoint);
+        response = createEndpoint("groups/non-existent-group", "foo-endpoint/1", endpoint, dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createEndpoint("foo", "foo-endpoint/1", endpoint);
+        response = createEndpoint("groups/foo", "foo-endpoint/1", endpoint, dogma.httpClient());
         assertOk(response);
         final ClusterLoadAssignment.Builder endpointBuilder = ClusterLoadAssignment.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), endpointBuilder);
@@ -91,19 +86,8 @@ class XdsEndpointServiceTest {
         final String clusterName = "groups/foo/clusters/foo-endpoint/1";
         assertThat(actualEndpoint).isEqualTo(
                 endpoint.toBuilder().setClusterName(clusterName).build());
-        checkResourceViaDiscoveryRequest(actualEndpoint, clusterName);
-    }
-
-    private static AggregatedHttpResponse createEndpoint(
-            String groupName, String endpointId, ClusterLoadAssignment endpoint) throws IOException {
-        final RequestHeaders headers =
-                RequestHeaders.builder(HttpMethod.POST,
-                                       "/api/v1/xds/groups/" + groupName + "/endpoints?endpoint_id=" +
-                                       endpointId)
-                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                              .contentType(MediaType.JSON_UTF_8).build();
-        return dogma.httpClient().execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(endpoint))
-                    .aggregate().join();
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest(actualEndpoint, clusterName));
     }
 
     private static void assertOk(AggregatedHttpResponse response) {
@@ -145,6 +129,7 @@ class XdsEndpointServiceTest {
             final DiscoveryResponse discoveryResponse = queue.poll(300, TimeUnit.MILLISECONDS);
             assertThat(discoveryResponse).isNull();
         }
+        requestStreamObserver.onCompleted();
     }
 
     @Test
@@ -154,14 +139,15 @@ class XdsEndpointServiceTest {
         AggregatedHttpResponse response = updateEndpoint("foo-endpoint/2", endpoint);
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createEndpoint("foo", "foo-endpoint/2", endpoint);
+        response = createEndpoint("groups/foo", "foo-endpoint/2", endpoint, dogma.httpClient());
         assertOk(response);
         final ClusterLoadAssignment.Builder endpointBuilder = ClusterLoadAssignment.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), endpointBuilder);
         final ClusterLoadAssignment actualEndpoint = endpointBuilder.build();
         final String clusterName = "groups/foo/clusters/foo-endpoint/2";
         assertThat(actualEndpoint).isEqualTo(endpoint.toBuilder().setClusterName(clusterName).build());
-        checkResourceViaDiscoveryRequest(actualEndpoint, clusterName);
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest(actualEndpoint, clusterName));
 
         final ClusterLoadAssignment updatingEndpoint =
                 endpoint.toBuilder()
@@ -198,20 +184,20 @@ class XdsEndpointServiceTest {
 
         final ClusterLoadAssignment endpoint = loadAssignment("this_endpoint_name_will_be_ignored_and_replaced",
                                                               "127.0.0.1", 8080);
-        response = createEndpoint("foo", "foo-endpoint/3/4", endpoint);
+        response = createEndpoint("groups/foo", "foo-endpoint/3/4", endpoint, dogma.httpClient());
         assertOk(response);
 
         final ClusterLoadAssignment actualEndpoint =
                 endpoint.toBuilder().setClusterName(clusterName).build();
-        checkResourceViaDiscoveryRequest(actualEndpoint, clusterName);
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest(actualEndpoint, clusterName));
 
         // Add permission test.
 
         response = deleteEndpoint(endpointName);
         assertOk(response);
         assertThat(response.contentUtf8()).isEqualTo("{}");
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(null, clusterName));
+        checkResourceViaDiscoveryRequest(null, clusterName);
     }
 
     private static AggregatedHttpResponse deleteEndpoint(String endpointName) {
@@ -230,7 +216,7 @@ class XdsEndpointServiceTest {
                            .build(XdsEndpointServiceBlockingStub.class);
         final ClusterLoadAssignment endpoint = loadAssignment("this_endpoint_name_will_be_ignored_and_replaced",
                                                               "127.0.0.1", 8080);
-        ClusterLoadAssignment response = client.createEndpoint(
+        final ClusterLoadAssignment response = client.createEndpoint(
                 CreateEndpointRequest.newBuilder()
                                      .setParent("groups/foo")
                                      .setEndpointId("foo-endpoint/5/6")
@@ -238,7 +224,8 @@ class XdsEndpointServiceTest {
                                      .build());
         final String clusterName = "groups/foo/clusters/foo-endpoint/5/6";
         assertThat(response).isEqualTo(endpoint.toBuilder().setClusterName(clusterName).build());
-        checkResourceViaDiscoveryRequest(response, clusterName);
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest(response, clusterName));
 
         final ClusterLoadAssignment updatingEndpoint =
                 endpoint.toBuilder()
@@ -247,20 +234,20 @@ class XdsEndpointServiceTest {
                         .setClusterName(clusterName).build();
 
         final String endpointName = "groups/foo/endpoints/foo-endpoint/5/6";
-        response = client.updateEndpoint(
+        final ClusterLoadAssignment response2 = client.updateEndpoint(
                 UpdateEndpointRequest.newBuilder()
                                      .setEndpointName(endpointName)
                                      .setEndpoint(updatingEndpoint)
                                      .build());
-        assertThat(response).isEqualTo(updatingEndpoint);
-        checkResourceViaDiscoveryRequest(response, clusterName);
+        assertThat(response2).isEqualTo(updatingEndpoint);
+        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+                () -> checkResourceViaDiscoveryRequest(response2, clusterName));
 
         // No exception is thrown.
         final Empty ignored = client.deleteEndpoint(
                 DeleteEndpointRequest.newBuilder()
                                      .setName(endpointName)
                                      .build());
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest(null, clusterName));
+        checkResourceViaDiscoveryRequest(null, clusterName);
     }
 }

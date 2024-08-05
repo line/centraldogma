@@ -15,27 +15,22 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTERS_DIRECTORY;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ENDPOINTS_DIRECTORY;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENERS_DIRECTORY;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ROUTES_DIRECTORY;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.JSON_MESSAGE_MARSHALLER;
 
+import java.io.IOException;
 import java.net.URI;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.Any;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.Durations;
 
-import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.HttpHeaderNames;
+import com.linecorp.armeria.common.HttpMethod;
+import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.RequestHeaders;
 
 import io.envoyproxy.envoy.config.bootstrap.v3.Bootstrap;
 import io.envoyproxy.envoy.config.bootstrap.v3.Bootstrap.DynamicResources;
@@ -72,14 +67,20 @@ public final class XdsTestUtil {
 
     static final String CONFIG_SOURCE_CLUSTER_NAME = "dogma/cluster";
 
-    static void createXdsProject(ProjectManager pm, MetadataService metadataService, String xdsProjectName) {
-        pm.get(XDS_CENTRAL_DOGMA_PROJECT).repos().create(xdsProjectName, Author.SYSTEM);
-        metadataService.addRepo(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, xdsProjectName).join();
+    public static AggregatedHttpResponse createGroup(String groupName, WebClient webClient) {
+        final RequestHeaders headers = RequestHeaders.builder(HttpMethod.POST, "/api/v1/xds/groups")
+                                                     .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                                                     .contentType(MediaType.JSON_UTF_8).build();
+        return webClient.execute(headers, "{\"group\": {\"name\":\"" + groupName + "\"}}")
+                        .aggregate().join();
     }
 
-    static void removeXdsProject(ProjectManager pm, MetadataService metadataService, String xdsProjectName) {
-        pm.get(XDS_CENTRAL_DOGMA_PROJECT).repos().remove(xdsProjectName);
-        metadataService.removeRepo(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, xdsProjectName).join();
+    public static AggregatedHttpResponse deleteGroup(String groupName, WebClient webClient) {
+        final RequestHeaders headers =
+                RequestHeaders.builder(HttpMethod.DELETE, "/api/v1/xds/" + groupName)
+                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                              .build();
+        return webClient.execute(headers).aggregate().join();
     }
 
     public static LbEndpoint endpoint(String address, int port) {
@@ -256,72 +257,88 @@ public final class XdsTestUtil {
         return builder.build();
     }
 
-    static ClusterLoadAssignment createEndpointAndCommit(String xdsProjectName, String clusterName,
-                                                         ProjectManager projectManager) {
-        final String fileName = endpointFileName(xdsProjectName, clusterName);
-        final ClusterLoadAssignment endpoint = loadAssignment(clusterName, "localhost", 1);
-        commit(endpoint, projectManager, xdsProjectName, clusterName, fileName);
-        return endpoint;
+    public static AggregatedHttpResponse createEndpoint(
+            String groupName, String endpointId,
+            ClusterLoadAssignment endpoint, WebClient webClient) throws IOException {
+        final RequestHeaders headers =
+                RequestHeaders.builder(HttpMethod.POST,
+                                       "/api/v1/xds/" + groupName + "/endpoints?endpoint_id=" +
+                                       endpointId)
+                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                              .contentType(MediaType.JSON_UTF_8).build();
+        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(endpoint))
+                        .aggregate().join();
     }
 
-    static Cluster createClusterAndCommit(String xdsProjectName, String clusterName, int connectTimeoutSeconds,
-                                          ProjectManager projectManager) {
-        final String fileName = clusterFileName(xdsProjectName, clusterName);
-        final Cluster cluster = cluster(clusterName, connectTimeoutSeconds);
-        commit(cluster, projectManager, xdsProjectName, clusterName, fileName);
-        return cluster;
+    public static AggregatedHttpResponse createCluster(
+            String groupName, String clusterId, Cluster cluster, WebClient webClient)
+            throws IOException {
+        final RequestHeaders headers =
+                RequestHeaders.builder(HttpMethod.POST,
+                                       "/api/v1/xds/" + groupName + "/clusters?cluster_id=" + clusterId)
+                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                              .contentType(MediaType.JSON_UTF_8).build();
+        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(cluster))
+                        .aggregate().join();
     }
 
-    static RouteConfiguration createRouteConfigurationAndCommit(
-            String xdsProjectName, String routeName, String clusterName, ProjectManager projectManager) {
-        final String fileName = routeFileName(xdsProjectName, routeName);
-        final RouteConfiguration routeConfiguration = routeConfiguration(routeName, clusterName);
-        commit(routeConfiguration, projectManager, xdsProjectName, routeName, fileName);
-        return routeConfiguration;
+    public static AggregatedHttpResponse updateCluster(
+            String groupName, String clusterId, Cluster cluster, WebClient webClient) throws IOException {
+        final RequestHeaders headers =
+                RequestHeaders.builder(HttpMethod.PATCH,
+                                       "/api/v1/xds/" + groupName + "/clusters/" + clusterId)
+                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                              .contentType(MediaType.JSON_UTF_8).build();
+        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(cluster))
+                        .aggregate().join();
     }
 
-    static Listener createListenerAndCommit(String xdsProjectName, String listenerName, String routeName,
-                                            String statPrefix, ProjectManager projectManager) {
-        final String fileName = listenerFileName(xdsProjectName, listenerName);
-        final Listener listener = exampleListener(listenerName, routeName, statPrefix);
-        commit(listener, projectManager, xdsProjectName, routeName, fileName);
-        return listener;
+    public static AggregatedHttpResponse createListener(
+            String groupName, String listenerId,
+            Listener listener, WebClient webClient) throws IOException {
+        final RequestHeaders headers =
+                RequestHeaders.builder(HttpMethod.POST,
+                                       "/api/v1/xds/" + groupName + "/listeners?listener_id=" +
+                                       listenerId)
+                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                              .contentType(MediaType.JSON_UTF_8).build();
+        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(listener))
+                        .aggregate().join();
     }
 
-    static String clusterFileName(String xdsProjectName, String clusterName) {
-        assert clusterName.startsWith(xdsProjectName + '/');
-        return CLUSTERS_DIRECTORY + clusterName.substring(xdsProjectName.length() + 1) + ".json";
+    public static AggregatedHttpResponse updateListener(
+            String groupName, String listenerId, Listener listener, WebClient webClient) throws IOException {
+        final RequestHeaders headers =
+                RequestHeaders.builder(HttpMethod.PATCH,
+                                       "/api/v1/xds/" + groupName + "/listeners/" + listenerId)
+                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                              .contentType(MediaType.JSON_UTF_8).build();
+        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(listener))
+                        .aggregate().join();
     }
 
-    static String endpointFileName(String xdsProjectName, String clusterName) {
-        assert clusterName.startsWith(xdsProjectName + '/');
-        return ENDPOINTS_DIRECTORY + clusterName.substring(xdsProjectName.length() + 1) + ".json";
+    public static AggregatedHttpResponse createRoute(
+            String groupName, String routeId,
+            RouteConfiguration route, WebClient webClient) throws IOException {
+        final RequestHeaders headers =
+                RequestHeaders.builder(HttpMethod.POST,
+                                       "/api/v1/xds/" + groupName + "/routes?route_id=" +
+                                       routeId)
+                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                              .contentType(MediaType.JSON_UTF_8).build();
+        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(route))
+                        .aggregate().join();
     }
 
-    static String listenerFileName(String xdsProjectName, String listenerName) {
-        assert listenerName.startsWith(xdsProjectName + '/');
-        return LISTENERS_DIRECTORY + listenerName.substring(xdsProjectName.length() + 1) + ".json";
-    }
-
-    static String routeFileName(String xdsProjectName, String routeName) {
-        assert routeName.startsWith(xdsProjectName + '/');
-        return ROUTES_DIRECTORY + routeName.substring(xdsProjectName.length() + 1) + ".json";
-    }
-
-    static void commit(MessageOrBuilder message, ProjectManager projectManager,
-                       String repoName, String resourceName, String fileName) {
-        final String json;
-        try {
-            json = JsonFormatUtil.printer().print(message);
-        } catch (InvalidProtocolBufferException e) {
-            // Should never reach here.
-            throw new Error(e);
-        }
-        final Change<JsonNode> xdsResource = Change.ofJsonUpsert(fileName, json);
-        projectManager.get(XDS_CENTRAL_DOGMA_PROJECT)
-                      .repos()
-                      .get(repoName)
-                      .commit(Revision.HEAD, 0, Author.SYSTEM, "Add " + resourceName, xdsResource).join();
+    public static AggregatedHttpResponse updateRoute(
+            String groupName, String routeId,
+            RouteConfiguration route, WebClient webClient) throws IOException {
+        final RequestHeaders headers = RequestHeaders.builder(HttpMethod.PATCH,
+                                                              "/api/v1/xds/" + groupName + "/routes/" + routeId)
+                                                     .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                                                     .contentType(MediaType.JSON_UTF_8).build();
+        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(route))
+                        .aggregate().join();
     }
 
     private XdsTestUtil() {}
