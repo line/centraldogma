@@ -141,6 +141,9 @@ import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
 import com.linecorp.centraldogma.server.internal.api.TokenService;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthorizer;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresPermissionDecorator.RequiresReadPermissionDecoratorFactory;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresPermissionDecorator.RequiresWritePermissionDecoratorFactory;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRoleDecorator.RequiresRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
@@ -154,7 +157,6 @@ import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.mirror.MirrorProvider;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.Plugin;
@@ -615,8 +617,9 @@ public class CentralDogma implements AutoCloseable {
                                                   HttpHeaders.of(HttpHeaderNames.AUTHORIZATION,
                                                                  "Bearer " + CsrfToken.ANONYMOUS))
                                   .build());
-
-        configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, sessionManager,
+        final Function<? super HttpService, AuthService> authService =
+                authService(mds, authProvider, sessionManager);
+        configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, authService,
                          meterRegistry);
 
         configureMetrics(sb, meterRegistry);
@@ -639,7 +642,7 @@ public class CentralDogma implements AutoCloseable {
         if (pluginsForAllReplicas != null) {
             final PluginInitContext pluginInitContext =
                     new PluginInitContext(config(), pm, executor, meterRegistry, purgeWorker, sb,
-                                          projectInitializer);
+                                          authService, projectInitializer);
             pluginsForAllReplicas.plugins()
                                  .forEach(p -> {
                                      if (!(p instanceof AllReplicasPlugin)) {
@@ -742,45 +745,38 @@ public class CentralDogma implements AutoCloseable {
         sb.service("/cd/thrift/v1", thriftService);
     }
 
+    private Function<? super HttpService, AuthService> authService(
+            MetadataService mds, @Nullable AuthProvider authProvider, @Nullable SessionManager sessionManager) {
+        if (authProvider == null) {
+            return AuthService.newDecorator(new CsrfTokenAuthorizer());
+        }
+        final AuthConfig authCfg = cfg.authConfig();
+        assert authCfg != null : "authCfg";
+        assert sessionManager != null : "sessionManager";
+        final Authorizer<HttpRequest> tokenAuthorizer =
+                new ApplicationTokenAuthorizer(mds::findTokenBySecret)
+                        .orElse(new SessionTokenAuthorizer(sessionManager,
+                                                           authCfg.administrators()));
+        return AuthService.builder()
+                          .add(tokenAuthorizer)
+                          .onFailure(new CentralDogmaAuthFailureHandler())
+                          .newDecorator();
+    }
+
     private void configureHttpApi(ServerBuilder sb,
                                   ProjectApiManager projectApiManager, CommandExecutor executor,
                                   WatchService watchService, MetadataService mds,
                                   @Nullable AuthProvider authProvider,
-                                  @Nullable SessionManager sessionManager, MeterRegistry meterRegistry) {
-        Function<? super HttpService, ? extends HttpService> decorator;
-
-        if (authProvider != null) {
-            sb.service("/security_enabled", new AbstractHttpService() {
-                @Override
-                protected HttpResponse doGet(ServiceRequestContext ctx, HttpRequest req) {
-                    return HttpResponse.of(HttpStatus.OK);
-                }
-            });
-
-            final AuthConfig authCfg = cfg.authConfig();
-            assert authCfg != null : "authCfg";
-            assert sessionManager != null : "sessionManager";
-            final Authorizer<HttpRequest> tokenAuthorizer =
-                    new ApplicationTokenAuthorizer(mds::findTokenBySecret)
-                            .orElse(new SessionTokenAuthorizer(sessionManager,
-                                                               authCfg.administrators()));
-            decorator = MetadataServiceInjector
-                    .newDecorator(mds)
-                    .andThen(AuthService.builder()
-                                        .add(tokenAuthorizer)
-                                        .onFailure(new CentralDogmaAuthFailureHandler())
-                                        .newDecorator());
-        } else {
-            decorator = MetadataServiceInjector
-                    .newDecorator(mds)
-                    .andThen(AuthService.newDecorator(new CsrfTokenAuthorizer()));
-        }
-
+                                  Function<? super HttpService, AuthService> authService,
+                                  MeterRegistry meterRegistry) {
         final DependencyInjector dependencyInjector = DependencyInjector.ofSingletons(
                 // Use the default ObjectMapper without any configuration.
                 // See JacksonRequestConverterFunctionTest
                 new JacksonRequestConverterFunction(new ObjectMapper()),
-                new HttpApiRequestConverter(projectApiManager)
+                new HttpApiRequestConverter(projectApiManager),
+                new RequiresReadPermissionDecoratorFactory(mds),
+                new RequiresWritePermissionDecoratorFactory(mds),
+                new RequiresRoleDecoratorFactory(mds)
         );
         sb.dependencyInjector(dependencyInjector, false)
           // TODO(ikhoon): Consider exposing ReflectiveDependencyInjector as a public API via
@@ -788,7 +784,8 @@ public class CentralDogma implements AutoCloseable {
           .dependencyInjector(new ReflectiveDependencyInjector(), false);
 
         // Enable content compression for API responses.
-        decorator = decorator.andThen(contentEncodingDecorator());
+        final Function<? super HttpService, ? extends HttpService> decorator =
+                authService.andThen(contentEncodingDecorator());
         for (String path : ImmutableList.of(API_V0_PATH_PREFIX, API_V1_PATH_PREFIX)) {
             final DecoratingServiceBindingBuilder decoratorBuilder =
                     sb.routeDecorator().pathPrefix(path);
@@ -802,7 +799,6 @@ public class CentralDogma implements AutoCloseable {
         }
 
         assert statusManager != null;
-        final ContextPathServicesBuilder apiV0ServiceBuilder = sb.contextPath(API_V0_PATH_PREFIX);
         final ContextPathServicesBuilder apiV1ServiceBuilder = sb.contextPath(API_V1_PATH_PREFIX);
         apiV1ServiceBuilder
                 .annotatedService(new AdministrativeService(executor, statusManager))
@@ -830,12 +826,14 @@ public class CentralDogma implements AutoCloseable {
                            })
                            .build(new ContentServiceV1(executor, watchService, meterRegistry));
 
-        sb.annotatedService()
-          .decorator(decorator)
-          .decorator(DecodingService.newDecorator())
-          .build(new GitHttpService(projectApiManager));
-
         if (authProvider != null) {
+            sb.service("/security_enabled", new AbstractHttpService() {
+                @Override
+                protected HttpResponse doGet(ServiceRequestContext ctx, HttpRequest req) {
+                    return HttpResponse.of(HttpStatus.OK);
+                }
+            });
+
             final AuthConfig authCfg = cfg.authConfig();
             assert authCfg != null : "authCfg";
             apiV1ServiceBuilder
@@ -857,10 +855,15 @@ public class CentralDogma implements AutoCloseable {
             authProvider.moreServices().forEach(sb::service);
         }
 
+        sb.annotatedService()
+          .decorator(decorator)
+          .decorator(DecodingService.newDecorator())
+          .build(new GitHttpService(projectApiManager));
+
         if (cfg.isWebAppEnabled()) {
-            apiV0ServiceBuilder
-                    .annotatedService(new UserService(executor))
-                    .annotatedService(new RepositoryService(projectApiManager, executor));
+            sb.contextPath(API_V0_PATH_PREFIX)
+              .annotatedService(new UserService(executor))
+              .annotatedService(new RepositoryService(projectApiManager, executor));
 
             if (authProvider != null) {
                 // Will redirect to /web/auth/login by default.

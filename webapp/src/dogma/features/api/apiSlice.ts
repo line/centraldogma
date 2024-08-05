@@ -63,6 +63,7 @@ export type GetFileContent = {
   projectName: string;
   repoName: string;
   filePath: string;
+  revision: string;
 };
 
 export type TitleDto = {
@@ -237,8 +238,8 @@ export const apiSlice = createApi({
       providesTags: ['File'],
     }),
     getFileContent: builder.query<FileContentDto, GetFileContent>({
-      query: ({ projectName, repoName, filePath }) =>
-        `/api/v1/projects/${projectName}/repos/${repoName}/contents/${filePath}`,
+      query: ({ projectName, repoName, filePath, revision }) =>
+        `/api/v1/projects/${projectName}/repos/${repoName}/contents/${filePath}?revision=${revision}`,
       providesTags: ['File'],
     }),
     pushFileChanges: builder.mutation({

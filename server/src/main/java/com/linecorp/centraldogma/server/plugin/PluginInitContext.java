@@ -19,8 +19,11 @@ package com.linecorp.centraldogma.server.plugin;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Function;
 
+import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServerBuilder;
+import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
@@ -34,6 +37,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 public final class PluginInitContext extends PluginContext {
 
     private final ServerBuilder serverBuilder;
+    private final Function<? super HttpService, AuthService> authService;
 
     /**
      * Creates a new instance.
@@ -43,9 +47,11 @@ public final class PluginInitContext extends PluginContext {
                              CommandExecutor commandExecutor,
                              MeterRegistry meterRegistry,
                              ScheduledExecutorService purgeWorker, ServerBuilder serverBuilder,
+                             Function<? super HttpService, AuthService> authService,
                              InternalProjectInitializer projectInitializer) {
         super(config, projectManager, commandExecutor, meterRegistry, purgeWorker, projectInitializer);
         this.serverBuilder = requireNonNull(serverBuilder, "serverBuilder");
+        this.authService = requireNonNull(authService, "authService");
     }
 
     /**
@@ -53,5 +59,12 @@ public final class PluginInitContext extends PluginContext {
      */
     public ServerBuilder serverBuilder() {
         return serverBuilder;
+    }
+
+    /**
+     * Returns the {@link AuthService} of the Central Dogma server.
+     */
+    public Function<? super HttpService, AuthService> authService() {
+        return authService;
     }
 }
