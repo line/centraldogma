@@ -171,6 +171,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                            .jsonMarshallerFactory(
                                    serviceDescriptor -> GrpcJsonMarshaller
                                            .builder()
+                                           //TODO(minwoox): Automate the registration of the extension messages.
                                            .jsonMarshallerCustomizer(builder -> {
                                                builder.register(HttpConnectionManager.getDefaultInstance())
                                                       .register(Router.getDefaultInstance());

@@ -76,9 +76,7 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
                                          .asRuntimeException();
         }
 
-        // Use /clusters/ instead of /endpoints/ for the cluster name.
-        // /endpoints/ will be used for the file name.
-        final String clusterName = parent + CLUSTERS_DIRECTORY + endpointId;
+        final String clusterName = clusterName(parent, endpointId);
         // Ignore the specified name in the endpoint and set the name
         // with the format of "groups/{group}/clusters/{endpoint}".
         // https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids
@@ -88,6 +86,12 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
                                                       .build();
         push(commandExecutor, responseObserver, group, fileName(endpointId),
              "Create endpoint: " + clusterName, endpoint, currentAuthor());
+    }
+
+    private static String clusterName(String parent, String endpointId) {
+        // Use /clusters/ instead of /endpoints/ for the cluster name.
+        // /endpoints/ will be used for the file name.
+        return parent + CLUSTERS_DIRECTORY + endpointId;
     }
 
     @Override
@@ -102,7 +106,7 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
         update(commandExecutor, xdsCentralDogmaProject, group, responseObserver, endpointName,
                fileName(endpointId), "Update endpoint: " + endpointName,
                endpoint.toBuilder()
-                       .setClusterName("groups/" + group + CLUSTERS_DIRECTORY + endpointId)
+                       .setClusterName(clusterName("groups/" + group, endpointId))
                        .build());
     }
 
