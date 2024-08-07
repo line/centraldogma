@@ -75,7 +75,7 @@ public class ProjectDto {
         this.creator = requireNonNull(creator, "creator");
         createdAt = ISO_INSTANT.format(Instant.ofEpochMilli(creationTimeMillis));
         url = PROJECTS_PREFIX + '/' + name;
-        this.userRole = userRole;
+        this.userRole = requireNonNull(userRole, "userRole");
     }
 
     @JsonProperty("name")

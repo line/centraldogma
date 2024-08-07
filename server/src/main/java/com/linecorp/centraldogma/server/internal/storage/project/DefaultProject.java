@@ -110,10 +110,11 @@ public class DefaultProject implements Project {
             }
             success = true;
         } catch (Exception e) {
-            throw new CentralDogmaException("failed to initialize internal repositories", e);
+            throw new CentralDogmaException("failed to initialize internal repositories of " + name, e);
         } finally {
             if (!success) {
-                repos.close(() -> new CentralDogmaException("failed to initialize internal repositories"));
+                repos.close(() -> new CentralDogmaException(
+                        "failed to initialize internal repositories of " + name));
             }
         }
     }
@@ -143,7 +144,8 @@ public class DefaultProject implements Project {
             success = true;
         } finally {
             if (!success) {
-                repos.close(() -> new CentralDogmaException("failed to initialize internal repositories"));
+                repos.close(() -> new CentralDogmaException(
+                        "failed to initialize internal repositories of " + name));
             }
         }
     }
@@ -206,7 +208,7 @@ public class DefaultProject implements Project {
                                      Change.ofJsonUpsert(METADATA_JSON, Jackson.valueToTree(metadata)))
                              .join();
             lastMetadataRevision = result.revision();
-            this.projectMetadata = metadata;
+            projectMetadata = metadata;
         }
     }
 
@@ -242,6 +244,8 @@ public class DefaultProject implements Project {
             }
 
             final Revision lastRevision = entry.revision();
+            final Revision lastMetadataRevision = this.lastMetadataRevision;
+            assert lastMetadataRevision != null;
             if (lastRevision.compareTo(lastMetadataRevision) <= 0) {
                 // An old data.
                 return;
@@ -250,7 +254,7 @@ public class DefaultProject implements Project {
             try {
                 final ProjectMetadata projectMetadata = Jackson.treeToValue(entry.content(),
                                                                             ProjectMetadata.class);
-                lastMetadataRevision = lastRevision;
+                this.lastMetadataRevision = lastRevision;
                 this.projectMetadata = projectMetadata;
             } catch (JsonParseException | JsonMappingException e) {
                 logger.warn("Invalid {} file in {}/{}", METADATA_JSON, name, REPO_DOGMA, e);
