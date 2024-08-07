@@ -18,25 +18,17 @@ package com.linecorp.centraldogma.xds.endpoint.v1;
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ENDPOINTS_DIRECTORY;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.RESOURCE_ID_PATTERN;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.RESOURCE_ID_PATTERN_STRING;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.checkGroup;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.delete;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.push;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.removePrefix;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.update;
-import static java.util.Objects.requireNonNull;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN_STRING;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.google.protobuf.Empty;
 
-import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceGrpc.XdsEndpointServiceImplBase;
+import com.linecorp.centraldogma.xds.internal.XdsResourceManager;
 
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.grpc.Status;
@@ -50,16 +42,13 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
     private static final Pattern ENDPONT_NAME_PATTERN =
             Pattern.compile("^groups/([^/]+)/endpoints/(" + RESOURCE_ID_PATTERN_STRING + ")$");
 
-    private final Project xdsCentralDogmaProject;
-    private final CommandExecutor commandExecutor;
+    private final XdsResourceManager xdsResourceManager;
 
     /**
      * Creates a new instance.
      */
-    public XdsEndpointService(ProjectManager projectManager, CommandExecutor commandExecutor) {
-        xdsCentralDogmaProject = requireNonNull(projectManager, "projectManager")
-                .get(XDS_CENTRAL_DOGMA_PROJECT);
-        this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
+    public XdsEndpointService(XdsResourceManager xdsResourceManager) {
+        this.xdsResourceManager = xdsResourceManager;
     }
 
     @Override
@@ -67,7 +56,7 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
                                StreamObserver<ClusterLoadAssignment> responseObserver) {
         final String parent = request.getParent();
         final String group = removePrefix("groups/", parent);
-        checkGroup(xdsCentralDogmaProject, group);
+        xdsResourceManager.checkGroup(group);
 
         final String endpointId = request.getEndpointId();
         if (!RESOURCE_ID_PATTERN.matcher(endpointId).matches()) {
@@ -84,8 +73,8 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
                                                       .toBuilder()
                                                       .setClusterName(clusterName)
                                                       .build();
-        push(commandExecutor, responseObserver, group, fileName(endpointId),
-             "Create endpoint: " + clusterName, endpoint, currentAuthor());
+        xdsResourceManager.push(responseObserver, group, fileName(endpointId),
+                                "Create endpoint: " + clusterName, endpoint, currentAuthor());
     }
 
     private static String clusterName(String parent, String endpointId) {
@@ -103,11 +92,11 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
 
         final ClusterLoadAssignment endpoint = request.getEndpoint();
         final String endpointId = matcher.group(2);
-        update(commandExecutor, xdsCentralDogmaProject, group, responseObserver, endpointName,
-               fileName(endpointId), "Update endpoint: " + endpointName,
-               endpoint.toBuilder()
-                       .setClusterName(clusterName("groups/" + group, endpointId))
-                       .build());
+        xdsResourceManager.update(responseObserver, group, endpointName,
+                                  fileName(endpointId), "Update endpoint: " + endpointName,
+                                  endpoint.toBuilder()
+                                          .setClusterName(clusterName("groups/" + group, endpointId))
+                                          .build());
     }
 
     @Override
@@ -115,8 +104,8 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
         final String endpointName = request.getName();
         final Matcher matcher = checkEndpointName(endpointName);
         final String group = matcher.group(1);
-        delete(commandExecutor, xdsCentralDogmaProject, group, responseObserver,
-               endpointName, fileName(matcher.group(2)), "Delete endpoint: " + endpointName);
+        xdsResourceManager.delete(responseObserver, group, endpointName,
+                                  fileName(matcher.group(2)), "Delete endpoint: " + endpointName);
     }
 
     private static Matcher checkEndpointName(String endpointName) {

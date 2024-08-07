@@ -17,24 +17,16 @@ package com.linecorp.centraldogma.xds.listener.v1;
 
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENERS_DIRECTORY;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.RESOURCE_ID_PATTERN;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.RESOURCE_ID_PATTERN_STRING;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.checkGroup;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.delete;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.push;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.removePrefix;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.update;
-import static java.util.Objects.requireNonNull;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN_STRING;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.google.protobuf.Empty;
 
-import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.xds.internal.XdsResourceManager;
 import com.linecorp.centraldogma.xds.listener.v1.XdsListenerServiceGrpc.XdsListenerServiceImplBase;
 
 import io.envoyproxy.envoy.config.listener.v3.Listener;
@@ -49,23 +41,20 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
     private static final Pattern LISTENER_NAME_PATTERN =
             Pattern.compile("^groups/([^/]+)/listeners/" + RESOURCE_ID_PATTERN_STRING + '$');
 
-    private final Project xdsCentralDogmaProject;
-    private final CommandExecutor commandExecutor;
+    private final XdsResourceManager xdsResourceManager;
 
     /**
      * Creates a new instance.
      */
-    public XdsListenerService(ProjectManager projectManager, CommandExecutor commandExecutor) {
-        xdsCentralDogmaProject = requireNonNull(projectManager, "projectManager")
-                .get(XDS_CENTRAL_DOGMA_PROJECT);
-        this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
+    public XdsListenerService(XdsResourceManager xdsResourceManager) {
+        this.xdsResourceManager = xdsResourceManager;
     }
 
     @Override
     public void createListener(CreateListenerRequest request, StreamObserver<Listener> responseObserver) {
         final String parent = request.getParent();
         final String group = removePrefix("groups/", parent);
-        checkGroup(xdsCentralDogmaProject, group);
+        xdsResourceManager.checkGroup(group);
 
         final String listenerId = request.getListenerId();
         if (!RESOURCE_ID_PATTERN.matcher(listenerId).matches()) {
@@ -79,17 +68,17 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
         // with the format of "groups/{group}/listeners/{listener}".
         // https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids
         final Listener listener = request.getListener().toBuilder().setName(listenerName).build();
-        push(commandExecutor, responseObserver, group, LISTENERS_DIRECTORY + listenerId + ".json",
-             "Create listener: " + listenerName, listener, currentAuthor());
+        xdsResourceManager.push(responseObserver, group, LISTENERS_DIRECTORY + listenerId + ".json",
+                                "Create listener: " + listenerName, listener, currentAuthor());
     }
 
     @Override
     public void updateListener(UpdateListenerRequest request, StreamObserver<Listener> responseObserver) {
         final Listener listener = request.getListener();
         final String listenerName = listener.getName();
-        final Matcher matcher = checkListenerName(listenerName);
-        update(commandExecutor, xdsCentralDogmaProject, matcher.group(1),
-               responseObserver, listenerName, "Update listener: " + listenerName, listener);
+        final String group = checkListenerName(listenerName).group(1);
+        xdsResourceManager.update(responseObserver, group, listenerName,
+                                  "Update listener: " + listenerName, listener);
     }
 
     private static Matcher checkListenerName(String listenerName) {
@@ -105,8 +94,7 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
     @Override
     public void deleteListener(DeleteListenerRequest request, StreamObserver<Empty> responseObserver) {
         final String listenerName = request.getName();
-        final Matcher matcher = checkListenerName(listenerName);
-        delete(commandExecutor, xdsCentralDogmaProject, matcher.group(1), responseObserver,
-               listenerName, "Delete listener: " + listenerName);
+        final String group = checkListenerName(listenerName).group(1);
+        xdsResourceManager.delete(responseObserver, group, listenerName, "Delete listener: " + listenerName);
     }
 }

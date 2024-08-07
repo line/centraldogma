@@ -17,24 +17,16 @@ package com.linecorp.centraldogma.xds.route.v1;
 
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.ROUTES_DIRECTORY;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.RESOURCE_ID_PATTERN;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.RESOURCE_ID_PATTERN_STRING;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.checkGroup;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.delete;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.push;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.removePrefix;
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.update;
-import static java.util.Objects.requireNonNull;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN_STRING;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.google.protobuf.Empty;
 
-import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.xds.internal.XdsResourceManager;
 import com.linecorp.centraldogma.xds.route.v1.XdsRouteServiceGrpc.XdsRouteServiceImplBase;
 
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
@@ -49,23 +41,20 @@ public final class XdsRouteService extends XdsRouteServiceImplBase {
     private static final Pattern ROUTE_NAME_PATTERN =
             Pattern.compile("^groups/([^/]+)/routes/" + RESOURCE_ID_PATTERN_STRING + '$');
 
-    private final Project xdsCentralDogmaProject;
-    private final CommandExecutor commandExecutor;
+    private final XdsResourceManager xdsResourceManager;
 
     /**
      * Creates a new instance.
      */
-    public XdsRouteService(ProjectManager projectManager, CommandExecutor commandExecutor) {
-        xdsCentralDogmaProject = requireNonNull(projectManager, "projectManager")
-                .get(XDS_CENTRAL_DOGMA_PROJECT);
-        this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
+    public XdsRouteService(XdsResourceManager xdsResourceManager) {
+        this.xdsResourceManager = xdsResourceManager;
     }
 
     @Override
     public void createRoute(CreateRouteRequest request, StreamObserver<RouteConfiguration> responseObserver) {
         final String parent = request.getParent();
         final String group = removePrefix("groups/", parent);
-        checkGroup(xdsCentralDogmaProject, group);
+        xdsResourceManager.checkGroup(group);
 
         final String routeId = request.getRouteId();
         if (!RESOURCE_ID_PATTERN.matcher(routeId).matches()) {
@@ -79,17 +68,16 @@ public final class XdsRouteService extends XdsRouteServiceImplBase {
         // with the format of "groups/{group}/routes/{route}".
         // https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids
         final RouteConfiguration route = request.getRoute().toBuilder().setName(routeName).build();
-        push(commandExecutor, responseObserver, group, ROUTES_DIRECTORY + routeId + ".json",
-             "Create route: " + routeName, route, currentAuthor());
+        xdsResourceManager.push(responseObserver, group, ROUTES_DIRECTORY + routeId + ".json",
+                                "Create route: " + routeName, route, currentAuthor());
     }
 
     @Override
     public void updateRoute(UpdateRouteRequest request, StreamObserver<RouteConfiguration> responseObserver) {
         final RouteConfiguration route = request.getRoute();
         final String routeName = route.getName();
-        final Matcher matcher = checkRouteName(routeName);
-        update(commandExecutor, xdsCentralDogmaProject, matcher.group(1), responseObserver, routeName,
-               "Update route: " + routeName, route);
+        final String group = checkRouteName(routeName).group(1);
+        xdsResourceManager.update(responseObserver, group, routeName, "Update route: " + routeName, route);
     }
 
     private static Matcher checkRouteName(String routeName) {
@@ -105,8 +93,7 @@ public final class XdsRouteService extends XdsRouteServiceImplBase {
     @Override
     public void deleteRoute(DeleteRouteRequest request, StreamObserver<Empty> responseObserver) {
         final String routeName = request.getName();
-        final Matcher matcher = checkRouteName(routeName);
-        delete(commandExecutor, xdsCentralDogmaProject, matcher.group(1), responseObserver,
-               routeName, "Delete route: " + routeName);
+        final String group = checkRouteName(routeName).group(1);
+        xdsResourceManager.delete(responseObserver, group, routeName, "Delete route: " + routeName);
     }
 }

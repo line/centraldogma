@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.cluster.v1;
 
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.JSON_MESSAGE_MARSHALLER;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.cluster;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createCluster;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;

@@ -19,6 +19,7 @@ import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.curr
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil.createRepository;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil.removeRepository;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 
 import com.google.protobuf.Empty;
 
@@ -30,7 +31,6 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.xds.group.v1.XdsGroupServiceGrpc.XdsGroupServiceImplBase;
 
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 
 /**
@@ -74,14 +74,6 @@ public final class XdsGroupService extends XdsGroupServiceImplBase {
                     responseObserver.onCompleted();
                     return null;
                 });
-    }
-
-    private static String removePrefix(String prefix, String name) {
-        if (!name.startsWith(prefix)) {
-            throw new StatusRuntimeException(
-                    Status.INVALID_ARGUMENT.withDescription(name + " does not start with prefix: " + prefix));
-        }
-        return name.substring(prefix.length());
     }
 
     private static RuntimeException alreadyExistsException(String groupName) {

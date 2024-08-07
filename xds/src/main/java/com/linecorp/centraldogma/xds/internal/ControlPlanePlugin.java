@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.xds.internal.XdsServiceUtil.JSON_MESSAGE_MARSHALLER;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -71,6 +71,8 @@ import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
 import io.envoyproxy.envoy.extensions.filters.http.router.v3.Router;
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager;
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext;
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext;
 import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
@@ -161,20 +163,23 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                                                    .build();
         sb.route().build(grpcService);
         final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
+        final XdsResourceManager xdsResourceManager = new XdsResourceManager(projectManager, commandExecutor);
         final GrpcService xdsApplicationService =
                 GrpcService.builder()
                            .addService(new XdsGroupService(projectManager, commandExecutor))
-                           .addService(new XdsListenerService(projectManager, commandExecutor))
-                           .addService(new XdsRouteService(projectManager, commandExecutor))
-                           .addService(new XdsClusterService(projectManager, commandExecutor))
-                           .addService(new XdsEndpointService(projectManager, commandExecutor))
+                           .addService(new XdsListenerService(xdsResourceManager))
+                           .addService(new XdsRouteService(xdsResourceManager))
+                           .addService(new XdsClusterService(xdsResourceManager))
+                           .addService(new XdsEndpointService(xdsResourceManager))
                            .jsonMarshallerFactory(
                                    serviceDescriptor -> GrpcJsonMarshaller
                                            .builder()
                                            //TODO(minwoox): Automate the registration of the extension messages.
                                            .jsonMarshallerCustomizer(builder -> {
                                                builder.register(HttpConnectionManager.getDefaultInstance())
-                                                      .register(Router.getDefaultInstance());
+                                                      .register(Router.getDefaultInstance())
+                                                      .register(UpstreamTlsContext.getDefaultInstance())
+                                                      .register(DownstreamTlsContext.getDefaultInstance());
                                            })
                                            .build(serviceDescriptor))
                            .enableHttpJsonTranscoding(true).build();
