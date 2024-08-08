@@ -158,7 +158,7 @@ public class CentralDogmaRuleDelegate {
                 throw new IOError(e);
             }
 
-            final String uri = "h2c://" + serverAddress.getHostString() + ':' + serverAddress.getPort();
+            final String uri = "h2c://127.0.0.1:" + serverAddress.getPort();
             final WebClientBuilder webClientBuilder = WebClient.builder(uri);
             if (accessToken != null) {
                 webClientBuilder.auth(AuthToken.ofOAuth2(accessToken));

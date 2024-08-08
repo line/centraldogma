@@ -1,0 +1,22 @@
+name: <LISTENER_NAME>
+address:
+  socket_address:
+    address: 0.0.0.0
+    port_value: 8080
+api_listener:
+  api_listener:
+    "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+    stat_prefix: ingress_http
+    http_protocol_options:
+      enable_trailers: true
+    codec_type: AUTO
+    route_config:
+      name: local_route
+      virtual_hosts:
+        - name: local_service
+          domains: [ "*" ]
+          routes:
+            - match:
+                prefix: "/"
+              route:
+                cluster: <CLUSTER_NAME>

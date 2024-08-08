@@ -1,7 +1,7 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
- * LINE Corporation licenses this file to you under the Apache License,
+ * LY Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.client.armeria;
+package com.linecorp.centraldogma.internal.client.armeria;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -108,7 +108,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 
-final class ArmeriaCentralDogma extends AbstractCentralDogma {
+public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private static final MediaType JSON_PATCH_UTF8 = MediaType.JSON_PATCH.withCharset(StandardCharsets.UTF_8);
 
@@ -137,11 +137,14 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private final WebClient client;
     private final String authorization;
+    private final SafeCloseable safeCloseable;
 
-    ArmeriaCentralDogma(ScheduledExecutorService blockingTaskExecutor, WebClient client, String accessToken) {
+    public ArmeriaCentralDogma(ScheduledExecutorService blockingTaskExecutor,
+                               WebClient client, String accessToken, SafeCloseable safeCloseable) {
         super(blockingTaskExecutor);
         this.client = requireNonNull(client, "client");
         authorization = "Bearer " + requireNonNull(accessToken, "accessToken");
+        this.safeCloseable = safeCloseable;
     }
 
     @Override
@@ -1135,5 +1138,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
 
         throw new CentralDogmaException("unexpected response: " + res.headers() + ", " + res.contentUtf8());
+    }
+
+    @Override
+    public void close() {
+        safeCloseable.close();
     }
 }
