@@ -16,6 +16,9 @@
 
 package com.linecorp.centraldogma.xds.internal;
 
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
+
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -30,8 +33,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.MoreObjects;
-import com.google.protobuf.InvalidProtocolBufferException;
 
+import com.linecorp.armeria.common.grpc.GrpcJsonMarshaller;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.grpc.GrpcService;
@@ -39,6 +42,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
@@ -50,7 +54,11 @@ import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
+import com.linecorp.centraldogma.xds.cluster.v1.XdsClusterService;
+import com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointService;
 import com.linecorp.centraldogma.xds.group.v1.XdsGroupService;
+import com.linecorp.centraldogma.xds.listener.v1.XdsListenerService;
+import com.linecorp.centraldogma.xds.route.v1.XdsRouteService;
 
 import io.envoyproxy.controlplane.cache.v3.SimpleCache;
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks;
@@ -60,6 +68,10 @@ import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
+import io.envoyproxy.envoy.extensions.filters.http.router.v3.Router;
+import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager;
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext;
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext;
 import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
@@ -71,14 +83,14 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
 
     public static final String XDS_CENTRAL_DOGMA_PROJECT = "@xds";
 
-    static final String CLUSTERS_DIRECTORY = "/clusters/";
-    static final String ENDPOINTS_DIRECTORY = "/endpoints/";
-    static final String LISTENERS_DIRECTORY = "/listeners/";
-    static final String ROUTES_DIRECTORY = "/routes/";
+    public static final String CLUSTERS_DIRECTORY = "/clusters/";
+    public static final String ENDPOINTS_DIRECTORY = "/endpoints/";
+    public static final String LISTENERS_DIRECTORY = "/listeners/";
+    public static final String ROUTES_DIRECTORY = "/routes/";
 
     public static final String DEFAULT_GROUP = "default_group";
 
-    public static final long BACKOFF_SECONDS = 10;
+    public static final long BACKOFF_SECONDS = 30;
 
     private static final ScheduledExecutorService CONTROL_PLANE_EXECUTOR =
             Executors.newSingleThreadScheduledExecutor(
@@ -150,32 +162,48 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                                                    .useBlockingTaskExecutor(true)
                                                    .build();
         sb.route().build(grpcService);
+        final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
+        final XdsResourceManager xdsResourceManager = new XdsResourceManager(projectManager, commandExecutor);
         final GrpcService xdsApplicationService =
                 GrpcService.builder()
-                           .addService(new XdsGroupService(
-                                   projectManager, pluginInitContext.commandExecutor()))
+                           .addService(new XdsGroupService(projectManager, commandExecutor))
+                           .addService(new XdsListenerService(xdsResourceManager))
+                           .addService(new XdsRouteService(xdsResourceManager))
+                           .addService(new XdsClusterService(xdsResourceManager))
+                           .addService(new XdsEndpointService(xdsResourceManager))
+                           .jsonMarshallerFactory(
+                                   serviceDescriptor -> GrpcJsonMarshaller
+                                           .builder()
+                                           //TODO(minwoox): Automate the registration of the extension messages.
+                                           .jsonMarshallerCustomizer(builder -> {
+                                               builder.register(HttpConnectionManager.getDefaultInstance())
+                                                      .register(Router.getDefaultInstance())
+                                                      .register(UpstreamTlsContext.getDefaultInstance())
+                                                      .register(DownstreamTlsContext.getDefaultInstance());
+                                           })
+                                           .build(serviceDescriptor))
                            .enableHttpJsonTranscoding(true).build();
         sb.service(xdsApplicationService, pluginInitContext.authService());
     }
 
     private void setXdsResources(String path, String contentAsText, String repoName)
-            throws InvalidProtocolBufferException {
+            throws IOException {
         if (path.startsWith(CLUSTERS_DIRECTORY)) {
             final Cluster.Builder builder = Cluster.newBuilder();
-            JsonFormatUtil.parser().merge(contentAsText, builder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
             centralDogmaXdsResources.setCluster(repoName, builder.build());
         } else if (path.startsWith(ENDPOINTS_DIRECTORY)) {
             final ClusterLoadAssignment.Builder builder =
                     ClusterLoadAssignment.newBuilder();
-            JsonFormatUtil.parser().merge(contentAsText, builder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
             centralDogmaXdsResources.setEndpoint(repoName, builder.build());
         } else if (path.startsWith(LISTENERS_DIRECTORY)) {
             final Listener.Builder builder = Listener.newBuilder();
-            JsonFormatUtil.parser().merge(contentAsText, builder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
             centralDogmaXdsResources.setListener(repoName, builder.build());
         } else if (path.startsWith(ROUTES_DIRECTORY)) {
             final RouteConfiguration.Builder builder = RouteConfiguration.newBuilder();
-            JsonFormatUtil.parser().merge(contentAsText, builder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
             centralDogmaXdsResources.setRoute(repoName, builder.build());
         } else {
             // ignore
@@ -213,7 +241,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                 if (cause instanceof RepositoryNotFoundException) {
                     // Repository is removed.
                     watchingXdsProjects.remove(repository.name());
-                    centralDogmaXdsResources.removeProject(repository.name());
+                    centralDogmaXdsResources.removeGroup(repository.name());
                     cache.setSnapshot(DEFAULT_GROUP, centralDogmaXdsResources.snapshot());
                     return null;
                 }
@@ -240,7 +268,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
             if (cause != null) {
                 logger.warn("Unexpected exception while diffing {} from {} to {}. Building from the first.",
                             repoName, lastKnownRevision, newRevision, cause);
-                centralDogmaXdsResources.removeProject(repoName);
+                centralDogmaXdsResources.removeGroup(repoName);
                 // Do not call cache.setSnapshot(). Let watchXdsProject() create a new snapshot.
                 watchXdsProject(repository, Revision.INIT);
                 return null;

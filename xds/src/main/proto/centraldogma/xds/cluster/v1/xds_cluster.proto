@@ -1,0 +1,90 @@
+// Copyright 2024 LINE Corporation
+//
+// LINE Corporation licenses this file to you under the Apache License,
+// version 2.0 (the "License"); you may not use this file except in compliance
+// with the License. You may obtain a copy of the License at:
+//
+//   https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+syntax = "proto3";
+
+package centraldogma.xds.cluster.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "XdsClusterProto";
+option java_package = "com.linecorp.centraldogma.xds.cluster.v1";
+
+import "envoy/config/cluster/v3/cluster.proto";
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+
+// An XdsClusterService provides methods to manage clusters.
+service XdsClusterService {
+
+  // Creates a new cluster.
+  rpc CreateCluster(CreateClusterRequest) returns (envoy.config.cluster.v3.Cluster) {
+    option (google.api.http) = {
+      post: "/api/v1/xds/{parent=groups/*}/clusters"
+      body: "cluster"
+    };
+  }
+
+  // Updates an existing cluster.
+  rpc UpdateCluster(UpdateClusterRequest) returns (envoy.config.cluster.v3.Cluster) {
+    option (google.api.http) = {
+      patch: "/api/v1/xds/{cluster.name=groups/*/clusters/**}"
+      body: "cluster"
+    };
+  }
+
+  // Deletes a cluster.
+  rpc DeleteCluster(DeleteClusterRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/api/v1/xds/{name=groups/*/clusters/**}"
+    };
+  }
+}
+
+message CreateClusterRequest {
+  // The parent resource where this cluster will be created.
+  // Format: groups/{group}
+  string parent = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The ID to use for the cluster, which will become the final component of
+  // the cluster's resource name.
+  //
+  // Valid pattern is "^[a-z]([a-z0-9-/]*[a-z0-9])?$"
+  string cluster_id = 2 [(google.api.field_behavior) = REQUIRED];
+  envoy.config.cluster.v3.Cluster cluster = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message UpdateClusterRequest {
+  // The cluster's `name` field is used to identify the cluster to update.
+  // Format: groups/{group}/clusters/{cluster}
+  envoy.config.cluster.v3.Cluster cluster = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // TODO(minwoox): Add the following fields.
+  // The list of fields to be updated.
+  // google.protobuf.FieldMask update_mask = 2;
+
+  // If set to true, and the cluster is not found, a new cluster will be created.
+  // In this situation, `update_mask` is ignored.
+  // bool allow_missing = 3;
+}
+
+message DeleteClusterRequest {
+  // Format: groups/{group}/clusters/{cluster}
+  string name = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // If set to true, and the cluster is not found, the request will succeed
+  // but no action will be taken on the server
+  // bool allow_missing = 2;
+}
