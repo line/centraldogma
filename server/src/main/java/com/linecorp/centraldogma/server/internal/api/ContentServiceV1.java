@@ -51,6 +51,7 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.annotation.ConsumesJson;
 import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
@@ -187,6 +188,7 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Pushes a commit.
      */
     @Post("/projects/{projectName}/repos/{repoName}/contents")
+    @ConsumesJson
     @RequiresWritePermission
     public CompletableFuture<PushResultDto> push(
             ServiceRequestContext ctx,
@@ -226,6 +228,7 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Previews the actual changes which will be resulted by the given changes.
      */
     @Post("/projects/{projectName}/repos/{repoName}/preview")
+    @ConsumesJson
     public CompletableFuture<Iterable<ChangeDto<?>>> preview(
             ServiceRequestContext ctx,
             @Param @Default("-1") String revision,
