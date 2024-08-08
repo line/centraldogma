@@ -54,6 +54,7 @@ import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.testing.internal.FlakyTest;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -96,7 +97,7 @@ class ReplicatedLoginAndLogoutTest {
                 .port(port1, SessionProtocol.HTTP)
                 .authProviderFactory(factory)
                 .webAppEnabled(true)
-                .mirroringEnabled(false)
+                .pluginConfigs(new MirroringServicePluginConfig(false))
                 .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
                 .replication(new ZooKeeperReplicationConfig(1, servers))
                 .build();
@@ -105,7 +106,7 @@ class ReplicatedLoginAndLogoutTest {
                 .port(port2, SessionProtocol.HTTP)
                 .authProviderFactory(factory)
                 .webAppEnabled(true)
-                .mirroringEnabled(false)
+                .pluginConfigs(new MirroringServicePluginConfig(false))
                 .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
                 .replication(new ZooKeeperReplicationConfig(2, servers))
                 .build();

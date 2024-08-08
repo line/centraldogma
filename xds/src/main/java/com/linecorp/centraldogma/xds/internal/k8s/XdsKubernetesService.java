@@ -16,28 +16,20 @@
 package com.linecorp.centraldogma.xds.internal.k8s;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
+import static io.fabric8.kubernetes.client.Config.KUBERNETES_DISABLE_AUTO_CONFIG_SYSTEM_PROPERTY;
 
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.curioswitch.common.protobuf.json.MessageMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.client.kubernetes.endpoints.KubernetesEndpointGroup;
 import com.linecorp.armeria.client.kubernetes.endpoints.KubernetesEndpointGroupBuilder;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Markup;
-import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.xds.internal.XdsResourceManager;
 import com.linecorp.centraldogma.xds.k8s.v1.CreateWatcherRequest;
 import com.linecorp.centraldogma.xds.k8s.v1.KubernetesConfig;
 import com.linecorp.centraldogma.xds.k8s.v1.UpdateWatcherRequest;
@@ -53,37 +45,24 @@ public class XdsKubernetesService extends XdsKubernetesServiceImplBase {
 
     private static final Logger logger = LoggerFactory.getLogger(XdsKubernetesService.class);
 
-    public static final MessageMarshaller JSON_MESSAGE_MARSHALLER =
-            MessageMarshaller.builder().omittingInsignificantWhitespace(true)
-                             .register(CreateWatcherRequest.getDefaultInstance())
-                             .register(UpdateWatcherRequest.getDefaultInstance())
-                             .build();
+    public static final String K8S_WATCHERS_DIRECTORY = "/k8s/watchers/";
 
-    private final CommandExecutor commandExecutor;
+    private final XdsResourceManager xdsResourceManager;
 
-    public XdsKubernetesService(CommandExecutor commandExecutor) {
-        this.commandExecutor = commandExecutor;
+    public XdsKubernetesService(XdsResourceManager xdsResourceManager) {
+        this.xdsResourceManager = xdsResourceManager;
+        System.setProperty(KUBERNETES_DISABLE_AUTO_CONFIG_SYSTEM_PROPERTY, "true");
     }
 
-    public static final String K8S_ENDPOINT_FETCH_CONFIG_DIRECTORY = "/k8s/endpoint-fetch-config/";
-
-    // increase default timeout
+    //TODO(minwoox): increase timeout
     @Override
     public void createWatcher(CreateWatcherRequest request, StreamObserver<Watcher> responseObserver) {
-        final String projectName = removePrefix("projects/", request.getProject());
-        // TODO(minwoox): require write permission for the xDS project.
-        final String xdsClusterName = request.getWatcherId();
-        if (!xdsClusterName.startsWith(projectName + '/') ||
-            xdsClusterName.length() <= projectName.length() + 1) {
-            responseObserver.onError(
-                    Status.INVALID_ARGUMENT
-                            .withCause(new IllegalArgumentException(
-                                    "xDS cluster name must start with the project name. project name: " +
-                                    projectName + ", xDS cluster name: " + xdsClusterName))
-                            .asRuntimeException());
-            return;
-        }
-        final KubernetesEndpointGroup kubernetesEndpointGroup = createKubernetesEndpointGroup(request);
+        final String parent = request.getParent();
+        final String group = removePrefix("groups/", parent);
+        xdsResourceManager.checkGroup(group);
+        final KubernetesEndpointGroup kubernetesEndpointGroup =
+                createKubernetesEndpointGroup(request.getWatcher());
+        final Author author = currentAuthor();
         final AtomicBoolean completed = new AtomicBoolean();
         kubernetesEndpointGroup.whenReady().handle((endpoints, cause) -> {
             if (!completed.compareAndSet(false, true)) {
@@ -94,13 +73,17 @@ public class XdsKubernetesService extends XdsKubernetesServiceImplBase {
                 responseObserver.onError(Status.INTERNAL.withCause(cause).asRuntimeException());
                 return null;
             }
-            logger.debug("Endpoints are ready: {}", endpoints);
-            push(projectName, xdsClusterName, request, responseObserver);
+            logger.debug("Successfully retrieved k8s endpoints: {}", endpoints);
+            kubernetesEndpointGroup.closeAsync();
+            final String watcherName = parent + K8S_WATCHERS_DIRECTORY + request.getWatcherId();
+            final Watcher watcher = request.getWatcher().toBuilder().setName(watcherName).build();
+            xdsResourceManager.push(responseObserver, group,
+                                    K8S_WATCHERS_DIRECTORY + request.getWatcherId() + ".json",
+                                    "Create watcher: " + watcherName, watcher, author);
             return null;
         });
 
         final ServiceRequestContext ctx = ServiceRequestContext.current();
-        ctx.setRequestTimeoutMillis(Long.MAX_VALUE);
         ctx.whenRequestCancelling().thenAccept(throwable -> {
             if (!completed.compareAndSet(false, true)) {
                 return;
@@ -110,13 +93,7 @@ public class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         });
     }
 
-    private static String removePrefix(String prefix, String projectName) {
-        assert projectName.startsWith(prefix);
-        return projectName.substring(prefix.length());
-    }
-
-    public static KubernetesEndpointGroup createKubernetesEndpointGroup(CreateWatcherRequest request) {
-        final Watcher watcher = request.getWatcher();
+    public static KubernetesEndpointGroup createKubernetesEndpointGroup(Watcher watcher) {
         final KubernetesConfig kubernetesConfig = watcher.getKubernetesConfig();
         final String serviceName = watcher.getServiceName();
 
@@ -142,35 +119,6 @@ public class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         }
 
         return configBuilder.build();
-    }
-
-    private void push(String projectName, String xdsClusterName, CreateWatcherRequest request,
-                      StreamObserver<Watcher> responseObserver) {
-        final Change<JsonNode> change;
-        try {
-            change = Change.ofJsonUpsert(K8S_ENDPOINT_FETCH_CONFIG_DIRECTORY + xdsClusterName + ".json",
-                                         JSON_MESSAGE_MARSHALLER.writeValueAsString(request));
-        } catch (IOException e) {
-            // Should never reach here.
-            throw new Error(e);
-        }
-        final CompletableFuture<CommitResult> future = commandExecutor.execute(
-                Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, projectName,
-                             Revision.HEAD, "Create watcher", "", Markup.PLAINTEXT, change));
-        future.handle((result, cause) -> {
-            if (cause != null) {
-                responseObserver.onError(Status.INTERNAL.withCause(cause).asRuntimeException());
-                return null;
-            }
-
-            responseObserver.onNext(Watcher.newBuilder()
-                                            .setName("projects/" + projectName +
-                                                     "/k8s/watchers/" + xdsClusterName)
-                                            .setName(xdsClusterName)
-                                           .build());
-            responseObserver.onCompleted();
-            return null;
-        });
     }
 
     @Override

@@ -33,8 +33,8 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
+import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.Delete;
-import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.HttpResult;
 import com.linecorp.armeria.server.annotation.Param;
@@ -58,7 +58,6 @@ import com.linecorp.centraldogma.server.metadata.User;
  * Annotated service object for managing {@link Token}s.
  */
 @ProducesJson
-@ExceptionHandler(HttpApiExceptionHandler.class)
 public class TokenService extends AbstractService {
 
     private static final JsonNode activation = Jackson.valueToTree(
@@ -105,7 +104,7 @@ public class TokenService extends AbstractService {
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
     public CompletableFuture<HttpResult<Token>> createToken(@Param String appId,
-                                                            @Param boolean isAdmin,
+                                                            @Param @Default("false") boolean isAdmin,
                                                             @Param @Nullable String secret,
                                                             Author author, User loginUser) {
         checkArgument(!isAdmin || loginUser.isAdmin(),

@@ -24,36 +24,58 @@ import java.time.Instant;
 
 import javax.annotation.Nullable;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.ProjectRole;
 
 @JsonInclude(Include.NON_NULL)
 public class ProjectDto {
 
     private final String name;
 
+    @Nullable
     private Author creator;
 
+    @Nullable
     private String url;
 
-    private String reposUrl;
+    @Nullable
+    private ProjectRole userRole;
 
+    @Nullable
     private String createdAt;
 
     public ProjectDto(String name) {
         this.name = requireNonNull(name, "name");
     }
 
-    public ProjectDto(String name, Author creator, long creationTimeMillis) {
+    @VisibleForTesting
+    @JsonCreator
+    public ProjectDto(@JsonProperty("name") String name,
+                      @JsonProperty("creator") @Nullable Author creator,
+                      @JsonProperty("url") @Nullable String url,
+                      @JsonProperty("userRole") @Nullable ProjectRole userRole,
+                      @JsonProperty("createdAt") @Nullable String createdAt) {
+        this.name = requireNonNull(name, "name");
+        this.creator = creator;
+        this.url = url;
+        this.userRole = userRole;
+        this.createdAt = createdAt;
+    }
+
+    public ProjectDto(String name, Author creator, ProjectRole userRole, long creationTimeMillis) {
         this.name = requireNonNull(name, "name");
         this.creator = requireNonNull(creator, "creator");
         createdAt = ISO_INSTANT.format(Instant.ofEpochMilli(creationTimeMillis));
         url = PROJECTS_PREFIX + '/' + name;
+        this.userRole = requireNonNull(userRole, "userRole");
     }
 
     @JsonProperty("name")
@@ -74,9 +96,9 @@ public class ProjectDto {
     }
 
     @Nullable
-    @JsonProperty("reposUrl")
-    public String reposUrl() {
-        return reposUrl;
+    @JsonProperty("userRole")
+    public ProjectRole userRole() {
+        return userRole;
     }
 
     @Nullable

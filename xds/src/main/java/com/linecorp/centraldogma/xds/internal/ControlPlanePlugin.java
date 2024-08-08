@@ -19,13 +19,14 @@ package com.linecorp.centraldogma.xds.internal;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.base.MoreObjects;
+
 import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
-import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 public final class ControlPlanePlugin extends AllReplicasPlugin {
 
@@ -34,19 +35,19 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     @Nullable
     private volatile ControlPlaneService controlPlaneService;
 
+    public static final long BACKOFF_SECONDS = 30;
+
     @Override
     public void init(PluginInitContext pluginInitContext) {
         final InternalProjectInitializer projectInitializer = pluginInitContext.internalProjectInitializer();
         pluginInitContext.commandExecutor();
         projectInitializer.initialize(XDS_CENTRAL_DOGMA_PROJECT);
-        final RepositoryManager repositoryManager =
-                pluginInitContext.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos();
-        final ControlPlaneService controlPlaneService =
-                new ControlPlaneService(repositoryManager, pluginInitContext.meterRegistry());
+        final ControlPlaneService controlPlaneService = new ControlPlaneService(
+                pluginInitContext.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT),
+                pluginInitContext.meterRegistry());
         this.controlPlaneService = controlPlaneService;
         try {
-            controlPlaneService.start(pluginInitContext.serverBuilder(), pluginInitContext.commandExecutor())
-                               .get(60, TimeUnit.SECONDS);
+            controlPlaneService.start(pluginInitContext).get(60, TimeUnit.SECONDS);
         } catch (Throwable t) {
             throw new RuntimeException("Failed to start control plane plugin in 60 seconds.", t);
         }
@@ -63,5 +64,18 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         assert controlPlaneService != null;
         controlPlaneService.stop();
         return UnmodifiableFuture.completedFuture(null);
+    }
+
+    @Override
+    public Class<?> configType() {
+        return ControlPlanePluginConfig.class;
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                          .add("configType", configType())
+                          .add("target", target())
+                          .toString();
     }
 }

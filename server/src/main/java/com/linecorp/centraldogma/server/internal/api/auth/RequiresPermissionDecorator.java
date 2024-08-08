@@ -42,7 +42,6 @@ import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.GitHttpService;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.metadata.Permission;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -52,16 +51,19 @@ import com.linecorp.centraldogma.server.storage.project.Project;
  */
 public final class RequiresPermissionDecorator extends SimpleDecoratingHttpService {
 
+    private final MetadataService mds;
+
     private final Permission requiredPermission;
     @Nullable
     private final String projectName;
     @Nullable
     private final String repoName;
 
-    RequiresPermissionDecorator(HttpService delegate, Permission requiredPermission,
+    RequiresPermissionDecorator(HttpService delegate, MetadataService mds, Permission requiredPermission,
                                 @Nullable String projectName,
                                 @Nullable String repoName) {
         super(delegate);
+        this.mds = requireNonNull(mds, "mds");
         this.requiredPermission = requireNonNull(requiredPermission, "requiredPermission");
         this.projectName = projectName;
         this.repoName = repoName;
@@ -69,7 +71,6 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
 
     @Override
     public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
-        final MetadataService mds = MetadataServiceInjector.getMetadataService(ctx);
         final User user = AuthUtil.currentUser(ctx);
 
         String projectName = this.projectName;
@@ -89,7 +90,7 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
             }
             return unwrap().serve(ctx, req);
         }
-        return serveUserRepo(ctx, req, mds, user, projectName, maybeRemoveGitSuffix(repoName));
+        return serveUserRepo(ctx, req, user, projectName, maybeRemoveGitSuffix(repoName));
     }
 
     private static HttpResponse throwForbiddenResponse(ServiceRequestContext ctx, String projectName,
@@ -111,8 +112,7 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
     }
 
     private HttpResponse serveUserRepo(ServiceRequestContext ctx, HttpRequest req,
-                                       MetadataService mds, User user,
-                                       String projectName, String repoName) throws Exception {
+                                       User user, String projectName, String repoName) throws Exception {
         final CompletionStage<Collection<Permission>> f;
         try {
             f = mds.findPermissions(projectName, repoName, user);
@@ -144,10 +144,17 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
      */
     public static final class RequiresReadPermissionDecoratorFactory
             implements DecoratorFactoryFunction<RequiresReadPermission> {
+
+        private final MetadataService mds;
+
+        public RequiresReadPermissionDecoratorFactory(MetadataService mds) {
+            this.mds = requireNonNull(mds, "mds");
+        }
+
         @Override
         public Function<? super HttpService, ? extends HttpService>
         newDecorator(RequiresReadPermission parameter) {
-            return delegate -> new RequiresPermissionDecorator(delegate, Permission.READ,
+            return delegate -> new RequiresPermissionDecorator(delegate, mds, Permission.READ,
                                                                Strings.emptyToNull(parameter.project()),
                                                                Strings.emptyToNull(parameter.repository()));
         }
@@ -159,10 +166,17 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
      */
     public static final class RequiresWritePermissionDecoratorFactory
             implements DecoratorFactoryFunction<RequiresWritePermission> {
+
+        private final MetadataService mds;
+
+        public RequiresWritePermissionDecoratorFactory(MetadataService mds) {
+            this.mds = requireNonNull(mds, "mds");
+        }
+
         @Override
         public Function<? super HttpService, ? extends HttpService>
         newDecorator(RequiresWritePermission parameter) {
-            return delegate -> new RequiresPermissionDecorator(delegate, Permission.WRITE,
+            return delegate -> new RequiresPermissionDecorator(delegate, mds, Permission.WRITE,
                                                                Strings.emptyToNull(parameter.project()),
                                                                Strings.emptyToNull(parameter.repository()));
         }

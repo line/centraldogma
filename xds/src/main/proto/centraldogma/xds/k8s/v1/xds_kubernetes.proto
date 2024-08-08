@@ -15,7 +15,7 @@ service XdsKubernetesService {
 
   rpc CreateWatcher(CreateWatcherRequest) returns (Watcher) {
     option (google.api.http) = {
-      post: "/api/v1/xds/{project=projects/*}/k8s/watchers"
+      post: "/api/v1/xds/{parent=groups/*}/k8s/watchers"
       body: "watcher"
     };
     option (google.api.method_signature) = "project,watcher";
@@ -23,20 +23,23 @@ service XdsKubernetesService {
 
   rpc UpdateWatcher(UpdateWatcherRequest) returns (Watcher) {
     option (google.api.http) = {
-      patch: "/api/v1/xds/{watcher.name=projects/*/k8s/watchers/**}"
+      patch: "/api/v1/xds/{watcher.name=groups/*/k8s/watchers/**}"
       body: "watcher"
     };
   }
 
   rpc DeleteWatcher(DeleteWatcherRequest) returns (google.protobuf.Empty) {
     option (google.api.http) = {
-      delete: "/api/v1/xds/{name=projects/*/k8s/watchers/**}"
+      delete: "/api/v1/xds/{name=groups/*/k8s/watchers/**}"
     };
   }
 }
 
 message CreateWatcherRequest {
-  string project = 1 [(google.api.field_behavior) = REQUIRED];
+  // The parent resource where this watcher will be created.
+  // Format: groups/{group}
+  string parent = 1 [(google.api.field_behavior) = REQUIRED];
+  // Valid pattern is "^[a-z]([a-z0-9-/]*[a-z0-9])?$"
   string watcher_id = 2 [(google.api.field_behavior) = REQUIRED];
   Watcher watcher = 3 [(google.api.field_behavior) = REQUIRED];
 }
@@ -63,12 +66,9 @@ message KubernetesConfig {
 
 message Watcher {
   // The resource name of the book.
-  // Format: projects/{project_name}/k8s/watchers/{watcher_id}
+  // Format: groups/{group}/k8s/watchers/{watcher}_id
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
   string service_name = 2 [(google.api.field_behavior) = REQUIRED];
   string port_name = 3 [(google.api.field_behavior) = OPTIONAL];
   KubernetesConfig kubernetes_config = 4 [(google.api.field_behavior) = REQUIRED];
-
-  // TODO(minwoox): Implement this field
-  // string etag = 5;
 }

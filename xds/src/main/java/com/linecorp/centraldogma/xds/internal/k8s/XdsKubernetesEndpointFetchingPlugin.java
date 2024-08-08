@@ -26,7 +26,6 @@ import javax.annotation.Nullable;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
-import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
 
@@ -45,10 +44,8 @@ public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
         XdsKubernetesEndpointFetchingService fetchingService = this.fetchingService;
         if (fetchingService == null) {
             context.internalProjectInitializer().initialize(XDS_CENTRAL_DOGMA_PROJECT);
-            final RepositoryManager repositoryManager =
-                    context.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos();
             fetchingService = new XdsKubernetesEndpointFetchingService(
-                    repositoryManager, context.meterRegistry());
+                    context.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT), context.meterRegistry());
             this.fetchingService = fetchingService;
         }
         fetchingService.start(context.commandExecutor());
@@ -62,5 +59,10 @@ public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
             fetchingService.stop();
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public Class<?> configType() {
+        return getClass();
     }
 }

@@ -31,6 +31,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 
 import com.linecorp.armeria.common.annotation.Nullable;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**

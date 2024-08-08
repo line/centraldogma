@@ -54,66 +54,72 @@ final class CentralDogmaXdsResources {
                                                    (SnapshotResources<Secret>) emptyResources);
     }
 
-    void setCluster(String projectName, Cluster cluster) {
-        final Map<String, VersionedResource<Cluster>> projectClusters =
-                clusterResources.computeIfAbsent(projectName, k -> new HashMap<>());
-        projectClusters.put(cluster.getName(), VersionedResource.create(cluster));
+    void setCluster(String groupName, Cluster cluster) {
+        final Map<String, VersionedResource<Cluster>> groupClusters =
+                clusterResources.computeIfAbsent(groupName, k -> new HashMap<>());
+        groupClusters.put(cluster.getName(), VersionedResource.create(cluster));
         clusterUpdated = true;
     }
 
-    void setEndpoint(String projectName, ClusterLoadAssignment endpoint) {
-        final Map<String, VersionedResource<ClusterLoadAssignment>> projectEndpoints =
-                endpointResources.computeIfAbsent(projectName, k -> new HashMap<>());
-        projectEndpoints.put(endpoint.getClusterName(), VersionedResource.create(endpoint));
+    void setEndpoint(String groupName, ClusterLoadAssignment endpoint) {
+        final Map<String, VersionedResource<ClusterLoadAssignment>> groupEndpoints =
+                endpointResources.computeIfAbsent(groupName, k -> new HashMap<>());
+        groupEndpoints.put(endpoint.getClusterName(), VersionedResource.create(endpoint));
         endpointUpdated = true;
     }
 
-    void setListener(String projectName, Listener listener) {
-        final Map<String, VersionedResource<Listener>> projectListeners =
-                listenerResources.computeIfAbsent(projectName, k -> new HashMap<>());
-        projectListeners.put(listener.getName(), VersionedResource.create(listener));
+    void setListener(String groupName, Listener listener) {
+        final Map<String, VersionedResource<Listener>> groupListeners =
+                listenerResources.computeIfAbsent(groupName, k -> new HashMap<>());
+        groupListeners.put(listener.getName(), VersionedResource.create(listener));
         listenerUpdated = true;
     }
 
-    void setRoute(String projectName, RouteConfiguration route) {
-        final Map<String, VersionedResource<RouteConfiguration>> projectRoutes =
-                routeResources.computeIfAbsent(projectName, k -> new HashMap<>());
-        projectRoutes.put(route.getName(), VersionedResource.create(route));
+    void setRoute(String groupName, RouteConfiguration route) {
+        final Map<String, VersionedResource<RouteConfiguration>> groupRoutes =
+                routeResources.computeIfAbsent(groupName, k -> new HashMap<>());
+        groupRoutes.put(route.getName(), VersionedResource.create(route));
         routeUpdated = true;
     }
 
-    void removeCluster(String projectName, String path) {
-        final Map<String, VersionedResource<Cluster>> projectClusters = clusterResources.get(projectName);
-        if (projectClusters == null) {
+    void removeCluster(String groupName, String path) {
+        final Map<String, VersionedResource<Cluster>> groupClusters = clusterResources.get(groupName);
+        if (groupClusters == null) {
             return;
         }
-        clusterUpdated |= projectClusters.remove(path) != null;
+        clusterUpdated |= groupClusters.remove(getResourceName(groupName, path)) != null;
     }
 
-    void removeEndpoint(String projectName, String path) {
-        final Map<String, VersionedResource<ClusterLoadAssignment>> projectEndpoints =
-                endpointResources.get(projectName);
-        if (projectEndpoints == null) {
-            return;
-        }
-        endpointUpdated |= projectEndpoints.remove(path) != null;
+    private static String getResourceName(String groupName, String path) {
+        return "groups/" + groupName + path.substring(0, path.length() - 5); // Remove .json
     }
 
-    void removeListener(String projectName, String path) {
-        final Map<String, VersionedResource<Listener>> projectListeners = listenerResources.get(projectName);
-        if (projectListeners == null) {
+    void removeEndpoint(String groupName, String path) {
+        final Map<String, VersionedResource<ClusterLoadAssignment>> groupEndpoints =
+                endpointResources.get(groupName);
+        if (groupEndpoints == null) {
             return;
         }
-        listenerUpdated |= projectListeners.remove(path) != null;
+        final String clusterName = "groups/" + groupName + "/clusters/" +
+                                    path.substring("/endpoints/".length(), path.length() - 5); // Remove .json
+        endpointUpdated |= groupEndpoints.remove(clusterName) != null;
     }
 
-    void removeRoute(String projectName, String path) {
-        final Map<String, VersionedResource<RouteConfiguration>> projectRoutes =
-                routeResources.get(projectName);
-        if (projectRoutes == null) {
+    void removeListener(String groupName, String path) {
+        final Map<String, VersionedResource<Listener>> groupListeners = listenerResources.get(groupName);
+        if (groupListeners == null) {
             return;
         }
-        routeUpdated |= projectRoutes.remove(path) != null;
+        listenerUpdated |= groupListeners.remove(getResourceName(groupName, path)) != null;
+    }
+
+    void removeRoute(String groupName, String path) {
+        final Map<String, VersionedResource<RouteConfiguration>> groupRoutes =
+                routeResources.get(groupName);
+        if (groupRoutes == null) {
+            return;
+        }
+        routeUpdated |= groupRoutes.remove(getResourceName(groupName, path)) != null;
     }
 
     CentralDogmaSnapshot snapshot() {
@@ -153,10 +159,10 @@ final class CentralDogmaXdsResources {
                 new CentralDogmaSnapshot(clusters, endpoints, listeners, routes, currentSnapshot.secrets());
     }
 
-    void removeProject(String projectName) {
-        clusterUpdated |= clusterResources.remove(projectName) != null;
-        endpointUpdated |= endpointResources.remove(projectName) != null;
-        listenerUpdated |= listenerResources.remove(projectName) != null;
-        routeUpdated |= routeResources.remove(projectName) != null;
+    void removeGroup(String groupName) {
+        clusterUpdated |= clusterResources.remove(groupName) != null;
+        endpointUpdated |= endpointResources.remove(groupName) != null;
+        listenerUpdated |= listenerResources.remove(groupName) != null;
+        routeUpdated |= routeResources.remove(groupName) != null;
     }
 }

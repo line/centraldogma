@@ -36,8 +36,8 @@ includeWithFlags ':it:it-server',     'java', 'relocate'
 project(':it:it-server').projectDir = file('it/server')
 includeWithFlags ':testing-internal', 'java', 'relocate'
 
-// Unpublished non-Java projects
-includeWithFlags ':server-auth:webapp'
+// Unpublished projects
+includeWithFlags ':webapp', 'java11'
 
 // Site generation project
 includeWithFlags ':site'

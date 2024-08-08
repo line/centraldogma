@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import java.net.URI;
@@ -23,7 +24,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.armeria.server.annotation.ConsumesJson;
-import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
@@ -45,7 +45,6 @@ import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
  * Annotated service object for managing mirroring service.
  */
 @ProducesJson
-@ExceptionHandler(HttpApiExceptionHandler.class)
 public class MirroringServiceV1 extends AbstractService {
 
     // TODO(ikhoon):
@@ -108,10 +107,11 @@ public class MirroringServiceV1 extends AbstractService {
      * <p>Update the exising mirror.
      */
     @RequiresWritePermission(repository = Project.REPO_META)
-    @Put("/projects/{projectName}/mirrors")
+    @Put("/projects/{projectName}/mirrors/{id}")
     @ConsumesJson
     public CompletableFuture<PushResultDto> updateMirror(@Param String projectName, MirrorDto mirror,
-                                                         Author author) {
+                                                         @Param String id, Author author) {
+        checkArgument(id.equals(mirror.id()), "The mirror ID (%s) can't be updated", id);
         return createOrUpdate(projectName, mirror, author, true);
     }
 

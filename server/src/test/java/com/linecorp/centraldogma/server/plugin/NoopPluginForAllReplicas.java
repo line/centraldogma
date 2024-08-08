@@ -20,4 +20,10 @@ public class NoopPluginForAllReplicas extends AbstractNoopPlugin {
     public PluginTarget target() {
         return PluginTarget.ALL_REPLICAS;
     }
+
+    @Override
+    public Class<?> configType() {
+        // Return the plugin class itself because it does not have a configuration.
+        return getClass();
+    }
 }

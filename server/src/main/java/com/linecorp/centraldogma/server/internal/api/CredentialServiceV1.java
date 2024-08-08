@@ -16,11 +16,13 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.armeria.server.annotation.ConsumesJson;
-import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
@@ -33,6 +35,7 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
@@ -41,7 +44,6 @@ import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
  * Annotated service object for managing credential service.
  */
 @ProducesJson
-@ExceptionHandler(HttpApiExceptionHandler.class)
 public class CredentialServiceV1 extends AbstractService {
 
     private final ProjectApiManager projectApiManager;
@@ -58,8 +60,18 @@ public class CredentialServiceV1 extends AbstractService {
      */
     @RequiresReadPermission(repository = Project.REPO_META)
     @Get("/projects/{projectName}/credentials")
-    public CompletableFuture<List<MirrorCredential>> listCredentials(@Param String projectName) {
-        return metaRepo(projectName).credentials();
+    public CompletableFuture<List<MirrorCredential>> listCredentials(User loginUser,
+                                                                     @Param String projectName) {
+        final CompletableFuture<List<MirrorCredential>> future = metaRepo(projectName).credentials();
+        if (loginUser.isAdmin()) {
+            return future;
+        }
+        return future.thenApply(credentials -> {
+            return credentials
+                    .stream()
+                    .map(MirrorCredential::withoutSecret)
+                    .collect(toImmutableList());
+        });
     }
 
     /**
@@ -69,8 +81,13 @@ public class CredentialServiceV1 extends AbstractService {
      */
     @RequiresReadPermission(repository = Project.REPO_META)
     @Get("/projects/{projectName}/credentials/{id}")
-    public CompletableFuture<MirrorCredential> getCredentialById(@Param String projectName, @Param String id) {
-        return metaRepo(projectName).credential(id);
+    public CompletableFuture<MirrorCredential> getCredentialById(User loginUser,
+                                                                 @Param String projectName, @Param String id) {
+        final CompletableFuture<MirrorCredential> future = metaRepo(projectName).credential(id);
+        if (loginUser.isAdmin()) {
+            return future;
+        }
+        return future.thenApply(MirrorCredential::withoutSecret);
     }
 
     /**
@@ -88,15 +105,17 @@ public class CredentialServiceV1 extends AbstractService {
     }
 
     /**
-     * PUT /projects/{projectName}/credentials
+     * PUT /projects/{projectName}/credentials/{id}
      *
      * <p>Update the existing credential.
      */
     @RequiresWritePermission(repository = Project.REPO_META)
-    @Put("/projects/{projectName}/credentials")
+    @Put("/projects/{projectName}/credentials/{id}")
     @ConsumesJson
     public CompletableFuture<PushResultDto> updateCredential(@Param String projectName,
+                                                             @Param String id,
                                                              MirrorCredential credential, Author author) {
+        checkArgument(id.equals(credential.id()), "The credential ID (%s) can't be updated", id);
         return createOrUpdate(projectName, credential, author, true);
     }
 

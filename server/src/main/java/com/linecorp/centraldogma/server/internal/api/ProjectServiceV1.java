@@ -34,7 +34,6 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.Delete;
-import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
@@ -43,26 +42,31 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.api.v1.CreateProjectRequest;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
+import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.ProjectRole;
+import com.linecorp.centraldogma.server.metadata.TokenRegistration;
+import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.metadata.UserWithToken;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
 /**
  * Annotated service object for managing projects.
  */
 @ProducesJson
-@ExceptionHandler(HttpApiExceptionHandler.class)
-public class ProjectServiceV1 {
+public class ProjectServiceV1 extends AbstractService {
 
     private final ProjectApiManager projectApiManager;
 
-    public ProjectServiceV1(ProjectApiManager projectApiManager) {
+    public ProjectServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor) {
+        super(executor);
         this.projectApiManager = requireNonNull(projectApiManager, "projectApiManager");
     }
 
@@ -72,7 +76,7 @@ public class ProjectServiceV1 {
      * <p>Returns the list of projects or removed projects.
      */
     @Get("/projects")
-    public CompletableFuture<List<ProjectDto>> listProjects(@Param @Nullable String status) {
+    public CompletableFuture<List<ProjectDto>> listProjects(@Param @Nullable String status, User user) {
         final ContextAwareBlockingTaskExecutor executor =
                 ServiceRequestContext.current().blockingTaskExecutor();
         if (status != null) {
@@ -83,9 +87,47 @@ public class ProjectServiceV1 {
                                                                         .collect(toImmutableList()), executor);
         }
 
-        return CompletableFuture.supplyAsync(() -> projectApiManager.listProjects().values().stream()
-                                                                    .map(DtoConverter::convert)
-                                                                    .collect(toImmutableList()), executor);
+        return CompletableFuture.supplyAsync(() -> {
+            return projectApiManager.listProjects().values().stream()
+                                    .map(project -> DtoConverter.convert(project, getUserRole(project, user)))
+                                    .collect(toImmutableList());
+        }, executor);
+    }
+
+    private static ProjectRole getUserRole(Project project, User user) {
+        if (user.isAdmin()) {
+            return ProjectRole.OWNER;
+        }
+
+        final ProjectMetadata metadata = project.metadata();
+        if (metadata == null) {
+            // Metadata is null for the internal project which belongs to administrators.
+            return ProjectRole.GUEST;
+        }
+
+        ProjectRole role = null;
+        if (user instanceof UserWithToken) {
+            final String appId = ((UserWithToken) user).token().appId();
+            final TokenRegistration tokenRegistration = metadata.tokens().get(appId);
+            if (tokenRegistration != null) {
+                role = tokenRegistration.role();
+            }
+        } else {
+            final Member member = metadata.memberOrDefault(user.id(), null);
+            if (member != null) {
+                role = member.role();
+            }
+        }
+
+        if (role == null) {
+            if (user.isAnonymous()) {
+                role = ProjectRole.ANONYMOUS;
+            } else {
+                role = ProjectRole.GUEST;
+            }
+        }
+
+        return role;
     }
 
     /**
@@ -97,9 +139,10 @@ public class ProjectServiceV1 {
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
     public CompletableFuture<ProjectDto> createProject(CreateProjectRequest request, Author author) {
-        return projectApiManager.createProject(request.name(), author)
-                                .handle(returnOrThrow(() -> DtoConverter.convert(
-                                        projectApiManager.getProject(request.name()))));
+        return projectApiManager.createProject(request.name(), author).handle(returnOrThrow(() -> {
+            final Project project = projectApiManager.getProject(request.name());
+            return DtoConverter.convert(project, ProjectRole.OWNER);
+        }));
     }
 
     /**
@@ -154,6 +197,6 @@ public class ProjectServiceV1 {
         checkUnremoveArgument(node);
         return projectApiManager.unremoveProject(projectName, author)
                                 .handle(returnOrThrow(() -> DtoConverter.convert(
-                                        projectApiManager.getProject(projectName))));
+                                        projectApiManager.getProject(projectName), ProjectRole.OWNER)));
     }
 }

@@ -35,12 +35,11 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.SimpleDecoratingHttpService;
 import com.linecorp.armeria.server.annotation.DecoratorFactoryFunction;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
-import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.metadata.User;
 
 /**
@@ -48,11 +47,13 @@ import com.linecorp.centraldogma.server.metadata.User;
  */
 public final class RequiresRoleDecorator extends SimpleDecoratingHttpService {
 
+    private final MetadataService mds;
     private final Set<ProjectRole> accessibleRoles;
     private final String roleNames;
 
-    RequiresRoleDecorator(HttpService delegate, Set<ProjectRole> accessibleRoles) {
+    RequiresRoleDecorator(HttpService delegate, MetadataService mds, Set<ProjectRole> accessibleRoles) {
         super(delegate);
+        this.mds = requireNonNull(mds, "mds");
         this.accessibleRoles = ImmutableSet.copyOf(requireNonNull(accessibleRoles, "accessibleRoles"));
         roleNames = String.join(",",
                                 accessibleRoles.stream().map(ProjectRole::name).collect(toImmutableList()));
@@ -60,7 +61,6 @@ public final class RequiresRoleDecorator extends SimpleDecoratingHttpService {
 
     @Override
     public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
-        final MetadataService mds = MetadataServiceInjector.getMetadataService(ctx);
         final User user = AuthUtil.currentUser(ctx);
 
         final String projectName = ctx.pathParam("projectName");
@@ -101,9 +101,15 @@ public final class RequiresRoleDecorator extends SimpleDecoratingHttpService {
     public static final class RequiresRoleDecoratorFactory
             implements DecoratorFactoryFunction<RequiresRole> {
 
+        private final MetadataService mds;
+
+        public RequiresRoleDecoratorFactory(MetadataService mds) {
+            this.mds = mds;
+        }
+
         @Override
         public Function<? super HttpService, ? extends HttpService> newDecorator(RequiresRole parameter) {
-            return delegate -> new RequiresRoleDecorator(delegate, ImmutableSet.copyOf(parameter.roles()));
+            return delegate -> new RequiresRoleDecorator(delegate, mds, ImmutableSet.copyOf(parameter.roles()));
         }
     }
 }

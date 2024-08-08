@@ -16,7 +16,9 @@
 package com.linecorp.centraldogma.xds.internal;
 
 import static com.linecorp.centraldogma.server.internal.ExecutorServiceUtil.terminate;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 
+import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -24,13 +26,17 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-
-import com.linecorp.armeria.server.ServerBuilder;
+import com.linecorp.armeria.common.grpc.GrpcJsonMarshaller;
 import com.linecorp.armeria.server.grpc.GrpcService;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
+import com.linecorp.centraldogma.server.plugin.PluginInitContext;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.xds.cluster.v1.XdsClusterService;
+import com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointService;
+import com.linecorp.centraldogma.xds.group.v1.XdsGroupService;
 import com.linecorp.centraldogma.xds.internal.k8s.XdsKubernetesService;
+import com.linecorp.centraldogma.xds.listener.v1.XdsListenerService;
+import com.linecorp.centraldogma.xds.route.v1.XdsRouteService;
 
 import io.envoyproxy.controlplane.cache.v3.SimpleCache;
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks;
@@ -40,6 +46,10 @@ import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
+import io.envoyproxy.envoy.extensions.filters.http.router.v3.Router;
+import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager;
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext;
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext;
 import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
@@ -53,10 +63,10 @@ public final class ControlPlaneService extends XdsProjectWatchingService {
 
     public static final String K8S_ENDPOINTS_DIRECTORY = "/k8s/endpoints/";
 
-    static final String CLUSTERS_DIRECTORY = "/clusters/";
-    static final String ENDPOINTS_DIRECTORY = "/endpoints/";
-    static final String LISTENERS_DIRECTORY = "/listeners/";
-    static final String ROUTES_DIRECTORY = "/routes/";
+    public static final String CLUSTERS_DIRECTORY = "/clusters/";
+    public static final String ENDPOINTS_DIRECTORY = "/endpoints/";
+    public static final String LISTENERS_DIRECTORY = "/listeners/";
+    public static final String ROUTES_DIRECTORY = "/routes/";
 
     private static final String PATH_PATTERN =
             "/clusters/**,/endpoints/**,/k8s/endpoints/**,/listeners/**,/routes/**";
@@ -72,8 +82,8 @@ public final class ControlPlaneService extends XdsProjectWatchingService {
     private final CentralDogmaXdsResources centralDogmaXdsResources = new CentralDogmaXdsResources();
     private volatile boolean stop;
 
-    ControlPlaneService(RepositoryManager repositoryManager, MeterRegistry meterRegistry) {
-        super(repositoryManager);
+    ControlPlaneService(Project xdsProject, MeterRegistry meterRegistry) {
+        super(xdsProject);
         controlPlaneExecutor = ExecutorServiceMetrics.monitor(
                 meterRegistry,
                 Executors.newSingleThreadScheduledExecutor(
@@ -81,9 +91,10 @@ public final class ControlPlaneService extends XdsProjectWatchingService {
                 "controlPlaneExecutor");
     }
 
-    Future<Void> start(ServerBuilder serverBuilder, CommandExecutor commandExecutor) {
+    Future<Void> start(PluginInitContext pluginInitContext) {
         return controlPlaneExecutor.submit(() -> {
             start();
+            final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
             final V3DiscoveryServer server = new V3DiscoveryServer(new LoggingDiscoveryServerCallbacks(),
                                                                    cache);
             final GrpcService grpcService = GrpcService.builder()
@@ -92,11 +103,31 @@ public final class ControlPlaneService extends XdsProjectWatchingService {
                                                        .addService(server.getListenerDiscoveryServiceImpl())
                                                        .addService(server.getRouteDiscoveryServiceImpl())
                                                        .addService(server.getAggregatedDiscoveryServiceImpl())
-                                                       .addService(new XdsKubernetesService(commandExecutor))
-                                                       .enableHttpJsonTranscoding(true)
-                                                       .useBlockingTaskExecutor(true)
                                                        .build();
-            serverBuilder.route().build(grpcService);
+            pluginInitContext.serverBuilder().route().build(grpcService);
+            final XdsResourceManager xdsResourceManager = new XdsResourceManager(xdsProject(), commandExecutor);
+            final GrpcService xdsApplicationService =
+                    GrpcService.builder()
+                               .addService(new XdsGroupService(pluginInitContext.projectManager(),
+                                                               commandExecutor))
+                               .addService(new XdsListenerService(xdsResourceManager))
+                               .addService(new XdsRouteService(xdsResourceManager))
+                               .addService(new XdsClusterService(xdsResourceManager))
+                               .addService(new XdsEndpointService(xdsResourceManager))
+                               .addService(new XdsKubernetesService(xdsResourceManager))
+                               .jsonMarshallerFactory(
+                                       serviceDescriptor -> GrpcJsonMarshaller
+                                               .builder()
+                                               //TODO(minwoox): Automate the registration of the extensions.
+                                               .jsonMarshallerCustomizer(builder -> {
+                                                   builder.register(HttpConnectionManager.getDefaultInstance())
+                                                          .register(Router.getDefaultInstance())
+                                                          .register(UpstreamTlsContext.getDefaultInstance())
+                                                          .register(DownstreamTlsContext.getDefaultInstance());
+                                               })
+                                               .build(serviceDescriptor))
+                               .enableHttpJsonTranscoding(true).build();
+            pluginInitContext.serverBuilder().service(xdsApplicationService, pluginInitContext.authService());
             return null;
         });
     }
@@ -112,46 +143,46 @@ public final class ControlPlaneService extends XdsProjectWatchingService {
     }
 
     @Override
-    protected void handleXdsResources(String path, String contentAsText, String repoName)
-            throws InvalidProtocolBufferException {
+    protected void handleXdsResources(String path, String contentAsText, String groupName)
+            throws IOException {
         if (path.startsWith(CLUSTERS_DIRECTORY)) {
             final Cluster.Builder builder = Cluster.newBuilder();
-            JsonFormatUtil.parser().merge(contentAsText, builder);
-            centralDogmaXdsResources.setCluster(repoName, builder.build());
+            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
+            centralDogmaXdsResources.setCluster(groupName, builder.build());
         } else if (path.startsWith(ENDPOINTS_DIRECTORY) || path.startsWith(K8S_ENDPOINTS_DIRECTORY)) {
             final ClusterLoadAssignment.Builder builder = ClusterLoadAssignment.newBuilder();
-            JsonFormatUtil.parser().merge(contentAsText, builder);
-            centralDogmaXdsResources.setEndpoint(repoName, builder.build());
+            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
+            centralDogmaXdsResources.setEndpoint(groupName, builder.build());
         } else if (path.startsWith(LISTENERS_DIRECTORY)) {
             final Listener.Builder builder = Listener.newBuilder();
-            JsonFormatUtil.parser().merge(contentAsText, builder);
-            centralDogmaXdsResources.setListener(repoName, builder.build());
+            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
+            centralDogmaXdsResources.setListener(groupName, builder.build());
         } else if (path.startsWith(ROUTES_DIRECTORY)) {
             final RouteConfiguration.Builder builder = RouteConfiguration.newBuilder();
-            JsonFormatUtil.parser().merge(contentAsText, builder);
-            centralDogmaXdsResources.setRoute(repoName, builder.build());
+            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, builder);
+            centralDogmaXdsResources.setRoute(groupName, builder.build());
         } else {
             // ignore
         }
     }
 
     @Override
-    protected void onRepositoryRemoved(String repoName) {
-        centralDogmaXdsResources.removeProject(repoName);
+    protected void onGroupRemoved(String groupName) {
+        centralDogmaXdsResources.removeGroup(groupName);
         cache.setSnapshot(DEFAULT_GROUP, centralDogmaXdsResources.snapshot());
     }
 
     @Override
-    protected void onFileRemoved(String repoName, String path) {
+    protected void onFileRemoved(String groupName, String path) {
         if (path.startsWith(CLUSTERS_DIRECTORY)) {
-            centralDogmaXdsResources.removeCluster(repoName, path);
+            centralDogmaXdsResources.removeCluster(groupName, path);
         } else if (path.startsWith(ENDPOINTS_DIRECTORY) ||
                    path.startsWith(K8S_ENDPOINTS_DIRECTORY)) {
-            centralDogmaXdsResources.removeEndpoint(repoName, path);
+            centralDogmaXdsResources.removeEndpoint(groupName, path);
         } else if (path.startsWith(LISTENERS_DIRECTORY)) {
-            centralDogmaXdsResources.removeListener(repoName, path);
+            centralDogmaXdsResources.removeListener(groupName, path);
         } else if (path.startsWith(ROUTES_DIRECTORY)) {
-            centralDogmaXdsResources.removeRoute(repoName, path);
+            centralDogmaXdsResources.removeRoute(groupName, path);
         }
     }
 

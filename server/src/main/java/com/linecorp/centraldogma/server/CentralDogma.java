@@ -23,7 +23,6 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.HEALTH_CHECK_PATH;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.METRICS_PATH;
-import static com.linecorp.centraldogma.server.auth.AuthProvider.BUILTIN_WEB_BASE_PATH;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_API_ROUTES;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_PATH;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_API_ROUTES;
@@ -67,6 +66,7 @@ import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.DependencyInjector;
 import com.linecorp.armeria.common.Flags;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
@@ -83,7 +83,10 @@ import com.linecorp.armeria.common.util.EventLoopGroups;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.StartStopSupport;
 import com.linecorp.armeria.common.util.SystemInfo;
+import com.linecorp.armeria.internal.common.ReflectiveDependencyInjector;
 import com.linecorp.armeria.server.AbstractHttpService;
+import com.linecorp.armeria.server.ContextPathServicesBuilder;
+import com.linecorp.armeria.server.DecoratingServiceBindingBuilder;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.Route;
 import com.linecorp.armeria.server.Server;
@@ -122,16 +125,15 @@ import com.linecorp.centraldogma.server.internal.admin.auth.CachedSessionManager
 import com.linecorp.centraldogma.server.internal.admin.auth.CsrfTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.auth.ExpiredSessionDeletingSessionManager;
 import com.linecorp.centraldogma.server.internal.admin.auth.FileBasedSessionManager;
-import com.linecorp.centraldogma.server.internal.admin.auth.OrElseDefaultHttpFileService;
 import com.linecorp.centraldogma.server.internal.admin.auth.SessionTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.service.DefaultLogoutService;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
 import com.linecorp.centraldogma.server.internal.admin.service.UserService;
-import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
 import com.linecorp.centraldogma.server.internal.api.AdministrativeService;
 import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
 import com.linecorp.centraldogma.server.internal.api.CredentialServiceV1;
 import com.linecorp.centraldogma.server.internal.api.GitHttpService;
+import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService;
 import com.linecorp.centraldogma.server.internal.api.MirroringServiceV1;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
@@ -139,8 +141,10 @@ import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
 import com.linecorp.centraldogma.server.internal.api.TokenService;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthorizer;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresPermissionDecorator.RequiresReadPermissionDecoratorFactory;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresPermissionDecorator.RequiresWritePermissionDecoratorFactory;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRoleDecorator.RequiresRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
-import com.linecorp.centraldogma.server.internal.api.converter.HttpApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
@@ -153,7 +157,6 @@ import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.mirror.MirrorProvider;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.Plugin;
@@ -212,8 +215,7 @@ public class CentralDogma implements AutoCloseable {
      */
     public static CentralDogma forConfig(File configFile) throws IOException {
         requireNonNull(configFile, "configFile");
-        return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class),
-                                Flags.meterRegistry());
+        return new CentralDogma(CentralDogmaConfig.load(configFile), Flags.meterRegistry());
     }
 
     private final SettableHealthChecker serverHealth = new SettableHealthChecker(false);
@@ -587,8 +589,6 @@ public class CentralDogma implements AutoCloseable {
         sb.clientAddressSources(cfg.clientAddressSourceList());
         sb.clientAddressTrustedProxyFilter(cfg.trustedProxyAddressPredicate());
 
-        configCors(sb, config().corsConfig());
-
         cfg.numWorkers().ifPresent(
                 numWorkers -> sb.workerGroup(EventLoopGroups.newEventLoopGroup(numWorkers), true));
         cfg.maxNumConnections().ifPresent(sb::maxNumConnections);
@@ -617,11 +617,15 @@ public class CentralDogma implements AutoCloseable {
                                                   HttpHeaders.of(HttpHeaderNames.AUTHORIZATION,
                                                                  "Bearer " + CsrfToken.ANONYMOUS))
                                   .build());
-
-        configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, sessionManager,
+        final Function<? super HttpService, AuthService> authService =
+                authService(mds, authProvider, sessionManager);
+        configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, authService,
                          meterRegistry);
 
         configureMetrics(sb, meterRegistry);
+        // Add the CORS service as the last decorator(executed first) so that the CORS service is applied
+        // before AuthService.
+        configCors(sb, config().corsConfig());
 
         // Configure access log format.
         final String accessLogFormat = cfg.accessLogFormat();
@@ -638,7 +642,7 @@ public class CentralDogma implements AutoCloseable {
         if (pluginsForAllReplicas != null) {
             final PluginInitContext pluginInitContext =
                     new PluginInitContext(config(), pm, executor, meterRegistry, purgeWorker, sb,
-                                          projectInitializer);
+                                          authService, projectInitializer);
             pluginsForAllReplicas.plugins()
                                  .forEach(p -> {
                                      if (!(p instanceof AllReplicasPlugin)) {
@@ -741,12 +745,86 @@ public class CentralDogma implements AutoCloseable {
         sb.service("/cd/thrift/v1", thriftService);
     }
 
+    private Function<? super HttpService, AuthService> authService(
+            MetadataService mds, @Nullable AuthProvider authProvider, @Nullable SessionManager sessionManager) {
+        if (authProvider == null) {
+            return AuthService.newDecorator(new CsrfTokenAuthorizer());
+        }
+        final AuthConfig authCfg = cfg.authConfig();
+        assert authCfg != null : "authCfg";
+        assert sessionManager != null : "sessionManager";
+        final Authorizer<HttpRequest> tokenAuthorizer =
+                new ApplicationTokenAuthorizer(mds::findTokenBySecret)
+                        .orElse(new SessionTokenAuthorizer(sessionManager,
+                                                           authCfg.administrators()));
+        return AuthService.builder()
+                          .add(tokenAuthorizer)
+                          .onFailure(new CentralDogmaAuthFailureHandler())
+                          .newDecorator();
+    }
+
     private void configureHttpApi(ServerBuilder sb,
                                   ProjectApiManager projectApiManager, CommandExecutor executor,
                                   WatchService watchService, MetadataService mds,
                                   @Nullable AuthProvider authProvider,
-                                  @Nullable SessionManager sessionManager, MeterRegistry meterRegistry) {
-        Function<? super HttpService, ? extends HttpService> decorator;
+                                  Function<? super HttpService, AuthService> authService,
+                                  MeterRegistry meterRegistry) {
+        final DependencyInjector dependencyInjector = DependencyInjector.ofSingletons(
+                // Use the default ObjectMapper without any configuration.
+                // See JacksonRequestConverterFunctionTest
+                new JacksonRequestConverterFunction(new ObjectMapper()),
+                new HttpApiRequestConverter(projectApiManager),
+                new RequiresReadPermissionDecoratorFactory(mds),
+                new RequiresWritePermissionDecoratorFactory(mds),
+                new RequiresRoleDecoratorFactory(mds)
+        );
+        sb.dependencyInjector(dependencyInjector, false)
+          // TODO(ikhoon): Consider exposing ReflectiveDependencyInjector as a public API via
+          //               DependencyInjector.ofReflective()
+          .dependencyInjector(new ReflectiveDependencyInjector(), false);
+
+        // Enable content compression for API responses.
+        final Function<? super HttpService, ? extends HttpService> decorator =
+                authService.andThen(contentEncodingDecorator());
+        for (String path : ImmutableList.of(API_V0_PATH_PREFIX, API_V1_PATH_PREFIX)) {
+            final DecoratingServiceBindingBuilder decoratorBuilder =
+                    sb.routeDecorator().pathPrefix(path);
+            for (Route loginRoute : LOGIN_API_ROUTES) {
+                decoratorBuilder.exclude(loginRoute);
+            }
+            for (Route logoutRoute : LOGOUT_API_ROUTES) {
+                decoratorBuilder.exclude(logoutRoute);
+            }
+            decoratorBuilder.build(decorator);
+        }
+
+        assert statusManager != null;
+        final ContextPathServicesBuilder apiV1ServiceBuilder = sb.contextPath(API_V1_PATH_PREFIX);
+        apiV1ServiceBuilder
+                .annotatedService(new AdministrativeService(executor, statusManager))
+                .annotatedService(new ProjectServiceV1(projectApiManager, executor))
+                .annotatedService(new RepositoryServiceV1(executor, mds));
+
+        if (GIT_MIRROR_ENABLED) {
+            apiV1ServiceBuilder.annotatedService(new MirroringServiceV1(projectApiManager, executor))
+                               .annotatedService(new CredentialServiceV1(projectApiManager, executor));
+        }
+
+        apiV1ServiceBuilder.annotatedService()
+                           .defaultServiceNaming(new ServiceNaming() {
+                               private final String serviceName = ContentServiceV1.class.getName();
+                               private final String watchServiceName =
+                                       serviceName.replace("ContentServiceV1", "WatchContentServiceV1");
+
+                               @Override
+                               public String serviceName(ServiceRequestContext ctx) {
+                                   if (ctx.request().headers().contains(HttpHeaderNames.IF_NONE_MATCH)) {
+                                       return watchServiceName;
+                                   }
+                                   return serviceName;
+                               }
+                           })
+                           .build(new ContentServiceV1(executor, watchService, meterRegistry));
 
         if (authProvider != null) {
             sb.service("/security_enabled", new AbstractHttpService() {
@@ -758,88 +836,9 @@ public class CentralDogma implements AutoCloseable {
 
             final AuthConfig authCfg = cfg.authConfig();
             assert authCfg != null : "authCfg";
-            assert sessionManager != null : "sessionManager";
-            final Authorizer<HttpRequest> tokenAuthorizer =
-                    new ApplicationTokenAuthorizer(mds::findTokenBySecret)
-                            .orElse(new SessionTokenAuthorizer(sessionManager,
-                                                               authCfg.administrators()));
-            decorator = MetadataServiceInjector
-                    .newDecorator(mds)
-                    .andThen(AuthService.builder()
-                                        .add(tokenAuthorizer)
-                                        .onFailure(new CentralDogmaAuthFailureHandler())
-                                        .newDecorator());
-        } else {
-            decorator = MetadataServiceInjector
-                    .newDecorator(mds)
-                    .andThen(AuthService.newDecorator(new CsrfTokenAuthorizer()));
-        }
-
-        final HttpApiRequestConverter v1RequestConverter = new HttpApiRequestConverter(projectApiManager);
-        final JacksonRequestConverterFunction jacksonRequestConverterFunction =
-                // Use the default ObjectMapper without any configuration.
-                // See JacksonRequestConverterFunctionTest
-                new JacksonRequestConverterFunction(new ObjectMapper());
-        // Do not need jacksonResponseConverterFunction because HttpApiResponseConverter handles the JSON data.
-        final HttpApiResponseConverter v1ResponseConverter = new HttpApiResponseConverter();
-
-        // Enable content compression for API responses.
-        decorator = decorator.andThen(contentEncodingDecorator());
-
-        assert statusManager != null;
-        sb.annotatedService(API_V1_PATH_PREFIX,
-                            new AdministrativeService(executor, statusManager), decorator,
-                            v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
-        sb.annotatedService(API_V1_PATH_PREFIX,
-                            new ProjectServiceV1(projectApiManager), decorator,
-                            v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
-        sb.annotatedService(API_V1_PATH_PREFIX,
-                            new RepositoryServiceV1(executor, mds), decorator,
-                            v1RequestConverter, jacksonRequestConverterFunction, v1ResponseConverter);
-
-        if (GIT_MIRROR_ENABLED) {
-            sb.annotatedService(API_V1_PATH_PREFIX,
-                                new MirroringServiceV1(projectApiManager, executor), decorator,
-                                v1RequestConverter, jacksonRequestConverterFunction, v1RequestConverter);
-            sb.annotatedService(API_V1_PATH_PREFIX,
-                                new CredentialServiceV1(projectApiManager, executor), decorator,
-                                v1RequestConverter, jacksonRequestConverterFunction, v1RequestConverter);
-        }
-
-        sb.annotatedService()
-          .pathPrefix(API_V1_PATH_PREFIX)
-          .defaultServiceNaming(new ServiceNaming() {
-              private final String serviceName = ContentServiceV1.class.getName();
-              private final String watchServiceName =
-                      serviceName.replace("ContentServiceV1", "WatchContentServiceV1");
-
-              @Override
-              public String serviceName(ServiceRequestContext ctx) {
-                  if (ctx.request().headers().contains(HttpHeaderNames.IF_NONE_MATCH)) {
-                      return watchServiceName;
-                  }
-                  return serviceName;
-              }
-          })
-          .decorator(decorator)
-          .requestConverters(v1RequestConverter, jacksonRequestConverterFunction)
-          .responseConverters(v1ResponseConverter)
-          .build(new ContentServiceV1(executor, watchService, meterRegistry));
-
-        sb.annotatedService().decorator(decorator)
-          .decorator(DecodingService.newDecorator())
-          .build(new GitHttpService(projectApiManager));
-
-        if (authProvider != null) {
-            final AuthConfig authCfg = cfg.authConfig();
-            assert authCfg != null : "authCfg";
-            sb.annotatedService(API_V1_PATH_PREFIX,
-                                new MetadataApiService(mds, authCfg.loginNameNormalizer()),
-                                decorator, v1RequestConverter, jacksonRequestConverterFunction,
-                                v1ResponseConverter);
-            sb.annotatedService(API_V1_PATH_PREFIX, new TokenService(executor, mds),
-                                decorator, v1RequestConverter, jacksonRequestConverterFunction,
-                                v1ResponseConverter);
+            apiV1ServiceBuilder
+                    .annotatedService(new MetadataApiService(executor, mds, authCfg.loginNameNormalizer()))
+                    .annotatedService(new TokenService(executor, mds));
 
             // authentication services:
             Optional.ofNullable(authProvider.loginApiService())
@@ -856,34 +855,56 @@ public class CentralDogma implements AutoCloseable {
             authProvider.moreServices().forEach(sb::service);
         }
 
-        if (cfg.isWebAppEnabled()) {
-            final RestfulJsonResponseConverter httpApiV0Converter = new RestfulJsonResponseConverter();
+        sb.annotatedService()
+          .decorator(decorator)
+          .decorator(DecodingService.newDecorator())
+          .build(new GitHttpService(projectApiManager));
 
-            // TODO(hyangtack): Simplify this if https://github.com/line/armeria/issues/582 is resolved.
-            sb.annotatedService(API_V0_PATH_PREFIX, new UserService(executor),
-                                decorator, jacksonRequestConverterFunction, httpApiV0Converter)
-              .annotatedService(API_V0_PATH_PREFIX, new RepositoryService(projectApiManager, executor),
-                                decorator, jacksonRequestConverterFunction, httpApiV0Converter);
+        if (cfg.isWebAppEnabled()) {
+            sb.contextPath(API_V0_PATH_PREFIX)
+              .annotatedService(new UserService(executor))
+              .annotatedService(new RepositoryService(projectApiManager, executor));
 
             if (authProvider != null) {
                 // Will redirect to /web/auth/login by default.
                 sb.service(LOGIN_PATH, authProvider.webLoginService());
                 // Will redirect to /web/auth/logout by default.
                 sb.service(LOGOUT_PATH, authProvider.webLogoutService());
-
-                sb.serviceUnder(BUILTIN_WEB_BASE_PATH, new OrElseDefaultHttpFileService(
-                        FileService.builder(CentralDogma.class.getClassLoader(), "auth-webapp")
-                                   .autoDecompress(true)
-                                   .serveCompressedFiles(true)
-                                   .cacheControl(ServerCacheControl.REVALIDATED)
-                                   .build(),
-                        "/index.html"));
             }
-            sb.serviceUnder("/",
+
+            // Folder names contain path patterns such as `[projectName]` which FileService can't infer from
+            // the request path. Return `index.html` as a fallback so that Next.js client router handles the
+            // path patterns.
+            final HttpService fallbackFileService = HttpFile.of(CentralDogma.class.getClassLoader(),
+                                                                "com/linecorp/centraldogma/webapp/index.html")
+                                                            .asService();
+            sb.serviceUnder("/app", FileService.builder(CentralDogma.class.getClassLoader(),
+                                                        "com/linecorp/centraldogma/webapp/app")
+                                               .cacheControl(ServerCacheControl.REVALIDATED)
+                                               .autoDecompress(true)
+                                               .serveCompressedFiles(true)
+                                               .build().orElse(fallbackFileService));
+
+            // Serve all web resources except for '/app'.
+            sb.route()
+              .pathPrefix("/")
+              .exclude("/app")
+              .build(FileService.builder(CentralDogma.class.getClassLoader(),
+                                         "com/linecorp/centraldogma/webapp")
+                                .cacheControl(ServerCacheControl.REVALIDATED)
+                                .autoDecompress(true)
+                                .serveCompressedFiles(true)
+                                .build());
+
+            sb.serviceUnder("/legacy-web",
                             FileService.builder(CentralDogma.class.getClassLoader(), "webapp")
                                        .cacheControl(ServerCacheControl.REVALIDATED)
+                                       .autoDecompress(true)
+                                       .serveCompressedFiles(true)
                                        .build());
         }
+
+        sb.errorHandler(new HttpApiExceptionHandler());
     }
 
     private static void configCors(ServerBuilder sb, @Nullable CorsConfig corsConfig) {

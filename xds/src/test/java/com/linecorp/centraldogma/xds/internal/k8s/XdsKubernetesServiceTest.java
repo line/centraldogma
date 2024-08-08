@@ -17,26 +17,24 @@ package com.linecorp.centraldogma.xds.internal.k8s;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
-import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createXdsProject;
-import static com.linecorp.centraldogma.xds.internal.k8s.XdsKubernetesService.JSON_MESSAGE_MARSHALLER;
-import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
+import static com.linecorp.centraldogma.xds.internal.k8s.XdsKubernetesService.K8S_WATCHERS_DIRECTORY;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.ForkJoinPool;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.io.TempDir;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
@@ -45,12 +43,10 @@ import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
-import com.linecorp.centraldogma.server.management.ServerStatusManager;
-import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 import com.linecorp.centraldogma.xds.k8s.v1.KubernetesConfig;
 import com.linecorp.centraldogma.xds.k8s.v1.Watcher;
+import com.linecorp.centraldogma.xds.k8s.v1.Watcher.Builder;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
@@ -90,27 +86,16 @@ class XdsKubernetesServiceTest {
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension();
 
-    @TempDir
-    static File tempDir;
-
-    @SuppressWarnings("NotNullFieldNotInitialized")
-    static MetadataService metadataService;
-
     private KubernetesClient client;
 
-    // This method will be remove once XdsProjectService is added in a follow-up PR.
     @BeforeAll
     static void setup() {
-        final StandaloneCommandExecutor executor = new StandaloneCommandExecutor(
-                dogma.projectManager(), ForkJoinPool.commonPool(),
-                new ServerStatusManager(tempDir), null, null, null);
-        executor.start().join();
-        metadataService = new MetadataService(dogma.projectManager(), executor);
+        final AggregatedHttpResponse response = createGroup("groups/foo", dogma.httpClient());
+        assertThat(response.status()).isSameAs(HttpStatus.OK);
     }
 
     @Test
     void createWatcherRequest() throws IOException {
-        createXdsProject(dogma.projectManager(), metadataService, "foo");
         // Prepare Kubernetes resources
         final List<Node> nodes = ImmutableList.of(newNode("1.1.1.1"), newNode("2.2.2.2"), newNode("3.3.3.3"));
         final Deployment deployment = newDeployment();
@@ -137,33 +122,34 @@ class XdsKubernetesServiceTest {
                                 .setTrustCerts(true)
                                 .build();
         final Watcher.Builder watcherBuilder = Watcher.newBuilder()
-                                                      .setName("projects/foo/k8s/watchers/foo/my-k8s-cluster")
+                                                      .setName("groups/foo/k8s/watchers/foo-k8s-cluster")
                                                       .setServiceName("nginx-service")
                                                       .setKubernetesConfig(kubernetesConfig);
         final RequestHeaders headers =
                 RequestHeaders.builder(HttpMethod.POST,
-                                       "/api/v1/xds/projects/foo/k8s/watchers?watcher_id=foo/my-k8s-cluster")
+                                       "/api/v1/xds/groups/foo/k8s/watchers?watcher_id=foo-k8s-cluster")
                               .contentType(MediaType.JSON_UTF_8)
+                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                               .build();
 
+        final Watcher watcher = watcherBuilder.build();
         final AggregatedHttpResponse response = dogma.httpClient().blocking().execute(
-                headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(watcherBuilder.build()));
+                headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(watcher));
         assertThat(response.status()).isSameAs(HttpStatus.OK);
         assertThat(response.headers().get("grpc-status")).isEqualTo("0");
+        final String json = response.contentUtf8();
+        assertWatcher(json, watcher);
         final Entry<JsonNode> entry =
                 dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo")
                      .get(Revision.HEAD,
-                          Query.ofJson("/k8s/endpoint-fetch-config/foo/my-k8s-cluster.json")).join();
-        assertThatJson(entry.content()).isEqualTo(
-                "{\"project\":\"projects/foo\"," +
-                " \"watcherId\":\"foo/my-k8s-cluster\"," +
-                " \"watcher\":{ " +
-                "    \"name\":\"projects/foo/k8s/watchers/foo/my-k8s-cluster\"," +
-                "    \"serviceName\":\"nginx-service\"," +
-                "    \"kubernetesConfig\":{" +
-                "      \"controlPlaneUrl\":\"${json-unit.ignore}\"," +
-                "      \"namespace\":\"test\"," +
-                "      \"trustCerts\":true}}}}");
+                          Query.ofJson(K8S_WATCHERS_DIRECTORY + "foo-k8s-cluster.json")).join();
+        assertWatcher(entry.contentAsText(), watcher);
+    }
+
+    private static void assertWatcher(String json, Watcher expected) throws IOException {
+        final Builder responseWatcherBuilder = Watcher.newBuilder();
+        JSON_MESSAGE_MARSHALLER.mergeValue(json, responseWatcherBuilder);
+        assertThat(responseWatcherBuilder.build()).isEqualTo(expected);
     }
 
     static Node newNode(String ip) {

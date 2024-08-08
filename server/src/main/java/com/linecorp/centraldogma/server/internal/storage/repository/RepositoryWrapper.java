@@ -38,6 +38,7 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
 public class RepositoryWrapper implements Repository {
 
@@ -204,6 +205,16 @@ public class RepositoryWrapper implements Repository {
     @Override
     public <T> CompletableFuture<MergedEntry<T>> mergeFiles(Revision revision, MergeQuery<T> query) {
         return unwrap().mergeFiles(revision, query);
+    }
+
+    @Override
+    public void addListener(RepositoryListener listener) {
+        unwrap().addListener(listener);
+    }
+
+    @Override
+    public void removeListener(RepositoryListener listener) {
+        unwrap().removeListener(listener);
     }
 
     @Override

@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -26,19 +27,15 @@ import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.google.protobuf.InvalidProtocolBufferException;
-
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
-import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
-import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
 public abstract class XdsProjectWatchingService {
 
@@ -46,25 +43,29 @@ public abstract class XdsProjectWatchingService {
 
     public static final long BACKOFF_SECONDS = 10;
 
-    private final RepositoryManager repositoryManager;
+    private final Project xdsProject;
 
     // Accessed only from executor().
-    private final Set<String> watchingRepos = new HashSet<>();
+    private final Set<String> watchingGroups = new HashSet<>();
 
-    protected XdsProjectWatchingService(RepositoryManager repositoryManager) {
-        this.repositoryManager = repositoryManager;
+    protected XdsProjectWatchingService(Project xdsProject) {
+        this.xdsProject = xdsProject;
+    }
+
+    protected Project xdsProject() {
+        return xdsProject;
     }
 
     protected abstract ScheduledExecutorService executor();
 
     protected abstract String pathPattern();
 
-    protected abstract void handleXdsResources(String path, String contentAsText, String repoName)
-            throws InvalidProtocolBufferException;
+    protected abstract void handleXdsResources(String path, String contentAsText, String groupName)
+            throws IOException;
 
-    protected abstract void onRepositoryRemoved(String repoName);
+    protected abstract void onGroupRemoved(String groupName);
 
-    protected abstract void onFileRemoved(String repoName, String path);
+    protected abstract void onFileRemoved(String groupName, String path);
 
     protected abstract void onDiffHandled();
 
@@ -74,23 +75,23 @@ public abstract class XdsProjectWatchingService {
      * Must be executed by {@link #executor()}.
      */
     protected void start() {
-        for (Repository repository : repositoryManager.list().values()) {
-            final String repoName = repository.name();
-            if (Project.internalRepos().contains(repoName)) {
+        for (Repository repository : xdsProject.repos().list().values()) {
+            final String groupName = repository.name();
+            if (Project.internalRepos().contains(groupName)) {
                 continue;
             }
-            watchingRepos.add(repoName);
+            watchingGroups.add(groupName);
             final Revision normalizedRevision = repository.normalizeNow(Revision.HEAD);
-            logger.info("Creating xDS resources from {} at revision: {}", repoName, normalizedRevision);
+            logger.info("Creating xDS resources from {} at revision: {}", groupName, normalizedRevision);
             final Map<String, Entry<?>> entries = repository.find(normalizedRevision, pathPattern()).join();
             for (Entry<?> entry : entries.values()) {
                 final String path = entry.path();
                 final String contentAsText = entry.contentAsText();
                 try {
-                    handleXdsResources(path, contentAsText, repoName);
+                    handleXdsResources(path, contentAsText, groupName);
                 } catch (Throwable t) {
                     throw new RuntimeException("Unexpected exception while building an xDS resource from " +
-                                               repoName + path, t);
+                                               groupName + path, t);
                 }
             }
 
@@ -98,59 +99,28 @@ public abstract class XdsProjectWatchingService {
         }
 
         // Watch dogma repository to add newly created xDS projects.
-        watchDogmaRepository(repositoryManager, Revision.INIT);
+        watchDogmaRepository();
     }
 
-    private void watchDogmaRepository(RepositoryManager repositoryManager, Revision lastKnownRevision) {
-        final Repository dogmaRepository = repositoryManager.get(Project.REPO_DOGMA);
+    private void watchDogmaRepository() {
+        final Repository dogmaRepository = xdsProject.repos().get(Project.REPO_DOGMA);
         // TODO(minwoox): Use different file because metadata.json contains other information than repo's names.
-        dogmaRepository.watch(lastKnownRevision, Query.ofJson(MetadataService.METADATA_JSON))
-                       .handleAsync((entry, cause) -> {
-                           if (isStopped()) {
-                               return null;
-                           }
-
-                           if (cause != null) {
-                               logger.warn("Failed to watch {} in xDS. Try watching after {} seconds.",
-                                           MetadataService.METADATA_JSON, BACKOFF_SECONDS, cause);
-                               executor().schedule(
-                                       () -> watchDogmaRepository(repositoryManager, lastKnownRevision),
-                                       BACKOFF_SECONDS, TimeUnit.SECONDS);
-                               return null;
-                           }
-                           final JsonNode content = entry.content();
-                           final JsonNode repos = content.get("repos");
-                           if (repos == null) {
-                               logger.warn("Failed to find repos in {} in xDS. Try watching after {} seconds.",
-                                           MetadataService.METADATA_JSON, BACKOFF_SECONDS);
-                               executor().schedule(
-                                       () -> watchDogmaRepository(repositoryManager, lastKnownRevision),
-                                       BACKOFF_SECONDS, TimeUnit.SECONDS);
-                               return null;
-                           }
-                           repos.fieldNames().forEachRemaining(repoName -> {
-                               if (Project.REPO_META.equals(repoName)) {
-                                   return;
-                               }
-                               final boolean added = watchingRepos.add(repoName);
-                               if (!added) {
-                                   // Already watching.
-                                   return;
-                               }
-                               final Repository repository = repositoryManager.get(repoName);
-                               if (repository == null) {
-                                   // Ignore if the repository is removed. This can happen when multiple
-                                   // updates occurred after the actual repository is removed from the file
-                                   // system but before the repository is removed from the metadata file.
-                                   watchingRepos.remove(repoName);
-                                   return;
-                               }
-                               watchRepository(repository, Revision.INIT);
-                           });
-                           // Watch dogma repository again to catch up newly created xDS projects.
-                           watchDogmaRepository(repositoryManager, entry.revision());
-                           return null;
-                       }, executor());
+        dogmaRepository.addListener(RepositoryListener.of(MetadataService.METADATA_JSON, entries -> {
+            executor().execute(() -> {
+                for (Repository repo : xdsProject.repos().list().values()) {
+                    final String groupName = repo.name();
+                    if (Project.REPO_META.equals(groupName) || Project.REPO_DOGMA.equals(groupName)) {
+                        continue;
+                    }
+                    final boolean added = watchingGroups.add(groupName);
+                    if (!added) {
+                        // Already watching.
+                        return;
+                    }
+                    watchRepository(repo, Revision.INIT);
+                }
+            });
+        }));
     }
 
     private void watchRepository(Repository repository, Revision lastKnownRevision) {
@@ -162,8 +132,8 @@ public abstract class XdsProjectWatchingService {
             if (cause != null) {
                 if (cause instanceof RepositoryNotFoundException) {
                     // Repository is removed.
-                    watchingRepos.remove(repository.name());
-                    onRepositoryRemoved(repository.name());
+                    watchingGroups.remove(repository.name());
+                    onGroupRemoved(repository.name());
                     return null;
                 }
                 logger.warn("Unexpected exception while watching {} at {}. Try watching after {} seconds.",
@@ -186,29 +156,29 @@ public abstract class XdsProjectWatchingService {
             if (isStopped()) {
                 return null;
             }
-            final String repoName = repository.name();
+            final String groupName = repository.name();
             if (cause != null) {
                 logger.warn("Unexpected exception while diffing {} from {} to {}. Watching again.",
-                            repoName, lastKnownRevision, newRevision, cause);
+                            groupName, lastKnownRevision, newRevision, cause);
                 watchRepository(repository, Revision.INIT);
                 return null;
             }
 
             logger.info("Found {} changes in {} from {} to {}.",
-                        changes.size(), repoName, lastKnownRevision, newRevision);
+                        changes.size(), groupName, lastKnownRevision, newRevision);
             for (Change<?> change : changes.values()) {
                 final String path = change.path();
                 switch (change.type()) {
                     case UPSERT_JSON:
                         try {
-                            handleXdsResources(path, change.contentAsText(), repoName);
+                            handleXdsResources(path, change.contentAsText(), groupName);
                         } catch (Throwable t) {
                             logger.warn("Unexpected exception while handling an xDS resource from {}.",
-                                        repoName + path, t);
+                                        groupName + path, t);
                         }
                         break;
                     case REMOVE:
-                        onFileRemoved(repoName, path);
+                        onFileRemoved(groupName, path);
                         break;
                     default:
                         // Ignore other types of changes.

@@ -18,7 +18,8 @@ package com.linecorp.centraldogma.xds.internal.k8s;
 import static com.linecorp.centraldogma.server.internal.ExecutorServiceUtil.terminate;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
-import static com.linecorp.centraldogma.xds.internal.k8s.XdsKubernetesService.K8S_ENDPOINT_FETCH_CONFIG_DIRECTORY;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
+import static com.linecorp.centraldogma.xds.internal.k8s.XdsKubernetesService.K8S_WATCHERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.k8s.XdsKubernetesService.createKubernetesEndpointGroup;
 import static java.util.Objects.requireNonNull;
 
@@ -43,10 +44,11 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
-import com.linecorp.centraldogma.xds.internal.JsonFormatUtil;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.xds.internal.XdsProjectWatchingService;
 import com.linecorp.centraldogma.xds.k8s.v1.CreateWatcherRequest;
+import com.linecorp.centraldogma.xds.k8s.v1.Watcher;
+import com.linecorp.centraldogma.xds.k8s.v1.Watcher.Builder;
 
 import io.envoyproxy.envoy.config.core.v3.Address;
 import io.envoyproxy.envoy.config.core.v3.SocketAddress;
@@ -71,8 +73,8 @@ final class XdsKubernetesEndpointFetchingService extends XdsProjectWatchingServi
     @Nullable
     private volatile ScheduledExecutorService executorService;
 
-    XdsKubernetesEndpointFetchingService(RepositoryManager repositoryManager, MeterRegistry meterRegistry) {
-        super(repositoryManager);
+    XdsKubernetesEndpointFetchingService(Project xdsProject, MeterRegistry meterRegistry) {
+        super(xdsProject);
         this.meterRegistry = meterRegistry;
     }
 
@@ -113,31 +115,30 @@ final class XdsKubernetesEndpointFetchingService extends XdsProjectWatchingServi
 
     @Override
     protected String pathPattern() {
-        return K8S_ENDPOINT_FETCH_CONFIG_DIRECTORY + "**";
+        return K8S_WATCHERS_DIRECTORY + "**";
     }
 
     @Override
-    protected void handleXdsResources(String path, String contentAsText, String repoName)
+    protected void handleXdsResources(String path, String contentAsText, String groupName)
             throws InvalidProtocolBufferException {
-        final CreateWatcherRequest.Builder createWatcherRequestBuilder = CreateWatcherRequest.newBuilder();
+        final Watcher.Builder watcherBuilder = Watcher.newBuilder();
         try {
-            XdsKubernetesService.JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, createWatcherRequestBuilder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, watcherBuilder);
         } catch (IOException e) {
-            logger.warn("Failed to parse a CreateWatcherRequest at {}{}. content: {}",
-                        repoName, path, contentAsText, e);
+            logger.warn("Failed to parse a Watcher at {}{}. content: {}",
+                        groupName, path, contentAsText, e);
             return;
         }
-        final KubernetesEndpointGroup kubernetesEndpointGroup = createKubernetesEndpointGroup(
-                createWatcherRequestBuilder.build());
+        final Watcher k8sWatcher = watcherBuilder.build();
+        final KubernetesEndpointGroup kubernetesEndpointGroup = createKubernetesEndpointGroup(k8sWatcher);
         final Map<String, KubernetesEndpointGroup> watchers =
-                kubernetesWatchers.computeIfAbsent(repoName, unused -> new HashMap<>());
+                kubernetesWatchers.computeIfAbsent(groupName, unused -> new HashMap<>());
 
-        final String xdsClusterName = createWatcherRequestBuilder.getWatcherId();
-        final KubernetesEndpointGroup oldWatcher = watchers.get(xdsClusterName);
+        final KubernetesEndpointGroup oldWatcher = watchers.get(k8sWatcher.getName());
         if (oldWatcher != null) {
             oldWatcher.closeAsync();
         }
-        watchers.put(xdsClusterName, kubernetesEndpointGroup);
+        watchers.put(k8sWatcher.getName(), kubernetesEndpointGroup);
         kubernetesEndpointGroup.addListener(endpoints -> {
             if (endpoints.isEmpty()) {
                 return;
@@ -162,34 +163,33 @@ final class XdsKubernetesEndpointFetchingService extends XdsProjectWatchingServi
                                          .build();
             final String json;
             try {
-                json = JsonFormatUtil.printer().print(clusterLoadAssignment);
-            } catch (InvalidProtocolBufferException e) {
-                // Should never reach here.
+                json = JSON_MESSAGE_MARSHALLER.writeValueAsString(clusterLoadAssignment);
+            } catch (IOException e) {
                 throw new Error(e);
             }
             final String fileName = K8S_ENDPOINTS_DIRECTORY + clusterLoadAssignment.getClusterName() + ".json";
             final Change<JsonNode> change = Change.ofJsonUpsert(fileName, json);
             commandExecutor.execute(
-                    Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, repoName, Revision.HEAD,
+                    Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, groupName, Revision.HEAD,
                                  "Add " + fileName + " with " + endpoints.size() + " endpoints.", "",
                                  Markup.PLAINTEXT, change));
         });
     }
 
     @Override
-    protected void onRepositoryRemoved(String repoName) {
-        final Map<String, KubernetesEndpointGroup> watchers = kubernetesWatchers.remove(repoName);
+    protected void onGroupRemoved(String groupName) {
+        final Map<String, KubernetesEndpointGroup> watchers = kubernetesWatchers.remove(groupName);
         if (watchers != null) {
             watchers.values().forEach(KubernetesEndpointGroup::closeAsync);
         }
     }
 
     @Override
-    protected void onFileRemoved(String repoName, String path) {
-        final Map<String, KubernetesEndpointGroup> watchers = kubernetesWatchers.get(repoName);
+    protected void onFileRemoved(String groupName, String path) {
+        final Map<String, KubernetesEndpointGroup> watchers = kubernetesWatchers.get(groupName);
         if (watchers != null) {
             final String clusterName =
-                    repoName + '/' + path.substring(K8S_ENDPOINT_FETCH_CONFIG_DIRECTORY.length(),
+                    groupName + '/' + path.substring(K8S_WATCHERS_DIRECTORY.length(),
                                                     path.length() - 5); // Remove .json
             final KubernetesEndpointGroup watcher = watchers.get(clusterName);
             if (watcher != null) {

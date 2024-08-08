@@ -72,4 +72,9 @@ public interface MirrorCredential {
      * @param uri a URI of a Git repository
      */
     boolean matches(URI uri);
+
+    /**
+     * Returns a new {@link MirrorCredential} that does not contain any sensitive information.
+     */
+    MirrorCredential withoutSecret();
 }

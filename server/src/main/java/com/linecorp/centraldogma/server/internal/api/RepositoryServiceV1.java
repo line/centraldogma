@@ -37,7 +37,6 @@ import com.linecorp.armeria.common.logging.RequestOnlyLog;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
-import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
@@ -46,6 +45,7 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.CreateRepositoryRequest;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
@@ -55,7 +55,6 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -66,7 +65,6 @@ import io.micrometer.core.instrument.Tag;
  * Annotated service object for managing repositories.
  */
 @ProducesJson
-@ExceptionHandler(HttpApiExceptionHandler.class)
 public class RepositoryServiceV1 extends AbstractService {
 
     private final MetadataService mds;
@@ -121,13 +119,15 @@ public class RepositoryServiceV1 extends AbstractService {
     public CompletableFuture<RepositoryDto> createRepository(ServiceRequestContext ctx, Project project,
                                                              CreateRepositoryRequest request,
                                                              Author author) {
-        if (Project.isReservedRepoName(request.name())) {
+        final String repoName = request.name();
+        if (Project.isReservedRepoName(repoName)) {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
                                              "A reserved repository cannot be created.");
         }
-        return execute(Command.createRepository(author, project.name(), request.name()))
-                .thenCompose(unused -> mds.addRepo(author, project.name(), request.name()))
-                .handle(returnOrThrow(() -> DtoConverter.convert(project.repos().get(request.name()))));
+        final CommandExecutor commandExecutor = executor();
+        final CompletableFuture<Revision> future =
+                RepositoryServiceUtil.createRepository(commandExecutor, mds, author, project.name(), repoName);
+        return future.handle(returnOrThrow(() -> DtoConverter.convert(project.repos().get(repoName))));
     }
 
     /**
@@ -145,9 +145,9 @@ public class RepositoryServiceV1 extends AbstractService {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
                                              "A reserved repository cannot be removed.");
         }
-        return execute(Command.removeRepository(author, repository.parent().name(), repository.name()))
-                .thenCompose(unused -> mds.removeRepo(author, repository.parent().name(), repository.name()))
-                .handle(HttpApiUtil::throwUnsafelyIfNonNull);
+        return RepositoryServiceUtil.removeRepository(executor(), mds, author,
+                                                      repository.parent().name(), repoName)
+                                    .handle(HttpApiUtil::throwUnsafelyIfNonNull);
     }
 
     /**
