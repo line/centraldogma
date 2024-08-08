@@ -21,6 +21,7 @@ import static com.linecorp.centraldogma.server.storage.project.InternalProjectIn
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -30,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
@@ -42,10 +44,12 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.internal.storage.repository.cache.CachingRepositoryManager;
@@ -53,12 +57,12 @@ import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepos
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 public class DefaultProject implements Project {
@@ -70,6 +74,11 @@ public class DefaultProject implements Project {
     private final Author author;
     final RepositoryManager repos;
     private final AtomicReference<MetaRepository> metaRepo = new AtomicReference<>();
+
+    @Nullable
+    private volatile Revision lastMetadataRevision;
+    @Nullable
+    private volatile ProjectMetadata projectMetadata;
 
     /**
      * Opens an existing project.
@@ -89,18 +98,23 @@ public class DefaultProject implements Project {
         boolean success = false;
         try {
             createReservedRepos(System.currentTimeMillis());
-            final UserAndTimestamp creation = metadataCreation();
-            if (creation != null) {
+            final ProjectMetadata projectedMetadata = initialMetadata();
+            if (projectedMetadata != null) {
+                final UserAndTimestamp creation = projectedMetadata.creation();
                 creationTimeMillis = creation.timestampMillis();
                 author = Author.ofEmail(creation.user());
+                attachMetadataListener();
             } else {
                 creationTimeMillis = repos.get(REPO_DOGMA).creationTimeMillis();
                 author = repos.get(REPO_DOGMA).author();
             }
             success = true;
+        } catch (Exception e) {
+            throw new CentralDogmaException("failed to initialize internal repositories of " + name, e);
         } finally {
             if (!success) {
-                repos.close(() -> new CentralDogmaException("failed to initialize internal repositories"));
+                repos.close(() -> new CentralDogmaException(
+                        "failed to initialize internal repositories of " + name));
             }
         }
     }
@@ -126,28 +140,13 @@ public class DefaultProject implements Project {
             initializeMetadata(creationTimeMillis, author);
             this.creationTimeMillis = creationTimeMillis;
             this.author = author;
+            attachMetadataListener();
             success = true;
         } finally {
             if (!success) {
-                repos.close(() -> new CentralDogmaException("failed to initialize internal repositories"));
+                repos.close(() -> new CentralDogmaException(
+                        "failed to initialize internal repositories of " + name));
             }
-        }
-    }
-
-    @Nullable
-    private UserAndTimestamp metadataCreation() {
-        if (name.equals(INTERNAL_PROJECT_DOGMA)) {
-            return null;
-        }
-        final Entry<JsonNode> metadata = repos.get(REPO_DOGMA)
-                                              .get(Revision.HEAD, Query.ofJson(METADATA_JSON))
-                                              .join();
-        try {
-            return Jackson.treeToValue(metadata.content(), ProjectMetadata.class)
-                          .creation();
-        } catch (JsonParseException | JsonMappingException e) {
-            logger.warn("Failed to retrieve creation in {} file. project: {}", METADATA_JSON, name);
-            return null;
         }
     }
 
@@ -176,6 +175,12 @@ public class DefaultProject implements Project {
         }
     }
 
+    @Nullable
+    @Override
+    public ProjectMetadata metadata() {
+        return projectMetadata;
+    }
+
     private void initializeMetadata(long creationTimeMillis, Author author) {
         // Do not generate a metadata file for internal projects.
         if (name.equals(INTERNAL_PROJECT_DOGMA)) {
@@ -196,11 +201,65 @@ public class DefaultProject implements Project {
                                                                  ImmutableMap.of(member.id(), member),
                                                                  ImmutableMap.of(),
                                                                  userAndTimestamp, null);
-
-            dogmaRepo.commit(headRev, creationTimeMillis, Author.SYSTEM,
-                             "Initialize metadata", "", Markup.PLAINTEXT,
-                             Change.ofJsonUpsert(METADATA_JSON, Jackson.valueToTree(metadata))).join();
+            final CommitResult result =
+                    dogmaRepo.commit(headRev, creationTimeMillis, Author.SYSTEM,
+                                     "Initialize metadata", "",
+                                     Markup.PLAINTEXT,
+                                     Change.ofJsonUpsert(METADATA_JSON, Jackson.valueToTree(metadata)))
+                             .join();
+            lastMetadataRevision = result.revision();
+            projectMetadata = metadata;
         }
+    }
+
+    @Nullable
+    private ProjectMetadata initialMetadata()
+            throws ExecutionException, InterruptedException, JsonProcessingException {
+        if (name.equals(INTERNAL_PROJECT_DOGMA)) {
+            return null;
+        }
+        final Entry<JsonNode> metadata = repos.get(REPO_DOGMA).get(Revision.HEAD, Query.ofJson(METADATA_JSON))
+                                              .get();
+        final ProjectMetadata projectMetadata = Jackson.treeToValue(metadata.content(),
+                                                                    ProjectMetadata.class);
+        lastMetadataRevision = metadata.revision();
+        this.projectMetadata = projectMetadata;
+        return projectMetadata;
+    }
+
+    /**
+     * Listens to new changes for "metadata.json" and updates the information to {@link #lastMetadataRevision}
+     * and {@link #projectMetadata}.
+     */
+    private void attachMetadataListener() {
+        if (name.equals(INTERNAL_PROJECT_DOGMA)) {
+            return;
+        }
+
+        final Repository dogmaRepo = repos.get(REPO_DOGMA);
+        dogmaRepo.addListener(RepositoryListener.of(Query.ofJson(METADATA_JSON), entry -> {
+            if (entry == null) {
+                logger.warn("{} file is missing in {}/{}", METADATA_JSON, name, REPO_DOGMA);
+                return;
+            }
+
+            final Revision lastRevision = entry.revision();
+            final Revision lastMetadataRevision = this.lastMetadataRevision;
+            assert lastMetadataRevision != null;
+            if (lastRevision.compareTo(lastMetadataRevision) <= 0) {
+                // An old data.
+                return;
+            }
+
+            try {
+                final ProjectMetadata projectMetadata = Jackson.treeToValue(entry.content(),
+                                                                            ProjectMetadata.class);
+                this.lastMetadataRevision = lastRevision;
+                this.projectMetadata = projectMetadata;
+            } catch (JsonParseException | JsonMappingException e) {
+                logger.warn("Invalid {} file in {}/{}", METADATA_JSON, name, REPO_DOGMA, e);
+            }
+        }));
     }
 
     @Override

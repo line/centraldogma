@@ -33,6 +33,7 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
+import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.HttpResult;
@@ -103,7 +104,7 @@ public class TokenService extends AbstractService {
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
     public CompletableFuture<HttpResult<Token>> createToken(@Param String appId,
-                                                            @Param boolean isAdmin,
+                                                            @Param @Default("false") boolean isAdmin,
                                                             @Param @Nullable String secret,
                                                             Author author, User loginUser) {
         checkArgument(!isAdmin || loginUser.isAdmin(),

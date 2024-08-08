@@ -43,22 +43,44 @@ import { LuFileWarning } from 'react-icons/lu';
 import { CgFolderRemove } from 'react-icons/cg';
 import { Author } from 'dogma/common/components/Author';
 import { FiBox } from 'react-icons/fi';
-import { FaTrashAlt } from 'react-icons/fa';
-import { WithProjectRole } from 'dogma/features/auth/ProjectRole';
+import { FaFilter, FaTrashAlt } from 'react-icons/fa';
 import { ChevronDownIcon } from '@chakra-ui/icons';
-import { FilterType, setProjectFilter } from 'dogma/features/filter/filterSlice';
+import { ProjectFilterType, setProjectFilter } from 'dogma/features/filter/filterSlice';
+import { UserDto } from '../auth/UserDto';
+import { UserRole } from '../../common/components/UserRole';
+
+function filterProjects(projects: ProjectDto[], projectFilterType: ProjectFilterType, user: UserDto) {
+  switch (projectFilterType) {
+    case 'ALL':
+      return projects;
+    case 'MEMBER':
+      return projects.filter((p) => p.userRole === 'MEMBER' || p.userRole === 'OWNER');
+    case 'CREATOR':
+      return projects.filter((p) => p.creator.email === user.email);
+  }
+}
 
 export const Projects = () => {
   const columnHelper = createColumnHelper<ProjectDto>();
   const dispatch = useAppDispatch();
 
   const { user, isInAnonymousMode } = useAppSelector((state) => state.auth);
-  const { data: projects, error, isLoading } = useGetProjectsQuery({ admin: user?.admin || false });
+  const { projectFilter, isInitialProjectFilter } = useAppSelector(({ filter }) => filter);
+  const {
+    data: projects,
+    error,
+    isLoading,
+  } = useGetProjectsQuery({
+    admin: user?.admin || false,
+  });
 
-  const projectFilter = useAppSelector((state) => state.filter.projectFilter);
   let filteredProjects = projects;
-  if (projects && !isInAnonymousMode && projectFilter === 'me') {
-    filteredProjects = projects.filter((project) => project.creator?.name === user?.name);
+  if (!isInAnonymousMode && !isLoading && !error) {
+    filteredProjects = filterProjects(projects, projectFilter, user);
+    if (isInitialProjectFilter && projects.length > 0 && filteredProjects.length === 0) {
+      // Render all projects if member projects are empty.
+      dispatch(setProjectFilter('ALL'));
+    }
   }
 
   const columns = useMemo(
@@ -107,37 +129,53 @@ export const Projects = () => {
           ),
         header: 'Creator',
       }),
+      columnHelper.accessor((row: ProjectDto) => row.userRole, {
+        cell: (info) => UserRole({ role: info.getValue() }),
+        header: 'Role',
+      }),
       columnHelper.accessor((row: ProjectDto) => row.createdAt, {
         cell: (info) => info.getValue() && <DateWithTooltip date={info.getValue()} />,
         header: 'Created',
       }),
       columnHelper.accessor((row: ProjectDto) => row.name, {
-        cell: (info) =>
-          isInternalProject(info.row.original.name) ? null : (
-            <WithProjectRole projectName={info.row.original.name} roles={['OWNER', 'MEMBER']}>
-              {() =>
-                info.row.original.createdAt ? (
-                  <ChakraLink href={`/app/projects/${info.getValue()}/settings`}>
-                    <Tooltip label="Project settings" fontSize="md">
-                      <IconButton
-                        icon={<FcServices />}
-                        variant="ghost"
-                        colorScheme="teal"
-                        aria-label="Project Settings"
-                      />
-                    </Tooltip>
-                  </ChakraLink>
-                ) : (
-                  <RestoreProject projectName={info.getValue()} />
-                )
-              }
-            </WithProjectRole>
-          ),
+        cell: (info) => {
+          if (isInternalProject(info.row.original.name)) {
+            return null;
+          }
+
+          if (info.row.original.createdAt) {
+            const userRole = info.row.original.userRole;
+            if (userRole === 'OWNER') {
+              return (
+                <ChakraLink href={`/app/projects/${info.getValue()}/settings`}>
+                  <Tooltip label="Project settings" fontSize="md">
+                    <IconButton
+                      icon={<FcServices />}
+                      variant="ghost"
+                      colorScheme="teal"
+                      aria-label="Project Settings"
+                    />
+                  </Tooltip>
+                </ChakraLink>
+              );
+            } else {
+              // If the user is not an owner of the project, do not show the project settings button.
+              return null;
+            }
+          }
+
+          if (user.admin) {
+            // Restore project button for admin users.
+            return <RestoreProject projectName={info.getValue()} />;
+          } else {
+            return null;
+          }
+        },
         header: 'Action',
         enableSorting: false,
       }),
     ],
-    [columnHelper],
+    [columnHelper, user],
   );
   return (
     <Deferred isLoading={isLoading} error={error}>
@@ -147,17 +185,22 @@ export const Projects = () => {
             <Flex gap={2}>
               <Spacer />
               <Menu>
-                <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
-                  Type
+                <MenuButton as={Button} rightIcon={<ChevronDownIcon />} colorScheme="blue">
+                  <HStack>
+                    <FaFilter />
+                    <Box>Type</Box>
+                  </HStack>
                 </MenuButton>
                 <MenuList>
                   <MenuOptionGroup
                     defaultValue={projectFilter}
                     type="radio"
-                    onChange={(type) => dispatch(setProjectFilter(type as FilterType))}
+                    onChange={(type) => dispatch(setProjectFilter(type as ProjectFilterType))}
+                    alignItems={'center'}
                   >
-                    <MenuItemOption value="all">All</MenuItemOption>
-                    <MenuItemOption value="me">Created by me</MenuItemOption>
+                    <MenuItemOption value="ALL">All</MenuItemOption>
+                    <MenuItemOption value="MEMBER">I am a member</MenuItemOption>
+                    <MenuItemOption value="CREATOR">Created by me</MenuItemOption>
                   </MenuOptionGroup>
                 </MenuList>
               </Menu>

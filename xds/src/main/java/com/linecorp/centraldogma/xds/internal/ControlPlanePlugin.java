@@ -29,7 +29,6 @@ import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -38,7 +37,6 @@ import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.grpc.GrpcService;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
-import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
@@ -50,6 +48,7 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 import com.linecorp.centraldogma.xds.group.v1.XdsGroupService;
 
@@ -112,7 +111,8 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     private void init0(PluginInitContext pluginInitContext) {
         final ServerBuilder sb = pluginInitContext.serverBuilder();
         final ProjectManager projectManager = pluginInitContext.projectManager();
-        final RepositoryManager repositoryManager = projectManager.get(XDS_CENTRAL_DOGMA_PROJECT).repos();
+        final Project xdsProject = projectManager.get(XDS_CENTRAL_DOGMA_PROJECT);
+        final RepositoryManager repositoryManager = xdsProject.repos();
         for (Repository repository : repositoryManager.list().values()) {
             final String repoName = repository.name();
             if (Project.REPO_META.equals(repoName) || Project.REPO_DOGMA.equals(repoName)) {
@@ -139,7 +139,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         }
 
         // Watch dogma repository to add newly created xDS projects.
-        watchDogmaRepository(repositoryManager, Revision.INIT);
+        watchDogmaRepository(xdsProject);
         final V3DiscoveryServer server = new V3DiscoveryServer(new LoggingDiscoveryServerCallbacks(), cache);
         final GrpcService grpcService = GrpcService.builder()
                                                    .addService(server.getClusterDiscoveryServiceImpl())
@@ -182,52 +182,25 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
         }
     }
 
-    private void watchDogmaRepository(RepositoryManager repositoryManager, Revision lastKnownRevision) {
-        final Repository dogmaRepository = repositoryManager.get(Project.REPO_DOGMA);
+    private void watchDogmaRepository(Project xdsProject) {
+        final Repository dogmaRepository = xdsProject.repos().get(Project.REPO_DOGMA);
         // TODO(minwoox): Use different file because metadata.json contains other information than repo's names.
-        dogmaRepository.watch(lastKnownRevision, Query.ofJson(MetadataService.METADATA_JSON))
-                       .handleAsync((entry, cause) -> {
-                           if (cause != null) {
-                               logger.warn("Failed to watch {} in xDS. Try watching after {} seconds.",
-                                           MetadataService.METADATA_JSON, BACKOFF_SECONDS, cause);
-                               CONTROL_PLANE_EXECUTOR.schedule(
-                                       () -> watchDogmaRepository(repositoryManager, lastKnownRevision),
-                                       BACKOFF_SECONDS, TimeUnit.SECONDS);
-                               return null;
-                           }
-                           final JsonNode content = entry.content();
-                           final JsonNode repos = content.get("repos");
-                           if (repos == null) {
-                               logger.warn("Failed to find repos in {} in xDS. Try watching after {} seconds.",
-                                           MetadataService.METADATA_JSON, BACKOFF_SECONDS);
-                               CONTROL_PLANE_EXECUTOR.schedule(
-                                       () -> watchDogmaRepository(repositoryManager, lastKnownRevision),
-                                       BACKOFF_SECONDS, TimeUnit.SECONDS);
-                               return null;
-                           }
-                           repos.fieldNames().forEachRemaining(repoName -> {
-                               if (Project.REPO_META.equals(repoName)) {
-                                   return;
-                               }
-                               final boolean added = watchingXdsProjects.add(repoName);
-                               if (!added) {
-                                   // Already watching.
-                                   return;
-                               }
-                               final Repository repository = repositoryManager.get(repoName);
-                               if (repository == null) {
-                                   // Ignore if the repository is removed. This can happen when multiple
-                                   // updates occurred after the actual repository is removed from the file
-                                   // system but before the repository is removed from the metadata file.
-                                   watchingXdsProjects.remove(repoName);
-                                   return;
-                               }
-                               watchXdsProject(repository, Revision.INIT);
-                           });
-                           // Watch dogma repository again to catch up newly created xDS projects.
-                           watchDogmaRepository(repositoryManager, entry.revision());
-                           return null;
-                       }, CONTROL_PLANE_EXECUTOR);
+        dogmaRepository.addListener(RepositoryListener.of(MetadataService.METADATA_JSON, entries -> {
+            CONTROL_PLANE_EXECUTOR.execute(() -> {
+                for (Repository repo : xdsProject.repos().list().values()) {
+                    final String repoName = repo.name();
+                    if (Project.REPO_META.equals(repoName) || Project.REPO_DOGMA.equals(repoName)) {
+                        continue;
+                    }
+                    final boolean added = watchingXdsProjects.add(repoName);
+                    if (!added) {
+                        // Already watching.
+                        return;
+                    }
+                    watchXdsProject(repo, Revision.INIT);
+                }
+            });
+        }));
     }
 
     private void watchXdsProject(Repository repository, Revision lastKnownRevision) {

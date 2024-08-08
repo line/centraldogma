@@ -1,5 +1,4 @@
 import { useAppSelector } from 'dogma/hooks';
-import { AppMemberDetailDto } from 'dogma/features/project/settings/members/AppMemberDto';
 import { useGetMetadataByProjectNameQuery } from 'dogma/features/api/apiSlice';
 import { ReactNode } from 'react';
 
@@ -16,15 +15,17 @@ export const WithProjectRole = ({ projectName, roles, children }: WithProjectRol
     refetchOnFocus: true,
   });
 
-  let role: ProjectRole = 'GUEST';
+  let role: ProjectRole;
   const { user } = useAppSelector((state) => state.auth);
   if (metadata && user) {
-    const appUser = Array.from(Object.values(metadata.members)).find(
-      (m: AppMemberDetailDto) => m.login === user.email,
-    );
-    if (appUser != null) {
-      role = appUser.role;
+    if (user.admin) {
+      role = 'OWNER';
+    } else {
+      role = metadata.members[user.email]?.role as ProjectRole;
     }
+  }
+  if (!role) {
+    role = 'GUEST';
   }
 
   if (roles.find((r) => r === role)) {

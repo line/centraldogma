@@ -36,6 +36,7 @@ import com.spotify.futures.CompletableFutures;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.QuotaConfig;

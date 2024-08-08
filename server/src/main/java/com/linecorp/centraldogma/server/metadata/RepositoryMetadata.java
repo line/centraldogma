@@ -31,6 +31,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 

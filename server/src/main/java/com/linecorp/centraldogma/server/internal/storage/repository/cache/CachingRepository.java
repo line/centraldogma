@@ -49,6 +49,7 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
 final class CachingRepository implements Repository {
 
@@ -272,6 +273,16 @@ final class CachingRepository implements Repository {
             cache.get(key);
             return mergedEntry;
         });
+    }
+
+    @Override
+    public void addListener(RepositoryListener listener) {
+        repo.addListener(listener);
+    }
+
+    @Override
+    public void removeListener(RepositoryListener listener) {
+        repo.removeListener(listener);
     }
 
     private static Executor executor() {

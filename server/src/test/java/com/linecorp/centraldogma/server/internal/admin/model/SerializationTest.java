@@ -28,11 +28,11 @@ import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.TokenRegistration;

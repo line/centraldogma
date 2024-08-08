@@ -35,11 +35,11 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.SimpleDecoratingHttpService;
 import com.linecorp.armeria.server.annotation.DecoratorFactoryFunction;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.metadata.User;
 
 /**

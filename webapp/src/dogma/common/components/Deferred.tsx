@@ -13,10 +13,11 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import { Spinner, Text, useColorMode, VStack } from '@chakra-ui/react';
+import { useColorMode } from '@chakra-ui/react';
 import Error from 'next/error';
 import { ReactNode } from 'react';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
+import { Loading } from './Loading';
 
 interface LoadingProps {
   isLoading: boolean;
@@ -26,12 +27,7 @@ interface LoadingProps {
 export const Deferred = (props: LoadingProps) => {
   const { colorMode } = useColorMode();
   if (props.isLoading) {
-    return (
-      <VStack mt="25%">
-        <Spinner thickness="4px" speed="0.65s" emptyColor="gray.200" color="teal" size="xl" />
-        <Text>Loading...</Text>
-      </VStack>
-    );
+    return <Loading />;
   }
   if (props.error) {
     const error = props.error;

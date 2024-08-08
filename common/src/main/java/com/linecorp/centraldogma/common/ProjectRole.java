@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.metadata;
+package com.linecorp.centraldogma.common;
 
 import static java.util.Objects.requireNonNull;
 
@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.linecorp.centraldogma.internal.Jackson;
 
 /**
- * Roles of a {@link User} in a project.
+ * Roles of a user in a project.
  */
 public enum ProjectRole {
     OWNER,

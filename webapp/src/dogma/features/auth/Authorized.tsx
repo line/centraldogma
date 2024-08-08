@@ -19,6 +19,7 @@ import { getUser, checkSecurityEnabled } from 'dogma/features/auth/authSlice';
 import { useRouter } from 'next/router';
 import { isFulfilled } from '@reduxjs/toolkit';
 import { useAppDispatch, useAppSelector } from 'dogma/hooks';
+import { Loading } from '../../common/components/Loading';
 
 const WEB_AUTH_LOGIN = '/web/auth/login';
 
@@ -38,7 +39,7 @@ export const Authorized = (props: { children: ReactNode }) => {
 
   const router = useRouter();
   if (isLoading) {
-    return <p>Loading...</p>;
+    return <Loading />;
   }
   if (isInAnonymousMode || router.pathname === WEB_AUTH_LOGIN || user) {
     return <>{props.children}</>;
