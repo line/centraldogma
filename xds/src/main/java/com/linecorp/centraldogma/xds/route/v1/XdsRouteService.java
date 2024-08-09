@@ -77,7 +77,9 @@ public final class XdsRouteService extends XdsRouteServiceImplBase {
         final RouteConfiguration route = request.getRoute();
         final String routeName = route.getName();
         final String group = checkRouteName(routeName).group(1);
-        xdsResourceManager.update(responseObserver, group, routeName, "Update route: " + routeName, route);
+        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.update(responseObserver, group, routeName, "Update route: " + routeName, route,
+                                  currentAuthor());
     }
 
     private static Matcher checkRouteName(String routeName) {
@@ -94,6 +96,8 @@ public final class XdsRouteService extends XdsRouteServiceImplBase {
     public void deleteRoute(DeleteRouteRequest request, StreamObserver<Empty> responseObserver) {
         final String routeName = request.getName();
         final String group = checkRouteName(routeName).group(1);
-        xdsResourceManager.delete(responseObserver, group, routeName, "Delete route: " + routeName);
+        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.delete(responseObserver, group, routeName, "Delete route: " + routeName,
+                                  currentAuthor());
     }
 }

@@ -13,19 +13,21 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.xds.internal.k8s;
+package com.linecorp.centraldogma.xds.k8s.v1;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
-import static com.linecorp.centraldogma.xds.internal.k8s.XdsKubernetesService.K8S_WATCHERS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.K8S_WATCHERS_DIRECTORY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -33,19 +35,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
-import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
-import com.linecorp.centraldogma.xds.k8s.v1.KubernetesConfig;
-import com.linecorp.centraldogma.xds.k8s.v1.Watcher;
 import com.linecorp.centraldogma.xds.k8s.v1.Watcher.Builder;
 
 import io.fabric8.kubernetes.api.model.Container;
@@ -94,13 +94,11 @@ class XdsKubernetesServiceTest {
         assertThat(response.status()).isSameAs(HttpStatus.OK);
     }
 
-    @Test
-    void createWatcherRequest() throws IOException {
-        // Prepare Kubernetes resources
+    @BeforeEach
+    void prepareK8sResources() {
         final List<Node> nodes = ImmutableList.of(newNode("1.1.1.1"), newNode("2.2.2.2"), newNode("3.3.3.3"));
         final Deployment deployment = newDeployment();
-        final int nodePort = 30000;
-        final Service service = newService(nodePort);
+        final Service service = newService();
         final List<Pod> pods = nodes.stream()
                                     .map(node -> node.getMetadata().getName())
                                     .map(nodeName -> newPod(deployment.getSpec().getTemplate(), nodeName))
@@ -114,29 +112,27 @@ class XdsKubernetesServiceTest {
         client.pods().resource(pods.get(1)).create();
         client.apps().deployments().resource(deployment).create();
         client.services().resource(service).create();
+    }
 
-        final KubernetesConfig kubernetesConfig =
-                KubernetesConfig.newBuilder()
-                                .setControlPlaneUrl(client.getMasterUrl().toString())
-                                .setNamespace(client.getNamespace())
-                                .setTrustCerts(true)
-                                .build();
-        final Watcher.Builder watcherBuilder = Watcher.newBuilder()
-                                                      .setName("groups/foo/k8s/watchers/foo-k8s-cluster")
-                                                      .setServiceName("nginx-service")
-                                                      .setKubernetesConfig(kubernetesConfig);
-        final RequestHeaders headers =
-                RequestHeaders.builder(HttpMethod.POST,
-                                       "/api/v1/xds/groups/foo/k8s/watchers?watcher_id=foo-k8s-cluster")
-                              .contentType(MediaType.JSON_UTF_8)
-                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                              .build();
+    @AfterEach
+    void cleanupK8sResources() {
+        client.nodes().list().getItems().forEach(
+                node -> client.nodes().withName(node.getMetadata().getName()).delete());
+        client.pods().list().getItems().forEach(
+                pod -> client.pods().withName(pod.getMetadata().getName()).delete());
+        client.apps().deployments().list().getItems().forEach(
+                deployment -> client.apps().deployments().withName(deployment.getMetadata().getName())
+                                    .delete());
+        client.services().list().getItems().forEach(
+                service -> client.services().withName(service.getMetadata().getName()).delete());
+        client.close();
+    }
 
-        final Watcher watcher = watcherBuilder.build();
-        final AggregatedHttpResponse response = dogma.httpClient().blocking().execute(
-                headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(watcher));
-        assertThat(response.status()).isSameAs(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
+    @Test
+    void createWatcherRequest() throws IOException {
+        final Watcher watcher = watcher();
+        final AggregatedHttpResponse response = createWatcher(watcher);
+        assertOk(response);
         final String json = response.contentUtf8();
         assertWatcher(json, watcher);
         final Entry<JsonNode> entry =
@@ -146,10 +142,83 @@ class XdsKubernetesServiceTest {
         assertWatcher(entry.contentAsText(), watcher);
     }
 
+    private Watcher watcher() {
+        final KubernetesConfig kubernetesConfig =
+                KubernetesConfig.newBuilder()
+                                .setControlPlaneUrl(client.getMasterUrl().toString())
+                                .setNamespace(client.getNamespace())
+                                .setTrustCerts(true)
+                                .build();
+        return Watcher.newBuilder()
+                      .setName("groups/foo/k8s/watchers/foo-k8s-cluster")
+                      .setServiceName("nginx-service")
+                      .setKubernetesConfig(kubernetesConfig)
+                      .build();
+    }
+
+    private static AggregatedHttpResponse createWatcher(Watcher watcher) throws IOException {
+        final RequestHeaders headers =
+                RequestHeaders.builder(HttpMethod.POST,
+                                       "/api/v1/xds/groups/foo/k8s/watchers?watcher_id=foo-k8s-cluster")
+                              .contentType(MediaType.JSON_UTF_8)
+                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                              .build();
+
+        return dogma.httpClient().blocking().execute(
+                headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(watcher));
+    }
+
+    private static void assertOk(AggregatedHttpResponse response) {
+        assertThat(response.status()).isSameAs(HttpStatus.OK);
+        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
+    }
+
     private static void assertWatcher(String json, Watcher expected) throws IOException {
         final Builder responseWatcherBuilder = Watcher.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(json, responseWatcherBuilder);
         assertThat(responseWatcherBuilder.build()).isEqualTo(expected);
+    }
+
+    @Test
+    void updateWatcher() throws IOException {
+        final Watcher watcher = watcher();
+        AggregatedHttpResponse response = createWatcher(watcher);
+        assertOk(response);
+
+        final Watcher updatingWatcher = watcher.toBuilder().setPortName("https").build();
+        response = updateWatcher(updatingWatcher, dogma.httpClient());
+        assertOk(response);
+        assertWatcher(response.contentUtf8(), updatingWatcher);
+    }
+
+    public static AggregatedHttpResponse updateWatcher(
+            Watcher watcher, WebClient webClient) throws IOException {
+        final RequestHeaders headers =
+                RequestHeaders.builder(HttpMethod.PATCH,
+                                       "/api/v1/xds/groups/foo/k8s/watchers/foo-k8s-cluster")
+                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                              .contentType(MediaType.JSON_UTF_8).build();
+        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(watcher))
+                        .aggregate().join();
+    }
+
+    @Test
+    void deleteWatcher() throws IOException {
+        final Watcher watcher = watcher();
+        AggregatedHttpResponse response = createWatcher(watcher);
+        assertOk(response);
+
+        response = deleteWatcher(watcher.getName());
+        assertOk(response);
+        assertThat(response.contentUtf8()).isEqualTo("{}");
+    }
+
+    private static AggregatedHttpResponse deleteWatcher(String watcherName) {
+        final RequestHeaders headers =
+                RequestHeaders.builder(HttpMethod.DELETE, "/api/v1/xds/" + watcherName)
+                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                              .build();
+        return dogma.httpClient().execute(headers).aggregate().join();
     }
 
     static Node newNode(String ip) {
@@ -173,16 +242,21 @@ class XdsKubernetesServiceTest {
                 .build();
     }
 
-    static Service newService(@Nullable Integer nodePort) {
+    static Service newService() {
         final ObjectMeta metadata = new ObjectMetaBuilder()
                 .withName("nginx-service")
                 .build();
         final ServicePort servicePort = new ServicePortBuilder()
                 .withPort(80)
-                .withNodePort(nodePort)
+                .withNodePort(30000)
+                .build();
+        final ServicePort httpsServicePort = new ServicePortBuilder()
+                .withPort(443)
+                .withNodePort(30001)
+                .withName("https")
                 .build();
         final ServiceSpec serviceSpec = new ServiceSpecBuilder()
-                .withPorts(servicePort)
+                .withPorts(servicePort, httpsServicePort)
                 .withSelector(ImmutableMap.of("app", "nginx"))
                 .withType("NodePort")
                 .build();

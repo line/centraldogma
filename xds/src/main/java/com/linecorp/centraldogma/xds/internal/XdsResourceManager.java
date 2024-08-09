@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITHOUT_CONTENT;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static java.util.Objects.requireNonNull;
@@ -131,28 +130,25 @@ public final class XdsResourceManager {
         return resourceName.substring(7 + group.length()) + ".json";
     }
 
-    public <T extends Message> void update(
-            StreamObserver<T> responseObserver, String group, String resourceName, String summary, T resource) {
-        update(responseObserver, group, resourceName, fileName(group, resourceName), summary, resource);
+    public <T extends Message> void update(StreamObserver<T> responseObserver, String group,
+                                           String resourceName, String summary, T resource, Author author) {
+        update(responseObserver, group, resourceName, fileName(group, resourceName), summary, resource, author);
     }
 
     public <T extends Message> void update(StreamObserver<T> responseObserver, String group,
-                                           String resourceName, String fileName, String summary, T resource) {
-        checkGroup(group);
-        final Author author = currentAuthor();
-        final Runnable updateTask = () -> push(responseObserver, group, fileName, summary, resource, author);
-        updateOrDelete(responseObserver, group, resourceName, fileName, updateTask);
+                                           String resourceName, String fileName, String summary, T resource,
+                                           Author author) {
+        updateOrDelete(responseObserver, group, resourceName, fileName,
+                       () -> push(responseObserver, group, fileName, summary, resource, author));
     }
 
     public void delete(StreamObserver<Empty> responseObserver, String group,
-                       String resourceName, String summary) {
-        delete(responseObserver, group, resourceName, fileName(group, resourceName), summary);
+                       String resourceName, String summary, Author author) {
+        delete(responseObserver, group, resourceName, fileName(group, resourceName), summary, author);
     }
 
     public void delete(StreamObserver<Empty> responseObserver, String group,
-                       String resourceName, String fileName, String summary) {
-        checkGroup(group);
-        final Author author = currentAuthor();
+                       String resourceName, String fileName, String summary, Author author) {
         final Runnable deleteTask = () ->
                 commandExecutor.execute(Command.push(author, XDS_CENTRAL_DOGMA_PROJECT, group,
                                                      Revision.HEAD, summary, "", Markup.PLAINTEXT,

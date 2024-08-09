@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.xds.internal.k8s;
+package com.linecorp.centraldogma.xds.k8s.v1;
 
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static java.util.Objects.requireNonNull;
@@ -27,6 +27,9 @@ import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 
+/**
+ * A plugin that fetches Kubernetes endpoints from Central Dogma and provides them to the control plane.
+ */
 public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
 
     @Nullable

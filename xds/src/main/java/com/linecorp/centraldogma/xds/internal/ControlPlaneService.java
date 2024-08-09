@@ -34,7 +34,7 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.xds.cluster.v1.XdsClusterService;
 import com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointService;
 import com.linecorp.centraldogma.xds.group.v1.XdsGroupService;
-import com.linecorp.centraldogma.xds.internal.k8s.XdsKubernetesService;
+import com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService;
 import com.linecorp.centraldogma.xds.listener.v1.XdsListenerService;
 import com.linecorp.centraldogma.xds.route.v1.XdsRouteService;
 

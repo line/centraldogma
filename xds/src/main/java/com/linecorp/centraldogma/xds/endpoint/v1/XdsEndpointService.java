@@ -89,6 +89,7 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
         final String endpointName = request.getEndpointName();
         final Matcher matcher = checkEndpointName(endpointName);
         final String group = matcher.group(1);
+        xdsResourceManager.checkGroup(group);
 
         final ClusterLoadAssignment endpoint = request.getEndpoint();
         final String endpointId = matcher.group(2);
@@ -96,7 +97,7 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
                                   fileName(endpointId), "Update endpoint: " + endpointName,
                                   endpoint.toBuilder()
                                           .setClusterName(clusterName("groups/" + group, endpointId))
-                                          .build());
+                                          .build(), currentAuthor());
     }
 
     @Override
@@ -104,8 +105,9 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
         final String endpointName = request.getName();
         final Matcher matcher = checkEndpointName(endpointName);
         final String group = matcher.group(1);
-        xdsResourceManager.delete(responseObserver, group, endpointName,
-                                  fileName(matcher.group(2)), "Delete endpoint: " + endpointName);
+        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.delete(responseObserver, group, endpointName, fileName(matcher.group(2)),
+                                  "Delete endpoint: " + endpointName, currentAuthor());
     }
 
     private static Matcher checkEndpointName(String endpointName) {

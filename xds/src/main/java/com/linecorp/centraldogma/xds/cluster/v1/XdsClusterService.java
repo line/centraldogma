@@ -77,15 +77,18 @@ public final class XdsClusterService extends XdsClusterServiceImplBase {
         final Cluster cluster = request.getCluster();
         final String clusterName = cluster.getName();
         final String group = checkClusterName(clusterName).group(1);
+        xdsResourceManager.checkGroup(group);
         xdsResourceManager.update(responseObserver, group, clusterName,
-                                  "Update cluster: " + clusterName, cluster);
+                                  "Update cluster: " + clusterName, cluster, currentAuthor());
     }
 
     @Override
     public void deleteCluster(DeleteClusterRequest request, StreamObserver<Empty> responseObserver) {
         final String clusterName = request.getName();
         final String group = checkClusterName(clusterName).group(1);
-        xdsResourceManager.delete(responseObserver, group, clusterName, "Delete cluster: " + clusterName);
+        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.delete(responseObserver, group, clusterName, "Delete cluster: " + clusterName,
+                                  currentAuthor());
     }
 
     private static Matcher checkClusterName(String clusterName) {

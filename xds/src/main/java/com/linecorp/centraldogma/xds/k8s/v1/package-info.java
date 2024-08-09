@@ -18,6 +18,6 @@
  * Fetches Kubernetes endpoints information.
  */
 @NonNullByDefault
-package com.linecorp.centraldogma.xds.internal.k8s;
+package com.linecorp.centraldogma.xds.k8s.v1;
 
 import com.linecorp.centraldogma.common.util.NonNullByDefault;

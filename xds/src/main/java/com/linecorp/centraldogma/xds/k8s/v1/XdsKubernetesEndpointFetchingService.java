@@ -13,14 +13,14 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.xds.internal.k8s;
+package com.linecorp.centraldogma.xds.k8s.v1;
 
 import static com.linecorp.centraldogma.server.internal.ExecutorServiceUtil.terminate;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
-import static com.linecorp.centraldogma.xds.internal.k8s.XdsKubernetesService.K8S_WATCHERS_DIRECTORY;
-import static com.linecorp.centraldogma.xds.internal.k8s.XdsKubernetesService.createKubernetesEndpointGroup;
+import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.K8S_WATCHERS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.createKubernetesEndpointGroup;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
@@ -46,9 +46,6 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.xds.internal.XdsProjectWatchingService;
-import com.linecorp.centraldogma.xds.k8s.v1.CreateWatcherRequest;
-import com.linecorp.centraldogma.xds.k8s.v1.Watcher;
-import com.linecorp.centraldogma.xds.k8s.v1.Watcher.Builder;
 
 import io.envoyproxy.envoy.config.core.v3.Address;
 import io.envoyproxy.envoy.config.core.v3.SocketAddress;
