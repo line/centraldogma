@@ -16,7 +16,7 @@
 package com.linecorp.centraldogma.xds.cluster.v1;
 
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.CLUSTERS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.CLUSTERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
@@ -77,15 +77,18 @@ public final class XdsClusterService extends XdsClusterServiceImplBase {
         final Cluster cluster = request.getCluster();
         final String clusterName = cluster.getName();
         final String group = checkClusterName(clusterName).group(1);
+        xdsResourceManager.checkGroup(group);
         xdsResourceManager.update(responseObserver, group, clusterName,
-                                  "Update cluster: " + clusterName, cluster);
+                                  "Update cluster: " + clusterName, cluster, currentAuthor());
     }
 
     @Override
     public void deleteCluster(DeleteClusterRequest request, StreamObserver<Empty> responseObserver) {
         final String clusterName = request.getName();
         final String group = checkClusterName(clusterName).group(1);
-        xdsResourceManager.delete(responseObserver, group, clusterName, "Delete cluster: " + clusterName);
+        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.delete(responseObserver, group, clusterName, "Delete cluster: " + clusterName,
+                                  currentAuthor());
     }
 
     private static Matcher checkClusterName(String clusterName) {

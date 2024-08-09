@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITHOUT_CONTENT;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static java.util.Objects.requireNonNull;
@@ -37,8 +36,10 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.xds.k8s.v1.CreateWatcherRequest;
+import com.linecorp.centraldogma.xds.k8s.v1.DeleteWatcherRequest;
+import com.linecorp.centraldogma.xds.k8s.v1.UpdateWatcherRequest;
 
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
@@ -62,9 +63,12 @@ public final class XdsResourceManager {
                              .register(Listener.getDefaultInstance())
                              .register(Cluster.getDefaultInstance())
                              .register(ClusterLoadAssignment.getDefaultInstance())
-                             .register(Router.getDefaultInstance())
-                             // extensions
                              .register(RouteConfiguration.getDefaultInstance())
+                             .register(CreateWatcherRequest.getDefaultInstance())
+                             .register(UpdateWatcherRequest.getDefaultInstance())
+                             .register(DeleteWatcherRequest.getDefaultInstance())
+                             // extensions
+                             .register(Router.getDefaultInstance())
                              .register(HttpConnectionManager.getDefaultInstance())
                              .register(UpstreamTlsContext.getDefaultInstance())
                              .register(DownstreamTlsContext.getDefaultInstance())
@@ -78,21 +82,20 @@ public final class XdsResourceManager {
         return name.substring(prefix.length());
     }
 
-    private final Project xdsCentralDogmaProject;
+    private final Project xdsProject;
     private final CommandExecutor commandExecutor;
 
     /**
      * Creates a new instance.
      */
-    public XdsResourceManager(ProjectManager projectManager, CommandExecutor commandExecutor) {
-        xdsCentralDogmaProject = requireNonNull(projectManager, "projectManager")
-                .get(XDS_CENTRAL_DOGMA_PROJECT);
+    public XdsResourceManager(Project xdsProject, CommandExecutor commandExecutor) {
+        this.xdsProject = requireNonNull(xdsProject, "xdsProject");
         this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
     }
 
     public void checkGroup(String group) {
         // TODO(minwoox): check the write permission.
-        if (!xdsCentralDogmaProject.repos().exists(group)) {
+        if (!xdsProject.repos().exists(group)) {
             throw Status.NOT_FOUND.withDescription("Group not found: " + group).asRuntimeException();
         }
     }
@@ -127,28 +130,25 @@ public final class XdsResourceManager {
         return resourceName.substring(7 + group.length()) + ".json";
     }
 
-    public <T extends Message> void update(
-            StreamObserver<T> responseObserver, String group, String resourceName, String summary, T resource) {
-        update(responseObserver, group, resourceName, fileName(group, resourceName), summary, resource);
+    public <T extends Message> void update(StreamObserver<T> responseObserver, String group,
+                                           String resourceName, String summary, T resource, Author author) {
+        update(responseObserver, group, resourceName, fileName(group, resourceName), summary, resource, author);
     }
 
     public <T extends Message> void update(StreamObserver<T> responseObserver, String group,
-                                           String resourceName, String fileName, String summary, T resource) {
-        checkGroup(group);
-        final Author author = currentAuthor();
-        final Runnable updateTask = () -> push(responseObserver, group, fileName, summary, resource, author);
-        updateOrDelete(responseObserver, group, resourceName, fileName, updateTask);
+                                           String resourceName, String fileName, String summary, T resource,
+                                           Author author) {
+        updateOrDelete(responseObserver, group, resourceName, fileName,
+                       () -> push(responseObserver, group, fileName, summary, resource, author));
     }
 
     public void delete(StreamObserver<Empty> responseObserver, String group,
-                       String resourceName, String summary) {
-        delete(responseObserver, group, resourceName, fileName(group, resourceName), summary);
+                       String resourceName, String summary, Author author) {
+        delete(responseObserver, group, resourceName, fileName(group, resourceName), summary, author);
     }
 
     public void delete(StreamObserver<Empty> responseObserver, String group,
-                       String resourceName, String fileName, String summary) {
-        checkGroup(group);
-        final Author author = currentAuthor();
+                       String resourceName, String fileName, String summary, Author author) {
         final Runnable deleteTask = () ->
                 commandExecutor.execute(Command.push(author, XDS_CENTRAL_DOGMA_PROJECT, group,
                                                      Revision.HEAD, summary, "", Markup.PLAINTEXT,
@@ -168,7 +168,7 @@ public final class XdsResourceManager {
 
     public void updateOrDelete(StreamObserver<?> responseObserver, String group, String resourceName,
                                String fileName, Runnable task) {
-        final Repository repository = xdsCentralDogmaProject.repos().get(group);
+        final Repository repository = xdsProject.repos().get(group);
         repository.find(Revision.HEAD, fileName, FIND_ONE_WITHOUT_CONTENT).handle((entries, cause) -> {
             if (cause != null) {
                 responseObserver.onError(Status.INTERNAL.withCause(cause).asRuntimeException());
