@@ -16,9 +16,11 @@
 package com.linecorp.centraldogma.xds.k8s.v1;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceTest.checkEndpointsViaDiscoveryRequest;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.endpoint;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.K8S_WATCHERS_DIRECTORY;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -47,6 +49,8 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 import com.linecorp.centraldogma.xds.k8s.v1.Watcher.Builder;
 
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
+import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
@@ -79,7 +83,7 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentSpecBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 
-@EnableKubernetesMockClient(crud = true, https = false)
+@EnableKubernetesMockClient(crud = true)
 class XdsKubernetesServiceTest {
 
     @RegisterExtension
@@ -91,7 +95,7 @@ class XdsKubernetesServiceTest {
     static void setup() {
         final AggregatedHttpResponse response = createGroup("groups/foo", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-        final List<Node> nodes = ImmutableList.of(newNode("1.1.1.1"), newNode("2.2.2.2"), newNode("3.3.3.3"));
+        final List<Node> nodes = ImmutableList.of(newNode("1.1.1.1"), newNode("2.2.2.2"));
         final Deployment deployment = newDeployment();
         final Service service = newService();
         final List<Pod> pods = nodes.stream()
@@ -145,6 +149,9 @@ class XdsKubernetesServiceTest {
                      .get(Revision.HEAD,
                           Query.ofJson(K8S_WATCHERS_DIRECTORY + watcherId + ".json")).join();
         assertWatcher(entry.contentAsText(), watcher);
+        final String clusterName = "groups/foo/k8s/clusters/" + watcherId;
+        final ClusterLoadAssignment loadAssignment = clusterLoadAssignment(clusterName, 30000);
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment, clusterName);
     }
 
     private static Watcher watcher(String watcherId) {
@@ -188,18 +195,34 @@ class XdsKubernetesServiceTest {
         assertThat(responseWatcherBuilder.build()).isEqualTo(expected);
     }
 
+    private static ClusterLoadAssignment clusterLoadAssignment(String clusterName, int port) {
+        return ClusterLoadAssignment.newBuilder()
+                                    .setClusterName(clusterName)
+                                    .addEndpoints(
+                                            LocalityLbEndpoints.newBuilder()
+                                                               .addLbEndpoints(endpoint("1.1.1.1", port))
+                                                               .addLbEndpoints(endpoint("2.2.2.2", port))
+                                                               .build())
+                                    .build();
+    }
+
     @Test
     void updateWatcher() throws IOException {
         final String watcherId = "foo-k8s-cluster/2";
         final Watcher watcher = watcher(watcherId);
         AggregatedHttpResponse response = createWatcher(watcher, watcherId);
         assertOk(response);
+        final String clusterName = "groups/foo/k8s/clusters/" + watcherId;
+        final ClusterLoadAssignment loadAssignment = clusterLoadAssignment(clusterName, 30000);
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment, clusterName);
 
         final Watcher updatingWatcher = watcher.toBuilder().setPortName("https").build();
         response = updateWatcher(updatingWatcher, watcherId, dogma.httpClient());
 
         assertOk(response);
         assertWatcher(response.contentUtf8(), updatingWatcher);
+        final ClusterLoadAssignment loadAssignment2 = clusterLoadAssignment(clusterName, 30001);
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment2, clusterName);
     }
 
     public static AggregatedHttpResponse updateWatcher(
@@ -215,12 +238,17 @@ class XdsKubernetesServiceTest {
 
     @Test
     void deleteWatcher() throws IOException {
-        final Watcher watcher = watcher("foo-k8s-cluster/3");
-        AggregatedHttpResponse response = createWatcher(watcher, "foo-k8s-cluster/3");
+        final String watcherId = "foo-k8s-cluster/3";
+        final Watcher watcher = watcher(watcherId);
+        AggregatedHttpResponse response = createWatcher(watcher, watcherId);
         assertOk(response);
+        final String clusterName = "groups/foo/k8s/clusters/" + watcherId;
+        final ClusterLoadAssignment loadAssignment = clusterLoadAssignment(clusterName, 30000);
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment, clusterName);
         response = deleteWatcher(watcher.getName());
         assertOk(response);
         assertThat(response.contentUtf8()).isEqualTo("{}");
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), null, clusterName);
     }
 
     private static AggregatedHttpResponse deleteWatcher(String watcherName) {

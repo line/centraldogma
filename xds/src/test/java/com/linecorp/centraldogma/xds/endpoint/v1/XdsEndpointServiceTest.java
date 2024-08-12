@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -56,7 +57,7 @@ import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
 import io.envoyproxy.envoy.service.endpoint.v3.EndpointDiscoveryServiceGrpc.EndpointDiscoveryServiceStub;
 import io.grpc.stub.StreamObserver;
 
-class XdsEndpointServiceTest {
+public class XdsEndpointServiceTest {
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension();
@@ -86,7 +87,7 @@ class XdsEndpointServiceTest {
         final String clusterName = "groups/foo/clusters/foo-endpoint/1";
         assertThat(actualEndpoint).isEqualTo(
                 endpoint.toBuilder().setClusterName(clusterName).build());
-        checkResourceViaDiscoveryRequest(actualEndpoint, clusterName);
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), actualEndpoint, clusterName);
     }
 
     private static void assertOk(AggregatedHttpResponse response) {
@@ -94,18 +95,18 @@ class XdsEndpointServiceTest {
         assertThat(response.headers().get("grpc-status")).isEqualTo("0");
     }
 
-    private static void checkResourceViaDiscoveryRequest(
-            @Nullable ClusterLoadAssignment actualEndpoint, String resourceName) {
+    public static void checkEndpointsViaDiscoveryRequest(
+            URI uri, @Nullable ClusterLoadAssignment actualEndpoint, String resourceName) {
         await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
-                () -> checkResourceViaDiscoveryRequest0(actualEndpoint, resourceName));
+                () -> checkEndpointsViaDiscoveryRequest0(uri, actualEndpoint, resourceName));
     }
 
-    private static void checkResourceViaDiscoveryRequest0(
-            @Nullable ClusterLoadAssignment actualEndpoint, String resourceName)
+    private static void checkEndpointsViaDiscoveryRequest0(
+            URI uri, @Nullable ClusterLoadAssignment actualEndpoint, String resourceName)
             throws InterruptedException, InvalidProtocolBufferException {
 
         final EndpointDiscoveryServiceStub client = GrpcClients.newClient(
-                dogma.httpClient().uri(), EndpointDiscoveryServiceStub.class);
+                uri, EndpointDiscoveryServiceStub.class);
         final BlockingQueue<DiscoveryResponse> queue = new ArrayBlockingQueue<>(2);
         final StreamObserver<DiscoveryRequest> requestStreamObserver = client.streamEndpoints(
                 new StreamObserver<DiscoveryResponse>() {
@@ -152,7 +153,7 @@ class XdsEndpointServiceTest {
         final ClusterLoadAssignment actualEndpoint = endpointBuilder.build();
         final String clusterName = "groups/foo/clusters/foo-endpoint/2";
         assertThat(actualEndpoint).isEqualTo(endpoint.toBuilder().setClusterName(clusterName).build());
-        checkResourceViaDiscoveryRequest(actualEndpoint, clusterName);
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), actualEndpoint, clusterName);
 
         final ClusterLoadAssignment updatingEndpoint =
                 endpoint.toBuilder()
@@ -166,7 +167,7 @@ class XdsEndpointServiceTest {
         final ClusterLoadAssignment actualEndpoint2 = endpointBuilder2.build();
         assertThat(actualEndpoint2).isEqualTo(
                 updatingEndpoint.toBuilder().setClusterName(clusterName).build());
-        checkResourceViaDiscoveryRequest(actualEndpoint2, clusterName);
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), actualEndpoint2, clusterName);
     }
 
     private static AggregatedHttpResponse updateEndpoint(
@@ -193,14 +194,14 @@ class XdsEndpointServiceTest {
 
         final ClusterLoadAssignment actualEndpoint =
                 endpoint.toBuilder().setClusterName(clusterName).build();
-        checkResourceViaDiscoveryRequest(actualEndpoint, clusterName);
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), actualEndpoint, clusterName);
 
         // Add permission test.
 
         response = deleteEndpoint(endpointName);
         assertOk(response);
         assertThat(response.contentUtf8()).isEqualTo("{}");
-        checkResourceViaDiscoveryRequest(null, clusterName);
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), null, clusterName);
     }
 
     private static AggregatedHttpResponse deleteEndpoint(String endpointName) {
@@ -227,7 +228,7 @@ class XdsEndpointServiceTest {
                                      .build());
         final String clusterName = "groups/foo/clusters/foo-endpoint/5/6";
         assertThat(response).isEqualTo(endpoint.toBuilder().setClusterName(clusterName).build());
-        checkResourceViaDiscoveryRequest(response, clusterName);
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), response, clusterName);
 
         final ClusterLoadAssignment updatingEndpoint =
                 endpoint.toBuilder()
@@ -242,13 +243,13 @@ class XdsEndpointServiceTest {
                                      .setEndpoint(updatingEndpoint)
                                      .build());
         assertThat(response2).isEqualTo(updatingEndpoint);
-        checkResourceViaDiscoveryRequest(response2, clusterName);
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), response2, clusterName);
 
         // No exception is thrown.
         final Empty ignored = client.deleteEndpoint(
                 DeleteEndpointRequest.newBuilder()
                                      .setName(endpointName)
                                      .build());
-        checkResourceViaDiscoveryRequest(null, clusterName);
+        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), null, clusterName);
     }
 }

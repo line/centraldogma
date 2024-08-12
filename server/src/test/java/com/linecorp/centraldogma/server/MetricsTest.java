@@ -40,7 +40,7 @@ import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
 @FlakyTest
-@Timeout(30)
+@Timeout(60)
 class MetricsTest {
 
     @RegisterExtension
