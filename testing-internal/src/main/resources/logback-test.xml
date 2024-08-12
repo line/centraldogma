@@ -11,6 +11,7 @@
   </appender>
 
   <logger name="com.linecorp" level="DEBUG" />
+  <logger name="io.fabric8" level="DEBUG" />
   <logger name="io.netty" level="INFO" />
   <logger name="org.testcontainers" level="DEBUG" />
   <!-- Disable the 'Invalid config event received' log messages. -->

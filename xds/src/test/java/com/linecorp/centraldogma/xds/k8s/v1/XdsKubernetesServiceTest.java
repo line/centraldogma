@@ -25,9 +25,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.util.List;
 
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -80,22 +79,18 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentSpecBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 
-@EnableKubernetesMockClient(crud = true)
+@EnableKubernetesMockClient(crud = true, https = false)
 class XdsKubernetesServiceTest {
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension();
 
-    private KubernetesClient client;
+    static KubernetesClient client;
 
     @BeforeAll
     static void setup() {
         final AggregatedHttpResponse response = createGroup("groups/foo", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.OK);
-    }
-
-    @BeforeEach
-    void prepareK8sResources() {
         final List<Node> nodes = ImmutableList.of(newNode("1.1.1.1"), newNode("2.2.2.2"), newNode("3.3.3.3"));
         final Deployment deployment = newDeployment();
         final Service service = newService();
@@ -114,8 +109,8 @@ class XdsKubernetesServiceTest {
         client.services().resource(service).create();
     }
 
-    @AfterEach
-    void cleanupK8sResources() {
+    @AfterAll
+    static void cleanupK8sResources() {
         client.nodes().list().getItems().forEach(
                 node -> client.nodes().withName(node.getMetadata().getName()).delete());
         client.pods().list().getItems().forEach(
@@ -129,20 +124,34 @@ class XdsKubernetesServiceTest {
     }
 
     @Test
+    void invalidProperty() throws IOException {
+        final String watcherId = "foo-cluster";
+        final Watcher watcher = watcher(watcherId, "invalid-service-name");
+        final AggregatedHttpResponse response = createWatcher(watcher, watcherId);
+        assertThat(response.status()).isSameAs(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.contentUtf8()).contains("Failed to retrieve k8s endpoints");
+    }
+
+    @Test
     void createWatcherRequest() throws IOException {
-        final Watcher watcher = watcher();
-        final AggregatedHttpResponse response = createWatcher(watcher);
+        final String watcherId = "foo-k8s-cluster/1";
+        final Watcher watcher = watcher(watcherId);
+        final AggregatedHttpResponse response = createWatcher(watcher, watcherId);
         assertOk(response);
         final String json = response.contentUtf8();
         assertWatcher(json, watcher);
         final Entry<JsonNode> entry =
                 dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo")
                      .get(Revision.HEAD,
-                          Query.ofJson(K8S_WATCHERS_DIRECTORY + "foo-k8s-cluster.json")).join();
+                          Query.ofJson(K8S_WATCHERS_DIRECTORY + watcherId + ".json")).join();
         assertWatcher(entry.contentAsText(), watcher);
     }
 
-    private Watcher watcher() {
+    private static Watcher watcher(String watcherId) {
+        return watcher(watcherId, "nginx-service");
+    }
+
+    private static Watcher watcher(String watcherId, String serviceName) {
         final KubernetesConfig kubernetesConfig =
                 KubernetesConfig.newBuilder()
                                 .setControlPlaneUrl(client.getMasterUrl().toString())
@@ -150,16 +159,16 @@ class XdsKubernetesServiceTest {
                                 .setTrustCerts(true)
                                 .build();
         return Watcher.newBuilder()
-                      .setName("groups/foo/k8s/watchers/foo-k8s-cluster")
-                      .setServiceName("nginx-service")
+                      .setName("groups/foo/k8s/watchers/" + watcherId)
+                      .setServiceName(serviceName)
                       .setKubernetesConfig(kubernetesConfig)
                       .build();
     }
 
-    private static AggregatedHttpResponse createWatcher(Watcher watcher) throws IOException {
+    private static AggregatedHttpResponse createWatcher(Watcher watcher, String watcherId) throws IOException {
         final RequestHeaders headers =
                 RequestHeaders.builder(HttpMethod.POST,
-                                       "/api/v1/xds/groups/foo/k8s/watchers?watcher_id=foo-k8s-cluster")
+                                       "/api/v1/xds/groups/foo/k8s/watchers?watcher_id=" + watcherId)
                               .contentType(MediaType.JSON_UTF_8)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                               .build();
@@ -181,21 +190,23 @@ class XdsKubernetesServiceTest {
 
     @Test
     void updateWatcher() throws IOException {
-        final Watcher watcher = watcher();
-        AggregatedHttpResponse response = createWatcher(watcher);
+        final String watcherId = "foo-k8s-cluster/2";
+        final Watcher watcher = watcher(watcherId);
+        AggregatedHttpResponse response = createWatcher(watcher, watcherId);
         assertOk(response);
 
         final Watcher updatingWatcher = watcher.toBuilder().setPortName("https").build();
-        response = updateWatcher(updatingWatcher, dogma.httpClient());
+        response = updateWatcher(updatingWatcher, watcherId, dogma.httpClient());
+
         assertOk(response);
         assertWatcher(response.contentUtf8(), updatingWatcher);
     }
 
     public static AggregatedHttpResponse updateWatcher(
-            Watcher watcher, WebClient webClient) throws IOException {
+            Watcher watcher, String watcherId, WebClient webClient) throws IOException {
         final RequestHeaders headers =
                 RequestHeaders.builder(HttpMethod.PATCH,
-                                       "/api/v1/xds/groups/foo/k8s/watchers/foo-k8s-cluster")
+                                       "/api/v1/xds/groups/foo/k8s/watchers/" + watcherId)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                               .contentType(MediaType.JSON_UTF_8).build();
         return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(watcher))
@@ -204,10 +215,9 @@ class XdsKubernetesServiceTest {
 
     @Test
     void deleteWatcher() throws IOException {
-        final Watcher watcher = watcher();
-        AggregatedHttpResponse response = createWatcher(watcher);
+        final Watcher watcher = watcher("foo-k8s-cluster/3");
+        AggregatedHttpResponse response = createWatcher(watcher, "foo-k8s-cluster/3");
         assertOk(response);
-
         response = deleteWatcher(watcher.getName());
         assertOk(response);
         assertThat(response.contentUtf8()).isEqualTo("{}");

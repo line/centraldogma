@@ -20,8 +20,10 @@ import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.curr
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
-import static io.fabric8.kubernetes.client.Config.KUBERNETES_DISABLE_AUTO_CONFIG_SYSTEM_PROPERTY;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,9 +33,11 @@ import org.slf4j.LoggerFactory;
 
 import com.google.protobuf.Empty;
 
+import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.kubernetes.endpoints.KubernetesEndpointGroup;
 import com.linecorp.armeria.client.kubernetes.endpoints.KubernetesEndpointGroupBuilder;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.annotation.Blocking;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.xds.internal.XdsResourceManager;
 import com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesServiceGrpc.XdsKubernetesServiceImplBase;
@@ -42,6 +46,7 @@ import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import io.netty.util.concurrent.ScheduledFuture;
 
 /**
  * A gRPC service that handles Kubernetes resources.
@@ -52,8 +57,8 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
 
     static final String K8S_WATCHERS_DIRECTORY = "/k8s/watchers/";
 
-    private static final Pattern WATCHER_NAME_PATTERN =
-            Pattern.compile("^groups/([^/]+)" + K8S_WATCHERS_DIRECTORY + RESOURCE_ID_PATTERN_STRING + '$');
+    public static final Pattern WATCHER_NAME_PATTERN = Pattern.compile(
+            "^groups/([^/]+)" + K8S_WATCHERS_DIRECTORY + '(' + RESOURCE_ID_PATTERN_STRING + ")$");
 
     private final XdsResourceManager xdsResourceManager;
 
@@ -62,10 +67,9 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
      */
     public XdsKubernetesService(XdsResourceManager xdsResourceManager) {
         this.xdsResourceManager = xdsResourceManager;
-        System.setProperty(KUBERNETES_DISABLE_AUTO_CONFIG_SYSTEM_PROPERTY, "true");
     }
 
-    //TODO(minwoox): increase timeout
+    @Blocking
     @Override
     public void createWatcher(CreateWatcherRequest request, StreamObserver<Watcher> responseObserver) {
         final String parent = request.getParent();
@@ -89,13 +93,31 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
     private static void validateWatcherAndPush(
             StreamObserver<Watcher> responseObserver, Watcher watcher, Runnable onSuccess) {
         // Create a KubernetesEndpointGroup to check if the watcher is valid.
+        // We use KubernetesEndpointGroup for simplicity, but we will implement a custom implementation
+        // for better debugging and error handling in the future.
         final KubernetesEndpointGroup kubernetesEndpointGroup = createKubernetesEndpointGroup(watcher);
 
         final AtomicBoolean completed = new AtomicBoolean();
-        kubernetesEndpointGroup.whenReady().handle((endpoints, cause) -> {
+        final CompletableFuture<List<Endpoint>> whenReady = kubernetesEndpointGroup.whenReady();
+        final ServiceRequestContext ctx = ServiceRequestContext.current();
+
+        // Use a schedule to time out the watcher creation until we implement a custom implementation.
+        final ScheduledFuture<?> scheduledFuture = ctx.eventLoop().schedule(() -> {
+            if (!completed.compareAndSet(false, true)) {
+                return;
+            }
+            kubernetesEndpointGroup.closeAsync();
+            responseObserver.onError(
+                    Status.INTERNAL.withDescription(
+                            "Failed to retrieve k8s endpoints within 5 seconds. watcherName: " +
+                            watcher.getName()).asRuntimeException());
+        }, 5, TimeUnit.SECONDS);
+
+        whenReady.handle((endpoints, cause) -> {
             if (!completed.compareAndSet(false, true)) {
                 return null;
             }
+            scheduledFuture.cancel(false);
             kubernetesEndpointGroup.closeAsync();
             if (cause != null) {
                 // Specific types.
@@ -106,18 +128,12 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
             onSuccess.run();
             return null;
         });
-
-        final ServiceRequestContext ctx = ServiceRequestContext.current();
-        ctx.whenRequestCancelling().thenAccept(throwable -> {
-            if (!completed.compareAndSet(false, true)) {
-                return;
-            }
-            kubernetesEndpointGroup.closeAsync();
-        });
     }
 
     /**
      * Creates a {@link KubernetesEndpointGroup} from the specified {@link Watcher}.
+     * This method must be executed in a blocking thread because
+     * {@link KubernetesEndpointGroupBuilder#build()} blocks the execution thread.
      */
     public static KubernetesEndpointGroup createKubernetesEndpointGroup(Watcher watcher) {
         final KubernetesConfig kubernetesConfig = watcher.getKubernetesConfig();
@@ -147,6 +163,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         return configBuilder.build();
     }
 
+    @Blocking
     @Override
     public void updateWatcher(UpdateWatcherRequest request, StreamObserver<Watcher> responseObserver) {
         final Watcher watcher = request.getWatcher();

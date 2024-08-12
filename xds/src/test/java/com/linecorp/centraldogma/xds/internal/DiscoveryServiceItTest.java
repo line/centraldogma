@@ -141,7 +141,6 @@ final class DiscoveryServiceItTest {
                                                                     .post("/", "Hello!")
                                                                     .aggregate().join();
                        assertThat(res2.headers().status()).isSameAs(HttpStatus.OK);
-                       System.err.println(res2.contentUtf8());
                        assertThat(res2.content().isEmpty()).isTrue();
                    });
             // Envoy closes the connection so a ClosedSessionException is raised in the Server.

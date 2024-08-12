@@ -37,9 +37,9 @@ import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
-public abstract class XdsProjectWatchingService {
+public abstract class XdsResourceWatchingService {
 
-    private static final Logger logger = LoggerFactory.getLogger(XdsProjectWatchingService.class);
+    private static final Logger logger = LoggerFactory.getLogger(XdsResourceWatchingService.class);
 
     public static final long BACKOFF_SECONDS = 10;
 
@@ -48,7 +48,7 @@ public abstract class XdsProjectWatchingService {
     // Accessed only from executor().
     private final Set<String> watchingGroups = new HashSet<>();
 
-    protected XdsProjectWatchingService(Project xdsProject) {
+    protected XdsResourceWatchingService(Project xdsProject) {
         this.xdsProject = xdsProject;
     }
 
@@ -60,7 +60,7 @@ public abstract class XdsProjectWatchingService {
 
     protected abstract String pathPattern();
 
-    protected abstract void handleXdsResources(String path, String contentAsText, String groupName)
+    protected abstract void handleXdsResource(String path, String contentAsText, String groupName)
             throws IOException;
 
     protected abstract void onGroupRemoved(String groupName);
@@ -88,7 +88,7 @@ public abstract class XdsProjectWatchingService {
                 final String path = entry.path();
                 final String contentAsText = entry.contentAsText();
                 try {
-                    handleXdsResources(path, contentAsText, groupName);
+                    handleXdsResource(path, contentAsText, groupName);
                 } catch (Throwable t) {
                     throw new RuntimeException("Unexpected exception while building an xDS resource from " +
                                                groupName + path, t);
@@ -171,7 +171,7 @@ public abstract class XdsProjectWatchingService {
                 switch (change.type()) {
                     case UPSERT_JSON:
                         try {
-                            handleXdsResources(path, change.contentAsText(), groupName);
+                            handleXdsResource(path, change.contentAsText(), groupName);
                         } catch (Throwable t) {
                             logger.warn("Unexpected exception while handling an xDS resource from {}.",
                                         groupName + path, t);

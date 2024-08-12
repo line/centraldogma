@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.xds.k8s.v1;
 
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static io.fabric8.kubernetes.client.Config.KUBERNETES_DISABLE_AUTO_CONFIG_SYSTEM_PROPERTY;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
@@ -43,6 +44,7 @@ public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
     @Override
     public synchronized CompletionStage<Void> start(PluginContext context) {
         requireNonNull(context, "context");
+        System.setProperty(KUBERNETES_DISABLE_AUTO_CONFIG_SYSTEM_PROPERTY, "true");
 
         XdsKubernetesEndpointFetchingService fetchingService = this.fetchingService;
         if (fetchingService == null) {

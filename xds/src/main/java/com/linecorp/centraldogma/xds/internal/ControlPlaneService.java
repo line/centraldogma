@@ -57,7 +57,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
-public final class ControlPlaneService extends XdsProjectWatchingService {
+public final class ControlPlaneService extends XdsResourceWatchingService {
 
     private static final Logger logger = LoggerFactory.getLogger(ControlPlaneService.class);
 
@@ -143,7 +143,7 @@ public final class ControlPlaneService extends XdsProjectWatchingService {
     }
 
     @Override
-    protected void handleXdsResources(String path, String contentAsText, String groupName)
+    protected void handleXdsResource(String path, String contentAsText, String groupName)
             throws IOException {
         if (path.startsWith(CLUSTERS_DIRECTORY)) {
             final Cluster.Builder builder = Cluster.newBuilder();
