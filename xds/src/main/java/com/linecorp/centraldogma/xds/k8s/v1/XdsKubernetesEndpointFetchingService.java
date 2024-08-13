@@ -15,20 +15,17 @@
  */
 package com.linecorp.centraldogma.xds.k8s.v1;
 
-import static com.linecorp.centraldogma.server.internal.ExecutorServiceUtil.terminate;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.K8S_WATCHERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.WATCHER_NAME_PATTERN;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.createKubernetesEndpointGroup;
-import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.regex.Matcher;
@@ -41,7 +38,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import com.linecorp.armeria.client.kubernetes.endpoints.KubernetesEndpointGroup;
-import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -68,57 +64,39 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
     private static final Logger logger = LoggerFactory.getLogger(XdsKubernetesEndpointFetchingService.class);
     private static final Pattern WATCHERS_PATTERN = Pattern.compile("(?<=/k8s)/watchers/");
 
+    private final CommandExecutor commandExecutor;
     private final MeterRegistry meterRegistry;
 
     // Only accessed by the executorService.
     private final Map<String, Map<String, KubernetesEndpointGroup>> kubernetesWatchers = new HashMap<>();
 
-    private volatile CommandExecutor commandExecutor;
-    @Nullable
-    private volatile ScheduledExecutorService executorService;
+    private final ScheduledExecutorService executorService;
+    private volatile boolean stopped;
 
-    XdsKubernetesEndpointFetchingService(Project xdsProject, MeterRegistry meterRegistry) {
+    XdsKubernetesEndpointFetchingService(Project xdsProject, CommandExecutor commandExecutor,
+                                         MeterRegistry meterRegistry) {
         super(xdsProject);
+        this.commandExecutor = commandExecutor;
         this.meterRegistry = meterRegistry;
-    }
-
-    boolean isStarted() {
-        return executorService != null;
-    }
-
-    synchronized void start(CommandExecutor commandExecutor) {
-        if (isStarted()) {
-            return;
-        }
-        this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
-        final ScheduledExecutorService executorService = ExecutorServiceMetrics.monitor(
+        executorService = ExecutorServiceMetrics.monitor(
                 meterRegistry, Executors.newSingleThreadScheduledExecutor(
                         new DefaultThreadFactory("k8s-plugin-executor", true)), "k8sPluginExecutor");
-        this.executorService = executorService;
         executorService.execute(this::start);
     }
 
     synchronized void stop() {
-        kubernetesWatchers.values().forEach(map -> {
-            map.values().forEach(KubernetesEndpointGroup::closeAsync);
-            map.clear();
+        stopped = true;
+        executorService.submit(() -> {
+            kubernetesWatchers.values().forEach(map -> {
+                map.values().forEach(KubernetesEndpointGroup::closeAsync);
+                map.clear();
+            });
+            kubernetesWatchers.clear();
         });
-        kubernetesWatchers.clear();
-        final ExecutorService executorService = this.executorService;
-        try {
-            final boolean interrupted = terminate(executorService);
-            if (interrupted) {
-                Thread.currentThread().interrupt();
-            }
-        } finally {
-            this.executorService = null;
-        }
     }
 
     @Override
     protected ScheduledExecutorService executor() {
-        final ScheduledExecutorService executorService = this.executorService;
-        assert executorService != null;
         return executorService;
     }
 
@@ -153,8 +131,8 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             if (endpoints.isEmpty()) {
                 return;
             }
-            executor().execute(
-                    () ->  pushK8sEndpoints(kubernetesEndpointGroup, groupName, endpoints, watcherName));
+            executorService.execute(
+                    () -> pushK8sEndpoints(kubernetesEndpointGroup, groupName, endpoints, watcherName));
         }, true);
     }
 
@@ -256,6 +234,6 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
 
     @Override
     protected boolean isStopped() {
-        return executorService == null;
+        return stopped;
     }
 }

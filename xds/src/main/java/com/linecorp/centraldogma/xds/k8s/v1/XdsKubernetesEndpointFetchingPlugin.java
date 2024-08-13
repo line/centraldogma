@@ -19,11 +19,11 @@ import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENT
 import static io.fabric8.kubernetes.client.Config.KUBERNETES_DISABLE_AUTO_CONFIG_SYSTEM_PROPERTY;
 import static java.util.Objects.requireNonNull;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import javax.annotation.Nullable;
 
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
@@ -33,8 +33,14 @@ import com.linecorp.centraldogma.server.plugin.PluginTarget;
  */
 public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
 
+    static {
+        System.setProperty(KUBERNETES_DISABLE_AUTO_CONFIG_SYSTEM_PROPERTY, "true");
+    }
+
     @Nullable
-    private volatile XdsKubernetesEndpointFetchingService fetchingService;
+    private XdsKubernetesEndpointFetchingService fetchingService;
+
+    private boolean started;
 
     @Override
     public PluginTarget target() {
@@ -44,26 +50,29 @@ public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
     @Override
     public synchronized CompletionStage<Void> start(PluginContext context) {
         requireNonNull(context, "context");
-        System.setProperty(KUBERNETES_DISABLE_AUTO_CONFIG_SYSTEM_PROPERTY, "true");
-
-        XdsKubernetesEndpointFetchingService fetchingService = this.fetchingService;
-        if (fetchingService == null) {
-            context.internalProjectInitializer().initialize(XDS_CENTRAL_DOGMA_PROJECT);
-            fetchingService = new XdsKubernetesEndpointFetchingService(
-                    context.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT), context.meterRegistry());
-            this.fetchingService = fetchingService;
+        if (started) {
+            return UnmodifiableFuture.completedFuture(null);
         }
-        fetchingService.start(context.commandExecutor());
-        return CompletableFuture.completedFuture(null);
+        started = true;
+        context.internalProjectInitializer().initialize(XDS_CENTRAL_DOGMA_PROJECT);
+
+        fetchingService = new XdsKubernetesEndpointFetchingService(
+                context.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT), context.commandExecutor(),
+                context.meterRegistry());
+        return UnmodifiableFuture.completedFuture(null);
     }
 
     @Override
     public synchronized CompletionStage<Void> stop(PluginContext context) {
-        final XdsKubernetesEndpointFetchingService fetchingService = this.fetchingService;
-        if (fetchingService != null && fetchingService.isStarted()) {
-            fetchingService.stop();
+        if (!started) {
+            return UnmodifiableFuture.completedFuture(null);
         }
-        return CompletableFuture.completedFuture(null);
+        started = false;
+        final XdsKubernetesEndpointFetchingService fetchingService = this.fetchingService;
+        assert fetchingService != null;
+        fetchingService.stop();
+        this.fetchingService = null;
+        return UnmodifiableFuture.completedFuture(null);
     }
 
     @Override
