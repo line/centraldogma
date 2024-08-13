@@ -496,7 +496,7 @@ public class CentralDogma implements AutoCloseable {
             default:
                 throw new Error("unknown replication method: " + replicationMethod);
         }
-        projectInitializer = new InternalProjectInitializer(executor, pm);
+        projectInitializer = new InternalProjectInitializer(executor);
 
         final ServerStatus initialServerStatus = statusManager.serverStatus();
         executor.setWritable(initialServerStatus.writable());

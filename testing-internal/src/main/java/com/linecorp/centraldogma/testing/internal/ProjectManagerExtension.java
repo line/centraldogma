@@ -78,7 +78,7 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
         executor = newCommandExecutor(projectManager, repositoryWorker, dataDir);
 
         executor.start().get();
-        internalProjectInitializer = new InternalProjectInitializer(executor, projectManager);
+        internalProjectInitializer = new InternalProjectInitializer(executor);
         internalProjectInitializer.initialize();
 
         afterExecutorStarted();
