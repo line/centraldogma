@@ -28,10 +28,6 @@
   },
   "webAppEnabled": true,
   "webAppTitle": null,
-  "mirroringEnabled": true,
-  "numMirroringThreads": null,
-  "maxNumFilesPerMirror": null,
-  "maxNumBytesPerMirror": null,
   "replication": {
     "method": "NONE"
   },
