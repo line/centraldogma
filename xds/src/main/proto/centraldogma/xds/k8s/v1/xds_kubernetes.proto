@@ -78,7 +78,7 @@ message KubernetesConfig {
 }
 
 message Watcher {
-  // The resource name of the book.
+  // The resource name of the watcher.
   // Format: groups/{group}/k8s/watchers/{watcher}_id
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
   string service_name = 2 [(google.api.field_behavior) = REQUIRED];
