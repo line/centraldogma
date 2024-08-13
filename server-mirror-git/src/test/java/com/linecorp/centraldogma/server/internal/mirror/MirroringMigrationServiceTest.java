@@ -120,6 +120,22 @@ class MirroringMigrationServiceTest {
             "  ]\n" +
             '}';
 
+    // An invalid mirror config that has no localRepo.
+    static final String INVALID_MIRROR =
+            "{\n" +
+            "  \"type\": \"single\",\n" +
+            "  \"enabled\": true,\n" +
+            "  \"schedule\": \"0 * * * * ?\",\n" +
+            "  \"direction\": \"REMOTE_TO_LOCAL\",\n" +
+            "  \"localPath\": \"/\",\n" +
+            "  \"remoteUri\": \"git+ssh://git.bar.com/foo.git/settings#release\",\n" +
+            "  \"credentialId\": \"credential-1\",\n" +
+            "  \"gitignore\": [\n" +
+            "      \"/credential.txt\",\n" +
+            "      \"private_dir\"\n" +
+            "  ]\n" +
+            '}';
+
     // A mirror config with duplicate ID
     static final String REPO2_MIRROR =
             "{\n" +
@@ -179,6 +195,16 @@ class MirroringMigrationServiceTest {
             "  \"password\": \"sesame\"" +
             '}';
 
+    // An invalid credential
+    static final String INVALID_CREDENTIAL =
+            '{' +
+            "  \"hostnamePatterns\": [" +
+            "    \".*.bar\\\\.com$\"" +
+            "  ]," +
+            "  \"username\": \"trustin\"," +
+            "  \"password\": \"sesame\"" +
+            '}';
+
     // A credential with duplicate ID
     static final String ACCESS_TOKEN_CREDENTIAL =
             '{' +
@@ -221,7 +247,8 @@ class MirroringMigrationServiceTest {
         final Project project = projectManager.get(TEST_PROJ);
 
         final String mirrorsJson =
-                '[' + REPO0_MIRROR + ',' + REPO1_MIRROR + ',' + REPO2_MIRROR + ',' + REPO3_MIRROR + ']';
+                '[' + REPO0_MIRROR + ',' + REPO1_MIRROR + ',' + INVALID_MIRROR +
+                ',' + REPO2_MIRROR + ',' + REPO3_MIRROR + ']';
         project.metaRepo().commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
                                   "Create a new mirrors.json",
                                   Change.ofJsonUpsert(PATH_LEGACY_MIRRORS, mirrorsJson)).join();
@@ -233,6 +260,7 @@ class MirroringMigrationServiceTest {
                                                      .find(Revision.HEAD, "/mirrors/*.json")
                                                      .join();
 
+        // The invalid mirror config should be ignored.
         assertThat(entries).hasSize(4);
         final Map<String, Map.Entry<String, Entry<?>>> mirrors =
                 entries.entrySet().stream()
@@ -268,7 +296,7 @@ class MirroringMigrationServiceTest {
         final Project project = projectManager.get(TEST_PROJ);
 
         final String credentialJson = '[' + PUBLIC_KEY_CREDENTIAL + ',' + PASSWORD_CREDENTIAL + ',' +
-                                      ACCESS_TOKEN_CREDENTIAL + ']';
+                                      INVALID_CREDENTIAL + ',' + ACCESS_TOKEN_CREDENTIAL + ']';
 
         project.metaRepo().commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
                                   "Create a new credentials.json",
