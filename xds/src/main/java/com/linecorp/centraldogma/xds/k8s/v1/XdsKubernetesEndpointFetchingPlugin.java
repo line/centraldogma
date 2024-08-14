@@ -40,8 +40,6 @@ public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
     @Nullable
     private XdsKubernetesEndpointFetchingService fetchingService;
 
-    private boolean started;
-
     @Override
     public PluginTarget target() {
         return PluginTarget.LEADER_ONLY;
@@ -50,10 +48,9 @@ public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
     @Override
     public synchronized CompletionStage<Void> start(PluginContext context) {
         requireNonNull(context, "context");
-        if (started) {
+        if (fetchingService != null) {
             return UnmodifiableFuture.completedFuture(null);
         }
-        started = true;
         context.internalProjectInitializer().initialize(XDS_CENTRAL_DOGMA_PROJECT);
 
         fetchingService = new XdsKubernetesEndpointFetchingService(
@@ -64,14 +61,11 @@ public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
 
     @Override
     public synchronized CompletionStage<Void> stop(PluginContext context) {
-        if (!started) {
+        if (fetchingService == null) {
             return UnmodifiableFuture.completedFuture(null);
         }
-        started = false;
-        final XdsKubernetesEndpointFetchingService fetchingService = this.fetchingService;
-        assert fetchingService != null;
         fetchingService.stop();
-        this.fetchingService = null;
+        fetchingService = null;
         return UnmodifiableFuture.completedFuture(null);
     }
 
