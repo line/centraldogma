@@ -37,9 +37,9 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
-import com.linecorp.centraldogma.xds.k8s.v1.CreateWatcherRequest;
-import com.linecorp.centraldogma.xds.k8s.v1.DeleteWatcherRequest;
-import com.linecorp.centraldogma.xds.k8s.v1.UpdateWatcherRequest;
+import com.linecorp.centraldogma.xds.k8s.v1.CreateServiceEndpointWatcherRequest;
+import com.linecorp.centraldogma.xds.k8s.v1.DeleteServiceEndpointWatcherRequest;
+import com.linecorp.centraldogma.xds.k8s.v1.UpdateServiceEndpointWatcherRequest;
 
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
@@ -64,9 +64,9 @@ public final class XdsResourceManager {
                              .register(Cluster.getDefaultInstance())
                              .register(ClusterLoadAssignment.getDefaultInstance())
                              .register(RouteConfiguration.getDefaultInstance())
-                             .register(CreateWatcherRequest.getDefaultInstance())
-                             .register(UpdateWatcherRequest.getDefaultInstance())
-                             .register(DeleteWatcherRequest.getDefaultInstance())
+                             .register(CreateServiceEndpointWatcherRequest.getDefaultInstance())
+                             .register(UpdateServiceEndpointWatcherRequest.getDefaultInstance())
+                             .register(DeleteServiceEndpointWatcherRequest.getDefaultInstance())
                              // extensions
                              .register(Router.getDefaultInstance())
                              .register(HttpConnectionManager.getDefaultInstance())

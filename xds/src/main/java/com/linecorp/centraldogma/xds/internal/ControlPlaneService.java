@@ -93,7 +93,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
 
     Future<Void> start(PluginInitContext pluginInitContext) {
         return controlPlaneExecutor.submit(() -> {
-            start();
+            init();
             final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
             final V3DiscoveryServer server = new V3DiscoveryServer(new LoggingDiscoveryServerCallbacks(),
                                                                    cache);

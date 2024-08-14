@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -65,7 +66,6 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
     private static final Pattern WATCHERS_PATTERN = Pattern.compile("(?<=/k8s)/watchers/");
 
     private final CommandExecutor commandExecutor;
-    private final MeterRegistry meterRegistry;
 
     // Only accessed by the executorService.
     private final Map<String, Map<String, KubernetesEndpointGroup>> kubernetesWatchers = new HashMap<>();
@@ -77,14 +77,16 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                                          MeterRegistry meterRegistry) {
         super(xdsProject);
         this.commandExecutor = commandExecutor;
-        this.meterRegistry = meterRegistry;
         executorService = ExecutorServiceMetrics.monitor(
                 meterRegistry, Executors.newSingleThreadScheduledExecutor(
                         new DefaultThreadFactory("k8s-plugin-executor", true)), "k8sPluginExecutor");
-        executorService.execute(this::start);
     }
 
-    synchronized void stop() {
+    Future<?> start() {
+        return executorService.submit(this::init);
+    }
+
+    void stop() {
         stopped = true;
         executorService.submit(() -> {
             kubernetesWatchers.values().forEach(map -> {
@@ -108,7 +110,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
     @Override
     protected void handleXdsResource(String path, String contentAsText, String groupName)
             throws InvalidProtocolBufferException {
-        final Watcher.Builder watcherBuilder = Watcher.newBuilder();
+        final ServiceEndpointWatcher.Builder watcherBuilder = ServiceEndpointWatcher.newBuilder();
         try {
             JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, watcherBuilder);
         } catch (IOException e) {
@@ -116,12 +118,12 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                         groupName, path, contentAsText, e);
             return;
         }
-        final Watcher k8sWatcher = watcherBuilder.build();
-        final KubernetesEndpointGroup kubernetesEndpointGroup = createKubernetesEndpointGroup(k8sWatcher);
+        final ServiceEndpointWatcher endpointWatcher = watcherBuilder.build();
+        final KubernetesEndpointGroup kubernetesEndpointGroup = createKubernetesEndpointGroup(endpointWatcher);
         final Map<String, KubernetesEndpointGroup> watchers =
                 kubernetesWatchers.computeIfAbsent(groupName, unused -> new HashMap<>());
 
-        final String watcherName = k8sWatcher.getName();
+        final String watcherName = endpointWatcher.getName();
         final KubernetesEndpointGroup oldWatcher = watchers.get(watcherName);
         if (oldWatcher != null) {
             oldWatcher.closeAsync();

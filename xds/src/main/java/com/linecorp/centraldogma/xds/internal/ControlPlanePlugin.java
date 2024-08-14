@@ -35,12 +35,9 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     @Nullable
     private volatile ControlPlaneService controlPlaneService;
 
-    public static final long BACKOFF_SECONDS = 30;
-
     @Override
     public void init(PluginInitContext pluginInitContext) {
         final InternalProjectInitializer projectInitializer = pluginInitContext.internalProjectInitializer();
-        pluginInitContext.commandExecutor();
         projectInitializer.initialize(XDS_CENTRAL_DOGMA_PROJECT);
         final ControlPlaneService controlPlaneService = new ControlPlaneService(
                 pluginInitContext.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT),
@@ -61,8 +58,9 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     @Override
     public CompletionStage<Void> stop(PluginContext context) {
         final ControlPlaneService controlPlaneService = this.controlPlaneService;
-        assert controlPlaneService != null;
-        controlPlaneService.stop();
+        if (controlPlaneService != null) {
+            controlPlaneService.stop();
+        }
         return UnmodifiableFuture.completedFuture(null);
     }
 

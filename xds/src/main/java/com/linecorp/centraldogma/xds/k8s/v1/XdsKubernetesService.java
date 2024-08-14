@@ -71,7 +71,8 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
 
     @Blocking
     @Override
-    public void createWatcher(CreateWatcherRequest request, StreamObserver<Watcher> responseObserver) {
+    public void createServiceEndpointWatcher(CreateServiceEndpointWatcherRequest request,
+                                             StreamObserver<ServiceEndpointWatcher> responseObserver) {
         final String parent = request.getParent();
         final String group = removePrefix("groups/", parent);
         xdsResourceManager.checkGroup(group);
@@ -83,7 +84,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         }
 
         final String watcherName = parent + K8S_WATCHERS_DIRECTORY + watcherId;
-        final Watcher watcher = request.getWatcher().toBuilder().setName(watcherName).build();
+        final ServiceEndpointWatcher watcher = request.getWatcher().toBuilder().setName(watcherName).build();
         final Author author = currentAuthor();
         validateWatcherAndPush(responseObserver, watcher, () -> xdsResourceManager.push(
                 responseObserver, group, K8S_WATCHERS_DIRECTORY + watcherId + ".json",
@@ -91,7 +92,8 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
     }
 
     private static void validateWatcherAndPush(
-            StreamObserver<Watcher> responseObserver, Watcher watcher, Runnable onSuccess) {
+            StreamObserver<ServiceEndpointWatcher> responseObserver,
+            ServiceEndpointWatcher watcher, Runnable onSuccess) {
         // Create a KubernetesEndpointGroup to check if the watcher is valid.
         // We use KubernetesEndpointGroup for simplicity, but we will implement a custom implementation
         // for better debugging and error handling in the future.
@@ -131,11 +133,11 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
     }
 
     /**
-     * Creates a {@link KubernetesEndpointGroup} from the specified {@link Watcher}.
+     * Creates a {@link KubernetesEndpointGroup} from the specified {@link ServiceEndpointWatcher}.
      * This method must be executed in a blocking thread because
      * {@link KubernetesEndpointGroupBuilder#build()} blocks the execution thread.
      */
-    public static KubernetesEndpointGroup createKubernetesEndpointGroup(Watcher watcher) {
+    public static KubernetesEndpointGroup createKubernetesEndpointGroup(ServiceEndpointWatcher watcher) {
         final KubernetesConfig kubernetesConfig = watcher.getKubernetesConfig();
         final String serviceName = watcher.getServiceName();
 
@@ -165,8 +167,9 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
 
     @Blocking
     @Override
-    public void updateWatcher(UpdateWatcherRequest request, StreamObserver<Watcher> responseObserver) {
-        final Watcher watcher = request.getWatcher();
+    public void updateServiceEndpointWatcher(UpdateServiceEndpointWatcherRequest request,
+                                             StreamObserver<ServiceEndpointWatcher> responseObserver) {
+        final ServiceEndpointWatcher watcher = request.getWatcher();
         final String watcherName = watcher.getName();
         final String group = checkWatcherName(watcherName).group(1);
         xdsResourceManager.checkGroup(group);
@@ -186,7 +189,8 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
     }
 
     @Override
-    public void deleteWatcher(DeleteWatcherRequest request, StreamObserver<Empty> responseObserver) {
+    public void deleteServiceEndpointWatcher(DeleteServiceEndpointWatcherRequest request,
+                                             StreamObserver<Empty> responseObserver) {
         final String watcherName = request.getName();
         final String group = checkWatcherName(watcherName).group(1);
         xdsResourceManager.checkGroup(group);

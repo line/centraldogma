@@ -74,7 +74,7 @@ public abstract class XdsResourceWatchingService {
     /**
      * Must be executed by {@link #executor()}.
      */
-    protected void start() {
+    protected void init() {
         for (Repository repository : xdsProject.repos().list().values()) {
             final String groupName = repository.name();
             if (Project.internalRepos().contains(groupName)) {
