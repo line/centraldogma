@@ -99,6 +99,9 @@ public final class MirrorConfig {
         this.localRepo = requireNonNull(localRepo, "localRepo");
         this.localPath = firstNonNull(localPath, "/");
         this.remoteUri = requireNonNull(remoteUri, "remoteUri");
+        // Validate the remote URI.
+        RepositoryUri.parse(remoteUri, direction == MirrorDirection.REMOTE_TO_LOCAL ? "git" : "dogma");
+
         if (gitignore != null) {
             if (gitignore instanceof Iterable &&
                 Streams.stream((Iterable<?>) gitignore).allMatch(String.class::isInstance)) {

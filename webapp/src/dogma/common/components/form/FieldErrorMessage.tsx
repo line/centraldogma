@@ -20,14 +20,15 @@ import { FormErrorMessage } from '@chakra-ui/react';
 interface FieldErrorMessageProps {
   error?: FieldError;
   fieldName?: string;
+  errorMessage?: string;
 }
 
-const FieldErrorMessage = ({ error, fieldName }: FieldErrorMessageProps) => {
+const FieldErrorMessage = ({ error, fieldName, errorMessage }: FieldErrorMessageProps) => {
   if (error == null) {
     return null;
   }
 
-  let message = error.message;
+  let message = errorMessage || error.message;
   if (!message) {
     // Fill the message for known errors.
     if (error.type === 'required') {

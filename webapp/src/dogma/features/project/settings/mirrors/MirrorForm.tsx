@@ -43,7 +43,7 @@ import { GoArrowBoth, GoArrowDown, GoArrowUp, GoKey, GoRepo } from 'react-icons/
 import { Select } from 'chakra-react-select';
 import { IoBanSharp } from 'react-icons/io5';
 import { useGetCredentialsQuery, useGetReposQuery } from 'dogma/features/api/apiSlice';
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import FieldErrorMessage from 'dogma/common/components/form/FieldErrorMessage';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
 import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
@@ -300,9 +300,13 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
                 type="text"
                 defaultValue={defaultValue.remoteUrl}
                 placeholder="my.git.com/org/myrepo.git"
-                {...register('remoteUrl', { required: true, pattern: /^.*\.git$/ })}
+                {...register('remoteUrl', { required: true, pattern: /^[\w.-]+(:[0-9]+)?\/[\w.-\/]+.git$/ })}
               />
-              <FieldErrorMessage error={errors.remoteUrl} fieldName="remote URL" />
+              <FieldErrorMessage
+                error={errors.remoteUrl}
+                fieldName="remote URL"
+                errorMessage="Invalid remote URL. (expected format: 'my.git.com/org/myrepo.git')"
+              />
             </FormControl>
             <FormControl width="50%" isRequired isInvalid={errors.remoteBranch != null}>
               <FormLabel>branch</FormLabel>

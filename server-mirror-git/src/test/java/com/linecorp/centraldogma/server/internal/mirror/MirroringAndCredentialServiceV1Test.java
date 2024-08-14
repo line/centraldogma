@@ -31,13 +31,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.auth.AuthToken;
@@ -96,12 +96,39 @@ class MirroringAndCredentialServiceV1Test {
     }
 
     @Test
-    void cruTest() throws JsonParseException {
+    void cruTest() {
         setUpRole();
         createAndReadCredential();
         updateCredential();
         createAndReadMirror();
         updateMirror();
+        rejectInvalidRepositoryUri();
+    }
+
+    private void rejectInvalidRepositoryUri() {
+        final MirrorDto newMirror =
+                new MirrorDto("invalid-mirror",
+                              true,
+                              FOO_PROJ,
+                              "5 * * * * ?",
+                              "REMOTE_TO_LOCAL",
+                              BAR_REPO,
+                              "/local-path/1/",
+                              "git+https",
+                              // Expect github.com/line/centraldogma-authtest.git
+                              "github.com:line/centraldogma-authtest.git",
+                              "/remote-path/1",
+                              "mirror-branch",
+                              ".my-env0\n.my-env1",
+                              "public-key-credential");
+        final AggregatedHttpResponse response =
+                userClient.prepare()
+                          .post("/api/v1/projects/{proj}/mirrors")
+                          .pathParam("proj", FOO_PROJ)
+                          .contentJson(newMirror)
+                          .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.contentUtf8()).contains("no host in remoteUri");
     }
 
     private void setUpRole() {
