@@ -2,7 +2,6 @@ import { useAppSelector } from 'dogma/hooks';
 import { useGetMetadataByProjectNameQuery } from 'dogma/features/api/apiSlice';
 import { ReactNode } from 'react';
 import { UserDto } from './UserDto';
-import { AppMemberDto } from '../project/settings/members/AppMemberDto';
 import { ProjectMetadataDto } from '../project/ProjectMetadataDto';
 
 type ProjectRole = 'OWNER' | 'MEMBER' | 'GUEST' | 'ANONYMOUS';

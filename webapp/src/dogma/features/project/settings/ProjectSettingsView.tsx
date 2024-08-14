@@ -23,7 +23,6 @@ import Link from 'next/link';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { useRouter } from 'next/router';
 import { useAppSelector } from 'dogma/hooks';
-import { AppMemberDetailDto } from 'dogma/features/project/settings/members/AppMemberDto';
 import { FiBox } from 'react-icons/fi';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { HttpStatusCode } from 'dogma/features/api/HttpStatusCode';

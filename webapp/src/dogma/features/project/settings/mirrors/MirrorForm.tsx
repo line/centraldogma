@@ -43,7 +43,7 @@ import { GoArrowBoth, GoArrowDown, GoArrowUp, GoKey, GoRepo } from 'react-icons/
 import { Select } from 'chakra-react-select';
 import { IoBanSharp } from 'react-icons/io5';
 import { useGetCredentialsQuery, useGetReposQuery } from 'dogma/features/api/apiSlice';
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import FieldErrorMessage from 'dogma/common/components/form/FieldErrorMessage';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
 import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
