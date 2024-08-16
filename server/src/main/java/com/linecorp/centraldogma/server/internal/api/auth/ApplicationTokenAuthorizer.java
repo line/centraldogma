@@ -31,12 +31,14 @@ import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.auth.OAuth2Token;
+import com.linecorp.armeria.common.logging.LogLevel;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
 import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.Tokens;
 import com.linecorp.centraldogma.server.metadata.User;
@@ -89,10 +91,15 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
                        // Should be authorized by the next authorizer.
                        .exceptionally(voidFunction(cause -> {
                            cause = Exceptions.peel(cause);
-                           if (!(cause instanceof IllegalArgumentException)) {
-                               logger.warn("Application token authorization failed: token={}, addr={}",
-                                           token.accessToken(), ctx.clientAddress(), cause);
+                           final LogLevel level;
+                           if (cause instanceof IllegalArgumentException ||
+                               cause instanceof TokenNotFoundException) {
+                               level = LogLevel.DEBUG;
+                           } else {
+                               level = LogLevel.WARN;
                            }
+                           level.log(logger, "Failed to authorize an application token: token={}, addr={}",
+                                     token.accessToken(), ctx.clientAddress(), cause);
                            res.complete(false);
                        }));
 
