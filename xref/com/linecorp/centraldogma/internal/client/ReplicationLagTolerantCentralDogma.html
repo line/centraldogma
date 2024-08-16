@@ -805,38 +805,43 @@
 <a class="jxr_linenumber" name="L797" href="#L797">797</a>         <strong class="jxr_keyword">return</strong> res != <strong class="jxr_keyword">null</strong> ? res : cause;
 <a class="jxr_linenumber" name="L798" href="#L798">798</a>     }
 <a class="jxr_linenumber" name="L799" href="#L799">799</a> 
-<a class="jxr_linenumber" name="L800" href="#L800">800</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../../com/linecorp/centraldogma/internal/client/ReplicationLagTolerantCentralDogma.html">RepoId</a> {
-<a class="jxr_linenumber" name="L801" href="#L801">801</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> String projectName;
-<a class="jxr_linenumber" name="L802" href="#L802">802</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> String repositoryName;
-<a class="jxr_linenumber" name="L803" href="#L803">803</a> 
-<a class="jxr_linenumber" name="L804" href="#L804">804</a>         <a href="../../../../../com/linecorp/centraldogma/internal/client/ReplicationLagTolerantCentralDogma.html">RepoId</a>(String projectName, String repositoryName) {
-<a class="jxr_linenumber" name="L805" href="#L805">805</a>             <strong class="jxr_keyword">this</strong>.projectName = projectName;
-<a class="jxr_linenumber" name="L806" href="#L806">806</a>             <strong class="jxr_keyword">this</strong>.repositoryName = repositoryName;
-<a class="jxr_linenumber" name="L807" href="#L807">807</a>         }
+<a class="jxr_linenumber" name="L800" href="#L800">800</a>     @Override
+<a class="jxr_linenumber" name="L801" href="#L801">801</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> close() <strong class="jxr_keyword">throws</strong> Exception {
+<a class="jxr_linenumber" name="L802" href="#L802">802</a>         delegate.close();
+<a class="jxr_linenumber" name="L803" href="#L803">803</a>     }
+<a class="jxr_linenumber" name="L804" href="#L804">804</a> 
+<a class="jxr_linenumber" name="L805" href="#L805">805</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../../com/linecorp/centraldogma/internal/client/ReplicationLagTolerantCentralDogma.html">RepoId</a> {
+<a class="jxr_linenumber" name="L806" href="#L806">806</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> String projectName;
+<a class="jxr_linenumber" name="L807" href="#L807">807</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> String repositoryName;
 <a class="jxr_linenumber" name="L808" href="#L808">808</a> 
-<a class="jxr_linenumber" name="L809" href="#L809">809</a>         @Override
-<a class="jxr_linenumber" name="L810" href="#L810">810</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> equals(Object o) {
-<a class="jxr_linenumber" name="L811" href="#L811">811</a>             <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong> == o) {
-<a class="jxr_linenumber" name="L812" href="#L812">812</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="L813" href="#L813">813</a>             }
-<a class="jxr_linenumber" name="L814" href="#L814">814</a>             <strong class="jxr_keyword">if</strong> (!(o instanceof RepoId)) {
-<a class="jxr_linenumber" name="L815" href="#L815">815</a>                 <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L816" href="#L816">816</a>             }
-<a class="jxr_linenumber" name="L817" href="#L817">817</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/internal/client/ReplicationLagTolerantCentralDogma.html">RepoId</a> that = (RepoId) o;
-<a class="jxr_linenumber" name="L818" href="#L818">818</a>             <strong class="jxr_keyword">return</strong> projectName.equals(that.projectName) &amp;&amp; repositoryName.equals(that.repositoryName);
-<a class="jxr_linenumber" name="L819" href="#L819">819</a>         }
-<a class="jxr_linenumber" name="L820" href="#L820">820</a> 
-<a class="jxr_linenumber" name="L821" href="#L821">821</a>         @Override
-<a class="jxr_linenumber" name="L822" href="#L822">822</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> hashCode() {
-<a class="jxr_linenumber" name="L823" href="#L823">823</a>             <strong class="jxr_keyword">return</strong> Objects.hash(projectName, repositoryName);
+<a class="jxr_linenumber" name="L809" href="#L809">809</a>         <a href="../../../../../com/linecorp/centraldogma/internal/client/ReplicationLagTolerantCentralDogma.html">RepoId</a>(String projectName, String repositoryName) {
+<a class="jxr_linenumber" name="L810" href="#L810">810</a>             <strong class="jxr_keyword">this</strong>.projectName = projectName;
+<a class="jxr_linenumber" name="L811" href="#L811">811</a>             <strong class="jxr_keyword">this</strong>.repositoryName = repositoryName;
+<a class="jxr_linenumber" name="L812" href="#L812">812</a>         }
+<a class="jxr_linenumber" name="L813" href="#L813">813</a> 
+<a class="jxr_linenumber" name="L814" href="#L814">814</a>         @Override
+<a class="jxr_linenumber" name="L815" href="#L815">815</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> equals(Object o) {
+<a class="jxr_linenumber" name="L816" href="#L816">816</a>             <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong> == o) {
+<a class="jxr_linenumber" name="L817" href="#L817">817</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L818" href="#L818">818</a>             }
+<a class="jxr_linenumber" name="L819" href="#L819">819</a>             <strong class="jxr_keyword">if</strong> (!(o instanceof RepoId)) {
+<a class="jxr_linenumber" name="L820" href="#L820">820</a>                 <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L821" href="#L821">821</a>             }
+<a class="jxr_linenumber" name="L822" href="#L822">822</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/internal/client/ReplicationLagTolerantCentralDogma.html">RepoId</a> that = (RepoId) o;
+<a class="jxr_linenumber" name="L823" href="#L823">823</a>             <strong class="jxr_keyword">return</strong> projectName.equals(that.projectName) &amp;&amp; repositoryName.equals(that.repositoryName);
 <a class="jxr_linenumber" name="L824" href="#L824">824</a>         }
 <a class="jxr_linenumber" name="L825" href="#L825">825</a> 
 <a class="jxr_linenumber" name="L826" href="#L826">826</a>         @Override
-<a class="jxr_linenumber" name="L827" href="#L827">827</a>         <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="L828" href="#L828">828</a>             <strong class="jxr_keyword">return</strong> projectName + '/' + repositoryName;
+<a class="jxr_linenumber" name="L827" href="#L827">827</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> hashCode() {
+<a class="jxr_linenumber" name="L828" href="#L828">828</a>             <strong class="jxr_keyword">return</strong> Objects.hash(projectName, repositoryName);
 <a class="jxr_linenumber" name="L829" href="#L829">829</a>         }
-<a class="jxr_linenumber" name="L830" href="#L830">830</a>     }
-<a class="jxr_linenumber" name="L831" href="#L831">831</a> }
+<a class="jxr_linenumber" name="L830" href="#L830">830</a> 
+<a class="jxr_linenumber" name="L831" href="#L831">831</a>         @Override
+<a class="jxr_linenumber" name="L832" href="#L832">832</a>         <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="L833" href="#L833">833</a>             <strong class="jxr_keyword">return</strong> projectName + '/' + repositoryName;
+<a class="jxr_linenumber" name="L834" href="#L834">834</a>         }
+<a class="jxr_linenumber" name="L835" href="#L835">835</a>     }
+<a class="jxr_linenumber" name="L836" href="#L836">836</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2024 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

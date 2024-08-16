@@ -166,7 +166,7 @@
 <a class="jxr_linenumber" name="L158" href="#L158">158</a>                 <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOError(e);
 <a class="jxr_linenumber" name="L159" href="#L159">159</a>             }
 <a class="jxr_linenumber" name="L160" href="#L160">160</a> 
-<a class="jxr_linenumber" name="L161" href="#L161">161</a>             <strong class="jxr_keyword">final</strong> String uri = <span class="jxr_string">"h2c://"</span> + serverAddress.getHostString() + ':' + serverAddress.getPort();
+<a class="jxr_linenumber" name="L161" href="#L161">161</a>             <strong class="jxr_keyword">final</strong> String uri = <span class="jxr_string">"h2c://127.0.0.1:"</span> + serverAddress.getPort();
 <a class="jxr_linenumber" name="L162" href="#L162">162</a>             <strong class="jxr_keyword">final</strong> WebClientBuilder webClientBuilder = WebClient.builder(uri);
 <a class="jxr_linenumber" name="L163" href="#L163">163</a>             <strong class="jxr_keyword">if</strong> (accessToken != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L164" href="#L164">164</a>                 webClientBuilder.auth(AuthToken.ofOAuth2(accessToken));

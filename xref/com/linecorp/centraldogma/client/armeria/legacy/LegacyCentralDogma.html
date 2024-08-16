@@ -641,11 +641,16 @@
 <a class="jxr_linenumber" name="L633" href="#L633">633</a>         <strong class="jxr_keyword">return</strong> convertedCause;
 <a class="jxr_linenumber" name="L634" href="#L634">634</a>     }
 <a class="jxr_linenumber" name="L635" href="#L635">635</a> 
-<a class="jxr_linenumber" name="L636" href="#L636">636</a>     @FunctionalInterface
-<a class="jxr_linenumber" name="L637" href="#L637">637</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">interface</strong> ThriftCall&lt;T&gt; {
-<a class="jxr_linenumber" name="L638" href="#L638">638</a>         <strong class="jxr_keyword">void</strong> apply(ThriftFuture&lt;T&gt; callback) <strong class="jxr_keyword">throws</strong> TException;
+<a class="jxr_linenumber" name="L636" href="#L636">636</a>     @Override
+<a class="jxr_linenumber" name="L637" href="#L637">637</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> close() {
+<a class="jxr_linenumber" name="L638" href="#L638">638</a>         endpointGroup.close();
 <a class="jxr_linenumber" name="L639" href="#L639">639</a>     }
-<a class="jxr_linenumber" name="L640" href="#L640">640</a> }
+<a class="jxr_linenumber" name="L640" href="#L640">640</a> 
+<a class="jxr_linenumber" name="L641" href="#L641">641</a>     @FunctionalInterface
+<a class="jxr_linenumber" name="L642" href="#L642">642</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">interface</strong> ThriftCall&lt;T&gt; {
+<a class="jxr_linenumber" name="L643" href="#L643">643</a>         <strong class="jxr_keyword">void</strong> apply(ThriftFuture&lt;T&gt; callback) <strong class="jxr_keyword">throws</strong> TException;
+<a class="jxr_linenumber" name="L644" href="#L644">644</a>     }
+<a class="jxr_linenumber" name="L645" href="#L645">645</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2024 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

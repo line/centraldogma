@@ -33,47 +33,49 @@
 <a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.client.endpoint.EndpointGroup;
 <a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.client.CentralDogma;
 <a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
-<a class="jxr_linenumber" name="L28" href="#L28">28</a>  
-<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <em class="jxr_javadoccomment"> * Builds a {@link CentralDogma} client based on an &lt;a href="https://line.github.io/armeria/"&gt;Armeria&lt;/a&gt;</em>
-<a class="jxr_linenumber" name="L31" href="#L31">31</a>  <em class="jxr_javadoccomment"> * HTTP client.</em>
-<a class="jxr_linenumber" name="L32" href="#L32">32</a>  <em class="jxr_javadoccomment"> */</em>
-<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../../com/linecorp/centraldogma/client/armeria/ArmeriaCentralDogmaBuilder.html">ArmeriaCentralDogmaBuilder</a>
-<a class="jxr_linenumber" name="L34" href="#L34">34</a>          <strong class="jxr_keyword">extends</strong> AbstractArmeriaCentralDogmaBuilder&lt;ArmeriaCentralDogmaBuilder&gt; {
-<a class="jxr_linenumber" name="L35" href="#L35">35</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <em class="jxr_javadoccomment">     * Returns a newly-created {@link CentralDogma} instance.</em>
-<a class="jxr_linenumber" name="L37" href="#L37">37</a>  <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L38" href="#L38">38</a>  <em class="jxr_javadoccomment">     * @throws UnknownHostException if failed to resolve the host names from the DNS servers</em>
-<a class="jxr_linenumber" name="L39" href="#L39">39</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L40" href="#L40">40</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../com/linecorp/centraldogma/client/CentralDogma.html">CentralDogma</a> build() <strong class="jxr_keyword">throws</strong> UnknownHostException {
-<a class="jxr_linenumber" name="L41" href="#L41">41</a>          <strong class="jxr_keyword">final</strong> EndpointGroup endpointGroup = endpointGroup();
-<a class="jxr_linenumber" name="L42" href="#L42">42</a>          <strong class="jxr_keyword">final</strong> String scheme = <span class="jxr_string">"none+"</span> + (isUseTls() ? <span class="jxr_string">"https"</span> : <span class="jxr_string">"http"</span>);
-<a class="jxr_linenumber" name="L43" href="#L43">43</a>          <strong class="jxr_keyword">final</strong> ClientBuilder builder =
-<a class="jxr_linenumber" name="L44" href="#L44">44</a>                  newClientBuilder(scheme, endpointGroup, cb -&gt; cb.decorator(DecodingClient.newDecorator()), <span class="jxr_string">"/"</span>);
-<a class="jxr_linenumber" name="L45" href="#L45">45</a>          <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
-<a class="jxr_linenumber" name="L46" href="#L46">46</a>  
-<a class="jxr_linenumber" name="L47" href="#L47">47</a>          <em class="jxr_comment">// TODO(ikhoon): Apply ExecutorServiceMetrics for the 'blockingTaskExecutor' once</em>
-<a class="jxr_linenumber" name="L48" href="#L48">48</a>          <em class="jxr_comment">//               https://github.com/line/centraldogma/pull/542 is merged.</em>
-<a class="jxr_linenumber" name="L49" href="#L49">49</a>          <strong class="jxr_keyword">final</strong> ScheduledExecutorService blockingTaskExecutor = blockingTaskExecutor();
-<a class="jxr_linenumber" name="L50" href="#L50">50</a>  
-<a class="jxr_linenumber" name="L51" href="#L51">51</a>          <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/client/CentralDogma.html">CentralDogma</a> dogma = <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/client/armeria/ArmeriaCentralDogma.html">ArmeriaCentralDogma</a>(blockingTaskExecutor,
-<a class="jxr_linenumber" name="L52" href="#L52">52</a>                                                             builder.build(WebClient.<strong class="jxr_keyword">class</strong>),
-<a class="jxr_linenumber" name="L53" href="#L53">53</a>                                                             accessToken());
-<a class="jxr_linenumber" name="L54" href="#L54">54</a>          <strong class="jxr_keyword">if</strong> (maxRetriesOnReplicationLag &lt;= 0) {
-<a class="jxr_linenumber" name="L55" href="#L55">55</a>              <strong class="jxr_keyword">return</strong> dogma;
-<a class="jxr_linenumber" name="L56" href="#L56">56</a>          } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>              <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/client/ReplicationLagTolerantCentralDogma.html">ReplicationLagTolerantCentralDogma</a>(
-<a class="jxr_linenumber" name="L58" href="#L58">58</a>                      blockingTaskExecutor, dogma, maxRetriesOnReplicationLag,
-<a class="jxr_linenumber" name="L59" href="#L59">59</a>                      retryIntervalOnReplicationLagMillis(),
-<a class="jxr_linenumber" name="L60" href="#L60">60</a>                      () -&gt; {
-<a class="jxr_linenumber" name="L61" href="#L61">61</a>                          <em class="jxr_comment">// FIXME(trustin): Note that this will always return `null` due to a known limitation</em>
-<a class="jxr_linenumber" name="L62" href="#L62">62</a>                          <em class="jxr_comment">//                 in Armeria: https://github.com/line/armeria/issues/760</em>
-<a class="jxr_linenumber" name="L63" href="#L63">63</a>                          <strong class="jxr_keyword">final</strong> ClientRequestContext ctx = ClientRequestContext.currentOrNull();
-<a class="jxr_linenumber" name="L64" href="#L64">64</a>                          <strong class="jxr_keyword">return</strong> ctx != <strong class="jxr_keyword">null</strong> ? ctx.remoteAddress() : <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L65" href="#L65">65</a>                      });
-<a class="jxr_linenumber" name="L66" href="#L66">66</a>          }
-<a class="jxr_linenumber" name="L67" href="#L67">67</a>      }
-<a class="jxr_linenumber" name="L68" href="#L68">68</a>  }
+<a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.client.armeria.ArmeriaCentralDogma;
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>  
+<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L31" href="#L31">31</a>  <em class="jxr_javadoccomment"> * Builds a {@link CentralDogma} client based on an &lt;a href="https://line.github.io/armeria/"&gt;Armeria&lt;/a&gt;</em>
+<a class="jxr_linenumber" name="L32" href="#L32">32</a>  <em class="jxr_javadoccomment"> * HTTP client.</em>
+<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="L34" href="#L34">34</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../../com/linecorp/centraldogma/client/armeria/ArmeriaCentralDogmaBuilder.html">ArmeriaCentralDogmaBuilder</a>
+<a class="jxr_linenumber" name="L35" href="#L35">35</a>          <strong class="jxr_keyword">extends</strong> AbstractArmeriaCentralDogmaBuilder&lt;ArmeriaCentralDogmaBuilder&gt; {
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L37" href="#L37">37</a>  <em class="jxr_javadoccomment">     * Returns a newly-created {@link CentralDogma} instance.</em>
+<a class="jxr_linenumber" name="L38" href="#L38">38</a>  <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L39" href="#L39">39</a>  <em class="jxr_javadoccomment">     * @throws UnknownHostException if failed to resolve the host names from the DNS servers</em>
+<a class="jxr_linenumber" name="L40" href="#L40">40</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L41" href="#L41">41</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../com/linecorp/centraldogma/client/CentralDogma.html">CentralDogma</a> build() <strong class="jxr_keyword">throws</strong> UnknownHostException {
+<a class="jxr_linenumber" name="L42" href="#L42">42</a>          <strong class="jxr_keyword">final</strong> EndpointGroup endpointGroup = endpointGroup();
+<a class="jxr_linenumber" name="L43" href="#L43">43</a>          <strong class="jxr_keyword">final</strong> String scheme = <span class="jxr_string">"none+"</span> + (isUseTls() ? <span class="jxr_string">"https"</span> : <span class="jxr_string">"http"</span>);
+<a class="jxr_linenumber" name="L44" href="#L44">44</a>          <strong class="jxr_keyword">final</strong> ClientBuilder builder =
+<a class="jxr_linenumber" name="L45" href="#L45">45</a>                  newClientBuilder(scheme, endpointGroup, cb -&gt; cb.decorator(DecodingClient.newDecorator()), <span class="jxr_string">"/"</span>);
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>          <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>  
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>          <em class="jxr_comment">// TODO(ikhoon): Apply ExecutorServiceMetrics for the 'blockingTaskExecutor' once</em>
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>          <em class="jxr_comment">//               https://github.com/line/centraldogma/pull/542 is merged.</em>
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>          <strong class="jxr_keyword">final</strong> ScheduledExecutorService blockingTaskExecutor = blockingTaskExecutor();
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>  
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>          <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/client/CentralDogma.html">CentralDogma</a> dogma = <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/client/armeria/ArmeriaCentralDogma.html">ArmeriaCentralDogma</a>(blockingTaskExecutor,
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>                                                             builder.build(WebClient.<strong class="jxr_keyword">class</strong>),
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>                                                             accessToken(),
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>                                                             endpointGroup::close);
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>          <strong class="jxr_keyword">if</strong> (maxRetriesOnReplicationLag &lt;= 0) {
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>              <strong class="jxr_keyword">return</strong> dogma;
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>          } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>              <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/internal/client/ReplicationLagTolerantCentralDogma.html">ReplicationLagTolerantCentralDogma</a>(
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>                      blockingTaskExecutor, dogma, maxRetriesOnReplicationLag,
+<a class="jxr_linenumber" name="L61" href="#L61">61</a>                      retryIntervalOnReplicationLagMillis(),
+<a class="jxr_linenumber" name="L62" href="#L62">62</a>                      () -&gt; {
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>                          <em class="jxr_comment">// FIXME(trustin): Note that this will always return `null` due to a known limitation</em>
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>                          <em class="jxr_comment">//                 in Armeria: https://github.com/line/armeria/issues/760</em>
+<a class="jxr_linenumber" name="L65" href="#L65">65</a>                          <strong class="jxr_keyword">final</strong> ClientRequestContext ctx = ClientRequestContext.currentOrNull();
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>                          <strong class="jxr_keyword">return</strong> ctx != <strong class="jxr_keyword">null</strong> ? ctx.remoteAddress() : <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L67" href="#L67">67</a>                      });
+<a class="jxr_linenumber" name="L68" href="#L68">68</a>          }
+<a class="jxr_linenumber" name="L69" href="#L69">69</a>      }
+<a class="jxr_linenumber" name="L70" href="#L70">70</a>  }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2024 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>
