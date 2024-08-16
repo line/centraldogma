@@ -21,13 +21,18 @@ import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENT
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.regex.Pattern;
 
 import org.curioswitch.common.protobuf.json.MessageMarshaller;
+import org.reflections.Reflections;
+import org.reflections.scanners.SubTypesScanner;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Empty;
+import com.google.protobuf.GeneratedMessageV3;
 import com.google.protobuf.Message;
 
 import com.linecorp.centraldogma.common.Author;
@@ -44,10 +49,7 @@ import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
-import io.envoyproxy.envoy.extensions.filters.http.router.v3.Router;
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager;
-import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext;
-import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
@@ -56,19 +58,35 @@ public final class XdsResourceManager {
     public static final String RESOURCE_ID_PATTERN_STRING = "[a-z](?:[a-z0-9-_/]*[a-z0-9])?";
     public static final Pattern RESOURCE_ID_PATTERN = Pattern.compile('^' + RESOURCE_ID_PATTERN_STRING + '$');
 
-    //TODO(minwoox): Automate the registration of the extension message types.
     public static final MessageMarshaller JSON_MESSAGE_MARSHALLER =
-            MessageMarshaller.builder().omittingInsignificantWhitespace(true)
-                             .register(Listener.getDefaultInstance())
-                             .register(Cluster.getDefaultInstance())
-                             .register(ClusterLoadAssignment.getDefaultInstance())
-                             .register(Router.getDefaultInstance())
-                             // extensions
-                             .register(RouteConfiguration.getDefaultInstance())
-                             .register(HttpConnectionManager.getDefaultInstance())
-                             .register(UpstreamTlsContext.getDefaultInstance())
-                             .register(DownstreamTlsContext.getDefaultInstance())
-                             .build();
+            registerEnvoyExtension(
+                    MessageMarshaller.builder().omittingInsignificantWhitespace(true)
+                                     .register(Listener.getDefaultInstance())
+                                     .register(Cluster.getDefaultInstance())
+                                     .register(ClusterLoadAssignment.getDefaultInstance())
+                                     .register(RouteConfiguration.getDefaultInstance()))
+                    .build();
+
+    public static MessageMarshaller.Builder registerEnvoyExtension(MessageMarshaller.Builder builder) {
+        final Reflections reflections = new Reflections(
+                "io.envoyproxy.envoy.extensions", HttpConnectionManager.class.getClassLoader(),
+                new SubTypesScanner(true));
+        reflections.getSubTypesOf(GeneratedMessageV3.class)
+                   .stream()
+                   .filter(c -> !c.getName().contains("$")) // exclude subclasses
+                   .filter(XdsResourceManager::hasGetDefaultInstanceMethod)
+                   .forEach(builder::register);
+        return builder;
+    }
+
+    private static boolean hasGetDefaultInstanceMethod(Class<?> clazz) {
+        try {
+            final Method method = clazz.getMethod("getDefaultInstance");
+            return method.getParameterCount() == 0 && Modifier.isStatic(method.getModifiers());
+        } catch (NoSuchMethodException ignored) {
+            return false;
+        }
+    }
 
     public static String removePrefix(String prefix, String name) {
         if (!name.startsWith(prefix)) {
