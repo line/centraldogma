@@ -25,18 +25,22 @@ import static java.util.Objects.requireNonNull;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ProjectExistsException;
+import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.Tokens;
@@ -49,13 +53,15 @@ public final class InternalProjectInitializer {
     public static final String INTERNAL_PROJECT_DOGMA = "dogma";
 
     private final CommandExecutor executor;
+    private final ProjectManager projectManager;
     private final CompletableFuture<Void> initialFuture = new CompletableFuture<>();
 
     /**
      * Creates a new instance.
      */
-    public InternalProjectInitializer(CommandExecutor executor) {
+    public InternalProjectInitializer(CommandExecutor executor, ProjectManager projectManager) {
         this.executor = executor;
+        this.projectManager = projectManager;
     }
 
     /**
@@ -86,17 +92,16 @@ public final class InternalProjectInitializer {
      */
     public void initialize0(String projectName) {
         final long creationTimeMillis = System.currentTimeMillis();
-        try {
-            executor.execute(createProject(creationTimeMillis, Author.SYSTEM, projectName))
-                    .get();
-        } catch (Throwable cause) {
-            final Throwable peeled = Exceptions.peel(cause);
-            if (peeled instanceof ReadOnlyException) {
-                // The executor has stopped right after starting up.
-                return;
-            }
-            if (!(peeled instanceof ProjectExistsException)) {
-                throw new Error("failed to initialize an internal project: " + projectName, peeled);
+        if (!projectManager.exists(projectName)) {
+            try {
+                executor.execute(Command.forcePush(
+                                createProject(creationTimeMillis, Author.SYSTEM, projectName)))
+                        .get();
+            } catch (Throwable cause) {
+                final Throwable peeled = Exceptions.peel(cause);
+                if (!(peeled instanceof ProjectExistsException)) {
+                    throw new Error("failed to initialize an internal project: " + projectName, peeled);
+                }
             }
         }
 
@@ -106,17 +111,25 @@ public final class InternalProjectInitializer {
     }
 
     private void initializeTokens() {
+        final Entry<JsonNode> entry =
+                projectManager.get(INTERNAL_PROJECT_DOGMA).repos().get(Project.REPO_DOGMA)
+                              .getOrNull(Revision.HEAD,
+                                         Query.ofJson(MetadataService.TOKEN_JSON)).join();
+        if (entry != null && entry.hasContent()) {
+            return;
+        }
         try {
             final Change<?> change = Change.ofJsonPatch(MetadataService.TOKEN_JSON,
                                                         null, Jackson.valueToTree(new Tokens()));
             final String commitSummary = "Initialize the token list file: /" + INTERNAL_PROJECT_DOGMA + '/' +
                                          Project.REPO_DOGMA + MetadataService.TOKEN_JSON;
-            executor.execute(push(Author.SYSTEM, INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, Revision.HEAD,
-                                  commitSummary, "", Markup.PLAINTEXT, ImmutableList.of(change)))
+            executor.execute(Command.forcePush(push(Author.SYSTEM, INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
+                                                    Revision.HEAD, commitSummary, "", Markup.PLAINTEXT,
+                                                    ImmutableList.of(change))))
                     .get();
         } catch (Throwable cause) {
             final Throwable peeled = Exceptions.peel(cause);
-            if (peeled instanceof ReadOnlyException || peeled instanceof ChangeConflictException) {
+            if (peeled instanceof ChangeConflictException) {
                 return;
             }
             throw new Error("failed to initialize the token list file", peeled);
@@ -137,9 +150,15 @@ public final class InternalProjectInitializer {
     private void initializeInternalRepos(String projectName, List<String> internalRepos,
                                          long creationTimeMillis) {
         requireNonNull(internalRepos, "internalRepos");
+        final Project project = projectManager.get(projectName);
+        assert project != null;
         for (final String repo : internalRepos) {
+            if (project.repos().exists(repo)) {
+                continue;
+            }
             try {
-                executor.execute(createRepository(creationTimeMillis, Author.SYSTEM, projectName, repo))
+                executor.execute(Command.forcePush(
+                                createRepository(creationTimeMillis, Author.SYSTEM, projectName, repo)))
                         .get();
             } catch (Throwable cause) {
                 final Throwable peeled = Exceptions.peel(cause);
