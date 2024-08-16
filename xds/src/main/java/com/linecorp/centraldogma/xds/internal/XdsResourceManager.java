@@ -24,11 +24,14 @@ import static java.util.Objects.requireNonNull;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import org.curioswitch.common.protobuf.json.MessageMarshaller;
 import org.reflections.Reflections;
 import org.reflections.scanners.SubTypesScanner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
@@ -59,6 +62,8 @@ import io.grpc.stub.StreamObserver;
 
 public final class XdsResourceManager {
 
+    private static final Logger logger = LoggerFactory.getLogger(XdsResourceManager.class);
+
     public static final String RESOURCE_ID_PATTERN_STRING = "[a-z](?:[a-z0-9-_/]*[a-z0-9])?";
     public static final Pattern RESOURCE_ID_PATTERN = Pattern.compile('^' + RESOURCE_ID_PATTERN_STRING + '$');
 
@@ -80,14 +85,24 @@ public final class XdsResourceManager {
     }
 
     public static ImmutableList<Class<? extends GeneratedMessageV3>> envoyExtension() {
+        logger.info("Collecting envoy extension classes...");
+        final long startTime = System.nanoTime();
         final Reflections reflections = new Reflections(
                 "io.envoyproxy.envoy.extensions", HttpConnectionManager.class.getClassLoader(),
                 new SubTypesScanner(true));
-        return reflections.getSubTypesOf(GeneratedMessageV3.class)
-                          .stream()
-                          .filter(c -> !c.getName().contains("$")) // exclude subclasses
-                          .filter(XdsResourceManager::hasGetDefaultInstanceMethod)
-                          .collect(toImmutableList());
+        final ImmutableList<Class<? extends GeneratedMessageV3>> collected =
+                reflections.getSubTypesOf(
+                                   GeneratedMessageV3.class)
+                           .stream()
+                           .filter(c -> !c.getName()
+                                          .contains(
+                                                  "$")) // exclude subclasses
+                           .filter(XdsResourceManager::hasGetDefaultInstanceMethod)
+                           .collect(
+                                   toImmutableList());
+        logger.info("Collected {} envoy extension classes in {} ms.", collected.size(),
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime));
+        return collected;
     }
 
     private static boolean hasGetDefaultInstanceMethod(Class<?> clazz) {
