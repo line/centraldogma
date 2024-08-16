@@ -78,8 +78,7 @@ public final class XdsResourceManager {
         JSON_MESSAGE_MARSHALLER = builder.build();
     }
 
-    private static void envoyExtension(
-            MessageMarshaller.Builder builder) {
+    private static void envoyExtension(MessageMarshaller.Builder builder) {
         final Reflections reflections = new Reflections(
                 "io.envoyproxy.envoy.extensions", HttpConnectionManager.class.getClassLoader(),
                 new SubTypesScanner(true));
