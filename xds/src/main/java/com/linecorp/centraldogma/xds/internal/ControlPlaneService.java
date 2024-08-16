@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.xds.internal;
 
 import static com.linecorp.centraldogma.server.internal.ExecutorServiceUtil.terminate;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.envoyExtension;
 
 import java.io.IOException;
 import java.util.concurrent.Executors;
@@ -25,6 +26,9 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.ImmutableList;
+import com.google.protobuf.GeneratedMessageV3;
 
 import com.linecorp.armeria.common.grpc.GrpcJsonMarshaller;
 import com.linecorp.armeria.server.grpc.GrpcService;
@@ -101,7 +105,9 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                                        .addService(server.getAggregatedDiscoveryServiceImpl())
                                                        .build();
             pluginInitContext.serverBuilder().route().build(grpcService);
-            final XdsResourceManager xdsResourceManager = new XdsResourceManager(xdsProject(), commandExecutor);
+            final XdsResourceManager xdsResourceManager = new XdsResourceManager(xdsProject(),
+                                                                                 commandExecutor);
+            final ImmutableList<Class<? extends GeneratedMessageV3>> extensionClasses = envoyExtension();
             final GrpcService xdsApplicationService =
                     GrpcService.builder()
                                .addService(new XdsGroupService(pluginInitContext.projectManager(),
@@ -115,10 +121,11 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                        serviceDescriptor -> GrpcJsonMarshaller
                                                .builder()
                                                .jsonMarshallerCustomizer(
-                                                       XdsResourceManager::registerEnvoyExtension)
+                                                       builder -> extensionClasses.forEach(builder::register))
                                                .build(serviceDescriptor))
                                .enableHttpJsonTranscoding(true).build();
-            pluginInitContext.serverBuilder().service(xdsApplicationService, pluginInitContext.authService());
+            pluginInitContext.serverBuilder().service(xdsApplicationService,
+                                                      pluginInitContext.authService());
             return null;
         });
     }
