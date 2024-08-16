@@ -1,6 +1,8 @@
 import { useAppSelector } from 'dogma/hooks';
 import { useGetMetadataByProjectNameQuery } from 'dogma/features/api/apiSlice';
 import { ReactNode } from 'react';
+import { UserDto } from './UserDto';
+import { ProjectMetadataDto } from '../project/ProjectMetadataDto';
 
 type ProjectRole = 'OWNER' | 'MEMBER' | 'GUEST' | 'ANONYMOUS';
 
@@ -10,13 +12,8 @@ type WithProjectRoleProps = {
   children: () => ReactNode;
 };
 
-export const WithProjectRole = ({ projectName, roles, children }: WithProjectRoleProps) => {
-  const { data: metadata } = useGetMetadataByProjectNameQuery(projectName, {
-    refetchOnFocus: true,
-  });
-
+export function findUserRole(user: UserDto, metadata: ProjectMetadataDto) {
   let role: ProjectRole;
-  const { user } = useAppSelector((state) => state.auth);
   if (metadata && user) {
     if (user.admin) {
       role = 'OWNER';
@@ -27,6 +24,16 @@ export const WithProjectRole = ({ projectName, roles, children }: WithProjectRol
   if (!role) {
     role = 'GUEST';
   }
+  return role;
+}
+
+export const WithProjectRole = ({ projectName, roles, children }: WithProjectRoleProps) => {
+  const { data: metadata } = useGetMetadataByProjectNameQuery(projectName, {
+    refetchOnFocus: true,
+  });
+
+  const { user } = useAppSelector((state) => state.auth);
+  const role = findUserRole(user, metadata);
 
   if (roles.find((r) => r === role)) {
     return <>{children()}</>;

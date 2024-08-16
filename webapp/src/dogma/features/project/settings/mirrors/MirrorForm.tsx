@@ -300,9 +300,13 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
                 type="text"
                 defaultValue={defaultValue.remoteUrl}
                 placeholder="my.git.com/org/myrepo.git"
-                {...register('remoteUrl', { required: true, pattern: /^.*\.git$/ })}
+                {...register('remoteUrl', { required: true, pattern: /^[\w.-]+(:[0-9]+)?\/[\w.-\/]+.git$/ })}
               />
-              <FieldErrorMessage error={errors.remoteUrl} fieldName="remote URL" />
+              <FieldErrorMessage
+                error={errors.remoteUrl}
+                fieldName="remote URL"
+                errorMessage="Invalid remote URL. (expected format: 'my.git.com/org/myrepo.git')"
+              />
             </FormControl>
             <FormControl width="50%" isRequired isInvalid={errors.remoteBranch != null}>
               <FormLabel>branch</FormLabel>

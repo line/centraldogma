@@ -18,6 +18,7 @@
 package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_DOGMA;
 import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
@@ -99,6 +100,11 @@ public final class MirrorConfig {
         this.localRepo = requireNonNull(localRepo, "localRepo");
         this.localPath = firstNonNull(localPath, "/");
         this.remoteUri = requireNonNull(remoteUri, "remoteUri");
+
+        // Validate the remote URI.
+        final String suffix = remoteUri.getScheme().equals(SCHEME_DOGMA) ? "dogma" : "git";
+        RepositoryUri.parse(remoteUri, suffix);
+
         if (gitignore != null) {
             if (gitignore instanceof Iterable &&
                 Streams.stream((Iterable<?>) gitignore).allMatch(String.class::isInstance)) {

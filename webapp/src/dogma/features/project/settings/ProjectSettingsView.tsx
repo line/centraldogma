@@ -23,10 +23,10 @@ import Link from 'next/link';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { useRouter } from 'next/router';
 import { useAppSelector } from 'dogma/hooks';
-import { AppMemberDetailDto } from 'dogma/features/project/settings/members/AppMemberDto';
 import { FiBox } from 'react-icons/fi';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { HttpStatusCode } from 'dogma/features/api/HttpStatusCode';
+import { findUserRole } from '../../auth/ProjectRole';
 
 interface ProjectSettingsViewProps {
   projectName: string;
@@ -83,14 +83,7 @@ const ProjectSettingsView = ({ projectName, currentTab, children }: ProjectSetti
     // 403 Forbidden means the user has a GUEST role
     queryError = null;
   } else {
-    if (metadata && user) {
-      const appUser = Array.from(Object.values(metadata.members)).find(
-        (m: AppMemberDetailDto) => m.login === user.email,
-      );
-      if (appUser != null) {
-        accessRole = appUser.role;
-      }
-    }
+    accessRole = findUserRole(user, metadata);
   }
   return (
     <Deferred isLoading={isLoading} error={queryError}>
