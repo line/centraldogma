@@ -21,6 +21,7 @@ import static com.linecorp.centraldogma.server.internal.api.ProjectServiceV1Test
 import static com.linecorp.centraldogma.server.internal.api.ProjectServiceV1Test.sessionId;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
 import java.net.URI;
@@ -273,9 +274,11 @@ class ProjectServiceV1ListProjectTest {
                                    TestAuthMessageUtil.USERNAME2, "MEMBER"))
                            .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
-        projects = getProjects(normalClient);
-        assertThat(projects.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
-        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRole.GUEST);
+        await().untilAsserted(() -> {
+            Map<String, ProjectDto> projects0 = getProjects(normalClient);
+            assertThat(projects0.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
+            assertThat(projects0.get("hyangtack").userRole()).isEqualTo(ProjectRole.GUEST);
+        });
 
         aRes = adminClient.prepare()
                           .post("/api/v1/metadata/hyangtack/members")
@@ -283,9 +286,11 @@ class ProjectServiceV1ListProjectTest {
                                   TestAuthMessageUtil.USERNAME2, "OWNER"))
                           .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
-        projects = getProjects(normalClient);
-        assertThat(projects.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
-        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRole.OWNER);
+        await().untilAsserted(() -> {
+            Map<String, ProjectDto> projects0 = getProjects(normalClient);
+            assertThat(projects0.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
+            assertThat(projects0.get("hyangtack").userRole()).isEqualTo(ProjectRole.OWNER);
+        });
     }
 
     @Test
@@ -318,18 +323,22 @@ class ProjectServiceV1ListProjectTest {
                             .contentJson(new IdentifierWithRole(appId, "MEMBER"))
                             .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
-        projects = getProjects(tokenClient);
-        assertThat(projects.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
-        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRole.GUEST);
+        await().untilAsserted(() -> {
+            Map<String, ProjectDto> projects0 = getProjects(tokenClient);
+            assertThat(projects0.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
+            assertThat(projects0.get("hyangtack").userRole()).isEqualTo(ProjectRole.GUEST);
+        });
 
         aRes = normalClient.prepare()
                            .post("/api/v1/metadata/hyangtack/tokens")
                            .contentJson(new IdentifierWithRole(appId, "OWNER"))
                            .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
-        projects = getProjects(tokenClient);
-        assertThat(projects.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
-        assertThat(projects.get("hyangtack").userRole()).isEqualTo(ProjectRole.OWNER);
+        await().untilAsserted(() -> {
+            Map<String, ProjectDto> projects0 = getProjects(tokenClient);
+            assertThat(projects0.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
+            assertThat(projects0.get("hyangtack").userRole()).isEqualTo(ProjectRole.OWNER);
+        });
     }
 
     private Map<String, ProjectDto> getProjects(BlockingWebClient client) {
