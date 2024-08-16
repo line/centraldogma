@@ -60,7 +60,7 @@ public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
         try {
             fetchingService.start().get(60, TimeUnit.SECONDS);
         } catch (Throwable t) {
-            throw new RuntimeException("Failed to start control plane plugin in 60 seconds.", t);
+            throw new RuntimeException("Failed to start kubernetes endpoint fetching plugin in 60 seconds.", t);
         }
         return UnmodifiableFuture.completedFuture(null);
     }

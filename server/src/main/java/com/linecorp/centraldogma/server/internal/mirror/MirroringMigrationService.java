@@ -132,6 +132,8 @@ final class MirroringMigrationService {
                 }
             }
             logMigrationJob(numMigratedProjects);
+            logger.info("Mirrors and credentials migration has been completed. (took: {} ms.)",
+                        stopwatch.elapsed().toMillis());
         } catch (Exception ex) {
             final MirrorMigrationException mirrorException = new MirrorMigrationException(
                     "Failed to migrate mirrors and credentials. Rollback to the legacy configurations", ex);
@@ -142,13 +144,11 @@ final class MirroringMigrationService {
                 throw new MirrorMigrationException("Failed to rollback the mirror migration:", ex0);
             }
             throw mirrorException;
+        } finally {
+            // Exit read-only mode.
+            commandExecutor.execute(Command.updateServerStatus(ServerStatus.WRITABLE))
+                           .get(1, TimeUnit.MINUTES);
         }
-
-        // Exit read-only mode.
-        commandExecutor.execute(Command.updateServerStatus(ServerStatus.WRITABLE))
-                       .get(1, TimeUnit.MINUTES);
-        logger.info("Mirrors and credentials migration has been completed. (took: {} ms.)",
-                    stopwatch.elapsed().toMillis());
 
         shortWords = null;
     }
@@ -208,9 +208,9 @@ final class MirroringMigrationService {
             try {
                 migrateMirror(repository, (ObjectNode) mirror, mirrorIds, credentials);
             } catch (Exception e) {
+                // Log the error and continue to migrate the next mirror.
                 logger.warn("Failed to migrate a mirror config: {} (project: {})", mirror,
                             repository.parent().name(), e);
-                throw e;
             }
         }
         // Back up the old mirrors.json file and don't use it anymore.
@@ -265,18 +265,22 @@ final class MirroringMigrationService {
         // Delete all files in the target directory
         final Map<String, Entry<?>> entries = repository.find(Revision.HEAD, targetDirectory + "**")
                                                         .get();
-        final List<Change<?>> changes = entries.keySet().stream().map(Change::ofRemoval)
-                                                  .collect(toImmutableList());
-        final Command<CommitResult> command =
-                Command.push(Author.SYSTEM, repository.parent().name(),
-                             repository.name(), Revision.HEAD,
-                             "Rollback the migration of " + targetDirectory, "",
-                             Markup.PLAINTEXT, changes);
-        try {
-            executeCommand(command);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new MirrorMigrationException("Failed to rollback the migration of " + targetDirectory, e);
+        if (!entries.isEmpty()) {
+            final List<Change<?>> changes = entries.keySet().stream().map(Change::ofRemoval)
+                                                   .collect(toImmutableList());
+
+            final Command<CommitResult> command =
+                    Command.push(Author.SYSTEM, repository.parent().name(),
+                                 repository.name(), Revision.HEAD,
+                                 "Rollback the migration of " + targetDirectory, "",
+                                 Markup.PLAINTEXT, changes);
+            try {
+                executeCommand(command);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                throw new MirrorMigrationException("Failed to rollback the migration of " + targetDirectory, e);
+            }
         }
+
         // Revert the backup file to the original file if exists.
         final Entry<?> backup = repository.getOrNull(Revision.HEAD, backupFile).get();
         if (backup != null) {
@@ -332,9 +336,9 @@ final class MirroringMigrationService {
                 try {
                     migrateCredential(repository, (ObjectNode) credential, credentialIds);
                 } catch (Exception e) {
+                    // Log the error and continue to migrate the next credential.
                     logger.warn("Failed to migrate the credential config in project {}",
                                 repository.parent().name(), e);
-                    throw e;
                 }
             }
             index++;

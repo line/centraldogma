@@ -46,10 +46,6 @@ import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
-import io.envoyproxy.envoy.extensions.filters.http.router.v3.Router;
-import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager;
-import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext;
-import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext;
 import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
@@ -118,13 +114,8 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                .jsonMarshallerFactory(
                                        serviceDescriptor -> GrpcJsonMarshaller
                                                .builder()
-                                               //TODO(minwoox): Automate the registration of the extensions.
-                                               .jsonMarshallerCustomizer(builder -> {
-                                                   builder.register(HttpConnectionManager.getDefaultInstance())
-                                                          .register(Router.getDefaultInstance())
-                                                          .register(UpstreamTlsContext.getDefaultInstance())
-                                                          .register(DownstreamTlsContext.getDefaultInstance());
-                                               })
+                                               .jsonMarshallerCustomizer(
+                                                       XdsResourceManager::registerEnvoyExtension)
                                                .build(serviceDescriptor))
                                .enableHttpJsonTranscoding(true).build();
             pluginInitContext.serverBuilder().service(xdsApplicationService, pluginInitContext.authService());

@@ -1008,6 +1008,29 @@ public class MetadataService {
     }
 
     /**
+     * Update the {@link Token} of the specified {@code appId} to user or admin.
+     */
+    public CompletableFuture<Revision> updateTokenLevel(Author author, String appId, boolean toBeAdmin) {
+        requireNonNull(author, "author");
+        requireNonNull(appId, "appId");
+
+        return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
+                              "Update the token level: " + appId + " to " + (toBeAdmin ? "admin" : "user"),
+                              () -> tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
+                                             .thenApply(tokens -> {
+                                                 final JsonPointer adminPath = JsonPointer.compile(
+                                                         "/appIds" + encodeSegment(appId) +
+                                                         "/admin");
+                                                 final Change<JsonNode> change = Change.ofJsonPatch(
+                                                         TOKEN_JSON,
+                                                         new ReplaceOperation(adminPath,
+                                                                              Jackson.valueToTree(
+                                                                                      toBeAdmin)).toJsonNode());
+                                                 return HolderWithRevision.of(change, tokens.revision());
+                                             }));
+    }
+
+    /**
      * Returns a {@link Token} which has the specified {@code appId}.
      */
     public CompletableFuture<Token> findTokenByAppId(String appId) {

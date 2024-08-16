@@ -31,6 +31,7 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Default;
@@ -189,6 +190,44 @@ public class TokenService extends AbstractService {
                                                        ')');
                 }
         );
+    }
+
+    /**
+     * PATCH /tokens/{appId}/level
+     *
+     * <p>Updates a permission of a token of the specified ID.
+     */
+    @Patch("/tokens/{appId}/level")
+    @RequiresAdministrator
+    public CompletableFuture<Token> updateTokenLevel(ServiceRequestContext ctx,
+                                                     @Param String appId,
+                                                     TokenLevelRequest tokenLevelRequest,
+                                                     Author author, User loginUser) {
+
+        final String newTokenLevel = tokenLevelRequest.level().toLowerCase();
+        checkArgument("user".equals(newTokenLevel) || "admin".equals(newTokenLevel),
+                      "token level: %s (expected: user or admin)" + tokenLevelRequest.level());
+
+        return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
+                token -> {
+                    boolean toBeAdmin = false;
+
+                    switch (newTokenLevel) {
+                        case "user":
+                            if (!token.isAdmin()) {
+                                throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
+                            }
+                            break;
+                        case "admin":
+                            if (token.isAdmin()) {
+                                throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
+                            }
+                            toBeAdmin = true;
+                            break;
+                    }
+                    return mds.updateTokenLevel(author, appId, toBeAdmin).thenCompose(
+                            unused -> mds.findTokenByAppId(appId).thenApply(Token::withoutSecret));
+                });
     }
 
     private CompletableFuture<Token> getTokenOrRespondForbidden(ServiceRequestContext ctx,
