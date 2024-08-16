@@ -198,8 +198,7 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
      */
     public CentralDogma build() {
         final XdsBootstrap xdsBootstrap = xdsBootstrap();
-        final String listenerName = this.listenerName;
-        final EndpointGroup endpointGroup = XdsEndpointGroup.of(xdsBootstrap.listenerRoot(listenerName));
+        final EndpointGroup endpointGroup = XdsEndpointGroup.of(listenerName, xdsBootstrap);
         final String scheme = "none+" + (isUseTls() ? "https" : "http");
         final ClientBuilder builder =
                 newClientBuilder(scheme, endpointGroup, cb -> cb.decorator(DecodingClient.newDecorator()), "/");
