@@ -797,6 +797,11 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
         return res != null ? res : cause;
     }
 
+    @Override
+    public void close() throws Exception {
+        delegate.close();
+    }
+
     private static final class RepoId {
         private final String projectName;
         private final String repositoryName;

@@ -4,29 +4,33 @@
 #
 [versions]
 armeria = "1.30.0"
-assertj = "3.26.0"
-awaitility = "4.2.1"
+assertj = "3.26.3"
+awaitility = "4.2.2"
 bouncycastle = "1.78.1"
+# Don"t upgrade Caffeine to 3.x that requires Java 11.
 caffeine = "2.9.3"
 checkstyle = "10.3.3"
 controlplane = "1.0.45"
-curator = "5.6.0"
+# Ensure that we use the same ZooKeeper version as what Curator depends on.
+# See: https://github.com/apache/curator/blob/master/pom.xml
+#      (Switch to the right tag to find out the right version.)
+curator = "5.7.0"
 # Do not upgrade cron-utils until there's another CVE or Armeria's SLF4J and Logback are upgraded.
 cron-utils = "9.2.0"
 diffutils = "1.3.0"
 docker = "9.4.0"
 download = "5.6.0"
-dropwizard-metrics = "4.2.21"
+dropwizard-metrics = "4.2.26"
 eddsa = "0.3.0"
 findbugs = "3.0.2"
 futures-completable = "0.3.6"
-grpc-java = "1.64.0"
+grpc-java = "1.66.0"
 guava = "33.2.1-jre"
 guava-failureaccess = "1.0.1"
 hamcrest-library = "2.2"
 hibernate-validator6 = "6.2.5.Final"
 hibernate-validator8 = "8.0.1.Final"
-jackson = "2.17.1"
+jackson = "2.17.2"
 javassist = "3.30.2-GA"
 javax-annotation = "1.3.2"
 javax-inject = "1"
@@ -35,20 +39,23 @@ jcommander = "1.82"
 jetty-alpn-api = "1.1.3.v20160715"
 jetty-alpn-agent = "2.0.10"
 jgit = "5.13.3.202401111512-r"
-jgit6 = "6.9.0.202403050737-r"
+jgit6 = "6.10.0.202406032230-r"
 junit4 = "4.13.2"
-junit5 = "5.10.2"
+junit5 = "5.11.0"
 jsch = "0.1.55"
+# Don't update `json-path` version
 json-path = "2.2.0"
+# 3.0.0 requires java 17
 json-unit = "2.38.0"
 jmh-core = "1.37"
 jmh-gradle-plugin = "0.7.2"
 jxr = "0.2.1"
 logback12 = { strictly = "1.2.13" }
-logback15 = { strictly = "1.5.5" }
+logback15 = { strictly = "1.5.7" }
 logback = "1.2.13"
-micrometer = "1.13.0"
-mina-sshd = "2.12.1"
+micrometer = "1.13.3"
+mina-sshd = "2.13.2"
+# Don't uprade mockito to 5.x.x that requires Java 11
 mockito = "4.11.0"
 nexus-publish-plugin = "2.0.0"
 node-gradle-plugin = "7.0.2"
@@ -57,20 +64,25 @@ proguard = "7.4.2"
 protobuf = "3.25.1"
 protobuf-gradle-plugin = "0.8.19"
 quartz = "2.3.2"
+reflections = "0.9.11"
 shadow-gradle-plugin = "7.1.2"
+# Don't update `shiro` version
 shiro = "1.3.2"
 slf4j1 = { strictly = "1.7.36" }
-slf4j2 = { strictly = "2.0.12" }
+slf4j2 = { strictly = "2.0.16" }
 # Ensure that we use the same Snappy version as what Curator depends on.
 # See: https://github.com/apache/curator/blob/master/pom.xml
-snappy = "1.1.10.4"
+snappy = "1.1.10.5"
 sphinx = "2.10.1"
 spring-boot2 = "2.7.18"
-spring-boot3 = "3.3.0"
+spring-boot3 = "3.3.2"
 spring-test-junit5 = "1.5.0"
-testcontainers = "1.19.8"
+testcontainers = "1.20.1"
 thrift09 = { strictly = "0.9.3-1" }
-zookeeper = "3.7.2"
+# Ensure that we use the same ZooKeeper version as what Curator depends on.
+# See: https://github.com/apache/curator/blob/master/pom.xml
+#      (Switch to the right tag to find out the right version.)
+zookeeper = "3.9.1"
 
 [boms]
 armeria = { module = "com.linecorp.armeria:armeria-bom", version.ref = "armeria" }
@@ -112,7 +124,6 @@ version.ref = "bouncycastle"
 module = "org.bouncycastle:bcprov-jdk18on"
 version.ref = "bouncycastle"
 
-# Don"t upgrade Caffeine to 3.x that requires Java 11.
 [libraries.caffeine]
 module = "com.github.ben-manes.caffeine:caffeine"
 version.ref = "caffeine"
@@ -127,9 +138,6 @@ module = "com.cronutils:cron-utils"
 version.ref = "cron-utils"
 relocations = { from = "com.cronutils", to = "com.linecorp.centraldogma.internal.shaded.cronutils" }
 
-# Ensure that we use the same ZooKeeper version as what Curator depends on.
-# See: https://github.com/apache/curator/blob/master/pom.xml
-#      (Switch to the right tag to find out the right version.)
 [libraries.curator-recipes]
 module = "org.apache.curator:curator-recipes"
 version.ref = "curator"
@@ -185,7 +193,6 @@ relocations = { from = "com.google.common", to = "com.linecorp.centraldogma.inte
 module = "org.hamcrest:hamcrest-library"
 version.ref = "hamcrest-library"
 
-# Need to wait for spring boot 3 before upgrading to 7.x.x
 [libraries.hibernate-validator6]
 module = "org.hibernate.validator:hibernate-validator"
 version.ref = "hibernate-validator6"
@@ -202,6 +209,8 @@ javadocs = "https://fasterxml.github.io/jackson-core/javadoc/2.13/"
 [libraries.jackson-databind]
 module = "com.fasterxml.jackson.core:jackson-databind"
 javadocs = "https://fasterxml.github.io/jackson-databind/javadoc/2.13/"
+[libraries.jackson-dataformat-yaml]
+module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml"
 [libraries.jackson-datatype-jsr310]
 module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
 # Only used for testing. See JacksonRequestConverterFunctionTest for more information.
@@ -255,13 +264,11 @@ version.ref = "jmh-core"
 module = "com.jcraft:jsch"
 version.ref = "jsch"
 
-# Don't update `json-path` version
 [libraries.json-path]
 module = "com.jayway.jsonpath:json-path"
 version.ref = "json-path"
 relocations = { from = "com.jayway.jsonpath", to = "com.linecorp.centraldogma.internal.shaded.jsonpath" }
 
-# 3.0.0 requires java 17
 [libraries.json-unit]
 module = "net.javacrumbs.json-unit:json-unit"
 version.ref = "json-unit"
@@ -292,12 +299,15 @@ module = "org.junit.platform:junit-platform-launcher"
 [libraries.logback12]
 module = "ch.qos.logback:logback-classic"
 version.ref = "logback12"
-javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.12/"
+javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.13/"
 [libraries.logback15]
 module = "ch.qos.logback:logback-classic"
 version.ref = "logback15"
-javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.5.4/"
+javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.5.7/"
 
+[libraries.controlplane-api]
+module = "io.envoyproxy.controlplane:api"
+version.ref = "controlplane"
 [libraries.controlplane-cache]
 module = "io.envoyproxy.controlplane:cache"
 version.ref = "controlplane"
@@ -343,11 +353,18 @@ version.ref = "protobuf-gradle-plugin"
 module = "org.quartz-scheduler:quartz"
 version.ref = "quartz"
 
+[libraries.reflections]
+module = "org.reflections:reflections"
+version.ref = "reflections"
+exclusions = [
+    "com.google.errorprone:error_prone_annotations",
+    "com.google.j2objc:j2objc-annotations",
+    "org.codehaus.mojo:animal-sniffer-annotations"]
+
 [libraries.shadow-gradle-plugin]
 module = "gradle.plugin.com.github.johnrengelman:shadow"
 version.ref = "shadow-gradle-plugin"
 
-# Don't update `shiro` version
 [libraries.shiro-core]
 module = "org.apache.shiro:shiro-core"
 version.ref = "shiro"
@@ -425,9 +442,6 @@ version.ref = "testcontainers"
 module = "org.apache.thrift:libthrift"
 version.ref = "thrift09"
 
-# Ensure that we use the same ZooKeeper version as what Curator depends on.
-# See: https://github.com/apache/curator/blob/master/pom.xml
-#      (Switch to the right tag to find out the right version.)
 [libraries.zookeeper]
 module = "org.apache.zookeeper:zookeeper"
 version.ref = "zookeeper"

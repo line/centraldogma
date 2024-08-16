@@ -48,7 +48,7 @@ import com.linecorp.centraldogma.common.RevisionNotFoundException;
 /**
  * Central Dogma client.
  */
-public interface CentralDogma {
+public interface CentralDogma extends AutoCloseable {
 
     /**
      * Returns a new {@link CentralDogmaRepository} that is used to send a request to the specified
@@ -850,4 +850,11 @@ public interface CentralDogma {
      * without additional delay.
      */
     CompletableFuture<Void> whenEndpointReady();
+
+    /**
+     * Closes underlying resources that may be used when making requests to the server such as
+     * health checking or dns queries.
+     */
+    @Override
+    void close() throws Exception;
 }
