@@ -261,7 +261,7 @@ class ProjectServiceV1ListProjectTest {
         createProject(adminClient, "trustin");
         createProject(adminClient, "hyangtack");
 
-        Map<String, ProjectDto> projects = getProjects(normalClient);
+        final Map<String, ProjectDto> projects = getProjects(normalClient);
         assertThat(projects).hasSize(2);
         assertThat(projects).containsOnlyKeys("trustin", "hyangtack");
         assertThat(projects.values().stream().map(ProjectDto::userRole))
@@ -275,7 +275,7 @@ class ProjectServiceV1ListProjectTest {
                            .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         await().untilAsserted(() -> {
-            Map<String, ProjectDto> projects0 = getProjects(normalClient);
+            final Map<String, ProjectDto> projects0 = getProjects(normalClient);
             assertThat(projects0.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
             assertThat(projects0.get("hyangtack").userRole()).isEqualTo(ProjectRole.GUEST);
         });
@@ -287,7 +287,7 @@ class ProjectServiceV1ListProjectTest {
                           .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         await().untilAsserted(() -> {
-            Map<String, ProjectDto> projects0 = getProjects(normalClient);
+            final Map<String, ProjectDto> projects0 = getProjects(normalClient);
             assertThat(projects0.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
             assertThat(projects0.get("hyangtack").userRole()).isEqualTo(ProjectRole.OWNER);
         });
@@ -311,7 +311,7 @@ class ProjectServiceV1ListProjectTest {
                                                        .auth(AuthToken.ofOAuth2(token))
                                                        .build()
                                                        .blocking();
-        Map<String, ProjectDto> projects = getProjects(tokenClient);
+        final Map<String, ProjectDto> projects = getProjects(tokenClient);
         assertThat(projects).hasSize(2);
         assertThat(projects).containsOnlyKeys("trustin", "hyangtack");
         assertThat(projects.values().stream().map(ProjectDto::userRole))
@@ -324,7 +324,7 @@ class ProjectServiceV1ListProjectTest {
                             .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         await().untilAsserted(() -> {
-            Map<String, ProjectDto> projects0 = getProjects(tokenClient);
+            final Map<String, ProjectDto> projects0 = getProjects(tokenClient);
             assertThat(projects0.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
             assertThat(projects0.get("hyangtack").userRole()).isEqualTo(ProjectRole.GUEST);
         });
@@ -335,7 +335,7 @@ class ProjectServiceV1ListProjectTest {
                            .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         await().untilAsserted(() -> {
-            Map<String, ProjectDto> projects0 = getProjects(tokenClient);
+            final Map<String, ProjectDto> projects0 = getProjects(tokenClient);
             assertThat(projects0.get("trustin").userRole()).isEqualTo(ProjectRole.MEMBER);
             assertThat(projects0.get("hyangtack").userRole()).isEqualTo(ProjectRole.OWNER);
         });
