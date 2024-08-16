@@ -375,8 +375,11 @@ public interface Command<T> {
      */
     static <T> Command<T> forcePush(Command<T> delegate) {
         requireNonNull(delegate, "delegate");
-        checkArgument(delegate.type() == CommandType.NORMALIZING_PUSH || delegate.type() == CommandType.PUSH,
-                      "delegate: %s (expected: NORMALIZING_PUSH or PUSH)", delegate);
+        checkArgument(delegate.type() == CommandType.CREATE_PROJECT ||
+                      delegate.type() == CommandType.CREATE_REPOSITORY ||
+                      delegate.type() == CommandType.NORMALIZING_PUSH || delegate.type() == CommandType.PUSH,
+                      "delegate: %s (expected: CREATE_PROJECT, CREATE_REPOSITORY, NORMALIZING_PUSH or PUSH)",
+                      delegate);
         return new ForcePushCommand<>(delegate);
     }
 
