@@ -92,7 +92,7 @@ class XdsKubernetesServiceTest {
 
     @BeforeAll
     static void setup() {
-        final AggregatedHttpResponse response = createGroup("groups/foo", dogma.httpClient());
+        final AggregatedHttpResponse response = createGroup("foo", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.OK);
         final List<Node> nodes = ImmutableList.of(newNode("1.1.1.1"), newNode("2.2.2.2"));
         final Deployment deployment = newDeployment();
@@ -138,17 +138,20 @@ class XdsKubernetesServiceTest {
     @Test
     void createWatcherRequest() throws IOException {
         final String watcherId = "foo-k8s-cluster/1";
+        final String clusterName = "groups/foo/k8s/clusters/" + watcherId;
         final ServiceEndpointWatcher watcher = watcher(watcherId);
         final AggregatedHttpResponse response = createWatcher(watcher, watcherId);
         assertOk(response);
         final String json = response.contentUtf8();
-        assertWatcher(json, watcher);
+        final ServiceEndpointWatcher expectedWatcher =
+                watcher.toBuilder().setClusterName(clusterName).build(); // cluster name is set by the service.
+        assertWatcher(json, expectedWatcher);
         final Entry<JsonNode> entry =
                 dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo")
                      .get(Revision.HEAD,
                           Query.ofJson(K8S_WATCHERS_DIRECTORY + watcherId + ".json")).join();
-        assertWatcher(entry.contentAsText(), watcher);
-        final String clusterName = "groups/foo/k8s/clusters/" + watcherId;
+        assertWatcher(entry.contentAsText(), expectedWatcher);
+
         final ClusterLoadAssignment loadAssignment = clusterLoadAssignment(clusterName, 30000);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment, clusterName);
     }
@@ -220,7 +223,9 @@ class XdsKubernetesServiceTest {
         response = updateWatcher(updatingWatcher, watcherId, dogma.httpClient());
 
         assertOk(response);
-        assertWatcher(response.contentUtf8(), updatingWatcher);
+        assertWatcher(response.contentUtf8(),
+                      // cluster name is set by the service.
+                      updatingWatcher.toBuilder().setClusterName(clusterName).build());
         final ClusterLoadAssignment loadAssignment2 = clusterLoadAssignment(clusterName, 30001);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment2, clusterName);
     }

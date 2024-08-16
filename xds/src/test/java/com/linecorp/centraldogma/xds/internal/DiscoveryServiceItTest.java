@@ -98,7 +98,7 @@ final class DiscoveryServiceItTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        createGroup(FOO_GROUP_NAME, dogma.httpClient());
+        createGroup("foo", dogma.httpClient());
         final Cluster echoCluster = echoCluster(true);
         createCluster(FOO_GROUP_NAME, "echo-cluster", echoCluster, dogma.httpClient());
         final Cluster noEchoCluster = echoCluster(false);

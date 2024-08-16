@@ -44,12 +44,13 @@ service XdsGroupService {
 }
 
 message CreateGroupRequest {
-  Group group = 1 [(google.api.field_behavior) = REQUIRED];
+  string group_id = 1 [(google.api.field_behavior) = REQUIRED];
+  Group group = 2 [(google.api.field_behavior) = REQUIRED];
 }
 
 message DeleteGroupRequest {
   // Format: groups/{group}
-  string name = 1 [(google.api.field_behavior) = REQUIRED];
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
   // If set to true, any xds Resources from this group will also be deleted.
   // (Otherwise, the request will only work if the group has no xDS resources.)

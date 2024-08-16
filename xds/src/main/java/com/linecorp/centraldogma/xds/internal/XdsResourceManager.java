@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
+import static com.linecorp.centraldogma.internal.Util.PROJECT_AND_REPO_NAME_PATTERN;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITHOUT_CONTENT;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static java.util.Objects.requireNonNull;
@@ -37,6 +38,7 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.xds.group.v1.CreateGroupRequest;
 import com.linecorp.centraldogma.xds.k8s.v1.CreateServiceEndpointWatcherRequest;
 import com.linecorp.centraldogma.xds.k8s.v1.DeleteServiceEndpointWatcherRequest;
 import com.linecorp.centraldogma.xds.k8s.v1.UpdateServiceEndpointWatcherRequest;
@@ -60,6 +62,7 @@ public final class XdsResourceManager {
     //TODO(minwoox): Automate the registration of the extension message types.
     public static final MessageMarshaller JSON_MESSAGE_MARSHALLER =
             MessageMarshaller.builder().omittingInsignificantWhitespace(true)
+                             .register(CreateGroupRequest.getDefaultInstance())
                              .register(Listener.getDefaultInstance())
                              .register(Cluster.getDefaultInstance())
                              .register(ClusterLoadAssignment.getDefaultInstance())
@@ -82,6 +85,14 @@ public final class XdsResourceManager {
         return name.substring(prefix.length());
     }
 
+    public static void checkGroupId(String groupId) {
+        if (!PROJECT_AND_REPO_NAME_PATTERN.matcher(groupId).matches()) {
+            throw Status.INVALID_ARGUMENT.withDescription("Invalid group id: " + groupId +
+                                                          " (expected: " + PROJECT_AND_REPO_NAME_PATTERN + ')')
+                                         .asRuntimeException();
+        }
+    }
+
     private final Project xdsProject;
     private final CommandExecutor commandExecutor;
 
@@ -94,6 +105,7 @@ public final class XdsResourceManager {
     }
 
     public void checkGroup(String group) {
+        checkGroupId(group);
         // TODO(minwoox): check the write permission.
         if (!xdsProject.repos().exists(group)) {
             throw Status.NOT_FOUND.withDescription("Group not found: " + group).asRuntimeException();

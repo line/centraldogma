@@ -72,7 +72,7 @@ final class CdsStreamingMultipleClientsTest {
                 return fooSnapshotCaptor.get() == null && barSnapshotCaptor.get() == null;
             });
 
-            createGroup(fooGroupName, webClient);
+            createGroup("foo", webClient);
 
             final ClusterLoadAssignment fooEndpoint = loadAssignment(fooClusterName, "127.0.0.1", 8080);
             createEndpoint(fooGroupName, fooClusterId, fooEndpoint, webClient);
@@ -86,7 +86,7 @@ final class CdsStreamingMultipleClientsTest {
 
             // bar is not updated.
             await().pollDelay(200, TimeUnit.MILLISECONDS).until(() -> barSnapshotCaptor.get() == null);
-            createGroup(barGroupName, webClient);
+            createGroup("bar", webClient);
             final ClusterLoadAssignment barEndpoint = loadAssignment(barClusterName, "127.0.0.1", 8081);
             createEndpoint(barGroupName, barClusterId, barEndpoint, webClient);
             final Cluster barCluster = cluster(barClusterName, 1);

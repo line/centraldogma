@@ -54,7 +54,7 @@ final class CdsStreamingTest {
     void cdsStream() throws Exception {
         final String fooGroupName = "groups/foo";
         final WebClient webClient = dogma.httpClient();
-        createGroup(fooGroupName, webClient);
+        createGroup("foo", webClient);
 
         final String fooClusterId = "foo-cluster";
         final String fooClusterName = fooGroupName + "/clusters/" + fooClusterId;
@@ -102,7 +102,7 @@ final class CdsStreamingTest {
 
         // Add another cluster
         final String barGroupName = "groups/bar";
-        createGroup(barGroupName, webClient);
+        createGroup("bar", webClient);
         final String barClusterId = "bar-cluster";
         final String barClusterName = barGroupName + "/clusters/" + barClusterId;
         final Cluster barCluster = cluster(barClusterName, 1);

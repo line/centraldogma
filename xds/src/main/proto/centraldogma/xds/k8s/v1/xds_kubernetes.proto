@@ -67,7 +67,7 @@ message UpdateServiceEndpointWatcherRequest {
 }
 
 message DeleteServiceEndpointWatcherRequest {
-  string name = 1 [(google.api.field_behavior) = REQUIRED];
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 }
 
 message KubernetesConfig {
@@ -81,7 +81,8 @@ message ServiceEndpointWatcher {
   // The resource name of the watcher.
   // Format: groups/{group}/k8s/watchers/{watcher}_id
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
-  string service_name = 2 [(google.api.field_behavior) = REQUIRED];
-  string port_name = 3 [(google.api.field_behavior) = OPTIONAL];
-  KubernetesConfig kubernetes_config = 4 [(google.api.field_behavior) = REQUIRED];
+  string cluster_name = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+  string service_name = 3 [(google.api.field_behavior) = REQUIRED];
+  string port_name = 4 [(google.api.field_behavior) = OPTIONAL];
+  KubernetesConfig kubernetes_config = 5 [(google.api.field_behavior) = REQUIRED];
 }

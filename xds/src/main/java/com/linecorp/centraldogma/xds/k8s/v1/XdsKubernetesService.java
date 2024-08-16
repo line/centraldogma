@@ -56,6 +56,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
     private static final Logger logger = LoggerFactory.getLogger(XdsKubernetesService.class);
 
     static final String K8S_WATCHERS_DIRECTORY = "/k8s/watchers/";
+    public static final Pattern WATCHERS_REPLCACE_PATTERN = Pattern.compile("(?<=/k8s)/watchers/");
 
     public static final Pattern WATCHER_NAME_PATTERN = Pattern.compile(
             "^groups/([^/]+)" + K8S_WATCHERS_DIRECTORY + '(' + RESOURCE_ID_PATTERN_STRING + ")$");
@@ -84,7 +85,11 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         }
 
         final String watcherName = parent + K8S_WATCHERS_DIRECTORY + watcherId;
-        final ServiceEndpointWatcher watcher = request.getWatcher().toBuilder().setName(watcherName).build();
+        final String clusterName = parent + "/k8s/clusters/" + watcherId;
+        final ServiceEndpointWatcher watcher = request.getWatcher().toBuilder()
+                                                      .setName(watcherName)
+                                                      .setClusterName(clusterName)
+                                                      .build();
         final Author author = currentAuthor();
         validateWatcherAndPush(responseObserver, watcher, () -> xdsResourceManager.push(
                 responseObserver, group, K8S_WATCHERS_DIRECTORY + watcherId + ".json",
@@ -173,9 +178,13 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         final String watcherName = watcher.getName();
         final String group = checkWatcherName(watcherName).group(1);
         xdsResourceManager.checkGroup(group);
+
+        // Update the cluster name just in case it's mistakenly set by the user.
+        final ServiceEndpointWatcher watcher0 = watcher.toBuilder().setClusterName(
+                WATCHERS_REPLCACE_PATTERN.matcher(watcherName).replaceFirst("/clusters/")).build();
         final Author author = currentAuthor();
-        validateWatcherAndPush(responseObserver, watcher, () -> xdsResourceManager.update(
-                responseObserver, group, watcherName, "Update watcher: " + watcherName, watcher, author));
+        validateWatcherAndPush(responseObserver, watcher0, () -> xdsResourceManager.update(
+                responseObserver, group, watcherName, "Update watcher: " + watcherName, watcher0, author));
     }
 
     private static Matcher checkWatcherName(String watcherName) {

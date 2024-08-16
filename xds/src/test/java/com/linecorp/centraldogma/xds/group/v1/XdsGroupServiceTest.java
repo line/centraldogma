@@ -19,6 +19,7 @@ import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.deleteGroup;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -33,6 +34,7 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 import com.linecorp.centraldogma.xds.group.v1.XdsGroupServiceGrpc.XdsGroupServiceBlockingStub;
 
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 
 final class XdsGroupServiceTest {
 
@@ -41,17 +43,13 @@ final class XdsGroupServiceTest {
 
     @Test
     void createGroupViaHttp() {
-        // Invalid name.
-        AggregatedHttpResponse response = createGroup("invalid/foo", dogma.httpClient());
-        assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
-
-        response = createGroup("groups/foo", dogma.httpClient());
+        AggregatedHttpResponse response = createGroup("foo", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.OK);
         assertThat(response.headers().get("grpc-status")).isEqualTo("0");
         assertThatJson(response.contentUtf8()).isEqualTo("{\"name\":\"groups/foo\"}");
 
         // Cannot create with the same name.
-        response = createGroup("groups/foo", dogma.httpClient());
+        response = createGroup("foo", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.CONFLICT);
         assertThat(response.headers().get("grpc-status"))
                 .isEqualTo(Integer.toString(Status.ALREADY_EXISTS.getCode().value()));
@@ -62,7 +60,7 @@ final class XdsGroupServiceTest {
         AggregatedHttpResponse response = deleteGroup("groups/bar", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
 
-        response = createGroup("groups/bar", dogma.httpClient());
+        response = createGroup("bar", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.OK);
 
         // Add permission test.
@@ -79,10 +77,17 @@ final class XdsGroupServiceTest {
                 GrpcClients.builder(dogma.httpClient().uri())
                            .setHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                            .build(XdsGroupServiceBlockingStub.class);
+        assertThatThrownBy(() -> client.createGroup(
+                CreateGroupRequest.newBuilder()
+                                  .setGroupId("invalid/id")
+                                  .setGroup(Group.newBuilder().setName("this_will_be_ignored"))
+                                  .build())).isInstanceOf(StatusRuntimeException.class)
+                                            .hasMessageContaining("Invalid group id: invalid/id");
+
         final Group group = client.createGroup(
                 CreateGroupRequest.newBuilder()
-                                  .setGroup(Group.newBuilder()
-                                                 .setName("groups/baz"))
+                                  .setGroupId("baz")
+                                  .setGroup(Group.newBuilder().setName("this_will_be_ignored"))
                                   .build());
         assertThat(group.getName()).isEqualTo("groups/baz");
         // No exception is thrown.

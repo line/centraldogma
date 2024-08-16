@@ -64,7 +64,7 @@ final class LdsStreamingMultipleClientsTest {
         final String fooRouteName = "groups/foo/routes/foo-route";
         final String fooClusterName = "groups/foo/clusters/foo-cluster";
         final String barListenerName = "groups/bar/listeners/bar-listener";
-        createGroup(fooGroupName, dogma.httpClient());
+        createGroup("foo", dogma.httpClient());
         final ClusterLoadAssignment fooEndpoint = loadAssignment(fooClusterName, "127.0.0.1", 8080);
         createEndpoint(fooGroupName, "foo-cluster", fooEndpoint, dogma.httpClient());
         final Cluster fooCluster = cluster(fooClusterName, 1);
@@ -103,7 +103,7 @@ final class LdsStreamingMultipleClientsTest {
 
             // bar is not updated.
             await().pollDelay(200, TimeUnit.MILLISECONDS).until(() -> barSnapshotCaptor.get() == null);
-            createGroup(barGroupName, dogma.httpClient());
+            createGroup("bar", dogma.httpClient());
             final Listener barListener = exampleListener(barListenerName, fooRouteName, "stats-a");
             createListener(barGroupName, "bar-listener", barListener, dogma.httpClient());
 

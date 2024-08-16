@@ -67,11 +67,12 @@ public final class XdsTestUtil {
 
     static final String CONFIG_SOURCE_CLUSTER_NAME = "dogma/cluster";
 
-    public static AggregatedHttpResponse createGroup(String groupName, WebClient webClient) {
-        final RequestHeaders headers = RequestHeaders.builder(HttpMethod.POST, "/api/v1/xds/groups")
-                                                     .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                                                     .contentType(MediaType.JSON_UTF_8).build();
-        return webClient.execute(headers, "{\"group\": {\"name\":\"" + groupName + "\"}}")
+    public static AggregatedHttpResponse createGroup(String groupId, WebClient webClient) {
+        final RequestHeaders headers =
+                RequestHeaders.builder(HttpMethod.POST, "/api/v1/xds/groups?group_id=" + groupId)
+                              .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                              .contentType(MediaType.JSON_UTF_8).build();
+        return webClient.execute(headers, "{\"name\":\"groups/" + groupId + "\"}")
                         .aggregate().join();
     }
 

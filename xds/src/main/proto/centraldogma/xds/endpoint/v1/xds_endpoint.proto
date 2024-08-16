@@ -94,7 +94,7 @@ message UpdateEndpointRequest {
 
 message DeleteEndpointRequest {
   // Format: groups/{group}/endpoints/{endpoint}
-  string name = 1 [(google.api.field_behavior) = REQUIRED];
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
   // If set to true, and the endpoint is not found, the request will succeed
   // but no action will be taken on the server

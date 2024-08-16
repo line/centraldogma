@@ -82,7 +82,7 @@ message UpdateRouteRequest {
 
 message DeleteRouteRequest {
   // Format: groups/{group}/routes/{route}
-  string name = 1 [(google.api.field_behavior) = REQUIRED];
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
   // If set to true, and the Route is not found, the request will succeed
   // but no action will be taken on the server

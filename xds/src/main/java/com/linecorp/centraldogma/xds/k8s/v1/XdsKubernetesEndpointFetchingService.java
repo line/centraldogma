@@ -19,6 +19,7 @@ import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENT
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.K8S_WATCHERS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.WATCHERS_REPLCACE_PATTERN;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.WATCHER_NAME_PATTERN;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.createKubernetesEndpointGroup;
 
@@ -30,7 +31,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +63,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingService {
 
     private static final Logger logger = LoggerFactory.getLogger(XdsKubernetesEndpointFetchingService.class);
-    private static final Pattern WATCHERS_PATTERN = Pattern.compile("(?<=/k8s)/watchers/");
 
     private final CommandExecutor commandExecutor;
 
@@ -134,12 +133,13 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 return;
             }
             executorService.execute(
-                    () -> pushK8sEndpoints(kubernetesEndpointGroup, groupName, endpoints, watcherName));
+                    () -> pushK8sEndpoints(kubernetesEndpointGroup, groupName, endpoints, endpointWatcher));
         }, true);
     }
 
     private void pushK8sEndpoints(KubernetesEndpointGroup kubernetesEndpointGroup, String groupName,
-                                  List<com.linecorp.armeria.client.Endpoint> endpoints, String watcherName) {
+                                  List<com.linecorp.armeria.client.Endpoint> endpoints,
+                                  ServiceEndpointWatcher watcher) {
         if (kubernetesEndpointGroup.isClosing()) {
             return;
         }
@@ -158,10 +158,10 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                                                                       .build()).build())
                               .build());
         });
-        final String clusterName = WATCHERS_PATTERN.matcher(watcherName).replaceFirst("/clusters/");
+
         final ClusterLoadAssignment clusterLoadAssignment =
                 ClusterLoadAssignment.newBuilder()
-                                     .setClusterName(clusterName)
+                                     .setClusterName(watcher.getClusterName())
                                      .addEndpoints(localityLbEndpointsBuilder.build())
                                      .build();
         final String json;
@@ -171,7 +171,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             // Should never reach here.
             throw new Error(e);
         }
-        final Matcher matcher = WATCHER_NAME_PATTERN.matcher(watcherName);
+        final Matcher matcher = WATCHER_NAME_PATTERN.matcher(watcher.getName());
         final boolean matches = matcher.matches();
         assert matches;
         final String watcherId = matcher.group(2);
@@ -179,8 +179,8 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
         final Change<JsonNode> change = Change.ofJsonUpsert(fileName, json);
         commandExecutor.execute(
                 Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, groupName, Revision.HEAD,
-                             "Add " + clusterName + " with " + endpoints.size() + " endpoints.", "",
-                             Markup.PLAINTEXT, change)).handle((unused, cause) -> {
+                             "Add " + watcher.getClusterName() + " with " + endpoints.size() + " endpoints.",
+                             "", Markup.PLAINTEXT, change)).handle((unused, cause) -> {
             if (cause != null) {
                 logger.warn("Failed to push {} to {}", change, groupName, cause);
             }
@@ -211,7 +211,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
         }
 
         // Remove corresponding endpoints.
-        final String endpointPath = WATCHERS_PATTERN.matcher(path).replaceFirst("/endpoints/");
+        final String endpointPath = WATCHERS_REPLCACE_PATTERN.matcher(path).replaceFirst("/endpoints/");
         commandExecutor.execute(
                 Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, groupName, Revision.HEAD,
                              "Remove " + endpointPath, "",
