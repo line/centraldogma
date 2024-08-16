@@ -40,6 +40,7 @@ import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.Tokens;
@@ -93,7 +94,8 @@ public final class InternalProjectInitializer {
         final long creationTimeMillis = System.currentTimeMillis();
         if (!projectManager.exists(projectName)) {
             try {
-                executor.execute(createProject(creationTimeMillis, Author.SYSTEM, projectName))
+                executor.execute(Command.forcePush(
+                                createProject(creationTimeMillis, Author.SYSTEM, projectName)))
                         .get();
             } catch (Throwable cause) {
                 final Throwable peeled = Exceptions.peel(cause);
@@ -121,8 +123,9 @@ public final class InternalProjectInitializer {
                                                         null, Jackson.valueToTree(new Tokens()));
             final String commitSummary = "Initialize the token list file: /" + INTERNAL_PROJECT_DOGMA + '/' +
                                          Project.REPO_DOGMA + MetadataService.TOKEN_JSON;
-            executor.execute(push(Author.SYSTEM, INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, Revision.HEAD,
-                                  commitSummary, "", Markup.PLAINTEXT, ImmutableList.of(change)))
+            executor.execute(Command.forcePush(push(Author.SYSTEM, INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
+                                                    Revision.HEAD, commitSummary, "", Markup.PLAINTEXT,
+                                                    ImmutableList.of(change))))
                     .get();
         } catch (Throwable cause) {
             final Throwable peeled = Exceptions.peel(cause);
@@ -154,7 +157,8 @@ public final class InternalProjectInitializer {
                 continue;
             }
             try {
-                executor.execute(createRepository(creationTimeMillis, Author.SYSTEM, projectName, repo))
+                executor.execute(Command.forcePush(
+                                createRepository(creationTimeMillis, Author.SYSTEM, projectName, repo)))
                         .get();
             } catch (Throwable cause) {
                 final Throwable peeled = Exceptions.peel(cause);
