@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.internal.Util.PROJECT_AND_REPO_NAME_PATTERN;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITHOUT_CONTENT;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
@@ -24,14 +23,11 @@ import static java.util.Objects.requireNonNull;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import org.curioswitch.common.protobuf.json.MessageMarshaller;
 import org.reflections.Reflections;
 import org.reflections.scanners.SubTypesScanner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
@@ -62,8 +58,6 @@ import io.grpc.stub.StreamObserver;
 
 public final class XdsResourceManager {
 
-    private static final Logger logger = LoggerFactory.getLogger(XdsResourceManager.class);
-
     public static final String RESOURCE_ID_PATTERN_STRING = "[a-z](?:[a-z0-9-_/]*[a-z0-9])?";
     public static final Pattern RESOURCE_ID_PATTERN = Pattern.compile('^' + RESOURCE_ID_PATTERN_STRING + '$');
 
@@ -80,29 +74,20 @@ public final class XdsResourceManager {
                .register(CreateServiceEndpointWatcherRequest.getDefaultInstance())
                .register(UpdateServiceEndpointWatcherRequest.getDefaultInstance())
                .register(DeleteServiceEndpointWatcherRequest.getDefaultInstance());
-        envoyExtension().forEach(builder::register);
+        envoyExtension(builder);
         JSON_MESSAGE_MARSHALLER = builder.build();
     }
 
-    public static ImmutableList<Class<? extends GeneratedMessageV3>> envoyExtension() {
-        logger.info("Collecting envoy extension classes...");
-        final long startTime = System.nanoTime();
+    private static void envoyExtension(
+            MessageMarshaller.Builder builder) {
         final Reflections reflections = new Reflections(
                 "io.envoyproxy.envoy.extensions", HttpConnectionManager.class.getClassLoader(),
                 new SubTypesScanner(true));
-        final ImmutableList<Class<? extends GeneratedMessageV3>> collected =
-                reflections.getSubTypesOf(
-                                   GeneratedMessageV3.class)
-                           .stream()
-                           .filter(c -> !c.getName()
-                                          .contains(
-                                                  "$")) // exclude subclasses
-                           .filter(XdsResourceManager::hasGetDefaultInstanceMethod)
-                           .collect(
-                                   toImmutableList());
-        logger.info("Collected {} envoy extension classes in {} ms.", collected.size(),
-                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime));
-        return collected;
+        reflections.getSubTypesOf(GeneratedMessageV3.class)
+                   .stream()
+                   .filter(c -> !c.getName().contains("$")) // exclude subclasses
+                   .filter(XdsResourceManager::hasGetDefaultInstanceMethod)
+                   .forEach(builder::register);
     }
 
     private static boolean hasGetDefaultInstanceMethod(Class<?> clazz) {

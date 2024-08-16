@@ -121,6 +121,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                .addService(new XdsKubernetesService(xdsResourceManager))
                                .jsonMarshallerFactory(
                                        serviceDescriptor -> {
+                                           // Use JSON_MESSAGE_MARSHALLER not to parse Envoy extensions twice.
                                            final MessageMarshaller.Builder builder =
                                                    JSON_MESSAGE_MARSHALLER.toBuilder();
                                            for (MethodDescriptor<?, ?> method : ImmutableList.copyOf(
@@ -136,12 +137,10 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                                    builder.register(resPrototype);
                                                }
                                            }
-
                                            return new DefaultJsonMarshaller(builder.build());
                                        })
                                .enableHttpJsonTranscoding(true).build();
-            pluginInitContext.serverBuilder().service(xdsApplicationService,
-                                                      pluginInitContext.authService());
+            pluginInitContext.serverBuilder().service(xdsApplicationService, pluginInitContext.authService());
             return null;
         });
     }
