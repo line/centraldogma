@@ -62,23 +62,21 @@ public final class XdsResourceManager {
     public static final String RESOURCE_ID_PATTERN_STRING = "[a-z](?:[a-z0-9-_/]*[a-z0-9])?";
     public static final Pattern RESOURCE_ID_PATTERN = Pattern.compile('^' + RESOURCE_ID_PATTERN_STRING + '$');
 
-    public static final MessageMarshaller JSON_MESSAGE_MARSHALLER =
-            registerEnvoyExtension(
-                    MessageMarshaller.builder().omittingInsignificantWhitespace(true)
-                                     .register(CreateGroupRequest.getDefaultInstance())
-                                     .register(Listener.getDefaultInstance())
-                                     .register(Cluster.getDefaultInstance())
-                                     .register(ClusterLoadAssignment.getDefaultInstance())
-                                     .register(RouteConfiguration.getDefaultInstance())
-                                     .register(CreateServiceEndpointWatcherRequest.getDefaultInstance())
-                                     .register(UpdateServiceEndpointWatcherRequest.getDefaultInstance())
-                                     .register(DeleteServiceEndpointWatcherRequest.getDefaultInstance()))
-                    .build();
+    public static final MessageMarshaller JSON_MESSAGE_MARSHALLER;
 
-    public static MessageMarshaller.Builder registerEnvoyExtension(MessageMarshaller.Builder builder) {
-        final ImmutableList<Class<? extends GeneratedMessageV3>> classes = envoyExtension();
-        classes.forEach(builder::register);
-        return builder;
+    static {
+        final MessageMarshaller.Builder builder =
+                MessageMarshaller.builder().omittingInsignificantWhitespace(true);
+        builder.register(CreateGroupRequest.getDefaultInstance())
+               .register(Listener.getDefaultInstance())
+               .register(Cluster.getDefaultInstance())
+               .register(ClusterLoadAssignment.getDefaultInstance())
+               .register(RouteConfiguration.getDefaultInstance())
+               .register(CreateServiceEndpointWatcherRequest.getDefaultInstance())
+               .register(UpdateServiceEndpointWatcherRequest.getDefaultInstance())
+               .register(DeleteServiceEndpointWatcherRequest.getDefaultInstance());
+        envoyExtension().forEach(builder::register);
+        JSON_MESSAGE_MARSHALLER = builder.build();
     }
 
     public static ImmutableList<Class<? extends GeneratedMessageV3>> envoyExtension() {
