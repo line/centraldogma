@@ -59,7 +59,7 @@ class XdsListenerServiceTest {
 
     @BeforeAll
     static void setup() {
-        final AggregatedHttpResponse response = createGroup("groups/foo", dogma.httpClient());
+        final AggregatedHttpResponse response = createGroup("foo", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.OK);
     }
 

@@ -19,6 +19,7 @@ import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.curr
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil.createRepository;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceUtil.removeRepository;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.checkGroupId;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 
 import com.google.protobuf.Empty;
@@ -54,23 +55,23 @@ public final class XdsGroupService extends XdsGroupServiceImplBase {
     @Override
     public void createGroup(CreateGroupRequest request,
                             StreamObserver<Group> responseObserver) {
-        final String groupName = request.getGroup().getName();
-        final String name = removePrefix("groups/", groupName);
-        if (projectManager.get(XDS_CENTRAL_DOGMA_PROJECT).repos().exists(name)) {
-            throw alreadyExistsException(name);
+        final String groupId = request.getGroupId();
+        checkGroupId(groupId);
+        if (projectManager.get(XDS_CENTRAL_DOGMA_PROJECT).repos().exists(groupId)) {
+            throw alreadyExistsException(groupId);
         }
-        createRepository(commandExecutor, mds, currentAuthor(), XDS_CENTRAL_DOGMA_PROJECT, name)
+        createRepository(commandExecutor, mds, currentAuthor(), XDS_CENTRAL_DOGMA_PROJECT, groupId)
                 .handle((unused, cause) -> {
                     if (cause != null) {
                         if (cause instanceof RepositoryExistsException) {
-                            responseObserver.onError(alreadyExistsException(name));
+                            responseObserver.onError(alreadyExistsException(groupId));
                         } else {
                             responseObserver.onError(
                                     Status.INTERNAL.withCause(cause).asRuntimeException());
                         }
                         return null;
                     }
-                    responseObserver.onNext(Group.newBuilder().setName(groupName).build());
+                    responseObserver.onNext(Group.newBuilder().setName("groups/" + groupId).build());
                     responseObserver.onCompleted();
                     return null;
                 });

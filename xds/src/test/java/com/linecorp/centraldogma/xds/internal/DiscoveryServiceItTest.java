@@ -98,7 +98,7 @@ final class DiscoveryServiceItTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        createGroup(FOO_GROUP_NAME, dogma.httpClient());
+        createGroup("foo", dogma.httpClient());
         final Cluster echoCluster = echoCluster(true);
         createCluster(FOO_GROUP_NAME, "echo-cluster", echoCluster, dogma.httpClient());
         final Cluster noEchoCluster = echoCluster(false);
@@ -141,7 +141,6 @@ final class DiscoveryServiceItTest {
                                                                     .post("/", "Hello!")
                                                                     .aggregate().join();
                        assertThat(res2.headers().status()).isSameAs(HttpStatus.OK);
-                       System.err.println(res2.contentUtf8());
                        assertThat(res2.content().isEmpty()).isTrue();
                    });
             // Envoy closes the connection so a ClosedSessionException is raised in the Server.

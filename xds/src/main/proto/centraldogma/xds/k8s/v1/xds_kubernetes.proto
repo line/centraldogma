@@ -1,0 +1,88 @@
+// Copyright 2024 LINE Corporation
+//
+// LINE Corporation licenses this file to you under the Apache License,
+// version 2.0 (the "License"); you may not use this file except in compliance
+// with the License. You may obtain a copy of the License at:
+//
+//   https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+syntax = "proto3";
+
+package centraldogma.xds.k8s.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "XdsKubernetesProto";
+option java_package = "com.linecorp.centraldogma.xds.k8s.v1";
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+
+service XdsKubernetesService {
+
+  rpc CreateServiceEndpointWatcher(CreateServiceEndpointWatcherRequest) returns (ServiceEndpointWatcher) {
+    option (google.api.http) = {
+      post: "/api/v1/xds/{parent=groups/*}/k8s/watchers"
+      body: "watcher"
+    };
+    option (google.api.method_signature) = "project,watcher";
+  }
+
+  rpc UpdateServiceEndpointWatcher(UpdateServiceEndpointWatcherRequest) returns (ServiceEndpointWatcher) {
+    option (google.api.http) = {
+      patch: "/api/v1/xds/{watcher.name=groups/*/k8s/watchers/**}"
+      body: "watcher"
+    };
+  }
+
+  rpc DeleteServiceEndpointWatcher(DeleteServiceEndpointWatcherRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/api/v1/xds/{name=groups/*/k8s/watchers/**}"
+    };
+  }
+}
+
+message CreateServiceEndpointWatcherRequest {
+  // The parent resource where this watcher will be created.
+  // Format: groups/{group}
+  string parent = 1 [(google.api.field_behavior) = REQUIRED];
+  // Valid pattern is "^[a-z]([a-z0-9-/]*[a-z0-9])?$"
+  string watcher_id = 2 [(google.api.field_behavior) = REQUIRED];
+  ServiceEndpointWatcher watcher = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message UpdateServiceEndpointWatcherRequest {
+  ServiceEndpointWatcher watcher = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // TODO(minwoox): Implement these fields
+  // google.protobuf.FieldMask update_mask = 2;
+  //
+  // bool allow_missing = 3;
+}
+
+message DeleteServiceEndpointWatcherRequest {
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+}
+
+message KubernetesConfig {
+  string control_plane_url = 1 [(google.api.field_behavior) = REQUIRED];
+  string namespace = 2 [(google.api.field_behavior) = OPTIONAL];
+  string oauth_token = 3 [(google.api.field_behavior) = OPTIONAL];
+  bool trust_certs = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message ServiceEndpointWatcher {
+  // The resource name of the watcher.
+  // Format: groups/{group}/k8s/watchers/{watcher}_id
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+  string cluster_name = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+  string service_name = 3 [(google.api.field_behavior) = REQUIRED];
+  string port_name = 4 [(google.api.field_behavior) = OPTIONAL];
+  KubernetesConfig kubernetes_config = 5 [(google.api.field_behavior) = REQUIRED];
+}

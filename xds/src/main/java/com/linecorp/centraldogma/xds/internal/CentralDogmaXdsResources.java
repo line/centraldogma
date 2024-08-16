@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.xds.internal;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import com.google.common.collect.ImmutableList;
 
@@ -30,6 +31,8 @@ import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.Secret;
 
 final class CentralDogmaXdsResources {
+
+    private static final Pattern ENDPOINTS_PATTERN = Pattern.compile("/endpoints/");
 
     private final Map<String, Map<String, VersionedResource<Cluster>>> clusterResources = new HashMap<>();
     private final Map<String, Map<String, VersionedResource<ClusterLoadAssignment>>> endpointResources =
@@ -100,8 +103,12 @@ final class CentralDogmaXdsResources {
         if (groupEndpoints == null) {
             return;
         }
-        final String clusterName = "groups/" + groupName + "/clusters/" +
-                                    path.substring("/endpoints/".length(), path.length() - 5); // Remove .json
+        // e.g. /endpoints/foo-cluster.json file with group foo -> groups/foo/clusters/foo-cluster
+        // e.g. /k8s/endpoints/foo-cluster.json file with group foo -> groups/foo/k8s/clusters/foo-cluster
+        final String clusterName =
+                "groups/" + groupName +
+                ENDPOINTS_PATTERN.matcher(path.substring(0, path.length() - 5) /* remove .json */)
+                                 .replaceFirst("/clusters/");
         endpointUpdated |= groupEndpoints.remove(clusterName) != null;
     }
 

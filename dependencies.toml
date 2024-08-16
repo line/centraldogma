@@ -50,6 +50,7 @@ json-unit = "2.38.0"
 jmh-core = "1.37"
 jmh-gradle-plugin = "0.7.2"
 jxr = "0.2.1"
+kubernetes-client = "6.12.1"
 logback12 = { strictly = "1.2.13" }
 logback15 = { strictly = "1.5.7" }
 logback = "1.2.13"
@@ -97,6 +98,8 @@ javadocs = "https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.27
 module = "com.linecorp.armeria:armeria-grpc"
 [libraries.armeria-junit5]
 module = "com.linecorp.armeria:armeria-junit5"
+[libraries.armeria-kubernetes]
+module = "com.linecorp.armeria:armeria-kubernetes"
 [libraries.armeria-prometheus1]
 module = "com.linecorp.armeria:armeria-prometheus1"
 [libraries.armeria-saml]
@@ -295,6 +298,23 @@ module = "org.junit.vintage:junit-vintage-engine"
 module = "org.junit.platform:junit-platform-commons"
 [libraries.junit5-platform-launcher]
 module = "org.junit.platform:junit-platform-launcher"
+
+[libraries.kubernetes-client-api]
+module = "io.fabric8:kubernetes-client-api"
+version.ref = "kubernetes-client"
+exclusions = ["org.slf4j:slf4j-api"]
+[libraries.kubernetes-client-impl]
+module = "io.fabric8:kubernetes-client"
+version.ref = "kubernetes-client"
+exclusions = ["io.fabric8:kubernetes-httpclient-okhttp", "org.slf4j:slf4j-api"]
+[libraries.kubernetes-server-mock]
+module = "io.fabric8:kubernetes-server-mock"
+version.ref = "kubernetes-client"
+exclusions = ["org.slf4j:slf4j-api"]
+[libraries.kubernetes-junit-jupiter]
+module = "io.fabric8:kubernetes-junit-jupiter"
+version.ref = "kubernetes-client"
+exclusions = ["io.fabric8:kubernetes-httpclient-okhttp", "org.slf4j:slf4j-api"]
 
 [libraries.logback12]
 module = "ch.qos.logback:logback-classic"

@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.server.internal.storage;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.server.internal.ExecutorServiceUtil.terminate;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
@@ -209,27 +210,6 @@ public class PurgeSchedulingService {
             } finally {
                 this.scheduler = null;
             }
-        }
-
-        private boolean terminate(@Nullable ExecutorService executor) {
-            if (executor == null) {
-                return false;
-            }
-
-            boolean interrupted = false;
-            for (;;) {
-                executor.shutdownNow();
-                try {
-                    if (executor.awaitTermination(1, TimeUnit.MINUTES)) {
-                        break;
-                    }
-                } catch (InterruptedException e) {
-                    // Propagate later.
-                    interrupted = true;
-                }
-            }
-
-            return interrupted;
         }
     }
 }

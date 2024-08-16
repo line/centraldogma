@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.mirror;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.linecorp.centraldogma.server.internal.ExecutorServiceUtil.terminate;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -167,27 +168,6 @@ public final class DefaultMirroringService implements MirroringService {
             this.scheduler = null;
             this.worker = null;
         }
-    }
-
-    private static boolean terminate(ExecutorService executor) {
-        if (executor == null) {
-            return false;
-        }
-
-        boolean interrupted = false;
-        for (;;) {
-            executor.shutdownNow();
-            try {
-                if (executor.awaitTermination(1, TimeUnit.MINUTES)) {
-                    break;
-                }
-            } catch (InterruptedException e) {
-                // Propagate later.
-                interrupted = true;
-            }
-        }
-
-        return interrupted;
     }
 
     private void schedulePendingMirrors() {

@@ -16,7 +16,7 @@
 package com.linecorp.centraldogma.xds.listener.v1;
 
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
-import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.LISTENERS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.LISTENERS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
@@ -77,8 +77,9 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
         final Listener listener = request.getListener();
         final String listenerName = listener.getName();
         final String group = checkListenerName(listenerName).group(1);
+        xdsResourceManager.checkGroup(group);
         xdsResourceManager.update(responseObserver, group, listenerName,
-                                  "Update listener: " + listenerName, listener);
+                                  "Update listener: " + listenerName, listener, currentAuthor());
     }
 
     private static Matcher checkListenerName(String listenerName) {
@@ -95,6 +96,8 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
     public void deleteListener(DeleteListenerRequest request, StreamObserver<Empty> responseObserver) {
         final String listenerName = request.getName();
         final String group = checkListenerName(listenerName).group(1);
-        xdsResourceManager.delete(responseObserver, group, listenerName, "Delete listener: " + listenerName);
+        xdsResourceManager.checkGroup(group);
+        xdsResourceManager.delete(responseObserver, group, listenerName, "Delete listener: " + listenerName,
+                                  currentAuthor());
     }
 }

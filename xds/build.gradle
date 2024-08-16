@@ -1,5 +1,8 @@
 dependencies {
     implementation project(':server')
+    implementation libs.armeria.kubernetes
+    implementation libs.kubernetes.client.api
+    implementation libs.kubernetes.client.impl
 
     implementation libs.armeria.grpc
     implementation libs.controlplane.api
@@ -9,5 +12,7 @@ dependencies {
 
     testImplementation libs.armeria.junit5
     testImplementation libs.armeria.xds
+    testImplementation libs.kubernetes.server.mock
+    testImplementation libs.kubernetes.junit.jupiter
     testImplementation libs.testcontainers.junit.jupiter
 }
