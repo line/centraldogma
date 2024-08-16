@@ -380,6 +380,8 @@ public interface Command<T> {
                       delegate.type() == CommandType.NORMALIZING_PUSH || delegate.type() == CommandType.PUSH,
                       "delegate: %s (expected: CREATE_PROJECT, CREATE_REPOSITORY, NORMALIZING_PUSH or PUSH)",
                       delegate);
+        checkArgument(delegate.author().equals(Author.SYSTEM), "delegate.author: %s (expected: SYSTEM)",
+                      delegate.author());
         return new ForcePushCommand<>(delegate);
     }
 
