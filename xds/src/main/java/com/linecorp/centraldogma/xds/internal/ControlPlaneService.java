@@ -17,20 +17,21 @@ package com.linecorp.centraldogma.xds.internal;
 
 import static com.linecorp.centraldogma.server.internal.ExecutorServiceUtil.terminate;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
-import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.envoyExtension;
 
 import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 
+import org.curioswitch.common.protobuf.json.MessageMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.Message;
 
-import com.linecorp.armeria.common.grpc.GrpcJsonMarshaller;
+import com.linecorp.armeria.common.annotation.Nullable;
+import com.linecorp.armeria.internal.common.grpc.DefaultJsonMarshaller;
 import com.linecorp.armeria.server.grpc.GrpcService;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
@@ -53,6 +54,9 @@ import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
 import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
+import io.grpc.MethodDescriptor;
+import io.grpc.MethodDescriptor.Marshaller;
+import io.grpc.MethodDescriptor.PrototypeMarshaller;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -105,9 +109,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                                        .addService(server.getAggregatedDiscoveryServiceImpl())
                                                        .build();
             pluginInitContext.serverBuilder().route().build(grpcService);
-            final XdsResourceManager xdsResourceManager = new XdsResourceManager(xdsProject(),
-                                                                                 commandExecutor);
-            final ImmutableList<Class<? extends GeneratedMessageV3>> extensionClasses = envoyExtension();
+            final XdsResourceManager xdsResourceManager = new XdsResourceManager(xdsProject(), commandExecutor);
             final GrpcService xdsApplicationService =
                     GrpcService.builder()
                                .addService(new XdsGroupService(pluginInitContext.projectManager(),
@@ -118,16 +120,40 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                .addService(new XdsEndpointService(xdsResourceManager))
                                .addService(new XdsKubernetesService(xdsResourceManager))
                                .jsonMarshallerFactory(
-                                       serviceDescriptor -> GrpcJsonMarshaller
-                                               .builder()
-                                               .jsonMarshallerCustomizer(
-                                                       builder -> extensionClasses.forEach(builder::register))
-                                               .build(serviceDescriptor))
+                                       serviceDescriptor -> {
+                                           // Use JSON_MESSAGE_MARSHALLER not to parse Envoy extensions twice.
+                                           final MessageMarshaller.Builder builder =
+                                                   JSON_MESSAGE_MARSHALLER.toBuilder();
+                                           for (MethodDescriptor<?, ?> method : ImmutableList.copyOf(
+                                                   serviceDescriptor.getMethods())) {
+                                               final Message reqPrototype =
+                                                       marshallerPrototype(method.getRequestMarshaller());
+                                               final Message resPrototype =
+                                                       marshallerPrototype(method.getResponseMarshaller());
+                                               if (reqPrototype != null) {
+                                                   builder.register(reqPrototype);
+                                               }
+                                               if (resPrototype != null) {
+                                                   builder.register(resPrototype);
+                                               }
+                                           }
+                                           return new DefaultJsonMarshaller(builder.build());
+                                       })
                                .enableHttpJsonTranscoding(true).build();
-            pluginInitContext.serverBuilder().service(xdsApplicationService,
-                                                      pluginInitContext.authService());
+            pluginInitContext.serverBuilder().service(xdsApplicationService, pluginInitContext.authService());
             return null;
         });
+    }
+
+    @Nullable
+    private static Message marshallerPrototype(Marshaller<?> marshaller) {
+        if (marshaller instanceof MethodDescriptor.PrototypeMarshaller) {
+            final Object prototype = ((PrototypeMarshaller<?>) marshaller).getMessagePrototype();
+            if (prototype instanceof Message) {
+                return (Message) prototype;
+            }
+        }
+        return null;
     }
 
     @Override

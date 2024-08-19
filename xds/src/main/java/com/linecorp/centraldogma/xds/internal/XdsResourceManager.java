@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.xds.internal;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.internal.Util.PROJECT_AND_REPO_NAME_PATTERN;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITHOUT_CONTENT;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
@@ -75,19 +74,19 @@ public final class XdsResourceManager {
                .register(CreateServiceEndpointWatcherRequest.getDefaultInstance())
                .register(UpdateServiceEndpointWatcherRequest.getDefaultInstance())
                .register(DeleteServiceEndpointWatcherRequest.getDefaultInstance());
-        envoyExtension().forEach(builder::register);
+        envoyExtension(builder);
         JSON_MESSAGE_MARSHALLER = builder.build();
     }
 
-    public static ImmutableList<Class<? extends GeneratedMessageV3>> envoyExtension() {
+    private static void envoyExtension(MessageMarshaller.Builder builder) {
         final Reflections reflections = new Reflections(
                 "io.envoyproxy.envoy.extensions", HttpConnectionManager.class.getClassLoader(),
                 new SubTypesScanner(true));
-        return reflections.getSubTypesOf(GeneratedMessageV3.class)
-                          .stream()
-                          .filter(c -> !c.getName().contains("$")) // exclude subclasses
-                          .filter(XdsResourceManager::hasGetDefaultInstanceMethod)
-                          .collect(toImmutableList());
+        reflections.getSubTypesOf(GeneratedMessageV3.class)
+                   .stream()
+                   .filter(c -> !c.getName().contains("$")) // exclude subclasses
+                   .filter(XdsResourceManager::hasGetDefaultInstanceMethod)
+                   .forEach(builder::register);
     }
 
     private static boolean hasGetDefaultInstanceMethod(Class<?> clazz) {
