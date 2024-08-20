@@ -30,6 +30,7 @@ import com.linecorp.armeria.client.grpc.GrpcClients;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 import com.linecorp.centraldogma.xds.group.v1.XdsGroupServiceGrpc.XdsGroupServiceBlockingStub;
 
@@ -39,7 +40,15 @@ import io.grpc.StatusRuntimeException;
 final class XdsGroupServiceTest {
 
     @RegisterExtension
-    static final CentralDogmaExtension dogma = new CentralDogmaExtension();
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
+        @Override
+        protected void configure(CentralDogmaBuilder builder) {
+            // To see if it's working when the web app is enabled.
+            // When webAppEnabled is true, we add additional services that might affect service bind path.
+            // https://github.com/line/centraldogma/blob/a4e58931ac98e8b6e9e470033ba04ee60180b135/server/src/main/java/com/linecorp/centraldogma/server/CentralDogma.java#L863
+            builder.webAppEnabled(true);
+        }
+    };
 
     @Test
     void createGroupViaHttp() {
