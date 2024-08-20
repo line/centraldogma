@@ -128,6 +128,14 @@ const initialState: AuthState = {
   isLoading: true,
 };
 
+const anonymousUser: UserDto = {
+  login: 'anonymous',
+  name: 'Anonymous',
+  email: 'anonymous@localhost',
+  roles: [],
+  admin: false,
+};
+
 export const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -138,6 +146,7 @@ export const authSlice = createSlice({
         state.isInAnonymousMode = true;
         state.sessionId = '';
         state.isLoading = false;
+        state.user = anonymousUser;
       })
       .addCase(login.fulfilled, (state, { payload }) => {
         state.sessionId = payload.access_token;

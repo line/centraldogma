@@ -54,7 +54,10 @@ export const DynamicDataTable = <Data extends object>({
   return (
     <>
       <Text mb="8px">Filter by {table.getHeaderGroups()[0].headers[0].id} </Text>
-      <Filter column={table.getHeaderGroups()[0].headers[0].column /* Filter by the 1st column */} />
+      <Filter
+        table={table}
+        column={table.getHeaderGroups()[0].headers[0].column /* Filter by the 1st column */}
+      />
       <DataTable table={table} />
       {pagination && <PaginationBar table={table} />}
     </>
