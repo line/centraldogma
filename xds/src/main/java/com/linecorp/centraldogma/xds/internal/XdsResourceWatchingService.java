@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
@@ -85,6 +86,9 @@ public abstract class XdsResourceWatchingService {
             logger.info("Creating xDS resources from {} at revision: {}", groupName, normalizedRevision);
             final Map<String, Entry<?>> entries = repository.find(normalizedRevision, pathPattern()).join();
             for (Entry<?> entry : entries.values()) {
+                if (entry.type() != EntryType.JSON || !entry.hasContent()) {
+                    continue;
+                }
                 final String path = entry.path();
                 final String contentAsText = entry.contentAsText();
                 try {
@@ -105,7 +109,7 @@ public abstract class XdsResourceWatchingService {
     private void watchDogmaRepository() {
         final Repository dogmaRepository = xdsProject.repos().get(Project.REPO_DOGMA);
         // TODO(minwoox): Use different file because metadata.json contains other information than repo's names.
-        dogmaRepository.addListener(RepositoryListener.of(MetadataService.METADATA_JSON, entries -> {
+        dogmaRepository.addListener(RepositoryListener.of(MetadataService.METADATA_JSON, unused -> {
             executor().execute(() -> {
                 for (Repository repo : xdsProject.repos().list().values()) {
                     final String groupName = repo.name();
