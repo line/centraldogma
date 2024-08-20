@@ -32,7 +32,11 @@ export const WithProjectRole = ({ projectName, roles, children }: WithProjectRol
     refetchOnFocus: true,
   });
 
-  const { user } = useAppSelector((state) => state.auth);
+  const { user, isInAnonymousMode } = useAppSelector((state) => state.auth);
+  if (isInAnonymousMode) {
+    return <>{children()}</>;
+  }
+
   const role = findUserRole(user, metadata);
 
   if (roles.find((r) => r === role)) {

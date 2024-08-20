@@ -35,24 +35,33 @@ interface ProjectSettingsViewProps {
 }
 
 type TabName = 'repositories' | 'permissions' | 'members' | 'tokens' | 'mirrors' | 'credentials';
+type UserRole = 'OWNER' | 'MEMBER' | 'GUEST' | 'ANONYMOUS';
 
 export interface TapInfo {
   name: TabName;
   path: string;
-  accessRole: 'OWNER' | 'MEMBER' | 'GUEST';
+  accessRole: UserRole;
+  allowAnonymous: boolean;
 }
 
 const TABS: TapInfo[] = [
   // 'repositories' is the index tab
-  { name: 'repositories', path: '', accessRole: 'GUEST' },
-  { name: 'permissions', path: 'permissions', accessRole: 'OWNER' },
-  { name: 'members', path: 'members', accessRole: 'OWNER' },
-  { name: 'tokens', path: 'tokens', accessRole: 'OWNER' },
-  { name: 'mirrors', path: 'mirrors', accessRole: 'OWNER' },
-  { name: 'credentials', path: 'credentials', accessRole: 'OWNER' },
+  { name: 'repositories', path: '', accessRole: 'GUEST', allowAnonymous: true },
+  { name: 'permissions', path: 'permissions', accessRole: 'OWNER', allowAnonymous: false },
+  { name: 'members', path: 'members', accessRole: 'OWNER', allowAnonymous: false },
+  { name: 'tokens', path: 'tokens', accessRole: 'OWNER', allowAnonymous: false },
+  { name: 'mirrors', path: 'mirrors', accessRole: 'OWNER', allowAnonymous: true },
+  { name: 'credentials', path: 'credentials', accessRole: 'OWNER', allowAnonymous: true },
 ];
 
-function isAllowed(userRole: string, tabInfo: TapInfo): boolean {
+function isAllowed(userRole: string, anonymous: boolean, tabInfo: TapInfo): boolean {
+  if (!tabInfo) {
+    return false;
+  }
+  if (anonymous && tabInfo.allowAnonymous) {
+    return true;
+  }
+
   switch (tabInfo.accessRole) {
     case 'OWNER':
       return userRole === 'OWNER';
@@ -64,7 +73,7 @@ function isAllowed(userRole: string, tabInfo: TapInfo): boolean {
 }
 
 const ProjectSettingsView = ({ projectName, currentTab, children }: ProjectSettingsViewProps) => {
-  const { user } = useAppSelector((state) => state.auth);
+  const { user, isInAnonymousMode } = useAppSelector((state) => state.auth);
   const tabIndex = TABS.findIndex((tab) => tab.name === currentTab);
   const router = useRouter();
 
@@ -104,7 +113,7 @@ const ProjectSettingsView = ({ projectName, currentTab, children }: ProjectSetti
           <Tabs variant="enclosed-colored" size="lg" index={tabIndex}>
             <TabList>
               {TABS.map((tab) => {
-                const allowed = isAllowed(accessRole, tab);
+                const allowed = isAllowed(accessRole, isInAnonymousMode, tab);
                 let link = '';
                 if (allowed) {
                   link = `/app/projects/${projectName}/settings`;
@@ -124,7 +133,7 @@ const ProjectSettingsView = ({ projectName, currentTab, children }: ProjectSetti
             </TabList>
             <TabPanels>
               {TABS.map((tab) => {
-                const allowed = isAllowed(accessRole, tab);
+                const allowed = isAllowed(accessRole, isInAnonymousMode, tab);
                 return (
                   <TabPanel key={tab.name}>{tab.name === currentTab && allowed && children(metadata)}</TabPanel>
                 );

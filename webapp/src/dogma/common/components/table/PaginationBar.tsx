@@ -9,25 +9,25 @@ export const PaginationBar = <Data extends object>({ table }: { table: ReactTabl
         aria-label="First page"
         icon={<MdSkipPrevious />}
         onClick={() => table.setPageIndex(0)}
-        disabled={!table.getCanPreviousPage()}
+        isDisabled={!table.getCanPreviousPage()}
       />
       <IconButton
         aria-label="Prev page"
         icon={<MdNavigateBefore />}
         onClick={() => table.previousPage()}
-        disabled={!table.getCanPreviousPage()}
+        isDisabled={!table.getCanPreviousPage()}
       />
       <IconButton
         aria-label="Next page"
         icon={<MdNavigateNext />}
         onClick={() => table.nextPage()}
-        disabled={!table.getCanNextPage()}
+        isDisabled={!table.getCanNextPage()}
       />
       <IconButton
         aria-label="Last page"
         icon={<MdSkipNext />}
         onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-        disabled={!table.getCanNextPage()}
+        isDisabled={!table.getCanNextPage()}
       />
       <Text>Page</Text>
       <Text fontWeight="bold">

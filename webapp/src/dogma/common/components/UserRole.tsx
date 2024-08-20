@@ -1,6 +1,10 @@
 import { Badge } from '@chakra-ui/react';
 
 function badgeColor(role: string) {
+  if (!role) {
+    return 'gray';
+  }
+
   switch (role.toLowerCase()) {
     case 'user':
     case 'member':
