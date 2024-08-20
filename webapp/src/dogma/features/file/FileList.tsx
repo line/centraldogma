@@ -58,7 +58,7 @@ const FileList = <Data extends object>({
             fontWeight={'semibold'}
             href={
               info.row.original.type === 'DIRECTORY'
-                ? `${directoryPath}${info.getValue()}`
+                ? `${directoryPath}/${info.getValue()}`
                 : `${slug}/${info.getValue()}`
             }
           >

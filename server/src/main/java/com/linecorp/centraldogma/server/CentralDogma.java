@@ -888,7 +888,8 @@ public class CentralDogma implements AutoCloseable {
             // Serve all web resources except for '/app'.
             sb.route()
               .pathPrefix("/")
-              .exclude("/app")
+              .exclude("prefix:/app")
+              .exclude("prefix:/api")
               .build(FileService.builder(CentralDogma.class.getClassLoader(),
                                          "com/linecorp/centraldogma/webapp")
                                 .cacheControl(ServerCacheControl.REVALIDATED)

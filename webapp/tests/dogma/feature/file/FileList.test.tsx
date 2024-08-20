@@ -78,11 +78,11 @@ describe('FileList', () => {
     );
   });
 
-  it('has `${directoryPath}${folderName.slice(1)}` on the view icon when the type is a directory', () => {
+  it('has `${directoryPath}/${folderName.slice(1)}` on the view icon when the type is a directory', () => {
     const { container } = renderWithProviders(<FileList {...expectedProps} />);
     const actionCell = container.querySelector('tbody').lastChild.firstChild.lastChild;
     const folderName = '/mydir';
-    expect(actionCell).toHaveAttribute('href', `${expectedProps.directoryPath}${folderName.slice(1)}`);
+    expect(actionCell).toHaveAttribute('href', `${expectedProps.directoryPath}/${folderName.slice(1)}`);
   });
 
   it('links to `${projectName}/repos/${repoName}/files/head{fileName}` when the type is non-directory', () => {
@@ -123,11 +123,11 @@ describe('FileList', () => {
     expect(expectedProps.copySupport.handleAsCurlCommand).toHaveBeenCalledTimes(1);
   });
 
-  it('links to `${directoryPath}${folderName.slice(1)}` when the type is a directory', () => {
+  it('links to `${directoryPath}/${folderName.slice(1)}` when the type is a directory', () => {
     const { container } = renderWithProviders(<FileList {...expectedProps} />);
     const firstCell = container.querySelector('tbody').lastChild.firstChild.firstChild;
     const folderName = '/mydir';
-    expect(firstCell).toHaveAttribute('href', `${expectedProps.directoryPath}${folderName.slice(1)}`);
+    expect(firstCell).toHaveAttribute('href', `${expectedProps.directoryPath}/${folderName.slice(1)}`);
   });
 
   it('calls handleCopyApiUrl when copy API URL button is clicked', () => {
@@ -158,10 +158,10 @@ describe('FileList', () => {
     expect(expectedProps.copySupport.handleAsCurlCommand).toHaveBeenCalledTimes(1);
   });
 
-  it('links to `${directoryPath}${folderName.slice(1)}` when the type is a directory', () => {
+  it('links to `${directoryPath}/${folderName.slice(1)}` when the type is a directory', () => {
     const { container } = renderWithProviders(<FileList {...expectedProps} />);
     const firstCell = container.querySelector('tbody').lastChild.firstChild.firstChild;
     const folderName = '/mydir';
-    expect(firstCell).toHaveAttribute('href', `${expectedProps.directoryPath}${folderName.slice(1)}`);
+    expect(firstCell).toHaveAttribute('href', `${expectedProps.directoryPath}/${folderName.slice(1)}`);
   });
 });
