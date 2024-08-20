@@ -86,7 +86,7 @@ public abstract class XdsResourceWatchingService {
             logger.info("Creating xDS resources from {} at revision: {}", groupName, normalizedRevision);
             final Map<String, Entry<?>> entries = repository.find(normalizedRevision, pathPattern()).join();
             for (Entry<?> entry : entries.values()) {
-                if (entry.type() == EntryType.DIRECTORY || !entry.hasContent()) {
+                if (entry.type() != EntryType.JSON || !entry.hasContent()) {
                     continue;
                 }
                 final String path = entry.path();
