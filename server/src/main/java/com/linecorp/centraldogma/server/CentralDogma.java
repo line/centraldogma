@@ -872,19 +872,11 @@ public class CentralDogma implements AutoCloseable {
                 sb.service(LOGOUT_PATH, authProvider.webLogoutService());
             }
 
-            // Folder names contain path patterns such as `[projectName]` which FileService can't infer from
-            // the request path. Return `index.html` as a fallback so that Next.js client router handles the
-            // path patterns.
-            final HttpService fallbackFileService = HttpFile.of(CentralDogma.class.getClassLoader(),
-                                                                "com/linecorp/centraldogma/webapp/index.html")
-                                                            .asService();
-            sb.serviceUnder("/app", FileService.builder(CentralDogma.class.getClassLoader(),
-                                                        "com/linecorp/centraldogma/webapp/app")
-                                               .cacheControl(ServerCacheControl.REVALIDATED)
-                                               .autoDecompress(true)
-                                               .serveCompressedFiles(true)
-                                               .build().orElse(fallbackFileService));
-
+            // If the index.html is just returned, Next.js will handle the all remaining process such as
+            // fetching resources and routes to the target pages.
+            sb.serviceUnder("/app", HttpFile.of(CentralDogma.class.getClassLoader(),
+                                                "com/linecorp/centraldogma/webapp/index.html")
+                                            .asService());
             // Serve all web resources except for '/app'.
             sb.route()
               .pathPrefix("/")
