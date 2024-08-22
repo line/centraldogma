@@ -79,6 +79,7 @@ public abstract class XdsResourceWatchingService {
      * Must be executed by {@link #executor()}.
      */
     protected void init() {
+        logger.info("Initializing {}...", getClass().getSimpleName());
         final Builder<CompletableFuture<Void>> futures = ImmutableList.builder();
         for (Repository repository : xdsProject.repos().list().values()) {
             final String groupName = repository.name();
@@ -117,6 +118,7 @@ public abstract class XdsResourceWatchingService {
         CompletableFuture.allOf(futures.build().toArray(new CompletableFuture[0])).join();
         // Watch dogma repository to add newly created xDS projects.
         watchDogmaRepository();
+        logger.info("{} initialized.", getClass().getSimpleName());
     }
 
     private void watchDogmaRepository() {
