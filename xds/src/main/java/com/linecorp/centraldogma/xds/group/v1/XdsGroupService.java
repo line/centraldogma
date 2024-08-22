@@ -24,6 +24,7 @@ import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePr
 
 import com.google.protobuf.Empty;
 
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
@@ -63,11 +64,12 @@ public final class XdsGroupService extends XdsGroupServiceImplBase {
         createRepository(commandExecutor, mds, currentAuthor(), XDS_CENTRAL_DOGMA_PROJECT, groupId)
                 .handle((unused, cause) -> {
                     if (cause != null) {
-                        if (cause instanceof RepositoryExistsException) {
+                        final Throwable peeled = Exceptions.peel(cause);
+                        if (peeled instanceof RepositoryExistsException) {
                             responseObserver.onError(alreadyExistsException(groupId));
                         } else {
                             responseObserver.onError(
-                                    Status.INTERNAL.withCause(cause).asRuntimeException());
+                                    Status.INTERNAL.withCause(peeled).asRuntimeException());
                         }
                         return null;
                     }

@@ -19,6 +19,7 @@ import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MES
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.concurrent.CompletableFuture;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -68,12 +69,17 @@ public final class XdsTestUtil {
     static final String CONFIG_SOURCE_CLUSTER_NAME = "dogma/cluster";
 
     public static AggregatedHttpResponse createGroup(String groupId, WebClient webClient) {
+        return createGroupAsync(groupId, webClient).join();
+    }
+
+    public static CompletableFuture<AggregatedHttpResponse> createGroupAsync(
+            String groupId, WebClient webClient) {
         final RequestHeaders headers =
                 RequestHeaders.builder(HttpMethod.POST, "/api/v1/xds/groups?group_id=" + groupId)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                               .contentType(MediaType.JSON_UTF_8).build();
         return webClient.execute(headers, "{\"name\":\"groups/" + groupId + "\"}")
-                        .aggregate().join();
+                        .aggregate();
     }
 
     public static AggregatedHttpResponse deleteGroup(String groupName, WebClient webClient) {

@@ -16,10 +16,13 @@
 package com.linecorp.centraldogma.xds.group.v1;
 
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
+import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroupAsync;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.deleteGroup;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -52,16 +55,24 @@ final class XdsGroupServiceTest {
 
     @Test
     void createGroupViaHttp() {
-        AggregatedHttpResponse response = createGroup("foo", dogma.httpClient());
-        assertThat(response.status()).isSameAs(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
+        final CompletableFuture<AggregatedHttpResponse> future =
+                createGroupAsync("foo", dogma.httpClient());
+        final CompletableFuture<AggregatedHttpResponse> future2 =
+                createGroupAsync("foo", dogma.httpClient());
+        AggregatedHttpResponse response = future.join();
+        assertOk(response);
         assertThatJson(response.contentUtf8()).isEqualTo("{\"name\":\"groups/foo\"}");
 
         // Cannot create with the same name.
-        response = createGroup("foo", dogma.httpClient());
+        response = future2.join();
         assertThat(response.status()).isSameAs(HttpStatus.CONFLICT);
         assertThat(response.headers().get("grpc-status"))
                 .isEqualTo(Integer.toString(Status.ALREADY_EXISTS.getCode().value()));
+    }
+
+    private static void assertOk(AggregatedHttpResponse response) {
+        assertThat(response.status()).isSameAs(HttpStatus.OK);
+        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
     }
 
     @Test
@@ -75,8 +86,7 @@ final class XdsGroupServiceTest {
         // Add permission test.
 
         response = deleteGroup("groups/bar", dogma.httpClient());
-        assertThat(response.status()).isSameAs(HttpStatus.OK);
-        assertThat(response.headers().get("grpc-status")).isEqualTo("0");
+        assertOk(response);
         assertThat(response.contentUtf8()).isEqualTo("{}");
     }
 
