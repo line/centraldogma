@@ -17,13 +17,13 @@ package com.linecorp.centraldogma.xds.internal;
 
 import static com.linecorp.centraldogma.server.internal.ExecutorServiceUtil.terminate;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
-import static org.curioswitch.common.protobuf.json.MessageMarshaller.Builder;
 
 import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 
+import org.curioswitch.common.protobuf.json.MessageMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,7 +123,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                .jsonMarshallerFactory(
                                        serviceDescriptor -> {
                                            // Use JSON_MESSAGE_MARSHALLER not to parse Envoy extensions twice.
-                                           final Builder builder =
+                                           final MessageMarshaller.Builder builder =
                                                    JSON_MESSAGE_MARSHALLER.toBuilder();
                                            for (MethodDescriptor<?, ?> method : ImmutableList.copyOf(
                                                    serviceDescriptor.getMethods())) {
