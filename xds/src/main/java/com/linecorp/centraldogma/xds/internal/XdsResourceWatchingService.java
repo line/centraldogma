@@ -27,6 +27,9 @@ import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableList.Builder;
+
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
@@ -76,6 +79,7 @@ public abstract class XdsResourceWatchingService {
      * Must be executed by {@link #executor()}.
      */
     protected void init() {
+        final Builder<CompletableFuture<Void>> futures = ImmutableList.builder();
         for (Repository repository : xdsProject.repos().list().values()) {
             final String groupName = repository.name();
             if (Project.internalRepos().contains(groupName)) {
@@ -84,24 +88,33 @@ public abstract class XdsResourceWatchingService {
             watchingGroups.add(groupName);
             final Revision normalizedRevision = repository.normalizeNow(Revision.HEAD);
             logger.info("Creating xDS resources from {} at revision: {}", groupName, normalizedRevision);
-            final Map<String, Entry<?>> entries = repository.find(normalizedRevision, pathPattern()).join();
-            for (Entry<?> entry : entries.values()) {
-                if (entry.type() != EntryType.JSON || !entry.hasContent()) {
-                    continue;
+            final CompletableFuture<Map<String, Entry<?>>> findFuture =
+                    repository.find(normalizedRevision, pathPattern());
+            futures.add(findFuture.handleAsync((entries, cause) -> {
+                // Executed by the repository worker thread.
+                if (cause != null) {
+                    logger.warn("Unexpected exception while finding {} at revision: {}",
+                                groupName, normalizedRevision, cause);
+                    return null;
                 }
-                final String path = entry.path();
-                final String contentAsText = entry.contentAsText();
-                try {
-                    handleXdsResource(path, contentAsText, groupName);
-                } catch (Throwable t) {
-                    throw new RuntimeException("Unexpected exception while building an xDS resource from " +
-                                               groupName + path, t);
+                for (Entry<?> entry : entries.values()) {
+                    if (entry.type() != EntryType.JSON || !entry.hasContent()) {
+                        continue;
+                    }
+                    final String path = entry.path();
+                    final String contentAsText = entry.contentAsText();
+                    try {
+                        handleXdsResource(path, contentAsText, groupName);
+                    } catch (Throwable t) {
+                        logger.warn("Unexpected exception while building an xDS resource from {}.",
+                                    groupName + path, t);
+                    }
                 }
-            }
-
-            watchRepository(repository, normalizedRevision);
+                watchRepository(repository, normalizedRevision);
+                return null;
+            }, executor()));
         }
-
+        CompletableFuture.allOf(futures.build().toArray(new CompletableFuture[0])).join();
         // Watch dogma repository to add newly created xDS projects.
         watchDogmaRepository();
     }
