@@ -16,7 +16,6 @@
 package com.linecorp.centraldogma.xds.internal;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -29,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
+import com.google.common.collect.Sets;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
@@ -49,8 +49,7 @@ public abstract class XdsResourceWatchingService {
 
     private final Project xdsProject;
 
-    // Accessed only from executor().
-    private final Set<String> watchingGroups = new HashSet<>();
+    private final Set<String> watchingGroups = Sets.newConcurrentHashSet();
 
     protected XdsResourceWatchingService(Project xdsProject) {
         this.xdsProject = xdsProject;
@@ -75,9 +74,6 @@ public abstract class XdsResourceWatchingService {
 
     protected abstract boolean isStopped();
 
-    /**
-     * Must be executed by {@link #executor()}.
-     */
     protected void init() {
         logger.info("Initializing {}...", getClass().getSimpleName());
         final Builder<CompletableFuture<Void>> futures = ImmutableList.builder();
@@ -92,7 +88,6 @@ public abstract class XdsResourceWatchingService {
             final CompletableFuture<Map<String, Entry<?>>> findFuture =
                     repository.find(normalizedRevision, pathPattern());
             futures.add(findFuture.handleAsync((entries, cause) -> {
-                // Executed by the repository worker thread.
                 if (cause != null) {
                     throw new RuntimeException("Unexpected exception while finding " + groupName +
                                                " at revision: " + normalizedRevision, cause);
@@ -114,7 +109,13 @@ public abstract class XdsResourceWatchingService {
                 return null;
             }, executor()));
         }
-        CompletableFuture.allOf(futures.build().toArray(new CompletableFuture[0])).join();
+        try {
+            CompletableFuture.allOf(futures.build().toArray(new CompletableFuture[0]))
+                             .get(60, TimeUnit.SECONDS);
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to init " + getClass().getSimpleName() + " in 60 seconds.", t);
+        }
+
         // Watch dogma repository to add newly created xDS projects.
         watchDogmaRepository();
         logger.info("{} initialized.", getClass().getSimpleName());

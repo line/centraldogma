@@ -20,7 +20,6 @@ import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MES
 
 import java.io.IOException;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.curioswitch.common.protobuf.json.MessageMarshaller;
@@ -95,54 +94,51 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                 "controlPlaneExecutor");
     }
 
-    Future<Void> start(PluginInitContext pluginInitContext) {
-        return controlPlaneExecutor.submit(() -> {
-            init();
-            final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
-            final V3DiscoveryServer server = new V3DiscoveryServer(new LoggingDiscoveryServerCallbacks(),
-                                                                   cache);
-            final GrpcService grpcService = GrpcService.builder()
-                                                       .addService(server.getClusterDiscoveryServiceImpl())
-                                                       .addService(server.getEndpointDiscoveryServiceImpl())
-                                                       .addService(server.getListenerDiscoveryServiceImpl())
-                                                       .addService(server.getRouteDiscoveryServiceImpl())
-                                                       .addService(server.getAggregatedDiscoveryServiceImpl())
-                                                       .build();
-            pluginInitContext.serverBuilder().route().build(grpcService);
-            final XdsResourceManager xdsResourceManager = new XdsResourceManager(xdsProject(), commandExecutor);
-            final GrpcService xdsApplicationService =
-                    GrpcService.builder()
-                               .addService(new XdsGroupService(pluginInitContext.projectManager(),
-                                                               commandExecutor))
-                               .addService(new XdsListenerService(xdsResourceManager))
-                               .addService(new XdsRouteService(xdsResourceManager))
-                               .addService(new XdsClusterService(xdsResourceManager))
-                               .addService(new XdsEndpointService(xdsResourceManager))
-                               .addService(new XdsKubernetesService(xdsResourceManager))
-                               .jsonMarshallerFactory(
-                                       serviceDescriptor -> {
-                                           // Use JSON_MESSAGE_MARSHALLER not to parse Envoy extensions twice.
-                                           final MessageMarshaller.Builder builder =
-                                                   JSON_MESSAGE_MARSHALLER.toBuilder();
-                                           for (MethodDescriptor<?, ?> method : ImmutableList.copyOf(
-                                                   serviceDescriptor.getMethods())) {
-                                               final Message reqPrototype =
-                                                       marshallerPrototype(method.getRequestMarshaller());
-                                               final Message resPrototype =
-                                                       marshallerPrototype(method.getResponseMarshaller());
-                                               if (reqPrototype != null) {
-                                                   builder.register(reqPrototype);
-                                               }
-                                               if (resPrototype != null) {
-                                                   builder.register(resPrototype);
-                                               }
+    void start(PluginInitContext pluginInitContext) {
+        init();
+        final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
+        final V3DiscoveryServer server = new V3DiscoveryServer(new LoggingDiscoveryServerCallbacks(),
+                                                               cache);
+        final GrpcService grpcService = GrpcService.builder()
+                                                   .addService(server.getClusterDiscoveryServiceImpl())
+                                                   .addService(server.getEndpointDiscoveryServiceImpl())
+                                                   .addService(server.getListenerDiscoveryServiceImpl())
+                                                   .addService(server.getRouteDiscoveryServiceImpl())
+                                                   .addService(server.getAggregatedDiscoveryServiceImpl())
+                                                   .build();
+        pluginInitContext.serverBuilder().route().build(grpcService);
+        final XdsResourceManager xdsResourceManager = new XdsResourceManager(xdsProject(), commandExecutor);
+        final GrpcService xdsApplicationService =
+                GrpcService.builder()
+                           .addService(new XdsGroupService(pluginInitContext.projectManager(),
+                                                           commandExecutor))
+                           .addService(new XdsListenerService(xdsResourceManager))
+                           .addService(new XdsRouteService(xdsResourceManager))
+                           .addService(new XdsClusterService(xdsResourceManager))
+                           .addService(new XdsEndpointService(xdsResourceManager))
+                           .addService(new XdsKubernetesService(xdsResourceManager))
+                           .jsonMarshallerFactory(
+                                   serviceDescriptor -> {
+                                       // Use JSON_MESSAGE_MARSHALLER not to parse Envoy extensions twice.
+                                       final MessageMarshaller.Builder builder =
+                                               JSON_MESSAGE_MARSHALLER.toBuilder();
+                                       for (MethodDescriptor<?, ?> method : ImmutableList.copyOf(
+                                               serviceDescriptor.getMethods())) {
+                                           final Message reqPrototype =
+                                                   marshallerPrototype(method.getRequestMarshaller());
+                                           final Message resPrototype =
+                                                   marshallerPrototype(method.getResponseMarshaller());
+                                           if (reqPrototype != null) {
+                                               builder.register(reqPrototype);
                                            }
-                                           return new DefaultJsonMarshaller(builder.build());
-                                       })
-                               .enableHttpJsonTranscoding(true).build();
-            pluginInitContext.serverBuilder().service(xdsApplicationService, pluginInitContext.authService());
-            return null;
-        });
+                                           if (resPrototype != null) {
+                                               builder.register(resPrototype);
+                                           }
+                                       }
+                                       return new DefaultJsonMarshaller(builder.build());
+                                   })
+                           .enableHttpJsonTranscoding(true).build();
+        pluginInitContext.serverBuilder().service(xdsApplicationService, pluginInitContext.authService());
     }
 
     @Nullable
