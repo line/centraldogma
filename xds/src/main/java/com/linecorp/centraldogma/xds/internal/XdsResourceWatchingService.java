@@ -94,9 +94,8 @@ public abstract class XdsResourceWatchingService {
             futures.add(findFuture.handleAsync((entries, cause) -> {
                 // Executed by the repository worker thread.
                 if (cause != null) {
-                    logger.warn("Unexpected exception while finding {} at revision: {}",
-                                groupName, normalizedRevision, cause);
-                    return null;
+                    throw new RuntimeException("Unexpected exception while finding " + groupName +
+                                               " at revision: " + normalizedRevision, cause);
                 }
                 for (Entry<?> entry : entries.values()) {
                     if (entry.type() != EntryType.JSON || !entry.hasContent()) {
