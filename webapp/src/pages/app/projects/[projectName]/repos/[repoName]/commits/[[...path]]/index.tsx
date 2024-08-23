@@ -1,14 +1,14 @@
-import {Box, Flex, Heading, HStack} from '@chakra-ui/react';
-import {useGetNormalisedRevisionQuery} from 'dogma/features/api/apiSlice';
-import {useRouter} from 'next/router';
+import { Box, Flex, Heading, HStack } from '@chakra-ui/react';
+import { useGetNormalisedRevisionQuery } from 'dogma/features/api/apiSlice';
+import { useRouter } from 'next/router';
 import HistoryList from 'dogma/features/history/HistoryList';
 import React from 'react';
-import {Breadcrumbs} from 'dogma/common/components/Breadcrumbs';
-import {Deferred} from 'dogma/common/components/Deferred';
-import {FcOpenedFolder} from 'react-icons/fc';
-import {GoRepo} from 'react-icons/go';
-import {ChakraLink} from 'dogma/common/components/ChakraLink';
-import {makeTraversalFileLinks} from "dogma/util/path-util";
+import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
+import { Deferred } from 'dogma/common/components/Deferred';
+import { FcOpenedFolder } from 'react-icons/fc';
+import { GoRepo } from 'react-icons/go';
+import { ChakraLink } from 'dogma/common/components/ChakraLink';
+import { makeTraversalFileLinks } from 'dogma/util/path-util';
 
 const HistoryListPage = () => {
   const router = useRouter();

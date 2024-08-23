@@ -1,24 +1,24 @@
-import {InfoIcon} from '@chakra-ui/icons';
-import {Box, Button, Flex, Heading, HStack, Spacer, Tag, Tooltip} from '@chakra-ui/react';
-import {useGetFilesQuery} from 'dogma/features/api/apiSlice';
+import { InfoIcon } from '@chakra-ui/icons';
+import { Box, Button, Flex, Heading, HStack, Spacer, Tag, Tooltip } from '@chakra-ui/react';
+import { useGetFilesQuery } from 'dogma/features/api/apiSlice';
 import FileList from 'dogma/features/file/FileList';
-import {useRouter} from 'next/router';
+import { useRouter } from 'next/router';
 import React from 'react';
-import {newNotification, resetState} from 'dogma/features/notification/notificationSlice';
-import {useAppDispatch} from 'dogma/hooks';
+import { newNotification, resetState } from 'dogma/features/notification/notificationSlice';
+import { useAppDispatch } from 'dogma/hooks';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
-import {CopySupport} from 'dogma/features/file/CopySupport';
-import {Breadcrumbs} from 'dogma/common/components/Breadcrumbs';
-import {AiOutlinePlus} from 'react-icons/ai';
+import { CopySupport } from 'dogma/features/file/CopySupport';
+import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
+import { AiOutlinePlus } from 'react-icons/ai';
 import Link from 'next/link';
-import {MetadataButton} from 'dogma/common/components/MetadataButton';
-import {Deferred} from 'dogma/common/components/Deferred';
-import {FcOpenedFolder} from 'react-icons/fc';
-import {GoRepo} from 'react-icons/go';
-import {ChakraLink} from 'dogma/common/components/ChakraLink';
-import {WithProjectRole} from 'dogma/features/auth/ProjectRole';
-import {FaHistory} from 'react-icons/fa';
-import {makeTraversalFileLinks} from "dogma/util/path-util";
+import { MetadataButton } from 'dogma/common/components/MetadataButton';
+import { Deferred } from 'dogma/common/components/Deferred';
+import { FcOpenedFolder } from 'react-icons/fc';
+import { GoRepo } from 'react-icons/go';
+import { ChakraLink } from 'dogma/common/components/ChakraLink';
+import { WithProjectRole } from 'dogma/features/auth/ProjectRole';
+import { FaHistory } from 'react-icons/fa';
+import { makeTraversalFileLinks } from 'dogma/util/path-util';
 
 const RepositoryDetailPage = () => {
   const router = useRouter();
@@ -137,7 +137,7 @@ cat ${project}/${repo}${path}`;
               <Spacer />
               <Button
                 size={'sm'}
-                as={Link}
+                as={ChakraLink}
                 href={`/app/projects/${projectName}/repos/${repoName}/commits${filePath}`}
                 leftIcon={<FaHistory />}
                 variant="outline"

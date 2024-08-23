@@ -11,10 +11,10 @@ import {
   Stack,
   useDisclosure,
 } from '@chakra-ui/react';
-import {IoMdArrowDropdown} from 'react-icons/io';
-import {IoGitCompareSharp} from 'react-icons/io5';
+import { IoMdArrowDropdown } from 'react-icons/io';
+import { IoGitCompareSharp } from 'react-icons/io5';
 import React from 'react';
-import {useForm} from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import Router from 'next/router';
 import FieldErrorMessage from 'dogma/common/components/form/FieldErrorMessage';
 

@@ -1,10 +1,10 @@
-import {useRouter} from 'next/router';
+import { useRouter } from 'next/router';
 import {
   useGetFilesQuery,
   useGetHistoryQuery,
   useGetNormalisedRevisionQuery,
 } from 'dogma/features/api/apiSlice';
-import {Deferred} from 'dogma/common/components/Deferred';
+import { Deferred } from 'dogma/common/components/Deferred';
 import {
   Badge,
   Box,
@@ -18,16 +18,16 @@ import {
   useColorMode,
   useColorModeValue,
 } from '@chakra-ui/react';
-import React, {useState} from 'react';
-import {Author} from 'dogma/common/components/Author';
-import {Breadcrumbs} from 'dogma/common/components/Breadcrumbs';
-import {ChakraLink} from 'dogma/common/components/ChakraLink';
-import {GrFormNext, GrFormPrevious} from 'react-icons/gr';
+import React, { useState } from 'react';
+import { Author } from 'dogma/common/components/Author';
+import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
+import { ChakraLink } from 'dogma/common/components/ChakraLink';
+import { GrFormNext, GrFormPrevious } from 'react-icons/gr';
 import FourOhFour from 'pages/404';
-import {toFilePath} from 'dogma/util/path-util';
-import {GoCodescan, GoCommit} from 'react-icons/go';
-import {FaHistory} from 'react-icons/fa';
-import DiffView, {DiffMode} from 'dogma/common/components/DiffView';
+import { toFilePath } from 'dogma/util/path-util';
+import { GoCodescan, GoCommit } from 'react-icons/go';
+import { FaHistory } from 'react-icons/fa';
+import DiffView, { DiffMode } from 'dogma/common/components/DiffView';
 import DiffModeButton from 'dogma/common/components/DiffModeButton';
 
 const CommitViewPage = () => {
@@ -201,15 +201,20 @@ const CommitViewPage = () => {
                 fontWeight={'normal'}
                 marginLeft={1}
                 size={'sm'}
+                as={ChakraLink}
+                href={`/app/projects/${projectName}/repos/${repoName}/commits`}
               >
-                <ChakraLink href={`/app/projects/${projectName}/repos/${repoName}/commits`}>
-                  View commits
-                </ChakraLink>
+                View commits
               </Button>
-              <Button colorScheme={'blue'} leftIcon={<GoCodescan />} fontWeight={'normal'} size={'sm'}>
-                <ChakraLink href={`/app/projects/${projectName}/repos/${repoName}/tree/${revision}`}>
-                  Browse files
-                </ChakraLink>
+              <Button
+                colorScheme={'blue'}
+                leftIcon={<GoCodescan />}
+                fontWeight={'normal'}
+                size={'sm'}
+                as={ChakraLink}
+                href={`/app/projects/${projectName}/repos/${repoName}/tree/${revision}`}
+              >
+                Browse files
               </Button>
             </HStack>
             <Box padding={3} bg={commitTitleColorMode}>

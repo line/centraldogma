@@ -39,4 +39,3 @@ export function makeTraversalFileLinks(projectName: string, repoName: string, pa
   }
   return links;
 }
-

@@ -14,9 +14,9 @@
  * under the License.
  */
 
-import {useRouter} from 'next/router';
-import {useGetFilesQuery} from 'dogma/features/api/apiSlice';
-import {Deferred} from 'dogma/common/components/Deferred';
+import { useRouter } from 'next/router';
+import { useGetFilesQuery } from 'dogma/features/api/apiSlice';
+import { Deferred } from 'dogma/common/components/Deferred';
 import {
   Box,
   Button,
@@ -28,14 +28,14 @@ import {
   Spacer,
   useColorMode,
 } from '@chakra-ui/react';
-import React, {useState} from 'react';
-import {Breadcrumbs} from 'dogma/common/components/Breadcrumbs';
-import {ChakraLink} from 'dogma/common/components/ChakraLink';
+import React, { useState } from 'react';
+import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
+import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import FourOhFour from 'pages/404';
-import {toFilePath} from 'dogma/util/path-util';
-import {FaArrowLeftLong, FaCodeCompare} from 'react-icons/fa6';
-import {GoDiff} from 'react-icons/go';
-import DiffView, {DiffMode} from 'dogma/common/components/DiffView';
+import { toFilePath } from 'dogma/util/path-util';
+import { FaArrowLeftLong, FaCodeCompare } from 'react-icons/fa6';
+import { GoDiff } from 'react-icons/go';
+import DiffView, { DiffMode } from 'dogma/common/components/DiffView';
 import DiffModeButton from 'dogma/common/components/DiffModeButton';
 
 const ChangesViewPage = () => {

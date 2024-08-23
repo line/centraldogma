@@ -2,7 +2,6 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { faker } from '@faker-js/faker';
-import _ from 'lodash';
 
 export const TOTAL_REVISION = 1000;
 
@@ -26,7 +25,7 @@ makeData(TOTAL_REVISION);
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const {
-    query: { revision, to, path, maxCommits },
+    query: { revision, to, maxCommits },
     method,
   } = req;
   let start = parseInt(to as string) || 0;
