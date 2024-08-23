@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.regex.Matcher;
 
@@ -82,8 +81,8 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                         new DefaultThreadFactory("k8s-plugin-executor", true)), "k8sPluginExecutor");
     }
 
-    Future<?> start() {
-        return executorService.submit(this::init);
+    void start() {
+        init();
     }
 
     void stop() {

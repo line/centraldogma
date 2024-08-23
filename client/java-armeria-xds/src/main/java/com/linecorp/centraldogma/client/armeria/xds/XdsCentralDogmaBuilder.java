@@ -52,6 +52,7 @@ import com.linecorp.centraldogma.internal.client.armeria.ArmeriaCentralDogma;
 import io.envoyproxy.envoy.config.bootstrap.v3.Bootstrap;
 import io.envoyproxy.envoy.config.bootstrap.v3.Bootstrap.DynamicResources;
 import io.envoyproxy.envoy.config.bootstrap.v3.Bootstrap.StaticResources;
+import io.envoyproxy.envoy.config.bootstrap.v3.ClusterManager;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster.DiscoveryType;
 import io.envoyproxy.envoy.config.core.v3.Address;
@@ -109,7 +110,7 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     private String listenerName = DEFAULT_LISTENER_NAME;
     private Locality locality = Locality.getDefaultInstance();
     // an empty string means no local cluster
-    private String serviceCluster = "";
+    private String localClusterName = "";
 
     // TODO: @jrhee17 remove this once xDS TLS is fully supported
     private Function<Bootstrap, XdsBootstrap> xdsBootstrapFactory = XdsBootstrap::of;
@@ -139,17 +140,17 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     }
 
     /**
-     * Sets the name of the local service cluster which this client will be located in.
+     * Sets the name of the local cluster name which this client will be located in.
      * This may be used in applying
      * <a href="https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/zone_aware">zone aware routing</a>
      * and is analogous to
-     * <a href="https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-service-cluster">service-cluster</a>.
-     * This value will be set to {@link Node#getCluster()} in the {@link Bootstrap}.
+     * <a href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/bootstrap/v3/bootstrap.proto#envoy-v3-api-field-config-bootstrap-v3-clustermanager-local-cluster-name">service-cluster</a>.
+     * This value will be set to {@link ClusterManager#getLocalClusterName()} in the {@link Bootstrap}.
      */
     @UnstableApi
-    public XdsCentralDogmaBuilder serviceCluster(String serviceCluster) {
-        requireNonNull(serviceCluster, "serviceCluster");
-        this.serviceCluster = serviceCluster;
+    public XdsCentralDogmaBuilder localClusterName(String localClusterName) {
+        requireNonNull(localClusterName, "localClusterName");
+        this.localClusterName = localClusterName;
         return this;
     }
 
@@ -270,9 +271,10 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
                 DynamicResources.newBuilder().setAdsConfig(apiConfigSource).build();
         final Bootstrap bootstrap =
                 Bootstrap.newBuilder()
+                         .setClusterManager(ClusterManager.newBuilder()
+                                                          .setLocalClusterName(localClusterName))
                          .setDynamicResources(dynamicResources)
                          .setNode(Node.newBuilder()
-                                      .setCluster(serviceCluster)
                                       .setLocality(locality))
                          .setStaticResources(StaticResources.newBuilder().addClusters(bootstrapCluster()))
                          .build();
