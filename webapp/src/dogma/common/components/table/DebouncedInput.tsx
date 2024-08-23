@@ -25,7 +25,7 @@ export const DebouncedInput = ({
     }, debounce);
 
     return () => clearTimeout(timeout);
-  }, [debounce, onChange, value]);
+  }, [debounce, onChange, value, setOldValue, oldValue]);
 
   return (
     <Input
