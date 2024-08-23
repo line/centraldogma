@@ -17,7 +17,6 @@
 package com.linecorp.centraldogma.xds.internal;
 
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.MoreObjects;
 
@@ -43,11 +42,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
                 pluginInitContext.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT),
                 pluginInitContext.meterRegistry());
         this.controlPlaneService = controlPlaneService;
-        try {
-            controlPlaneService.start(pluginInitContext).get(60, TimeUnit.SECONDS);
-        } catch (Throwable t) {
-            throw new RuntimeException("Failed to init control plane plugin in 60 seconds.", t);
-        }
+        controlPlaneService.start(pluginInitContext);
     }
 
     @Override

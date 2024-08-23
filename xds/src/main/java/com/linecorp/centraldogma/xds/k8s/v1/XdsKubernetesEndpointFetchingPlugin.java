@@ -20,7 +20,6 @@ import static io.fabric8.kubernetes.client.Config.KUBERNETES_DISABLE_AUTO_CONFIG
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -57,11 +56,7 @@ public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
         fetchingService = new XdsKubernetesEndpointFetchingService(
                 context.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT), context.commandExecutor(),
                 context.meterRegistry());
-        try {
-            fetchingService.start().get(60, TimeUnit.SECONDS);
-        } catch (Throwable t) {
-            throw new RuntimeException("Failed to start kubernetes endpoint fetching plugin in 60 seconds.", t);
-        }
+        fetchingService.start();
         return UnmodifiableFuture.completedFuture(null);
     }
 
