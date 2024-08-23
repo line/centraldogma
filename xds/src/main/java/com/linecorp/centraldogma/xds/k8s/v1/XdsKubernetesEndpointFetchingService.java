@@ -133,13 +133,14 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             oldUpdater.close();
         }
         final KubernetesEndpointsUpdater updater =
-                new KubernetesEndpointsUpdater(commandExecutor, kubernetesEndpointGroup, executorService);
+                new KubernetesEndpointsUpdater(commandExecutor, kubernetesEndpointGroup, executorService,
+                                               groupName, watcherName, endpointWatcher.getClusterName());
         updaters.put(watcherName, updater);
         kubernetesEndpointGroup.addListener(endpoints -> {
             if (endpoints.isEmpty()) {
                 return;
             }
-            executorService.execute(() -> updater.maybeSchedule(groupName, endpointWatcher));
+            executorService.execute(updater::maybeSchedule);
         }, true);
     }
 
@@ -199,18 +200,25 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
         private final CommandExecutor commandExecutor;
         private final KubernetesEndpointGroup kubernetesEndpointGroup;
         private final ScheduledExecutorService executorService;
+        private final String groupName;
+        private final String watcherName;
+        private final String clusterName;
         @Nullable
         private ScheduledFuture<?> scheduledFuture;
 
         KubernetesEndpointsUpdater(CommandExecutor commandExecutor,
                                    KubernetesEndpointGroup kubernetesEndpointGroup,
-                                   ScheduledExecutorService executorService) {
+                                   ScheduledExecutorService executorService, String groupName,
+                                   String watcherName, String clusterName) {
             this.commandExecutor = commandExecutor;
             this.kubernetesEndpointGroup = kubernetesEndpointGroup;
             this.executorService = executorService;
+            this.groupName = groupName;
+            this.watcherName = watcherName;
+            this.clusterName = clusterName;
         }
 
-        void maybeSchedule(String groupName, ServiceEndpointWatcher watcher) {
+        void maybeSchedule() {
             if (scheduledFuture != null) {
                 return;
             }
@@ -221,11 +229,11 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 if (kubernetesEndpointGroup.isClosing()) {
                     return;
                 }
-                pushK8sEndpoints(groupName, watcher);
+                pushK8sEndpoints();
             }, 1, TimeUnit.SECONDS);
         }
 
-        private void pushK8sEndpoints(String groupName, ServiceEndpointWatcher watcher) {
+        private void pushK8sEndpoints() {
             final List<com.linecorp.armeria.client.Endpoint> endpoints =
                     kubernetesEndpointGroup.endpoints();
             if (endpoints.isEmpty()) {
@@ -250,7 +258,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
 
             final ClusterLoadAssignment clusterLoadAssignment =
                     ClusterLoadAssignment.newBuilder()
-                                         .setClusterName(watcher.getClusterName())
+                                         .setClusterName(clusterName)
                                          .addEndpoints(localityLbEndpointsBuilder.build())
                                          .build();
             final String json;
@@ -260,7 +268,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 // Should never reach here.
                 throw new Error(e);
             }
-            final Matcher matcher = WATCHER_NAME_PATTERN.matcher(watcher.getName());
+            final Matcher matcher = WATCHER_NAME_PATTERN.matcher(watcherName);
             final boolean matches = matcher.matches();
             assert matches;
             final String watcherId = matcher.group(2);
@@ -268,7 +276,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             final Change<JsonNode> change = Change.ofJsonUpsert(fileName, json);
             commandExecutor.execute(
                     Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, groupName, Revision.HEAD,
-                                 "Add " + watcher.getClusterName() + " with " + endpoints.size() +
+                                 "Add " + clusterName + " with " + endpoints.size() +
                                  " endpoints.", "", Markup.PLAINTEXT, change)).handle((unused, cause) -> {
                 if (cause != null) {
                     logger.warn("Failed to push {} to {}", change, groupName, cause);
