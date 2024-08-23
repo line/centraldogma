@@ -1,0 +1,31 @@
+name: <NAME>
+connect_timeout: 0.25s
+type: <TYPE>
+lb_policy: ROUND_ROBIN
+load_assignment:
+  cluster_name: <NAME>
+  endpoints:
+    - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 127.0.0.1
+                port_value: <PORT1>
+      locality:
+        zone: <ZONE1>
+    - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 127.0.0.1
+                port_value: <PORT2>
+      locality:
+        zone: <ZONE2>
+    - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 127.0.0.1
+                port_value: <PORT3>
+      locality:
+        zone: <ZONE3>

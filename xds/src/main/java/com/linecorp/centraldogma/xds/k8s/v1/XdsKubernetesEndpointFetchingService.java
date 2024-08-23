@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -48,6 +47,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -86,8 +86,8 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                         new DefaultThreadFactory("k8s-plugin-executor", true)), "k8sPluginExecutor");
     }
 
-    Future<?> start() {
-        return executorService.submit(this::init);
+    void start() {
+        init();
     }
 
     void stop() {
@@ -279,7 +279,12 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                                  "Add " + clusterName + " with " + endpoints.size() +
                                  " endpoints.", "", Markup.PLAINTEXT, change)).handle((unused, cause) -> {
                 if (cause != null) {
-                    logger.warn("Failed to push {} to {}", change, groupName, cause);
+                    final Throwable peeled = Exceptions.peel(cause);
+                    if (peeled instanceof RedundantChangeException) {
+                        // ignore
+                        return null;
+                    }
+                    logger.warn("Failed to push {} to {}", change, groupName, peeled);
                 }
                 return null;
             });

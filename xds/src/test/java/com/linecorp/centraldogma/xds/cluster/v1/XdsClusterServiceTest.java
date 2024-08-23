@@ -51,6 +51,7 @@ import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.service.cluster.v3.ClusterDiscoveryServiceGrpc.ClusterDiscoveryServiceStub;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
 class XdsClusterServiceTest {
@@ -82,6 +83,12 @@ class XdsClusterServiceTest {
         final String clusterName = "groups/foo/clusters/foo-cluster/1";
         assertThat(actualCluster).isEqualTo(cluster.toBuilder().setName(clusterName).build());
         checkResourceViaDiscoveryRequest(actualCluster, clusterName, true);
+
+        // Create the same cluster again.
+        response = createCluster("groups/foo", "foo-cluster/1", cluster, dogma.httpClient());
+        assertThat(response.status()).isSameAs(HttpStatus.CONFLICT);
+        assertThat(response.headers().get("grpc-status"))
+                .isEqualTo(Integer.toString(Status.ALREADY_EXISTS.getCode().value()));
     }
 
     private static void assertOk(AggregatedHttpResponse response) {
@@ -154,6 +161,10 @@ class XdsClusterServiceTest {
         final Cluster actualCluster2 = clusterBuilder2.build();
         assertThat(actualCluster2).isEqualTo(updatingCluster.toBuilder().setName(clusterName).build());
         checkResourceViaDiscoveryRequest(actualCluster2, clusterName, true);
+
+        // Can update with the same cluster again.
+        response = updateCluster("groups/foo", "foo-cluster/2", updatingCluster, dogma.httpClient());
+        assertOk(response);
     }
 
     @Test

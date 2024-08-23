@@ -73,8 +73,8 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
                                                       .toBuilder()
                                                       .setClusterName(clusterName)
                                                       .build();
-        xdsResourceManager.push(responseObserver, group, fileName(endpointId),
-                                "Create endpoint: " + clusterName, endpoint, currentAuthor());
+        xdsResourceManager.push(responseObserver, group, clusterName, fileName(endpointId),
+                                "Create endpoint: " + clusterName, endpoint, currentAuthor(), true);
     }
 
     private static String clusterName(String parent, String endpointId) {
