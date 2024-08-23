@@ -1,52 +1,24 @@
-import { InfoIcon } from '@chakra-ui/icons';
-import {
-  Box,
-  Button,
-  Flex,
-  Heading,
-  HStack,
-  Spacer,
-  Tab,
-  TabList,
-  TabPanel,
-  TabPanels,
-  Tabs,
-  Tag,
-  Tooltip,
-} from '@chakra-ui/react';
-import { useGetFilesQuery, useGetNormalisedRevisionQuery } from 'dogma/features/api/apiSlice';
+import {InfoIcon} from '@chakra-ui/icons';
+import {Box, Button, Flex, Heading, HStack, Spacer, Tag, Tooltip} from '@chakra-ui/react';
+import {useGetFilesQuery} from 'dogma/features/api/apiSlice';
 import FileList from 'dogma/features/file/FileList';
-import { useRouter } from 'next/router';
-import HistoryList from 'dogma/features/history/HistoryList';
-import React, { useState } from 'react';
-import { newNotification, resetState } from 'dogma/features/notification/notificationSlice';
-import { useAppDispatch } from 'dogma/hooks';
+import {useRouter} from 'next/router';
+import React from 'react';
+import {newNotification, resetState} from 'dogma/features/notification/notificationSlice';
+import {useAppDispatch} from 'dogma/hooks';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
-import { CopySupport } from 'dogma/features/file/CopySupport';
-import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
-import { AiOutlinePlus } from 'react-icons/ai';
+import {CopySupport} from 'dogma/features/file/CopySupport';
+import {Breadcrumbs} from 'dogma/common/components/Breadcrumbs';
+import {AiOutlinePlus} from 'react-icons/ai';
 import Link from 'next/link';
-import { MetadataButton } from 'dogma/common/components/MetadataButton';
-import { Deferred } from 'dogma/common/components/Deferred';
-import { FcOpenedFolder } from 'react-icons/fc';
-import { GoRepo } from 'react-icons/go';
-import { ChakraLink } from 'dogma/common/components/ChakraLink';
-import { WithProjectRole } from 'dogma/features/auth/ProjectRole';
-
-type UrlAndSegment = {
-  segment: string;
-  url: string;
-};
-
-function makeTraversalFileLinks(projectName: string, repoName: string, path: string): UrlAndSegment[] {
-  const links: UrlAndSegment[] = [];
-  const segments = path.split('/');
-  for (let i = 1; i < segments.length; i++) {
-    const url = `/app/projects/${projectName}/repos/${repoName}/tree/head/${segments.slice(1, i + 1).join('/')}`;
-    links.push({ segment: segments[i], url });
-  }
-  return links;
-}
+import {MetadataButton} from 'dogma/common/components/MetadataButton';
+import {Deferred} from 'dogma/common/components/Deferred';
+import {FcOpenedFolder} from 'react-icons/fc';
+import {GoRepo} from 'react-icons/go';
+import {ChakraLink} from 'dogma/common/components/ChakraLink';
+import {WithProjectRole} from 'dogma/features/auth/ProjectRole';
+import {FaHistory} from 'react-icons/fa';
+import {makeTraversalFileLinks} from "dogma/util/path-util";
 
 const RepositoryDetailPage = () => {
   const router = useRouter();
@@ -55,12 +27,7 @@ const RepositoryDetailPage = () => {
   const revision = router.query.revision ? (router.query.revision as string) : 'head';
   const filePath = router.query.path ? `/${Array.from(router.query.path).join('/')}` : '';
   const directoryPath = router.asPath;
-  const [tabIndex, setTabIndex] = useState(0);
   const dispatch = useAppDispatch();
-
-  const handleTabChange = (index: number) => {
-    setTabIndex(index);
-  };
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -114,122 +81,103 @@ cat ${project}/${repo}${path}`;
     },
   };
 
-  const {
-    data: fileData,
-    isLoading: isGetFilesLoading,
-    error: isGetFilesError,
-  } = useGetFilesQuery(
-    { projectName, repoName, revision, filePath },
+  const { data, isLoading, error } = useGetFilesQuery(
+    { projectName, repoName, revision, filePath, withContent: false },
     {
       refetchOnMountOrArgChange: true,
     },
   );
-  const {
-    data: revisionData,
-    isLoading: isNormalRevisionLoading,
-    error: isNormalRevisionError,
-  } = useGetNormalisedRevisionQuery({ projectName, repoName, revision: -1 });
 
   return (
-    <Deferred
-      isLoading={isGetFilesLoading || isNormalRevisionLoading}
-      error={isGetFilesError || isNormalRevisionError}
-    >
-      {() => (
-        <Box p="2">
-          <Breadcrumbs
-            path={directoryPath}
-            omitIndexList={[0, 5, 6]}
-            unlinkedList={[3]}
-            suffixes={{ 4: '/tree/head' }}
-          />
-          <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-            <Heading size="lg">
-              {filePath ? (
-                <HStack gap={0}>
-                  <Box color={'teal'} marginRight={2}>
-                    <FcOpenedFolder />
-                  </Box>
-                  {makeTraversalFileLinks(projectName, repoName, filePath).map(({ segment, url }) => {
-                    return (
-                      <Box key={url}>
-                        {'/'}
-                        <ChakraLink href={url}>{segment}</ChakraLink>
-                      </Box>
-                    );
-                  })}
-                </HStack>
-              ) : (
-                <HStack>
-                  <Box color={'teal'}>
-                    <GoRepo />
-                  </Box>
-                  <Box color={'teal'}>{repoName}</Box>
-                </HStack>
-              )}
-            </Heading>
-            <Tooltip label="Go to History to view all revisions">
-              <Tag borderRadius="full" colorScheme="blue">
-                Revision {revision} <InfoIcon ml={2} />
-              </Tag>
-            </Tooltip>
-          </Flex>
-          <Tabs variant="enclosed-colored" size="lg" index={tabIndex} onChange={handleTabChange}>
-            <TabList>
-              <Tab>
-                <Heading size="sm">Files</Heading>
-              </Tab>
-              <Tab>
-                <Heading size="sm">History</Heading>
-              </Tab>
-            </TabList>
-            <TabPanels>
-              <TabPanel>
-                <Flex gap={2}>
-                  <Spacer />
-                  {projectName == 'dogma' ? null : (
-                    <WithProjectRole projectName={projectName} roles={['OWNER']}>
-                      {() => (
-                        <MetadataButton
-                          href={`/app/projects/${projectName}/repos/${repoName}/permissions`}
-                          props={{ size: 'sm' }}
-                          text={'Repository Permissions'}
-                        />
-                      )}
-                    </WithProjectRole>
+    <Deferred isLoading={isLoading} error={error}>
+      {() => {
+        let files = data || [];
+        files = Array.isArray(files) ? files : [files];
+        return (
+          <Box p="2">
+            <Breadcrumbs
+              path={directoryPath}
+              omitIndexList={[0, 5, 6]}
+              unlinkedList={[3]}
+              suffixes={{ 4: '/tree/head' }}
+            />
+            <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
+              <Heading size="lg">
+                {filePath ? (
+                  <HStack gap={0}>
+                    <Box color={'teal'} marginRight={2}>
+                      <FcOpenedFolder />
+                    </Box>
+                    {makeTraversalFileLinks(projectName, repoName, filePath).map(({ segment, url }) => {
+                      return (
+                        <Box key={url}>
+                          {'/'}
+                          <ChakraLink href={url}>{segment}</ChakraLink>
+                        </Box>
+                      );
+                    })}
+                  </HStack>
+                ) : (
+                  <HStack>
+                    <Box color={'teal'}>
+                      <GoRepo />
+                    </Box>
+                    <Box color={'teal'}>{repoName}</Box>
+                  </HStack>
+                )}
+              </Heading>
+              <Tooltip label="Go to History to view all revisions">
+                <Tag borderRadius="full" colorScheme="blue">
+                  Revision {revision} <InfoIcon ml={2} />
+                </Tag>
+              </Tooltip>
+              <Spacer />
+            </Flex>
+            <Flex gap={2}>
+              <Spacer />
+              <Button
+                size={'sm'}
+                as={Link}
+                href={`/app/projects/${projectName}/repos/${repoName}/commits${filePath}`}
+                leftIcon={<FaHistory />}
+                variant="outline"
+                colorScheme="gray"
+              >
+                History
+              </Button>
+              {projectName == 'dogma' ? null : (
+                <WithProjectRole projectName={projectName} roles={['OWNER']}>
+                  {() => (
+                    <MetadataButton
+                      href={`/app/projects/${projectName}/repos/${repoName}/permissions`}
+                      props={{ size: 'sm' }}
+                      text={'Repository Permissions'}
+                    />
                   )}
-                  <Button
-                    as={Link}
-                    href={`/app/projects/${projectName}/repos/${repoName}/files/new${filePath}`}
-                    size="sm"
-                    rightIcon={<AiOutlinePlus />}
-                    colorScheme="teal"
-                  >
-                    New File
-                  </Button>
-                </Flex>
-                <FileList
-                  data={fileData || []}
-                  projectName={projectName}
-                  repoName={repoName}
-                  path={filePath}
-                  directoryPath={directoryPath}
-                  revision={revision}
-                  copySupport={clipboardCopySupport as CopySupport}
-                />
-              </TabPanel>
-              <TabPanel>
-                <HistoryList
-                  projectName={projectName}
-                  repoName={repoName}
-                  handleTabChange={handleTabChange}
-                  totalRevision={revisionData?.revision || 0}
-                />
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
-        </Box>
-      )}
+                </WithProjectRole>
+              )}
+              <Button
+                as={Link}
+                href={`/app/projects/${projectName}/repos/${repoName}/files/new${filePath}`}
+                size="sm"
+                rightIcon={<AiOutlinePlus />}
+                colorScheme="teal"
+              >
+                New File
+              </Button>
+            </Flex>
+            <FileList
+              data={files}
+              projectName={projectName}
+              repoName={repoName}
+              path={filePath}
+              directoryPath={directoryPath}
+              revision={revision}
+              copySupport={clipboardCopySupport as CopySupport}
+            />
+          </Box>
+        );
+      }}
     </Deferred>
   );
 };

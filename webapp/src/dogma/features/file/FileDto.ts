@@ -1,6 +1,9 @@
+export type FileType = 'TEXT' | 'DIRECTORY' | 'JSON' | 'YML';
+
 export interface FileDto {
   path: string;
   revision: number;
-  type: 'TEXT' | 'DIRECTORY' | 'JSON' | 'YML';
+  type: FileType;
   url: string;
+  content?: string | any;
 }

@@ -17,7 +17,7 @@ import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable
 import { FileDto } from 'dogma/features/file/FileDto';
 import { FcFile, FcOpenedFolder } from 'react-icons/fc';
 import { CopySupport } from 'dogma/features/file/CopySupport';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { MdDelete } from 'react-icons/md';
 import { DeleteFileModal } from 'dogma/common/components/editor/DeleteFileModal';
 
@@ -45,10 +45,13 @@ const FileList = <Data extends object>({
 
   const { isOpen: isDeleteModalOpen, onOpen: onDeleteModalOpen, onClose: onDeleteModalClose } = useDisclosure();
   const [deletePath, setDeletePath] = useState('');
-  const onClickDelete = (path: string) => {
-    setDeletePath(path);
-    onDeleteModalOpen();
-  };
+  const onClickDelete = useCallback(
+    (path: string) => {
+      setDeletePath(path);
+      onDeleteModalOpen();
+    },
+    [setDeletePath, onDeleteModalOpen],
+  );
 
   const columns = useMemo(
     () => [

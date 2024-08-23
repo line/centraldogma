@@ -42,8 +42,10 @@ export type GetProjects = {
 export type GetHistory = {
   projectName: string;
   repoName: string;
-  revision: number;
-  to: number;
+  revision: string | number;
+  filePath: string;
+  to?: number;
+  maxCommits?: number;
 };
 
 export type GetNormalisedRevision = {
@@ -55,8 +57,9 @@ export type GetNormalisedRevision = {
 export type GetFilesByProjectAndRepoName = {
   projectName: string;
   repoName: string;
-  revision?: string;
+  revision?: string | number;
   filePath?: string;
+  withContent: boolean;
 };
 
 export type GetFileContent = {
@@ -232,14 +235,19 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Repo'],
     }),
-    getFiles: builder.query<FileDto[], GetFilesByProjectAndRepoName>({
-      query: ({ projectName, repoName, revision, filePath }) =>
-        `/api/v1/projects/${projectName}/repos/${repoName}/list${filePath || ''}?revision=${revision || 'head'}`,
+    getFiles: builder.query<FileDto[] | FileDto, GetFilesByProjectAndRepoName>({
+      query: ({ projectName, repoName, revision, filePath, withContent }) => {
+        if (withContent) {
+          return `/api/v1/projects/${projectName}/repos/${repoName}/contents${filePath || ''}?revision=${revision || 'head'}`;
+        } else {
+          return `/api/v1/projects/${projectName}/repos/${repoName}/list${filePath || ''}?revision=${revision || 'head'}`;
+        }
+      },
       providesTags: ['File'],
     }),
     getFileContent: builder.query<FileContentDto, GetFileContent>({
       query: ({ projectName, repoName, filePath, revision }) =>
-        `/api/v1/projects/${projectName}/repos/${repoName}/contents/${filePath}?revision=${revision}`,
+        `/api/v1/projects/${projectName}/repos/${repoName}/contents${filePath}?revision=${revision}`,
       providesTags: ['File'],
     }),
     pushFileChanges: builder.mutation({
@@ -251,8 +259,16 @@ export const apiSlice = createApi({
       invalidatesTags: ['File'],
     }),
     getHistory: builder.query<HistoryDto[], GetHistory>({
-      query: ({ projectName, repoName, revision, to }) =>
-        `/api/v1/projects/${projectName}/repos/${repoName}/commits/${revision}?to=${to}`,
+      query: function ({ projectName, repoName, revision, filePath, to, maxCommits }) {
+        let path = `/api/v1/projects/${projectName}/repos/${repoName}/commits/${revision}?path=${filePath || '/**'}`;
+        if (to) {
+          path += `&to=${to}`;
+        }
+        if (maxCommits) {
+          path += `&maxCommits=${maxCommits}`;
+        }
+        return path;
+      },
       providesTags: ['File'],
     }),
     getNormalisedRevision: builder.query<RevisionDto, GetNormalisedRevision>({
