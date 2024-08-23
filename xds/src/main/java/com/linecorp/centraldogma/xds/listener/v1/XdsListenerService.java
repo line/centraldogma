@@ -68,8 +68,9 @@ public final class XdsListenerService extends XdsListenerServiceImplBase {
         // with the format of "groups/{group}/listeners/{listener}".
         // https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids
         final Listener listener = request.getListener().toBuilder().setName(listenerName).build();
-        xdsResourceManager.push(responseObserver, group, LISTENERS_DIRECTORY + listenerId + ".json",
-                                "Create listener: " + listenerName, listener, currentAuthor());
+        xdsResourceManager.push(responseObserver, group, listenerName,
+                                LISTENERS_DIRECTORY + listenerId + ".json",
+                                "Create listener: " + listenerName, listener, currentAuthor(), true);
     }
 
     @Override

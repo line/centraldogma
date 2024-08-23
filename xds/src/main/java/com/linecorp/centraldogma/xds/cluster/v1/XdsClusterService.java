@@ -68,8 +68,8 @@ public final class XdsClusterService extends XdsClusterServiceImplBase {
         // with the format of "groups/{group}/clusters/{cluster}".
         // https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids
         final Cluster cluster = request.getCluster().toBuilder().setName(clusterName).build();
-        xdsResourceManager.push(responseObserver, group, CLUSTERS_DIRECTORY + clusterId + ".json",
-                                "Create cluster: " + clusterName, cluster, currentAuthor());
+        xdsResourceManager.push(responseObserver, group, clusterName, CLUSTERS_DIRECTORY + clusterId + ".json",
+                                "Create cluster: " + clusterName, cluster, currentAuthor(), true);
     }
 
     @Override

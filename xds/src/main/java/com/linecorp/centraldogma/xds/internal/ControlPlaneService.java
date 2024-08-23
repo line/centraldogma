@@ -117,6 +117,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                            .addService(new XdsClusterService(xdsResourceManager))
                            .addService(new XdsEndpointService(xdsResourceManager))
                            .addService(new XdsKubernetesService(xdsResourceManager))
+                           .exceptionHandler(new ControlPlaneExceptionHandlerFunction())
                            .jsonMarshallerFactory(
                                    serviceDescriptor -> {
                                        // Use JSON_MESSAGE_MARSHALLER not to parse Envoy extensions twice.

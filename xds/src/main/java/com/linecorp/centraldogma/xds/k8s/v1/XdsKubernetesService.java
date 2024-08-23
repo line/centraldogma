@@ -92,8 +92,8 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
                                                       .build();
         final Author author = currentAuthor();
         validateWatcherAndPush(responseObserver, watcher, () -> xdsResourceManager.push(
-                responseObserver, group, K8S_WATCHERS_DIRECTORY + watcherId + ".json",
-                "Create watcher: " + watcherName, watcher, author));
+                responseObserver, group, watcherName, K8S_WATCHERS_DIRECTORY + watcherId + ".json",
+                "Create watcher: " + watcherName, watcher, author, true));
     }
 
     private static void validateWatcherAndPush(

@@ -35,9 +35,12 @@ import com.google.protobuf.Empty;
 import com.google.protobuf.GeneratedMessageV3;
 import com.google.protobuf.Message;
 
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -134,11 +137,16 @@ public final class XdsResourceManager {
     }
 
     public <T extends Message> void push(
-            StreamObserver<T> responseObserver, String group, String fileName,
-            String summary, T resource, Author author) {
+            StreamObserver<T> responseObserver, String group, String resourceName, String fileName,
+            String summary, T resource, Author author, boolean create) {
         final Change<JsonNode> change;
         try {
-            change = Change.ofJsonUpsert(fileName, JSON_MESSAGE_MARSHALLER.writeValueAsString(resource));
+            final String jsonText = JSON_MESSAGE_MARSHALLER.writeValueAsString(resource);
+            if (create) {
+                change = Change.ofJsonPatch(fileName, null, jsonText);
+            } else {
+                change = Change.ofJsonUpsert(fileName, jsonText);
+            }
         } catch (IOException e) {
             // This could happen when the message has a type that isn't registered to JSON_MESSAGE_MARSHALLER.
             responseObserver.onError(Status.INTERNAL.withCause(new IllegalStateException(
@@ -149,7 +157,23 @@ public final class XdsResourceManager {
                                              summary, "", Markup.PLAINTEXT, ImmutableList.of(change)))
                        .handle((unused, cause) -> {
                            if (cause != null) {
-                               responseObserver.onError(Status.INTERNAL.withCause(cause).asRuntimeException());
+                               final Throwable peeled = Exceptions.peel(cause);
+                               if (create && peeled instanceof ChangeConflictException) {
+                                   responseObserver.onError(
+                                           Status.ALREADY_EXISTS
+                                                   .withCause(peeled)
+                                                   .withDescription("Resource already exists: " + resourceName)
+                                                   .asRuntimeException());
+                                   return null;
+                               }
+                               if (!create && peeled instanceof RedundantChangeException) {
+                                   // Updating with the same resource. Return the resource as is.
+                                   responseObserver.onNext(resource);
+                                   responseObserver.onCompleted();
+                                   return null;
+                               }
+
+                               responseObserver.onError(cause);
                                return null;
                            }
                            responseObserver.onNext(resource);
@@ -172,7 +196,8 @@ public final class XdsResourceManager {
                                            String resourceName, String fileName, String summary, T resource,
                                            Author author) {
         updateOrDelete(responseObserver, group, resourceName, fileName,
-                       () -> push(responseObserver, group, fileName, summary, resource, author));
+                       () -> push(responseObserver, group, resourceName, fileName,
+                                  summary, resource, author, false));
     }
 
     public void delete(StreamObserver<Empty> responseObserver, String group,
@@ -204,7 +229,7 @@ public final class XdsResourceManager {
         final Repository repository = xdsProject.repos().get(group);
         repository.find(Revision.HEAD, fileName, FIND_ONE_WITHOUT_CONTENT).handle((entries, cause) -> {
             if (cause != null) {
-                responseObserver.onError(Status.INTERNAL.withCause(cause).asRuntimeException());
+                responseObserver.onError(cause);
                 return null;
             }
             if (entries.isEmpty()) {
