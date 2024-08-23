@@ -44,6 +44,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -182,7 +183,12 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                              "Add " + watcher.getClusterName() + " with " + endpoints.size() + " endpoints.",
                              "", Markup.PLAINTEXT, change)).handle((unused, cause) -> {
             if (cause != null) {
-                logger.warn("Failed to push {} to {}", change, groupName, cause);
+                final Throwable peeled = Exceptions.peel(cause);
+                if (peeled instanceof RedundantChangeException) {
+                    // ignore
+                    return null;
+                }
+                logger.warn("Failed to push {} to {}", change, groupName, peeled);
             }
             return null;
         });
