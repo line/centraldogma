@@ -35,6 +35,7 @@ public final class CreatingInternalGroupPlugin extends AllReplicasPlugin {
 
     @Override
     public void init(PluginInitContext pluginInitContext) {
+        pluginInitContext.internalProjectInitializer().initialize(XDS_CENTRAL_DOGMA_PROJECT);
         pluginInitContext.commandExecutor()
                          .execute(Command.forcePush(Command.createRepository(
                                  Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, "my-group")))
