@@ -1,16 +1,18 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { FileDto } from 'dogma/features/file/FileDto';
+import { FileDto, FileType } from 'dogma/features/file/FileDto';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { faker } from '@faker-js/faker';
 
 const newFile = (id: number): FileDto => {
+  const type: FileType = faker.helpers.arrayElement(['TEXT', 'DIRECTORY', 'JSON', 'YML']);
+  const extension = type == 'DIRECTORY' ? '' : '.' + type.toLowerCase();
   return {
     revision: faker.datatype.number({
       min: 1,
       max: 10,
     }),
-    path: `/${id}-${faker.animal.rabbit().replaceAll(' ', '-').toLowerCase()}`,
-    type: faker.helpers.arrayElement(['TEXT', 'DIRECTORY', 'JSON', 'YML']),
+    path: `/${id}-${faker.animal.rabbit().replaceAll(' ', '-').toLowerCase()}${extension}`,
+    type: type,
     url: faker.internet.url(),
   };
 };

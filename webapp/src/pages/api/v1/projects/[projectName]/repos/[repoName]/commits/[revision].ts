@@ -16,7 +16,7 @@ const newHistory = (i: number): HistoryDto => {
 
 const historyList: HistoryDto[] = [];
 const makeData = (len: number) => {
-  for (let i = len; i > 0; i--) {
+  for (let i = 0; i < len; i++) {
     historyList.push(newHistory(i));
   }
 };
@@ -25,12 +25,27 @@ makeData(TOTAL_REVISION);
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const {
-    query: { revision, to },
+    query: { revision, to, maxCommits },
     method,
   } = req;
+  let start = parseInt(to as string) || 0;
+  if (start < 0) {
+    start = start + TOTAL_REVISION;
+  }
+  let end = parseInt(revision as string) || TOTAL_REVISION - 1;
+  if (end < 0) {
+    end = end + TOTAL_REVISION;
+  }
+  const limit = parseInt(maxCommits as string) || 100;
+
   switch (method) {
     case 'GET':
-      res.status(200).json(historyList.slice(-parseInt(revision as string) - 1, -parseInt(to as string)));
+      res.status(200).json(
+        historyList
+          .slice(start, end + 1)
+          .slice(0, limit)
+          .reverse(),
+      );
       break;
     default:
       res.setHeader('Allow', ['GET']);

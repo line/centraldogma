@@ -8,7 +8,7 @@ import { Layout } from 'dogma/common/components/Layout';
 import { NotificationWrapper } from 'dogma/common/components/NotificationWrapper';
 import dynamic from 'next/dynamic';
 import StoreProvider from 'dogma/StoreProvider';
-import { Loading } from '../dogma/common/components/Loading';
+import { Loading } from 'dogma/common/components/Loading';
 
 const WEB_AUTH_LOGIN = '/web/auth/login';
 

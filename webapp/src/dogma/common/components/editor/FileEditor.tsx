@@ -15,8 +15,8 @@ import {
 } from '@chakra-ui/react';
 import Editor, { DiffEditor, OnMount } from '@monaco-editor/react';
 import { EditModeToggle } from 'dogma/common/components/editor/EditModeToggle';
-import React, { useState, useRef } from 'react';
-import { FcEditImage, FcCancel } from 'react-icons/fc';
+import React, { useRef, useState } from 'react';
+import { FcCancel, FcEditImage } from 'react-icons/fc';
 import { JsonPath } from 'dogma/common/components/editor/JsonPath';
 import { JsonPathLegend } from 'dogma/common/components/editor/JsonPathLegend';
 import { AiOutlineDelete } from 'react-icons/ai';
@@ -27,6 +27,8 @@ import { useAppDispatch } from 'dogma/hooks';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import Router from 'next/router';
+import Link from 'next/link';
+import { FaCodeCommit } from 'react-icons/fa6';
 
 export type FileEditorProps = {
   projectName: string;
@@ -35,10 +37,11 @@ export type FileEditorProps = {
   originalContent: string;
   path: string;
   name: string;
+  commitRevision: number;
 };
 
 // Map file extension to language identifier
-const extensionToLanguageMap: { [key: string]: string } = {
+export const extensionToLanguageMap: { [key: string]: string } = {
   js: 'javascript',
   ts: 'typescript',
   html: 'html',
@@ -56,7 +59,15 @@ const extensionToLanguageMap: { [key: string]: string } = {
   toml: 'toml',
 };
 
-const FileEditor = ({ projectName, repoName, extension, originalContent, path, name }: FileEditorProps) => {
+const FileEditor = ({
+  projectName,
+  repoName,
+  extension,
+  originalContent,
+  path,
+  name,
+  commitRevision,
+}: FileEditorProps) => {
   const dispatch = useAppDispatch();
   const language = extensionToLanguageMap[extension] || extension;
   let jsonContent = '';
@@ -103,6 +114,16 @@ const FileEditor = ({ projectName, repoName, extension, originalContent, path, n
     <Box>
       <Flex gap={4}>
         <Spacer />
+        <Button
+          size={'sm'}
+          as={Link}
+          href={`/app/projects/${projectName}/repos/${repoName}/commit/${commitRevision}/${path}`}
+          leftIcon={<FaCodeCommit />}
+          variant="outline"
+          colorScheme="gray"
+        >
+          Commit
+        </Button>
         <Button
           onClick={switchMode}
           leftIcon={readOnly ? <FcEditImage /> : <FcCancel />}
