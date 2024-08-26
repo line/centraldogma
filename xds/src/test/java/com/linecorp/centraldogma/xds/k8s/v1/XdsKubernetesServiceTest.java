@@ -46,6 +46,7 @@ import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
@@ -146,14 +147,23 @@ class XdsKubernetesServiceTest {
         final ServiceEndpointWatcher expectedWatcher =
                 watcher.toBuilder().setClusterName(clusterName).build(); // cluster name is set by the service.
         assertWatcher(json, expectedWatcher);
+        final Repository fooGroup = dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
         final Entry<JsonNode> entry =
-                dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo")
-                     .get(Revision.HEAD,
-                          Query.ofJson(K8S_WATCHERS_DIRECTORY + watcherId + ".json")).join();
+                fooGroup.get(Revision.HEAD, Query.ofJson(K8S_WATCHERS_DIRECTORY + watcherId + ".json")).join();
         assertWatcher(entry.contentAsText(), expectedWatcher);
-
         final ClusterLoadAssignment loadAssignment = clusterLoadAssignment(clusterName, 30000);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment, clusterName);
+
+        // Check if the next commit contains all endpoints.
+        // In the plugin, KubernetesEndpointsUpdater makes a commit 1 second after addListener is called
+        // so that endpoints are not updated one by one.
+        final Entry<JsonNode> clusterEntry =
+                fooGroup.get(entry.revision().forward(1),
+                             Query.ofJson("/k8s/endpoints/" + watcherId + ".json"))
+                        .join();
+        final ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder = ClusterLoadAssignment.newBuilder();
+        JSON_MESSAGE_MARSHALLER.mergeValue(clusterEntry.contentAsText(), clusterLoadAssignmentBuilder);
+        assertThat(clusterLoadAssignmentBuilder.build()).isEqualTo(loadAssignment);
     }
 
     private static ServiceEndpointWatcher watcher(String watcherId) {
