@@ -3,10 +3,8 @@ import { HistoryDto } from 'dogma/features/history/HistoryDto';
 import { Badge, Box, Button, HStack, Icon } from '@chakra-ui/react';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
-import { useMemo, useState } from 'react';
-import { useGetHistoryQuery } from 'dogma/features/api/apiSlice';
+import { ReactElement, useMemo } from 'react';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
-import { Deferred } from 'dogma/common/components/Deferred';
 import { Author } from 'dogma/common/components/Author';
 import { GoCodescan } from 'react-icons/go';
 import { VscGitCommit } from 'react-icons/vsc';
@@ -16,12 +14,25 @@ export type HistoryListProps = {
   projectName: string;
   repoName: string;
   filePath: string;
+  data: HistoryDto[];
+  pagination: PaginationState;
+  setPagination: (updater: (old: PaginationState) => PaginationState) => void;
+  pageCount: number;
+  onEmptyData?: ReactElement;
   isDirectory: boolean;
-  totalRevision: number;
 };
 
-const HistoryList = ({ projectName, repoName, filePath, isDirectory, totalRevision }: HistoryListProps) => {
-  console.log('reload');
+const HistoryList = ({
+  projectName,
+  repoName,
+  filePath,
+  data,
+  pagination,
+  setPagination,
+  pageCount,
+  onEmptyData,
+  isDirectory,
+}: HistoryListProps) => {
   const columnHelper = createColumnHelper<HistoryDto>();
   const columns = useMemo(
     () => [
@@ -46,15 +57,17 @@ const HistoryList = ({ projectName, repoName, filePath, isDirectory, totalRevisi
       columnHelper.accessor((row: HistoryDto) => row.commitMessage.detail, {
         cell: (info) => (
           <HStack>
-            <Button
-              as={ChakraLink}
-              leftIcon={<GoCodescan />}
-              size={'sm'}
-              colorScheme={'blue'}
-              href={`/app/projects/${projectName}/repos/${repoName}/tree/${info.row.original.revision}${filePath}`}
-            >
-              Browse
-            </Button>
+            {isDirectory ? (
+              <Button
+                as={ChakraLink}
+                leftIcon={<GoCodescan />}
+                size={'sm'}
+                colorScheme={'blue'}
+                href={`/app/projects/${projectName}/repos/${repoName}/tree/${info.row.original.revision}${filePath}`}
+              >
+                Browse
+              </Button>
+            ) : null}
             <CompareButton
               projectName={projectName}
               repoName={repoName}
@@ -76,42 +89,16 @@ const HistoryList = ({ projectName, repoName, filePath, isDirectory, totalRevisi
     [columnHelper, projectName, repoName, filePath],
   );
 
-  const [{ pageIndex, pageSize }, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: 10,
-  });
-  const pagination = useMemo(
-    () => ({
-      pageIndex,
-      pageSize,
-    }),
-    [pageIndex, pageSize],
-  );
-
-  const targetPath = isDirectory ? `${filePath}/**` : filePath;
-  const { data, isLoading, error } = useGetHistoryQuery({
-    projectName,
-    repoName,
-    filePath: targetPath,
-    //  revision starts from -1, for example for pageSize=20
-    //  The first page  /projects/{projectName}/repos/{repoName}/commits/-1?to=-20
-    //  The second page /projects/{projectName}/repos/{repoName}/commits/-20?to=-40
-    revision: -pageIndex * pageSize - 1,
-    to: Math.max(-totalRevision, -(pageIndex + 1) * pageSize),
-  });
-
   return (
-    <Deferred isLoading={isLoading} error={error}>
-      {() => (
-        <DynamicDataTable
-          data={data || []}
-          columns={columns}
-          setPagination={setPagination}
-          pagination={pagination}
-          pageCount={Math.ceil(totalRevision / pageSize)}
-        />
-      )}
-    </Deferred>
+    <DynamicDataTable
+      data={data}
+      columns={columns}
+      setPagination={setPagination}
+      pagination={pagination}
+      pageCount={pageCount}
+      disableGotoButton={true}
+      onEmptyData={onEmptyData}
+    />
   );
 };
 

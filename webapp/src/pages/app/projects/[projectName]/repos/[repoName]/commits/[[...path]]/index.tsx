@@ -1,5 +1,5 @@
-import { Box, Flex, Heading, HStack } from '@chakra-ui/react';
-import { useGetNormalisedRevisionQuery } from 'dogma/features/api/apiSlice';
+import { Box, Button, Flex, Heading, HStack, Icon, useColorModeValue, VStack } from '@chakra-ui/react';
+import { useGetHistoryQuery, useGetNormalisedRevisionQuery } from 'dogma/features/api/apiSlice';
 import { useRouter } from 'next/router';
 import HistoryList from 'dogma/features/history/HistoryList';
 import React from 'react';
@@ -8,61 +8,184 @@ import { Deferred } from 'dogma/common/components/Deferred';
 import { FcOpenedFolder } from 'react-icons/fc';
 import { GoRepo } from 'react-icons/go';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
-import { makeTraversalFileLinks } from 'dogma/util/path-util';
+import { makeTraversalFileLinks, toFilePath } from 'dogma/util/path-util';
+import { PaginationState } from '@tanstack/react-table';
+import { MdErrorOutline } from 'react-icons/md';
+
+const DEFAULT_PAGE_SIZE = 10;
 
 const HistoryListPage = () => {
   const router = useRouter();
   const repoName = router.query.repoName ? (router.query.repoName as string) : '';
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
-  const filePath = router.query.path ? `/${Array.from(router.query.path).join('/')}` : '';
+  const filePath = router.query.path ? toFilePath(router.query.path) : '';
+  const from = parseInt(router.query.from as string) || -1;
   const directoryPath = router.asPath;
+  let type = router.query.type as string;
+  if (!type && !filePath) {
+    type = 'tree';
+  }
+  const targetPath = type == 'tree' ? `${filePath}/**` : filePath;
 
   const { data, isLoading, error } = useGetNormalisedRevisionQuery({ projectName, repoName, revision: -1 });
+  const headRevision = data?.revision || -1;
+  let fromRevision = from;
+  if (from <= -1) {
+    fromRevision = headRevision + from + 1;
+  }
+  let baseRevision = parseInt(router.query.base as string) || fromRevision - DEFAULT_PAGE_SIZE + 1;
+  if (baseRevision < 1) {
+    baseRevision = 1;
+  }
+
+  let pageSize = fromRevision - baseRevision + 1;
+  if (pageSize < DEFAULT_PAGE_SIZE && baseRevision < DEFAULT_PAGE_SIZE) {
+    // This is the end of the history which may be less than the original page size.
+    // In this case, we should use the default page size as a best effort.
+    pageSize = DEFAULT_PAGE_SIZE;
+  }
+  const fromPageCount = Math.ceil(fromRevision / pageSize);
+  let headPageCount;
+  if (fromRevision > headRevision) {
+    headPageCount = 0;
+  } else {
+    headPageCount = Math.ceil((headRevision - fromRevision) / pageSize);
+  }
+
+  const pageCount = headPageCount + fromPageCount;
+  const pageIndex = headPageCount;
+  const pagination = { pageIndex, pageSize };
+  const setPagination: (updater: (old: PaginationState) => PaginationState) => void = (
+    updater: (old: PaginationState) => PaginationState,
+  ) => {
+    if (headRevision <= 0) {
+      return;
+    }
+
+    const newPagination = updater({ pageIndex, pageSize });
+    let newPageSize = newPagination.pageSize;
+    if (newPageSize == -1) {
+      newPageSize = pageSize;
+    }
+    const newPageIndex = newPagination.pageIndex;
+
+    if (newPageIndex != pageIndex || newPageSize != pageSize) {
+      const from = fromRevision - (newPageIndex - pageIndex) * newPageSize;
+      let base = from - newPageSize + 1;
+      base = Math.max(base, 1);
+      const query: { [key: string]: any } = { from, base };
+      if (type) {
+        query['type'] = type;
+      }
+      router.push({
+        pathname: `/app/projects/${projectName}/repos/${repoName}/commits/${filePath}`,
+        query,
+      });
+      return;
+    }
+  };
+
+  const historyFrom = Math.min(fromRevision, headRevision);
+  const historyTo = Math.max(baseRevision, 1);
+  const {
+    data: historyData,
+    isLoading: isHistoryLoading,
+    error: historyError,
+  } = useGetHistoryQuery(
+    {
+      projectName,
+      repoName,
+      filePath: targetPath,
+      revision: Math.min(fromRevision, headRevision),
+      to: Math.max(baseRevision, 1),
+      maxCommits: historyFrom - historyTo + 1,
+    },
+    {
+      skip: headRevision === -1 || historyFrom < historyTo,
+    },
+  );
+
+  const onEmptyData = (
+    <VStack marginBottom={10} bg={useColorModeValue('gray.100', 'gray.900')} padding={10}>
+      <HStack marginBottom={5}>
+        <Heading size={'md'} alignSelf={'center'}>
+          <Icon as={MdErrorOutline} size={'md'} marginBottom={-0.5} marginRight={1} />
+          No changes detected for {filePath} in range [{baseRevision}..{fromRevision}]
+        </Heading>
+      </HStack>
+      <Button
+        size={'sm'}
+        colorScheme={'green'}
+        as={ChakraLink}
+        href={`/app/projects/${projectName}/repos/${repoName}/commits/${filePath}?from=${fromRevision - DEFAULT_PAGE_SIZE}${type ? `&type=${type}` : ''}`}
+      >
+        Go to older commits
+      </Button>
+    </VStack>
+  );
 
   return (
-    <Deferred isLoading={isLoading} error={error}>
-      {() => (
-        <Box p="2">
-          <Breadcrumbs path={directoryPath} omitIndexList={[0]} unlinkedList={[3]} />
-          <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-            <Heading size="lg">
-              {filePath ? (
-                <HStack gap={0}>
-                  <Box color={'teal'} marginRight={2}>
-                    <FcOpenedFolder />
-                  </Box>
-                  {makeTraversalFileLinks(projectName, repoName, filePath).map(({ segment, url }) => {
-                    return (
-                      <Box key={url}>
-                        {'/'}
-                        <ChakraLink href={url}>{segment}</ChakraLink>
-                      </Box>
-                    );
-                  })}
-                  <Box fontWeight={'normal'}>&nbsp;commits</Box>
-                </HStack>
-              ) : (
-                <HStack>
-                  <Box color={'teal'}>
-                    <GoRepo />
-                  </Box>
-                  <Box color={'teal'}>
-                    <ChakraLink href={`/app/projects/${projectName}/repos/${repoName}`}>{repoName}</ChakraLink>
-                  </Box>
-                  <Box>{filePath} commits</Box>
-                </HStack>
-              )}
-            </Heading>
-          </Flex>
-          <HistoryList
-            projectName={projectName}
-            repoName={repoName}
-            filePath={filePath}
-            isDirectory={true}
-            totalRevision={data?.revision || 0}
-          />
-        </Box>
-      )}
+    <Deferred isLoading={isLoading || isHistoryLoading} error={error || historyError}>
+      {() => {
+        return (
+          <Box p="2">
+            <Breadcrumbs
+              path={
+                directoryPath.split('?')[0] + (router.query.from ? `/${baseRevision}..${fromRevision}` : '')
+              }
+              omitIndexList={[0]}
+              unlinkedList={[3]}
+              omitQueryList={[1, 2, 4, 5]}
+              query={type ? `type=${type}` : ''}
+            />
+            <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
+              <Heading size="lg">
+                {filePath ? (
+                  <HStack gap={0}>
+                    <Box color={'teal'} marginRight={2}>
+                      <FcOpenedFolder />
+                    </Box>
+                    {makeTraversalFileLinks(projectName, repoName, 'commits', filePath).map(
+                      ({ segment, url }) => {
+                        return (
+                          <Box key={url}>
+                            {'/'}
+                            <ChakraLink href={url}>{segment}</ChakraLink>
+                          </Box>
+                        );
+                      },
+                    )}
+                    <Box fontWeight={'normal'}>&nbsp;commits</Box>
+                  </HStack>
+                ) : (
+                  <HStack>
+                    <Box color={'teal'}>
+                      <GoRepo />
+                    </Box>
+                    <Box color={'teal'}>
+                      <ChakraLink href={`/app/projects/${projectName}/repos/${repoName}`}>
+                        {repoName}
+                      </ChakraLink>
+                    </Box>
+                    <Box>{filePath} commits</Box>
+                  </HStack>
+                )}
+              </Heading>
+            </Flex>
+            <HistoryList
+              projectName={projectName}
+              repoName={repoName}
+              filePath={filePath}
+              data={historyData || []}
+              pagination={pagination}
+              setPagination={setPagination}
+              pageCount={pageCount}
+              onEmptyData={onEmptyData}
+              isDirectory={type === 'tree'}
+            />
+          </Box>
+        );
+      }}
     </Deferred>
   );
 };

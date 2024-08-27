@@ -1,10 +1,16 @@
-import { Flex, Input, Text, Select, Spacer, IconButton } from '@chakra-ui/react';
+import { Flex, Input, Text, Select, Spacer, IconButton, Box, HStack, Stack } from '@chakra-ui/react';
 import { Table as ReactTable } from '@tanstack/react-table';
 import { MdNavigateBefore, MdNavigateNext, MdSkipNext, MdSkipPrevious } from 'react-icons/md';
 
-export const PaginationBar = <Data extends object>({ table }: { table: ReactTable<Data> }) => {
+type PaginationBarProps<Data extends object> = {
+  table: ReactTable<Data>;
+  disableGotoButton?: boolean;
+};
+
+export const PaginationBar = <Data extends object>({ table, disableGotoButton }: PaginationBarProps<Data>) => {
   return (
     <Flex gap={2} mt={2} alignItems="center">
+      {disableGotoButton && <Spacer />}
       <IconButton
         aria-label="First page"
         icon={<MdSkipPrevious />}
@@ -34,29 +40,33 @@ export const PaginationBar = <Data extends object>({ table }: { table: ReactTabl
         {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
       </Text>
       <Spacer />
-      <Text>Go to page:</Text>
-      <Input
-        type="number"
-        defaultValue={table.getState().pagination.pageIndex + 1}
-        onChange={(e) => {
-          const page = e.target.value ? Number(e.target.value) - 1 : 0;
-          table.setPageIndex(page);
-        }}
-        width={20}
-      />
-      <Select
-        value={table.getState().pagination.pageSize}
-        onChange={(e) => {
-          table.setPageSize(Number(e.target.value));
-        }}
-        width="auto"
-      >
-        {[10, 20, 30, 40, 50].map((pageSize) => (
-          <option key={pageSize} value={pageSize}>
-            Show {pageSize}
-          </option>
-        ))}
-      </Select>
+      {!disableGotoButton && (
+        <>
+          <Text>Go to page:</Text>
+          <Input
+            type="number"
+            defaultValue={table.getState().pagination.pageIndex + 1}
+            onChange={(e) => {
+              const page = e.target.value ? Number(e.target.value) - 1 : 0;
+              table.setPageIndex(page);
+            }}
+            width={20}
+          />
+          <Select
+            value={table.getState().pagination.pageSize}
+            onChange={(e) => {
+              table.setPageSize(Number(e.target.value));
+            }}
+            width="auto"
+          >
+            {[10, 20, 30, 40, 50, 100, 200, 400].map((pageSize) => (
+              <option key={pageSize} value={pageSize}>
+                Show {pageSize}
+              </option>
+            ))}
+          </Select>
+        </>
+      )}
     </Flex>
   );
 };

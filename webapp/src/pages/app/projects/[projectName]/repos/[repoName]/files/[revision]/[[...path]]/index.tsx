@@ -1,6 +1,6 @@
 import { InfoIcon } from '@chakra-ui/icons';
 import { Box, Flex, Heading, HStack, Tag, Tooltip } from '@chakra-ui/react';
-import { useGetFileContentQuery, useGetHistoryQuery } from 'dogma/features/api/apiSlice';
+import { useGetFileContentQuery } from 'dogma/features/api/apiSlice';
 import { useRouter } from 'next/router';
 import FileEditor from 'dogma/common/components/editor/FileEditor';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
@@ -27,20 +27,8 @@ const FileContentPage = () => {
       refetchOnMountOrArgChange: true,
     },
   );
-  const {
-    data: historyData,
-    isLoading: isHistoryLoading,
-    error: historyError,
-  } = useGetHistoryQuery({
-    projectName,
-    repoName,
-    revision,
-    to: 1,
-    filePath,
-    maxCommits: 1,
-  });
   return (
-    <Deferred isLoading={isLoading || isHistoryLoading} error={error || historyError}>
+    <Deferred isLoading={isLoading} error={error}>
       {() => {
         return (
           <Box p="2">
@@ -72,7 +60,6 @@ const FileContentPage = () => {
               originalContent={data.content}
               path={data.path}
               name={fileName}
-              commitRevision={historyData[0].revision}
             />
           </Box>
         );

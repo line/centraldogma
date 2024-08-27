@@ -66,7 +66,7 @@ export type GetFileContent = {
   projectName: string;
   repoName: string;
   filePath: string;
-  revision: string;
+  revision: string | number;
 };
 
 export type TitleDto = {

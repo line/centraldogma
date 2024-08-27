@@ -14,7 +14,7 @@
  * under the License.
  */
 
-import { useRouter } from 'next/router';
+import Router, { useRouter } from 'next/router';
 import { useGetFilesQuery } from 'dogma/features/api/apiSlice';
 import { Deferred } from 'dogma/common/components/Deferred';
 import {
@@ -30,13 +30,17 @@ import {
 } from '@chakra-ui/react';
 import React, { useState } from 'react';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
-import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import FourOhFour from 'pages/404';
-import { toFilePath } from 'dogma/util/path-util';
 import { FaArrowLeftLong, FaCodeCompare } from 'react-icons/fa6';
 import { GoDiff } from 'react-icons/go';
 import DiffView, { DiffMode } from 'dogma/common/components/DiffView';
 import DiffModeButton from 'dogma/common/components/DiffModeButton';
+import { useForm } from 'react-hook-form';
+
+type FormData = {
+  baseRevision: number;
+  headRevision: number;
+};
 
 const ChangesViewPage = () => {
   const router = useRouter();
@@ -44,10 +48,7 @@ const ChangesViewPage = () => {
   const repoName = router.query.repoName as string;
   const headRevision = parseInt(router.query.revision as string);
   const baseRevision = parseInt(router.query.baseRevision as string);
-  let filePath = toFilePath(router.query.path);
-  if (filePath == '/') {
-    filePath = '/**';
-  }
+  const filePath = '/**';
 
   const {
     data: newData,
@@ -74,8 +75,22 @@ const ChangesViewPage = () => {
 
   const { colorMode } = useColorMode();
   const [diffMode, setDiffMode] = useState<DiffMode>('Split');
-  const [headRev, setHeadRev] = useState(headRevision);
-  const [baseRev, setBaseRev] = useState(baseRevision);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { isDirty },
+  } = useForm<FormData>({
+    defaultValues: {
+      baseRevision: baseRevision,
+      headRevision: headRevision,
+    },
+  });
+  const onSubmit = (data: FormData) => {
+    Router.push(
+      `/app/projects/${projectName}/repos/${repoName}/compare/${data.headRevision}/base/${data.baseRevision}`,
+    );
+  };
 
   if (headRevision <= 1) {
     return <FourOhFour title={`There isn’t anything to compare.`} />;
@@ -97,50 +112,49 @@ const ChangesViewPage = () => {
             </Heading>
             <HStack marginBottom={5}>
               <Box>
-                <HStack>
-                  <Box>
-                    <InputGroup size={'sm'}>
-                      <InputLeftAddon color={'gray.500'} borderLeftRadius={'md'}>
-                        Base
-                      </InputLeftAddon>
-                      <Input
+                <form onSubmit={handleSubmit(onSubmit)}>
+                  <HStack>
+                    <Box>
+                      <InputGroup size={'sm'}>
+                        <InputLeftAddon color={'gray.500'} borderLeftRadius={'md'}>
+                          Base
+                        </InputLeftAddon>
+                        <Input
+                          size="sm"
+                          type="number"
+                          borderRightRadius="md"
+                          {...register('baseRevision', { required: true, min: 1, max: headRevision - 1 })}
+                        />
+                      </InputGroup>
+                    </Box>
+                    <Box>
+                      <FaArrowLeftLong />
+                    </Box>
+                    <Box>
+                      <InputGroup size={'sm'}>
+                        <InputLeftAddon color={'gray.500'} borderLeftRadius={'md'}>
+                          From
+                        </InputLeftAddon>
+                        <Input
+                          type="number"
+                          borderRightRadius="md"
+                          {...register('headRevision', { required: true, min: 1, max: headRevision })}
+                        />
+                      </InputGroup>
+                    </Box>
+                    <Box>
+                      <Button
+                        type="submit"
                         size={'sm'}
-                        type={'number'}
-                        borderRightRadius={'md'}
-                        value={baseRev}
-                        onChange={(e) => setBaseRev(parseInt(e.target.value))}
-                      />
-                    </InputGroup>
-                  </Box>
-                  <Box>
-                    <FaArrowLeftLong />
-                  </Box>
-                  <Box>
-                    <InputGroup size={'sm'}>
-                      <InputLeftAddon color={'gray.500'} borderLeftRadius={'md'}>
-                        From
-                      </InputLeftAddon>
-                      <Input
-                        type={'number'}
-                        borderRightRadius={'md'}
-                        value={headRev}
-                        onChange={(e) => setHeadRev(parseInt(e.target.value))}
-                      />
-                    </InputGroup>
-                  </Box>
-                  <Box>
-                    <Button
-                      isDisabled={headRev === headRevision && baseRevision == baseRev}
-                      as={ChakraLink}
-                      size={'sm'}
-                      leftIcon={<FaCodeCompare />}
-                      colorScheme="green"
-                      href={`/app/projects/${projectName}/repos/${repoName}/compare/${headRev}/base/${baseRev}`}
-                    >
-                      Compare
-                    </Button>
-                  </Box>
-                </HStack>
+                        leftIcon={<FaCodeCompare />}
+                        colorScheme="green"
+                        isDisabled={!isDirty}
+                      >
+                        Compare
+                      </Button>
+                    </Box>
+                  </HStack>
+                </form>
               </Box>
               <Spacer />
               <DiffModeButton onChange={(value) => setDiffMode(value as DiffMode)} />
@@ -160,5 +174,4 @@ const ChangesViewPage = () => {
     </Deferred>
   );
 };
-
 export default ChangesViewPage;

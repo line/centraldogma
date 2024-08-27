@@ -18,14 +18,14 @@ import { GoRepo } from 'react-icons/go';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { WithProjectRole } from 'dogma/features/auth/ProjectRole';
 import { FaHistory } from 'react-icons/fa';
-import { makeTraversalFileLinks } from 'dogma/util/path-util';
+import { makeTraversalFileLinks, toFilePath } from 'dogma/util/path-util';
 
 const RepositoryDetailPage = () => {
   const router = useRouter();
   const repoName = router.query.repoName ? (router.query.repoName as string) : '';
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   const revision = router.query.revision ? (router.query.revision as string) : 'head';
-  const filePath = router.query.path ? `/${Array.from(router.query.path).join('/')}` : '';
+  const filePath = router.query.path ? toFilePath(router.query.path) : '';
   const directoryPath = router.asPath;
   const dispatch = useAppDispatch();
 
@@ -108,14 +108,16 @@ cat ${project}/${repo}${path}`;
                     <Box color={'teal'} marginRight={2}>
                       <FcOpenedFolder />
                     </Box>
-                    {makeTraversalFileLinks(projectName, repoName, filePath).map(({ segment, url }) => {
-                      return (
-                        <Box key={url}>
-                          {'/'}
-                          <ChakraLink href={url}>{segment}</ChakraLink>
-                        </Box>
-                      );
-                    })}
+                    {makeTraversalFileLinks(projectName, repoName, 'tree/head', filePath).map(
+                      ({ segment, url }) => {
+                        return (
+                          <Box key={url}>
+                            {'/'}
+                            <ChakraLink href={url}>{segment}</ChakraLink>
+                          </Box>
+                        );
+                      },
+                    )}
                   </HStack>
                 ) : (
                   <HStack>
@@ -138,7 +140,7 @@ cat ${project}/${repo}${path}`;
               <Button
                 size={'sm'}
                 as={ChakraLink}
-                href={`/app/projects/${projectName}/repos/${repoName}/commits${filePath}`}
+                href={`/app/projects/${projectName}/repos/${repoName}/commits${filePath}?type=tree`}
                 leftIcon={<FaHistory />}
                 variant="outline"
                 colorScheme="gray"
