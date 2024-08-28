@@ -28,7 +28,7 @@ import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import Router from 'next/router';
 import Link from 'next/link';
-import { FaCodeCommit } from 'react-icons/fa6';
+import { FaHistory } from 'react-icons/fa';
 
 export type FileEditorProps = {
   projectName: string;
@@ -37,7 +37,7 @@ export type FileEditorProps = {
   originalContent: string;
   path: string;
   name: string;
-  commitRevision: number;
+  revision: string | number;
 };
 
 // Map file extension to language identifier
@@ -66,7 +66,7 @@ const FileEditor = ({
   originalContent,
   path,
   name,
-  commitRevision,
+  revision,
 }: FileEditorProps) => {
   const dispatch = useAppDispatch();
   const language = extensionToLanguageMap[extension] || extension;
@@ -117,12 +117,12 @@ const FileEditor = ({
         <Button
           size={'sm'}
           as={Link}
-          href={`/app/projects/${projectName}/repos/${repoName}/commit/${commitRevision}/${path}`}
-          leftIcon={<FaCodeCommit />}
+          href={`/app/projects/${projectName}/repos/${repoName}/commits/${path}${revision !== 'head' ? `?from=${revision}` : ''}`}
+          leftIcon={<FaHistory />}
           variant="outline"
           colorScheme="gray"
         >
-          Commit
+          History
         </Button>
         <Button
           onClick={switchMode}

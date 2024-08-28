@@ -66,7 +66,7 @@ export type GetFileContent = {
   projectName: string;
   repoName: string;
   filePath: string;
-  revision: string;
+  revision: string | number;
 };
 
 export type TitleDto = {
@@ -328,6 +328,7 @@ export const apiSlice = createApi({
       query: ({ projectName, id }) => `/api/v1/projects/${projectName}/mirrors/${id}`,
       providesTags: ['Metadata'],
     }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     addNewMirror: builder.mutation<any, MirrorDto>({
       query: (mirror) => ({
         url: `/api/v1/projects/${mirror.projectName}/mirrors`,
@@ -336,6 +337,7 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     updateMirror: builder.mutation<any, { projectName: string; id: string; mirror: MirrorDto }>({
       query: ({ projectName, id, mirror }) => ({
         url: `/api/v1/projects/${projectName}/mirrors/${id}`,
@@ -352,6 +354,7 @@ export const apiSlice = createApi({
       query: ({ projectName, id }) => `/api/v1/projects/${projectName}/credentials/${id}`,
       providesTags: ['Metadata'],
     }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     addNewCredential: builder.mutation<any, { projectName: string; credential: CredentialDto }>({
       query: ({ projectName, credential }) => ({
         url: `/api/v1/projects/${projectName}/credentials`,
@@ -360,6 +363,7 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     updateCredential: builder.mutation<any, { projectName: string; id: string; credential: CredentialDto }>({
       query: ({ projectName, id, credential }) => ({
         url: `/api/v1/projects/${projectName}/credentials/${id}`,

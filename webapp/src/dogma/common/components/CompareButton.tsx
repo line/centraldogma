@@ -51,7 +51,7 @@ const CompareButton = ({ projectName, repoName, headRevision }: CompareButtonPro
           Compare
         </Button>
       </PopoverTrigger>
-      <PopoverContent width={'220px'}>
+      <PopoverContent width={'240px'}>
         <PopoverArrow />
         <PopoverBody>
           <form onSubmit={handleSubmit(onSubmit)}>
@@ -59,7 +59,7 @@ const CompareButton = ({ projectName, repoName, headRevision }: CompareButtonPro
               <FormControl isRequired>
                 <Input
                   type="number"
-                  placeholder={`Revision 1..${headRevision - 1}`}
+                  placeholder={`Rev 1..${headRevision - 1}`}
                   autoFocus
                   {...register('baseRevision', { required: true, min: 1, max: headRevision - 1 })}
                 />

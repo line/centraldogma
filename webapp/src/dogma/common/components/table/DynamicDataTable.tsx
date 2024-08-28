@@ -13,14 +13,16 @@ import {
 import { DataTable } from 'dogma/common/components/table/DataTable';
 import { Filter } from 'dogma/common/components/table/Filter';
 import { PaginationBar } from 'dogma/common/components/table/PaginationBar';
-import { Dispatch, SetStateAction, useState } from 'react';
+import React, { ReactElement, useState } from 'react';
 
 export type DynamicDataTableProps<Data extends object> = {
   data: Data[];
   columns: ColumnDef<Data>[];
   pagination?: { pageIndex: number; pageSize: number };
-  setPagination?: Dispatch<SetStateAction<PaginationState>>;
+  setPagination?: (updater: (old: PaginationState) => PaginationState) => void;
   pageCount?: number;
+  disableGotoButton?: boolean;
+  onEmptyData?: ReactElement;
 };
 
 export const DynamicDataTable = <Data extends object>({
@@ -29,6 +31,8 @@ export const DynamicDataTable = <Data extends object>({
   pagination,
   setPagination,
   pageCount,
+  disableGotoButton,
+  onEmptyData,
 }: DynamicDataTableProps<Data>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -53,13 +57,19 @@ export const DynamicDataTable = <Data extends object>({
 
   return (
     <>
-      <Text mb="8px">Filter by {table.getHeaderGroups()[0].headers[0].id} </Text>
-      <Filter
-        table={table}
-        column={table.getHeaderGroups()[0].headers[0].column /* Filter by the 1st column */}
-      />
-      <DataTable table={table} />
-      {pagination && <PaginationBar table={table} />}
+      {table.getRowModel().rows.length == 0 && onEmptyData ? (
+        onEmptyData
+      ) : (
+        <>
+          <Text mb="8px">Filter by {table.getHeaderGroups()[0].headers[0].id} </Text>
+          <Filter
+            table={table}
+            column={table.getHeaderGroups()[0].headers[0].column /* Filter by the 1st column */}
+          />
+          <DataTable table={table} />
+        </>
+      )}
+      {pagination && <PaginationBar table={table} disableGotoButton={disableGotoButton} />}
     </>
   );
 };

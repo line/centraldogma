@@ -30,11 +30,16 @@ export type UrlAndSegment = {
   url: string;
 };
 
-export function makeTraversalFileLinks(projectName: string, repoName: string, path: string): UrlAndSegment[] {
+export function makeTraversalFileLinks(
+  projectName: string,
+  repoName: string,
+  infix: string,
+  path: string,
+): UrlAndSegment[] {
   const links: UrlAndSegment[] = [];
   const segments = path.split('/');
   for (let i = 1; i < segments.length; i++) {
-    const url = `/app/projects/${projectName}/repos/${repoName}/tree/head/${segments.slice(1, i + 1).join('/')}`;
+    const url = `/app/projects/${projectName}/repos/${repoName}/${infix}/${segments.slice(1, i + 1).join('/')}`;
     links.push({ segment: segments[i], url });
   }
   return links;

@@ -5,18 +5,22 @@ import NextLink from 'next/link';
 interface BreadcrumbsProps {
   path: string;
   omitIndexList?: number[];
+  omitQueryList?: number[];
   unlinkedList?: number[];
   replaces?: { [key: number]: string };
   suffixes?: { [key: number]: string };
+  query?: string;
 }
 
 export const Breadcrumbs = ({
   path,
   omitIndexList = [],
+  omitQueryList = [],
   unlinkedList = [],
   replaces = {},
   // /project/projectName/repos/repoName -> /project/projectName/repos/repoName/tree/head
   suffixes = {},
+  query = '',
 }: BreadcrumbsProps) => {
   const asPathNestedRoutes = path
     // If the path belongs to a file, the top level should be a directory
@@ -30,10 +34,16 @@ export const Breadcrumbs = ({
   return (
     <Breadcrumb spacing="8px" separator={<FcNext />} mb={8} fontWeight="medium" fontSize="2xl">
       {asPathNestedRoutes.map((page, i) => {
-        prefixes.push(page);
         const item = replaces[i] || page;
+        prefixes.push(item);
         if (omitIndexList.includes(i)) {
           return null;
+        }
+        let query0;
+        if (omitQueryList.includes(i) || omitQueryList.includes(i - asPathNestedRoutes.length)) {
+          query0 = '';
+        } else {
+          query0 = query ? `?${query}` : '';
         }
 
         return (
@@ -41,7 +51,7 @@ export const Breadcrumbs = ({
             {!unlinkedList.includes(i) && i < asPathNestedRoutes.length - 1 ? (
               <BreadcrumbLink
                 as={NextLink}
-                href={`/${prefixes.join('/')}${suffixes[i] || ''}`}
+                href={`/${prefixes.join('/')}${suffixes[i] || ''}${query0}`}
                 paddingBottom={1}
               >
                 {decodeURI(item)}
