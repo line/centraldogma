@@ -51,9 +51,7 @@ const HistoryListPage = () => {
   const pageCount = headPageCount + fromPageCount;
   const pageIndex = headPageCount;
   const pagination = { pageIndex, pageSize };
-  const setPagination: (updater: (old: PaginationState) => PaginationState) => void = (
-    updater: (old: PaginationState) => PaginationState,
-  ) => {
+  function setPagination(updater: (old: PaginationState) => PaginationState): void {
     if (headRevision <= 0) {
       return;
     }
@@ -78,7 +76,7 @@ const HistoryListPage = () => {
       });
       return;
     }
-  };
+  }
 
   const historyFrom = Math.min(fromRevision, headRevision);
   const historyTo = Math.max(baseRevision, 1);
@@ -91,8 +89,8 @@ const HistoryListPage = () => {
       projectName,
       repoName,
       filePath: targetPath,
-      revision: Math.min(fromRevision, headRevision),
-      to: Math.max(baseRevision, 1),
+      revision: historyFrom,
+      to: historyTo,
       maxCommits: historyFrom - historyTo + 1,
     },
     {
