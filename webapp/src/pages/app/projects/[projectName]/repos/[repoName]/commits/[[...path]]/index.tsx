@@ -11,6 +11,7 @@ import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { makeTraversalFileLinks, toFilePath } from 'dogma/util/path-util';
 import { PaginationState } from '@tanstack/react-table';
 import { MdErrorOutline } from 'react-icons/md';
+import { FileIcon } from 'dogma/common/components/FileIcon';
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -34,16 +35,11 @@ const HistoryListPage = () => {
     fromRevision = headRevision + from + 1;
   }
   let baseRevision = parseInt(router.query.base as string) || fromRevision - DEFAULT_PAGE_SIZE + 1;
+  const pageSize = fromRevision - baseRevision + 1;
   if (baseRevision < 1) {
     baseRevision = 1;
   }
 
-  let pageSize = fromRevision - baseRevision + 1;
-  if (pageSize < DEFAULT_PAGE_SIZE && baseRevision < DEFAULT_PAGE_SIZE) {
-    // This is the end of the history which may be less than the original page size.
-    // In this case, we should use the default page size as a best effort.
-    pageSize = DEFAULT_PAGE_SIZE;
-  }
   const fromPageCount = Math.ceil(fromRevision / pageSize);
   let headPageCount;
   if (fromRevision > headRevision) {
@@ -71,9 +67,8 @@ const HistoryListPage = () => {
 
     if (newPageIndex != pageIndex || newPageSize != pageSize) {
       const from = fromRevision - (newPageIndex - pageIndex) * newPageSize;
-      let base = from - newPageSize + 1;
-      base = Math.max(base, 1);
-      const query: { [key: string]: any } = { from, base };
+      const base = from - newPageSize + 1;
+      const query: { [key: string]: string | number } = { from, base };
       if (type) {
         query['type'] = type;
       }
@@ -117,16 +112,23 @@ const HistoryListPage = () => {
         size={'sm'}
         colorScheme={'green'}
         as={ChakraLink}
-        href={`/app/projects/${projectName}/repos/${repoName}/commits/${filePath}?from=${fromRevision - DEFAULT_PAGE_SIZE}${type ? `&type=${type}` : ''}`}
+        href={`/app/projects/${projectName}/repos/${repoName}/commits/${filePath}?from=${baseRevision - 1}&base=${baseRevision - 100}${type ? `&type=${type}` : ''}`}
       >
         Go to older commits
       </Button>
     </VStack>
   );
 
+  const urlAndSegments = makeTraversalFileLinks(projectName, repoName, 'commits', filePath);
+
   return (
     <Deferred isLoading={isLoading || isHistoryLoading} error={error || historyError}>
       {() => {
+        const omitQueryList = [1, 2, 4, 5];
+        if (type !== 'tree' && router.query.from) {
+          // Omit the 'type=tree' query parameter when the type is a file.
+          omitQueryList.push(-2);
+        }
         return (
           <Box p="2">
             <Breadcrumbs
@@ -135,26 +137,29 @@ const HistoryListPage = () => {
               }
               omitIndexList={[0]}
               unlinkedList={[3]}
-              omitQueryList={[1, 2, 4, 5]}
-              query={type ? `type=${type}` : ''}
+              omitQueryList={omitQueryList}
+              query="type=tree"
             />
             <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
               <Heading size="lg">
                 {filePath ? (
                   <HStack gap={0}>
-                    <Box color={'teal'} marginRight={2}>
-                      <FcOpenedFolder />
+                    <Box color={'teal'} marginRight={2} marginBottom={-2}>
+                      {type === 'tree' ? <Icon as={FcOpenedFolder} /> : <FileIcon fileName={filePath} />}
                     </Box>
-                    {makeTraversalFileLinks(projectName, repoName, 'commits', filePath).map(
-                      ({ segment, url }) => {
-                        return (
-                          <Box key={url}>
-                            {'/'}
-                            <ChakraLink href={url}>{segment}</ChakraLink>
-                          </Box>
-                        );
-                      },
-                    )}
+                    {urlAndSegments.map(({ segment, url }, index) => {
+                      let query = '';
+                      if (type === 'tree' || index < urlAndSegments.length - 1) {
+                        query = '?type=tree';
+                      }
+                      const targetUrl = url + query;
+                      return (
+                        <Box key={targetUrl}>
+                          {'/'}
+                          <ChakraLink href={targetUrl}>{segment}</ChakraLink>
+                        </Box>
+                      );
+                    })}
                     <Box fontWeight={'normal'}>&nbsp;commits</Box>
                   </HStack>
                 ) : (

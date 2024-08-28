@@ -21,6 +21,7 @@ import { Loading } from './Loading';
 
 interface LoadingProps {
   isLoading: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   error: any;
   children: () => ReactNode;
 }

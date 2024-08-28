@@ -41,7 +41,7 @@ const FileContentPage = () => {
             <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
               <Heading size="lg">
                 <HStack color="teal">
-                  <Box>
+                  <Box marginBottom={-1}>
                     <FileIcon fileName={fileName} />
                   </Box>
                   <Box>{fileName}</Box>
@@ -60,6 +60,7 @@ const FileContentPage = () => {
               originalContent={data.content}
               path={data.path}
               name={fileName}
+              revision={revision}
             />
           </Box>
         );

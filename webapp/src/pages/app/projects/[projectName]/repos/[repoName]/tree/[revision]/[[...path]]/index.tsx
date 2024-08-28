@@ -140,7 +140,7 @@ cat ${project}/${repo}${path}`;
               <Button
                 size={'sm'}
                 as={ChakraLink}
-                href={`/app/projects/${projectName}/repos/${repoName}/commits${filePath}?type=tree`}
+                href={`/app/projects/${projectName}/repos/${repoName}/commits${filePath}?type=tree${revision !== 'head' ? `&from=${revision}` : ''}`}
                 leftIcon={<FaHistory />}
                 variant="outline"
                 colorScheme="gray"

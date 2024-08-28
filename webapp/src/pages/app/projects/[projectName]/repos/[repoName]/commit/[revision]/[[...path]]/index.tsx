@@ -83,7 +83,7 @@ const CommitViewPage = () => {
     data: oldData,
     isLoading: isOldLoading,
     error: oldError,
-  }: any = useGetFilesQuery(
+  } = useGetFilesQuery(
     {
       projectName,
       repoName,
@@ -114,7 +114,8 @@ const CommitViewPage = () => {
     return <FourOhFour title={`Revision ${revision} does not exist..`} />;
   }
   // 404 Not Found is returned if the file does not exist in the old revision.
-  const oldError0 = oldError && oldError.status != 404 ? oldError : null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const oldError0 = oldError && (oldError as any).status != 404 ? oldError : null;
 
   return (
     <Deferred

@@ -1,4 +1,4 @@
-import { Flex, Input, Text, Select, Spacer, IconButton, Box, HStack, Stack } from '@chakra-ui/react';
+import { Flex, IconButton, Input, Select, Spacer, Text } from '@chakra-ui/react';
 import { Table as ReactTable } from '@tanstack/react-table';
 import { MdNavigateBefore, MdNavigateNext, MdSkipNext, MdSkipPrevious } from 'react-icons/md';
 

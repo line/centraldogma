@@ -37,6 +37,7 @@ export type FileEditorProps = {
   originalContent: string;
   path: string;
   name: string;
+  revision: string | number;
 };
 
 // Map file extension to language identifier
@@ -58,7 +59,15 @@ export const extensionToLanguageMap: { [key: string]: string } = {
   toml: 'toml',
 };
 
-const FileEditor = ({ projectName, repoName, extension, originalContent, path, name }: FileEditorProps) => {
+const FileEditor = ({
+  projectName,
+  repoName,
+  extension,
+  originalContent,
+  path,
+  name,
+  revision,
+}: FileEditorProps) => {
   const dispatch = useAppDispatch();
   const language = extensionToLanguageMap[extension] || extension;
   let jsonContent = '';
@@ -108,7 +117,7 @@ const FileEditor = ({ projectName, repoName, extension, originalContent, path, n
         <Button
           size={'sm'}
           as={Link}
-          href={`/app/projects/${projectName}/repos/${repoName}/commits/${path}`}
+          href={`/app/projects/${projectName}/repos/${repoName}/commits/${path}${revision !== 'head' ? `?from=${revision}` : ''}`}
           leftIcon={<FaHistory />}
           variant="outline"
           colorScheme="gray"

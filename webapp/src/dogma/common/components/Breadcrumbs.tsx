@@ -39,8 +39,10 @@ export const Breadcrumbs = ({
         if (omitIndexList.includes(i)) {
           return null;
         }
-        let query0 = '';
-        if (!omitQueryList.includes(i)) {
+        let query0;
+        if (omitQueryList.includes(i) || omitQueryList.includes(i - asPathNestedRoutes.length)) {
+          query0 = '';
+        } else {
           query0 = query ? `?${query}` : '';
         }
 

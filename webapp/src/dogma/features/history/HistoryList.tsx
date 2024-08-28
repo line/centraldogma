@@ -86,7 +86,7 @@ const HistoryList = ({
         header: 'Timestamp',
       }),
     ],
-    [columnHelper, projectName, repoName, filePath],
+    [columnHelper, projectName, repoName, filePath, isDirectory],
   );
 
   return (

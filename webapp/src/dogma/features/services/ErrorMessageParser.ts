@@ -1,5 +1,5 @@
 class ErrorMessageParser {
-  // eslint-disable-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static parse(object: any): string {
     if (object.response && object.response.data.message) {
       return object.response.data.message;

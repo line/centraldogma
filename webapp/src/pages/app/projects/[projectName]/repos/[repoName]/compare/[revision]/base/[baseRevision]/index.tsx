@@ -65,7 +65,7 @@ const ChangesViewPage = () => {
     data: oldData,
     isLoading: isOldLoading,
     error: oldError,
-  }: any = useGetFilesQuery({
+  } = useGetFilesQuery({
     projectName,
     repoName,
     revision: baseRevision,

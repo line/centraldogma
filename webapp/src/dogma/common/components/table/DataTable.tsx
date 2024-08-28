@@ -11,6 +11,7 @@ export const DataTable = <Data extends object>({ table }: { table: ReactTable<Da
           <Tr key={headerGroup.id}>
             {headerGroup.headers.map((header) => {
               // see https://tanstack.com/table/v8/docs/api/core/column-def#meta to type this correctly
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const meta: any = header.column.columnDef.meta;
               return (
                 <Th
@@ -41,6 +42,7 @@ export const DataTable = <Data extends object>({ table }: { table: ReactTable<Da
             <Tr key={row.id} data-testid="table-row">
               {row.getVisibleCells().map((cell) => {
                 // see https://tanstack.com/table/v8/docs/api/core/column-def#meta to type this correctly
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const meta: any = cell.column.columnDef.meta;
                 return (
                   <Td key={cell.id} isNumeric={meta?.isNumeric}>
