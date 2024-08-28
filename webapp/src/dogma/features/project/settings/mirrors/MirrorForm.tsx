@@ -300,7 +300,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
                 type="text"
                 defaultValue={defaultValue.remoteUrl}
                 placeholder="my.git.com/org/myrepo.git"
-                {...register('remoteUrl', { required: true, pattern: /^[\w.-]+(:[0-9]+)?\/[\w.-\/]+.git$/ })}
+                {...register('remoteUrl', { required: true, pattern: /^[\w.-]+(:[0-9]+)?\/[\w.\-\/]+.git$/ })}
               />
               <FieldErrorMessage
                 error={errors.remoteUrl}
