@@ -2,7 +2,7 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import React, { useMemo } from 'react';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { useGetCredentialsQuery } from 'dogma/features/api/apiSlice';
-import { Badge, Code } from '@chakra-ui/react';
+import { Badge } from '@chakra-ui/react';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 
@@ -35,17 +35,6 @@ const CredentialList = <Data extends object>({ projectName }: CredentialListProp
           return <Badge colorScheme="green">{info.getValue()}</Badge>;
         },
         header: 'Authentication Type',
-      }),
-      columnHelper.accessor((row: CredentialDto) => row.hostnamePatterns, {
-        cell: (info) => {
-          const hostnamePatterns = info.getValue();
-          if (hostnamePatterns.length == 0) {
-            return '-';
-          } else {
-            return <Code>{hostnamePatterns.join(', ')}</Code>;
-          }
-        },
-        header: 'Hostnames',
       }),
       columnHelper.accessor((row: CredentialDto) => row.enabled, {
         cell: (info) => {

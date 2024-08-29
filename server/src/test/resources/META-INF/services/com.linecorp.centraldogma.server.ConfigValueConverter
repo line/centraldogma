@@ -1,2 +1,2 @@
 com.linecorp.centraldogma.server.ConfigDeserializationTest$KeyConfigValueConverter
-com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredentialTest$PasswordConfigValueConverter
+com.linecorp.centraldogma.server.internal.credential.PublicKeyCredentialTest$PasswordConfigValueConverter

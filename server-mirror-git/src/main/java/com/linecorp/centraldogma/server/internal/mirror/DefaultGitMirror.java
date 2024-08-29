@@ -32,9 +32,9 @@ import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import com.cronutils.model.Cron;
 
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.mirror.credential.AccessTokenMirrorCredential;
-import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.credential.Credential;
+import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
+import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -43,7 +43,7 @@ final class DefaultGitMirror extends AbstractGitMirror {
     private static final Consumer<TransportCommand<?, ?>> NOOP_CONFIGURATOR = command -> {};
 
     DefaultGitMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
-                     MirrorCredential credential, Repository localRepo, String localPath,
+                     Credential credential, Repository localRepo, String localPath,
                      URI remoteRepoUri, String remotePath, String remoteBranch,
                      @Nullable String gitignore) {
         super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath,
@@ -58,17 +58,17 @@ final class DefaultGitMirror extends AbstractGitMirror {
     }
 
     private Consumer<TransportCommand<?, ?>> transportCommandConfigurator() {
-        final MirrorCredential c = credential();
+        final Credential c = credential();
         switch (remoteRepoUri().getScheme()) {
             case SCHEME_GIT_HTTP:
             case SCHEME_GIT_HTTPS:
-                if (c instanceof PasswordMirrorCredential) {
-                    final PasswordMirrorCredential cred = (PasswordMirrorCredential) c;
+                if (c instanceof PasswordCredential) {
+                    final PasswordCredential cred = (PasswordCredential) c;
                     return command -> command.setCredentialsProvider(
                             new UsernamePasswordCredentialsProvider(cred.username(), cred.password()));
                 }
-                if (c instanceof AccessTokenMirrorCredential) {
-                    final AccessTokenMirrorCredential cred = (AccessTokenMirrorCredential) c;
+                if (c instanceof AccessTokenCredential) {
+                    final AccessTokenCredential cred = (AccessTokenCredential) c;
                     return command -> command.setCredentialsProvider(
                             new UsernamePasswordCredentialsProvider("token", cred.accessToken()));
                 }

@@ -86,7 +86,7 @@ import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -116,7 +116,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
     private IgnoreNode ignoreNode;
 
     AbstractGitMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
-                      MirrorCredential credential, Repository localRepo, String localPath,
+                      Credential credential, Repository localRepo, String localPath,
                       URI remoteRepoUri, String remotePath, String remoteBranch,
                       @Nullable String gitignore) {
         super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath,

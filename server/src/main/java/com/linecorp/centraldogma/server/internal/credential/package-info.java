@@ -17,6 +17,6 @@
  * Credential classes for mirroring.
  */
 @NonNullByDefault
-package com.linecorp.centraldogma.server.internal.mirror.credential;
+package com.linecorp.centraldogma.server.internal.credential;
 
 import com.linecorp.centraldogma.common.util.NonNullByDefault;

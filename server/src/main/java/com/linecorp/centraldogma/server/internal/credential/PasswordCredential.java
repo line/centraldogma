@@ -14,13 +14,11 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.mirror.credential;
+package com.linecorp.centraldogma.server.internal.credential;
 
 import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
-import static com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredentialUtil.requireNonEmpty;
+import static com.linecorp.centraldogma.server.internal.credential.MirrorCredentialUtil.requireNonEmpty;
 import static java.util.Objects.requireNonNull;
-
-import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
@@ -29,28 +27,23 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.credential.Credential;
 
-public final class PasswordMirrorCredential extends AbstractMirrorCredential {
+public final class PasswordCredential extends AbstractCredential {
 
-    private static final Logger logger = LoggerFactory.getLogger(PasswordMirrorCredential.class);
+    private static final Logger logger = LoggerFactory.getLogger(PasswordCredential.class);
 
     private final String username;
     private final String password;
 
     @JsonCreator
-    public PasswordMirrorCredential(@JsonProperty("id") String id,
-                                    @JsonProperty("enabled") @Nullable Boolean enabled,
-                                    @JsonProperty("hostnamePatterns") @Nullable
-                                    @JsonDeserialize(contentAs = Pattern.class)
-                                    Iterable<Pattern> hostnamePatterns,
-                                    @JsonProperty("username") String username,
-                                    @JsonProperty("password") String password) {
-        super(id, enabled, "password", hostnamePatterns);
-
+    public PasswordCredential(@JsonProperty("id") String id,
+                              @JsonProperty("enabled") @Nullable Boolean enabled,
+                              @JsonProperty("username") String username,
+                              @JsonProperty("password") String password) {
+        super(id, enabled, "password");
         this.username = requireNonEmpty(username, "username");
         this.password = requireNonNull(password, "password");
     }
@@ -90,7 +83,7 @@ public final class PasswordMirrorCredential extends AbstractMirrorCredential {
             return true;
         }
 
-        if (!(o instanceof PasswordMirrorCredential)) {
+        if (!(o instanceof PasswordCredential)) {
             return false;
         }
 
@@ -98,7 +91,7 @@ public final class PasswordMirrorCredential extends AbstractMirrorCredential {
             return false;
         }
 
-        final PasswordMirrorCredential that = (PasswordMirrorCredential) o;
+        final PasswordCredential that = (PasswordCredential) o;
         return username.equals(that.username) && password.equals(that.password);
     }
 
@@ -108,7 +101,7 @@ public final class PasswordMirrorCredential extends AbstractMirrorCredential {
     }
 
     @Override
-    public MirrorCredential withoutSecret() {
-        return new PasswordMirrorCredential(id(), enabled(), hostnamePatterns(), username(), "****");
+    public Credential withoutSecret() {
+        return new PasswordCredential(id(), enabled(), username(), "****");
     }
 }

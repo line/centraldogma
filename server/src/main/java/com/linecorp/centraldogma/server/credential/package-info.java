@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LINE Corporation
+ * Copyright 2021 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,25 +13,10 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+/**
+ * Credential classes for mirroring.
+ */
+@NonNullByDefault
+package com.linecorp.centraldogma.server.credential;
 
-export interface CredentialDto {
-  id: string;
-  type: 'password' | 'public_key' | 'access_token' | 'none';
-  enabled: boolean;
-
-  // Password-based credential
-  // - All fields are required.
-  username?: string;
-  password?: string;
-
-  // Public key-based credential.
-  // - `username` is also included in this credential.
-  // - `passphrase` is optional and other fields are required.
-  publicKey?: string;
-  privateKey?: string;
-  passphrase?: string;
-
-  // Access token-based credential
-  // - `accessToken` is required.
-  accessToken?: string;
-}
+import com.linecorp.centraldogma.common.util.NonNullByDefault;

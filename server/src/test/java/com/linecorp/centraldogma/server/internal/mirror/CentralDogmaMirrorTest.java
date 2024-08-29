@@ -29,10 +29,10 @@ import com.cronutils.model.CronType;
 import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.parser.CronParser;
 
+import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.storage.repository.CentralDogmaMirrorProvider;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorContext;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -118,7 +118,7 @@ class CentralDogmaMirrorTest {
 
     static <T extends Mirror> T newMirror(String remoteUri, Cron schedule,
                                           Repository repository, Class<T> mirrorType) {
-        final MirrorCredential credential = mock(MirrorCredential.class);
+        final Credential credential = mock(Credential.class);
         final String mirrorId = "mirror-id";
         final Mirror mirror =
                 new CentralDogmaMirrorProvider().newMirror(
@@ -138,7 +138,7 @@ class CentralDogmaMirrorTest {
     }
 
     static void assertMirrorNull(String remoteUri) {
-        final MirrorCredential credential = mock(MirrorCredential.class);
+        final Credential credential = mock(Credential.class);
         final Mirror mirror = new CentralDogmaMirrorProvider().newMirror(
                 new MirrorContext("mirror-id", true, EVERY_MINUTE, MirrorDirection.LOCAL_TO_REMOTE,
                                   credential, mock(Repository.class), "/", URI.create(remoteUri), null));

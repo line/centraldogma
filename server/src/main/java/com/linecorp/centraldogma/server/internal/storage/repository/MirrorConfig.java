@@ -40,13 +40,12 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 
+import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorContext;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorProvider;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -118,17 +117,17 @@ public final class MirrorConfig {
         } else {
             this.gitignore = null;
         }
-        this.credentialId = Strings.emptyToNull(credentialId);
+        this.credentialId = credentialId;
     }
 
     @Nullable
-    Mirror toMirror(Project parent, Iterable<MirrorCredential> credentials) {
+    Mirror toMirror(Project parent, Iterable<Credential> credentials) {
         if (localRepo == null || !parent.repos().exists(localRepo)) {
             return null;
         }
 
         final MirrorContext mirrorContext = new MirrorContext(
-                id, enabled, schedule, direction, findCredential(credentials, remoteUri, credentialId),
+                id, enabled, schedule, direction, findCredential(credentials, credentialId),
                 parent.repos().get(localRepo), localPath, remoteUri, gitignore);
         for (MirrorProvider mirrorProvider : MIRROR_PROVIDERS) {
             final Mirror mirror = mirrorProvider.newMirror(mirrorContext);
@@ -140,26 +139,18 @@ public final class MirrorConfig {
         throw new IllegalArgumentException("could not find a mirror provider for " + mirrorContext);
     }
 
-    public static MirrorCredential findCredential(Iterable<MirrorCredential> credentials, URI remoteUri,
-                                                  @Nullable String credentialId) {
+    public static Credential findCredential(Iterable<Credential> credentials,
+                                            @Nullable String credentialId) {
         if (credentialId != null) {
-            // Find by credential ID.
-            for (MirrorCredential c : credentials) {
+            for (Credential c : credentials) {
                 final String id = c.id();
                 if (credentialId.equals(id)) {
                     return c;
                 }
             }
-        } else {
-            // Find by host name.
-            for (MirrorCredential c : credentials) {
-                if (c.matches(remoteUri)) {
-                    return c;
-                }
-            }
         }
 
-        return MirrorCredential.FALLBACK;
+        return Credential.FALLBACK;
     }
 
     @JsonProperty("id")
@@ -199,7 +190,6 @@ public final class MirrorConfig {
         return gitignore;
     }
 
-    @Nullable
     @JsonProperty("credentialId")
     public String credentialId() {
         return credentialId;

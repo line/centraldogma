@@ -205,7 +205,6 @@ class ForceRefUpdateTest {
                                          '{' +
                                          "  \"id\": \"public-key-id\"," +
                                          "  \"type\": \"public_key\"," +
-                                         "  \"hostnamePatterns\": [ \"^.*$\" ]," +
                                          "  \"username\": \"" + "git" + "\"," +
                                          "  \"publicKey\": \"" + pubKey + "\"," +
                                          "  \"privateKey\": \"" + privKey + '"' +
@@ -225,7 +224,8 @@ class ForceRefUpdateTest {
                                          "  \"localRepo\": \"" + REPO_FOO + "\"," +
                                          "  \"localPath\": \"/\"," +
                                          "  \"remoteUri\": \"" + gitUri + "\"," +
-                                         "  \"schedule\": \"0 0 0 1 1 ? 2099\"" +
+                                         "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
+                                         "  \"credentialId\": \"public-key-id\"" +
                                          '}'))
              .push().join();
     }

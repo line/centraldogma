@@ -46,8 +46,8 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorUtil;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
@@ -117,7 +117,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                 throw new RepositoryMetadataException("failed to load the mirror configuration", e);
             }
 
-            final CompletableFuture<List<MirrorCredential>> credentials;
+            final CompletableFuture<List<Credential>> credentials;
             if (Strings.isNullOrEmpty(c.credentialId())) {
                 credentials = credentials();
             } else {
@@ -150,7 +150,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         });
     }
 
-    private List<Mirror> parseMirrors(Map<String, Entry<?>> entries, List<MirrorCredential> credentials)
+    private List<Mirror> parseMirrors(Map<String, Entry<?>> entries, List<Credential> credentials)
             throws JsonProcessingException {
 
         return entries.entrySet().stream().map(entry -> {
@@ -171,7 +171,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     @Override
-    public CompletableFuture<List<MirrorCredential>> credentials() {
+    public CompletableFuture<List<Credential>> credentials() {
         return find(PATH_CREDENTIALS + "*.json").thenApply(entries -> {
             if (entries.isEmpty()) {
                 return ImmutableList.of();
@@ -185,7 +185,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     @Override
-    public CompletableFuture<MirrorCredential> credential(String credentialId) {
+    public CompletableFuture<Credential> credential(String credentialId) {
         final String credentialFile = credentialFile(credentialId);
         return find(credentialFile).thenApply(entries -> {
             @SuppressWarnings("unchecked")
@@ -203,7 +203,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         });
     }
 
-    private List<MirrorCredential> parseCredentials(Map<String, Entry<?>> entries)
+    private List<Credential> parseCredentials(Map<String, Entry<?>> entries)
             throws JsonProcessingException {
         return entries.entrySet().stream()
                       .map(entry -> {
@@ -217,13 +217,13 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                       .collect(toImmutableList());
     }
 
-    private MirrorCredential parseCredential(String credentialFile, Entry<JsonNode> entry)
+    private Credential parseCredential(String credentialFile, Entry<JsonNode> entry)
             throws JsonProcessingException {
         final JsonNode credentialJson = entry.content();
         if (!credentialJson.isObject()) {
             throw newInvalidJsonTypeException(credentialFile, credentialJson);
         }
-        return Jackson.treeToValue(credentialJson, MirrorCredential.class);
+        return Jackson.treeToValue(credentialJson, Credential.class);
     }
 
     private RepositoryMetadataException newInvalidJsonTypeException(String fileName, JsonNode credentialJson) {
@@ -259,7 +259,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     @Override
-    public CompletableFuture<Command<CommitResult>> createPushCommand(MirrorCredential credential,
+    public CompletableFuture<Command<CommitResult>> createPushCommand(Credential credential,
                                                                       Author author, boolean update) {
         checkArgument(!credential.id().isEmpty(), "Credential ID should not be empty");
 
@@ -283,7 +283,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                             change);
     }
 
-    private Command<CommitResult> newCommand(MirrorCredential credential, Author author, String summary) {
+    private Command<CommitResult> newCommand(Credential credential, Author author, String summary) {
         final JsonNode jsonNode = Jackson.valueToTree(credential);
         final Change<JsonNode> change = Change.ofJsonUpsert(credentialFile(credential.id()), jsonNode);
         return Command.push(author, parent().name(), name(), Revision.HEAD, summary, "", Markup.PLAINTEXT,

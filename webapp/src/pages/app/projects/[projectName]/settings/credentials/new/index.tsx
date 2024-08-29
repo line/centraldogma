@@ -29,7 +29,6 @@ import CredentialForm from 'dogma/features/project/settings/credentials/Credenti
 const EMPTY_CREDENTIAL: CredentialDto = {
   id: '',
   type: 'public_key',
-  hostnamePatterns: [],
   enabled: true,
 };
 const NewCredentialPage = () => {

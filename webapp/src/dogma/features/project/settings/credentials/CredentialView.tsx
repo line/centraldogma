@@ -42,7 +42,6 @@ import { newNotification } from 'dogma/features/notification/notificationSlice';
 import { IconType } from 'react-icons';
 import { HiOutlineIdentification, HiOutlineUser } from 'react-icons/hi';
 
-import { VscRegex } from 'react-icons/vsc';
 import { MdPublic } from 'react-icons/md';
 import { RiGitRepositoryPrivateLine } from 'react-icons/ri';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
@@ -215,20 +214,6 @@ const CredentialView = ({ projectName, credential }: CredentialViewProps) => {
                   </Td>
                 </Tr>
               )}
-              <Tr>
-                <HeadRow>
-                  <AlignedIcon as={VscRegex} /> Hostname patterns
-                </HeadRow>
-                <Td>
-                  {credential.hostnamePatterns.length === 0 ? (
-                    '-'
-                  ) : (
-                    <Code p={2} variant="outline">
-                      {credential.hostnamePatterns.join(', ')}
-                    </Code>
-                  )}
-                </Td>
-              </Tr>
             </Tbody>
           </Table>
         </TableContainer>

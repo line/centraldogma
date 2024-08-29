@@ -14,37 +14,36 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.mirror.credential;
+package com.linecorp.centraldogma.server.internal.credential;
 
-import static com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredentialTest.HOSTNAME_PATTERNS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.credential.Credential;
 
-class PasswordMirrorCredentialTest {
+class PasswordCredentialTest {
 
     @Test
     void testConstruction() throws Exception {
         // null checks
-        assertThatThrownBy(() -> new PasswordMirrorCredential("foo", true, null, null, "sesame"))
+        assertThatThrownBy(() -> new PasswordCredential("foo", true, null, "sesame"))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new PasswordMirrorCredential("foo", true, null, "trustin", null))
+        assertThatThrownBy(() -> new PasswordCredential("foo", true, "trustin", null))
                 .isInstanceOf(NullPointerException.class);
 
         // emptiness checks
-        assertThatThrownBy(() -> new PasswordMirrorCredential("foo", true, null, "", "sesame"))
+        assertThatThrownBy(() -> new PasswordCredential("foo", true, "", "sesame"))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // An empty password must be allowed because some servers uses password authentication
         // as token-based authentication whose username is the token and password is an empty string.
-        assertThat(new PasswordMirrorCredential("foo", true, null, "trustin", "").password()).isEmpty();
+        assertThat(new PasswordCredential("foo", true, "trustin", "").password()).isEmpty();
 
         // successful construction
-        final PasswordMirrorCredential c = new PasswordMirrorCredential("foo", true, null, "trustin", "sesame");
+        final PasswordCredential c = new PasswordCredential("foo", true, "trustin", "sesame");
         assertThat(c.id()).isEqualTo("foo");
         assertThat(c.username()).isEqualTo("trustin");
         assertThat(c.password()).isEqualTo("sesame");
@@ -52,25 +51,12 @@ class PasswordMirrorCredentialTest {
 
     @Test
     void testDeserialization() throws Exception {
-        // With hostnamePatterns
-        assertThat(Jackson.readValue('{' +
-                                     "  \"id\": \"password-id\"," +
-                                     "  \"type\": \"password\"," +
-                                     "  \"hostnamePatterns\": [" +
-                                     "    \"^foo\\\\.com$\"" +
-                                     "  ]," +
-                                     "  \"username\": \"trustin\"," +
-                                     "  \"password\": \"sesame\"" +
-                                     '}', MirrorCredential.class))
-                .isEqualTo(new PasswordMirrorCredential("password-id", true, HOSTNAME_PATTERNS,
-                                                        "trustin", "sesame"));
-        // Without hostnamePatterns
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"password\"," +
                                      "  \"id\": \"foo\"," +
                                      "  \"username\": \"trustin\"," +
                                      "  \"password\": \"sesame\"" +
-                                     '}', MirrorCredential.class))
-                .isEqualTo(new PasswordMirrorCredential("foo", true, null, "trustin", "sesame"));
+                                     '}', Credential.class))
+                .isEqualTo(new PasswordCredential("foo", true, "trustin", "sesame"));
     }
 }

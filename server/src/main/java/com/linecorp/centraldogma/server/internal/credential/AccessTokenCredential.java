@@ -14,12 +14,10 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.mirror.credential;
+package com.linecorp.centraldogma.server.internal.credential;
 
 import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
-import static com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredentialUtil.requireNonEmpty;
-
-import java.util.regex.Pattern;
+import static com.linecorp.centraldogma.server.internal.credential.MirrorCredentialUtil.requireNonEmpty;
 
 import javax.annotation.Nullable;
 
@@ -28,26 +26,21 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.credential.Credential;
 
-public final class AccessTokenMirrorCredential extends AbstractMirrorCredential {
+public final class AccessTokenCredential extends AbstractCredential {
 
-    private static final Logger logger = LoggerFactory.getLogger(AccessTokenMirrorCredential.class);
+    private static final Logger logger = LoggerFactory.getLogger(AccessTokenCredential.class);
 
     private final String accessToken;
 
     @JsonCreator
-    public AccessTokenMirrorCredential(@JsonProperty("id") String id,
-                                       @JsonProperty("enabled") @Nullable Boolean enabled,
-                                       @JsonProperty("hostnamePatterns") @Nullable
-                                       @JsonDeserialize(contentAs = Pattern.class)
-                                       Iterable<Pattern> hostnamePatterns,
-                                       @JsonProperty("accessToken") String accessToken) {
-        super(id, enabled, "access_token", hostnamePatterns);
-
+    public AccessTokenCredential(@JsonProperty("id") String id,
+                                 @JsonProperty("enabled") @Nullable Boolean enabled,
+                                 @JsonProperty("accessToken") String accessToken) {
+        super(id, enabled, "access_token");
         this.accessToken = requireNonEmpty(accessToken, "accessToken");
     }
 
@@ -79,7 +72,7 @@ public final class AccessTokenMirrorCredential extends AbstractMirrorCredential 
             return true;
         }
 
-        if (!(o instanceof AccessTokenMirrorCredential)) {
+        if (!(o instanceof AccessTokenCredential)) {
             return false;
         }
 
@@ -87,7 +80,7 @@ public final class AccessTokenMirrorCredential extends AbstractMirrorCredential 
             return false;
         }
 
-        final AccessTokenMirrorCredential that = (AccessTokenMirrorCredential) o;
+        final AccessTokenCredential that = (AccessTokenCredential) o;
         return accessToken.equals(that.accessToken);
     }
 
@@ -97,7 +90,7 @@ public final class AccessTokenMirrorCredential extends AbstractMirrorCredential 
     }
 
     @Override
-    public MirrorCredential withoutSecret() {
-        return new AccessTokenMirrorCredential(id(), enabled(), hostnamePatterns(), "****");
+    public Credential withoutSecret() {
+        return new AccessTokenCredential(id(), enabled(), "****");
     }
 }

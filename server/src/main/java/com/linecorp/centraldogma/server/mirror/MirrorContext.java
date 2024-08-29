@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import com.cronutils.model.Cron;
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -36,7 +37,7 @@ public final class MirrorContext {
     private final boolean enabled;
     private final Cron schedule;
     private final MirrorDirection direction;
-    private final MirrorCredential credential;
+    private final Credential credential;
     private final Repository localRepo;
     private final String localPath;
     private final URI remoteUri;
@@ -47,7 +48,7 @@ public final class MirrorContext {
      * Creates a new instance.
      */
     public MirrorContext(String id, boolean enabled, Cron schedule, MirrorDirection direction,
-                         MirrorCredential credential, Repository localRepo, String localPath, URI remoteUri,
+                         Credential credential, Repository localRepo, String localPath, URI remoteUri,
                          @Nullable String gitignore) {
         this.id = requireNonNull(id, "id");
         this.enabled = enabled;
@@ -91,7 +92,7 @@ public final class MirrorContext {
     /**
      * Returns the credential of this mirror.
      */
-    public MirrorCredential credential() {
+    public Credential credential() {
         return credential;
     }
 

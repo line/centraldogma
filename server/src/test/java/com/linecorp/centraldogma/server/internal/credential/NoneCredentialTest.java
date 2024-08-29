@@ -14,40 +14,24 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.mirror.credential;
+package com.linecorp.centraldogma.server.internal.credential;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.regex.Pattern;
-
 import org.junit.jupiter.api.Test;
 
-import com.google.common.collect.ImmutableSet;
-
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.credential.Credential;
 
-class NoneMirrorCredentialTest {
+class NoneCredentialTest {
 
     @Test
     void testDeserialization() throws Exception {
-        // With hostnamePatterns
         assertThat(Jackson.readValue('{' +
                                      "  \"id\": \"none\"," +
                                      "  \"type\": \"none\"," +
-                                     "  \"hostnamePatterns\": [" +
-                                     "    \"^foo\\\\.com$\"" +
-                                     "  ]," +
                                      "  \"enabled\": true" +
-                                     '}', MirrorCredential.class))
-                .isEqualTo(new NoneMirrorCredential("none", true,
-                                                    ImmutableSet.of(Pattern.compile("^foo\\.com$"))
-                ));
-        // Without hostnamePatterns
-        assertThat(Jackson.readValue('{' +
-                                     "  \"type\": \"none\"," +
-                                     "  \"id\": \"foo\"" +
-                                     '}', MirrorCredential.class))
-                .isEqualTo(new NoneMirrorCredential("foo", true, null));
+                                     '}', Credential.class))
+                .isEqualTo(new NoneCredential("none", true));
     }
 }

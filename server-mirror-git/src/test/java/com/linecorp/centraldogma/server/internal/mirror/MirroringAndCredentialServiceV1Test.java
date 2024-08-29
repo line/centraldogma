@@ -25,7 +25,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,11 +45,11 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.internal.mirror.credential.AccessTokenMirrorCredential;
-import com.linecorp.centraldogma.server.internal.mirror.credential.NoneMirrorCredential;
-import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
-import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.credential.Credential;
+import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
+import com.linecorp.centraldogma.server.internal.credential.NoneCredential;
+import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
+import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -74,8 +73,6 @@ class MirroringAndCredentialServiceV1Test {
             client.createRepository(FOO_PROJ, BAR_REPO).join();
         }
     };
-
-    private final List<String> hostnamePatterns = ImmutableList.of("github.com");
 
     private BlockingWebClient adminClient;
     private BlockingWebClient userClient;
@@ -145,15 +142,14 @@ class MirroringAndCredentialServiceV1Test {
     private void createAndReadCredential() {
         final List<Map<String, Object>> credentials = ImmutableList.of(
                 ImmutableMap.of("type", "password", "id", "password-credential",
-                                "hostnamePatterns", hostnamePatterns,
                                 "username", "username-0", "password", "password-0"),
-                ImmutableMap.of("type", "access_token", "id", "access-token-credential", "hostnamePatterns",
-                                hostnamePatterns, "accessToken", "secret-token-abc-1"),
+                ImmutableMap.of("type", "access_token", "id", "access-token-credential",
+                                "accessToken", "secret-token-abc-1"),
                 ImmutableMap.of("type", "public_key", "id", "public-key-credential",
-                                "hostnamePatterns", hostnamePatterns, "username", "username-2",
+                                "username", "username-2",
                                 "publicKey", "public-key-2", "privateKey", "private-key-2",
                                 "passphrase", "password-0"),
-                ImmutableMap.of("type", "none", "id", "non-credential", "hostnamePatterns", hostnamePatterns));
+                ImmutableMap.of("type", "none", "id", "non-credential"));
 
         for (int i = 0; i < credentials.size(); i++) {
             final Map<String, Object> credential = credentials.get(i);
@@ -171,21 +167,19 @@ class MirroringAndCredentialServiceV1Test {
 
             for (BlockingWebClient client : ImmutableList.of(adminClient, userClient)) {
                 final boolean isAdmin = client == adminClient;
-                final ResponseEntity<MirrorCredential> fetchResponse =
+                final ResponseEntity<Credential> fetchResponse =
                         client.prepare()
                               .get("/api/v1/projects/{proj}/credentials/{id}")
                               .pathParam("proj", FOO_PROJ)
                               .pathParam("id", credentialId)
                               .responseTimeoutMillis(0)
-                              .asJson(MirrorCredential.class)
+                              .asJson(Credential.class)
                               .execute();
-                final MirrorCredential credentialDto = fetchResponse.content();
+                final Credential credentialDto = fetchResponse.content();
                 assertThat(credentialDto.id()).isEqualTo(credentialId);
-                assertThat(credentialDto.hostnamePatterns().stream().map(Pattern::pattern)).isEqualTo(
-                        credential.get("hostnamePatterns"));
                 final String credentialType = (String) credential.get("type");
                 if ("password".equals(credentialType)) {
-                    final PasswordMirrorCredential actual = (PasswordMirrorCredential) credentialDto;
+                    final PasswordCredential actual = (PasswordCredential) credentialDto;
                     assertThat(actual.username()).isEqualTo(credential.get("username"));
                     if (isAdmin) {
                         assertThat(actual.password()).isEqualTo(credential.get("password"));
@@ -193,14 +187,14 @@ class MirroringAndCredentialServiceV1Test {
                         assertThat(actual.password()).isEqualTo("****");
                     }
                 } else if ("access_token".equals(credentialType)) {
-                    final AccessTokenMirrorCredential actual = (AccessTokenMirrorCredential) credentialDto;
+                    final AccessTokenCredential actual = (AccessTokenCredential) credentialDto;
                     if (isAdmin) {
                         assertThat(actual.accessToken()).isEqualTo(credential.get("accessToken"));
                     } else {
                         assertThat(actual.accessToken()).isEqualTo("****");
                     }
                 } else if ("public_key".equals(credentialType)) {
-                    final PublicKeyMirrorCredential actual = (PublicKeyMirrorCredential) credentialDto;
+                    final PublicKeyCredential actual = (PublicKeyCredential) credentialDto;
                     assertThat(actual.username()).isEqualTo(credential.get("username"));
                     assertThat(actual.publicKey()).isEqualTo(credential.get("publicKey"));
                     if (isAdmin) {
@@ -211,7 +205,7 @@ class MirroringAndCredentialServiceV1Test {
                         assertThat(actual.rawPassphrase()).isEqualTo("****");
                     }
                 } else if ("none".equals(credentialType)) {
-                    assertThat(credentialDto).isInstanceOf(NoneMirrorCredential.class);
+                    assertThat(credentialDto).isInstanceOf(NoneCredential.class);
                 } else {
                     throw new AssertionError("Unexpected credential type: " + credential.getClass().getName());
                 }
@@ -220,12 +214,10 @@ class MirroringAndCredentialServiceV1Test {
     }
 
     private void updateCredential() {
-        final List<String> hostnamePatterns = ImmutableList.of("gitlab.com");
         final String credentialId = "public-key-credential";
         final Map<String, Object> credential =
                 ImmutableMap.of("type", "public_key",
                                 "id", credentialId,
-                                "hostnamePatterns", hostnamePatterns,
                                 "username", "updated-username-2",
                                 "publicKey", "updated-public-key-2",
                                 "privateKey", "updated-private-key-2",
@@ -242,17 +234,15 @@ class MirroringAndCredentialServiceV1Test {
 
         for (BlockingWebClient client : ImmutableList.of(adminClient, userClient)) {
             final boolean isAdmin = client == adminClient;
-            final ResponseEntity<MirrorCredential> fetchResponse =
+            final ResponseEntity<Credential> fetchResponse =
                     client.prepare()
                           .get("/api/v1/projects/{proj}/credentials/{id}")
                           .pathParam("proj", FOO_PROJ)
                           .pathParam("id", credentialId)
-                          .asJson(MirrorCredential.class)
+                          .asJson(Credential.class)
                           .execute();
-            final PublicKeyMirrorCredential actual = (PublicKeyMirrorCredential) fetchResponse.content();
+            final PublicKeyCredential actual = (PublicKeyCredential) fetchResponse.content();
             assertThat(actual.id()).isEqualTo((String) credential.get("id"));
-            assertThat(actual.hostnamePatterns().stream().map(Pattern::pattern))
-                    .containsExactlyElementsOf(hostnamePatterns);
             assertThat(actual.username()).isEqualTo(credential.get("username"));
             assertThat(actual.publicKey()).isEqualTo(credential.get("publicKey"));
             if (isAdmin) {

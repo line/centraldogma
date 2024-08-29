@@ -23,8 +23,8 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
 /**
  * A Revision-controlled filesystem-like repository which is named {@code "meta"}.
@@ -52,12 +52,12 @@ public interface MetaRepository extends Repository {
     /**
      * Returns a list of mirroring credentials.
      */
-    CompletableFuture<List<MirrorCredential>> credentials();
+    CompletableFuture<List<Credential>> credentials();
 
     /**
      * Returns a mirroring credential of the specified {@code id}.
      */
-    CompletableFuture<MirrorCredential> credential(String id);
+    CompletableFuture<Credential> credential(String id);
 
     /**
      * Create a push {@link Command} for the {@link MirrorDto}.
@@ -66,8 +66,8 @@ public interface MetaRepository extends Repository {
                                                                boolean update);
 
     /**
-     * Create a push {@link Command} for the {@link MirrorCredential}.
+     * Create a push {@link Command} for the {@link Credential}.
      */
-    CompletableFuture<Command<CommitResult>> createPushCommand(MirrorCredential credential, Author author,
+    CompletableFuture<Command<CommitResult>> createPushCommand(Credential credential, Author author,
                                                                boolean update);
 }

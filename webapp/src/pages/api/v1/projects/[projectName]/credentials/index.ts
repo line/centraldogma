@@ -26,7 +26,6 @@ export function newRandomCredential(index: number): CredentialDto {
       return {
         id: `password-id-${index}`,
         type: 'password',
-        hostnamePatterns: [`hostname-${index}.com`],
         username: `username-${index}`,
         password: `password-${index}`,
         enabled: true,
@@ -35,7 +34,6 @@ export function newRandomCredential(index: number): CredentialDto {
       return {
         id: `public-key-id-${index}`,
         type: 'public_key',
-        hostnamePatterns: [`hostname-${index}.com`],
         username: `username-${index}`,
         publicKey: `public-key-${index}`,
         privateKey: `private-key-${index}`,
@@ -46,7 +44,6 @@ export function newRandomCredential(index: number): CredentialDto {
       return {
         id: `access-token-id-${index}`,
         type: 'access_token',
-        hostnamePatterns: [`hostname-${index}.com`],
         accessToken: `access-token-${index}`,
         enabled: true,
       };
@@ -54,7 +51,6 @@ export function newRandomCredential(index: number): CredentialDto {
       return {
         id: `none-id-${index}`,
         type: 'none',
-        hostnamePatterns: [`hostname-${index}.com`],
         enabled: true,
       };
   }

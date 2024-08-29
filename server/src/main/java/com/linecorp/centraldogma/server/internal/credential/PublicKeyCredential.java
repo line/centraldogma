@@ -14,14 +14,13 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.mirror.credential;
+package com.linecorp.centraldogma.server.internal.credential;
 
 import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
-import static com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredentialUtil.requireNonEmpty;
+import static com.linecorp.centraldogma.server.internal.credential.MirrorCredentialUtil.requireNonEmpty;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
@@ -30,17 +29,16 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.credential.Credential;
 
-public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
+public final class PublicKeyCredential extends AbstractCredential {
 
-    private static final Logger logger = LoggerFactory.getLogger(PublicKeyMirrorCredential.class);
+    private static final Logger logger = LoggerFactory.getLogger(PublicKeyCredential.class);
 
     private static final Splitter NEWLINE_SPLITTER = Splitter.on(CharMatcher.anyOf("\n\r"))
                                                              .omitEmptyStrings()
@@ -55,17 +53,13 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
     private final String passphrase;
 
     @JsonCreator
-    public PublicKeyMirrorCredential(@JsonProperty("id") String id,
-                                     @JsonProperty("enabled") @Nullable Boolean enabled,
-                                     @JsonProperty("hostnamePatterns") @Nullable
-                                     @JsonDeserialize(contentAs = Pattern.class)
-                                     Iterable<Pattern> hostnamePatterns,
-                                     @JsonProperty("username") String username,
-                                     @JsonProperty("publicKey") String publicKey,
-                                     @JsonProperty("privateKey") String privateKey,
-                                     @JsonProperty("passphrase") @Nullable String passphrase) {
-
-        super(id, enabled, "public_key", hostnamePatterns);
+    public PublicKeyCredential(@JsonProperty("id") String id,
+                               @JsonProperty("enabled") @Nullable Boolean enabled,
+                               @JsonProperty("username") String username,
+                               @JsonProperty("publicKey") String publicKey,
+                               @JsonProperty("privateKey") String privateKey,
+                               @JsonProperty("passphrase") @Nullable String passphrase) {
+        super(id, enabled, "public_key");
 
         this.username = requireNonEmpty(username, "username");
         this.publicKey = requireNonEmpty(publicKey, "publicKey");
@@ -128,7 +122,7 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
             return true;
         }
 
-        if (!(o instanceof PublicKeyMirrorCredential)) {
+        if (!(o instanceof PublicKeyCredential)) {
             return false;
         }
 
@@ -136,7 +130,7 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
             return false;
         }
 
-        final PublicKeyMirrorCredential that = (PublicKeyMirrorCredential) o;
+        final PublicKeyCredential that = (PublicKeyCredential) o;
 
         return username.equals(that.username) &&
                Objects.equals(publicKey, that.publicKey) &&
@@ -163,8 +157,8 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
     }
 
     @Override
-    public MirrorCredential withoutSecret() {
-        return new PublicKeyMirrorCredential(id(), enabled(), hostnamePatterns(), username(), publicKey(),
-                                             "****", "****");
+    public Credential withoutSecret() {
+        return new PublicKeyCredential(id(), enabled(), username(), publicKey(),
+                                       "****", "****");
     }
 }

@@ -14,28 +14,22 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.mirror.credential;
-
-import java.util.regex.Pattern;
+package com.linecorp.centraldogma.server.internal.credential;
 
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.credential.Credential;
 
-public final class NoneMirrorCredential extends AbstractMirrorCredential {
+public final class NoneCredential extends AbstractCredential {
 
     @JsonCreator
-    public NoneMirrorCredential(@JsonProperty("id") String id,
-                                @JsonProperty("enabled") @Nullable Boolean enabled,
-                                @JsonProperty("hostnamePatterns") @Nullable
-                                @JsonDeserialize(contentAs = Pattern.class)
-                                Iterable<Pattern> hostnamePatterns) {
-        super(id, enabled, "none", hostnamePatterns);
+    public NoneCredential(@JsonProperty("id") String id,
+                          @JsonProperty("enabled") @Nullable Boolean enabled) {
+        super(id, enabled, "none");
     }
 
     @Override
@@ -44,7 +38,7 @@ public final class NoneMirrorCredential extends AbstractMirrorCredential {
     }
 
     @Override
-    public MirrorCredential withoutSecret() {
+    public Credential withoutSecret() {
         return this;
     }
 }

@@ -32,11 +32,11 @@ import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.User;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 
@@ -60,16 +60,16 @@ public class CredentialServiceV1 extends AbstractService {
      */
     @RequiresReadPermission(repository = Project.REPO_META)
     @Get("/projects/{projectName}/credentials")
-    public CompletableFuture<List<MirrorCredential>> listCredentials(User loginUser,
-                                                                     @Param String projectName) {
-        final CompletableFuture<List<MirrorCredential>> future = metaRepo(projectName).credentials();
+    public CompletableFuture<List<Credential>> listCredentials(User loginUser,
+                                                               @Param String projectName) {
+        final CompletableFuture<List<Credential>> future = metaRepo(projectName).credentials();
         if (loginUser.isAdmin()) {
             return future;
         }
         return future.thenApply(credentials -> {
             return credentials
                     .stream()
-                    .map(MirrorCredential::withoutSecret)
+                    .map(Credential::withoutSecret)
                     .collect(toImmutableList());
         });
     }
@@ -81,13 +81,13 @@ public class CredentialServiceV1 extends AbstractService {
      */
     @RequiresReadPermission(repository = Project.REPO_META)
     @Get("/projects/{projectName}/credentials/{id}")
-    public CompletableFuture<MirrorCredential> getCredentialById(User loginUser,
-                                                                 @Param String projectName, @Param String id) {
-        final CompletableFuture<MirrorCredential> future = metaRepo(projectName).credential(id);
+    public CompletableFuture<Credential> getCredentialById(User loginUser,
+                                                           @Param String projectName, @Param String id) {
+        final CompletableFuture<Credential> future = metaRepo(projectName).credential(id);
         if (loginUser.isAdmin()) {
             return future;
         }
-        return future.thenApply(MirrorCredential::withoutSecret);
+        return future.thenApply(Credential::withoutSecret);
     }
 
     /**
@@ -100,7 +100,7 @@ public class CredentialServiceV1 extends AbstractService {
     @ConsumesJson
     @StatusCode(201)
     public CompletableFuture<PushResultDto> createCredential(@Param String projectName,
-                                                             MirrorCredential credential, Author author) {
+                                                             Credential credential, Author author) {
         return createOrUpdate(projectName, credential, author, false);
     }
 
@@ -114,13 +114,13 @@ public class CredentialServiceV1 extends AbstractService {
     @ConsumesJson
     public CompletableFuture<PushResultDto> updateCredential(@Param String projectName,
                                                              @Param String id,
-                                                             MirrorCredential credential, Author author) {
+                                                             Credential credential, Author author) {
         checkArgument(id.equals(credential.id()), "The credential ID (%s) can't be updated", id);
         return createOrUpdate(projectName, credential, author, true);
     }
 
     private CompletableFuture<PushResultDto> createOrUpdate(String projectName,
-                                                            MirrorCredential credential,
+                                                            Credential credential,
                                                             Author author, boolean update) {
         return metaRepo(projectName).createPushCommand(credential, author, update).thenCompose(command -> {
             return executor().execute(command).thenApply(result -> {
