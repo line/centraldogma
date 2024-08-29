@@ -168,7 +168,6 @@ class RemovingHostnamePatternsServiceTest {
         mirrorCredential = Jackson.treeToValue(entry3.contentAsJson(), MirrorCredential.class);
         assertThat(mirrorCredential.hostnamePatterns()).isEmpty();
         assertThat(mirrorCredential.id()).isEqualTo("credential-3");
-
     }
 
     private static void assertCredential(Entry<?> entry, String credential) throws JsonParseException {
