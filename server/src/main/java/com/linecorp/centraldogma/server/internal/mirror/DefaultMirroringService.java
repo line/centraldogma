@@ -131,12 +131,11 @@ public final class DefaultMirroringService implements MirroringService {
                     }
                 }));
 
-        // Migrate the old mirrors.json to the new format if exists.
         try {
-            new MirroringMigrationService(projectManager, commandExecutor).migrate();
+            new RemovingHostnamePatternsService(projectManager, commandExecutor).start();
         } catch (Throwable e) {
-            logger.error("Git mirroring stopped due to an unexpected exception while migrating mirrors.json:",
-                         e);
+            logger.error("Git mirroring stopped due to an unexpected exception while removing" +
+                         "hostnamePatterns :", e);
             return;
         }
 
