@@ -17,7 +17,7 @@
 package com.linecorp.centraldogma.server.internal.credential;
 
 import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
-import static com.linecorp.centraldogma.server.internal.credential.MirrorCredentialUtil.requireNonEmpty;
+import static com.linecorp.centraldogma.server.internal.credential.CredentialUtil.requireNonEmpty;
 import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;

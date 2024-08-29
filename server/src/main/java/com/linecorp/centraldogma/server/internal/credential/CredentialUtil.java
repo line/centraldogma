@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.internal.credential;
 
 import static java.util.Objects.requireNonNull;
 
-final class MirrorCredentialUtil {
+final class CredentialUtil {
 
     static String requireNonEmpty(String value, String name) {
         requireNonNull(value, name);
@@ -37,5 +37,5 @@ final class MirrorCredentialUtil {
         return value;
     }
 
-    private MirrorCredentialUtil() {}
+    private CredentialUtil() {}
 }
