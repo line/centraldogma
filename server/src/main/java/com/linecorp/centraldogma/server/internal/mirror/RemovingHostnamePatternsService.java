@@ -68,7 +68,7 @@ final class RemovingHostnamePatternsService {
         }
 
         final Stopwatch stopwatch = Stopwatch.createStarted();
-        int numMigratedProjects = 0;
+        int numProjects = 0;
         try {
             for (Project project : projectManager.list().values()) {
                 if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
@@ -92,11 +92,13 @@ final class RemovingHostnamePatternsService {
                                                         ((ObjectNode) content).without("hostnamePatterns")));
                     }
 
-                    if (!changes.isEmpty()) {
-                        numMigratedProjects++;
-                        logger.info("hostnamePatterns in credentials are removed in the project: {}",
-                                    project.name());
+                    if (changes.isEmpty()) {
+                        continue;
                     }
+
+                    numProjects++;
+                    logger.info("hostnamePatterns in credentials are removed in the project: {}",
+                                project.name());
 
                     commandExecutor.execute(Command.forcePush(Command.push(
                                            Author.SYSTEM, project.name(), Project.REPO_META, Revision.HEAD,
@@ -109,7 +111,7 @@ final class RemovingHostnamePatternsService {
                 }
             }
             logger.info("hostnamePatterns are removed in {} projects. (took: {} ms.)",
-                        numMigratedProjects, stopwatch.elapsed().toMillis());
+                        numProjects, stopwatch.elapsed().toMillis());
         } finally {
             // Exit read-only mode.
             commandExecutor.execute(Command.updateServerStatus(ServerStatus.WRITABLE))
