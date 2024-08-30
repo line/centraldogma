@@ -86,7 +86,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
     private volatile boolean stop;
 
     ControlPlaneService(Project xdsProject, MeterRegistry meterRegistry) {
-        super(xdsProject);
+        super(xdsProject, "xds.control.plane.service.", meterRegistry);
         controlPlaneExecutor = ExecutorServiceMetrics.monitor(
                 meterRegistry,
                 Executors.newSingleThreadScheduledExecutor(
