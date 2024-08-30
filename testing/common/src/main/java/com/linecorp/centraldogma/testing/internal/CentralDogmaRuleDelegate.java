@@ -67,7 +67,7 @@ public class CentralDogmaRuleDelegate {
     @Nullable
     private volatile WebClient webClient;
     @Nullable
-    private volatile InetSocketAddress serverAddress;
+    private volatile ServerPort serverPort;
 
     /**
      * Creates a new instance.
@@ -127,14 +127,13 @@ public class CentralDogmaRuleDelegate {
         this.dogma = dogma0;
         return dogma0.start().thenRun(() -> {
             // A custom port may be added to the server during the configuration.
-            final ServerPort activePort = Iterables.getLast(dogma0.activePorts().values());
-            if (activePort == null) {
+            final ServerPort serverPort = Iterables.getLast(dogma0.activePorts().values());
+            if (serverPort == null) {
                 // Stopped already.
                 return;
             }
 
-            final InetSocketAddress serverAddress = activePort.localAddress();
-            this.serverAddress = serverAddress;
+            this.serverPort = serverPort;
 
             final ArmeriaCentralDogmaBuilder clientBuilder = new ArmeriaCentralDogmaBuilder();
             final LegacyCentralDogmaBuilder legacyClientBuilder = new LegacyCentralDogmaBuilder();
@@ -158,7 +157,8 @@ public class CentralDogmaRuleDelegate {
                 throw new IOError(e);
             }
 
-            final String uri = "h2c://127.0.0.1:" + serverAddress.getPort();
+            final String protocol = serverPort.hasHttp() ? "h2c" : "h2";
+            final String uri = protocol +  "://127.0.0.1:" + serverPort.localAddress().getPort();
             final WebClientBuilder webClientBuilder = WebClient.builder(uri);
             if (accessToken != null) {
                 webClientBuilder.auth(AuthToken.ofOAuth2(accessToken));
@@ -274,11 +274,11 @@ public class CentralDogmaRuleDelegate {
      * @throws IllegalStateException if Central Dogma did not start yet
      */
     public final InetSocketAddress serverAddress() {
-        final InetSocketAddress serverAddress = this.serverAddress;
-        if (serverAddress == null) {
+        final ServerPort serverPort = this.serverPort;
+        if (serverPort == null) {
             throw new IllegalStateException("Central Dogma not started");
         }
-        return serverAddress;
+        return serverPort.localAddress();
     }
 
     /**
@@ -316,11 +316,12 @@ public class CentralDogmaRuleDelegate {
     protected void scaffold(CentralDogma client) {}
 
     private void configureClientCommon(AbstractArmeriaCentralDogmaBuilder<?> builder) {
-        final InetSocketAddress serverAddress = this.serverAddress;
-        assert serverAddress != null;
+        final ServerPort serverPort = this.serverPort;
+        assert serverPort != null;
+        final InetSocketAddress serverAddress = serverPort.localAddress();
         builder.host(serverAddress.getHostString(), serverAddress.getPort());
 
-        if (useTls) {
+        if (useTls || (serverPort.protocols().size() == 1 && serverPort.hasHttps())) {
             builder.useTls();
             builder.clientFactory(ClientFactory.insecure());
         }
