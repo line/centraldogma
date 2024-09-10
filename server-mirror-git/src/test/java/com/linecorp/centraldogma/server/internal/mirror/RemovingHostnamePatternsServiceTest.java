@@ -16,9 +16,11 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static com.linecorp.centraldogma.server.internal.mirror.RemovingHostnamePatternsService.REMOVING_HOSTNAME_JOB_LOG;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Instant;
 import java.util.Map;
 
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -35,8 +37,10 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
 class RemovingHostnamePatternsServiceTest {
@@ -168,6 +172,13 @@ class RemovingHostnamePatternsServiceTest {
         mirrorCredential = Jackson.treeToValue(entry3.contentAsJson(), MirrorCredential.class);
         assertThat(mirrorCredential.hostnamePatterns()).isEmpty();
         assertThat(mirrorCredential.id()).isEqualTo("credential-3");
+
+        // Make sure that the log is written.
+        final Repository dogmaRepo = projectManager.get(InternalProjectInitializer.INTERNAL_PROJECT_DOGMA)
+                                                   .repos().get(Project.REPO_DOGMA);
+        final Map<String, Entry<?>> log = dogmaRepo.find(Revision.HEAD, REMOVING_HOSTNAME_JOB_LOG).join();
+        final JsonNode data = log.get(REMOVING_HOSTNAME_JOB_LOG).contentAsJson();
+        assertThat(Jackson.readValue(data.get("timestamp").asText(), Instant.class)).isBefore(Instant.now());
     }
 
     private static void assertCredential(Entry<?> entry, String credential) throws JsonParseException {
