@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.credential;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -28,7 +29,7 @@ import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
 import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
 
 /**
- * The authentication credentials which are required when accessing the Git repositories.
+ * A credential used to access external resources such as Git repositories or the Kubernetes control plane.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type")
 @JsonSubTypes({
@@ -38,6 +39,7 @@ import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
         @Type(value = AccessTokenCredential.class, name = "access_token")
 })
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public interface Credential {
 
     Credential FALLBACK = new NoneCredential("", true);
