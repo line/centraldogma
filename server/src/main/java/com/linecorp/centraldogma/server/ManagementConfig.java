@@ -65,7 +65,7 @@ public final class ManagementConfig {
                       protocol, SessionProtocol.httpAndHttpsValues());
         this.protocol = protocol;
         this.address = address;
-        checkArgument(port >= 0 && port <= 65535, "%s: %s (expected: 0-65535)", "management.port", port);
+        checkArgument(port >= 0 && port <= 65535, "management.port: %s (expected: 0-65535)", port);
         this.port = port;
         this.path = firstNonNull(path, DEFAULT_PATH);
     }
