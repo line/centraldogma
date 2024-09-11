@@ -138,8 +138,8 @@ final class RemovingHostnamePatternsService {
         final Change<JsonNode> change = Change.ofJsonUpsert(REMOVING_HOSTNAME_JOB_LOG,
                                                             Jackson.writeValueAsString(data));
         executeCommand(Command.push(Author.SYSTEM, InternalProjectInitializer.INTERNAL_PROJECT_DOGMA,
-                            Project.REPO_DOGMA, Revision.HEAD,
-                            "Removing hostnamePatterns from " + numProjects+ " projects has been done.", "",
-                            Markup.PLAINTEXT, change));
+                                    Project.REPO_DOGMA, Revision.HEAD,
+                                    "Removing hostnamePatterns from " + numProjects +
+                                    " projects has been done.", "", Markup.PLAINTEXT, change));
     }
 }
