@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -24,9 +24,11 @@ import javax.annotation.Nullable;
 
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.CentralDogmaConfigSpec;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.plugin.NoopPluginConfig;
 import com.linecorp.centraldogma.server.plugin.Plugin;
+import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 
@@ -36,7 +38,7 @@ public final class PurgeSchedulingServicePlugin implements Plugin {
     private volatile PurgeSchedulingService purgeSchedulingService;
 
     @Override
-    public PluginTarget target(CentralDogmaConfig config) {
+    public PluginTarget target(CentralDogmaConfigSpec config) {
         return PluginTarget.LEADER_ONLY;
     }
 
@@ -46,7 +48,7 @@ public final class PurgeSchedulingServicePlugin implements Plugin {
 
         PurgeSchedulingService purgeSchedulingService = this.purgeSchedulingService;
         if (purgeSchedulingService == null) {
-            final CentralDogmaConfig cfg = context.config();
+            final CentralDogmaConfigSpec cfg = context.config();
             purgeSchedulingService = new PurgeSchedulingService(context.projectManager(),
                                                                 context.purgeWorker(),
                                                                 cfg.maxRemovedRepositoryAgeMillis());
@@ -68,14 +70,13 @@ public final class PurgeSchedulingServicePlugin implements Plugin {
     }
 
     @Override
-    public boolean isEnabled(CentralDogmaConfig config) {
+    public boolean isEnabled(CentralDogmaConfigSpec config) {
         return requireNonNull(config, "config").maxRemovedRepositoryAgeMillis() > 0;
     }
 
     @Override
-    public Class<?> configType() {
-        // Return the plugin class itself because it does not have a configuration.
-        return getClass();
+    public Class<? extends PluginConfig> configType() {
+        return NoopPluginConfig.class;
     }
 
     @Nullable

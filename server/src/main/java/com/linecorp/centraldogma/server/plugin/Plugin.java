@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -17,7 +17,7 @@ package com.linecorp.centraldogma.server.plugin;
 
 import java.util.concurrent.CompletionStage;
 
-import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.CentralDogmaConfigSpec;
 
 /**
  * An interface which defines callbacks for a plug-in. If you want to initialize a {@link Plugin} by configuring
@@ -27,7 +27,7 @@ public interface Plugin {
     /**
      * Returns the {@link PluginTarget} which specifies the replicas that this {@link Plugin} is applied to.
      */
-    PluginTarget target(CentralDogmaConfig config);
+    PluginTarget target(CentralDogmaConfigSpec config);
 
     /**
      * Invoked when this {@link Plugin} is supposed to be started.
@@ -46,8 +46,8 @@ public interface Plugin {
     /**
      * Returns {@code true} if this {@link Plugin} is enabled.
      */
-    default boolean isEnabled(CentralDogmaConfig config) {
-        final PluginConfig pluginConfig = config.pluginConfigMap().get(configType());
+    default boolean isEnabled(CentralDogmaConfigSpec config) {
+        final PluginConfig pluginConfig = config.pluginConfig(configType());
         if (pluginConfig == null) {
             // Enabled if not found.
             return true;
@@ -58,5 +58,5 @@ public interface Plugin {
     /**
      * Returns the type of the configuration for this {@link Plugin}.
      */
-    Class<?> configType();
+    Class<? extends PluginConfig> configType();
 }

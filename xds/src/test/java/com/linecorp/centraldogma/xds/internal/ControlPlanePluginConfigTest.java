@@ -50,7 +50,7 @@ class ControlPlanePluginConfigTest {
                                         "    }" +
                                         "  ]\n" +
                                         '}');
-        final PluginConfig pluginConfig = config.pluginConfigMap().get(ControlPlanePluginConfig.class);
+        final PluginConfig pluginConfig = config.pluginConfig(ControlPlanePluginConfig.class);
         assertThat(pluginConfig).isNotNull();
         assertThat(pluginConfig.enabled()).isFalse();
     }

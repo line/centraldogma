@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -25,17 +25,19 @@ import javax.annotation.Nullable;
 
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.server.CentralDogmaConfig;
-import com.linecorp.centraldogma.server.ZoneConfig;
+import com.linecorp.centraldogma.server.CentralDogmaConfigSpec;
+import com.linecorp.centraldogma.server.ZoneConfigSpec;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfigSpec;
 import com.linecorp.centraldogma.server.plugin.Plugin;
+import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 
 public final class DefaultMirroringServicePlugin implements Plugin {
 
     @Nullable
-    public static MirroringServicePluginConfig mirrorConfig(CentralDogmaConfig config) {
+    public static MirroringServicePluginConfig mirrorConfig(CentralDogmaConfigSpec config) {
         return (MirroringServicePluginConfig) config.pluginConfigMap().get(MirroringServicePluginConfig.class);
     }
 
@@ -46,7 +48,7 @@ public final class DefaultMirroringServicePlugin implements Plugin {
     private PluginTarget pluginTarget;
 
     @Override
-    public PluginTarget target(CentralDogmaConfig config) {
+    public PluginTarget target(CentralDogmaConfigSpec config) {
         requireNonNull(config, "config");
         if (pluginTarget != null) {
             return pluginTarget;
@@ -67,12 +69,12 @@ public final class DefaultMirroringServicePlugin implements Plugin {
 
         MirrorSchedulingService mirroringService = this.mirroringService;
         if (mirroringService == null) {
-            final CentralDogmaConfig cfg = context.config();
+            final CentralDogmaConfigSpec cfg = context.config();
             final MirroringServicePluginConfig mirroringServicePluginConfig = mirrorConfig(cfg);
             final int numThreads;
             final int maxNumFilesPerMirror;
             final long maxNumBytesPerMirror;
-            final ZoneConfig zoneConfig;
+            final ZoneConfigSpec zoneConfig;
 
             if (mirroringServicePluginConfig != null) {
                 numThreads = mirroringServicePluginConfig.numMirroringThreads();
@@ -112,8 +114,8 @@ public final class DefaultMirroringServicePlugin implements Plugin {
     }
 
     @Override
-    public Class<?> configType() {
-        return MirroringServicePluginConfig.class;
+    public Class<? extends PluginConfig> configType() {
+        return MirroringServicePluginConfigSpec.class;
     }
 
     @Nullable

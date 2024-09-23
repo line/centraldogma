@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -34,7 +34,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.TooManyRequestsException;
-import com.linecorp.centraldogma.server.QuotaConfig;
+import com.linecorp.centraldogma.server.QuotaConfigSpec;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
@@ -81,7 +81,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                                      Executor repositoryWorker,
                                      ServerStatusManager serverStatusManager,
                                      @Nullable SessionManager sessionManager,
-                                     @Nullable QuotaConfig writeQuota,
+                                     @Nullable QuotaConfigSpec writeQuota,
                                      @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                      @Nullable Consumer<CommandExecutor> onReleaseLeadership,
                                      @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
@@ -341,7 +341,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     @Override
-    public final void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfig writeQuota) {
+    public final void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfigSpec writeQuota) {
         if (!writeQuotaEnabled()) {
             // This method should be called only when a write quota is enabled.
             return;

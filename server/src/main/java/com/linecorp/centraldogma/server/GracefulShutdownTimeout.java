@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -23,7 +23,7 @@ import com.google.common.base.MoreObjects;
 /**
  * Graceful shutdown timeout.
  */
-public final class GracefulShutdownTimeout {
+public final class GracefulShutdownTimeout implements GracefulShutdownTimeoutSpec {
     private final long quietPeriodMillis;
     private final long timeoutMillis;
 
@@ -47,18 +47,14 @@ public final class GracefulShutdownTimeout {
         this.timeoutMillis = timeoutMillis;
     }
 
-    /**
-     * Returns the quiet period of graceful shutdown process, in milliseconds.
-     */
     @JsonProperty("quietPeriodMillis")
+    @Override
     public long quietPeriodMillis() {
         return quietPeriodMillis;
     }
 
-    /**
-     * Returns the timeout of graceful shutdown process, in milliseconds.
-     */
     @JsonProperty("timeoutMillis")
+    @Override
     public long timeoutMillis() {
         return timeoutMillis;
     }

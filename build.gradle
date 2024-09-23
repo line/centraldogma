@@ -13,6 +13,9 @@ buildscript {
 plugins {
     alias libs.plugins.nexus.publish
     alias libs.plugins.osdetector apply false
+    alias libs.plugins.kotlin apply false
+    alias libs.plugins.ktlint apply false
+    alias libs.plugins.jib apply false
 }
 
 allprojects {
@@ -78,28 +81,11 @@ configure(projectsWithFlags('java')) {
         compileOnly libs.jetty.alpn.api
 
         // Logging
-        if (project.name.startsWith("java-spring-boot3")) {
-            implementation libs.slf4j2.api
-            testImplementation libs.slf4j2.jul.to.slf4j
-            testImplementation libs.slf4j2.jcl.over.slf4j
-            testImplementation libs.slf4j2.log4j.over.slf4j
-            testRuntimeOnly libs.logback15
-            configurations.configureEach {
-                resolutionStrategy {
-                    force libs.slf4j2.api.get()
-                    force libs.slf4j2.jul.to.slf4j.get()
-                    force libs.slf4j2.jcl.over.slf4j.get()
-                    force libs.slf4j2.log4j.over.slf4j.get()
-                    force libs.logback15.get()
-                }
-            }
-        } else {
-            implementation libs.slf4j1.api
-            testImplementation libs.slf4j1.jul.to.slf4j
-            testImplementation libs.slf4j1.jcl.over.slf4j
-            testImplementation libs.slf4j1.log4j.over.slf4j
-            testRuntimeOnly libs.logback12
-        }
+        implementation libs.slf4j1.api
+        testImplementation libs.slf4j1.jul.to.slf4j
+        testImplementation libs.slf4j1.jcl.over.slf4j
+        testImplementation libs.slf4j1.log4j.over.slf4j
+        testRuntimeOnly libs.logback12
 
         // Test-time dependencies
         testImplementation libs.json.unit.fluent
@@ -115,12 +101,9 @@ configure(projectsWithFlags('java')) {
         testRuntimeOnly libs.junit5.vintage.engine
     }
 
-    // Target Java 8 except for spring-boot3
-    if (!project.name.startsWith("java-spring-boot3")) {
-        tasks.withType(JavaCompile) {
-            if (JavaVersion.current() >= JavaVersion.VERSION_1_9) {
-                options.release = 8
-            }
+    tasks.withType(JavaCompile) {
+        if (JavaVersion.current() >= JavaVersion.VERSION_1_9) {
+            options.release = 8
         }
     }
 
@@ -213,6 +196,30 @@ class TestsReportTask extends DefaultTask {
                     lines.each { line -> writer.println("  $line") }
                     writer.println("  </pre></details>\n")
                 }
+            }
+        }
+    }
+}
+
+configure(projectsWithFlags('spring-boot3')) {
+
+    tasks.withType(JavaCompile) {
+        options.release = 17
+    }
+
+    dependencies {
+        implementation libs.slf4j2.api
+        testImplementation libs.slf4j2.jul.to.slf4j
+        testImplementation libs.slf4j2.jcl.over.slf4j
+        testImplementation libs.slf4j2.log4j.over.slf4j
+        testRuntimeOnly libs.logback15
+        configurations.configureEach {
+            resolutionStrategy {
+                force libs.slf4j2.api.get()
+                force libs.slf4j2.jul.to.slf4j.get()
+                force libs.slf4j2.jcl.over.slf4j.get()
+                force libs.slf4j2.log4j.over.slf4j.get()
+                force libs.logback15.get()
             }
         }
     }

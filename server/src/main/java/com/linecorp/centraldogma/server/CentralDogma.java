@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -117,7 +117,7 @@ import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
-import com.linecorp.centraldogma.server.auth.AuthConfig;
+import com.linecorp.centraldogma.server.auth.AuthConfigSpec;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
 import com.linecorp.centraldogma.server.auth.SessionManager;
@@ -221,6 +221,14 @@ public class CentralDogma implements AutoCloseable {
         return new CentralDogma(CentralDogmaConfig.load(configFile), Flags.meterRegistry(), ImmutableList.of());
     }
 
+    /**
+     * Creates a new instance from the given configuration instance.
+     */
+    public static CentralDogma forConfig(CentralDogmaConfigSpec config, MeterRegistry meterRegistry) {
+        requireNonNull(config, "config");
+        return new CentralDogma(config, meterRegistry, ImmutableList.of());
+    }
+
     private final SettableHealthChecker serverHealth = new SettableHealthChecker(false);
     private final CentralDogmaStartStop startStop;
 
@@ -234,7 +242,7 @@ public class CentralDogma implements AutoCloseable {
     @Nullable
     private final PluginGroup pluginsForZoneLeaderOnly;
 
-    private final CentralDogmaConfig cfg;
+    private final CentralDogmaConfigSpec cfg;
     @Nullable
     private volatile ProjectManager pm;
     @Nullable
@@ -257,7 +265,46 @@ public class CentralDogma implements AutoCloseable {
     @Nullable
     private volatile MirrorRunner mirrorRunner;
 
-    CentralDogma(CentralDogmaConfig cfg, MeterRegistry meterRegistry, List<Plugin> plugins) {
+    /**
+     * A functional interface that creates an instance of {@link AuthProvider}.
+     */
+    @FunctionalInterface
+    public interface AuthProviderCreator {
+
+        /**
+         * Creates an instance of AuthProvider.
+         *
+         * @param commandExecutor the command executor
+         * @param sessionManager  the session manager, may be null
+         * @param mds            the metadata service
+         * @return an instance of AuthProvider, may be null
+         */
+        @Nullable
+        AuthProvider create(CommandExecutor commandExecutor,
+                            @Nullable SessionManager sessionManager,
+                            MetadataService mds);
+    }
+
+    /**
+     * A functional interface for creating an {@link Authorizer} for HTTP requests.
+     */
+    @FunctionalInterface
+    public interface TokenAuthorizerCreator {
+        /**
+         * Creates an {@link Authorizer} instance based on the provided
+         * {@link MetadataService} and {@link SessionManager}.
+         *
+         * @param mds the metadata service used for authorizing requests
+         * @param sessionManager the session manager for managing user sessions
+         * @return an {@link Authorizer} for HTTP requests
+         */
+        Authorizer<HttpRequest> create(MetadataService mds, SessionManager sessionManager);
+    }
+
+    private AuthProviderCreator authProviderCreator;
+    private TokenAuthorizerCreator tokenAuthorizerCreator;
+
+    CentralDogma(CentralDogmaConfigSpec cfg, MeterRegistry meterRegistry, List<Plugin> plugins) {
         this.cfg = requireNonNull(cfg, "cfg");
         pluginGroups = PluginGroup.loadPlugins(CentralDogma.class.getClassLoader(), cfg, plugins);
         pluginsForAllReplicas = pluginGroups.get(PluginTarget.ALL_REPLICAS);
@@ -269,6 +316,37 @@ public class CentralDogma implements AutoCloseable {
         }
         startStop = new CentralDogmaStartStop(pluginsForAllReplicas);
         this.meterRegistry = meterRegistry;
+
+        authProviderCreator = this::createAuthProvider;
+        tokenAuthorizerCreator = (mds, sessionManager) -> new ApplicationTokenAuthorizer(mds::findTokenBySecret)
+                .orElse(new SessionTokenAuthorizer(sessionManager,
+                                                   cfg.authConfig().systemAdministrators()));
+    }
+
+    /**
+     * Sets the authentication provider creator.
+     *
+     * @param authProviderCreator the authentication provider creator, or null to use the default creator
+     * @return the current instance of CentralDogma
+     */
+    public CentralDogma authProviderCreator(@Nullable AuthProviderCreator authProviderCreator) {
+        if (authProviderCreator == null) {
+            this.authProviderCreator = this::createAuthProvider;
+        } else {
+            this.authProviderCreator = authProviderCreator;
+        }
+        return this;
+    }
+
+    /**
+     * Sets the TokenAuthorizerCreator for this CentralDogma instance.
+     *
+     * @param tokenAuthorizerCreator the TokenAuthorizerCreator to be set
+     * @return the current CentralDogma instance for method chaining
+     */
+    public CentralDogma tokenAuthorizerCreator(TokenAuthorizerCreator tokenAuthorizerCreator) {
+        this.tokenAuthorizerCreator = tokenAuthorizerCreator;
+        return this;
     }
 
     /**
@@ -276,7 +354,7 @@ public class CentralDogma implements AutoCloseable {
      *
      * @return the {@link CentralDogmaConfig} instance which is used for configuring this {@link CentralDogma}.
      */
-    public CentralDogmaConfig config() {
+    public CentralDogmaConfigSpec config() {
         return cfg;
     }
 
@@ -364,7 +442,7 @@ public class CentralDogma implements AutoCloseable {
     public CompletableFuture<Void> stop() {
         serverHealth.setHealthy(false);
 
-        final Optional<GracefulShutdownTimeout> gracefulTimeoutOpt = cfg.gracefulShutdownTimeout();
+        final Optional<GracefulShutdownTimeoutSpec> gracefulTimeoutOpt = cfg.gracefulShutdownTimeout();
         if (gracefulTimeoutOpt.isPresent()) {
             try {
                 // Sleep 1 second so that clients have some time to redirect traffic according
@@ -580,7 +658,7 @@ public class CentralDogma implements AutoCloseable {
 
     @Nullable
     private SessionManager initializeSessionManager() throws Exception {
-        final AuthConfig authCfg = cfg.authConfig();
+        final AuthConfigSpec authCfg = cfg.authConfig();
         if (authCfg == null) {
             return null;
         }
@@ -620,7 +698,7 @@ public class CentralDogma implements AutoCloseable {
 
         if (needsTls) {
             try {
-                final TlsConfig tlsConfig = cfg.tls();
+                final TlsConfigSpec tlsConfig = cfg.tls();
                 if (tlsConfig != null) {
                     try (InputStream keyCertChainInputStream = tlsConfig.keyCertChainInputStream();
                          InputStream keyInputStream = tlsConfig.keyInputStream()) {
@@ -650,7 +728,7 @@ public class CentralDogma implements AutoCloseable {
 
         final MetadataService mds = new MetadataService(pm, executor);
         final WatchService watchService = new WatchService(meterRegistry);
-        final AuthProvider authProvider = createAuthProvider(executor, sessionManager, mds);
+        final AuthProvider authProvider = authProviderCreator.create(executor, sessionManager, mds);
         final ProjectApiManager projectApiManager = new ProjectApiManager(pm, executor, mds);
 
         configureThriftService(sb, projectApiManager, executor, watchService, mds);
@@ -732,7 +810,7 @@ public class CentralDogma implements AutoCloseable {
     @Nullable
     private AuthProvider createAuthProvider(
             CommandExecutor commandExecutor, @Nullable SessionManager sessionManager, MetadataService mds) {
-        final AuthConfig authCfg = cfg.authConfig();
+        final AuthConfigSpec authCfg = cfg.authConfig();
         if (authCfg == null) {
             return null;
         }
@@ -759,7 +837,7 @@ public class CentralDogma implements AutoCloseable {
             @Nullable Consumer<CommandExecutor> onReleaseLeadership,
             @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
             @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
-        final ZooKeeperReplicationConfig zkCfg = (ZooKeeperReplicationConfig) cfg.replicationConfig();
+        final ZooKeeperReplicationConfigSpec zkCfg = (ZooKeeperReplicationConfigSpec) cfg.replicationConfig();
 
         // Delete the old UUID replica ID which is not used anymore.
         final File dataDir = cfg.dataDir();
@@ -810,13 +888,10 @@ public class CentralDogma implements AutoCloseable {
         if (authProvider == null) {
             return AuthService.newDecorator(new CsrfTokenAuthorizer());
         }
-        final AuthConfig authCfg = cfg.authConfig();
+        final AuthConfigSpec authCfg = cfg.authConfig();
         assert authCfg != null : "authCfg";
         assert sessionManager != null : "sessionManager";
-        final Authorizer<HttpRequest> tokenAuthorizer =
-                new ApplicationTokenAuthorizer(mds::findTokenBySecret)
-                        .orElse(new SessionTokenAuthorizer(sessionManager,
-                                                           authCfg.systemAdministrators()));
+        final Authorizer<HttpRequest> tokenAuthorizer = tokenAuthorizerCreator.create(mds, sessionManager);
         return AuthService.builder()
                           .add(tokenAuthorizer)
                           .onFailure(new CentralDogmaAuthFailureHandler())
@@ -895,7 +970,7 @@ public class CentralDogma implements AutoCloseable {
                 }
             });
 
-            final AuthConfig authCfg = cfg.authConfig();
+            final AuthConfigSpec authCfg = cfg.authConfig();
             assert authCfg != null : "authCfg";
             apiV1ServiceBuilder
                     .annotatedService(new MetadataApiService(executor, mds, authCfg.loginNameNormalizer()))
@@ -955,7 +1030,7 @@ public class CentralDogma implements AutoCloseable {
         sb.errorHandler(new HttpApiExceptionHandler());
     }
 
-    private static void configCors(ServerBuilder sb, @Nullable CorsConfig corsConfig) {
+    private static void configCors(ServerBuilder sb, @Nullable CorsConfigSpec corsConfig) {
         if (corsConfig == null) {
             return;
         }
@@ -968,7 +1043,7 @@ public class CentralDogma implements AutoCloseable {
                                 .newDecorator());
     }
 
-    private static void configManagement(ServerBuilder sb, @Nullable ManagementConfig managementConfig) {
+    private static void configManagement(ServerBuilder sb, @Nullable ManagementConfigSpec managementConfig) {
         if (managementConfig == null) {
             return;
         }

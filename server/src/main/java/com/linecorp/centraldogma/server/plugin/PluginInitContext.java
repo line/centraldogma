@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -24,7 +24,7 @@ import java.util.function.Function;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.auth.AuthService;
-import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.CentralDogmaConfigSpec;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -42,7 +42,7 @@ public final class PluginInitContext extends PluginContext {
     /**
      * Creates a new instance.
      */
-    public PluginInitContext(CentralDogmaConfig config,
+    public PluginInitContext(CentralDogmaConfigSpec config,
                              ProjectManager projectManager,
                              CommandExecutor commandExecutor,
                              MeterRegistry meterRegistry,
