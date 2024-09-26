@@ -96,9 +96,9 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
 
     void start(PluginInitContext pluginInitContext) {
         init();
+        cache.setSnapshot(DEFAULT_GROUP, centralDogmaXdsResources.snapshot());
         final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
-        final V3DiscoveryServer server = new V3DiscoveryServer(new LoggingDiscoveryServerCallbacks(),
-                                                               cache);
+        final V3DiscoveryServer server = new V3DiscoveryServer(new LoggingDiscoveryServerCallbacks(), cache);
         final GrpcService grpcService = GrpcService.builder()
                                                    .addService(server.getClusterDiscoveryServiceImpl())
                                                    .addService(server.getEndpointDiscoveryServiceImpl())

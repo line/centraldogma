@@ -803,11 +803,11 @@ public class CentralDogma implements AutoCloseable {
         apiV1ServiceBuilder
                 .annotatedService(new AdministrativeService(executor, statusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
-                .annotatedService(new RepositoryServiceV1(executor, mds));
+                .annotatedService(new RepositoryServiceV1(executor, mds))
+                .annotatedService(new CredentialServiceV1(projectApiManager, executor));
 
         if (GIT_MIRROR_ENABLED) {
-            apiV1ServiceBuilder.annotatedService(new MirroringServiceV1(projectApiManager, executor))
-                               .annotatedService(new CredentialServiceV1(projectApiManager, executor));
+            apiV1ServiceBuilder.annotatedService(new MirroringServiceV1(projectApiManager, executor));
         }
 
         apiV1ServiceBuilder.annotatedService()
