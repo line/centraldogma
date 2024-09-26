@@ -80,7 +80,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
 
     XdsKubernetesEndpointFetchingService(Project xdsProject, CommandExecutor commandExecutor,
                                          MeterRegistry meterRegistry) {
-        super(xdsProject);
+        super(xdsProject, "xds.k8s.fetching.service.", meterRegistry);
         this.commandExecutor = commandExecutor;
         executorService = ExecutorServiceMetrics.monitor(
                 meterRegistry, Executors.newSingleThreadScheduledExecutor(
@@ -124,12 +124,13 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             return;
         }
         final ServiceEndpointWatcher endpointWatcher = watcherBuilder.build();
+        final String watcherName = endpointWatcher.getName();
+        logger.info("Creating a service endpoint watcher: {}", watcherName);
         final CompletableFuture<KubernetesEndpointGroup> future =
                 createKubernetesEndpointGroup(endpointWatcher, xdsProject().metaRepo(), executorService);
         final Map<String, KubernetesEndpointsUpdater> updaters =
                 kubernetesEndpointsUpdaters.computeIfAbsent(groupName, unused -> new HashMap<>());
 
-        final String watcherName = endpointWatcher.getName();
         final KubernetesEndpointsUpdater oldUpdater = updaters.get(watcherName);
         if (oldUpdater != null) {
             oldUpdater.close();
@@ -167,9 +168,9 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
     @Override
     protected void onFileRemoved(String groupName, String path) {
         final Map<String, KubernetesEndpointsUpdater> updaters = kubernetesEndpointsUpdaters.get(groupName);
+        final String watcherName =
+                "groups/" + groupName + path.substring(0, path.length() - 5); // Remove .json
         if (updaters != null) {
-            final String watcherName =
-                    "groups/" + groupName + path.substring(0, path.length() - 5); // Remove .json
             // e.g. groups/foo/k8s/watchers/foo-cluster
             final KubernetesEndpointsUpdater updater = updaters.get(watcherName);
             if (updater != null) {
@@ -179,6 +180,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
 
         // Remove corresponding endpoints.
         final String endpointPath = WATCHERS_REPLCACE_PATTERN.matcher(path).replaceFirst("/endpoints/");
+        logger.info("Removing {} from {}. watcherName: {}", endpointPath, groupName, watcherName);
         commandExecutor.execute(
                 Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, groupName, Revision.HEAD,
                              "Remove " + endpointPath, "",
@@ -252,6 +254,8 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             if (endpoints.isEmpty()) {
                 return;
             }
+            logger.debug("Pushing {} endpoints to {}. clusterName: {}",
+                         endpoints.size(), groupName, clusterName);
 
             final LocalityLbEndpoints.Builder localityLbEndpointsBuilder = LocalityLbEndpoints.newBuilder();
             endpoints.forEach(endpoint -> {

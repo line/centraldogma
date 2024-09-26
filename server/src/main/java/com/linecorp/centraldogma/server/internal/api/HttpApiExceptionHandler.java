@@ -127,14 +127,17 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
         final BiFunction<ServiceRequestContext, Throwable, HttpResponse> func =
                 exceptionHandlers.get(peeledCause.getClass());
         if (func != null) {
+            ctx.setShouldReportUnloggedExceptions(false);
             return func.apply(ctx, peeledCause);
         }
 
         if (peeledCause instanceof IllegalArgumentException) {
+            ctx.setShouldReportUnloggedExceptions(false);
             return newResponse(ctx, HttpStatus.BAD_REQUEST, peeledCause);
         }
 
         if (peeledCause instanceof RequestAlreadyTimedOutException) {
+            ctx.setShouldReportUnloggedExceptions(false);
             return newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, peeledCause);
         }
 
