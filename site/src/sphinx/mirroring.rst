@@ -106,11 +106,9 @@ Setting up a mirroring task
   - Fragment represents a branch name. e.g. ``#release`` will mirror the branch ``release``. If unspecified,
     the repository's default branch is mirrored.
 
-- ``credentialId`` (string, optional)
+- ``credentialId`` (string)
 
   - the ID of the credential to use for authentication, as defined in ``/credentials/{credential-id}.json``.
-    If unspecified, the credential whose ``hostnamePattern`` is matched by the host name part of the
-    ``remoteUri`` value will be selected automatically.
 
 - ``gitignore`` (string or array of strings, optional)
 
@@ -131,10 +129,7 @@ the Git repositories defined in ``/mirrors/{mirror-id}.json``:
 
    {
      "id": "no_auth",
-     "type": "none",
-     "hostnamePatterns": [
-       "^git\.insecure\.com$"
-     ]
+     "type": "none"
    }
 
 * Password-based authentication
@@ -144,9 +139,6 @@ the Git repositories defined in ``/mirrors/{mirror-id}.json``:
    {
      "id": "my_password",
      "type": "password",
-     "hostnamePatterns": [
-       "^git\.password-protected\.com$"
-     ],
      "username": "alice",
      "password": "secret!"
    }
@@ -158,9 +150,6 @@ the Git repositories defined in ``/mirrors/{mirror-id}.json``:
    {
      "id": "my_private_key",
      "type": "public_key",
-     "hostnamePatterns": [
-       "^.*\.secure\.com$"
-     ],
      "username": "git",
      "publicKey": "ssh-ed25519 ... user@host",
      "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----\n",
@@ -187,12 +176,6 @@ the Git repositories defined in ``/mirrors/{mirror-id}.json``:
 - ``type`` (string)
 
   - the type of authentication mechanism: ``none``, ``password``, ``public_key`` or ``access_token``.
-
-- ``hostnamePatterns`` (array of strings, optional)
-
-  - the regular expression that matches a host name. The credential whose hostname pattern matches first will
-    be used when accessing a host. You may want to omit this field if you do not want the credential to be
-    selected automatically, i.e. a mirror has to specify the ``credentialId`` field.
 
 - ``username`` (string)
 

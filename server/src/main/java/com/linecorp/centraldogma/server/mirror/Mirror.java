@@ -25,6 +25,7 @@ import com.cronutils.model.Cron;
 
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -57,7 +58,7 @@ public interface Mirror {
     /**
      * Returns the authentication credentials which are required when accessing the Git repositories.
      */
-    MirrorCredential credential();
+    Credential credential();
 
     /**
      * Returns the Central Dogma repository where is supposed to keep the mirrored files.

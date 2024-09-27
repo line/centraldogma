@@ -38,8 +38,8 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -53,7 +53,7 @@ public abstract class AbstractMirror implements Mirror {
     private final boolean enabled;
     private final Cron schedule;
     private final MirrorDirection direction;
-    private final MirrorCredential credential;
+    private final Credential credential;
     private final Repository localRepo;
     private final String localPath;
     private final URI remoteRepoUri;
@@ -65,7 +65,7 @@ public abstract class AbstractMirror implements Mirror {
     private final long jitterMillis;
 
     protected AbstractMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
-                             MirrorCredential credential, Repository localRepo, String localPath,
+                             Credential credential, Repository localRepo, String localPath,
                              URI remoteRepoUri, String remotePath, String remoteBranch,
                              @Nullable String gitignore) {
         this.id = requireNonNull(id, "id");
@@ -124,7 +124,7 @@ public abstract class AbstractMirror implements Mirror {
     }
 
     @Override
-    public final MirrorCredential credential() {
+    public final Credential credential() {
         return credential;
     }
 

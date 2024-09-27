@@ -14,54 +14,32 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.mirror.credential;
+package com.linecorp.centraldogma.server.internal.credential;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.linecorp.centraldogma.internal.Util.requireNonNullElements;
 import static java.util.Objects.requireNonNull;
-
-import java.net.URI;
-import java.util.Set;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.credential.Credential;
 
-public abstract class AbstractMirrorCredential implements MirrorCredential {
+abstract class AbstractCredential implements Credential {
 
     private final String id;
     private final boolean enabled;
     // TODO(ikhoon): Consider changing 'type' to an enum.
     private final String type;
-    private final Set<Pattern> hostnamePatterns;
-    private final Set<String> hostnamePatternStrings;
 
-    AbstractMirrorCredential(String id, @Nullable Boolean enabled, String type,
-                             @Nullable Iterable<Pattern> hostnamePatterns) {
+    AbstractCredential(String id, @Nullable Boolean enabled, String type) {
         this.id = requireNonNull(id, "id");
         this.enabled = firstNonNull(enabled, true);
         // JsonTypeInfo is ignored when serializing collections.
         // As a workaround, manually set the type hint to serialize.
         this.type = requireNonNull(type, "type");
-        this.hostnamePatterns = validateHostnamePatterns(hostnamePatterns);
-        hostnamePatternStrings = this.hostnamePatterns.stream().map(Pattern::pattern)
-                                                      .collect(Collectors.toSet());
-    }
-
-    private static Set<Pattern> validateHostnamePatterns(@Nullable Iterable<Pattern> hostnamePatterns) {
-        if (hostnamePatterns == null || Iterables.isEmpty(hostnamePatterns)) {
-            return ImmutableSet.of();
-        }
-        return ImmutableSet.copyOf(
-                requireNonNullElements(hostnamePatterns, "hostnamePatterns"));
     }
 
     @Override
@@ -75,21 +53,8 @@ public abstract class AbstractMirrorCredential implements MirrorCredential {
     }
 
     @Override
-    public final Set<Pattern> hostnamePatterns() {
-        return hostnamePatterns;
-    }
-
-    @Override
     public final boolean enabled() {
         return enabled;
-    }
-
-    @Override
-    public final boolean matches(URI uri) {
-        requireNonNull(uri, "uri");
-
-        final String host = uri.getHost();
-        return host != null && hostnamePatterns.stream().anyMatch(p -> p.matcher(host).matches());
     }
 
     @Override
@@ -102,25 +67,21 @@ public abstract class AbstractMirrorCredential implements MirrorCredential {
             return false;
         }
 
-        final AbstractMirrorCredential that = (AbstractMirrorCredential) o;
-        return hostnamePatternStrings.equals(that.hostnamePatternStrings);
+        final AbstractCredential that = (AbstractCredential) o;
+        return enabled == that.enabled &&
+               id.equals(that.id);
     }
 
     @Override
     public int hashCode() {
-        return hostnamePatternStrings.hashCode();
+        return id.hashCode() * 31 + Boolean.hashCode(enabled);
     }
 
     @Override
     public final String toString() {
         final ToStringHelper helper = MoreObjects.toStringHelper(this);
-        if (id != null) {
-            helper.add("id", id);
-        }
-        if (!hostnamePatterns.isEmpty()) {
-            helper.add("hostnamePatterns", hostnamePatterns);
-        }
-
+        helper.add("id", id);
+        helper.add("enabled", enabled);
         addProperties(helper);
         return helper.toString();
     }

@@ -23,10 +23,7 @@ import {
   FormLabel,
   Heading,
   HStack,
-  IconButton,
   Input,
-  InputGroup,
-  InputLeftElement,
   Radio,
   RadioGroup,
   Spacer,
@@ -36,12 +33,10 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { HiOutlineIdentification, HiOutlineUser } from 'react-icons/hi';
-import { VscRegex } from 'react-icons/vsc';
-import { AddIcon } from '@chakra-ui/icons';
-import { MdDelete, MdPublic } from 'react-icons/md';
+import { MdPublic } from 'react-icons/md';
 import { GoKey, GoLock } from 'react-icons/go';
 import { RiGitRepositoryPrivateLine } from 'react-icons/ri';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import React, { useState } from 'react';
 import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
 import FieldErrorMessage from 'dogma/common/components/form/FieldErrorMessage';
@@ -76,20 +71,8 @@ const CredentialForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse
     handleSubmit,
     reset,
     formState: { errors },
-    control,
   } = useForm<CredentialDto>({
-    defaultValues: {
-      hostnamePatterns: defaultValue.hostnamePatterns,
-    },
-  });
-  const {
-    fields: hostnamePatterns,
-    append,
-    remove,
-  } = useFieldArray({
-    control,
-    // @ts-expect-error The type of the field array is not correctly inferred.
-    name: 'hostnamePatterns',
+    defaultValues: {},
   });
 
   /**
@@ -288,54 +271,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
               <FieldErrorMessage error={errors.accessToken} fieldName="access token" />
             </FormControl>
           )}
-
-          {credentialType === 'none' && <>{/* No additional information is required */}</>}
-          <Spacer />
-
-          <FormControl>
-            <FormLabel>
-              <LabelledIcon icon={VscRegex} text="Hostname patterns" />
-              <IconButton
-                aria-label="Add"
-                color="teal.500"
-                variant="ghost"
-                icon={<AddIcon />}
-                ml={1}
-                mb={0.5}
-                size={'sm'}
-                onClick={() => append('')}
-              />
-            </FormLabel>
-            {hostnamePatterns.map((item, index) => {
-              return (
-                <>
-                  <InputGroup>
-                    <Input
-                      id="hostnamePatterns"
-                      name="hostnamePatterns"
-                      type="text"
-                      placeholder="^git\.repo\.com$"
-                      {...register(`hostnamePatterns.${index}`, { required: true })}
-                    />
-                    <InputLeftElement>
-                      <IconButton
-                        aria-label="Remove"
-                        color={'red.200'}
-                        variant="ghost"
-                        icon={<MdDelete />}
-                        mr={1}
-                        size={'sm'}
-                        onClick={() => remove(index)}
-                      ></IconButton>
-                    </InputLeftElement>
-                  </InputGroup>
-                </>
-              );
-            })}
-            <FormHelperText>
-              The credential whose hostname pattern matches first will be used when accessing a host.
-            </FormHelperText>
-          </FormControl>
           <Spacer />
           {isNew ? (
             <Button type="submit" colorScheme="blue" loadingText="Creating">

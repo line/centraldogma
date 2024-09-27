@@ -24,7 +24,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletionException;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -45,13 +44,11 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
-import com.linecorp.centraldogma.server.internal.mirror.credential.NoneMirrorCredential;
-import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
+import com.linecorp.centraldogma.server.credential.Credential;
+import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
 import com.linecorp.centraldogma.server.mirror.Mirror;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -67,7 +64,6 @@ class DefaultMetaRepositoryWithMirrorTest {
                     '{' +
                     "  \"id\": \"alice\"," +
                     "  \"type\": \"password\"," +
-                    "  \"hostnamePatterns\": [ \"^foo\\\\.com$\" ]," +
                     "  \"username\": \"alice\"," +
                     "  \"password\": \"secret_a\"" +
                     '}'),
@@ -76,18 +72,15 @@ class DefaultMetaRepositoryWithMirrorTest {
                     '{' +
                     "  \"id\": \"bob\"," +
                     "  \"type\": \"password\"," +
-                    "  \"hostnamePatterns\": [ \"^.*\\\\.com$\" ]," +
                     "  \"username\": \"bob\"," +
                     "  \"password\": \"secret_b\"" +
                     '}'));
 
-    private static final List<MirrorCredential> CREDENTIALS = ImmutableList.of(
-            new PasswordMirrorCredential(
-                    "alice", true, ImmutableList.of(Pattern.compile("^foo\\.com$")),
-                    "alice", "secret_a"),
-            new PasswordMirrorCredential(
-                    "bob", true, ImmutableList.of(Pattern.compile("^.*\\.com$")),
-                    "bob", "secret_b"));
+    private static final List<Credential> CREDENTIALS = ImmutableList.of(
+            new PasswordCredential(
+                    "alice", true, "alice", "secret_a"),
+            new PasswordCredential(
+                    "bob", true, "bob", "secret_b"));
 
     private static final CronParser cronParser = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
@@ -169,43 +162,18 @@ class DefaultMetaRepositoryWithMirrorTest {
                             "  \"schedule\": \"0 */10 * * * ?\"," +
                             "  \"direction\": \"REMOTE_TO_LOCAL\"," +
                             "  \"localRepo\": \"bar\"," +
-                            "  \"remoteUri\": \"git+ssh://bar.com/bar.git/some-path\"," +
+                            "  \"remoteUri\": \"git+ssh://bar.com/bar.git/some-path#develop\"," +
                             " \"credentialId\": \"bob\"" +
-                            '}'),
-                    Change.ofJsonUpsert(
-                            "/mirrors/qux.json",
-                            '{' +
-                            "  \"id\": \"qux\"," +
-                            "  \"direction\": \"LOCAL_TO_REMOTE\"," +
-                            "  \"localRepo\": \"qux\"," +
-                            "  \"remoteUri\": \"git+ssh://qux.net/qux.git#develop\"" +
-                            // No credential will be chosen.
-                            '}'),
-                    Change.ofJsonUpsert(
-                            "/mirrors/foo-bar.json",
-                            '{' +
-                            "  \"id\": \"foo-bar\"," +
-                            "  \"enabled\": false," + // Disabled
-                            "  \"direction\": \"LOCAL_TO_REMOTE\"," +
-                            "  \"localRepo\": \"foo\"," +
-                            "  \"localPath\": \"/mirrors/bar\"," +
-                            "  \"remoteUri\": \"git+ssh://bar.com/bar.git\"" +
-                            // credentialId 'bob' will be chosen.
                             '}'));
             metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", mirrors).join();
             metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", UPSERT_RAW_CREDENTIALS).join();
         } else {
-            final CommandExecutor commandExecutor = pmExtension.executor();
             final List<MirrorDto> mirrors = ImmutableList.of(
                     new MirrorDto("foo", true, project.name(), DEFAULT_SCHEDULE, "LOCAL_TO_REMOTE", "foo",
                                   "/mirrors/foo", "git+ssh", "foo.com/foo.git", "", "", null, "alice"),
                     new MirrorDto("bar", true, project.name(), "0 */10 * * * ?", "REMOTE_TO_LOCAL", "bar",
-                                  "", "git+ssh", "bar.com/bar.git", "/some-path", "", null, "bob"),
-                    new MirrorDto("qux", true, project.name(), DEFAULT_SCHEDULE, "LOCAL_TO_REMOTE", "qux",
-                                  "", "git+ssh", "qux.net/qux.git", "", "develop", null, ""),
-                    new MirrorDto("foo-bar", false, project.name(), DEFAULT_SCHEDULE, "LOCAL_TO_REMOTE", "foo",
-                                  "/mirrors/bar", "git+ssh", "bar.com/bar.git", "", "", null, "bob"));
-            for (MirrorCredential credential : CREDENTIALS) {
+                                  "", "git+ssh", "bar.com/bar.git", "/some-path", "develop", null, "bob"));
+            for (Credential credential : CREDENTIALS) {
                 final Command<CommitResult> command =
                         metaRepo.createPushCommand(credential, Author.SYSTEM, false).join();
                 pmExtension.executor().execute(command).join();
@@ -222,52 +190,42 @@ class DefaultMetaRepositoryWithMirrorTest {
 
         project.repos().create("foo", Author.SYSTEM);
         project.repos().create("bar", Author.SYSTEM);
-        project.repos().create("qux", Author.SYSTEM);
 
         final List<Mirror> mirrors = findMirrors();
         assertThat(mirrors.stream()
                           .map(m -> m.localRepo().name())
-                          .collect(Collectors.toList())).containsExactly("bar", "foo", "qux");
+                          .collect(Collectors.toList())).containsExactly("bar", "foo");
 
         final Mirror foo = mirrors.get(1);
         final Mirror bar = mirrors.get(0);
-        final Mirror qux = mirrors.get(2);
 
         assertThat(foo.direction()).isEqualTo(MirrorDirection.LOCAL_TO_REMOTE);
         assertThat(bar.direction()).isEqualTo(MirrorDirection.REMOTE_TO_LOCAL);
-        assertThat(qux.direction()).isEqualTo(MirrorDirection.LOCAL_TO_REMOTE);
 
         assertThat(foo.schedule().equivalent(cronParser.parse("0 * * * * ?"))).isTrue();
         assertThat(bar.schedule().equivalent(cronParser.parse("0 */10 * * * ?"))).isTrue();
-        assertThat(qux.schedule().equivalent(cronParser.parse("0 * * * * ?"))).isTrue();
 
         assertThat(foo.localPath()).isEqualTo("/mirrors/foo/");
         assertThat(bar.localPath()).isEqualTo("/");
-        assertThat(qux.localPath()).isEqualTo("/");
 
         assertThat(foo.remoteRepoUri().toString()).isEqualTo("git+ssh://foo.com/foo.git");
         assertThat(bar.remoteRepoUri().toString()).isEqualTo("git+ssh://bar.com/bar.git");
-        assertThat(qux.remoteRepoUri().toString()).isEqualTo("git+ssh://qux.net/qux.git");
 
         assertThat(foo.remotePath()).isEqualTo("/");
         assertThat(bar.remotePath()).isEqualTo("/some-path/");
-        assertThat(qux.remotePath()).isEqualTo("/");
 
         assertThat(foo.remoteBranch()).isEmpty();
-        assertThat(bar.remoteBranch()).isEmpty();
-        assertThat(qux.remoteBranch()).isEqualTo("develop");
+        assertThat(bar.remoteBranch()).isEqualTo("develop");
 
         // Ensure the credentials are loaded correctly.
 
         //// Should be matched by 'alice' credential.
-        assertThat(foo.credential()).isInstanceOf(PasswordMirrorCredential.class);
+        assertThat(foo.credential()).isInstanceOf(PasswordCredential.class);
         //// Should be matched by 'bob' credential.
-        assertThat(bar.credential()).isInstanceOf(PasswordMirrorCredential.class);
-        //// Should be matched by no credential.
-        assertThat(qux.credential()).isInstanceOf(NoneMirrorCredential.class);
+        assertThat(bar.credential()).isInstanceOf(PasswordCredential.class);
 
-        final PasswordMirrorCredential fooCredential = (PasswordMirrorCredential) foo.credential();
-        final PasswordMirrorCredential barCredential = (PasswordMirrorCredential) bar.credential();
+        final PasswordCredential fooCredential = (PasswordCredential) foo.credential();
+        final PasswordCredential barCredential = (PasswordCredential) bar.credential();
 
         assertThat(fooCredential.username()).isEqualTo("alice");
         assertThat(fooCredential.password()).isEqualTo("secret_a");
@@ -302,8 +260,8 @@ class DefaultMetaRepositoryWithMirrorTest {
 
         final Mirror m = mirrors.get(0);
         assertThat(m.localRepo().name()).isEqualTo("qux");
-        assertThat(m.credential()).isInstanceOf(PasswordMirrorCredential.class);
-        assertThat(((PasswordMirrorCredential) m.credential()).username()).isEqualTo("alice");
+        assertThat(m.credential()).isInstanceOf(PasswordCredential.class);
+        assertThat(((PasswordCredential) m.credential()).username()).isEqualTo("alice");
     }
 
     private List<Mirror> findMirrors() {

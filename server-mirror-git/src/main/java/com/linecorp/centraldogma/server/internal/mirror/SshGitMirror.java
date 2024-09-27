@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential.publicKeyPreview;
+import static com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential.publicKeyPreview;
 
 import java.io.File;
 import java.io.IOException;
@@ -57,9 +57,9 @@ import com.google.common.annotations.VisibleForTesting;
 
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
-import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.credential.Credential;
+import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
+import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -80,7 +80,7 @@ final class SshGitMirror extends AbstractGitMirror {
     private static final BouncyCastleRandom bounceCastleRandom = new BouncyCastleRandom();
 
     SshGitMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
-                 MirrorCredential credential, Repository localRepo, String localPath,
+                 Credential credential, Repository localRepo, String localPath,
                  URI remoteRepoUri, String remotePath, String remoteBranch,
                  @Nullable String gitignore) {
         super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath,
@@ -118,10 +118,10 @@ final class SshGitMirror extends AbstractGitMirror {
     private URIish remoteUri() throws URISyntaxException {
         // Requires the username to be included in the URI.
         final String username;
-        if (credential() instanceof PasswordMirrorCredential) {
-            username = ((PasswordMirrorCredential) credential()).username();
-        } else if (credential() instanceof PublicKeyMirrorCredential) {
-            username = ((PublicKeyMirrorCredential) credential()).username();
+        if (credential() instanceof PasswordCredential) {
+            username = ((PasswordCredential) credential()).username();
+        } else if (credential() instanceof PublicKeyCredential) {
+            username = ((PublicKeyCredential) credential()).username();
         } else {
             username = null;
         }
@@ -181,11 +181,11 @@ final class SshGitMirror extends AbstractGitMirror {
     }
 
     private void configureCredential(SshClient client) {
-        final MirrorCredential c = credential();
-        if (c instanceof PasswordMirrorCredential) {
-            client.setFilePasswordProvider(passwordProvider(((PasswordMirrorCredential) c).password()));
-        } else if (c instanceof PublicKeyMirrorCredential) {
-            final PublicKeyMirrorCredential cred = (PublicKeyMirrorCredential) credential();
+        final Credential c = credential();
+        if (c instanceof PasswordCredential) {
+            client.setFilePasswordProvider(passwordProvider(((PasswordCredential) c).password()));
+        } else if (c instanceof PublicKeyCredential) {
+            final PublicKeyCredential cred = (PublicKeyCredential) credential();
             final Collection<KeyPair> keyPairs;
             try {
                 keyPairs = keyPairResourceParser.loadKeyPairs(null, NamedResource.ofName(cred.username()),

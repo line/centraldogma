@@ -118,7 +118,8 @@ class GitMirrorAuthTest {
                                           "  \"direction\": \"REMOTE_TO_LOCAL\"," +
                                           "  \"localRepo\": \"main\"," +
                                           "  \"localPath\": \"/\"," +
-                                          "  \"remoteUri\": \"" + gitUri + '"' +
+                                          "  \"remoteUri\": \"" + gitUri + "\"," +
+                                          "  \"credentialId\": \"" + credentialId + '"' +
                                           '}'))
               .push().join();
 
@@ -138,7 +139,6 @@ class GitMirrorAuthTest {
                             "  \"id\": \"password-id\"," +
                             "  \"enabled\": true," +
                             "  \"type\": \"password\"," +
-                            "  \"hostnamePatterns\": [ \"^.*$\" ]," +
                             "  \"username\": \"" + GITHUB_USERNAME + "\"," +
                             "  \"password\": \"" + Jackson.escapeText(GITHUB_PASSWORD) + '"' +
                             '}')));
@@ -153,7 +153,6 @@ class GitMirrorAuthTest {
                             "  \"id\": \"access-token-id\"," +
                             "  \"enabled\": true," +
                             "  \"type\": \"access_token\"," +
-                            "  \"hostnamePatterns\": [ \"^.*$\" ]," +
                             "  \"accessToken\": \"" + Jackson.escapeText(GITHUB_ACCESS_TOKEN) + '"' +
                             '}')));
         }
@@ -212,7 +211,6 @@ class GitMirrorAuthTest {
                         "  \"id\": \"" + privateKeyFile + "\"," +
                         "  \"enabled\": true," +
                         "  \"type\": \"public_key\"," +
-                        "  \"hostnamePatterns\": [ \"^.*$\" ]," +
                         "  \"username\": \"git\"," +
                         "  \"publicKey\": \"" + Jackson.escapeText(publicKey) + "\"," +
                         "  \"privateKey\": \"" + Jackson.escapeText(privateKey) + "\"," +

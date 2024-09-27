@@ -14,9 +14,8 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.mirror.credential;
+package com.linecorp.centraldogma.server.internal.credential;
 
-import static com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredentialTest.HOSTNAME_PATTERNS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -28,9 +27,9 @@ import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.ConfigValueConverter;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.credential.Credential;
 
-public class PublicKeyMirrorCredentialTest {
+public class PublicKeyCredentialTest {
 
     private static final String USERNAME = "trustin";
 
@@ -66,38 +65,38 @@ public class PublicKeyMirrorCredentialTest {
     @Test
     void testConstruction() {
         // null checks
-        assertThatThrownBy(() -> new PublicKeyMirrorCredential(
-                "id", true, null, null, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE))
+        assertThatThrownBy(() -> new PublicKeyCredential(
+                "id", true, null, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new PublicKeyMirrorCredential(
-                "id", true, null, USERNAME, null, PRIVATE_KEY, PASSPHRASE))
+        assertThatThrownBy(() -> new PublicKeyCredential(
+                "id", true, USERNAME, null, PRIVATE_KEY, PASSPHRASE))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new PublicKeyMirrorCredential(
-                "id", true, null, USERNAME, PUBLIC_KEY, null, PASSPHRASE))
+        assertThatThrownBy(() -> new PublicKeyCredential(
+                "id", true, USERNAME, PUBLIC_KEY, null, PASSPHRASE))
                 .isInstanceOf(NullPointerException.class);
 
         // null passphrase must be accepted.
-        assertThat(new PublicKeyMirrorCredential(
-                "id", true, null, USERNAME, PUBLIC_KEY, PRIVATE_KEY, null).passphrase()).isNull();
+        assertThat(new PublicKeyCredential(
+                "id", true, USERNAME, PUBLIC_KEY, PRIVATE_KEY, null).passphrase()).isNull();
 
         // emptiness checks
-        assertThatThrownBy(() -> new PublicKeyMirrorCredential(
-                "id", true, null, "", PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE))
+        assertThatThrownBy(() -> new PublicKeyCredential(
+                "id", true, "", PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new PublicKeyMirrorCredential(
-                "id", true, null, USERNAME, "", PRIVATE_KEY, PASSPHRASE))
+        assertThatThrownBy(() -> new PublicKeyCredential(
+                "id", true, USERNAME, "", PRIVATE_KEY, PASSPHRASE))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new PublicKeyMirrorCredential(
-                "id", true, null, USERNAME, PUBLIC_KEY, "", PASSPHRASE))
+        assertThatThrownBy(() -> new PublicKeyCredential(
+                "id", true, USERNAME, PUBLIC_KEY, "", PASSPHRASE))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // empty passphrase must be accepted, because an empty password is still a password.
-        assertThat(new PublicKeyMirrorCredential(
-                "id", true, null, USERNAME, PUBLIC_KEY, PRIVATE_KEY, "").passphrase()).isEmpty();
+        assertThat(new PublicKeyCredential(
+                "id", true, USERNAME, PUBLIC_KEY, PRIVATE_KEY, "").passphrase()).isEmpty();
 
         // successful construction
-        final PublicKeyMirrorCredential c = new PublicKeyMirrorCredential(
-                "id", true, null, USERNAME, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE);
+        final PublicKeyCredential c = new PublicKeyCredential(
+                "id", true, USERNAME, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE);
 
         assertThat(c.username()).isEqualTo(USERNAME);
         assertThat(c.publicKey()).isEqualTo(PUBLIC_KEY);
@@ -107,8 +106,8 @@ public class PublicKeyMirrorCredentialTest {
 
     @Test
     void testBase64Passphrase() {
-        final PublicKeyMirrorCredential c = new PublicKeyMirrorCredential(
-                "id", true, null, USERNAME, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE_BASE64);
+        final PublicKeyCredential c = new PublicKeyCredential(
+                "id", true, USERNAME, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE_BASE64);
         assertThat(c.passphrase()).isEqualTo(PASSPHRASE);
     }
 
@@ -118,36 +117,29 @@ public class PublicKeyMirrorCredentialTest {
         assertThat(Jackson.readValue('{' +
                                      " \"id\": \"foo\"," +
                                      "  \"type\": \"public_key\"," +
-                                     "  \"hostnamePatterns\": [" +
-                                     "    \"^foo\\\\.com$\"" +
-                                     "  ]," +
                                      "  \"username\": \"trustin\"," +
                                      "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
                                      "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
                                      "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE) + '"' +
-                                     '}', MirrorCredential.class))
-                .isEqualTo(new PublicKeyMirrorCredential("foo", true, HOSTNAME_PATTERNS, USERNAME,
-                                                         PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
+                                     '}', Credential.class))
+                .isEqualTo(new PublicKeyCredential("foo", true, USERNAME,
+                                                   PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
 
         // base64 passphrase
-        final PublicKeyMirrorCredential base64Expected =
-                new PublicKeyMirrorCredential("bar", null, HOSTNAME_PATTERNS, USERNAME,
-                                              PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE_BASE64);
+        final PublicKeyCredential base64Expected =
+                new PublicKeyCredential("bar", null, USERNAME,
+                                        PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE_BASE64);
         assertThat(Jackson.readValue('{' +
                                      " \"id\": \"bar\"," +
                                      "  \"type\": \"public_key\"," +
-                                     "  \"hostnamePatterns\": [" +
-                                     "    \"^foo\\\\.com$\"" +
-                                     "  ]," +
                                      "  \"username\": \"trustin\"," +
                                      "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
                                      "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
                                      "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE_BASE64) + '"' +
-                                     '}', MirrorCredential.class))
+                                     '}', Credential.class))
                 .isEqualTo(base64Expected);
         assertThat(base64Expected.passphrase()).isEqualTo(PASSPHRASE);
 
-        // Without hostnamePatterns
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"public_key\"," +
                                      "  \"id\": \"foo\"," +
@@ -155,13 +147,13 @@ public class PublicKeyMirrorCredentialTest {
                                      "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
                                      "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
                                      "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE) + '"' +
-                                     '}', MirrorCredential.class))
-                .isEqualTo(new PublicKeyMirrorCredential("foo", true, null, USERNAME,
-                                                         PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
+                                     '}', Credential.class))
+                .isEqualTo(new PublicKeyCredential("foo", true, USERNAME,
+                                                   PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
 
-        final PublicKeyMirrorCredential converterExpected =
-                new PublicKeyMirrorCredential("foo", true, null, USERNAME,
-                                              PUBLIC_KEY, PRIVATE_KEY, "mirror_encryption:foo");
+        final PublicKeyCredential converterExpected =
+                new PublicKeyCredential("foo", true, USERNAME,
+                                        PUBLIC_KEY, PRIVATE_KEY, "mirror_encryption:foo");
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"public_key\"," +
                                      "  \"id\": \"foo\"," +
@@ -169,22 +161,9 @@ public class PublicKeyMirrorCredentialTest {
                                      "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
                                      "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
                                      "  \"passphrase\": \"mirror_encryption:foo\"" +
-                                     '}', MirrorCredential.class))
+                                     '}', Credential.class))
                 .isEqualTo(converterExpected);
         assertThat(converterExpected.passphrase()).isEqualTo("bar");
-
-        // Empty hostnamePatterns
-        assertThat(Jackson.readValue('{' +
-                                     "  \"type\": \"public_key\"," +
-                                     "  \"id\": \"foo\"," +
-                                     "  \"hostnamePatterns\": []," +
-                                     "  \"username\": \"trustin\"," +
-                                     "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
-                                     "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
-                                     "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE) + '"' +
-                                     '}', MirrorCredential.class))
-                .isEqualTo(new PublicKeyMirrorCredential("foo", true, ImmutableList.of(), USERNAME,
-                                                         PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
     }
 
     public static class PasswordConfigValueConverter implements ConfigValueConverter {

@@ -26,7 +26,7 @@ import javax.annotation.Nullable;
 import com.cronutils.model.Cron;
 
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -36,7 +36,7 @@ public final class CentralDogmaMirror extends AbstractMirror {
     private final String remoteRepo;
 
     public CentralDogmaMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
-                              MirrorCredential credential, Repository localRepo, String localPath,
+                              Credential credential, Repository localRepo, String localPath,
                               URI remoteRepoUri, String remoteProject, String remoteRepo, String remotePath,
                               @Nullable String gitignore) {
         // Central Dogma has no notion of 'branch', so we just pass an empty string as a placeholder.

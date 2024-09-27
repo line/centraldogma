@@ -14,54 +14,41 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.mirror.credential;
+package com.linecorp.centraldogma.server.internal.credential;
 
-import static com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredentialTest.HOSTNAME_PATTERNS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.credential.Credential;
 
-class AccessTokenMirrorCredentialTest {
+class AccessTokenCredentialTest {
 
     @Test
     void testConstruction() throws Exception {
         // null checks
-        assertThatThrownBy(() -> new AccessTokenMirrorCredential("foo", true, null, null))
+        assertThatThrownBy(() -> new AccessTokenCredential("foo", true, null))
                 .isInstanceOf(NullPointerException.class);
 
         // emptiness checks
-        assertThatThrownBy(() -> new AccessTokenMirrorCredential("foo", true, null, ""))
+        assertThatThrownBy(() -> new AccessTokenCredential("foo", true, ""))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // successful construction
-        final AccessTokenMirrorCredential c = new AccessTokenMirrorCredential("foo", true, null, "sesame");
+        final AccessTokenCredential c = new AccessTokenCredential("foo", true, "sesame");
         assertThat(c.id()).isEqualTo("foo");
         assertThat(c.accessToken()).isEqualTo("sesame");
     }
 
     @Test
     void testDeserialization() throws Exception {
-        // With hostnamePatterns
-        assertThat(Jackson.readValue('{' +
-                                     "  \"id\": \"access-token-id\"," +
-                                     "  \"type\": \"access_token\"," +
-                                     "  \"hostnamePatterns\": [" +
-                                     "    \"^foo\\\\.com$\"" +
-                                     "  ]," +
-                                     "  \"accessToken\": \"sesame\"" +
-                                     '}', MirrorCredential.class))
-                .isEqualTo(new AccessTokenMirrorCredential("access-token-id", true, HOSTNAME_PATTERNS,
-                                                           "sesame"));
-        // Without hostnamePatterns
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"access_token\"," +
                                      "  \"id\": \"foo\"," +
                                      "  \"accessToken\": \"sesame\"" +
-                                     '}', MirrorCredential.class))
-                .isEqualTo(new AccessTokenMirrorCredential("foo", true, null, "sesame"));
+                                     '}', Credential.class))
+                .isEqualTo(new AccessTokenCredential("foo", true, "sesame"));
     }
 }

@@ -131,14 +131,6 @@ public final class DefaultMirroringService implements MirroringService {
                     }
                 }));
 
-        try {
-            new RemovingHostnamePatternsService(projectManager, commandExecutor).start();
-        } catch (Throwable e) {
-            logger.error("Git mirroring stopped due to an unexpected exception while removing" +
-                         "hostnamePatterns :", e);
-            return;
-        }
-
         final ListenableScheduledFuture<?> future = scheduler.scheduleWithFixedDelay(
                 this::schedulePendingMirrors,
                 TICK.getSeconds(), TICK.getSeconds(), TimeUnit.SECONDS);
