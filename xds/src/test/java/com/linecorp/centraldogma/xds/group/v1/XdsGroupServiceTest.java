@@ -22,8 +22,6 @@ import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.concurrent.CompletableFuture;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -55,16 +53,12 @@ final class XdsGroupServiceTest {
 
     @Test
     void createGroupViaHttp() {
-        final CompletableFuture<AggregatedHttpResponse> future =
-                createGroupAsync("foo", dogma.httpClient());
-        final CompletableFuture<AggregatedHttpResponse> future2 =
-                createGroupAsync("foo", dogma.httpClient());
-        AggregatedHttpResponse response = future.join();
+        AggregatedHttpResponse response = createGroupAsync("foo", dogma.httpClient()).join();
         assertOk(response);
         assertThatJson(response.contentUtf8()).isEqualTo("{\"name\":\"groups/foo\"}");
 
         // Cannot create with the same name.
-        response = future2.join();
+        response = createGroupAsync("foo", dogma.httpClient()).join();
         assertThat(response.status()).isSameAs(HttpStatus.CONFLICT);
         assertThat(response.headers().get("grpc-status"))
                 .isEqualTo(Integer.toString(Status.ALREADY_EXISTS.getCode().value()));
