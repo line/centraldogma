@@ -132,6 +132,8 @@ public final class CentralDogmaBuilder {
     private CorsConfig corsConfig;
 
     private final List<PluginConfig> pluginConfigs = new ArrayList<>();
+    @Nullable
+    private ManagementConfig managementConfig;
 
     /**
      * Creates a new builder with the specified data directory.
@@ -530,6 +532,15 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Enables a management service with the specified {@link ManagementConfig}.
+     */
+    public CentralDogmaBuilder management(ManagementConfig managementConfig) {
+        requireNonNull(managementConfig, "managementConfig");
+        this.managementConfig = managementConfig;
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
@@ -562,6 +573,6 @@ public final class CentralDogmaBuilder {
                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
                                       webAppEnabled, webAppTitle,replicationConfig,
                                       null, accessLogFormat, authCfg, quotaConfig,
-                                      corsConfig, pluginConfigs);
+                                      corsConfig, pluginConfigs, managementConfig);
     }
 }

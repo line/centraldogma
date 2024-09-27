@@ -77,6 +77,7 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.ServerCacheControl;
+import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.common.metric.MeterIdPrefixFunction;
 import com.linecorp.armeria.common.prometheus.PrometheusMeterRegistries;
 import com.linecorp.armeria.common.util.EventLoopGroups;
@@ -106,6 +107,7 @@ import com.linecorp.armeria.server.file.HttpFile;
 import com.linecorp.armeria.server.healthcheck.HealthCheckService;
 import com.linecorp.armeria.server.healthcheck.SettableHealthChecker;
 import com.linecorp.armeria.server.logging.AccessLogWriter;
+import com.linecorp.armeria.server.management.ManagementService;
 import com.linecorp.armeria.server.metric.MetricCollectingService;
 import com.linecorp.armeria.server.prometheus.PrometheusExpositionService;
 import com.linecorp.armeria.server.thrift.THttpService;
@@ -568,7 +570,11 @@ public class CentralDogma implements AutoCloseable {
         sb.verboseResponses(true);
         cfg.ports().forEach(sb::port);
 
-        if (cfg.ports().stream().anyMatch(ServerPort::hasTls)) {
+        final boolean needsTls =
+                cfg.ports().stream().anyMatch(ServerPort::hasTls) ||
+                (cfg.managementConfig() != null && cfg.managementConfig().protocol().isTls());
+
+        if (needsTls) {
             try {
                 final TlsConfig tlsConfig = cfg.tls();
                 if (tlsConfig != null) {
@@ -610,6 +616,7 @@ public class CentralDogma implements AutoCloseable {
         sb.service(HEALTH_CHECK_PATH, HealthCheckService.builder()
                                                         .checkers(serverHealth)
                                                         .build());
+        configManagement(sb, config().managementConfig());
 
         sb.serviceUnder("/docs/",
                         DocService.builder()
@@ -912,6 +919,36 @@ public class CentralDogma implements AutoCloseable {
                                 .allowCredentials()
                                 .maxAge(corsConfig.maxAgeSeconds())
                                 .newDecorator());
+    }
+
+    private static void configManagement(ServerBuilder sb, @Nullable ManagementConfig managementConfig) {
+        if (managementConfig == null) {
+            return;
+        }
+
+        // curl -L https://<address>:<port>/internal/management/jvm/threaddump
+        // curl -L https://<address>:<port>/internal/management/jvm/heapdump -o heapdump.hprof
+        final int port = managementConfig.port();
+        if (port == 0) {
+            logger.info("'management.port' is 0, using the same ports as 'ports'.");
+            sb.route()
+              .pathPrefix(managementConfig.path())
+              .defaultServiceName("management")
+              .build(ManagementService.of());
+        } else {
+            final SessionProtocol managementProtocol = managementConfig.protocol();
+            final String address = managementConfig.address();
+            if (address == null) {
+                sb.port(new ServerPort(port, managementProtocol));
+            } else {
+                sb.port(new ServerPort(new InetSocketAddress(address, port), managementProtocol));
+            }
+            sb.virtualHost(port)
+              .route()
+              .pathPrefix(managementConfig.path())
+              .defaultServiceName("management")
+              .build(ManagementService.of());
+        }
     }
 
     private static Function<? super HttpService, EncodingService> contentEncodingDecorator() {

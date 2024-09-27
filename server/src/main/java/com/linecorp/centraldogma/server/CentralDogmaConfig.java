@@ -266,11 +266,14 @@ public final class CentralDogmaConfig {
     private final List<PluginConfig> pluginConfigs;
     private final Map<Class<?>, PluginConfig> pluginConfigMap;
 
+    @Nullable
+    private final ManagementConfig managementConfig;
+
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
             @JsonProperty(value = "ports", required = true)
             @JsonDeserialize(contentUsing = ServerPortDeserializer.class)
-                    List<ServerPort> ports,
+            List<ServerPort> ports,
             @JsonProperty("tls") @Nullable TlsConfig tls,
             @JsonProperty("trustedProxyAddresses") @Nullable List<String> trustedProxyAddresses,
             @JsonProperty("clientAddressSources") @Nullable List<String> clientAddressSources,
@@ -291,7 +294,8 @@ public final class CentralDogmaConfig {
             @JsonProperty("authentication") @Nullable AuthConfig authConfig,
             @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository,
             @JsonProperty("cors") @Nullable CorsConfig corsConfig,
-            @JsonProperty("pluginConfigs") @Nullable List<PluginConfig> pluginConfigs) {
+            @JsonProperty("pluginConfigs") @Nullable List<PluginConfig> pluginConfigs,
+            @JsonProperty("management") @Nullable ManagementConfig managementConfig) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -339,6 +343,7 @@ public final class CentralDogmaConfig {
         this.pluginConfigs = firstNonNull(pluginConfigs, ImmutableList.of());
         pluginConfigMap = this.pluginConfigs.stream().collect(
                 toImmutableMap(PluginConfig::getClass, Function.identity()));
+        this.managementConfig = managementConfig;
     }
 
     /**
@@ -566,6 +571,15 @@ public final class CentralDogmaConfig {
      */
     public Map<Class<?>, PluginConfig> pluginConfigMap() {
         return pluginConfigMap;
+    }
+
+    /**
+     * Returns the {@link ManagementConfig}.
+     */
+    @Nullable
+    @JsonProperty("management")
+    public ManagementConfig managementConfig() {
+        return managementConfig;
     }
 
     @Override

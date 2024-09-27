@@ -58,7 +58,13 @@ defaults:
           "maxNumFilesPerMirror": null,
           "maxNumBytesPerMirror": null
         }
-      ]
+      ],
+      "management": {
+        "address": "127.0.0.1",
+        "port": 36463,
+        "protocol": null,
+        "path": null
+      }
     }
 
 Core properties
@@ -229,6 +235,32 @@ Core properties
 - ``pluginConfigs``
 
   - the list of plugin configuration. See :ref:`plugins` for more information.
+
+- ``management``
+
+  - the management server configuration. Read `ManagementService API documentation <https://javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/latest/com/linecorp/armeria/server/management/ManagementService.html>`_
+    to know more about the management service.
+
+  - ``port`` (integer)
+
+    - the port number of the management service.
+      If ``0``, the management service uses the same port as the main service.
+
+  - ``address`` (string)
+
+    - the IP address of the management service. If ``null``, the management will listen to all network interfaces.
+
+    - this option is ignored if ``port`` is set to ``0``.
+
+  - ``protocol``
+
+    - the protocol of the management service. ``http`` and ``https`` are supported. If not specified, ``http`` is used.
+
+    - this option is ignored if ``port`` is set to ``0``.
+
+  - ``path``
+
+    - the path of the management service. If not specified, the management service is mounted at ``/internal/management``.
 
 .. _replication:
 

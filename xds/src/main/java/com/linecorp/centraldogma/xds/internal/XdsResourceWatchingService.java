@@ -41,6 +41,9 @@ import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+
 public abstract class XdsResourceWatchingService {
 
     private static final Logger logger = LoggerFactory.getLogger(XdsResourceWatchingService.class);
@@ -51,8 +54,11 @@ public abstract class XdsResourceWatchingService {
 
     private final Set<String> watchingGroups = Sets.newConcurrentHashSet();
 
-    protected XdsResourceWatchingService(Project xdsProject) {
+    protected XdsResourceWatchingService(Project xdsProject, String metricNamePrefix,
+                                         MeterRegistry meterRegistry) {
         this.xdsProject = xdsProject;
+        Gauge.builder(metricNamePrefix + "watching.groups", this, self -> watchingGroups.size())
+             .register(meterRegistry);
     }
 
     protected Project xdsProject() {
@@ -134,8 +140,9 @@ public abstract class XdsResourceWatchingService {
                     final boolean added = watchingGroups.add(groupName);
                     if (!added) {
                         // Already watching.
-                        return;
+                        continue;
                     }
+                    logger.info("Start watching {}.", groupName);
                     watchRepository(repo, Revision.INIT);
                 }
             });
