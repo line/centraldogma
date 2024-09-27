@@ -57,7 +57,6 @@ import javax.annotation.Nullable;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.api.transaction.CuratorOp;
 import org.apache.curator.framework.imps.CuratorFrameworkState;
 import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
@@ -307,7 +306,8 @@ public final class ZooKeeperCommandExecutor
             }
         }
 
-        private void deleteLogBlock(String logPath, LogMeta logMeta, String blockPath, List<String> deletedPaths) throws Exception {
+        private void deleteLogBlock(String logPath, LogMeta logMeta, String blockPath,
+                                    List<String> deletedPaths) throws Exception {
             try {
                 curator.delete().forPath(blockPath);
                 deletedPaths.add(blockPath);
