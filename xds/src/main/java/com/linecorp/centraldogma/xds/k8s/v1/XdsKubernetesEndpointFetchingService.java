@@ -141,6 +141,8 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
         updaters.put(watcherName, updater);
         future.handle((kubernetesEndpointGroup, cause) -> {
             if (cause != null) {
+                logger.warn("Unexpected exception while creating a KubernetesEndpointGroup in fetching service",
+                            cause);
                 // Do not remove the updater from updaters because it can remove the updater that is created
                 // by the next commit. The updater will be removed only when the file or group is removed.
                 updater.close();
@@ -150,7 +152,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 if (endpoints.isEmpty()) {
                     return;
                 }
-                executorService.execute(updater::maybeSchedule);
+                executorService.execute(() -> updater.maybeSchedule(kubernetesEndpointGroup));
             }, true);
             return null;
         });
@@ -231,7 +233,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             this.clusterName = clusterName;
         }
 
-        void maybeSchedule() {
+        void maybeSchedule(KubernetesEndpointGroup kubernetesEndpointGroup) {
             if (scheduledFuture != null) {
                 return;
             }
@@ -240,7 +242,6 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             scheduledFuture = executorService.schedule(() -> {
                 scheduledFuture = null;
                 // maybeSchedule() is called after the future is completed.
-                final KubernetesEndpointGroup kubernetesEndpointGroup = kubernetesEndpointGroupFuture.join();
                 if (kubernetesEndpointGroup.isClosing()) {
                     return;
                 }
