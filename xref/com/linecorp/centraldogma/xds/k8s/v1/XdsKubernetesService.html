@@ -100,8 +100,8 @@
 <a class="jxr_linenumber" name="L92" href="#L92">92</a>                                                        .build();
 <a class="jxr_linenumber" name="L93" href="#L93">93</a>          <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author = currentAuthor();
 <a class="jxr_linenumber" name="L94" href="#L94">94</a>          validateWatcherAndPush(responseObserver, watcher, () -&gt; xdsResourceManager.push(
-<a class="jxr_linenumber" name="L95" href="#L95">95</a>                  responseObserver, group, K8S_WATCHERS_DIRECTORY + watcherId + <span class="jxr_string">".json"</span>,
-<a class="jxr_linenumber" name="L96" href="#L96">96</a>                  <span class="jxr_string">"Create watcher: "</span> + watcherName, watcher, author));
+<a class="jxr_linenumber" name="L95" href="#L95">95</a>                  responseObserver, group, watcherName, K8S_WATCHERS_DIRECTORY + watcherId + <span class="jxr_string">".json"</span>,
+<a class="jxr_linenumber" name="L96" href="#L96">96</a>                  <span class="jxr_string">"Create watcher: "</span> + watcherName, watcher, author, <strong class="jxr_keyword">true</strong>));
 <a class="jxr_linenumber" name="L97" href="#L97">97</a>      }
 <a class="jxr_linenumber" name="L98" href="#L98">98</a>  
 <a class="jxr_linenumber" name="L99" href="#L99">99</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> validateWatcherAndPush(

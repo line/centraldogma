@@ -75,7 +75,7 @@
 <a class="jxr_linenumber" name="L67" href="#L67">67</a>      @Nullable
 <a class="jxr_linenumber" name="L68" href="#L68">68</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">volatile</strong> WebClient webClient;
 <a class="jxr_linenumber" name="L69" href="#L69">69</a>      @Nullable
-<a class="jxr_linenumber" name="L70" href="#L70">70</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">volatile</strong> InetSocketAddress serverAddress;
+<a class="jxr_linenumber" name="L70" href="#L70">70</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">volatile</strong> ServerPort serverPort;
 <a class="jxr_linenumber" name="L71" href="#L71">71</a>  
 <a class="jxr_linenumber" name="L72" href="#L72">72</a>      <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="L73" href="#L73">73</a>  <em class="jxr_javadoccomment">     * Creates a new instance.</em>
@@ -135,38 +135,38 @@
 <a class="jxr_linenumber" name="L127" href="#L127">127</a>         <strong class="jxr_keyword">this</strong>.dogma = dogma0;
 <a class="jxr_linenumber" name="L128" href="#L128">128</a>         <strong class="jxr_keyword">return</strong> dogma0.start().thenRun(() -&gt; {
 <a class="jxr_linenumber" name="L129" href="#L129">129</a>             <em class="jxr_comment">// A custom port may be added to the server during the configuration.</em>
-<a class="jxr_linenumber" name="L130" href="#L130">130</a>             <strong class="jxr_keyword">final</strong> ServerPort activePort = Iterables.getLast(dogma0.activePorts().values());
-<a class="jxr_linenumber" name="L131" href="#L131">131</a>             <strong class="jxr_keyword">if</strong> (activePort == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L130" href="#L130">130</a>             <strong class="jxr_keyword">final</strong> ServerPort serverPort = Iterables.getLast(dogma0.activePorts().values());
+<a class="jxr_linenumber" name="L131" href="#L131">131</a>             <strong class="jxr_keyword">if</strong> (serverPort == <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L132" href="#L132">132</a>                 <em class="jxr_comment">// Stopped already.</em>
 <a class="jxr_linenumber" name="L133" href="#L133">133</a>                 <strong class="jxr_keyword">return</strong>;
 <a class="jxr_linenumber" name="L134" href="#L134">134</a>             }
 <a class="jxr_linenumber" name="L135" href="#L135">135</a> 
-<a class="jxr_linenumber" name="L136" href="#L136">136</a>             <strong class="jxr_keyword">final</strong> InetSocketAddress serverAddress = activePort.localAddress();
-<a class="jxr_linenumber" name="L137" href="#L137">137</a>             <strong class="jxr_keyword">this</strong>.serverAddress = serverAddress;
-<a class="jxr_linenumber" name="L138" href="#L138">138</a> 
-<a class="jxr_linenumber" name="L139" href="#L139">139</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/client/armeria/ArmeriaCentralDogmaBuilder.html">ArmeriaCentralDogmaBuilder</a> clientBuilder = <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/client/armeria/ArmeriaCentralDogmaBuilder.html">ArmeriaCentralDogmaBuilder</a>();
-<a class="jxr_linenumber" name="L140" href="#L140">140</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/client/armeria/legacy/LegacyCentralDogmaBuilder.html">LegacyCentralDogmaBuilder</a> legacyClientBuilder = <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/client/armeria/legacy/LegacyCentralDogmaBuilder.html">LegacyCentralDogmaBuilder</a>();
-<a class="jxr_linenumber" name="L141" href="#L141">141</a> 
-<a class="jxr_linenumber" name="L142" href="#L142">142</a>             configureClientCommon(clientBuilder);
-<a class="jxr_linenumber" name="L143" href="#L143">143</a>             configureClientCommon(legacyClientBuilder);
-<a class="jxr_linenumber" name="L144" href="#L144">144</a>             configureClient(clientBuilder);
-<a class="jxr_linenumber" name="L145" href="#L145">145</a>             configureClient(legacyClientBuilder);
-<a class="jxr_linenumber" name="L146" href="#L146">146</a> 
-<a class="jxr_linenumber" name="L147" href="#L147">147</a>             <strong class="jxr_keyword">final</strong> String accessToken = accessToken();
-<a class="jxr_linenumber" name="L148" href="#L148">148</a>             <strong class="jxr_keyword">if</strong> (accessToken != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L149" href="#L149">149</a>                 clientBuilder.accessToken(accessToken);
-<a class="jxr_linenumber" name="L150" href="#L150">150</a>                 legacyClientBuilder.accessToken(accessToken);
-<a class="jxr_linenumber" name="L151" href="#L151">151</a>             }
-<a class="jxr_linenumber" name="L152" href="#L152">152</a> 
-<a class="jxr_linenumber" name="L153" href="#L153">153</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L154" href="#L154">154</a>                 client = clientBuilder.build();
-<a class="jxr_linenumber" name="L155" href="#L155">155</a>                 legacyClient = legacyClientBuilder.build();
-<a class="jxr_linenumber" name="L156" href="#L156">156</a>             } <strong class="jxr_keyword">catch</strong> (UnknownHostException e) {
-<a class="jxr_linenumber" name="L157" href="#L157">157</a>                 <em class="jxr_comment">// Should never reach here.</em>
-<a class="jxr_linenumber" name="L158" href="#L158">158</a>                 <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOError(e);
-<a class="jxr_linenumber" name="L159" href="#L159">159</a>             }
-<a class="jxr_linenumber" name="L160" href="#L160">160</a> 
-<a class="jxr_linenumber" name="L161" href="#L161">161</a>             <strong class="jxr_keyword">final</strong> String uri = <span class="jxr_string">"h2c://127.0.0.1:"</span> + serverAddress.getPort();
+<a class="jxr_linenumber" name="L136" href="#L136">136</a>             <strong class="jxr_keyword">this</strong>.serverPort = serverPort;
+<a class="jxr_linenumber" name="L137" href="#L137">137</a> 
+<a class="jxr_linenumber" name="L138" href="#L138">138</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/client/armeria/ArmeriaCentralDogmaBuilder.html">ArmeriaCentralDogmaBuilder</a> clientBuilder = <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/client/armeria/ArmeriaCentralDogmaBuilder.html">ArmeriaCentralDogmaBuilder</a>();
+<a class="jxr_linenumber" name="L139" href="#L139">139</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../com/linecorp/centraldogma/client/armeria/legacy/LegacyCentralDogmaBuilder.html">LegacyCentralDogmaBuilder</a> legacyClientBuilder = <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/client/armeria/legacy/LegacyCentralDogmaBuilder.html">LegacyCentralDogmaBuilder</a>();
+<a class="jxr_linenumber" name="L140" href="#L140">140</a> 
+<a class="jxr_linenumber" name="L141" href="#L141">141</a>             configureClientCommon(clientBuilder);
+<a class="jxr_linenumber" name="L142" href="#L142">142</a>             configureClientCommon(legacyClientBuilder);
+<a class="jxr_linenumber" name="L143" href="#L143">143</a>             configureClient(clientBuilder);
+<a class="jxr_linenumber" name="L144" href="#L144">144</a>             configureClient(legacyClientBuilder);
+<a class="jxr_linenumber" name="L145" href="#L145">145</a> 
+<a class="jxr_linenumber" name="L146" href="#L146">146</a>             <strong class="jxr_keyword">final</strong> String accessToken = accessToken();
+<a class="jxr_linenumber" name="L147" href="#L147">147</a>             <strong class="jxr_keyword">if</strong> (accessToken != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L148" href="#L148">148</a>                 clientBuilder.accessToken(accessToken);
+<a class="jxr_linenumber" name="L149" href="#L149">149</a>                 legacyClientBuilder.accessToken(accessToken);
+<a class="jxr_linenumber" name="L150" href="#L150">150</a>             }
+<a class="jxr_linenumber" name="L151" href="#L151">151</a> 
+<a class="jxr_linenumber" name="L152" href="#L152">152</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L153" href="#L153">153</a>                 client = clientBuilder.build();
+<a class="jxr_linenumber" name="L154" href="#L154">154</a>                 legacyClient = legacyClientBuilder.build();
+<a class="jxr_linenumber" name="L155" href="#L155">155</a>             } <strong class="jxr_keyword">catch</strong> (UnknownHostException e) {
+<a class="jxr_linenumber" name="L156" href="#L156">156</a>                 <em class="jxr_comment">// Should never reach here.</em>
+<a class="jxr_linenumber" name="L157" href="#L157">157</a>                 <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOError(e);
+<a class="jxr_linenumber" name="L158" href="#L158">158</a>             }
+<a class="jxr_linenumber" name="L159" href="#L159">159</a> 
+<a class="jxr_linenumber" name="L160" href="#L160">160</a>             <strong class="jxr_keyword">final</strong> String protocol = serverPort.hasHttp() ? <span class="jxr_string">"h2c"</span> : <span class="jxr_string">"h2"</span>;
+<a class="jxr_linenumber" name="L161" href="#L161">161</a>             <strong class="jxr_keyword">final</strong> String uri = protocol +  <span class="jxr_string">"://127.0.0.1:"</span> + serverPort.localAddress().getPort();
 <a class="jxr_linenumber" name="L162" href="#L162">162</a>             <strong class="jxr_keyword">final</strong> WebClientBuilder webClientBuilder = WebClient.builder(uri);
 <a class="jxr_linenumber" name="L163" href="#L163">163</a>             <strong class="jxr_keyword">if</strong> (accessToken != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L164" href="#L164">164</a>                 webClientBuilder.auth(AuthToken.ofOAuth2(accessToken));
@@ -282,11 +282,11 @@
 <a class="jxr_linenumber" name="L274" href="#L274">274</a> <em class="jxr_javadoccomment">     * @throws IllegalStateException if Central Dogma did not start yet</em>
 <a class="jxr_linenumber" name="L275" href="#L275">275</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L276" href="#L276">276</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> InetSocketAddress serverAddress() {
-<a class="jxr_linenumber" name="L277" href="#L277">277</a>         <strong class="jxr_keyword">final</strong> InetSocketAddress serverAddress = <strong class="jxr_keyword">this</strong>.serverAddress;
-<a class="jxr_linenumber" name="L278" href="#L278">278</a>         <strong class="jxr_keyword">if</strong> (serverAddress == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L277" href="#L277">277</a>         <strong class="jxr_keyword">final</strong> ServerPort serverPort = <strong class="jxr_keyword">this</strong>.serverPort;
+<a class="jxr_linenumber" name="L278" href="#L278">278</a>         <strong class="jxr_keyword">if</strong> (serverPort == <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L279" href="#L279">279</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IllegalStateException(<span class="jxr_string">"Central Dogma not started"</span>);
 <a class="jxr_linenumber" name="L280" href="#L280">280</a>         }
-<a class="jxr_linenumber" name="L281" href="#L281">281</a>         <strong class="jxr_keyword">return</strong> serverAddress;
+<a class="jxr_linenumber" name="L281" href="#L281">281</a>         <strong class="jxr_keyword">return</strong> serverPort.localAddress();
 <a class="jxr_linenumber" name="L282" href="#L282">282</a>     }
 <a class="jxr_linenumber" name="L283" href="#L283">283</a> 
 <a class="jxr_linenumber" name="L284" href="#L284">284</a>     <em class="jxr_javadoccomment">/**</em>
@@ -324,16 +324,17 @@
 <a class="jxr_linenumber" name="L316" href="#L316">316</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> scaffold(<a href="../../../../../com/linecorp/centraldogma/client/CentralDogma.html">CentralDogma</a> client) {}
 <a class="jxr_linenumber" name="L317" href="#L317">317</a> 
 <a class="jxr_linenumber" name="L318" href="#L318">318</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> configureClientCommon(AbstractArmeriaCentralDogmaBuilder&lt;?&gt; builder) {
-<a class="jxr_linenumber" name="L319" href="#L319">319</a>         <strong class="jxr_keyword">final</strong> InetSocketAddress serverAddress = <strong class="jxr_keyword">this</strong>.serverAddress;
-<a class="jxr_linenumber" name="L320" href="#L320">320</a>         assert serverAddress != <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L321" href="#L321">321</a>         builder.host(serverAddress.getHostString(), serverAddress.getPort());
-<a class="jxr_linenumber" name="L322" href="#L322">322</a> 
-<a class="jxr_linenumber" name="L323" href="#L323">323</a>         <strong class="jxr_keyword">if</strong> (useTls) {
-<a class="jxr_linenumber" name="L324" href="#L324">324</a>             builder.useTls();
-<a class="jxr_linenumber" name="L325" href="#L325">325</a>             builder.clientFactory(ClientFactory.insecure());
-<a class="jxr_linenumber" name="L326" href="#L326">326</a>         }
-<a class="jxr_linenumber" name="L327" href="#L327">327</a>     }
-<a class="jxr_linenumber" name="L328" href="#L328">328</a> }
+<a class="jxr_linenumber" name="L319" href="#L319">319</a>         <strong class="jxr_keyword">final</strong> ServerPort serverPort = <strong class="jxr_keyword">this</strong>.serverPort;
+<a class="jxr_linenumber" name="L320" href="#L320">320</a>         assert serverPort != <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L321" href="#L321">321</a>         <strong class="jxr_keyword">final</strong> InetSocketAddress serverAddress = serverPort.localAddress();
+<a class="jxr_linenumber" name="L322" href="#L322">322</a>         builder.host(serverAddress.getHostString(), serverAddress.getPort());
+<a class="jxr_linenumber" name="L323" href="#L323">323</a> 
+<a class="jxr_linenumber" name="L324" href="#L324">324</a>         <strong class="jxr_keyword">if</strong> (useTls || (serverPort.protocols().size() == 1 &amp;&amp; serverPort.hasHttps())) {
+<a class="jxr_linenumber" name="L325" href="#L325">325</a>             builder.useTls();
+<a class="jxr_linenumber" name="L326" href="#L326">326</a>             builder.clientFactory(ClientFactory.insecure());
+<a class="jxr_linenumber" name="L327" href="#L327">327</a>         }
+<a class="jxr_linenumber" name="L328" href="#L328">328</a>     }
+<a class="jxr_linenumber" name="L329" href="#L329">329</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2024 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

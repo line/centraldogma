@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Configuration &mdash; Central Dogma 0.69.1 documentation</title>
+  <title>Configuration &mdash; Central Dogma 0.70.0 documentation</title>
   
 
   
@@ -72,7 +72,7 @@
             
             
               <div class="version">
-                0.69
+                0.70
               </div>
             
           
@@ -245,7 +245,13 @@ defaults:</p>
       &quot;maxNumFilesPerMirror&quot;: null,
       &quot;maxNumBytesPerMirror&quot;: null
     }
-  ]
+  ],
+  &quot;management&quot;: {
+    &quot;address&quot;: &quot;127.0.0.1&quot;,
+    &quot;port&quot;: 36463,
+    &quot;protocol&quot;: null,
+    &quot;path&quot;: null
+  }
 }</pre></div>
 </div>
 <div class="section" id="core-properties">
@@ -454,6 +460,35 @@ value <code class="docutils literal notranslate"><span class="pre">7200</span></
 <li><p><code class="docutils literal notranslate"><span class="pre">pluginConfigs</span></code></p>
 <ul>
 <li><p>the list of plugin configuration. See <a class="reference internal" href="#plugins"><span class="std std-ref">Configuring plugins</span></a> for more information.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">management</span></code></p>
+<ul>
+<li><p>the management server configuration. Read <a class="reference external" href="https://javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/latest/com/linecorp/armeria/server/management/ManagementService.html">ManagementService API documentation</a>
+to know more about the management service.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">port</span></code> (integer)</p>
+<ul>
+<li><p>the port number of the management service.
+If <code class="docutils literal notranslate"><span class="pre">0</span></code>, the management service uses the same port as the main service.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">address</span></code> (string)</p>
+<ul>
+<li><p>the IP address of the management service. If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the management will listen to all network interfaces.</p></li>
+<li><p>this option is ignored if <code class="docutils literal notranslate"><span class="pre">port</span></code> is set to <code class="docutils literal notranslate"><span class="pre">0</span></code>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">protocol</span></code></p>
+<ul>
+<li><p>the protocol of the management service. <code class="docutils literal notranslate"><span class="pre">http</span></code> and <code class="docutils literal notranslate"><span class="pre">https</span></code> are supported. If not specified, <code class="docutils literal notranslate"><span class="pre">http</span></code> is used.</p></li>
+<li><p>this option is ignored if <code class="docutils literal notranslate"><span class="pre">port</span></code> is set to <code class="docutils literal notranslate"><span class="pre">0</span></code>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">path</span></code></p>
+<ul>
+<li><p>the path of the management service. If not specified, the management service is mounted at <code class="docutils literal notranslate"><span class="pre">/internal/management</span></code>.</p></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
