@@ -178,7 +178,8 @@ class RemovingHostnamePatternsServiceTest {
                                                    .repos().get(Project.REPO_DOGMA);
         final Map<String, Entry<?>> log = dogmaRepo.find(Revision.HEAD, REMOVING_HOSTNAME_JOB_LOG).join();
         final JsonNode data = log.get(REMOVING_HOSTNAME_JOB_LOG).contentAsJson();
-        assertThat(Jackson.readValue(data.get("timestamp").asText(), Instant.class)).isBefore(Instant.now());
+        assertThat(Jackson.readValue(data.get("timestamp").asText(), Instant.class))
+                .isBeforeOrEqualTo(Instant.now());
     }
 
     private static void assertCredential(Entry<?> entry, String credential) throws JsonParseException {
