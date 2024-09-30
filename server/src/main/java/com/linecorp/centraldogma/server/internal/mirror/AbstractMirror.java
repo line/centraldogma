@@ -41,6 +41,8 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.MirrorStatus;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public abstract class AbstractMirror implements Mirror {
@@ -51,7 +53,6 @@ public abstract class AbstractMirror implements Mirror {
 
     private final String id;
     private final boolean enabled;
-    private final Cron schedule;
     private final MirrorDirection direction;
     private final Credential credential;
     private final Repository localRepo;
@@ -61,16 +62,18 @@ public abstract class AbstractMirror implements Mirror {
     private final String remoteBranch;
     @Nullable
     private final String gitignore;
+    @Nullable
+    private final Cron schedule;
+    @Nullable
     private final ExecutionTime executionTime;
     private final long jitterMillis;
 
-    protected AbstractMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
+    protected AbstractMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                              Credential credential, Repository localRepo, String localPath,
                              URI remoteRepoUri, String remotePath, String remoteBranch,
                              @Nullable String gitignore) {
         this.id = requireNonNull(id, "id");
         this.enabled = enabled;
-        this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");
         this.credential = requireNonNull(credential, "credential");
         this.localRepo = requireNonNull(localRepo, "localRepo");
@@ -80,14 +83,21 @@ public abstract class AbstractMirror implements Mirror {
         this.remoteBranch = requireNonNull(remoteBranch, "remoteBranch");
         this.gitignore = gitignore;
 
-        executionTime = ExecutionTime.forCron(this.schedule);
+        if (schedule != null) {
+            this.schedule = requireNonNull(schedule, "schedule");
+            executionTime = ExecutionTime.forCron(this.schedule);
 
-        // Pre-calculate a constant jitter value up to 1 minute for a mirror.
-        // Use the properties' hash code so that the same properties result in the same jitter.
-        jitterMillis = Math.abs(Objects.hash(this.schedule.asString(), this.direction,
-                                             this.localRepo.parent().name(), this.localRepo.name(),
-                                             this.remoteRepoUri, this.remotePath, this.remoteBranch) /
-                                (Integer.MAX_VALUE / 60000));
+            // Pre-calculate a constant jitter value up to 1 minute for a mirror.
+            // Use the properties' hash code so that the same properties result in the same jitter.
+            jitterMillis = Math.abs(Objects.hash(this.schedule.asString(), this.direction,
+                                                 this.localRepo.parent().name(), this.localRepo.name(),
+                                                 this.remoteRepoUri, this.remotePath, this.remoteBranch) /
+                                    (Integer.MAX_VALUE / 60000));
+        } else {
+            this.schedule = null;
+            executionTime = null;
+            jitterMillis = -1;
+        }
     }
 
     @Override
@@ -164,19 +174,21 @@ public abstract class AbstractMirror implements Mirror {
     }
 
     @Override
-    public final void mirror(File workDir, CommandExecutor executor, int maxNumFiles, long maxNumBytes) {
+    public final MirrorResult mirror(File workDir, CommandExecutor executor, int maxNumFiles,
+                                     long maxNumBytes) {
         try {
             switch (direction()) {
                 case LOCAL_TO_REMOTE:
-                    mirrorLocalToRemote(workDir, maxNumFiles, maxNumBytes);
-                    break;
+                    return mirrorLocalToRemote(workDir, maxNumFiles, maxNumBytes);
                 case REMOTE_TO_LOCAL:
-                    mirrorRemoteToLocal(workDir, executor, maxNumFiles, maxNumBytes);
-                    break;
+                    return mirrorRemoteToLocal(workDir, executor, maxNumFiles, maxNumBytes);
+                default:
+                    throw new Error("Should never reach here");
             }
         } catch (InterruptedException e) {
             // Propagate the interruption.
             Thread.currentThread().interrupt();
+            throw new MirrorException(e);
         } catch (MirrorException e) {
             throw e;
         } catch (Exception e) {
@@ -184,11 +196,15 @@ public abstract class AbstractMirror implements Mirror {
         }
     }
 
-    protected abstract void mirrorLocalToRemote(
+    protected abstract MirrorResult mirrorLocalToRemote(
             File workDir, int maxNumFiles, long maxNumBytes) throws Exception;
 
-    protected abstract void mirrorRemoteToLocal(
+    protected abstract MirrorResult mirrorRemoteToLocal(
             File workDir, CommandExecutor executor, int maxNumFiles, long maxNumBytes) throws Exception;
+
+    protected final MirrorResult newMirrorResult(MirrorStatus mirrorStatus, @Nullable String description) {
+        return new MirrorResult(id, localRepo.parent().name(), localRepo.name(), mirrorStatus, description);
+    }
 
     @Override
     public String toString() {

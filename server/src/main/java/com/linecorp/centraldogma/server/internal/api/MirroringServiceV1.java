@@ -19,10 +19,15 @@ package com.linecorp.centraldogma.server.internal.api;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
+import java.io.File;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
+import com.cronutils.model.Cron;
+
+import com.linecorp.armeria.server.annotation.Blocking;
 import com.linecorp.armeria.server.annotation.ConsumesJson;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
@@ -38,6 +43,8 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 
@@ -52,9 +59,11 @@ public class MirroringServiceV1 extends AbstractService {
     //  - Add Java APIs to the CentralDogma client
 
     private final ProjectApiManager projectApiManager;
+    private final File workDir;
 
-    public MirroringServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor) {
+    public MirroringServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor, File dataDir) {
         super(executor);
+        workDir = new File(dataDir, "_mirrors_manual");
         this.projectApiManager = projectApiManager;
     }
 
@@ -81,7 +90,6 @@ public class MirroringServiceV1 extends AbstractService {
     @RequiresReadPermission(repository = Project.REPO_META)
     @Get("/projects/{projectName}/mirrors/{id}")
     public CompletableFuture<MirrorDto> getMirror(@Param String projectName, @Param String id) {
-
         return metaRepo(projectName).mirror(id).thenApply(mirror -> {
             return convertToMirrorDto(projectName, mirror);
         });
@@ -125,11 +133,27 @@ public class MirroringServiceV1 extends AbstractService {
         });
     }
 
+    @Post("/projects/{projectName}/mirrors/{mirrorId}/run")
+    @Blocking
+    public MirrorResult runMirror(@Param String projectName, @Param String mirrorId) throws Exception {
+        final Mirror mirror = metaRepo(projectName).mirror(mirrorId).get(10, TimeUnit.SECONDS);
+        if (mirror.schedule() != null) {
+            throw new UnsupportedOperationException("The mirror is scheduled to run automatically.");
+        }
+
+        return mirror.mirror(workDir, executor(),
+                             // TODO(ikhoon): Use  cfg.pluginConfigMap().get(configType())
+                             MirroringServicePluginConfig.INSTANCE.maxNumFilesPerMirror(),
+                             MirroringServicePluginConfig.INSTANCE.maxNumBytesPerMirror());
+    }
+
     private static MirrorDto convertToMirrorDto(String projectName, Mirror mirror) {
         final URI remoteRepoUri = mirror.remoteRepoUri();
+        final Cron schedule = mirror.schedule();
+        final String scheduleStr = schedule != null ? schedule.asString() : null;
         return new MirrorDto(mirror.id(),
                              mirror.enabled(), projectName,
-                             mirror.schedule().asString(),
+                             scheduleStr,
                              mirror.direction().name(),
                              mirror.localRepo().name(),
                              mirror.localPath(),

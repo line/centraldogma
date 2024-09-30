@@ -6,6 +6,7 @@ import { Badge, Code, Link } from '@chakra-ui/react';
 import { GoRepo } from 'react-icons/go';
 import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
 import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
+import { RunMirror } from '../../../mirror/RunMirror';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type MirrorListProps<Data extends object> = {
@@ -54,11 +55,19 @@ const MirrorList = <Data extends object>({ projectName }: MirrorListProps<Data>)
         header: 'Direction',
       }),
       columnHelper.accessor((row: MirrorDto) => row.schedule, {
-        cell: (info) => (
-          <Code variant="outline" p={1}>
-            {info.getValue()}
-          </Code>
-        ),
+        cell: (info) => {
+          return (
+            <>
+              {info.getValue() ? (
+                <Code variant="outline" p={1}>
+                  {info.getValue()}
+                </Code>
+              ) : (
+                <RunMirror mirror={info.row.original} />
+              )}
+            </>
+          );
+        },
         header: 'Schedule',
       }),
       columnHelper.accessor((row: MirrorDto) => row.enabled, {

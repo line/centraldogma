@@ -35,6 +35,7 @@ public final class MirrorContext {
 
     private final String id;
     private final boolean enabled;
+    @Nullable
     private final Cron schedule;
     private final MirrorDirection direction;
     private final Credential credential;
@@ -47,12 +48,12 @@ public final class MirrorContext {
     /**
      * Creates a new instance.
      */
-    public MirrorContext(String id, boolean enabled, Cron schedule, MirrorDirection direction,
+    public MirrorContext(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                          Credential credential, Repository localRepo, String localPath, URI remoteUri,
                          @Nullable String gitignore) {
         this.id = requireNonNull(id, "id");
         this.enabled = enabled;
-        this.schedule = requireNonNull(schedule, "schedule");
+        this.schedule = schedule;
         this.direction = requireNonNull(direction, "direction");
         this.credential = requireNonNull(credential, "credential");
         this.localRepo = requireNonNull(localRepo, "localRepo");
@@ -77,7 +78,9 @@ public final class MirrorContext {
 
     /**
      * Returns the cron schedule of this mirror.
+     * {@code null} if this mirror is not scheduled automatically.
      */
+    @Nullable
     public Cron schedule() {
         return schedule;
     }

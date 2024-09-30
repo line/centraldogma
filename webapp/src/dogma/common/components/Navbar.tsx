@@ -206,8 +206,8 @@ export const Navbar = () => {
                     if (typeof window !== 'undefined') {
                       Router.push(
                         process.env.NEXT_PUBLIC_HOST
-                          ? `${process.env.NEXT_PUBLIC_HOST}/link/auth/login/?return_to=${window.location.origin}`
-                          : `/link/auth/login/`,
+                          ? `${process.env.NEXT_PUBLIC_HOST}/link/auth/login?return_to=${window.location.origin}`
+                          : `/link/auth/login`,
                       );
                     }
                   }}

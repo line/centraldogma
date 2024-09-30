@@ -28,6 +28,7 @@ import com.cronutils.model.Cron;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public final class CentralDogmaMirror extends AbstractMirror {
@@ -56,13 +57,14 @@ public final class CentralDogmaMirror extends AbstractMirror {
     }
 
     @Override
-    protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) throws Exception {
+    protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes)
+            throws Exception {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    protected void mirrorRemoteToLocal(File workDir, CommandExecutor executor,
-                                       int maxNumFiles, long maxNumBytes) throws Exception {
+    protected MirrorResult mirrorRemoteToLocal(File workDir, CommandExecutor executor,
+                                               int maxNumFiles, long maxNumBytes) throws Exception {
         throw new UnsupportedOperationException();
     }
 }

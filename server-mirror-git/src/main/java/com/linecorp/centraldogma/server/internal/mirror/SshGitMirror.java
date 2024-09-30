@@ -61,6 +61,7 @@ import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
 import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class SshGitMirror extends AbstractGitMirror {
@@ -79,7 +80,7 @@ final class SshGitMirror extends AbstractGitMirror {
     // We might create multiple BouncyCastleRandom later and poll them, if necessary.
     private static final BouncyCastleRandom bounceCastleRandom = new BouncyCastleRandom();
 
-    SshGitMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
+    SshGitMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                  Credential credential, Repository localRepo, String localPath,
                  URI remoteRepoUri, String remotePath, String remoteBranch,
                  @Nullable String gitignore) {
@@ -89,28 +90,29 @@ final class SshGitMirror extends AbstractGitMirror {
     }
 
     @Override
-    protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) throws Exception {
+    protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes)
+            throws Exception {
         final URIish remoteUri = remoteUri();
         try (SshClient sshClient = createSshClient();
              ClientSession session = createSession(sshClient, remoteUri)) {
             final DefaultGitSshdSessionFactory sessionFactory =
                     new DefaultGitSshdSessionFactory(sshClient, session);
             try (GitWithAuth git = openGit(workDir, remoteUri, sessionFactory::configureCommand)) {
-                mirrorLocalToRemote(git, maxNumFiles, maxNumBytes);
+                return mirrorLocalToRemote(git, maxNumFiles, maxNumBytes);
             }
         }
     }
 
     @Override
-    protected void mirrorRemoteToLocal(File workDir, CommandExecutor executor,
-                                       int maxNumFiles, long maxNumBytes) throws Exception {
+    protected MirrorResult mirrorRemoteToLocal(File workDir, CommandExecutor executor,
+                                               int maxNumFiles, long maxNumBytes) throws Exception {
         final URIish remoteUri = remoteUri();
         try (SshClient sshClient = createSshClient();
              ClientSession session = createSession(sshClient, remoteUri)) {
             final DefaultGitSshdSessionFactory sessionFactory =
                     new DefaultGitSshdSessionFactory(sshClient, session);
             try (GitWithAuth git = openGit(workDir, remoteUri, sessionFactory::configureCommand)) {
-                mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes);
+                return mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes);
             }
         }
     }

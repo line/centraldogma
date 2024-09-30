@@ -1,0 +1,121 @@
+/*
+ * Copyright 2024 LINE Corporation
+ *
+ * LINE Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+
+package com.linecorp.centraldogma.server.mirror;
+
+import static java.util.Objects.requireNonNull;
+
+import java.util.Objects;
+
+import javax.annotation.Nullable;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.MoreObjects;
+
+/**
+ * The result of a mirroring operation.
+ */
+public final class MirrorResult {
+
+    private final String mirrorId;
+    private final String projectName;
+    private final String repoName;
+    private final MirrorStatus mirrorStatus;
+    @Nullable
+    private final String description;
+
+    /**
+     * Creates a new instance.
+     */
+    public MirrorResult(String mirrorId, String projectName, String repoName, MirrorStatus mirrorStatus,
+                        @Nullable String description) {
+        this.mirrorId = requireNonNull(mirrorId, "mirrorId");
+        this.projectName = requireNonNull(projectName, "projectName");
+        this.repoName = requireNonNull(repoName, "repoName");
+        this.mirrorStatus = requireNonNull(mirrorStatus, "mirrorStatus");
+        this.description = description;
+    }
+
+    /**
+     * Returns the ID of the mirror.
+     */
+    @JsonProperty("mirrorId")
+    public String mirrorId() {
+        return mirrorId;
+    }
+
+    /**
+     * Returns the project name which {@link #mirrorId()} belongs to.
+     */
+    @JsonProperty("projectName")
+    public String projectName() {
+        return projectName;
+    }
+
+    /**
+     * Returns the repository name where the mirroring operation is performed.
+     */
+    @JsonProperty("repoName")
+    public String repoName() {
+        return repoName;
+    }
+
+    /**
+     * Returns the status of the mirroring operation.
+     */
+    @JsonProperty("mirrorStatus")
+    public MirrorStatus mirrorStatus() {
+        return mirrorStatus;
+    }
+
+    /**
+     * Returns the description of the mirroring operation.
+     */
+    @Nullable
+    @JsonProperty("description")
+    public String description() {
+        return description;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {return true;}
+        if (!(o instanceof MirrorResult)) {return false;}
+        final MirrorResult that = (MirrorResult) o;
+        return mirrorId.equals(that.mirrorId) &&
+               projectName.equals(that.projectName) &&
+               repoName.equals(that.repoName) &&
+               mirrorStatus == that.mirrorStatus &&
+               Objects.equals(description, that.description);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(mirrorId, projectName, repoName, mirrorStatus, description);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                          .omitNullValues()
+                          .add("mirrorId", mirrorId)
+                          .add("projectName", projectName)
+                          .add("repoName", repoName)
+                          .add("mirrorStatus", mirrorStatus)
+                          .add("description", description)
+                          .toString();
+    }
+}

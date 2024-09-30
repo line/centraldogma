@@ -62,6 +62,7 @@ import org.eclipse.jgit.lib.RefUpdate.Result;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.FetchResult;
+import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.TagOpt;
 import org.eclipse.jgit.transport.URIish;
@@ -86,8 +87,11 @@ import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.MirrorStatus;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -115,7 +119,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
     @Nullable
     private IgnoreNode ignoreNode;
 
-    AbstractGitMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
+    AbstractGitMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                       Credential credential, Repository localRepo, String localPath,
                       URI remoteRepoUri, String remotePath, String remoteBranch,
                       @Nullable String gitignore) {
@@ -169,7 +173,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
         }
     }
 
-    void mirrorLocalToRemote(
+    MirrorResult mirrorLocalToRemote(
             GitWithAuth git, int maxNumFiles, long maxNumBytes) throws GitAPIException, IOException {
         // TODO(minwoox): Early return if the remote does not have any updates.
         final Ref headBranchRef = getHeadBranchRef(git);
@@ -177,6 +181,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
         final ObjectId headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRefName);
 
         final org.eclipse.jgit.lib.Repository gitRepository = git.getRepository();
+        String description;
         try (ObjectReader reader = gitRepository.newObjectReader();
              TreeWalk treeWalk = new TreeWalk(reader);
              RevWalk revWalk = new RevWalk(reader)) {
@@ -190,9 +195,12 @@ abstract class AbstractGitMirror extends AbstractMirror {
             final Revision remoteCurrentRevision = remoteCurrentRevision(reader, treeWalk, mirrorStatePath);
             if (localHead.equals(remoteCurrentRevision)) {
                 // The remote repository is up-to date.
-                logger.debug("The remote repository '{}#{}' already at {}. Local repository: '{}'",
-                             remoteRepoUri(), remoteBranch(), localHead, localRepo().name());
-                return;
+                description = String.format(
+                        "The remote repository '%s#%s' already at %s. Local repository: '%s/%s'",
+                        remoteRepoUri(), remoteBranch(), localHead,
+                        localRepo().parent().name(), localRepo().name());
+                logger.debug(description);
+                return newMirrorResult(MirrorStatus.UP_TO_DATE, description);
             }
 
             // Reset to traverse the tree from the first.
@@ -217,19 +225,27 @@ abstract class AbstractGitMirror extends AbstractMirror {
                                                  Jackson.writeValueAsPrettyString(mirrorState) + '\n'));
             }
 
+            final String summary = "Mirror '" + localRepo().name() + "' at " + localHead +
+                                   " to the repository '" + remoteRepoUri() + '#' + remoteBranch() + "'\n";
+            description = summary;
             final ObjectId nextCommitId =
-                    commit(gitRepository, dirCache, headCommitId, localHead);
+                    commit(gitRepository, dirCache, headCommitId, summary);
+            logger.info(summary);
             updateRef(gitRepository, revWalk, headBranchRefName, nextCommitId);
         }
 
-        git.push()
-           .setRefSpecs(new RefSpec(headBranchRefName))
-           .setAtomic(true)
-           .setTimeout(GIT_TIMEOUT_SECS)
-           .call();
+        final Iterable<PushResult> pushResults =
+                git.push()
+                   .setRefSpecs(new RefSpec(headBranchRefName))
+                   .setAtomic(true)
+                   .setTimeout(GIT_TIMEOUT_SECS)
+                   .call();
+        final PushResult pushResult = pushResults.iterator().next();
+        // TODO(ikhoon): Append remove ref to description;
+        return newMirrorResult(MirrorStatus.SUCCESS, description);
     }
 
-    void mirrorRemoteToLocal(
+    MirrorResult mirrorRemoteToLocal(
             GitWithAuth git, CommandExecutor executor, int maxNumFiles, long maxNumBytes) throws Exception {
         final String summary;
         final String detail;
@@ -239,7 +255,13 @@ abstract class AbstractGitMirror extends AbstractMirror {
         final String mirrorStatePath = localPath() + MIRROR_STATE_FILE_NAME;
         final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
         if (!needsFetch(headBranchRef, mirrorStatePath, localRev)) {
-            return;
+            final String abbrId = headBranchRef.getObjectId().abbreviate(OBJECT_ID_ABBREV_STRING_LENGTH).name();
+            final String message = String.format("Repository '%s/%s' already at %s, %s#%s",
+                                                 localRepo().parent().name(), localRepo().name(), abbrId,
+                                                 remoteRepoUri(), remoteBranch());
+            // The local repository is up-to date.
+            logger.debug(message);
+            return newMirrorResult(MirrorStatus.UP_TO_DATE, message);
         }
 
         // Update the head commit ID again because there's a chance a commit is pushed between the
@@ -301,14 +323,12 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
                 if (++numFiles > maxNumFiles) {
                     throwMirrorException(maxNumFiles, "files");
-                    return;
                 }
 
                 final ObjectId objectId = treeWalk.getObjectId(0);
                 final long contentLength = reader.getObjectSize(objectId, ObjectReader.OBJ_ANY);
                 if (numBytes > maxNumBytes - contentLength) {
                     throwMirrorException(maxNumBytes, "bytes");
-                    return;
                 }
                 numBytes += contentLength;
 
@@ -337,9 +357,11 @@ abstract class AbstractGitMirror extends AbstractMirror {
             }
         });
 
-        executor.execute(Command.push(
+        final CommitResult commitResult = executor.execute(Command.push(
                 MIRROR_AUTHOR, localRepo().parent().name(), localRepo().name(),
                 Revision.HEAD, summary, detail, Markup.PLAINTEXT, changes.values())).join();
+        final String description = summary + ", Revision: " + commitResult.revision();
+        return newMirrorResult(MirrorStatus.SUCCESS, description);
     }
 
     private boolean needsFetch(Ref headBranchRef, String mirrorStatePath, Revision localRev)
@@ -355,9 +377,6 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
         final ObjectId headCommitId = headBranchRef.getObjectId();
         if (headCommitId.name().equals(localSourceRevision)) {
-            final String abbrId = headCommitId.abbreviate(OBJECT_ID_ABBREV_STRING_LENGTH).name();
-            logger.info("Repository '{}' already at {}, {}#{}", localRepo().name(), abbrId,
-                        remoteRepoUri(), remoteBranch());
             return false;
         }
         return true;
@@ -675,7 +694,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
     }
 
     private ObjectId commit(org.eclipse.jgit.lib.Repository gitRepository, DirCache dirCache,
-                            ObjectId headCommitId, Revision localHead) throws IOException {
+                            ObjectId headCommitId, String message) throws IOException {
         try (ObjectInserter inserter = gitRepository.newObjectInserter()) {
             // flush the current index to repository and get the result tree object id.
             final ObjectId nextTreeId = dirCache.writeTree(inserter);
@@ -691,11 +710,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
             commitBuilder.setTreeId(nextTreeId);
             commitBuilder.setEncoding(UTF_8);
             commitBuilder.setParentId(headCommitId);
-
-            final String summary = "Mirror '" + localRepo().name() + "' at " + localHead +
-                                   " to the repository '" + remoteRepoUri() + '#' + remoteBranch() + "'\n";
-            logger.info(summary);
-            commitBuilder.setMessage(summary);
+            commitBuilder.setMessage(message);
 
             final ObjectId nextCommitId = inserter.insert(commitBuilder);
             inserter.flush();

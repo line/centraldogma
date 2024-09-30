@@ -185,7 +185,10 @@ public final class DefaultMirroringService implements MirroringService {
                               logger.warn("Failed to load the mirror list from: {}", project.name(), e);
                               return;
                           }
-                          mirrors.forEach(m -> {
+                          for (Mirror m : mirrors) {
+                              if (m.schedule() == null) {
+                                  continue;
+                              }
                               try {
                                   if (m.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0) {
                                       run(project, m);
@@ -193,7 +196,7 @@ public final class DefaultMirroringService implements MirroringService {
                               } catch (Exception e) {
                                   logger.warn("Unexpected exception while mirroring: {}", m, e);
                               }
-                          });
+                          }
                       });
     }
 

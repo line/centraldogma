@@ -39,6 +39,8 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.MirrorStatus;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
@@ -74,14 +76,17 @@ class DefaultMirroringServiceTest {
                                                  Credential.FALLBACK, r, "/",
                                                  URI.create("unused://uri"), "/", "", null) {
             @Override
-            protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) {}
+            protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) {
+                return newMirrorResult(MirrorStatus.UP_TO_DATE, null);
+            }
 
             @Override
-            protected void mirrorRemoteToLocal(File workDir, CommandExecutor executor,
-                                               int maxNumFiles, long maxNumBytes) throws Exception {
+            protected MirrorResult mirrorRemoteToLocal(File workDir, CommandExecutor executor,
+                                                       int maxNumFiles, long maxNumBytes) throws Exception {
                 // Sleep longer than mirroring interval so that the workers fall behind.
                 taskCounter.incrementAndGet();
                 Thread.sleep(2000);
+                return newMirrorResult(MirrorStatus.SUCCESS, null);
             }
         };
 

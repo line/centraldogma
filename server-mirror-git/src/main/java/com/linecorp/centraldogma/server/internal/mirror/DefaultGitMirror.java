@@ -36,13 +36,14 @@ import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
 import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class DefaultGitMirror extends AbstractGitMirror {
 
     private static final Consumer<TransportCommand<?, ?>> NOOP_CONFIGURATOR = command -> {};
 
-    DefaultGitMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
+    DefaultGitMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                      Credential credential, Repository localRepo, String localPath,
                      URI remoteRepoUri, String remotePath, String remoteBranch,
                      @Nullable String gitignore) {
@@ -51,9 +52,9 @@ final class DefaultGitMirror extends AbstractGitMirror {
     }
 
     @Override
-    protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) throws Exception {
+    protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) throws Exception {
         try (GitWithAuth git = openGit(workDir, transportCommandConfigurator())) {
-            mirrorLocalToRemote(git, maxNumFiles, maxNumBytes);
+            return mirrorLocalToRemote(git, maxNumFiles, maxNumBytes);
         }
     }
 
@@ -78,10 +79,10 @@ final class DefaultGitMirror extends AbstractGitMirror {
     }
 
     @Override
-    protected void mirrorRemoteToLocal(File workDir, CommandExecutor executor,
-                                       int maxNumFiles, long maxNumBytes) throws Exception {
+    protected MirrorResult mirrorRemoteToLocal(File workDir, CommandExecutor executor,
+                                               int maxNumFiles, long maxNumBytes) throws Exception {
         try (GitWithAuth git = openGit(workDir, transportCommandConfigurator())) {
-            mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes);
+            return mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes);
         }
     }
 

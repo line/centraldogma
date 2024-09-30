@@ -78,8 +78,8 @@ public final class MirrorConfig {
     private final URI remoteUri;
     @Nullable
     private final String gitignore;
-    @Nullable
     private final String credentialId;
+    @Nullable
     private final Cron schedule;
 
     @JsonCreator
@@ -91,10 +91,14 @@ public final class MirrorConfig {
                         @JsonProperty("localPath") @Nullable String localPath,
                         @JsonProperty(value = "remoteUri", required = true) URI remoteUri,
                         @JsonProperty("gitignore") @Nullable Object gitignore,
-                        @JsonProperty("credentialId") @Nullable String credentialId) {
+                        @JsonProperty("credentialId") String credentialId) {
         this.id = requireNonNull(id, "id");
         this.enabled = firstNonNull(enabled, true);
-        this.schedule = CRON_PARSER.parse(firstNonNull(schedule, DEFAULT_SCHEDULE));
+        if (schedule != null) {
+            this.schedule = CRON_PARSER.parse(schedule);
+        } else {
+            this.schedule = null;
+        }
         this.direction = requireNonNull(direction, "direction");
         this.localRepo = requireNonNull(localRepo, "localRepo");
         this.localPath = firstNonNull(localPath, "/");
@@ -117,7 +121,7 @@ public final class MirrorConfig {
         } else {
             this.gitignore = null;
         }
-        this.credentialId = credentialId;
+        this.credentialId = requireNonNull(credentialId, "credentialId");
     }
 
     @Nullable
@@ -195,9 +199,14 @@ public final class MirrorConfig {
         return credentialId;
     }
 
+    @Nullable
     @JsonProperty("schedule")
     public String schedule() {
-        return schedule.asString();
+        if (schedule != null) {
+            return schedule.asString();
+        } else {
+            return null;
+        }
     }
 
     @Override
