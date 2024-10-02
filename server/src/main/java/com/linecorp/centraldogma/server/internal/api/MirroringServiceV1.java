@@ -19,15 +19,12 @@ package com.linecorp.centraldogma.server.internal.api;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
-import java.io.File;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 import com.cronutils.model.Cron;
 
-import com.linecorp.armeria.server.annotation.Blocking;
 import com.linecorp.armeria.server.annotation.ConsumesJson;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
@@ -41,10 +38,10 @@ import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
+import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
-import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 
@@ -59,12 +56,13 @@ public class MirroringServiceV1 extends AbstractService {
     //  - Add Java APIs to the CentralDogma client
 
     private final ProjectApiManager projectApiManager;
-    private final File workDir;
+    private final MirrorRunner mirrorRunner;
 
-    public MirroringServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor, File dataDir) {
+    public MirroringServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor,
+                              MirrorRunner mirrorRunner) {
         super(executor);
-        workDir = new File(dataDir, "_mirrors_manual");
         this.projectApiManager = projectApiManager;
+        this.mirrorRunner = mirrorRunner;
     }
 
     /**
@@ -134,17 +132,8 @@ public class MirroringServiceV1 extends AbstractService {
     }
 
     @Post("/projects/{projectName}/mirrors/{mirrorId}/run")
-    @Blocking
-    public MirrorResult runMirror(@Param String projectName, @Param String mirrorId) throws Exception {
-        final Mirror mirror = metaRepo(projectName).mirror(mirrorId).get(10, TimeUnit.SECONDS);
-        if (mirror.schedule() != null) {
-            throw new UnsupportedOperationException("The mirror is scheduled to run automatically.");
-        }
-
-        return mirror.mirror(workDir, executor(),
-                             // TODO(ikhoon): Use  cfg.pluginConfigMap().get(configType())
-                             MirroringServicePluginConfig.INSTANCE.maxNumFilesPerMirror(),
-                             MirroringServicePluginConfig.INSTANCE.maxNumBytesPerMirror());
+    public CompletableFuture<MirrorResult> runMirror(@Param String projectName, @Param String mirrorId) throws Exception {
+        return mirrorRunner.run(projectName, mirrorId);
     }
 
     private static MirrorDto convertToMirrorDto(String projectName, Mirror mirror) {

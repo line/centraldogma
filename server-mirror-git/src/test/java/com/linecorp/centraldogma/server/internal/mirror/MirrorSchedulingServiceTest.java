@@ -49,7 +49,7 @@ import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
-class DefaultMirroringServiceTest {
+class MirrorSchedulingServiceTest {
 
     @TempDir
     static File temporaryFolder;
@@ -92,7 +92,7 @@ class DefaultMirroringServiceTest {
 
         when(mr.mirrors()).thenReturn(CompletableFuture.completedFuture(ImmutableList.of(mirror)));
 
-        final DefaultMirroringService service = new DefaultMirroringService(
+        final MirrorSchedulingService service = new MirrorSchedulingService(
                 temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1);
         final CommandExecutor executor = mock(CommandExecutor.class);
         service.start(executor);

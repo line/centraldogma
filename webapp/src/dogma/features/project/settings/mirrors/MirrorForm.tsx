@@ -51,6 +51,7 @@ import { RepoDto } from 'dogma/features/repo/RepoDto';
 import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 import { FiBox } from 'react-icons/fi';
+import cronstrue from 'cronstrue';
 
 interface MirrorFormProps {
   projectName: string;
@@ -79,11 +80,11 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
   const {
     register,
     handleSubmit,
-    reset,
     formState: { errors, isDirty },
     setError,
     setValue,
     control,
+    watch,
   } = useForm<MirrorForm>();
 
   const isNew = defaultValue.id === '';
@@ -91,6 +92,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
   const { data: credentials } = useGetCredentialsQuery(projectName);
 
   const [isScheduleEnabled, setScheduleEnabled] = useState<boolean>(defaultValue.schedule != null);
+  const schedule = watch('schedule');
 
   const repoOptions: OptionType[] = (repos || [])
     .filter((repo: RepoDto) => !INTERNAL_REPOS.has(repo.name))
@@ -134,7 +136,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
   return (
     <form
       onSubmit={handleSubmit((mirror) => {
-        return onSubmit(mirror, reset, setError);
+        return onSubmit(mirror, () => {}, setError);
       })}
     >
       <Center>
@@ -194,18 +196,25 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
               />
             </FormLabel>
             {isScheduleEnabled ? (
-              <Input
-                id="schedule"
-                name="schedule"
-                type="text"
-                placeholder="0 * * * * ?"
-                defaultValue={defaultValue.schedule || '0 * * * * ?'}
-                {...register('schedule', { required: true })}
-              />
+              <>
+                <Input
+                  id="schedule"
+                  name="schedule"
+                  type="text"
+                  placeholder="0 * * * * ?"
+                  defaultValue={defaultValue.schedule || '0 * * * * ?'}
+                  {...register('schedule', { required: true })}
+                />
+                {schedule && (
+                  <FormHelperText color={'gray.500'}>
+                    {cronstrue.toString(schedule, { verbose: true })}
+                  </FormHelperText>
+                )}
+              </>
             ) : (
               <Alert status="warning" marginTop={3} borderRadius={5}>
                 <AlertIcon />
-                Scheduling is disabled. Mirroring can be triggered manually.
+                Scheduling is disabled.
               </Alert>
             )}
 

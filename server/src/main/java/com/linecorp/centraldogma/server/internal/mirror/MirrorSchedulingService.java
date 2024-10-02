@@ -58,9 +58,9 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
-public final class DefaultMirroringService implements MirroringService {
+public final class MirrorSchedulingService implements MirroringService {
 
-    private static final Logger logger = LoggerFactory.getLogger(DefaultMirroringService.class);
+    private static final Logger logger = LoggerFactory.getLogger(MirrorSchedulingService.class);
 
     /**
      * How often to check the mirroring schedules. i.e. every second.
@@ -80,7 +80,7 @@ public final class DefaultMirroringService implements MirroringService {
     private ZonedDateTime lastExecutionTime;
     private final MeterRegistry meterRegistry;
 
-    DefaultMirroringService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
+    MirrorSchedulingService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
                             int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror) {
 
         this.workDir = requireNonNull(workDir, "workDir");

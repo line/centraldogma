@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -81,6 +82,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
@@ -255,13 +257,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
         final String mirrorStatePath = localPath() + MIRROR_STATE_FILE_NAME;
         final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
         if (!needsFetch(headBranchRef, mirrorStatePath, localRev)) {
-            final String abbrId = headBranchRef.getObjectId().abbreviate(OBJECT_ID_ABBREV_STRING_LENGTH).name();
-            final String message = String.format("Repository '%s/%s' already at %s, %s#%s",
-                                                 localRepo().parent().name(), localRepo().name(), abbrId,
-                                                 remoteRepoUri(), remoteBranch());
-            // The local repository is up-to date.
-            logger.debug(message);
-            return newMirrorResult(MirrorStatus.UP_TO_DATE, message);
+            return newMirrorResultForUpToDate(headBranchRef);
         }
 
         // Update the head commit ID again because there's a chance a commit is pushed between the
@@ -357,11 +353,28 @@ abstract class AbstractGitMirror extends AbstractMirror {
             }
         });
 
-        final CommitResult commitResult = executor.execute(Command.push(
-                MIRROR_AUTHOR, localRepo().parent().name(), localRepo().name(),
-                Revision.HEAD, summary, detail, Markup.PLAINTEXT, changes.values())).join();
-        final String description = summary + ", Revision: " + commitResult.revision();
-        return newMirrorResult(MirrorStatus.SUCCESS, description);
+        try {
+            final CommitResult commitResult = executor.execute(Command.push(
+                    MIRROR_AUTHOR, localRepo().parent().name(), localRepo().name(),
+                    Revision.HEAD, summary, detail, Markup.PLAINTEXT, changes.values())).join();
+            final String description = summary + ", Revision: " + commitResult.revision();
+            return newMirrorResult(MirrorStatus.SUCCESS, description);
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof RedundantChangeException) {
+                return newMirrorResultForUpToDate(headBranchRef);
+            }
+            throw e;
+        }
+    }
+
+    private MirrorResult newMirrorResultForUpToDate(Ref headBranchRef) {
+        final String abbrId = headBranchRef.getObjectId().abbreviate(OBJECT_ID_ABBREV_STRING_LENGTH).name();
+        final String message = String.format("Repository '%s/%s' already at %s, %s#%s",
+                                             localRepo().parent().name(), localRepo().name(), abbrId,
+                                             remoteRepoUri(), remoteBranch());
+        // The local repository is up-to date.
+        logger.debug(message);
+        return newMirrorResult(MirrorStatus.UP_TO_DATE, message);
     }
 
     private boolean needsFetch(Ref headBranchRef, String mirrorStatePath, Revision localRev)
@@ -377,7 +390,8 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
         final ObjectId headCommitId = headBranchRef.getObjectId();
         if (headCommitId.name().equals(localSourceRevision)) {
-            return false;
+            // TODO(ikhoon): Revert
+            return true;
         }
         return true;
     }

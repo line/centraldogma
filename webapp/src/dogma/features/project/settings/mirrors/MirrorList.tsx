@@ -2,11 +2,12 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import React, { useMemo } from 'react';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { useGetMirrorsQuery } from 'dogma/features/api/apiSlice';
-import { Badge, Code, Link } from '@chakra-ui/react';
+import { Badge, Code, IconButton, Link, Tooltip } from '@chakra-ui/react';
 import { GoRepo } from 'react-icons/go';
 import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
 import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
-import { RunMirror } from '../../../mirror/RunMirror';
+import { RunMirror } from '../../../mirror/RunMirrorButton';
+import { FaPlay } from 'react-icons/fa';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type MirrorListProps<Data extends object> = {
@@ -57,18 +58,32 @@ const MirrorList = <Data extends object>({ projectName }: MirrorListProps<Data>)
       columnHelper.accessor((row: MirrorDto) => row.schedule, {
         cell: (info) => {
           return (
-            <>
-              {info.getValue() ? (
-                <Code variant="outline" p={1}>
-                  {info.getValue()}
-                </Code>
-              ) : (
-                <RunMirror mirror={info.row.original} />
-              )}
-            </>
+            <Code variant="outline" p={1}>
+              {info.getValue() || 'disabled'}
+            </Code>
           );
         },
         header: 'Schedule',
+      }),
+      columnHelper.accessor((row: MirrorDto) => row.schedule, {
+        cell: (info) => {
+          return (
+            <RunMirror mirror={info.row.original}>
+              {({ isLoading }) => (
+                <Tooltip hasArrow label="Run mirror">
+                  <IconButton
+                    colorScheme={'green'}
+                    size="sm"
+                    aria-label="Run mirror"
+                    isLoading={isLoading}
+                    icon={<FaPlay />}
+                  />
+                </Tooltip>
+              )}
+            </RunMirror>
+          );
+        },
+        header: 'Actions',
       }),
       columnHelper.accessor((row: MirrorDto) => row.enabled, {
         cell: (info) => {

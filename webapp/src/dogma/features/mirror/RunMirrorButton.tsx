@@ -22,11 +22,30 @@ import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { MirrorResult } from './MirrorResult';
 import { MirrorDto } from '../project/settings/mirrors/MirrorDto';
-import { FaPlay } from 'react-icons/fa';
-import { IconButton } from '@chakra-ui/react';
+import {
+  Button,
+  ButtonGroup,
+  Mark,
+  Popover,
+  PopoverArrow,
+  PopoverBody,
+  PopoverCloseButton,
+  PopoverContent,
+  PopoverFooter,
+  PopoverHeader,
+  PopoverTrigger,
+  useDisclosure,
+} from '@chakra-ui/react';
+import { WithProjectRole } from '../auth/ProjectRole';
+import { ReactNode } from 'react';
 
-export const RunMirror = ({ mirror }: { mirror: MirrorDto }) => {
+type RunMirrorProps = {
+  mirror: MirrorDto;
+  children: ({ isLoading }: { isLoading: boolean }) => ReactNode;
+};
+export const RunMirror = ({ mirror, children }: RunMirrorProps) => {
   const [runMirror, { isLoading }] = useRunMirrorMutation();
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
   const onClick = async () => {
     try {
@@ -42,19 +61,41 @@ export const RunMirror = ({ mirror }: { mirror: MirrorDto }) => {
       } else if (result.mirrorStatus === 'UP_TO_DATE') {
         dispatch(newNotification(`No changes`, result.description, 'info'));
       }
+      onClose();
     } catch (error) {
       dispatch(newNotification(`Failed to run mirror ${mirror.id}`, ErrorMessageParser.parse(error), 'error'));
     }
   };
 
   return (
-    <IconButton
-      colorScheme="teal"
-      size="sm"
-      aria-label="Trigger mirror"
-      onClick={onClick}
-      isLoading={isLoading}
-      icon={<FaPlay />}
-    />
+    <WithProjectRole projectName={mirror.projectName} roles={['OWNER']}>
+      {() => (
+        <Popover returnFocusOnClose={false} isOpen={isOpen} onOpen={onOpen} onClose={onClose} closeDelay={1000}>
+          <PopoverTrigger>{children({ isLoading })}</PopoverTrigger>
+          <PopoverContent>
+            <PopoverHeader fontWeight="semibold">Confirmation</PopoverHeader>
+            <PopoverArrow />
+            <PopoverCloseButton />
+            <PopoverBody padding="15px">
+              Do you want to run{' '}
+              <Mark px="1" py="1" bg="orange.100">
+                {mirror.id}
+              </Mark>{' '}
+              mirror?
+            </PopoverBody>
+            <PopoverFooter display="flex" justifyContent="flex-end">
+              <ButtonGroup size="sm">
+                <Button variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button colorScheme="red" onClick={onClick}>
+                  Run
+                </Button>
+              </ButtonGroup>
+            </PopoverFooter>
+          </PopoverContent>
+        </Popover>
+      )}
+    </WithProjectRole>
   );
 };

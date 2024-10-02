@@ -210,7 +210,6 @@ public abstract class AbstractMirror implements Mirror {
     public String toString() {
         final ToStringHelper helper = MoreObjects.toStringHelper("")
                                                  .omitNullValues()
-                                                 .add("schedule", CronDescriptor.instance().describe(schedule))
                                                  .add("direction", direction)
                                                  .add("localProj", localRepo.parent().name())
                                                  .add("localRepo", localRepo.name())
@@ -220,7 +219,9 @@ public abstract class AbstractMirror implements Mirror {
                                                  .add("remoteBranch", remoteBranch)
                                                  .add("gitignore", gitignore)
                                                  .add("credential", credential);
-
+        if (schedule != null) {
+            helper.add("schedule", CronDescriptor.instance().describe(schedule));
+        }
         return helper.toString();
     }
 }
