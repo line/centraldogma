@@ -56,6 +56,7 @@ public final class MirrorRunner implements SafeCloseable {
                         CentralDogmaConfig cfg, MeterRegistry meterRegistry) {
         this.projectApiManager = projectApiManager;
         this.commandExecutor = commandExecutor;
+        // TODO(ikhoon): Periodically clean up stale repositories.
         workDir = new File(cfg.dataDir(), "_mirrors_manual");
         MirroringServicePluginConfig mirrorConfig =
                 (MirroringServicePluginConfig) cfg.pluginConfigMap()

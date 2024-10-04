@@ -52,7 +52,8 @@ final class DefaultGitMirror extends AbstractGitMirror {
     }
 
     @Override
-    protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) throws Exception {
+    protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes)
+            throws Exception {
         try (GitWithAuth git = openGit(workDir, transportCommandConfigurator())) {
             return mirrorLocalToRemote(git, maxNumFiles, maxNumBytes);
         }

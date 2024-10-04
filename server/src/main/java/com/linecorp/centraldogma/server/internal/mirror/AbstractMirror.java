@@ -36,7 +36,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.server.MirrorException;
+import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
@@ -192,7 +192,12 @@ public abstract class AbstractMirror implements Mirror {
         } catch (MirrorException e) {
             throw e;
         } catch (Exception e) {
-            throw new MirrorException(e);
+            final String message = e.getMessage();
+            if (message != null) {
+                throw new MirrorException(message, e);
+            } else {
+                throw new MirrorException(e);
+            }
         }
     }
 

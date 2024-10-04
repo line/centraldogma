@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
 
 import com.cronutils.model.Cron;
 
-import com.linecorp.centraldogma.server.MirrorException;
+import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.storage.repository.Repository;

@@ -55,7 +55,7 @@ import org.slf4j.LoggerFactory;
 import com.cronutils.model.Cron;
 import com.google.common.annotations.VisibleForTesting;
 
-import com.linecorp.centraldogma.server.MirrorException;
+import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;

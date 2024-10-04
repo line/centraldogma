@@ -41,14 +41,15 @@ import { ReactNode } from 'react';
 
 type RunMirrorProps = {
   mirror: MirrorDto;
-  children: ({ isLoading }: { isLoading: boolean }) => ReactNode;
+  children: ({ isLoading }: { isLoading: boolean; onToggle: () => void }) => ReactNode;
 };
 export const RunMirror = ({ mirror, children }: RunMirrorProps) => {
   const [runMirror, { isLoading }] = useRunMirrorMutation();
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen, onOpen, onClose, onToggle } = useDisclosure();
   const dispatch = useAppDispatch();
   const onClick = async () => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response: any = await runMirror({ projectName: mirror.projectName, id: mirror.id }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
@@ -68,34 +69,32 @@ export const RunMirror = ({ mirror, children }: RunMirrorProps) => {
   };
 
   return (
-    <WithProjectRole projectName={mirror.projectName} roles={['OWNER']}>
-      {() => (
-        <Popover returnFocusOnClose={false} isOpen={isOpen} onOpen={onOpen} onClose={onClose} closeDelay={1000}>
-          <PopoverTrigger>{children({ isLoading })}</PopoverTrigger>
-          <PopoverContent>
-            <PopoverHeader fontWeight="semibold">Confirmation</PopoverHeader>
-            <PopoverArrow />
-            <PopoverCloseButton />
-            <PopoverBody padding="15px">
-              Do you want to run{' '}
-              <Mark px="1" py="1" bg="orange.100">
-                {mirror.id}
-              </Mark>{' '}
-              mirror?
-            </PopoverBody>
-            <PopoverFooter display="flex" justifyContent="flex-end">
-              <ButtonGroup size="sm">
-                <Button variant="outline" onClick={onClose}>
-                  Cancel
-                </Button>
-                <Button colorScheme="red" onClick={onClick}>
-                  Run
-                </Button>
-              </ButtonGroup>
-            </PopoverFooter>
-          </PopoverContent>
-        </Popover>
-      )}
-    </WithProjectRole>
+    <Popover returnFocusOnClose={false} isOpen={isOpen} onOpen={onOpen} onClose={onClose} closeDelay={1000}>
+      <PopoverTrigger>{children({ isLoading, onToggle })}</PopoverTrigger>
+      <PopoverContent>
+        <PopoverHeader fontWeight="semibold" border="0">
+          Confirmation
+        </PopoverHeader>
+        <PopoverArrow />
+        <PopoverCloseButton />
+        <PopoverBody padding="15px">
+          Do you want to run{' '}
+          <Mark px="1" py="1" bg="orange.100">
+            {mirror.id}
+          </Mark>{' '}
+          mirror?
+        </PopoverBody>
+        <PopoverFooter display="flex" justifyContent="flex-end" border="0">
+          <ButtonGroup size="sm">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button colorScheme="red" onClick={onClick}>
+              Run
+            </Button>
+          </ButtonGroup>
+        </PopoverFooter>
+      </PopoverContent>
+    </Popover>
   );
 };

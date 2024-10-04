@@ -22,6 +22,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import com.cronutils.model.Cron;
 
@@ -32,6 +33,7 @@ import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.armeria.server.annotation.StatusCode;
+import com.linecorp.armeria.server.annotation.decorator.RequestTimeout;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
@@ -131,8 +133,11 @@ public class MirroringServiceV1 extends AbstractService {
         });
     }
 
+    // Mirroring may be a long-running task, so we need to increase the timeout.
+    @RequestTimeout(value = 2, unit = TimeUnit.MINUTES)
     @Post("/projects/{projectName}/mirrors/{mirrorId}/run")
-    public CompletableFuture<MirrorResult> runMirror(@Param String projectName, @Param String mirrorId) throws Exception {
+    public CompletableFuture<MirrorResult> runMirror(@Param String projectName, @Param String mirrorId)
+            throws Exception {
         return mirrorRunner.run(projectName, mirrorId);
     }
 

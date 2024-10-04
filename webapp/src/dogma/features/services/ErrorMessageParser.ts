@@ -8,7 +8,11 @@ class ErrorMessageParser {
       return object.error;
     }
     if (object.data && object.data.message) {
-      return object.data.message;
+      let message = object.data.message;
+      if (object.data.detail) {
+        message += object.data.detail;
+      }
+      return message;
     }
     if (object.message) {
       return object.message;

@@ -2,7 +2,7 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import React, { useMemo } from 'react';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { useGetMirrorsQuery } from 'dogma/features/api/apiSlice';
-import { Badge, Code, IconButton, Link, Tooltip } from '@chakra-ui/react';
+import { Badge, Button, Code, Link } from '@chakra-ui/react';
 import { GoRepo } from 'react-icons/go';
 import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
 import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
@@ -69,16 +69,17 @@ const MirrorList = <Data extends object>({ projectName }: MirrorListProps<Data>)
         cell: (info) => {
           return (
             <RunMirror mirror={info.row.original}>
-              {({ isLoading }) => (
-                <Tooltip hasArrow label="Run mirror">
-                  <IconButton
-                    colorScheme={'green'}
-                    size="sm"
-                    aria-label="Run mirror"
-                    isLoading={isLoading}
-                    icon={<FaPlay />}
-                  />
-                </Tooltip>
+              {({ isLoading, onToggle }) => (
+                <Button
+                  onClick={onToggle}
+                  colorScheme={'green'}
+                  size="sm"
+                  aria-label="Run mirror"
+                  isLoading={isLoading}
+                  leftIcon={<FaPlay />}
+                >
+                  Run
+                </Button>
               )}
             </RunMirror>
           );

@@ -13,6 +13,9 @@ export const NotificationWrapper = (props: { children: ReactNode }) => {
         status: type,
         duration: 10000,
         isClosable: true,
+        containerStyle: {
+          maxWidth: '60%',
+        },
       });
     }
   }, [title, text, type, timestamp, toast]);
