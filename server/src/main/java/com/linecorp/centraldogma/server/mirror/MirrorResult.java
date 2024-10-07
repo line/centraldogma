@@ -99,8 +99,12 @@ public final class MirrorResult {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) {return true;}
-        if (!(o instanceof MirrorResult)) {return false;}
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof MirrorResult)) {
+            return false;
+        }
         final MirrorResult that = (MirrorResult) o;
         return mirrorId.equals(that.mirrorId) &&
                projectName.equals(that.projectName) &&

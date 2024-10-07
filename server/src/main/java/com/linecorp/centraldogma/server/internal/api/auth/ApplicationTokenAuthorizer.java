@@ -56,7 +56,8 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
     private final Function<String, CompletionStage<Token>> tokenLookupFunc;
     private final boolean verboseResponses;
 
-    public ApplicationTokenAuthorizer(Function<String, CompletionStage<Token>> tokenLookupFunc, boolean verboseResponses) {
+    public ApplicationTokenAuthorizer(Function<String, CompletionStage<Token>> tokenLookupFunc,
+                                      boolean verboseResponses) {
         this.tokenLookupFunc = requireNonNull(tokenLookupFunc, "tokenLookupFunc");
         this.verboseResponses = verboseResponses;
     }

@@ -134,7 +134,7 @@ public class MirroringServiceV1 extends AbstractService {
     }
 
     // Mirroring may be a long-running task, so we need to increase the timeout.
-    @RequestTimeout(value = 2, unit = TimeUnit.MINUTES)
+    @RequestTimeout(value = 5, unit = TimeUnit.MINUTES)
     @Post("/projects/{projectName}/mirrors/{mirrorId}/run")
     public CompletableFuture<MirrorResult> runMirror(@Param String projectName, @Param String mirrorId)
             throws Exception {

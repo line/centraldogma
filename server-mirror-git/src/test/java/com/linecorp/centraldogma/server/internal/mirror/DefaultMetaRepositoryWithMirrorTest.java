@@ -148,6 +148,7 @@ class DefaultMetaRepositoryWithMirrorTest {
                             '{' +
                             "  \"id\": \"foo\"," +
                             "  \"enabled\": true," +
+                            "  \"schedule\": \"" + DEFAULT_SCHEDULE + "\"," +
                             "  \"direction\": \"LOCAL_TO_REMOTE\"," +
                             "  \"localRepo\": \"foo\"," +
                             "  \"localPath\": \"/mirrors/foo\"," +
