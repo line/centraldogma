@@ -150,7 +150,7 @@ class PermissionTest {
                                          @Param String repoName) {
                     return HttpResponse.of(HttpStatus.OK);
                 }
-            }, AuthService.newDecorator(new ApplicationTokenAuthorizer(mds::findTokenBySecret)));
+            }, AuthService.newDecorator(new ApplicationTokenAuthorizer(mds::findTokenBySecret, false)));
 
             sb.errorHandler(new HttpApiExceptionHandler());
         }
@@ -207,7 +207,7 @@ class PermissionTest {
 
         final WebClient client2 = WebClient.builder(server.httpUri()).build();
         final AggregatedHttpResponse response2 = client2.get("/projects/project1/repos/anonymous_allowed_repo")
-                                                  .aggregate().join();
+                                                        .aggregate().join();
         assertThat(response2.status()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 

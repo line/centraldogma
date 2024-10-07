@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.nullToEmpty;
 import static java.util.Objects.requireNonNull;
@@ -47,14 +48,18 @@ import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.metadata.User;
+
+import io.netty.util.AttributeKey;
 
 /**
  * A utility class which provides common functions for HTTP API.
  */
 //TODO(minwoox) change this class to package-local when the admin API is integrated with HTTP API
 public final class HttpApiUtil {
+
+    private static final AttributeKey<Boolean> VERBOSE_RESPONSES =
+            AttributeKey.valueOf(HttpApiUtil.class, "VERBOSE_RESPONSES");
 
     private static final Logger logger = LoggerFactory.getLogger(HttpApiUtil.class);
     private static final String ERROR_MESSAGE_FORMAT = "{} Returning a {} response: {}";
@@ -179,13 +184,8 @@ public final class HttpApiUtil {
         final String m = nullToEmpty(message);
         node.put("message", m);
 
-        if (cause != null) {
-            final User user = AuthUtil.currentUser(ctx);
-            final boolean debug = user != null && user.isAdmin();
-            if (debug) {
-                // Append the stack trace only for administrators.
-                node.put("detail", Exceptions.traceText(cause));
-            }
+        if (cause != null && isVerboseResponse(ctx)) {
+            node.put("detail", Exceptions.traceText(cause));
         }
 
         final LogLevel logLevel;
@@ -305,6 +305,15 @@ public final class HttpApiUtil {
             throwUnsafelyIfNonNull(cause);
             return function.apply(result);
         };
+    }
+
+    public static void setVerboseResponses(ServiceRequestContext ctx, User user, boolean verboseResponses) {
+        ctx.setAttr(VERBOSE_RESPONSES, verboseResponses || user.isAdmin());
+    }
+
+    private static boolean isVerboseResponse(ServiceRequestContext ctx) {
+        final Boolean verboseResponses = ctx.attr(VERBOSE_RESPONSES);
+        return firstNonNull(verboseResponses, false);
     }
 
     private HttpApiUtil() {}

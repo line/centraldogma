@@ -26,6 +26,7 @@ import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.thrift.THttpService;
 import com.linecorp.centraldogma.internal.CsrfToken;
+import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.User;
 
 /**
@@ -39,6 +40,7 @@ public class CsrfTokenAuthorizer implements Authorizer<HttpRequest> {
         final OAuth2Token token = AuthTokenExtractors.oAuth2().apply(data.headers());
         if (token != null && CsrfToken.ANONYMOUS.equals(token.accessToken())) {
             AuthUtil.setCurrentUser(ctx, User.ADMIN);
+            HttpApiUtil.setVerboseResponses(ctx, User.ADMIN, true);
             return CompletableFuture.completedFuture(true);
         } else {
             return CompletableFuture.completedFuture(false);

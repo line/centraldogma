@@ -134,6 +134,7 @@ public final class CentralDogmaBuilder {
     private final List<PluginConfig> pluginConfigs = new ArrayList<>();
     @Nullable
     private ManagementConfig managementConfig;
+    private boolean verboseResponses;
 
     /**
      * Creates a new builder with the specified data directory.
@@ -541,6 +542,21 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Sets whether to enable the verbose response mode. When enabled, the error responses will contain
+     * its full stack trace, which may be useful for debugging while potentially
+     * insecure.
+     *
+     * <p>When disabled, the error responses will not expose such server-side details to the normal users.
+     * Only administrators can see the verbose responses.
+     *
+     * <p>This option is disabled by default.
+     */
+    public CentralDogmaBuilder verboseResponses(boolean verboseResponses) {
+        this.verboseResponses = verboseResponses;
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
@@ -573,6 +589,6 @@ public final class CentralDogmaBuilder {
                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
                                       webAppEnabled, webAppTitle,replicationConfig,
                                       null, accessLogFormat, authCfg, quotaConfig,
-                                      corsConfig, pluginConfigs, managementConfig);
+                                      corsConfig, pluginConfigs, managementConfig, verboseResponses);
     }
 }

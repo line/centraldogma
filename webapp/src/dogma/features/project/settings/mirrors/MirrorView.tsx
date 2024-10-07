@@ -159,7 +159,7 @@ const MirrorView = ({ projectName, mirror, credential }: MirrorViewProps) => {
           </Table>
         </TableContainer>
 
-        <Center mt={10}>
+        <HStack marginTop={10} marginLeft={10}>
           <Link href={`/app/projects/${projectName}/settings/mirrors/${mirror.id}/edit`} marginRight="25px">
             <Button colorScheme="teal" size={'lg'} leftIcon={<EditIcon />}>
               Edit mirror
@@ -167,12 +167,18 @@ const MirrorView = ({ projectName, mirror, credential }: MirrorViewProps) => {
           </Link>
           <RunMirror mirror={mirror}>
             {({ isLoading }) => (
-              <Button colorScheme={'green'} size={'lg'} isLoading={isLoading} leftIcon={<FaPlay />}>
+              <Button
+                colorScheme={'green'}
+                size={'lg'}
+                isLoading={isLoading}
+                isDisabled={!mirror.enabled}
+                leftIcon={<FaPlay />}
+              >
                 Run mirror
               </Button>
             )}
           </RunMirror>
-        </Center>
+        </HStack>
       </VStack>
     </Center>
   );

@@ -269,6 +269,8 @@ public final class CentralDogmaConfig {
     @Nullable
     private final ManagementConfig managementConfig;
 
+    private final boolean verboseResponses;
+
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
             @JsonProperty(value = "ports", required = true)
@@ -295,7 +297,8 @@ public final class CentralDogmaConfig {
             @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository,
             @JsonProperty("cors") @Nullable CorsConfig corsConfig,
             @JsonProperty("pluginConfigs") @Nullable List<PluginConfig> pluginConfigs,
-            @JsonProperty("management") @Nullable ManagementConfig managementConfig) {
+            @JsonProperty("management") @Nullable ManagementConfig managementConfig,
+            @JsonProperty("verboseResponses") @Nullable Boolean verboseResponses) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -344,6 +347,7 @@ public final class CentralDogmaConfig {
         pluginConfigMap = this.pluginConfigs.stream().collect(
                 toImmutableMap(PluginConfig::getClass, Function.identity()));
         this.managementConfig = managementConfig;
+        this.verboseResponses = firstNonNull(verboseResponses, false);
     }
 
     /**
@@ -580,6 +584,21 @@ public final class CentralDogmaConfig {
     @JsonProperty("management")
     public ManagementConfig managementConfig() {
         return managementConfig;
+    }
+
+    /**
+     * Returns whether the verbose response mode is enabled. When enabled, the error responses will contain
+     * its full stack trace, which may be useful for debugging while potentially
+     * insecure.
+     *
+     * <p>When disabled, the error responses will not expose such server-side details to the normal users.
+     * Only administrators can see the verbose responses.
+     *
+     * <p>This option is disabled by default.
+     */
+    @JsonProperty("verboseResponses")
+    public boolean verboseResponses() {
+        return verboseResponses;
     }
 
     @Override

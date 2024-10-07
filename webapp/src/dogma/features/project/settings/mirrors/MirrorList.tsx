@@ -71,6 +71,7 @@ const MirrorList = <Data extends object>({ projectName }: MirrorListProps<Data>)
             <RunMirror mirror={info.row.original}>
               {({ isLoading, onToggle }) => (
                 <Button
+                  isDisabled={!info.row.original.enabled}
                   onClick={onToggle}
                   colorScheme={'green'}
                   size="sm"
@@ -89,9 +90,9 @@ const MirrorList = <Data extends object>({ projectName }: MirrorListProps<Data>)
       columnHelper.accessor((row: MirrorDto) => row.enabled, {
         cell: (info) => {
           if (info.getValue()) {
-            return <Badge colorScheme="green">Active</Badge>;
+            return <Badge colorScheme={'green'}>Enabled</Badge>;
           } else {
-            return <Badge>Inactive</Badge>;
+            return <Badge colorScheme={'red'}>Disabled</Badge>;
           }
         },
         header: 'Status',

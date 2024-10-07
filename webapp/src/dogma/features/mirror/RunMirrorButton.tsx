@@ -36,7 +36,6 @@ import {
   PopoverTrigger,
   useDisclosure,
 } from '@chakra-ui/react';
-import { WithProjectRole } from '../auth/ProjectRole';
 import { ReactNode } from 'react';
 
 type RunMirrorProps = {

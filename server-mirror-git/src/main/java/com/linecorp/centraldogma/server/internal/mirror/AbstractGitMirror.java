@@ -63,7 +63,6 @@ import org.eclipse.jgit.lib.RefUpdate.Result;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.FetchResult;
-import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.TagOpt;
 import org.eclipse.jgit.transport.URIish;
@@ -236,14 +235,11 @@ abstract class AbstractGitMirror extends AbstractMirror {
             updateRef(gitRepository, revWalk, headBranchRefName, nextCommitId);
         }
 
-        final Iterable<PushResult> pushResults =
-                git.push()
-                   .setRefSpecs(new RefSpec(headBranchRefName))
-                   .setAtomic(true)
-                   .setTimeout(GIT_TIMEOUT_SECS)
-                   .call();
-        final PushResult pushResult = pushResults.iterator().next();
-        // TODO(ikhoon): Append remove ref to description;
+        git.push()
+           .setRefSpecs(new RefSpec(headBranchRefName))
+           .setAtomic(true)
+           .setTimeout(GIT_TIMEOUT_SECS)
+           .call();
         return newMirrorResult(MirrorStatus.SUCCESS, description);
     }
 
@@ -357,7 +353,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
             final CommitResult commitResult = executor.execute(Command.push(
                     MIRROR_AUTHOR, localRepo().parent().name(), localRepo().name(),
                     Revision.HEAD, summary, detail, Markup.PLAINTEXT, changes.values())).join();
-            final String description = summary + ", Revision: " + commitResult.revision();
+            final String description = summary + ", revision: " + commitResult.revision().text();
             return newMirrorResult(MirrorStatus.SUCCESS, description);
         } catch (CompletionException e) {
             if (e.getCause() instanceof RedundantChangeException) {
@@ -389,11 +385,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
         }
 
         final ObjectId headCommitId = headBranchRef.getObjectId();
-        if (headCommitId.name().equals(localSourceRevision)) {
-            // TODO(ikhoon): Revert
-            return true;
-        }
-        return true;
+        return !headCommitId.name().equals(localSourceRevision);
     }
 
     private Ref getHeadBranchRef(GitWithAuth git) throws GitAPIException {

@@ -64,7 +64,8 @@ defaults:
         "port": 36463,
         "protocol": null,
         "path": null
-      }
+      },
+      "verboseResponses": false
     }
 
 Core properties
@@ -261,6 +262,11 @@ Core properties
   - ``path``
 
     - the path of the management service. If not specified, the management service is mounted at ``/internal/management``.
+
+- ``verboseResponses`` (boolean)
+
+  - whether to include the exception stack trace in the response body when an exception occurs.
+    Disabled by default.
 
 .. _replication:
 

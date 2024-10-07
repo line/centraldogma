@@ -39,6 +39,7 @@ import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
+import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.Tokens;
 import com.linecorp.centraldogma.server.metadata.User;
@@ -53,9 +54,11 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
             ApplicationTokenAuthorizer.class);
 
     private final Function<String, CompletionStage<Token>> tokenLookupFunc;
+    private final boolean verboseResponses;
 
-    public ApplicationTokenAuthorizer(Function<String, CompletionStage<Token>> tokenLookupFunc) {
+    public ApplicationTokenAuthorizer(Function<String, CompletionStage<Token>> tokenLookupFunc, boolean verboseResponses) {
         this.tokenLookupFunc = requireNonNull(tokenLookupFunc, "tokenLookupFunc");
+        this.verboseResponses = verboseResponses;
     }
 
     @Override
@@ -63,6 +66,7 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
         final OAuth2Token token = AuthTokenExtractors.oAuth2().apply(data.headers());
         if (token != null && token.accessToken().equals(CsrfToken.ANONYMOUS)) {
             AuthUtil.setCurrentUser(ctx, User.ANONYMOUS);
+            HttpApiUtil.setVerboseResponses(ctx, User.ANONYMOUS, verboseResponses);
             return completedFuture(true);
         }
 

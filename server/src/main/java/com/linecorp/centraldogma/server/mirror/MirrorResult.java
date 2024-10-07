@@ -22,12 +22,15 @@ import java.util.Objects;
 
 import javax.annotation.Nullable;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
 /**
  * The result of a mirroring operation.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public final class MirrorResult {
 
     private final String mirrorId;
@@ -40,8 +43,12 @@ public final class MirrorResult {
     /**
      * Creates a new instance.
      */
-    public MirrorResult(String mirrorId, String projectName, String repoName, MirrorStatus mirrorStatus,
-                        @Nullable String description) {
+    @JsonCreator
+    public MirrorResult(@JsonProperty("mirrorId") String mirrorId,
+                        @JsonProperty("projectName") String projectName,
+                        @JsonProperty("repoName") String repoName,
+                        @JsonProperty("mirrorStatus") MirrorStatus mirrorStatus,
+                        @JsonProperty("description") @Nullable String description) {
         this.mirrorId = requireNonNull(mirrorId, "mirrorId");
         this.projectName = requireNonNull(projectName, "projectName");
         this.repoName = requireNonNull(repoName, "repoName");

@@ -699,8 +699,9 @@ public class CentralDogma implements AutoCloseable {
         checkState(sessionManager != null, "SessionManager is null");
         final AuthProviderParameters parameters = new AuthProviderParameters(
                 // Find application first, then find the session token.
-                new ApplicationTokenAuthorizer(mds::findTokenBySecret).orElse(
-                        new SessionTokenAuthorizer(sessionManager, authCfg.administrators())),
+                new ApplicationTokenAuthorizer(mds::findTokenBySecret, cfg.verboseResponses())
+                        .orElse(new SessionTokenAuthorizer(sessionManager, authCfg.administrators(),
+                                                           cfg.verboseResponses())),
                 cfg,
                 sessionManager::generateSessionId,
                 // Propagate login and logout events to the other replicas.
@@ -764,9 +765,9 @@ public class CentralDogma implements AutoCloseable {
         assert authCfg != null : "authCfg";
         assert sessionManager != null : "sessionManager";
         final Authorizer<HttpRequest> tokenAuthorizer =
-                new ApplicationTokenAuthorizer(mds::findTokenBySecret)
+                new ApplicationTokenAuthorizer(mds::findTokenBySecret, cfg.verboseResponses())
                         .orElse(new SessionTokenAuthorizer(sessionManager,
-                                                           authCfg.administrators()));
+                                                           authCfg.administrators(), cfg.verboseResponses()));
         return AuthService.builder()
                           .add(tokenAuthorizer)
                           .onFailure(new CentralDogmaAuthFailureHandler())
