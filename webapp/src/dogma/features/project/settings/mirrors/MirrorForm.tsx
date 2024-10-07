@@ -72,10 +72,6 @@ const MIRROR_SCHEMES: OptionType[] = ['git+ssh', 'git+http', 'git+https'].map((s
 
 const INTERNAL_REPOS = new Set<string>(['dogma', 'meta']);
 
-type MirrorForm = MirrorDto & {
-  enableSchedule: boolean;
-};
-
 const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: MirrorFormProps) => {
   const {
     register,
@@ -85,7 +81,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
     setValue,
     control,
     watch,
-  } = useForm<MirrorForm>();
+  } = useForm<MirrorDto>();
 
   const isNew = defaultValue.id === '';
   const { data: repos } = useGetReposQuery(projectName);

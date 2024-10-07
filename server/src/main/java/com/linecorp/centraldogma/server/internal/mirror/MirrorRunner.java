@@ -82,15 +82,20 @@ public final class MirrorRunner implements SafeCloseable {
     }
 
     private CompletableFuture<MirrorResult> run(MirrorKey mirrorKey) {
-        final CompletableFuture<MirrorResult> future =
-                metaRepo(mirrorKey.projectName).mirror(mirrorKey.mirrorId).thenApplyAsync(mirror -> {
-                    return mirror.mirror(workDir, commandExecutor,
-                                         mirrorConfig.maxNumFilesPerMirror(),
-                                         mirrorConfig.maxNumBytesPerMirror());
-                }, worker);
-        // Remove the inflight request when the mirror task is done.
-        future.handleAsync((unused0, unused1) -> inflightRequests.remove(mirrorKey));
-        return future;
+        try {
+            final CompletableFuture<MirrorResult> future =
+                    metaRepo(mirrorKey.projectName).mirror(mirrorKey.mirrorId).thenApplyAsync(mirror -> {
+                        return mirror.mirror(workDir, commandExecutor,
+                                             mirrorConfig.maxNumFilesPerMirror(),
+                                             mirrorConfig.maxNumBytesPerMirror());
+                    }, worker);
+            // Remove the inflight request when the mirror task is done.
+            future.handleAsync((unused0, unused1) -> inflightRequests.remove(mirrorKey));
+            return future;
+        } catch (Throwable e) {
+            inflightRequests.remove(mirrorKey);
+            throw e;
+        }
     }
 
     private MetaRepository metaRepo(String projectName) {
@@ -103,6 +108,7 @@ public final class MirrorRunner implements SafeCloseable {
         if (interrupted) {
             Thread.currentThread().interrupt();
         }
+        inflightRequests.clear();
     }
 
     private static final class MirrorKey {
