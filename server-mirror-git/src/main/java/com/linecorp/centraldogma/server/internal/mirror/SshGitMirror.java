@@ -24,6 +24,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
+import java.time.Instant;
 import java.util.Collection;
 
 import javax.annotation.Nullable;
@@ -90,7 +91,8 @@ final class SshGitMirror extends AbstractGitMirror {
     }
 
     @Override
-    protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes)
+    protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes,
+                                               Instant triggeredTime)
             throws Exception {
         final URIish remoteUri = remoteUri();
         try (SshClient sshClient = createSshClient();
@@ -98,21 +100,22 @@ final class SshGitMirror extends AbstractGitMirror {
             final DefaultGitSshdSessionFactory sessionFactory =
                     new DefaultGitSshdSessionFactory(sshClient, session);
             try (GitWithAuth git = openGit(workDir, remoteUri, sessionFactory::configureCommand)) {
-                return mirrorLocalToRemote(git, maxNumFiles, maxNumBytes);
+                return mirrorLocalToRemote(git, maxNumFiles, maxNumBytes, triggeredTime);
             }
         }
     }
 
     @Override
     protected MirrorResult mirrorRemoteToLocal(File workDir, CommandExecutor executor,
-                                               int maxNumFiles, long maxNumBytes) throws Exception {
+                                               int maxNumFiles, long maxNumBytes, Instant triggeredTime)
+            throws Exception {
         final URIish remoteUri = remoteUri();
         try (SshClient sshClient = createSshClient();
              ClientSession session = createSession(sshClient, remoteUri)) {
             final DefaultGitSshdSessionFactory sessionFactory =
                     new DefaultGitSshdSessionFactory(sshClient, session);
             try (GitWithAuth git = openGit(workDir, remoteUri, sessionFactory::configureCommand)) {
-                return mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes);
+                return mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes, triggeredTime);
             }
         }
     }

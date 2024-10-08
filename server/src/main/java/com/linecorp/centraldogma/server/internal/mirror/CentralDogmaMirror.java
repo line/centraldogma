@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.net.URI;
+import java.time.Instant;
 
 import javax.annotation.Nullable;
 
@@ -57,14 +58,16 @@ public final class CentralDogmaMirror extends AbstractMirror {
     }
 
     @Override
-    protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes)
+    protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes,
+                                               Instant triggeredTime)
             throws Exception {
         throw new UnsupportedOperationException();
     }
 
     @Override
     protected MirrorResult mirrorRemoteToLocal(File workDir, CommandExecutor executor,
-                                               int maxNumFiles, long maxNumBytes) throws Exception {
+                                               int maxNumFiles, long maxNumBytes, Instant triggeredTime)
+            throws Exception {
         throw new UnsupportedOperationException();
     }
 }

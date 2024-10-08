@@ -29,6 +29,8 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
 
+import java.time.Instant;
+
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.armeria.common.metric.MoreMeters;
@@ -46,7 +48,7 @@ class MirroringTaskTest {
         final MeterRegistry meterRegistry = new SimpleMeterRegistry();
         Mirror mirror = newMirror("git://a.com/b.git", DefaultGitMirror.class, "foo", "bar");
         mirror = spy(mirror);
-        doReturn(new MirrorResult(mirror.id(), "foo", "bar", MirrorStatus.SUCCESS, ""))
+        doReturn(new MirrorResult(mirror.id(), "foo", "bar", MirrorStatus.SUCCESS, "", Instant.now()))
                 .when(mirror).mirror(any(), any(), anyInt(), anyLong());
         new MirroringTask(mirror, "foo", meterRegistry).run(null, null, 0, 0L);
         assertThat(MoreMeters.measureAll(meterRegistry))

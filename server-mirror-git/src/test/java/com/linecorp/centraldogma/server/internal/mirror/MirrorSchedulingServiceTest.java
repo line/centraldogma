@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.net.URI;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -76,17 +77,19 @@ class MirrorSchedulingServiceTest {
                                                  Credential.FALLBACK, r, "/",
                                                  URI.create("unused://uri"), "/", "", null) {
             @Override
-            protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) {
-                return newMirrorResult(MirrorStatus.UP_TO_DATE, null);
+            protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes,
+                                                       Instant triggeredTime) {
+                return newMirrorResult(MirrorStatus.UP_TO_DATE, null, Instant.now());
             }
 
             @Override
             protected MirrorResult mirrorRemoteToLocal(File workDir, CommandExecutor executor,
-                                                       int maxNumFiles, long maxNumBytes) throws Exception {
+                                                       int maxNumFiles, long maxNumBytes, Instant triggeredTime)
+                    throws Exception {
                 // Sleep longer than mirroring interval so that the workers fall behind.
                 taskCounter.incrementAndGet();
                 Thread.sleep(2000);
-                return newMirrorResult(MirrorStatus.SUCCESS, null);
+                return newMirrorResult(MirrorStatus.SUCCESS, null, Instant.now());
             }
         };
 

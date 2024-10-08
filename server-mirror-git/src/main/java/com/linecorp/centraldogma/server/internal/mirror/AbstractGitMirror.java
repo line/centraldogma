@@ -24,6 +24,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -175,7 +176,8 @@ abstract class AbstractGitMirror extends AbstractMirror {
     }
 
     MirrorResult mirrorLocalToRemote(
-            GitWithAuth git, int maxNumFiles, long maxNumBytes) throws GitAPIException, IOException {
+            GitWithAuth git, int maxNumFiles, long maxNumBytes, Instant triggeredTime)
+            throws GitAPIException, IOException {
         // TODO(minwoox): Early return if the remote does not have any updates.
         final Ref headBranchRef = getHeadBranchRef(git);
         final String headBranchRefName = headBranchRef.getName();
@@ -201,7 +203,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
                         remoteRepoUri(), remoteBranch(), localHead,
                         localRepo().parent().name(), localRepo().name());
                 logger.debug(description);
-                return newMirrorResult(MirrorStatus.UP_TO_DATE, description);
+                return newMirrorResult(MirrorStatus.UP_TO_DATE, description, triggeredTime);
             }
 
             // Reset to traverse the tree from the first.
@@ -240,11 +242,12 @@ abstract class AbstractGitMirror extends AbstractMirror {
            .setAtomic(true)
            .setTimeout(GIT_TIMEOUT_SECS)
            .call();
-        return newMirrorResult(MirrorStatus.SUCCESS, description);
+        return newMirrorResult(MirrorStatus.SUCCESS, description, triggeredTime);
     }
 
     MirrorResult mirrorRemoteToLocal(
-            GitWithAuth git, CommandExecutor executor, int maxNumFiles, long maxNumBytes) throws Exception {
+            GitWithAuth git, CommandExecutor executor, int maxNumFiles, long maxNumBytes, Instant triggeredTime)
+            throws Exception {
         final String summary;
         final String detail;
         final Map<String, Change<?>> changes = new HashMap<>();
@@ -253,7 +256,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
         final String mirrorStatePath = localPath() + MIRROR_STATE_FILE_NAME;
         final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
         if (!needsFetch(headBranchRef, mirrorStatePath, localRev)) {
-            return newMirrorResultForUpToDate(headBranchRef);
+            return newMirrorResultForUpToDate(headBranchRef, triggeredTime);
         }
 
         // Update the head commit ID again because there's a chance a commit is pushed between the
@@ -354,23 +357,23 @@ abstract class AbstractGitMirror extends AbstractMirror {
                     MIRROR_AUTHOR, localRepo().parent().name(), localRepo().name(),
                     Revision.HEAD, summary, detail, Markup.PLAINTEXT, changes.values())).join();
             final String description = summary + ", revision: " + commitResult.revision().text();
-            return newMirrorResult(MirrorStatus.SUCCESS, description);
+            return newMirrorResult(MirrorStatus.SUCCESS, description, triggeredTime);
         } catch (CompletionException e) {
             if (e.getCause() instanceof RedundantChangeException) {
-                return newMirrorResultForUpToDate(headBranchRef);
+                return newMirrorResultForUpToDate(headBranchRef, triggeredTime);
             }
             throw e;
         }
     }
 
-    private MirrorResult newMirrorResultForUpToDate(Ref headBranchRef) {
+    private MirrorResult newMirrorResultForUpToDate(Ref headBranchRef, Instant triggeredTime) {
         final String abbrId = headBranchRef.getObjectId().abbreviate(OBJECT_ID_ABBREV_STRING_LENGTH).name();
         final String message = String.format("Repository '%s/%s' already at %s, %s#%s",
                                              localRepo().parent().name(), localRepo().name(), abbrId,
                                              remoteRepoUri(), remoteBranch());
         // The local repository is up-to date.
         logger.debug(message);
-        return newMirrorResult(MirrorStatus.UP_TO_DATE, message);
+        return newMirrorResult(MirrorStatus.UP_TO_DATE, message, triggeredTime);
     }
 
     private boolean needsFetch(Ref headBranchRef, String mirrorStatePath, Revision localRev)

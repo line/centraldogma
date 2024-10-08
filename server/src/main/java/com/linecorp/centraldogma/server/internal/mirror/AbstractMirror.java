@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.net.URI;
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
@@ -176,12 +177,13 @@ public abstract class AbstractMirror implements Mirror {
     @Override
     public final MirrorResult mirror(File workDir, CommandExecutor executor, int maxNumFiles,
                                      long maxNumBytes) {
+        final Instant triggeredTime = Instant.now();
         try {
             switch (direction()) {
                 case LOCAL_TO_REMOTE:
-                    return mirrorLocalToRemote(workDir, maxNumFiles, maxNumBytes);
+                    return mirrorLocalToRemote(workDir, maxNumFiles, maxNumBytes, triggeredTime);
                 case REMOTE_TO_LOCAL:
-                    return mirrorRemoteToLocal(workDir, executor, maxNumFiles, maxNumBytes);
+                    return mirrorRemoteToLocal(workDir, executor, maxNumFiles, maxNumBytes, triggeredTime);
                 default:
                     throw new Error("Should never reach here");
             }
@@ -202,13 +204,16 @@ public abstract class AbstractMirror implements Mirror {
     }
 
     protected abstract MirrorResult mirrorLocalToRemote(
-            File workDir, int maxNumFiles, long maxNumBytes) throws Exception;
+            File workDir, int maxNumFiles, long maxNumBytes, Instant triggeredTime) throws Exception;
 
     protected abstract MirrorResult mirrorRemoteToLocal(
-            File workDir, CommandExecutor executor, int maxNumFiles, long maxNumBytes) throws Exception;
+            File workDir, CommandExecutor executor, int maxNumFiles, long maxNumBytes, Instant triggeredTime)
+            throws Exception;
 
-    protected final MirrorResult newMirrorResult(MirrorStatus mirrorStatus, @Nullable String description) {
-        return new MirrorResult(id, localRepo.parent().name(), localRepo.name(), mirrorStatus, description);
+    protected final MirrorResult newMirrorResult(MirrorStatus mirrorStatus, @Nullable String description,
+                                                 Instant triggeredTime) {
+        return new MirrorResult(id, localRepo.parent().name(), localRepo.name(), mirrorStatus, description,
+                                triggeredTime);
     }
 
     @Override

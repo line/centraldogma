@@ -21,6 +21,7 @@ import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_H
 
 import java.io.File;
 import java.net.URI;
+import java.time.Instant;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -52,10 +53,11 @@ final class DefaultGitMirror extends AbstractGitMirror {
     }
 
     @Override
-    protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes)
+    protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes,
+                                               Instant triggeredTime)
             throws Exception {
         try (GitWithAuth git = openGit(workDir, transportCommandConfigurator())) {
-            return mirrorLocalToRemote(git, maxNumFiles, maxNumBytes);
+            return mirrorLocalToRemote(git, maxNumFiles, maxNumBytes, triggeredTime);
         }
     }
 
@@ -81,9 +83,10 @@ final class DefaultGitMirror extends AbstractGitMirror {
 
     @Override
     protected MirrorResult mirrorRemoteToLocal(File workDir, CommandExecutor executor,
-                                               int maxNumFiles, long maxNumBytes) throws Exception {
+                                               int maxNumFiles, long maxNumBytes, Instant triggeredTime)
+            throws Exception {
         try (GitWithAuth git = openGit(workDir, transportCommandConfigurator())) {
-            return mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes);
+            return mirrorRemoteToLocal(git, executor, maxNumFiles, maxNumBytes, triggeredTime);
         }
     }
 
