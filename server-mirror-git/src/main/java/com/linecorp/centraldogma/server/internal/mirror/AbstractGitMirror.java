@@ -182,7 +182,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
         final ObjectId headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRefName);
 
         final org.eclipse.jgit.lib.Repository gitRepository = git.getRepository();
-        String description;
+        final String description;
         try (ObjectReader reader = gitRepository.newObjectReader();
              TreeWalk treeWalk = new TreeWalk(reader);
              RevWalk revWalk = new RevWalk(reader)) {
@@ -699,8 +699,8 @@ abstract class AbstractGitMirror extends AbstractMirror {
         return text;
     }
 
-    private ObjectId commit(org.eclipse.jgit.lib.Repository gitRepository, DirCache dirCache,
-                            ObjectId headCommitId, String message) throws IOException {
+    private static ObjectId commit(org.eclipse.jgit.lib.Repository gitRepository, DirCache dirCache,
+                                   ObjectId headCommitId, String message) throws IOException {
         try (ObjectInserter inserter = gitRepository.newObjectInserter()) {
             // flush the current index to repository and get the result tree object id.
             final ObjectId nextTreeId = dirCache.writeTree(inserter);

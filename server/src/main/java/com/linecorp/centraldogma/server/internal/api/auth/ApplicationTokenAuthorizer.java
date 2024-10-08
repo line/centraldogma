@@ -86,8 +86,9 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
                                    login.append('@').append(((InetSocketAddress) ra).getHostString());
                                }
                                ctx.logBuilder().authenticatedUser("app/" + appId);
-                               AuthUtil.setCurrentUser(
-                                       ctx, new UserWithToken(login.toString(), appToken));
+                               final UserWithToken user = new UserWithToken(login.toString(), appToken);
+                               AuthUtil.setCurrentUser(ctx, user);
+                               HttpApiUtil.setVerboseResponses(ctx, user, verboseResponses);
                                res.complete(true);
                            } else {
                                res.complete(false);

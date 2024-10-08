@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.SafeCloseable;
+import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
@@ -85,6 +86,10 @@ public final class MirrorRunner implements SafeCloseable {
         try {
             final CompletableFuture<MirrorResult> future =
                     metaRepo(mirrorKey.projectName).mirror(mirrorKey.mirrorId).thenApplyAsync(mirror -> {
+                        if (!mirror.enabled()) {
+                            throw new MirrorException("The mirror is disabled: " + mirrorKey);
+                        }
+
                         return mirror.mirror(workDir, commandExecutor,
                                              mirrorConfig.maxNumFilesPerMirror(),
                                              mirrorConfig.maxNumBytesPerMirror());

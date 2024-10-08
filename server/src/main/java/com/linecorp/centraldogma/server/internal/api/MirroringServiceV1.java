@@ -133,6 +133,12 @@ public class MirroringServiceV1 extends AbstractService {
         });
     }
 
+    /**
+     * POST /projects/{projectName}/mirrors/{mirrorId}/run
+     *
+     * <p>Runs the mirroring task immediately.
+     */
+    @RequiresWritePermission(repository = Project.REPO_META)
     // Mirroring may be a long-running task, so we need to increase the timeout.
     @RequestTimeout(value = 5, unit = TimeUnit.MINUTES)
     @Post("/projects/{projectName}/mirrors/{mirrorId}/run")
