@@ -143,7 +143,8 @@ final class CdsStreamingTest {
             String versionInfo, DiscoveryResponse discoveryResponse,
             Cluster fooCluster, BlockingQueue<DiscoveryResponse> queue, String nonce)
             throws InvalidProtocolBufferException, InterruptedException {
-        assertThat(versionInfo.length()).isEqualTo(64); // sha 256 hash length is 64. 256/4
+        assertThat(versionInfo.length()).as("The length of versionInfo is not 64: " + versionInfo)
+                                        .isEqualTo(64); // sha 256 hash length is 64. 256/4
         assertThat(discoveryResponse.getNonce()).isEqualTo(nonce);
         final List<Any> resources = discoveryResponse.getResourcesList();
         assertThat(resources.size()).isOne();
