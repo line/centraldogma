@@ -81,6 +81,11 @@ final class CdsStreamingTest {
                                                      .setTypeUrl(Resources.V3.CLUSTER_TYPE_URL)
                                                      .build());
         DiscoveryResponse discoveryResponse = queue.take();
+        while (discoveryResponse.getResourcesList().isEmpty()) {
+            // The commited cluster is not yet available. Send ack and receive the next discovery response.
+            sendAck(requestStreamObserver, discoveryResponse);
+            discoveryResponse = queue.take();
+        }
         final String versionInfo1 = discoveryResponse.getVersionInfo();
         assertDiscoveryResponse(versionInfo1, discoveryResponse, fooCluster, queue, "0");
         // Send ack
