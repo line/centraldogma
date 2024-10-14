@@ -188,16 +188,12 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
                 .withMasterUrl(kubernetesConfig.getControlPlaneUrl())
                 .withTrustCerts(kubernetesConfig.getTrustCerts());
 
-        final String oauthToken = kubernetesConfig.getOauthToken();
-        if (isNullOrEmpty(oauthToken)) {
+        final String credentialId = kubernetesConfig.getCredentialId();
+        if (isNullOrEmpty(credentialId)) {
             return CompletableFuture.completedFuture(configBuilder.build());
         }
 
-        if (!oauthToken.startsWith("credential:")) {
-            return CompletableFuture.completedFuture(configBuilder.withOauthToken(oauthToken).build());
-        }
-
-        return metaRepository.credential(oauthToken.substring("credential:".length()))
+        return metaRepository.credential(credentialId)
                              .thenApply(credential -> {
                                  if (!(credential instanceof AccessTokenCredential)) {
                                      throw new IllegalArgumentException(

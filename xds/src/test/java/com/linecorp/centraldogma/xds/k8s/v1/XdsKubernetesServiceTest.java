@@ -140,7 +140,7 @@ class XdsKubernetesServiceTest {
 
     private static void putCredential() {
         final ImmutableMap<String, String> credential = ImmutableMap.of("type", "access_token",
-                                                                        "id", "credential-id",
+                                                                        "id", "my-credential",
                                                                         "accessToken", "secret");
         dogma.httpClient().prepare()
              .post("/api/v1/projects/@xds/credentials")
@@ -171,7 +171,7 @@ class XdsKubernetesServiceTest {
     @Test
     void invalidProperty() throws IOException {
         final String watcherId = "foo-cluster";
-        ServiceEndpointWatcher watcher = watcher(watcherId, "invalid-service-name", "credential-id");
+        ServiceEndpointWatcher watcher = watcher(watcherId, "invalid-service-name", "my-credential");
         AggregatedHttpResponse response = createWatcher(watcher, watcherId);
         assertThat(response.status()).isSameAs(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.contentUtf8()).contains("Failed to retrieve k8s endpoints");
@@ -219,7 +219,7 @@ class XdsKubernetesServiceTest {
     }
 
     private static ServiceEndpointWatcher watcher(String watcherId) {
-        return watcher(watcherId, "nginx-service", "credential-id");
+        return watcher(watcherId, "nginx-service", "my-credential");
     }
 
     private static ServiceEndpointWatcher watcher(String watcherId, String serviceName, String credentialId) {
@@ -227,7 +227,7 @@ class XdsKubernetesServiceTest {
                 KubernetesConfig.newBuilder()
                                 .setControlPlaneUrl(client.getMasterUrl().toString())
                                 .setNamespace(client.getNamespace())
-                                .setOauthToken("credential:" + credentialId)
+                                .setCredentialId(credentialId)
                                 .setTrustCerts(true)
                                 .build();
         return ServiceEndpointWatcher.newBuilder()

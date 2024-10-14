@@ -241,7 +241,6 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             // instead of pushing one by one.
             scheduledFuture = executorService.schedule(() -> {
                 scheduledFuture = null;
-                // maybeSchedule() is called after the future is completed.
                 if (kubernetesEndpointGroup.isClosing()) {
                     return;
                 }
