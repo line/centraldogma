@@ -14,33 +14,21 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.mirror;
+package com.linecorp.centraldogma.server.mirror.git;
 
 import com.linecorp.centraldogma.common.MirrorException;
 
 /**
- * A {@link MirrorException} raised when failed to mirror a Git repository.
+ * A {@link MirrorException} raised when failed to create an SSH session.
  */
-public class GitMirrorException extends MirrorException {
+public final class SshMirrorException extends MirrorException {
 
-    private static final long serialVersionUID = 4510614751276168395L;
-
-    /**
-     * Creates a new instance.
-     */
-    public GitMirrorException() {}
+    private static final long serialVersionUID = -8887732097679008838L;
 
     /**
      * Creates a new instance.
      */
-    public GitMirrorException(String message) {
-        super(message);
-    }
-
-    /**
-     * Creates a new instance.
-     */
-    public GitMirrorException(String message, Throwable cause) {
+    public SshMirrorException(String message, Throwable cause) {
         super(message, cause);
     }
 }

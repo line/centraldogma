@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LINE Corporation
+ * Copyright 2021 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,22 +13,10 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
-package com.linecorp.centraldogma.server.internal.mirror;
-
-import com.linecorp.centraldogma.common.MirrorException;
-
 /**
- * A {@link MirrorException} raised when failed to create an SSH session.
+ * Central Dogma Git mirroring.
  */
-public final class SshMirrorException extends MirrorException {
+@NonNullByDefault
+package com.linecorp.centraldogma.server.mirror.git;
 
-    private static final long serialVersionUID = -8887732097679008838L;
-
-    /**
-     * Creates a new instance.
-     */
-    public SshMirrorException(String message, Throwable cause) {
-        super(message, cause);
-    }
-}
+import com.linecorp.centraldogma.common.util.NonNullByDefault;

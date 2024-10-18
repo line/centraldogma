@@ -63,6 +63,7 @@ import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
 import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.git.SshMirrorException;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class SshGitMirror extends AbstractGitMirror {
