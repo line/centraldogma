@@ -181,7 +181,11 @@ final class SshGitMirror extends AbstractGitMirror {
             if (session != null) {
                 session.close(true);
             }
-            throw new RuntimeException("failed to create a session for " + uri + " from " + sshClient, t);
+            String message = "Failed to create a session for '" + uri + "'.";
+            if (t.getMessage() != null) {
+                 message += " (reason: " + t.getMessage() + ')';
+            }
+            throw new SshMirrorException(message, t);
         }
     }
 

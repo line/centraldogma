@@ -34,6 +34,7 @@ import {
   PopoverFooter,
   PopoverHeader,
   PopoverTrigger,
+  Text,
   useDisclosure,
 } from '@chakra-ui/react';
 import { ReactNode } from 'react';
@@ -63,7 +64,22 @@ export const RunMirror = ({ mirror, children }: RunMirrorProps) => {
       }
       onClose();
     } catch (error) {
-      dispatch(newNotification(`Failed to run mirror ${mirror.id}`, ErrorMessageParser.parse(error), 'error'));
+      if (error.data && error.data.exception) {
+        // A exception is thrown by the backend
+        let detail = null;
+        let containerStyle = null;
+        if (error.data.detail) {
+          detail = <Text whiteSpace="pre-wrap">${error.data.detail.replaceAll('\t', ' '.repeat(4))}</Text>;
+          containerStyle = {
+            maxWidth: '50%',
+          };
+        }
+        dispatch(newNotification(error.data.message, detail, 'error', containerStyle));
+      } else {
+        dispatch(
+          newNotification(`Failed to run mirror ${mirror.id}`, ErrorMessageParser.parse(error), 'error'),
+        );
+      }
     }
   };
 

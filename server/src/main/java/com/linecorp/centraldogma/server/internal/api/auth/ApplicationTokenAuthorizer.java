@@ -54,12 +54,9 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
             ApplicationTokenAuthorizer.class);
 
     private final Function<String, CompletionStage<Token>> tokenLookupFunc;
-    private final boolean verboseResponses;
 
-    public ApplicationTokenAuthorizer(Function<String, CompletionStage<Token>> tokenLookupFunc,
-                                      boolean verboseResponses) {
+    public ApplicationTokenAuthorizer(Function<String, CompletionStage<Token>> tokenLookupFunc) {
         this.tokenLookupFunc = requireNonNull(tokenLookupFunc, "tokenLookupFunc");
-        this.verboseResponses = verboseResponses;
     }
 
     @Override
@@ -67,7 +64,7 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
         final OAuth2Token token = AuthTokenExtractors.oAuth2().apply(data.headers());
         if (token != null && token.accessToken().equals(CsrfToken.ANONYMOUS)) {
             AuthUtil.setCurrentUser(ctx, User.ANONYMOUS);
-            HttpApiUtil.setVerboseResponses(ctx, User.ANONYMOUS, verboseResponses);
+            HttpApiUtil.setVerboseResponses(ctx, User.ANONYMOUS);
             return completedFuture(true);
         }
 
@@ -88,7 +85,7 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
                                ctx.logBuilder().authenticatedUser("app/" + appId);
                                final UserWithToken user = new UserWithToken(login.toString(), appToken);
                                AuthUtil.setCurrentUser(ctx, user);
-                               HttpApiUtil.setVerboseResponses(ctx, user, verboseResponses);
+                               HttpApiUtil.setVerboseResponses(ctx, user);
                                res.complete(true);
                            } else {
                                res.complete(false);

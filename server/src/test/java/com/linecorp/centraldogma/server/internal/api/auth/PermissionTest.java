@@ -150,7 +150,7 @@ class PermissionTest {
                                          @Param String repoName) {
                     return HttpResponse.of(HttpStatus.OK);
                 }
-            }, AuthService.newDecorator(new ApplicationTokenAuthorizer(mds::findTokenBySecret, false)));
+            }, AuthService.newDecorator(new ApplicationTokenAuthorizer(mds::findTokenBySecret)));
 
             sb.errorHandler(new HttpApiExceptionHandler());
         }

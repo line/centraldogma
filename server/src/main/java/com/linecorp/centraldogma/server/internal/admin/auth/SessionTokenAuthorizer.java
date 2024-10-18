@@ -42,13 +42,10 @@ public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
 
     private final SessionManager sessionManager;
     private final Set<String> administrators;
-    private final boolean verboseResponses;
 
-    public SessionTokenAuthorizer(SessionManager sessionManager, Set<String> administrators,
-                                  boolean verboseResponses) {
+    public SessionTokenAuthorizer(SessionManager sessionManager, Set<String> administrators) {
         this.sessionManager = requireNonNull(sessionManager, "sessionManager");
         this.administrators = requireNonNull(administrators, "administrators");
-        this.verboseResponses = verboseResponses;
     }
 
     @Override
@@ -68,7 +65,7 @@ public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
                                  final User user = new User(username, roles);
                                  ctx.logBuilder().authenticatedUser("user/" + username);
                                  AuthUtil.setCurrentUser(ctx, user);
-                                 HttpApiUtil.setVerboseResponses(ctx, user, verboseResponses);
+                                 HttpApiUtil.setVerboseResponses(ctx, user);
                                  return true;
                              });
     }

@@ -10,7 +10,7 @@ class ErrorMessageParser {
     if (object.data && object.data.message) {
       let message = object.data.message;
       if (object.data.detail) {
-        message += object.data.detail;
+        message += '\n' + object.data.detail;
       }
       return message;
     }

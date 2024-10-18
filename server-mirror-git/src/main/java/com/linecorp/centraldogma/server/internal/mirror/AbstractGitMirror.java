@@ -250,18 +250,29 @@ abstract class AbstractGitMirror extends AbstractMirror {
             throws Exception {
         final String summary;
         final String detail;
+        final Ref headBranchRef;
+        final ObjectId headCommitId;
         final Map<String, Change<?>> changes = new HashMap<>();
-        final Ref headBranchRef = getHeadBranchRef(git);
-
-        final String mirrorStatePath = localPath() + MIRROR_STATE_FILE_NAME;
         final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
-        if (!needsFetch(headBranchRef, mirrorStatePath, localRev)) {
-            return newMirrorResultForUpToDate(headBranchRef, triggeredTime);
+        final String mirrorStatePath = localPath() + MIRROR_STATE_FILE_NAME;
+        try {
+            headBranchRef = getHeadBranchRef(git);
+            if (!needsFetch(headBranchRef, mirrorStatePath, localRev)) {
+                return newMirrorResultForUpToDate(headBranchRef, triggeredTime);
+            }
+
+            // Update the head commit ID again because there's a chance a commit is pushed between the
+            // getHeadBranchRefName and fetchRemoteHeadAndGetCommitId calls.
+            headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName());
+        } catch (Exception e) {
+            String message = "Failed to fetch the remote repository '" + git.remoteUri() +
+                             "' to the local repository '" + localPath() + "'.";
+            if (e.getMessage() != null) {
+                message += " (reason: " + e.getMessage();
+            }
+            throw new GitMirrorException(message, e);
         }
 
-        // Update the head commit ID again because there's a chance a commit is pushed between the
-        // getHeadBranchRefName and fetchRemoteHeadAndGetCommitId calls.
-        final ObjectId headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRef.getName());
         try (ObjectReader reader = git.getRepository().newObjectReader();
              TreeWalk treeWalk = new TreeWalk(reader);
              RevWalk revWalk = new RevWalk(reader)) {
@@ -433,8 +444,8 @@ abstract class AbstractGitMirror extends AbstractMirror {
         if (headBranchRef.isPresent()) {
             return headBranchRef.get();
         }
-        throw new MirrorException("Remote does not have " + headBranchRefName + " branch. remote: " +
-                                  git.remoteUri());
+        throw new GitMirrorException("Remote does not have " + headBranchRefName + " branch. remote: " +
+                                     git.remoteUri());
     }
 
     private static String generateCommitDetail(RevCommit headCommit) {

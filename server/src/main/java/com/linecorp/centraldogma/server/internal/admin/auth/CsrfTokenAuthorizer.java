@@ -40,7 +40,7 @@ public class CsrfTokenAuthorizer implements Authorizer<HttpRequest> {
         final OAuth2Token token = AuthTokenExtractors.oAuth2().apply(data.headers());
         if (token != null && CsrfToken.ANONYMOUS.equals(token.accessToken())) {
             AuthUtil.setCurrentUser(ctx, User.ADMIN);
-            HttpApiUtil.setVerboseResponses(ctx, User.ADMIN, true);
+            HttpApiUtil.setVerboseResponses(ctx, User.ADMIN);
             return CompletableFuture.completedFuture(true);
         } else {
             return CompletableFuture.completedFuture(false);

@@ -39,6 +39,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.Flags;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
@@ -307,8 +308,8 @@ public final class HttpApiUtil {
         };
     }
 
-    public static void setVerboseResponses(ServiceRequestContext ctx, User user, boolean verboseResponses) {
-        ctx.setAttr(VERBOSE_RESPONSES, verboseResponses || user.isAdmin());
+    public static void setVerboseResponses(ServiceRequestContext ctx, User user) {
+        ctx.setAttr(VERBOSE_RESPONSES, Flags.verboseResponses() || user.isAdmin());
     }
 
     private static boolean isVerboseResponse(ServiceRequestContext ctx) {
