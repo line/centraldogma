@@ -95,7 +95,7 @@ public final class MirrorRunner implements SafeCloseable {
                                              mirrorConfig.maxNumBytesPerMirror());
                     }, worker);
             // Remove the inflight request when the mirror task is done.
-            future.handleAsync((unused0, unused1) -> inflightRequests.remove(mirrorKey));
+            future.handleAsync((unused0, unused1) -> inflightRequests.remove(mirrorKey), worker);
             return future;
         } catch (Throwable e) {
             inflightRequests.remove(mirrorKey);
