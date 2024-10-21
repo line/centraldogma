@@ -82,6 +82,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.plugin.PluginConfigDeserializer;
+import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.netty.util.NetUtil;
@@ -269,6 +270,9 @@ public final class CentralDogmaConfig {
     @Nullable
     private final ManagementConfig managementConfig;
 
+    @Nullable
+    private final String zone;
+
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
             @JsonProperty(value = "ports", required = true)
@@ -295,7 +299,8 @@ public final class CentralDogmaConfig {
             @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository,
             @JsonProperty("cors") @Nullable CorsConfig corsConfig,
             @JsonProperty("pluginConfigs") @Nullable List<PluginConfig> pluginConfigs,
-            @JsonProperty("management") @Nullable ManagementConfig managementConfig) {
+            @JsonProperty("management") @Nullable ManagementConfig managementConfig,
+            @JsonProperty("zone") @Nullable String zone) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -344,6 +349,7 @@ public final class CentralDogmaConfig {
         pluginConfigMap = this.pluginConfigs.stream().collect(
                 toImmutableMap(PluginConfig::getClass, Function.identity()));
         this.managementConfig = managementConfig;
+        this.zone = ZoneResolver.resolve(zone);
     }
 
     /**
@@ -580,6 +586,16 @@ public final class CentralDogmaConfig {
     @JsonProperty("management")
     public ManagementConfig managementConfig() {
         return managementConfig;
+    }
+
+    /**
+     * Returns the zone of the server.
+     * Note that the zone must be specified to use the {@link PluginTarget#ZONE_LEADER_ONLY} target.
+     */
+    @Nullable
+    @JsonProperty("zone")
+    public String zone() {
+        return zone;
     }
 
     @Override

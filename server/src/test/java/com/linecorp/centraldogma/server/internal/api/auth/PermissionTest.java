@@ -96,7 +96,7 @@ class PermissionTest {
                     MoreExecutors.directExecutor(), NoopMeterRegistry.get(), null);
             final ServerStatusManager statusManager = new ServerStatusManager(dataDir);
             final CommandExecutor executor = new StandaloneCommandExecutor(
-                    pm, ForkJoinPool.commonPool(), statusManager, null, null, null);
+                    pm, ForkJoinPool.commonPool(), statusManager, null, null, null, null, null);
             executor.start().join();
             new InternalProjectInitializer(executor, pm).initialize();
 

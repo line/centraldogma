@@ -1,0 +1,4 @@
+dependencies {
+    testImplementation project(':server')
+    testImplementation libs.curator.test
+}

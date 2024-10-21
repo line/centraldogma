@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.server.plugin;
 
+import com.linecorp.centraldogma.server.CentralDogmaConfig;
+
 /**
  * Targets that a {@link Plugin} is applied to which replica.
  */
@@ -28,5 +30,11 @@ public enum PluginTarget {
      * Run the {@link Plugin} on the leader replica. It would be started after the replica has taken
      * the leadership and would be stopped when the replica is about to release the leadership.
      */
-    LEADER_ONLY
+    LEADER_ONLY,
+    /**
+     * Run the {@link Plugin} on the leader replica for a zone specified in {@link CentralDogmaConfig#zone()}.
+     * It would be started after the replica has taken the leadership for the zone and would be stopped when
+     * the replica is about to release the zone leadership.
+     */
+    ZONE_LEADER_ONLY
 }
