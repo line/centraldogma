@@ -240,7 +240,7 @@ public class CentralDogmaSettings {
      * @return {@code null} if not specified.
      */
     @Nullable
-    public Long initializationTimeoutMillis() {
+    public Long getInitializationTimeoutMillis() {
         return initializationTimeoutMillis;
     }
 
