@@ -29,9 +29,6 @@ class ZoneResolverTest {
         assertThat(ZoneResolver.resolve(null)).isNull();
     }
 
-    /**
-     * This test should be run with the Gradle runner. It will not work with the IntelliJ runner.
-     */
     @SetEnvironmentVariable(key = "ZONE", value = "ZONE_A")
     @SetEnvironmentVariable(key = "MY_ZONE", value = "ZONE_B")
     @Test

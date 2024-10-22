@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server;
 
-class MyZoneProvider implements ZoneProvider {
+final class MyZoneProvider implements ZoneProvider {
 
     @Override
     public String zone(String hostname) {
