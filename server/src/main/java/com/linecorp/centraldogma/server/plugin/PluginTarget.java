@@ -33,7 +33,7 @@ public enum PluginTarget {
     LEADER_ONLY,
     /**
      * Run the {@link Plugin} on the leader replica for a zone specified in {@link CentralDogmaConfig#zone()}.
-     * It would be started after the replica has taken the leadership for the zone and would be stopped when
+     * It would be started after the replica has taken the zone leadership and would be stopped when
      * the replica is about to release the zone leadership.
      */
     ZONE_LEADER_ONLY

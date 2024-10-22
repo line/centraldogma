@@ -64,7 +64,8 @@ defaults:
         "port": 36463,
         "protocol": null,
         "path": null
-      }
+      },
+      "zone": null
     }
 
 Core properties
@@ -261,6 +262,19 @@ Core properties
   - ``path``
 
     - the path of the management service. If not specified, the management service is mounted at ``/internal/management``.
+
+- ``zone`` (string)
+
+    - the zone name of the server. If not specified, ``PluginTarget.ZONE_LEADER_ONLY`` can't be used.
+
+      - If the value starts with ``$``, the environment variable is used as the zone name.
+        For example, if the value is ``$ZONE_NAME``, the environment variable named ``ZONE_NAME`` is used as the
+        zone name.
+
+      - If the value starts with ``classpath:``, the class file is loaded via `Java SPI <https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ServiceLoader.html>`_.
+        For example, if the value is ``classpath:com.example.MyZoneProvider``, the class ``com.example.MyZoneProvider``
+        is loaded via Java SPI. Note that the class must implement the :api:`ZoneProvider` interface.
+        This feature is useful when you want to provide a zone dynamically based on the environment.
 
 .. _replication:
 
