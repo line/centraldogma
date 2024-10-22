@@ -5,6 +5,6 @@ dependencies {
 
 if (project.ext.testJavaVersion >= 16) {
     tasks.withType(Test) {
-        jvmArgs '--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED'
+        jvmArgs '--add-opens=java.base/java.lang=ALL-UNNAMED', '--add-opens=java.base/java.util=ALL-UNNAMED'
     }
 }
