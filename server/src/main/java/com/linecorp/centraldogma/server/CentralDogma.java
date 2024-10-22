@@ -570,7 +570,6 @@ public class CentralDogma implements AutoCloseable {
                                @Nullable SessionManager sessionManager,
                                InternalProjectInitializer projectInitializer) {
         final ServerBuilder sb = Server.builder();
-        sb.verboseResponses(true);
         cfg.ports().forEach(sb::port);
 
         final boolean needsTls =
