@@ -271,9 +271,9 @@ Core properties
         For example, if the value is ``$ZONE_NAME``, the environment variable named ``ZONE_NAME`` is used as the
         zone name.
 
-      - If the value starts with ``classpath:``, the class file is loaded via `Java SPI <https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ServiceLoader.html>`_.
+      - If the value starts with ``classpath:``, the class file is loaded when the server starts.
         For example, if the value is ``classpath:com.example.MyZoneProvider``, the class ``com.example.MyZoneProvider``
-        is loaded via Java SPI. Note that the class must implement the :api:`ZoneProvider` interface.
+        will be loaded. Note that the class must implement the :api:`ZoneProvider` interface.
         This feature is useful when you want to provide a zone dynamically based on the environment.
 
 .. _replication:

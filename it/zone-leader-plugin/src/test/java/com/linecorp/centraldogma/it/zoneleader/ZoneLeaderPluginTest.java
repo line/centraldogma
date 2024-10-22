@@ -64,9 +64,9 @@ class ZoneLeaderPluginTest {
     @Test
     void shouldSelectZoneLeaderOnly() throws InterruptedException {
         assertZoneLeaderSelection();
-        // Zone leadership should be released when the leader goes down.
         final List<ZoneLeaderTestPlugin> zone1 = plugins.subList(0, 3);
         final int zone1LeaderId = zoneLeaderId(zone1);
+        // Zone leadership should be released when the leader goes down.
         cluster.servers().get(zone1LeaderId - 1).stopAsync().join();
         // Wait for the new zone leader to be selected.
         Thread.sleep(500);

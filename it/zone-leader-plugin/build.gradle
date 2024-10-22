@@ -2,3 +2,7 @@ dependencies {
     testImplementation project(':server')
     testImplementation libs.curator.test
 }
+
+tasks.withType(Test) {
+    jvmArgs '--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED'
+}

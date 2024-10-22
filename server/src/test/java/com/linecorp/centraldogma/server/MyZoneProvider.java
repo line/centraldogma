@@ -16,14 +16,10 @@
 
 package com.linecorp.centraldogma.server;
 
-/**
- * Provides a zone for a given hostname.
- */
-@FunctionalInterface
-public interface ZoneProvider {
+class MyZoneProvider implements ZoneProvider {
 
-    /**
-     * Returns the zone for the given {@code hostname}.
-     */
-    String zone(String hostname);
+    @Override
+    public String zone(String hostname) {
+        return "ZONE_C";
+    }
 }
