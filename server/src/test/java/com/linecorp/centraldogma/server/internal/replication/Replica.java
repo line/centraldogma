@@ -68,7 +68,8 @@ final class Replica {
         final int id = spec.getServerId();
         final ZooKeeperReplicationConfig zkCfg = new ZooKeeperReplicationConfig(id, servers);
 
-        commandExecutor = new ZooKeeperCommandExecutor(zkCfg, dataDir, new AbstractCommandExecutor(null, null) {
+        commandExecutor = new ZooKeeperCommandExecutor(
+                zkCfg, dataDir, new AbstractCommandExecutor(null, null, null, null) {
             @Override
             public int replicaId() {
                 return id;
@@ -78,18 +79,22 @@ final class Replica {
             public void setWriteQuota(String projectName, String repoName, QuotaConfig writeQuota) {}
 
             @Override
-            protected void doStart(@Nullable Runnable onTakeLeadership,
-                                   @Nullable Runnable onReleaseLeadership) {}
+            protected void doStart(
+                    @Nullable Runnable onTakeLeadership,
+                    @Nullable Runnable onReleaseLeadership,
+                    @Nullable Runnable onTakeZoneLeadership,
+                    @Nullable Runnable onReleaseZoneLeadership) {}
 
             @Override
-            protected void doStop(@Nullable Runnable onReleaseLeadership) {}
+            protected void doStop(@Nullable Runnable onReleaseLeadership,
+                                  @Nullable Runnable onReleaseZoneLeadership) {}
 
             @Override
             @SuppressWarnings("unchecked")
             protected <T> CompletableFuture<T> doExecute(Command<T> command) {
                 return (CompletableFuture<T>) delegate.apply(command);
             }
-        }, meterRegistry, mock(ProjectManager.class), writeQuota, null, null);
+        }, meterRegistry, mock(ProjectManager.class), writeQuota, null, null, null, null, null);
         commandExecutor.setMetadataService(mockMetaService());
         commandExecutor.setLockTimeoutMillis(10000);
 

@@ -146,6 +146,6 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
      */
     protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker, File dataDir) {
         return new StandaloneCommandExecutor(projectManager, worker, new ServerStatusManager(dataDir), null,
-                                             null, null, null);
+                                             null, null, null, null, null);
     }
 }

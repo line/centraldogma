@@ -4,5 +4,6 @@ dependencies {
 
     api libs.assertj
     api libs.json.unit.fluent
+    api libs.junit.pioneer
     api libs.logback12
 }

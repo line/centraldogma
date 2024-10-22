@@ -119,6 +119,7 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
                            .pluginConfigs(new MirroringServicePluginConfig(false))
                            .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
                            .replication(new ZooKeeperReplicationConfig(serverId, zooKeeperServers));
+                    configureEach(serverId, builder);
                 }
 
                 @Override
@@ -194,6 +195,12 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
             }).join();
         }
     }
+
+    /**
+     * Override this method to configure each server of the Central Dogma cluster.
+     * @param serverId the ID of the server that starts from {@code 1} to {@link #numReplicas}
+     */
+    protected void configureEach(int serverId, CentralDogmaBuilder builder) {}
 
     public void start() throws InterruptedException {
         if (dogmaCluster == null) {
