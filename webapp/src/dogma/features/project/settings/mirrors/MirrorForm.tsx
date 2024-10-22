@@ -16,6 +16,8 @@
 
 import { Controller, useForm, UseFormSetError } from 'react-hook-form';
 import {
+  Alert,
+  AlertIcon,
   Button,
   Center,
   Divider,
@@ -43,21 +45,18 @@ import { GoArrowBoth, GoArrowDown, GoArrowUp, GoKey, GoRepo } from 'react-icons/
 import { Select } from 'chakra-react-select';
 import { IoBanSharp } from 'react-icons/io5';
 import { useGetCredentialsQuery, useGetReposQuery } from 'dogma/features/api/apiSlice';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import FieldErrorMessage from 'dogma/common/components/form/FieldErrorMessage';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
 import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 import { FiBox } from 'react-icons/fi';
+import cronstrue from 'cronstrue';
 
 interface MirrorFormProps {
   projectName: string;
   defaultValue: MirrorDto;
-  onSubmit: (
-    credential: MirrorDto,
-    onSuccess: () => void,
-    setError: UseFormSetError<MirrorDto>,
-  ) => Promise<void>;
+  onSubmit: (mirror: MirrorDto, onSuccess: () => void, setError: UseFormSetError<MirrorDto>) => Promise<void>;
   isWaitingResponse: boolean;
 }
 
@@ -77,16 +76,19 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
   const {
     register,
     handleSubmit,
-    reset,
-    formState: { errors },
+    formState: { errors, isDirty },
     setError,
     setValue,
     control,
+    watch,
   } = useForm<MirrorDto>();
 
   const isNew = defaultValue.id === '';
   const { data: repos } = useGetReposQuery(projectName);
   const { data: credentials } = useGetCredentialsQuery(projectName);
+
+  const [isScheduleEnabled, setScheduleEnabled] = useState<boolean>(defaultValue.schedule != null);
+  const schedule = watch('schedule');
 
   const repoOptions: OptionType[] = (repos || [])
     .filter((repo: RepoDto) => !INTERNAL_REPOS.has(repo.name))
@@ -111,7 +113,14 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
       setValue('credentialId', defaultValue.credentialId);
       setValue('direction', defaultValue.direction);
     }
-  }, [defaultValue, setValue, isNew]);
+  }, [
+    isNew,
+    setValue,
+    defaultValue.localRepo,
+    defaultValue.remoteScheme,
+    defaultValue.credentialId,
+    defaultValue.direction,
+  ]);
 
   const defaultRemoteScheme: OptionType = defaultValue.remoteScheme
     ? { value: defaultValue.remoteScheme, label: defaultValue.remoteScheme }
@@ -123,7 +132,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
   return (
     <form
       onSubmit={handleSubmit((mirror) => {
-        return onSubmit(mirror, reset, setError);
+        return onSubmit(mirror, () => {}, setError);
       })}
     >
       <Center>
@@ -160,32 +169,66 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
           </FormControl>
           <Spacer />
 
-          <FormControl isRequired isInvalid={errors.schedule != null}>
+          <FormControl isInvalid={errors.schedule != null}>
             <FormLabel>
               <LabelledIcon icon={BiTimer} text="Schedule" />
+              <Switch
+                marginLeft={3}
+                id="enableSchedule"
+                defaultChecked={defaultValue.schedule != null}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setValue('schedule', defaultValue.schedule, {
+                      shouldDirty: true,
+                    });
+                    setScheduleEnabled(true);
+                  } else {
+                    setValue('schedule', null, {
+                      shouldDirty: true,
+                    });
+                    setScheduleEnabled(false);
+                  }
+                }}
+              />
             </FormLabel>
-            <Input
-              id="schedule"
-              name="schedule"
-              type="text"
-              placeholder="0 * * * * ?"
-              defaultValue={defaultValue.schedule}
-              {...register('schedule', { required: true })}
-            />
+            {isScheduleEnabled ? (
+              <>
+                <Input
+                  id="schedule"
+                  name="schedule"
+                  type="text"
+                  placeholder="0 * * * * ?"
+                  defaultValue={defaultValue.schedule || '0 * * * * ?'}
+                  {...register('schedule', { required: true })}
+                />
+                {schedule && (
+                  <FormHelperText color={'gray.500'}>
+                    {cronstrue.toString(schedule, { verbose: true })}
+                  </FormHelperText>
+                )}
+              </>
+            ) : (
+              <Alert status="warning" marginTop={3} borderRadius={5}>
+                <AlertIcon />
+                Scheduling is disabled.
+              </Alert>
+            )}
 
             {errors.schedule ? (
               <FieldErrorMessage error={errors.schedule} />
             ) : (
-              <FormHelperText>
-                <Link
-                  color="teal.500"
-                  href="https://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html"
-                  isExternal
-                >
-                  Quartz cron expression <ExternalLinkIcon mx="2px" />{' '}
-                </Link>
-                is used to describe when the mirroring task is supposed to be triggered.
-              </FormHelperText>
+              isScheduleEnabled && (
+                <FormHelperText>
+                  <Link
+                    color="teal.500"
+                    href="https://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html"
+                    isExternal
+                  >
+                    Quartz cron expression <ExternalLinkIcon mx="2px" />{' '}
+                  </Link>
+                  is used to describe when the mirroring task is supposed to be triggered.
+                </FormHelperText>
+              )
             )}
           </FormControl>
           <Spacer />
@@ -417,6 +460,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
               disabled
               type="submit"
               colorScheme="green"
+              isDisabled={!isDirty}
               isLoading={isWaitingResponse}
               loadingText="Updating"
               marginTop="10px"

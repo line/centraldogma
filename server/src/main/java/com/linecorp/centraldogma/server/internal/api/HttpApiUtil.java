@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.nullToEmpty;
 import static java.util.Objects.requireNonNull;
@@ -38,21 +39,28 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.Flags;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
-import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.logging.LogLevel;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.HttpResponseException;
+import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.metadata.User;
+
+import io.netty.util.AttributeKey;
 
 /**
  * A utility class which provides common functions for HTTP API.
  */
 //TODO(minwoox) change this class to package-local when the admin API is integrated with HTTP API
 public final class HttpApiUtil {
+
+    private static final AttributeKey<Boolean> VERBOSE_RESPONSES =
+            AttributeKey.valueOf(HttpApiUtil.class, "VERBOSE_RESPONSES");
 
     private static final Logger logger = LoggerFactory.getLogger(HttpApiUtil.class);
     private static final String ERROR_MESSAGE_FORMAT = "{} Returning a {} response: {}";
@@ -67,7 +75,7 @@ public final class HttpApiUtil {
      * Throws a newly created {@link HttpResponseException} with the specified {@link HttpStatus} and
      * {@code message}.
      */
-    public static <T> T throwResponse(RequestContext ctx, HttpStatus status, String message) {
+    public static <T> T throwResponse(ServiceRequestContext ctx, HttpStatus status, String message) {
         throw HttpResponseException.of(newResponse(ctx, status, message));
     }
 
@@ -75,7 +83,8 @@ public final class HttpApiUtil {
      * Throws a newly created {@link HttpResponseException} with the specified {@link HttpStatus} and
      * the formatted message.
      */
-    public static <T> T throwResponse(RequestContext ctx, HttpStatus status, String format, Object... args) {
+    public static <T> T throwResponse(ServiceRequestContext ctx, HttpStatus status, String format,
+                                      Object... args) {
         throw HttpResponseException.of(newResponse(ctx, status, format, args));
     }
 
@@ -83,7 +92,8 @@ public final class HttpApiUtil {
      * Throws a newly created {@link HttpResponseException} with the specified {@link HttpStatus},
      * {@code cause} and {@code message}.
      */
-    public static <T> T throwResponse(RequestContext ctx, HttpStatus status, Throwable cause, String message) {
+    public static <T> T throwResponse(ServiceRequestContext ctx, HttpStatus status, Throwable cause,
+                                      String message) {
         throw HttpResponseException.of(newResponse(ctx, status, cause, message));
     }
 
@@ -91,7 +101,7 @@ public final class HttpApiUtil {
      * Throws a newly created {@link HttpResponseException} with the specified {@link HttpStatus},
      * {@code cause} and the formatted message.
      */
-    public static <T> T throwResponse(RequestContext ctx, HttpStatus status, Throwable cause,
+    public static <T> T throwResponse(ServiceRequestContext ctx, HttpStatus status, Throwable cause,
                                       String format, Object... args) {
         throw HttpResponseException.of(newResponse(ctx, status, cause, format, args));
     }
@@ -100,7 +110,7 @@ public final class HttpApiUtil {
      * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus} and the formatted
      * message.
      */
-    public static HttpResponse newResponse(RequestContext ctx, HttpStatus status,
+    public static HttpResponse newResponse(ServiceRequestContext ctx, HttpStatus status,
                                            String format, Object... args) {
         requireNonNull(ctx, "ctx");
         requireNonNull(status, "status");
@@ -112,7 +122,7 @@ public final class HttpApiUtil {
     /**
      * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus} and {@code message}.
      */
-    public static HttpResponse newResponse(RequestContext ctx, HttpStatus status, String message) {
+    public static HttpResponse newResponse(ServiceRequestContext ctx, HttpStatus status, String message) {
         requireNonNull(ctx, "ctx");
         requireNonNull(status, "status");
         requireNonNull(message, "message");
@@ -122,7 +132,7 @@ public final class HttpApiUtil {
     /**
      * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus} and {@code cause}.
      */
-    public static HttpResponse newResponse(RequestContext ctx, HttpStatus status, Throwable cause) {
+    public static HttpResponse newResponse(ServiceRequestContext ctx, HttpStatus status, Throwable cause) {
         requireNonNull(ctx, "ctx");
         requireNonNull(status, "status");
         requireNonNull(cause, "cause");
@@ -133,7 +143,7 @@ public final class HttpApiUtil {
      * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus}, {@code cause} and
      * the formatted message.
      */
-    public static HttpResponse newResponse(RequestContext ctx, HttpStatus status, Throwable cause,
+    public static HttpResponse newResponse(ServiceRequestContext ctx, HttpStatus status, Throwable cause,
                                            String format, Object... args) {
         requireNonNull(ctx, "ctx");
         requireNonNull(status, "status");
@@ -148,7 +158,7 @@ public final class HttpApiUtil {
      * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus}, {@code cause} and
      * {@code message}.
      */
-    public static HttpResponse newResponse(RequestContext ctx, HttpStatus status,
+    public static HttpResponse newResponse(ServiceRequestContext ctx, HttpStatus status,
                                            Throwable cause, String message) {
         requireNonNull(ctx, "ctx");
         requireNonNull(status, "status");
@@ -158,7 +168,7 @@ public final class HttpApiUtil {
         return newResponse0(ctx, status, cause, message);
     }
 
-    private static HttpResponse newResponse0(RequestContext ctx, HttpStatus status,
+    private static HttpResponse newResponse0(ServiceRequestContext ctx, HttpStatus status,
                                              @Nullable Throwable cause, @Nullable String message) {
         checkArgument(!status.isContentAlwaysEmpty(),
                       "status: %s (expected: a status with non-empty content)", status);
@@ -174,6 +184,10 @@ public final class HttpApiUtil {
 
         final String m = nullToEmpty(message);
         node.put("message", m);
+
+        if (cause != null && isVerboseResponse(ctx)) {
+            node.put("detail", Exceptions.traceText(cause));
+        }
 
         final LogLevel logLevel;
         switch (status.codeClass()) {
@@ -292,6 +306,15 @@ public final class HttpApiUtil {
             throwUnsafelyIfNonNull(cause);
             return function.apply(result);
         };
+    }
+
+    public static void setVerboseResponses(ServiceRequestContext ctx, User user) {
+        ctx.setAttr(VERBOSE_RESPONSES, Flags.verboseResponses() || user.isAdmin());
+    }
+
+    private static boolean isVerboseResponse(ServiceRequestContext ctx) {
+        final Boolean verboseResponses = ctx.attr(VERBOSE_RESPONSES);
+        return firstNonNull(verboseResponses, false);
     }
 
     private HttpApiUtil() {}

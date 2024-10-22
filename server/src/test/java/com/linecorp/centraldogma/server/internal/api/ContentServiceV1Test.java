@@ -129,7 +129,8 @@ class ContentServiceV1Test {
         assertThatJson(res.contentUtf8()).isEqualTo(
                 '{' +
                 "  \"exception\": \"" + RedundantChangeException.class.getName() + "\"," +
-                "  \"message\": \"${json-unit.ignore}\"" +
+                "  \"message\": \"${json-unit.ignore}\"," +
+                "  \"detail\": \"${json-unit.ignore}\"" +
                 '}');
     }
 
@@ -634,7 +635,8 @@ class ContentServiceV1Test {
             assertThatJson(res.contentUtf8()).isEqualTo(
                     '{' +
                     "  \"exception\": \"" + ChangeConflictException.class.getName() + "\"," +
-                    "  \"message\": \"${json-unit.ignore}\"" +
+                    "  \"message\": \"${json-unit.ignore}\"," +
+                    "  \"detail\": \"${json-unit.ignore}\"" +
                     '}');
         }
 

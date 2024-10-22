@@ -36,6 +36,7 @@ import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.EntryNoContentException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.InvalidPushException;
+import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.QueryExecutionException;
@@ -109,7 +110,9 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                .put(InvalidPushException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
                .put(ReadOnlyException.class,
-                    (ctx, cause) -> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause));
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause))
+               .put(MirrorException.class,
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause));
 
         exceptionHandlers = builder.build();
     }

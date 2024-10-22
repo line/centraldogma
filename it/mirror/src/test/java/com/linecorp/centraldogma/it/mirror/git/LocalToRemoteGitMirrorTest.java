@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
 
 import javax.annotation.Nullable;
 
@@ -53,11 +54,12 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.common.PathPattern;
+import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorState;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
@@ -315,7 +317,7 @@ class LocalToRemoteGitMirrorTest {
         long remainder = MAX_NUM_BYTES + 1;
         final int defaultFileSize = (int) (MAX_NUM_BYTES / MAX_NUM_FILES * 2);
         final ArrayList<Change<String>> changes = new ArrayList<>();
-        for (int i = 0;; i++) {
+        for (int i = 0; ; i++) {
             final int fileSize;
             if (remainder > defaultFileSize) {
                 remainder -= defaultFileSize;
@@ -357,6 +359,23 @@ class LocalToRemoteGitMirrorTest {
                                     @Nullable String gitignore, MirrorDirection direction) {
         final String localPath0 = localPath == null ? "/" : localPath;
         final String remoteUri = gitUri + firstNonNull(remotePath, "");
+        try {
+            client.forRepo(projName, Project.REPO_META)
+                  .commit("Add /credentials/none",
+                          Change.ofJsonUpsert("/credentials/none.json",
+                                              "{ " +
+                                              "\"type\": \"none\", " +
+                                              "\"id\": \"none\", " +
+                                              "\"enabled\": true " +
+                                              '}'))
+                  .push().join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof RedundantChangeException) {
+               // The same content can be pushed several times.
+            } else {
+                throw e;
+            }
+        }
         client.forRepo(projName, Project.REPO_META)
               .commit("Add /mirrors/foo.json",
                       Change.ofJsonUpsert("/mirrors/foo.json",
@@ -369,7 +388,8 @@ class LocalToRemoteGitMirrorTest {
                                           "  \"localPath\": \"" + localPath0 + "\"," +
                                           "  \"remoteUri\": \"" + remoteUri + "\"," +
                                           "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
-                                          "  \"gitignore\": " + firstNonNull(gitignore, "\"\"") +
+                                          "  \"gitignore\": " + firstNonNull(gitignore, "\"\"") + ',' +
+                                          "  \"credentialId\": \"none\"" +
                                           '}'))
               .push().join();
     }

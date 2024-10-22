@@ -25,14 +25,18 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
+
+import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.MirrorStatus;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -44,7 +48,8 @@ class MirroringTaskTest {
         final MeterRegistry meterRegistry = new SimpleMeterRegistry();
         Mirror mirror = newMirror("git://a.com/b.git", DefaultGitMirror.class, "foo", "bar");
         mirror = spy(mirror);
-        doNothing().when(mirror).mirror(any(), any(), anyInt(), anyLong());
+        doReturn(new MirrorResult(mirror.id(), "foo", "bar", MirrorStatus.SUCCESS, "", Instant.now()))
+                .when(mirror).mirror(any(), any(), anyInt(), anyLong());
         new MirroringTask(mirror, "foo", meterRegistry).run(null, null, 0, 0L);
         assertThat(MoreMeters.measureAll(meterRegistry))
                 .contains(entry("mirroring.result#count{direction=LOCAL_TO_REMOTE,localPath=/," +

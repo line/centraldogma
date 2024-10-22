@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.net.URI;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -39,6 +40,8 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.MirrorStatus;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
@@ -47,7 +50,7 @@ import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
-class DefaultMirroringServiceTest {
+class MirrorSchedulingServiceTest {
 
     @TempDir
     static File temporaryFolder;
@@ -74,20 +77,25 @@ class DefaultMirroringServiceTest {
                                                  Credential.FALLBACK, r, "/",
                                                  URI.create("unused://uri"), "/", "", null) {
             @Override
-            protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) {}
+            protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes,
+                                                       Instant triggeredTime) {
+                return newMirrorResult(MirrorStatus.UP_TO_DATE, null, Instant.now());
+            }
 
             @Override
-            protected void mirrorRemoteToLocal(File workDir, CommandExecutor executor,
-                                               int maxNumFiles, long maxNumBytes) throws Exception {
+            protected MirrorResult mirrorRemoteToLocal(File workDir, CommandExecutor executor,
+                                                       int maxNumFiles, long maxNumBytes, Instant triggeredTime)
+                    throws Exception {
                 // Sleep longer than mirroring interval so that the workers fall behind.
                 taskCounter.incrementAndGet();
                 Thread.sleep(2000);
+                return newMirrorResult(MirrorStatus.SUCCESS, null, Instant.now());
             }
         };
 
         when(mr.mirrors()).thenReturn(CompletableFuture.completedFuture(ImmutableList.of(mirror)));
 
-        final DefaultMirroringService service = new DefaultMirroringService(
+        final MirrorSchedulingService service = new MirrorSchedulingService(
                 temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1);
         final CommandExecutor executor = mock(CommandExecutor.class);
         service.start(executor);

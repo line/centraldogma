@@ -34,7 +34,7 @@ import com.linecorp.centraldogma.server.plugin.PluginTarget;
 public final class DefaultMirroringServicePlugin implements Plugin {
 
     @Nullable
-    private volatile DefaultMirroringService mirroringService;
+    private volatile MirrorSchedulingService mirroringService;
 
     @Override
     public PluginTarget target() {
@@ -45,7 +45,7 @@ public final class DefaultMirroringServicePlugin implements Plugin {
     public synchronized CompletionStage<Void> start(PluginContext context) {
         requireNonNull(context, "context");
 
-        DefaultMirroringService mirroringService = this.mirroringService;
+        MirrorSchedulingService mirroringService = this.mirroringService;
         if (mirroringService == null) {
             final CentralDogmaConfig cfg = context.config();
             final MirroringServicePluginConfig mirroringServicePluginConfig =
@@ -63,7 +63,7 @@ public final class DefaultMirroringServicePlugin implements Plugin {
                 maxNumFilesPerMirror = MirroringServicePluginConfig.INSTANCE.maxNumFilesPerMirror();
                 maxNumBytesPerMirror = MirroringServicePluginConfig.INSTANCE.maxNumBytesPerMirror();
             }
-            mirroringService = new DefaultMirroringService(new File(cfg.dataDir(), "_mirrors"),
+            mirroringService = new MirrorSchedulingService(new File(cfg.dataDir(), "_mirrors"),
                                                            context.projectManager(),
                                                            context.meterRegistry(),
                                                            numThreads,
@@ -77,7 +77,7 @@ public final class DefaultMirroringServicePlugin implements Plugin {
 
     @Override
     public synchronized CompletionStage<Void> stop(PluginContext context) {
-        final DefaultMirroringService mirroringService = this.mirroringService;
+        final MirrorSchedulingService mirroringService = this.mirroringService;
         if (mirroringService != null && mirroringService.isStarted()) {
             mirroringService.stop();
         }
@@ -90,7 +90,7 @@ public final class DefaultMirroringServicePlugin implements Plugin {
     }
 
     @Nullable
-    public DefaultMirroringService mirroringService() {
+    public MirrorSchedulingService mirroringService() {
         return mirroringService;
     }
 

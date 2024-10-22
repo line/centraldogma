@@ -47,7 +47,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 
-import com.linecorp.centraldogma.server.MirrorException;
+import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.mirror.Mirror;
@@ -58,9 +58,9 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
-public final class DefaultMirroringService implements MirroringService {
+public final class MirrorSchedulingService implements MirroringService {
 
-    private static final Logger logger = LoggerFactory.getLogger(DefaultMirroringService.class);
+    private static final Logger logger = LoggerFactory.getLogger(MirrorSchedulingService.class);
 
     /**
      * How often to check the mirroring schedules. i.e. every second.
@@ -80,7 +80,7 @@ public final class DefaultMirroringService implements MirroringService {
     private ZonedDateTime lastExecutionTime;
     private final MeterRegistry meterRegistry;
 
-    DefaultMirroringService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
+    MirrorSchedulingService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
                             int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror) {
 
         this.workDir = requireNonNull(workDir, "workDir");
@@ -185,7 +185,10 @@ public final class DefaultMirroringService implements MirroringService {
                               logger.warn("Failed to load the mirror list from: {}", project.name(), e);
                               return;
                           }
-                          mirrors.forEach(m -> {
+                          for (Mirror m : mirrors) {
+                              if (m.schedule() == null) {
+                                  continue;
+                              }
                               try {
                                   if (m.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0) {
                                       run(project, m);
@@ -193,7 +196,7 @@ public final class DefaultMirroringService implements MirroringService {
                               } catch (Exception e) {
                                   logger.warn("Unexpected exception while mirroring: {}", m, e);
                               }
-                          });
+                          }
                       });
     }
 

@@ -33,7 +33,10 @@ export function setupStore(preloadedState?: Partial<RootState>) {
     preloadedState,
     // Adding the api middleware enables caching, invalidation, polling,
     // and other useful features of `rtk-query`.
-    middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(apiSlice.middleware),
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware({
+        serializableCheck: false,
+      }).concat(apiSlice.middleware),
   });
 }
 

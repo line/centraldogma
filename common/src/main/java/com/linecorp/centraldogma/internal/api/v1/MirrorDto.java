@@ -36,6 +36,7 @@ public final class MirrorDto {
     private final String id;
     private final boolean enabled;
     private final String projectName;
+    @Nullable
     private final String schedule;
     private final String direction;
     private final String localRepo;
@@ -52,7 +53,7 @@ public final class MirrorDto {
     public MirrorDto(@JsonProperty("id") String id,
                      @JsonProperty("enabled") @Nullable Boolean enabled,
                      @JsonProperty("projectName") String projectName,
-                     @JsonProperty("schedule") String schedule,
+                     @JsonProperty("schedule") @Nullable String schedule,
                      @JsonProperty("direction") String direction,
                      @JsonProperty("localRepo") String localRepo,
                      @JsonProperty("localPath") String localPath,
@@ -65,7 +66,7 @@ public final class MirrorDto {
         this.id = requireNonNull(id, "id");
         this.enabled = firstNonNull(enabled, true);
         this.projectName = requireNonNull(projectName, "projectName");
-        this.schedule = requireNonNull(schedule, "schedule");
+        this.schedule = schedule;
         this.direction = requireNonNull(direction, "direction");
         this.localRepo = requireNonNull(localRepo, "localRepo");
         this.localPath = requireNonNull(localPath, "localPath");
@@ -92,6 +93,7 @@ public final class MirrorDto {
         return projectName;
     }
 
+    @Nullable
     @JsonProperty("schedule")
     public String schedule() {
         return schedule;
@@ -155,7 +157,7 @@ public final class MirrorDto {
         return id.equals(mirrorDto.id) &&
                enabled == mirrorDto.enabled &&
                projectName.equals(mirrorDto.projectName) &&
-               schedule.equals(mirrorDto.schedule) &&
+               Objects.equals(schedule, mirrorDto.schedule) &&
                direction.equals(mirrorDto.direction) &&
                localRepo.equals(mirrorDto.localRepo) &&
                localPath.equals(mirrorDto.localPath) &&

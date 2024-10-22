@@ -47,7 +47,7 @@ export const Authorized = (props: { children: ReactNode }) => {
   if (typeof window !== 'undefined') {
     router.push(
       process.env.NEXT_PUBLIC_HOST
-        ? `${process.env.NEXT_PUBLIC_HOST}/link/auth/login/?return_to=${window.location.origin}`
+        ? `${process.env.NEXT_PUBLIC_HOST}/link/auth/login?return_to=${window.location.origin}`
         : `/link/auth/login`,
     );
   }

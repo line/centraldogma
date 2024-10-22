@@ -292,10 +292,13 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
 
     private static void validateMirror(MirrorDto mirror) {
         checkArgument(!Strings.isNullOrEmpty(mirror.id()), "Mirror ID is empty");
-        final Cron schedule = MirrorConfig.CRON_PARSER.parse(mirror.schedule());
-        final CronField secondField = schedule.retrieve(CronFieldName.SECOND);
-        checkArgument(!secondField.getExpression().asString().contains("*"),
-                      "The second field of the schedule must be specified. (seconds: *, expected: 0-59)");
+        final String scheduleString = mirror.schedule();
+        if (scheduleString != null) {
+            final Cron schedule = MirrorConfig.CRON_PARSER.parse(scheduleString);
+            final CronField secondField = schedule.retrieve(CronFieldName.SECOND);
+            checkArgument(!secondField.getExpression().asString().contains("*"),
+                          "The second field of the schedule must be specified. (seconds: *, expected: 0-59)");
+        }
     }
 
     private static MirrorConfig converterToMirrorConfig(MirrorDto mirrorDto) {
