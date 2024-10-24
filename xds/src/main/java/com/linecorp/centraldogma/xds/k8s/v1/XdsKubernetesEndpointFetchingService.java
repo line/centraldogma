@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -125,7 +126,8 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
         final ServiceEndpointWatcher endpointWatcher = watcherBuilder.build();
         final String watcherName = endpointWatcher.getName();
         logger.info("Creating a service endpoint watcher: {}", watcherName);
-        final KubernetesEndpointGroup kubernetesEndpointGroup = createKubernetesEndpointGroup(endpointWatcher);
+        final CompletableFuture<KubernetesEndpointGroup> future =
+                createKubernetesEndpointGroup(endpointWatcher, xdsProject().metaRepo(), executorService);
         final Map<String, KubernetesEndpointsUpdater> updaters =
                 kubernetesEndpointsUpdaters.computeIfAbsent(groupName, unused -> new HashMap<>());
 
@@ -134,15 +136,26 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             oldUpdater.close();
         }
         final KubernetesEndpointsUpdater updater =
-                new KubernetesEndpointsUpdater(commandExecutor, kubernetesEndpointGroup, executorService,
+                new KubernetesEndpointsUpdater(commandExecutor, future, executorService,
                                                groupName, watcherName, endpointWatcher.getClusterName());
         updaters.put(watcherName, updater);
-        kubernetesEndpointGroup.addListener(endpoints -> {
-            if (endpoints.isEmpty()) {
-                return;
+        future.handle((kubernetesEndpointGroup, cause) -> {
+            if (cause != null) {
+                logger.warn("Unexpected exception while creating a KubernetesEndpointGroup in fetching service",
+                            cause);
+                // Do not remove the updater from updaters because it can remove the updater that is created
+                // by the next commit. The updater will be removed only when the file or group is removed.
+                updater.close();
+                return null;
             }
-            executorService.execute(updater::maybeSchedule);
-        }, true);
+            kubernetesEndpointGroup.addListener(endpoints -> {
+                if (endpoints.isEmpty()) {
+                    return;
+                }
+                executorService.execute(() -> updater.maybeSchedule(kubernetesEndpointGroup));
+            }, true);
+            return null;
+        });
     }
 
     @Override
@@ -200,7 +213,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
     private static class KubernetesEndpointsUpdater {
 
         private final CommandExecutor commandExecutor;
-        private final KubernetesEndpointGroup kubernetesEndpointGroup;
+        private final CompletableFuture<KubernetesEndpointGroup> kubernetesEndpointGroupFuture;
         private final ScheduledExecutorService executorService;
         private final String groupName;
         private final String watcherName;
@@ -209,18 +222,18 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
         private ScheduledFuture<?> scheduledFuture;
 
         KubernetesEndpointsUpdater(CommandExecutor commandExecutor,
-                                   KubernetesEndpointGroup kubernetesEndpointGroup,
+                                   CompletableFuture<KubernetesEndpointGroup> kubernetesEndpointGroupFuture,
                                    ScheduledExecutorService executorService, String groupName,
                                    String watcherName, String clusterName) {
             this.commandExecutor = commandExecutor;
-            this.kubernetesEndpointGroup = kubernetesEndpointGroup;
+            this.kubernetesEndpointGroupFuture = kubernetesEndpointGroupFuture;
             this.executorService = executorService;
             this.groupName = groupName;
             this.watcherName = watcherName;
             this.clusterName = clusterName;
         }
 
-        void maybeSchedule() {
+        void maybeSchedule(KubernetesEndpointGroup kubernetesEndpointGroup) {
             if (scheduledFuture != null) {
                 return;
             }
@@ -231,11 +244,11 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 if (kubernetesEndpointGroup.isClosing()) {
                     return;
                 }
-                pushK8sEndpoints();
+                pushK8sEndpoints(kubernetesEndpointGroup);
             }, 1, TimeUnit.SECONDS);
         }
 
-        private void pushK8sEndpoints() {
+        private void pushK8sEndpoints(KubernetesEndpointGroup kubernetesEndpointGroup) {
             final List<com.linecorp.armeria.client.Endpoint> endpoints =
                     kubernetesEndpointGroup.endpoints();
             if (endpoints.isEmpty()) {
@@ -298,7 +311,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             if (scheduledFuture != null) {
                 scheduledFuture.cancel(true);
             }
-            kubernetesEndpointGroup.closeAsync();
+            kubernetesEndpointGroupFuture.thenAccept(KubernetesEndpointGroup::closeAsync);
         }
     }
 }

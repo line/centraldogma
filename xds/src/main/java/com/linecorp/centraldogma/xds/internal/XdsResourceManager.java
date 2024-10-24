@@ -128,6 +128,10 @@ public final class XdsResourceManager {
         this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
     }
 
+    public Project xdsProject() {
+        return xdsProject;
+    }
+
     public void checkGroup(String group) {
         checkGroupId(group);
         // TODO(minwoox): check the write permission.

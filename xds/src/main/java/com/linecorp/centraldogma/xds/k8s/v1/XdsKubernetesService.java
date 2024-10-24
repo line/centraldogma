@@ -23,6 +23,8 @@ import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePr
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
@@ -36,9 +38,14 @@ import com.google.protobuf.Empty;
 import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.kubernetes.endpoints.KubernetesEndpointGroup;
 import com.linecorp.armeria.client.kubernetes.endpoints.KubernetesEndpointGroupBuilder;
+import com.linecorp.armeria.common.ContextAwareBlockingTaskExecutor;
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Blocking;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
+import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.xds.internal.XdsResourceManager;
 import com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesServiceGrpc.XdsKubernetesServiceImplBase;
 
@@ -46,7 +53,6 @@ import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import io.netty.util.concurrent.ScheduledFuture;
 
 /**
  * A gRPC service that handles Kubernetes resources.
@@ -96,43 +102,57 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
                 "Create watcher: " + watcherName, watcher, author, true));
     }
 
-    private static void validateWatcherAndPush(
+    private void validateWatcherAndPush(
             StreamObserver<ServiceEndpointWatcher> responseObserver,
             ServiceEndpointWatcher watcher, Runnable onSuccess) {
         // Create a KubernetesEndpointGroup to check if the watcher is valid.
         // We use KubernetesEndpointGroup for simplicity, but we will implement a custom implementation
         // for better debugging and error handling in the future.
-        final KubernetesEndpointGroup kubernetesEndpointGroup = createKubernetesEndpointGroup(watcher);
-
-        final AtomicBoolean completed = new AtomicBoolean();
-        final CompletableFuture<List<Endpoint>> whenReady = kubernetesEndpointGroup.whenReady();
-        final ServiceRequestContext ctx = ServiceRequestContext.current();
-
-        // Use a schedule to time out the watcher creation until we implement a custom implementation.
-        final ScheduledFuture<?> scheduledFuture = ctx.eventLoop().schedule(() -> {
-            if (!completed.compareAndSet(false, true)) {
-                return;
-            }
-            kubernetesEndpointGroup.closeAsync();
-            responseObserver.onError(
-                    Status.INTERNAL.withDescription(
-                            "Failed to retrieve k8s endpoints within 5 seconds. watcherName: " +
-                            watcher.getName()).asRuntimeException());
-        }, 5, TimeUnit.SECONDS);
-
-        whenReady.handle((endpoints, cause) -> {
-            if (!completed.compareAndSet(false, true)) {
-                return null;
-            }
-            scheduledFuture.cancel(false);
-            kubernetesEndpointGroup.closeAsync();
+        final ContextAwareBlockingTaskExecutor taskExecutor =
+                ServiceRequestContext.current().blockingTaskExecutor();
+        final CompletableFuture<KubernetesEndpointGroup> future =
+                createKubernetesEndpointGroup(watcher, xdsResourceManager.xdsProject().metaRepo(),
+                                              taskExecutor);
+        future.handle((kubernetesEndpointGroup, cause) -> {
             if (cause != null) {
-                // Specific types.
-                responseObserver.onError(Status.INTERNAL.withCause(cause).asRuntimeException());
+                cause = Exceptions.peel(cause);
+                if (cause instanceof IllegalArgumentException || cause instanceof EntryNotFoundException) {
+                    responseObserver.onError(Status.INVALID_ARGUMENT.withCause(cause).asRuntimeException());
+                } else {
+                    responseObserver.onError(Status.INTERNAL.withCause(cause).asRuntimeException());
+                }
                 return null;
             }
-            logger.debug("Successfully retrieved k8s endpoints: {}", endpoints);
-            onSuccess.run();
+            final AtomicBoolean completed = new AtomicBoolean();
+            final CompletableFuture<List<Endpoint>> whenReady = kubernetesEndpointGroup.whenReady();
+
+            // Use a schedule to time out the watcher creation until we implement a custom implementation.
+            final ScheduledFuture<?> scheduledFuture = taskExecutor.schedule(() -> {
+                if (!completed.compareAndSet(false, true)) {
+                    return;
+                }
+                kubernetesEndpointGroup.closeAsync();
+                responseObserver.onError(
+                        Status.INTERNAL.withDescription(
+                                "Failed to retrieve k8s endpoints within 5 seconds. watcherName: " +
+                                watcher.getName()).asRuntimeException());
+            }, 5, TimeUnit.SECONDS);
+
+            whenReady.handle((endpoints, cause1) -> {
+                if (!completed.compareAndSet(false, true)) {
+                    return null;
+                }
+                scheduledFuture.cancel(false);
+                kubernetesEndpointGroup.closeAsync();
+                if (cause1 != null) {
+                    // Specific types.
+                    responseObserver.onError(Status.INTERNAL.withCause(cause1).asRuntimeException());
+                    return null;
+                }
+                logger.debug("Successfully retrieved k8s endpoints: {}", endpoints);
+                onSuccess.run();
+                return null;
+            });
             return null;
         });
     }
@@ -142,32 +162,47 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
      * This method must be executed in a blocking thread because
      * {@link KubernetesEndpointGroupBuilder#build()} blocks the execution thread.
      */
-    public static KubernetesEndpointGroup createKubernetesEndpointGroup(ServiceEndpointWatcher watcher) {
+    public static CompletableFuture<KubernetesEndpointGroup> createKubernetesEndpointGroup(
+            ServiceEndpointWatcher watcher, MetaRepository metaRepository, Executor executor) {
         final KubernetesConfig kubernetesConfig = watcher.getKubernetesConfig();
         final String serviceName = watcher.getServiceName();
 
-        final KubernetesEndpointGroupBuilder kubernetesEndpointGroupBuilder =
-                KubernetesEndpointGroup.builder(toConfig(kubernetesConfig)).serviceName(serviceName);
-        if (!isNullOrEmpty(kubernetesConfig.getNamespace())) {
-            kubernetesEndpointGroupBuilder.namespace(kubernetesConfig.getNamespace());
-        }
-        if (!isNullOrEmpty(watcher.getPortName())) {
-            kubernetesEndpointGroupBuilder.portName(watcher.getPortName());
-        }
-
-        return kubernetesEndpointGroupBuilder.build();
+        return toConfig(kubernetesConfig, metaRepository).thenApplyAsync(config -> {
+            final KubernetesEndpointGroupBuilder kubernetesEndpointGroupBuilder =
+                    KubernetesEndpointGroup.builder(config).serviceName(serviceName);
+            if (!isNullOrEmpty(kubernetesConfig.getNamespace())) {
+                kubernetesEndpointGroupBuilder.namespace(kubernetesConfig.getNamespace());
+            }
+            if (!isNullOrEmpty(watcher.getPortName())) {
+                kubernetesEndpointGroupBuilder.portName(watcher.getPortName());
+            }
+            // This callback can be executed by an event loop from CachingRepository, so we should use the
+            // specified executor to avoid blocking the event loop below.
+            return kubernetesEndpointGroupBuilder.build();
+        }, executor);
     }
 
-    private static Config toConfig(KubernetesConfig kubernetesConfig) {
+    private static CompletableFuture<Config> toConfig(KubernetesConfig kubernetesConfig,
+                                                      MetaRepository metaRepository) {
         final ConfigBuilder configBuilder = new ConfigBuilder()
                 .withMasterUrl(kubernetesConfig.getControlPlaneUrl())
                 .withTrustCerts(kubernetesConfig.getTrustCerts());
 
-        if (!isNullOrEmpty(kubernetesConfig.getOauthToken())) {
-            configBuilder.withOauthToken(kubernetesConfig.getOauthToken());
+        final String credentialId = kubernetesConfig.getCredentialId();
+        if (isNullOrEmpty(credentialId)) {
+            return CompletableFuture.completedFuture(configBuilder.build());
         }
 
-        return configBuilder.build();
+        return metaRepository.credential(credentialId)
+                             .thenApply(credential -> {
+                                 if (!(credential instanceof AccessTokenCredential)) {
+                                     throw new IllegalArgumentException(
+                                             "credential must be an access token: " + credential);
+                                 }
+
+                                 return configBuilder.withOauthToken(
+                                         ((AccessTokenCredential) credential).accessToken()).build();
+                             });
     }
 
     @Blocking
