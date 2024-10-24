@@ -18,12 +18,12 @@ package com.linecorp.centraldogma.xds.k8s.v1;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
-import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.K8S_WATCHERS_DIRECTORY;
-import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.WATCHERS_REPLCACE_PATTERN;
-import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.WATCHER_NAME_PATTERN;
+import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.AGGREGATORS_REPLCACE_PATTERN;
+import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.K8S_ENDPOINT_AGGREGATORS_NAME_PATTERN;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.createKubernetesEndpointGroup;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +58,7 @@ import com.linecorp.centraldogma.xds.internal.XdsResourceWatchingService;
 import io.envoyproxy.envoy.config.core.v3.Address;
 import io.envoyproxy.envoy.config.core.v3.SocketAddress;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment.Builder;
 import io.envoyproxy.envoy.config.endpoint.v3.Endpoint;
 import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint;
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
@@ -68,6 +69,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingService {
 
     private static final Logger logger = LoggerFactory.getLogger(XdsKubernetesEndpointFetchingService.class);
+    public static final CompletableFuture<?>[] EMPTY_FUTURES = new CompletableFuture[0];
 
     private final CommandExecutor commandExecutor;
 
@@ -109,80 +111,81 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
 
     @Override
     protected String pathPattern() {
-        return K8S_WATCHERS_DIRECTORY + "**";
+        return XdsKubernetesService.K8S_ENDPOINT_AGGREGATORS_DIRECTORY + "**";
     }
 
     @Override
     protected void handleXdsResource(String path, String contentAsText, String groupName)
             throws InvalidProtocolBufferException {
-        final ServiceEndpointWatcher.Builder watcherBuilder = ServiceEndpointWatcher.newBuilder();
+        final KubernetesEndpointAggregator.Builder aggregatorBuilder =
+                KubernetesEndpointAggregator.newBuilder();
         try {
-            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, watcherBuilder);
+            JSON_MESSAGE_MARSHALLER.mergeValue(contentAsText, aggregatorBuilder);
         } catch (IOException e) {
-            logger.warn("Failed to parse a Watcher at {}{}. content: {}",
+            logger.warn("Failed to parse a KubernetesEndpointAggregator at {}{}. content: {}",
                         groupName, path, contentAsText, e);
             return;
         }
-        final ServiceEndpointWatcher endpointWatcher = watcherBuilder.build();
-        final String watcherName = endpointWatcher.getName();
-        logger.info("Creating a service endpoint watcher: {}", watcherName);
-        final CompletableFuture<KubernetesEndpointGroup> future =
-                createKubernetesEndpointGroup(endpointWatcher, xdsProject().metaRepo(), executorService);
+
+        final KubernetesEndpointAggregator aggregator = aggregatorBuilder.build();
+        final String aggregatorName = aggregator.getName();
+
         final Map<String, KubernetesEndpointsUpdater> updaters =
                 kubernetesEndpointsUpdaters.computeIfAbsent(groupName, unused -> new HashMap<>());
 
-        final KubernetesEndpointsUpdater oldUpdater = updaters.get(watcherName);
+        logger.info("Creating service endpoint watchers of {}.", aggregatorName);
+        final List<CompletableFuture<KubernetesEndpointGroup>> futures = new ArrayList<>();
+        for (KubernetesLocalityLbEndpoints kubernetesLocalityLbEndpoints
+                : aggregator.getLocalityLbEndpointsList()) {
+            final ServiceEndpointWatcher watcher = kubernetesLocalityLbEndpoints.getWatcher();
+            final CompletableFuture<KubernetesEndpointGroup> future =
+                    createKubernetesEndpointGroup(watcher, xdsProject().metaRepo(), executorService);
+            futures.add(future);
+        }
+
+        final KubernetesEndpointsUpdater oldUpdater = updaters.get(aggregatorName);
         if (oldUpdater != null) {
             oldUpdater.close();
         }
         final KubernetesEndpointsUpdater updater =
-                new KubernetesEndpointsUpdater(commandExecutor, future, executorService,
-                                               groupName, watcherName, endpointWatcher.getClusterName());
-        updaters.put(watcherName, updater);
-        future.handle((kubernetesEndpointGroup, cause) -> {
-            if (cause != null) {
-                logger.warn("Unexpected exception while creating a KubernetesEndpointGroup in fetching service",
-                            cause);
-                // Do not remove the updater from updaters because it can remove the updater that is created
-                // by the next commit. The updater will be removed only when the file or group is removed.
-                updater.close();
-                return null;
-            }
-            kubernetesEndpointGroup.addListener(endpoints -> {
-                if (endpoints.isEmpty()) {
-                    return;
-                }
-                executorService.execute(() -> updater.maybeSchedule(kubernetesEndpointGroup));
-            }, true);
+                new KubernetesEndpointsUpdater(commandExecutor, futures, executorService,
+                                               groupName, aggregator);
+        updaters.put(aggregatorName, updater);
+        CompletableFuture.allOf(futures.toArray(EMPTY_FUTURES)).exceptionally(cause -> {
+            logger.warn("Unexpected exception while creating a KubernetesEndpointGroup in fetching service",
+                        cause);
+            // Do not remove the updater from updaters because it can remove the updater that is created
+            // by the next commit. The updater will be removed only when the file or group is removed.
+            updater.close();
             return null;
         });
     }
 
     @Override
     protected void onGroupRemoved(String groupName) {
-        final Map<String, KubernetesEndpointsUpdater> watchers = kubernetesEndpointsUpdaters.remove(groupName);
-        if (watchers != null) {
-            watchers.values().forEach(KubernetesEndpointsUpdater::close);
-            watchers.clear();
+        final Map<String, KubernetesEndpointsUpdater> updaters = kubernetesEndpointsUpdaters.remove(groupName);
+        if (updaters != null) {
+            updaters.values().forEach(KubernetesEndpointsUpdater::close);
+            updaters.clear();
         }
     }
 
     @Override
     protected void onFileRemoved(String groupName, String path) {
         final Map<String, KubernetesEndpointsUpdater> updaters = kubernetesEndpointsUpdaters.get(groupName);
-        final String watcherName =
+        // e.g. groups/foo/k8s/endpointAggregators/foo-cluster
+        final String aggregatorName =
                 "groups/" + groupName + path.substring(0, path.length() - 5); // Remove .json
         if (updaters != null) {
-            // e.g. groups/foo/k8s/watchers/foo-cluster
-            final KubernetesEndpointsUpdater updater = updaters.get(watcherName);
+            final KubernetesEndpointsUpdater updater = updaters.get(aggregatorName);
             if (updater != null) {
                 updater.close();
             }
         }
 
         // Remove corresponding endpoints.
-        final String endpointPath = WATCHERS_REPLCACE_PATTERN.matcher(path).replaceFirst("/endpoints/");
-        logger.info("Removing {} from {}. watcherName: {}", endpointPath, groupName, watcherName);
+        final String endpointPath = AGGREGATORS_REPLCACE_PATTERN.matcher(path).replaceFirst("/endpoints/");
+        logger.info("Removing {} from {}. aggregatorName: {}", endpointPath, groupName, aggregatorName);
         commandExecutor.execute(
                 Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, groupName, Revision.HEAD,
                              "Remove " + endpointPath, "",
@@ -192,7 +195,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 if (peeled instanceof ChangeConflictException &&
                     peeled.getMessage().contains("non-existent file")) {
                     // TODO(minwoox): Provide a type to ChangeConflictException to distinguish this case.
-                    // Could happen if deleteWatcher is called before the file is created.
+                    // Could happen if deleteKubernetesEndpointAggregator is called before the file is created.
                     return null;
                 }
 
@@ -213,88 +216,79 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
     private static class KubernetesEndpointsUpdater {
 
         private final CommandExecutor commandExecutor;
-        private final CompletableFuture<KubernetesEndpointGroup> kubernetesEndpointGroupFuture;
+        private final List<CompletableFuture<KubernetesEndpointGroup>> kubernetesEndpointGroupFutures;
         private final ScheduledExecutorService executorService;
         private final String groupName;
-        private final String watcherName;
-        private final String clusterName;
+        private final KubernetesEndpointAggregator aggregator;
         @Nullable
         private ScheduledFuture<?> scheduledFuture;
+        private boolean closing;
 
-        KubernetesEndpointsUpdater(CommandExecutor commandExecutor,
-                                   CompletableFuture<KubernetesEndpointGroup> kubernetesEndpointGroupFuture,
-                                   ScheduledExecutorService executorService, String groupName,
-                                   String watcherName, String clusterName) {
+        KubernetesEndpointsUpdater(
+                CommandExecutor commandExecutor,
+                List<CompletableFuture<KubernetesEndpointGroup>> kubernetesEndpointGroupFutures,
+                ScheduledExecutorService executorService, String groupName,
+                KubernetesEndpointAggregator aggregator) {
             this.commandExecutor = commandExecutor;
-            this.kubernetesEndpointGroupFuture = kubernetesEndpointGroupFuture;
+            this.kubernetesEndpointGroupFutures = kubernetesEndpointGroupFutures;
             this.executorService = executorService;
             this.groupName = groupName;
-            this.watcherName = watcherName;
-            this.clusterName = clusterName;
+            this.aggregator = aggregator;
+
+            kubernetesEndpointGroupFutures.forEach(future -> future.thenAccept(kubernetesEndpointGroup -> {
+                kubernetesEndpointGroup.addListener(endpoints -> {
+                    if (endpoints.isEmpty()) {
+                        return;
+                    }
+                    executorService.execute(this::maybeSchedule);
+                }, true);
+            }));
         }
 
-        void maybeSchedule(KubernetesEndpointGroup kubernetesEndpointGroup) {
-            if (scheduledFuture != null) {
+        void maybeSchedule() {
+            if (closing || scheduledFuture != null) {
                 return;
             }
             // Commit after 1 second so that it pushes with all the fetched endpoints in the duration
             // instead of pushing one by one.
             scheduledFuture = executorService.schedule(() -> {
                 scheduledFuture = null;
-                if (kubernetesEndpointGroup.isClosing()) {
+                if (closing) {
                     return;
                 }
-                pushK8sEndpoints(kubernetesEndpointGroup);
+                pushK8sEndpoints();
             }, 1, TimeUnit.SECONDS);
         }
 
-        private void pushK8sEndpoints(KubernetesEndpointGroup kubernetesEndpointGroup) {
-            final List<com.linecorp.armeria.client.Endpoint> endpoints =
-                    kubernetesEndpointGroup.endpoints();
-            if (endpoints.isEmpty()) {
-                return;
+        private void pushK8sEndpoints() {
+            logger.debug("Pushing k8s endpoints: {}, group: {}", aggregator.getClusterName(), groupName);
+            final ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder =
+                    ClusterLoadAssignment.newBuilder().setClusterName(aggregator.getClusterName());
+
+            for (int i = 0; i < kubernetesEndpointGroupFutures.size(); i++) {
+                final CompletableFuture<KubernetesEndpointGroup> future =
+                        kubernetesEndpointGroupFutures.get(i);
+                final KubernetesLocalityLbEndpoints localityLbEndpoints = aggregator.getLocalityLbEndpoints(i);
+                addLocalityLbEndpoints(clusterLoadAssignmentBuilder, future, localityLbEndpoints);
             }
-            logger.debug("Pushing {} endpoints to {}. clusterName: {}",
-                         endpoints.size(), groupName, clusterName);
 
-            final LocalityLbEndpoints.Builder localityLbEndpointsBuilder = LocalityLbEndpoints.newBuilder();
-            endpoints.forEach(endpoint -> {
-                assert endpoint.hasPort();
-                final SocketAddress socketAddress = SocketAddress.newBuilder()
-                                                                 .setAddress(endpoint.host())
-                                                                 .setPortValue(endpoint.port())
-                                                                 .build();
-                localityLbEndpointsBuilder.addLbEndpoints(
-                        LbEndpoint.newBuilder()
-                                  .setEndpoint(Endpoint.newBuilder()
-                                                       .setAddress(Address.newBuilder()
-                                                                          .setSocketAddress(socketAddress)
-                                                                          .build()).build())
-                                  .build());
-            });
-
-            final ClusterLoadAssignment clusterLoadAssignment =
-                    ClusterLoadAssignment.newBuilder()
-                                         .setClusterName(clusterName)
-                                         .addEndpoints(localityLbEndpointsBuilder.build())
-                                         .build();
             final String json;
             try {
-                json = JSON_MESSAGE_MARSHALLER.writeValueAsString(clusterLoadAssignment);
+                json = JSON_MESSAGE_MARSHALLER.writeValueAsString(clusterLoadAssignmentBuilder.build());
             } catch (IOException e) {
                 // Should never reach here.
                 throw new Error(e);
             }
-            final Matcher matcher = WATCHER_NAME_PATTERN.matcher(watcherName);
+            final Matcher matcher = K8S_ENDPOINT_AGGREGATORS_NAME_PATTERN.matcher(aggregator.getName());
             final boolean matches = matcher.matches();
             assert matches;
-            final String watcherId = matcher.group(2);
-            final String fileName = K8S_ENDPOINTS_DIRECTORY + watcherId + ".json";
+            final String aggregatorId = matcher.group(2);
+            final String fileName = K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json";
             final Change<JsonNode> change = Change.ofJsonUpsert(fileName, json);
             commandExecutor.execute(
                     Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, groupName, Revision.HEAD,
-                                 "Add " + clusterName + " with " + endpoints.size() +
-                                 " endpoints.", "", Markup.PLAINTEXT, change)).handle((unused, cause) -> {
+                                 "Add " + aggregator.getClusterName() + '.', "",
+                                 Markup.PLAINTEXT, change)).handle((unused, cause) -> {
                 if (cause != null) {
                     final Throwable peeled = Exceptions.peel(cause);
                     if (peeled instanceof RedundantChangeException) {
@@ -307,11 +301,51 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             });
         }
 
+        private static void addLocalityLbEndpoints(
+                Builder clusterLoadAssignmentBuilder,
+                CompletableFuture<KubernetesEndpointGroup> future,
+                KubernetesLocalityLbEndpoints kubernetesLocalityLbEndpoints) {
+            if (!future.isDone()) {
+                return;
+            }
+            final KubernetesEndpointGroup kubernetesEndpointGroup = future.join();
+            if (!kubernetesEndpointGroup.whenReady().isDone()) {
+                return;
+            }
+
+            final LocalityLbEndpoints.Builder localityLbEndpointsBuilder = LocalityLbEndpoints.newBuilder();
+            if (kubernetesLocalityLbEndpoints.hasLocality()) {
+                localityLbEndpointsBuilder.setLocality(kubernetesLocalityLbEndpoints.getLocality());
+            }
+            if (kubernetesLocalityLbEndpoints.hasLoadBalancingWeight()) {
+                localityLbEndpointsBuilder.setLoadBalancingWeight(
+                        kubernetesLocalityLbEndpoints.getLoadBalancingWeight());
+            }
+            localityLbEndpointsBuilder.setPriority(kubernetesLocalityLbEndpoints.getPriority());
+            for (com.linecorp.armeria.client.Endpoint endpoint : kubernetesEndpointGroup.endpoints()) {
+                assert endpoint.hasPort();
+                final SocketAddress socketAddress = SocketAddress.newBuilder()
+                                                                 .setAddress(endpoint.host())
+                                                                 .setPortValue(endpoint.port())
+                                                                 .build();
+                localityLbEndpointsBuilder.addLbEndpoints(
+                        LbEndpoint.newBuilder()
+                                  .setEndpoint(Endpoint.newBuilder()
+                                                       .setAddress(Address.newBuilder()
+                                                                          .setSocketAddress(socketAddress)
+                                                                          .build()).build())
+                                  .build());
+            }
+            clusterLoadAssignmentBuilder.addEndpoints(localityLbEndpointsBuilder.build());
+        }
+
         void close() {
+            closing = true;
             if (scheduledFuture != null) {
                 scheduledFuture.cancel(true);
             }
-            kubernetesEndpointGroupFuture.thenAccept(KubernetesEndpointGroup::closeAsync);
+            kubernetesEndpointGroupFutures.forEach(
+                    future -> future.thenAccept(KubernetesEndpointGroup::closeAsync));
         }
     }
 }

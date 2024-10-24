@@ -97,7 +97,7 @@ public class XdsEndpointServiceTest {
 
     public static void checkEndpointsViaDiscoveryRequest(
             URI uri, @Nullable ClusterLoadAssignment actualEndpoint, String resourceName) {
-        await().pollInterval(100, TimeUnit.MILLISECONDS).untilAsserted(
+        await().pollInterval(300, TimeUnit.MILLISECONDS).untilAsserted(
                 () -> checkEndpointsViaDiscoveryRequest0(uri, actualEndpoint, resourceName));
     }
 

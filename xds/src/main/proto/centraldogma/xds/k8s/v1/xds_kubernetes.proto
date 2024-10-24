@@ -19,46 +19,82 @@ option java_multiple_files = true;
 option java_outer_classname = "XdsKubernetesProto";
 option java_package = "com.linecorp.centraldogma.xds.k8s.v1";
 
+import "envoy/config/core/v3/base.proto";
+import "envoy/config/endpoint/v3/endpoint.proto";
+
 import "google/api/annotations.proto";
 import "google/api/client.proto";
 import "google/api/field_behavior.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
 
 service XdsKubernetesService {
 
-  rpc CreateServiceEndpointWatcher(CreateServiceEndpointWatcherRequest) returns (ServiceEndpointWatcher) {
+  rpc CreateKubernetesEndpointAggregator(CreateKubernetesEndpointAggregatorRequest)
+      returns (KubernetesEndpointAggregator) {
     option (google.api.http) = {
-      post: "/api/v1/xds/{parent=groups/*}/k8s/watchers"
-      body: "watcher"
+      post: "/api/v1/xds/{parent=groups/*}/k8s/endpointAggregators"
+      body: "kubernetes_endpoint_aggregator"
     };
-    option (google.api.method_signature) = "project,watcher";
+    option (google.api.method_signature) = "project,kubernetes_endpoint_aggregator";
   }
 
-  rpc UpdateServiceEndpointWatcher(UpdateServiceEndpointWatcherRequest) returns (ServiceEndpointWatcher) {
+  rpc UpdateKubernetesEndpointAggregator(UpdateKubernetesEndpointAggregatorRequest)
+      returns (KubernetesEndpointAggregator) {
     option (google.api.http) = {
-      patch: "/api/v1/xds/{watcher.name=groups/*/k8s/watchers/**}"
-      body: "watcher"
+      patch: "/api/v1/xds/{kubernetes_endpoint.name=groups/*/k8s/endpointAggregators/**}"
+      body: "kubernetes_endpoint_aggregator"
     };
   }
 
-  rpc DeleteServiceEndpointWatcher(DeleteServiceEndpointWatcherRequest) returns (google.protobuf.Empty) {
+  rpc DeleteKubernetesEndpointAggregator(DeleteKubernetesEndpointAggregatorRequest)
+      returns (google.protobuf.Empty) {
     option (google.api.http) = {
-      delete: "/api/v1/xds/{name=groups/*/k8s/watchers/**}"
+      delete: "/api/v1/xds/{name=groups/*/k8s/endpointAggregators/**}"
     };
   }
 }
 
-message CreateServiceEndpointWatcherRequest {
-  // The parent resource where this watcher will be created.
+message CreateKubernetesEndpointAggregatorRequest {
+  // The parent resource where this kubernetes endpoint will be created.
   // Format: groups/{group}
   string parent = 1 [(google.api.field_behavior) = REQUIRED];
   // Valid pattern is "^[a-z]([a-z0-9-/]*[a-z0-9])?$"
-  string watcher_id = 2 [(google.api.field_behavior) = REQUIRED];
-  ServiceEndpointWatcher watcher = 3 [(google.api.field_behavior) = REQUIRED];
+  string aggregator_id = 2 [(google.api.field_behavior) = REQUIRED];
+  KubernetesEndpointAggregator kubernetes_endpoint_aggregator = 3 [(google.api.field_behavior) = REQUIRED];
 }
 
-message UpdateServiceEndpointWatcherRequest {
+message KubernetesEndpointAggregator {
+  // Format: groups/{group}/k8s/endpointAggregators/{endpoint}
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+  string cluster_name = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+  envoy.config.endpoint.v3.ClusterLoadAssignment.Policy policy = 3 [(google.api.field_behavior) = OPTIONAL];
+  repeated KubernetesLocalityLbEndpoints locality_lb_endpoints = 4 [(google.api.field_behavior) = REQUIRED];
+}
+
+message KubernetesLocalityLbEndpoints {
   ServiceEndpointWatcher watcher = 1 [(google.api.field_behavior) = REQUIRED];
+  envoy.config.core.v3.Locality locality = 2 [(google.api.field_behavior) = OPTIONAL];
+  int32 priority = 3 [(google.api.field_behavior) = OPTIONAL];
+  google.protobuf.UInt32Value load_balancing_weight = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message ServiceEndpointWatcher {
+  string service_name = 1 [(google.api.field_behavior) = REQUIRED];
+  string port_name = 2 [(google.api.field_behavior) = OPTIONAL];
+  Kubeconfig kubeconfig = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message Kubeconfig {
+  string control_plane_url = 1 [(google.api.field_behavior) = REQUIRED];
+  string namespace = 2 [(google.api.field_behavior) = OPTIONAL];
+  string credential_id = 3 [(google.api.field_behavior) = OPTIONAL];
+  bool trust_certs = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message UpdateKubernetesEndpointAggregatorRequest {
+  // The kubernetes_endpoint_aggregator's `name` field is used to identify the endpoint to update.
+  KubernetesEndpointAggregator kubernetes_endpoint_aggregator = 1 [(google.api.field_behavior) = REQUIRED];
 
   // TODO(minwoox): Implement these fields
   // google.protobuf.FieldMask update_mask = 2;
@@ -66,23 +102,6 @@ message UpdateServiceEndpointWatcherRequest {
   // bool allow_missing = 3;
 }
 
-message DeleteServiceEndpointWatcherRequest {
+message DeleteKubernetesEndpointAggregatorRequest {
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
-}
-
-message KubernetesConfig {
-  string control_plane_url = 1 [(google.api.field_behavior) = REQUIRED];
-  string namespace = 2 [(google.api.field_behavior) = OPTIONAL];
-  string credential_id = 3 [(google.api.field_behavior) = OPTIONAL];
-  bool trust_certs = 4 [(google.api.field_behavior) = OPTIONAL];
-}
-
-message ServiceEndpointWatcher {
-  // The resource name of the watcher.
-  // Format: groups/{group}/k8s/watchers/{watcher}_id
-  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
-  string cluster_name = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
-  string service_name = 3 [(google.api.field_behavior) = REQUIRED];
-  string port_name = 4 [(google.api.field_behavior) = OPTIONAL];
-  KubernetesConfig kubernetes_config = 5 [(google.api.field_behavior) = REQUIRED];
 }
