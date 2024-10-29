@@ -131,7 +131,7 @@ public class CentralDogmaClientAutoConfiguration {
         }
 
         final CentralDogma centralDogma = builder.build();
-        Long initializationTimeoutMillis = settings.initializationTimeoutMillis();
+        Long initializationTimeoutMillis = settings.getInitializationTimeoutMillis();
         if (initializationTimeoutMillis == null) {
             initializationTimeoutMillis = DEFAULT_INITIALIZATION_TIMEOUT_MILLIS;
         }
