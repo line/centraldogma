@@ -19,6 +19,7 @@ import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENT
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.AGGREGATORS_REPLCACE_PATTERN;
+import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.K8S_ENDPOINT_AGGREGATORS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.K8S_ENDPOINT_AGGREGATORS_NAME_PATTERN;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.createKubernetesEndpointGroup;
 
@@ -111,7 +112,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
 
     @Override
     protected String pathPattern() {
-        return XdsKubernetesService.K8S_ENDPOINT_AGGREGATORS_DIRECTORY + "**";
+        return K8S_ENDPOINT_AGGREGATORS_DIRECTORY + "**";
     }
 
     @Override
@@ -257,7 +258,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                     return;
                 }
                 pushK8sEndpoints();
-            }, 1, TimeUnit.SECONDS);
+            }, 3, TimeUnit.SECONDS);
         }
 
         private void pushK8sEndpoints() {
