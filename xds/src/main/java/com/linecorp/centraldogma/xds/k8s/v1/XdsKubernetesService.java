@@ -117,7 +117,9 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
             if (cause != null) {
                 cause = Exceptions.peel(cause);
                 if (cause instanceof IllegalArgumentException || cause instanceof EntryNotFoundException) {
-                    responseObserver.onError(Status.INVALID_ARGUMENT.withCause(cause).asRuntimeException());
+                    responseObserver.onError(Status.INVALID_ARGUMENT.withCause(cause)
+                                                                    .withDescription(cause.getMessage())
+                                                                    .asRuntimeException());
                 } else {
                     responseObserver.onError(Status.INTERNAL.withCause(cause).asRuntimeException());
                 }

@@ -22,6 +22,7 @@ import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MES
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.endpoint;
 import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.K8S_WATCHERS_DIRECTORY;
+import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
@@ -179,7 +180,9 @@ class XdsKubernetesServiceTest {
         watcher = watcher(watcherId, "nginx-service", "invalid-credential-id");
         response = createWatcher(watcher, watcherId);
         assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
-        assertThat(response.contentUtf8()).contains("failed to find credential 'invalid-credential-id'");
+        assertThatJson(response.contentUtf8())
+                .node("grpc-code").isEqualTo("INVALID_ARGUMENT")
+                .node("message").isEqualTo("failed to find credential 'invalid-credential-id' in @xds/meta");
     }
 
     @Test
