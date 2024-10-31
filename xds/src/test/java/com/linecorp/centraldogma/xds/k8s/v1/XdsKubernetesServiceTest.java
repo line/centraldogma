@@ -25,10 +25,16 @@ import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.K8S_WATC
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -80,19 +86,30 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentSpec;
 import io.fabric8.kubernetes.api.model.apps.DeploymentSpecBuilder;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
+import io.fabric8.kubernetes.client.server.mock.KubernetesMixedDispatcher;
+import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
+import io.fabric8.mockwebserver.Context;
+import io.fabric8.mockwebserver.ServerRequest;
+import io.fabric8.mockwebserver.ServerResponse;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 
-@EnableKubernetesMockClient(crud = true)
 class XdsKubernetesServiceTest {
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension();
 
-    static KubernetesClient client;
+    private static CapturingKubernetesMixedDispatcher dispatcher;
+    private static KubernetesMockServer mock;
+    private static NamespacedKubernetesClient client;
 
     @BeforeAll
     static void setup() {
+        setUpK8s();
+        putCredential();
+
         final AggregatedHttpResponse response = createGroup("foo", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.OK);
         final List<Node> nodes = ImmutableList.of(newNode("1.1.1.1"), newNode("2.2.2.2"));
@@ -113,6 +130,24 @@ class XdsKubernetesServiceTest {
         client.services().resource(service).create();
     }
 
+    private static void setUpK8s() {
+        final Map<ServerRequest, Queue<ServerResponse>> responses = new HashMap<>();
+        dispatcher = new CapturingKubernetesMixedDispatcher(responses);
+        mock = new KubernetesMockServer(new Context(), new MockWebServer(), responses, dispatcher, false);
+        mock.init();
+        client = mock.createClient();
+    }
+
+    private static void putCredential() {
+        final ImmutableMap<String, String> credential = ImmutableMap.of("type", "access_token",
+                                                                        "id", "my-credential",
+                                                                        "accessToken", "secret");
+        dogma.httpClient().prepare()
+             .post("/api/v1/projects/@xds/credentials")
+             .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+             .contentJson(credential).execute().aggregate().join();
+    }
+
     @AfterAll
     static void cleanupK8sResources() {
         client.nodes().list().getItems().forEach(
@@ -125,15 +160,26 @@ class XdsKubernetesServiceTest {
         client.services().list().getItems().forEach(
                 service -> client.services().withName(service.getMetadata().getName()).delete());
         client.close();
+        mock.destroy();
+    }
+
+    @BeforeEach
+    void clearQueue() {
+        dispatcher.queue().clear();
     }
 
     @Test
     void invalidProperty() throws IOException {
         final String watcherId = "foo-cluster";
-        final ServiceEndpointWatcher watcher = watcher(watcherId, "invalid-service-name");
-        final AggregatedHttpResponse response = createWatcher(watcher, watcherId);
+        ServiceEndpointWatcher watcher = watcher(watcherId, "invalid-service-name", "my-credential");
+        AggregatedHttpResponse response = createWatcher(watcher, watcherId);
         assertThat(response.status()).isSameAs(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.contentUtf8()).contains("Failed to retrieve k8s endpoints");
+
+        watcher = watcher(watcherId, "nginx-service", "invalid-credential-id");
+        response = createWatcher(watcher, watcherId);
+        assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
+        assertThat(response.contentUtf8()).contains("failed to find credential 'invalid-credential-id'");
     }
 
     @Test
@@ -164,17 +210,24 @@ class XdsKubernetesServiceTest {
         final ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder = ClusterLoadAssignment.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(clusterEntry.contentAsText(), clusterLoadAssignmentBuilder);
         assertThat(clusterLoadAssignmentBuilder.build()).isEqualTo(loadAssignment);
+
+        dispatcher.queue().forEach(req -> {
+            // All requests contain the credential.
+            assertThat(req.getHeaders().get(HttpHeaderNames.AUTHORIZATION.toString()))
+                    .isEqualTo("Bearer secret");
+        });
     }
 
     private static ServiceEndpointWatcher watcher(String watcherId) {
-        return watcher(watcherId, "nginx-service");
+        return watcher(watcherId, "nginx-service", "my-credential");
     }
 
-    private static ServiceEndpointWatcher watcher(String watcherId, String serviceName) {
+    private static ServiceEndpointWatcher watcher(String watcherId, String serviceName, String credentialId) {
         final KubernetesConfig kubernetesConfig =
                 KubernetesConfig.newBuilder()
                                 .setControlPlaneUrl(client.getMasterUrl().toString())
                                 .setNamespace(client.getNamespace())
+                                .setCredentialId(credentialId)
                                 .setTrustCerts(true)
                                 .build();
         return ServiceEndpointWatcher.newBuilder()
@@ -370,5 +423,24 @@ class XdsKubernetesServiceTest {
                 .withMetadata(metadata)
                 .withSpec(spec)
                 .build();
+    }
+
+    private static class CapturingKubernetesMixedDispatcher extends KubernetesMixedDispatcher {
+
+        private final BlockingQueue<RecordedRequest> queue = new ArrayBlockingQueue<>(16);
+
+        CapturingKubernetesMixedDispatcher(Map<ServerRequest, Queue<ServerResponse>> responses) {
+            super(responses);
+        }
+
+        BlockingQueue<RecordedRequest> queue() {
+            return queue;
+        }
+
+        @Override
+        public MockResponse dispatch(RecordedRequest request) throws InterruptedException {
+            queue.add(request);
+            return super.dispatch(request);
+        }
     }
 }

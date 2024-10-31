@@ -73,7 +73,7 @@ message DeleteServiceEndpointWatcherRequest {
 message KubernetesConfig {
   string control_plane_url = 1 [(google.api.field_behavior) = REQUIRED];
   string namespace = 2 [(google.api.field_behavior) = OPTIONAL];
-  string oauth_token = 3 [(google.api.field_behavior) = OPTIONAL];
+  string credential_id = 3 [(google.api.field_behavior) = OPTIONAL];
   bool trust_certs = 4 [(google.api.field_behavior) = OPTIONAL];
 }
 

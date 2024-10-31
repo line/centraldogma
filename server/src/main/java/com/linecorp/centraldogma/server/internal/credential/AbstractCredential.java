@@ -81,6 +81,7 @@ abstract class AbstractCredential implements Credential {
     public final String toString() {
         final ToStringHelper helper = MoreObjects.toStringHelper(this);
         helper.add("id", id);
+        helper.add("type", type);
         helper.add("enabled", enabled);
         addProperties(helper);
         return helper.toString();
