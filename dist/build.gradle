@@ -79,7 +79,6 @@ task copyLib(group: 'Build',
         if (jgits.size() != 1 || !jgits.first().name.startsWith("org.eclipse.jgit-6")) {
             throw new IllegalStateException("Unexpected JGit JARs: $jgits.files")
         }
-
     }
 }
 

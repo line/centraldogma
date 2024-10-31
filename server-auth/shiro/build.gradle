@@ -9,5 +9,4 @@ dependencies {
 
     // Shiro
     implementation libs.shiro.core
-
 }
