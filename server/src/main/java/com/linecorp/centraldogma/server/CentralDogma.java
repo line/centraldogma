@@ -900,13 +900,6 @@ public class CentralDogma implements AutoCloseable {
                                 .serveCompressedFiles(true)
                                 .fallbackFileExtensions("html")
                                 .build());
-
-            sb.serviceUnder("/legacy-web",
-                            FileService.builder(CentralDogma.class.getClassLoader(), "webapp")
-                                       .cacheControl(ServerCacheControl.REVALIDATED)
-                                       .autoDecompress(true)
-                                       .serveCompressedFiles(true)
-                                       .build());
         }
 
         sb.errorHandler(new HttpApiExceptionHandler());
