@@ -218,6 +218,7 @@ class XdsKubernetesServiceTest {
         dispatcher.queue().forEach(req -> {
             // All requests contain the credential.
             assertThat(req.getHeaders().get(HttpHeaderNames.AUTHORIZATION.toString()))
+                    .describedAs("Request: %s does not contain the credential", req)
                     .isEqualTo("Bearer secret");
         });
     }
