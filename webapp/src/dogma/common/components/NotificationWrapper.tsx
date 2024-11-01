@@ -3,18 +3,19 @@ import { useToast } from '@chakra-ui/react';
 import { useAppSelector } from 'dogma/hooks';
 
 export const NotificationWrapper = (props: { children: ReactNode }) => {
-  const { title, text, type, timestamp } = useAppSelector((state) => state.notification);
+  const { title, description, type, containerStyle, timestamp } = useAppSelector((state) => state.notification);
   const toast = useToast();
   useEffect(() => {
-    if (text) {
+    if (timestamp) {
       toast({
-        title: title,
-        description: text,
+        title,
+        description,
         status: type,
         duration: 10000,
         isClosable: true,
+        containerStyle,
       });
     }
-  }, [title, text, type, timestamp, toast]);
+  }, [title, description, type, timestamp, containerStyle, toast]);
   return <>{props.children}</>;
 };

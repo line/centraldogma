@@ -30,6 +30,7 @@ import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPer
 import { DeleteMemberDto } from 'dogma/features/project/settings/members/DeleteMemberDto';
 import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
+import { MirrorResult } from '../mirror/MirrorResult';
 
 export type ApiAction<Arg, Result> = {
   (arg: Arg): { unwrap: () => Promise<Result> };
@@ -346,6 +347,13 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
+    runMirror: builder.mutation<MirrorResult, { projectName: string; id: string }>({
+      query: ({ projectName, id }) => ({
+        url: `/api/v1/projects/${projectName}/mirrors/${id}/run`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
     getCredentials: builder.query<CredentialDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/credentials`,
       providesTags: ['Metadata'],
@@ -422,6 +430,7 @@ export const {
   useGetMirrorQuery,
   useAddNewMirrorMutation,
   useUpdateMirrorMutation,
+  useRunMirrorMutation,
   // Credential
   useGetCredentialsQuery,
   useGetCredentialQuery,

@@ -27,6 +27,9 @@ import { VscMirror, VscRepoClone } from 'react-icons/vsc';
 import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 import { FiBox } from 'react-icons/fi';
+import cronstrue from 'cronstrue';
+import { RunMirror } from '../../../mirror/RunMirrorButton';
+import { FaPlay } from 'react-icons/fa';
 
 const HeadRow = ({ children }: { children: ReactNode }) => (
   <Td width="250px" fontWeight="semibold">
@@ -76,8 +79,13 @@ const MirrorView = ({ projectName, mirror, credential }: MirrorViewProps) => {
                 </HeadRow>
                 <Td>
                   <Code variant="outline" p={1}>
-                    {mirror.schedule}
+                    {mirror.schedule || 'disabled'}
                   </Code>
+                  {mirror.schedule && (
+                    <Text color="gray.600" marginTop="8px">
+                      {cronstrue.toString(mirror.schedule, { verbose: true })}
+                    </Text>
+                  )}
                 </Td>
               </Tr>
               <Tr>
@@ -151,14 +159,26 @@ const MirrorView = ({ projectName, mirror, credential }: MirrorViewProps) => {
           </Table>
         </TableContainer>
 
-        <Center mt={10}>
-          <Link href={`/app/projects/${projectName}/settings/mirrors/${mirror.id}/edit`}>
-            <Button colorScheme="teal">
-              <EditIcon mr={2} />
+        <HStack marginTop={10} marginLeft={10}>
+          <Link href={`/app/projects/${projectName}/settings/mirrors/${mirror.id}/edit`} marginRight="25px">
+            <Button colorScheme="teal" size={'lg'} leftIcon={<EditIcon />}>
               Edit mirror
             </Button>
           </Link>
-        </Center>
+          <RunMirror mirror={mirror}>
+            {({ isLoading }) => (
+              <Button
+                colorScheme={'green'}
+                size={'lg'}
+                isLoading={isLoading}
+                isDisabled={!mirror.enabled}
+                leftIcon={<FaPlay />}
+              >
+                Run mirror
+              </Button>
+            )}
+          </RunMirror>
+        </HStack>
       </VStack>
     </Center>
   );

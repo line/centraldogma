@@ -29,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 import javax.annotation.Nullable;
 
@@ -63,10 +64,11 @@ import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.common.PathPattern;
+import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
@@ -478,6 +480,23 @@ class GitMirrorIntegrationTest {
                                     @Nullable String gitignore) {
         final String localPath0 = localPath == null ? "/" : localPath;
         final String remoteUri = gitUri + firstNonNull(remotePath, "");
+        try {
+            client.forRepo(projName, Project.REPO_META)
+                  .commit("Add /credentials/none",
+                          Change.ofJsonUpsert("/credentials/none.json",
+                                              "{ " +
+                                              "\"type\": \"none\", " +
+                                              "\"id\": \"none\", " +
+                                              "\"enabled\": true " +
+                                              '}'))
+                  .push().join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof RedundantChangeException) {
+                // The same content can be pushed several times.
+            } else {
+                throw e;
+            }
+        }
         client.forRepo(projName, Project.REPO_META)
               .commit("Add /mirrors/foo.json",
                       Change.ofJsonUpsert("/mirrors/foo.json",
@@ -490,6 +509,7 @@ class GitMirrorIntegrationTest {
                                           "  \"localPath\": \"" + localPath0 + "\"," +
                                           "  \"remoteUri\": \"" + remoteUri + "\"," +
                                           "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
+                                          "  \"credentialId\": \"none\"," +
                                           "  \"gitignore\": " + firstNonNull(gitignore, "\"\"") +
                                           '}'))
               .push().join();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,12 +14,12 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server;
+package com.linecorp.centraldogma.common;
 
 /**
- * A {@link RuntimeException} raised when {@link MirroringService} failed to mirror a repository.
+ * A {@link CentralDogmaException} raised when failed to mirror a repository.
  */
-public class MirrorException extends RuntimeException {
+public class MirrorException extends CentralDogmaException {
 
     private static final long serialVersionUID = 5648624670936197720L;
 

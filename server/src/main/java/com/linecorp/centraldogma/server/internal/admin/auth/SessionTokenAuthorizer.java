@@ -31,6 +31,7 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.centraldogma.server.auth.SessionManager;
+import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.User;
 
 /**
@@ -64,6 +65,7 @@ public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
                                  final User user = new User(username, roles);
                                  ctx.logBuilder().authenticatedUser("user/" + username);
                                  AuthUtil.setCurrentUser(ctx, user);
+                                 HttpApiUtil.setVerboseResponses(ctx, user);
                                  return true;
                              });
     }

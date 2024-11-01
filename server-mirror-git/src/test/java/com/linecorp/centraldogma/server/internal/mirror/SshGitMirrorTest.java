@@ -32,6 +32,8 @@ import org.apache.sshd.common.session.SessionListener;
 import org.eclipse.jgit.transport.URIish;
 import org.junit.jupiter.api.Test;
 
+import com.linecorp.centraldogma.server.mirror.git.SshMirrorException;
+
 class SshGitMirrorTest {
 
     @Test
@@ -46,9 +48,12 @@ class SshGitMirrorTest {
         });
         client.start();
 
-        assertThatThrownBy(() ->
-            createSession(client, new URIish("https://github.com/line/centraldogma-authtest.git"))
-        ).isExactlyInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> {
+            createSession(client, new URIish(
+                    "https://github.com/line/centraldogma-authtest.git"));
+        }).isExactlyInstanceOf(SshMirrorException.class)
+          .hasMessage("Failed to create a session for 'https://github.com/line/centraldogma-authtest.git'." +
+                      " (reason: No username specified when the session was created)");
         final Session session = sessionRef.get();
         assertThat(session).isNotNull();
         assertThat(session.isClosed()).isTrue();

@@ -22,6 +22,9 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
+import com.cronutils.model.Cron;
 
 import com.linecorp.armeria.server.annotation.ConsumesJson;
 import com.linecorp.armeria.server.annotation.Get;
@@ -30,14 +33,17 @@ import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.armeria.server.annotation.StatusCode;
+import com.linecorp.armeria.server.annotation.decorator.RequestTimeout;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
+import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 
@@ -52,10 +58,13 @@ public class MirroringServiceV1 extends AbstractService {
     //  - Add Java APIs to the CentralDogma client
 
     private final ProjectApiManager projectApiManager;
+    private final MirrorRunner mirrorRunner;
 
-    public MirroringServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor) {
+    public MirroringServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor,
+                              MirrorRunner mirrorRunner) {
         super(executor);
         this.projectApiManager = projectApiManager;
+        this.mirrorRunner = mirrorRunner;
     }
 
     /**
@@ -81,7 +90,6 @@ public class MirroringServiceV1 extends AbstractService {
     @RequiresReadPermission(repository = Project.REPO_META)
     @Get("/projects/{projectName}/mirrors/{id}")
     public CompletableFuture<MirrorDto> getMirror(@Param String projectName, @Param String id) {
-
         return metaRepo(projectName).mirror(id).thenApply(mirror -> {
             return convertToMirrorDto(projectName, mirror);
         });
@@ -125,11 +133,27 @@ public class MirroringServiceV1 extends AbstractService {
         });
     }
 
+    /**
+     * POST /projects/{projectName}/mirrors/{mirrorId}/run
+     *
+     * <p>Runs the mirroring task immediately.
+     */
+    @RequiresWritePermission(repository = Project.REPO_META)
+    // Mirroring may be a long-running task, so we need to increase the timeout.
+    @RequestTimeout(value = 5, unit = TimeUnit.MINUTES)
+    @Post("/projects/{projectName}/mirrors/{mirrorId}/run")
+    public CompletableFuture<MirrorResult> runMirror(@Param String projectName, @Param String mirrorId)
+            throws Exception {
+        return mirrorRunner.run(projectName, mirrorId);
+    }
+
     private static MirrorDto convertToMirrorDto(String projectName, Mirror mirror) {
         final URI remoteRepoUri = mirror.remoteRepoUri();
+        final Cron schedule = mirror.schedule();
+        final String scheduleStr = schedule != null ? schedule.asString() : null;
         return new MirrorDto(mirror.id(),
                              mirror.enabled(), projectName,
-                             mirror.schedule().asString(),
+                             scheduleStr,
                              mirror.direction().name(),
                              mirror.localRepo().name(),
                              mirror.localPath(),
