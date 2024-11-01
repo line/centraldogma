@@ -56,7 +56,7 @@ function filterProjects(projects: ProjectDto[], projectFilterType: ProjectFilter
     case 'MEMBER':
       return projects.filter((p) => p.userRole === 'MEMBER' || p.userRole === 'OWNER');
     case 'CREATOR':
-      return projects.filter((p) => p.creator.email === user.email);
+      return projects.filter((p) => p.creator?.email === user.email);
   }
 }
 
