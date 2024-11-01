@@ -101,16 +101,23 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
                                                                .setName(kubernetesEndpointName)
                                                                .setClusterName(clusterName)
                                                                .build();
+        final List<KubernetesLocalityLbEndpoints> kubernetesLocalityLbEndpointsList =
+                aggregator.getLocalityLbEndpointsList();
+        if (kubernetesLocalityLbEndpointsList.isEmpty()) {
+            throw Status.INVALID_ARGUMENT.withDescription("kubernetes locality lb endpoints are empty.")
+                                         .asRuntimeException();
+        }
         final Author author = currentAuthor();
-        validateKubernetesEndpointAndPush(responseObserver, aggregator, () -> xdsResourceManager.push(
-                responseObserver, group, kubernetesEndpointName,
-                K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json",
-                "Create kubernetes endpoint: " + kubernetesEndpointName, aggregator, author, true));
+        validateKubernetesEndpointAndPush(
+                responseObserver, kubernetesLocalityLbEndpointsList, () -> xdsResourceManager.push(
+                        responseObserver, group, kubernetesEndpointName,
+                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json",
+                        "Create kubernetes endpoint: " + kubernetesEndpointName, aggregator, author, true));
     }
 
     private void validateKubernetesEndpointAndPush(
             StreamObserver<KubernetesEndpointAggregator> responseObserver,
-            KubernetesEndpointAggregator aggregator, Runnable onSuccess) {
+            List<KubernetesLocalityLbEndpoints> kubernetesLocalityLbEndpointsList, Runnable onSuccess) {
         // Create a KubernetesEndpointGroup to check if the watcher is valid.
         // We use KubernetesEndpointGroup for simplicity, but we will implement a custom implementation
         // for better debugging and error handling in the future.
@@ -118,8 +125,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
                 ServiceRequestContext.current().blockingTaskExecutor();
 
         final ArrayList<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (KubernetesLocalityLbEndpoints kubernetesLocalityLbEndpoints
-                : aggregator.getLocalityLbEndpointsList()) {
+        for (KubernetesLocalityLbEndpoints kubernetesLocalityLbEndpoints : kubernetesLocalityLbEndpointsList) {
             final CompletableFuture<Void> future = new CompletableFuture<>();
             futures.add(future);
 
@@ -239,12 +245,19 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         final String aggregatorName = aggregator.getName();
         final String group = checkAggregatorName(aggregatorName).group(1);
         xdsResourceManager.checkGroup(group);
+        final List<KubernetesLocalityLbEndpoints> kubernetesLocalityLbEndpointsList =
+                aggregator.getLocalityLbEndpointsList();
+        if (kubernetesLocalityLbEndpointsList.isEmpty()) {
+            throw Status.INVALID_ARGUMENT.withDescription("kubernetes locality lb endpoints are empty.")
+                                         .asRuntimeException();
+        }
 
         // Update the cluster name just in case it's mistakenly set by the user.
         final KubernetesEndpointAggregator aggregator0 = aggregator.toBuilder().setClusterName(
                 AGGREGATORS_REPLCACE_PATTERN.matcher(aggregatorName).replaceFirst("/clusters/")).build();
         final Author author = currentAuthor();
-        validateKubernetesEndpointAndPush(responseObserver, aggregator0, () -> xdsResourceManager.update(
+        validateKubernetesEndpointAndPush(
+                responseObserver, kubernetesLocalityLbEndpointsList, () -> xdsResourceManager.update(
                 responseObserver, group, aggregatorName,
                 "Update kubernetes endpoint aggregator: " + aggregatorName, aggregator0, author));
     }

@@ -59,7 +59,6 @@ import com.linecorp.centraldogma.xds.internal.XdsResourceWatchingService;
 import io.envoyproxy.envoy.config.core.v3.Address;
 import io.envoyproxy.envoy.config.core.v3.SocketAddress;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
-import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment.Builder;
 import io.envoyproxy.envoy.config.endpoint.v3.Endpoint;
 import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint;
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints;
@@ -250,7 +249,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             if (closing || scheduledFuture != null) {
                 return;
             }
-            // Commit after 1 second so that it pushes with all the fetched endpoints in the duration
+            // Commit after 3 seconds so that it pushes with all the fetched endpoints in the duration
             // instead of pushing one by one.
             scheduledFuture = executorService.schedule(() -> {
                 scheduledFuture = null;
@@ -303,7 +302,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
         }
 
         private static void addLocalityLbEndpoints(
-                Builder clusterLoadAssignmentBuilder,
+                ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder,
                 CompletableFuture<KubernetesEndpointGroup> future,
                 KubernetesLocalityLbEndpoints kubernetesLocalityLbEndpoints) {
             if (!future.isDone()) {
