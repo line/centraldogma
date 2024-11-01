@@ -16,14 +16,15 @@
 
 package com.linecorp.centraldogma.server;
 
-/**
- * Provides a zone for a given hostname.
- */
-@FunctionalInterface
-public interface ZoneProvider {
+import static org.assertj.core.api.Assertions.assertThat;
 
-    /**
-     * Returns the zone for the given {@code hostname}.
-     */
-    String zone(String hostname);
+import org.junit.jupiter.api.Test;
+
+class DynamicZoneResolverTest {
+
+    @Test
+    void shouldUseCustomConfigValueConverter() {
+        final String zone = CentralDogmaConfig.convertValue("zone:dummy", "zone");
+        assertThat(zone).isEqualTo("ZONE_C");
+    }
 }

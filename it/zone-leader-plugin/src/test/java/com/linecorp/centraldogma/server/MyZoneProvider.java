@@ -16,10 +16,19 @@
 
 package com.linecorp.centraldogma.server;
 
-final class MyZoneProvider implements ZoneProvider {
+import java.util.List;
+
+import com.google.common.collect.ImmutableList;
+
+public final class MyZoneProvider implements ConfigValueConverter {
 
     @Override
-    public String zone(String hostname) {
+    public List<String> supportedPrefixes() {
+        return ImmutableList.of("zone");
+    }
+
+    @Override
+    public String convert(String prefix, String value) {
         return "ZONE_C";
     }
 }

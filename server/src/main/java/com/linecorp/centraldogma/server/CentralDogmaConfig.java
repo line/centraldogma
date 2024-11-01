@@ -349,7 +349,7 @@ public final class CentralDogmaConfig {
         pluginConfigMap = this.pluginConfigs.stream().collect(
                 toImmutableMap(PluginConfig::getClass, Function.identity()));
         this.managementConfig = managementConfig;
-        this.zone = ZoneResolver.resolve(zone);
+        this.zone = convertValue(zone, "zone");
     }
 
     /**
