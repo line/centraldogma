@@ -18,11 +18,13 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.credentialFile;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.armeria.server.annotation.ConsumesJson;
+import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
@@ -30,8 +32,13 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
+import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
@@ -117,6 +124,26 @@ public class CredentialServiceV1 extends AbstractService {
                                                              Credential credential, Author author) {
         checkArgument(id.equals(credential.id()), "The credential ID (%s) can't be updated", id);
         return createOrUpdate(projectName, credential, author, true);
+    }
+
+    /**
+     * DELETE /projects/{projectName}/credentials/{id}
+     *
+     * <p>Delete the existing credential.
+     */
+    @RequiresWritePermission(repository = Project.REPO_META)
+    @Delete("/projects/{projectName}/credentials/{id}")
+    public CompletableFuture<Void> deleteCredential(@Param String projectName,
+                                                    @Param String id, Author author) {
+        final MetaRepository metaRepository = metaRepo(projectName);
+        return metaRepository.credential(id).thenCompose(credential -> {
+            // credential exists.
+            final Command<CommitResult> command =
+                    Command.push(author, projectName, metaRepository.name(),
+                                 Revision.HEAD, "Delete credential: " + id, "",
+                                 Markup.PLAINTEXT, Change.ofRemoval(credentialFile(id)));
+            return executor().execute(command).thenApply(result -> null);
+        });
     }
 
     private CompletableFuture<PushResultDto> createOrUpdate(String projectName,

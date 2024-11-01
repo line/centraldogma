@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.mirrorFile;
 
 import java.net.URI;
 import java.util.List;
@@ -27,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import com.cronutils.model.Cron;
 
 import com.linecorp.armeria.server.annotation.ConsumesJson;
+import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
@@ -35,9 +37,14 @@ import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.armeria.server.annotation.decorator.RequestTimeout;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
+import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
@@ -121,6 +128,26 @@ public class MirroringServiceV1 extends AbstractService {
                                                          @Param String id, Author author) {
         checkArgument(id.equals(mirror.id()), "The mirror ID (%s) can't be updated", id);
         return createOrUpdate(projectName, mirror, author, true);
+    }
+
+    /**
+     * DELETE /projects/{projectName}/mirrors/{id}
+     *
+     * <p>Delete the existing mirror.
+     */
+    @RequiresWritePermission(repository = Project.REPO_META)
+    @Delete("/projects/{projectName}/mirrors/{id}")
+    public CompletableFuture<Void> deleteMirror(@Param String projectName,
+                                                @Param String id, Author author) {
+        final MetaRepository metaRepository = metaRepo(projectName);
+        return metaRepository.mirror(id).thenCompose(mirror -> {
+            // mirror exists.
+            final Command<CommitResult> command =
+                    Command.push(author, projectName, metaRepository.name(),
+                                 Revision.HEAD, "Delete mirror: " + id, "",
+                                 Markup.PLAINTEXT, Change.ofRemoval(mirrorFile(id)));
+            return executor().execute(command).thenApply(result -> null);
+        });
     }
 
     private CompletableFuture<PushResultDto> createOrUpdate(String projectName,

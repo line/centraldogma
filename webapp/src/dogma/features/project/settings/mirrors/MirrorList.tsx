@@ -1,13 +1,14 @@
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import React, { useMemo } from 'react';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
-import { useGetMirrorsQuery } from 'dogma/features/api/apiSlice';
+import { useGetMirrorsQuery, useDeleteMirrorMutation } from 'dogma/features/api/apiSlice';
 import { Badge, Button, Code, Link } from '@chakra-ui/react';
 import { GoRepo } from 'react-icons/go';
 import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
 import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
 import { RunMirror } from '../../../mirror/RunMirrorButton';
 import { FaPlay } from 'react-icons/fa';
+import { DeleteMirror } from 'dogma/features/project/settings/mirrors/DeleteMirror';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type MirrorListProps<Data extends object> = {
@@ -16,6 +17,7 @@ export type MirrorListProps<Data extends object> = {
 
 const MirrorList = <Data extends object>({ projectName }: MirrorListProps<Data>) => {
   const { data } = useGetMirrorsQuery(projectName);
+  const [deleteMirror, { isLoading }] = useDeleteMirrorMutation();
   const columnHelper = createColumnHelper<MirrorDto>();
   const columns = useMemo(
     () => [
@@ -97,8 +99,20 @@ const MirrorList = <Data extends object>({ projectName }: MirrorListProps<Data>)
         },
         header: 'Status',
       }),
+      columnHelper.accessor((row: MirrorDto) => row.id, {
+        cell: (info) => (
+          <DeleteMirror
+            projectName={projectName}
+            id={info.getValue()}
+            deleteMirror={(projectName, id) => deleteMirror({ projectName, id }).unwrap()}
+            isLoading={isLoading}
+          />
+        ),
+        header: 'Actions',
+        enableSorting: false,
+      }),
     ],
-    [columnHelper, projectName],
+    [columnHelper, deleteMirror, isLoading, projectName],
   );
   return <DataTableClientPagination columns={columns as ColumnDef<MirrorDto>[]} data={data || []} />;
 };

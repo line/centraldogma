@@ -347,6 +347,13 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
+    deleteMirror: builder.mutation({
+      query: ({ projectName, id }) => ({
+        url: `/api/v1/projects/${projectName}/mirrors/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
     runMirror: builder.mutation<MirrorResult, { projectName: string; id: string }>({
       query: ({ projectName, id }) => ({
         url: `/api/v1/projects/${projectName}/mirrors/${id}/run`,
@@ -377,6 +384,13 @@ export const apiSlice = createApi({
         url: `/api/v1/projects/${projectName}/credentials/${id}`,
         method: 'PUT',
         body: credential,
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    deleteCredential: builder.mutation({
+      query: ({ projectName, id }) => ({
+        url: `/api/v1/projects/${projectName}/credentials/${id}`,
+        method: 'DELETE',
       }),
       invalidatesTags: ['Metadata'],
     }),
@@ -430,12 +444,14 @@ export const {
   useGetMirrorQuery,
   useAddNewMirrorMutation,
   useUpdateMirrorMutation,
+  useDeleteMirrorMutation,
   useRunMirrorMutation,
   // Credential
   useGetCredentialsQuery,
   useGetCredentialQuery,
   useAddNewCredentialMutation,
   useUpdateCredentialMutation,
+  useDeleteCredentialMutation,
   // Title
   useGetTitleQuery,
 } = apiSlice;
