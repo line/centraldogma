@@ -47,9 +47,9 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.xds.group.v1.CreateGroupRequest;
-import com.linecorp.centraldogma.xds.k8s.v1.CreateServiceEndpointWatcherRequest;
-import com.linecorp.centraldogma.xds.k8s.v1.DeleteServiceEndpointWatcherRequest;
-import com.linecorp.centraldogma.xds.k8s.v1.UpdateServiceEndpointWatcherRequest;
+import com.linecorp.centraldogma.xds.k8s.v1.CreateKubernetesEndpointAggregatorRequest;
+import com.linecorp.centraldogma.xds.k8s.v1.DeleteKubernetesEndpointAggregatorRequest;
+import com.linecorp.centraldogma.xds.k8s.v1.UpdateKubernetesEndpointAggregatorRequest;
 
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
@@ -74,9 +74,9 @@ public final class XdsResourceManager {
                .register(Cluster.getDefaultInstance())
                .register(ClusterLoadAssignment.getDefaultInstance())
                .register(RouteConfiguration.getDefaultInstance())
-               .register(CreateServiceEndpointWatcherRequest.getDefaultInstance())
-               .register(UpdateServiceEndpointWatcherRequest.getDefaultInstance())
-               .register(DeleteServiceEndpointWatcherRequest.getDefaultInstance());
+               .register(CreateKubernetesEndpointAggregatorRequest.getDefaultInstance())
+               .register(UpdateKubernetesEndpointAggregatorRequest.getDefaultInstance())
+               .register(DeleteKubernetesEndpointAggregatorRequest.getDefaultInstance());
         envoyExtension(builder);
         JSON_MESSAGE_MARSHALLER = builder.build();
     }

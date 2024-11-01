@@ -21,7 +21,7 @@ import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENT
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.endpoint;
-import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.K8S_WATCHERS_DIRECTORY;
+import static com.linecorp.centraldogma.xds.k8s.v1.XdsKubernetesService.K8S_ENDPOINT_AGGREGATORS_DIRECTORY;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -114,8 +114,9 @@ class XdsKubernetesServiceTest {
         final AggregatedHttpResponse response = createGroup("foo", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.OK);
         final List<Node> nodes = ImmutableList.of(newNode("1.1.1.1"), newNode("2.2.2.2"));
-        final Deployment deployment = newDeployment();
-        final Service service = newService();
+        final Map<String, String> selector = ImmutableMap.of("app", "nginx");
+        final Deployment deployment = newDeployment("nginx-deployment", selector);
+        final Service service = newService("nginx-service", selector);
         final List<Pod> pods = nodes.stream()
                                     .map(node -> node.getMetadata().getName())
                                     .map(nodeName -> newPod(deployment.getSpec().getTemplate(), nodeName))
@@ -171,14 +172,15 @@ class XdsKubernetesServiceTest {
 
     @Test
     void invalidProperty() throws IOException {
-        final String watcherId = "foo-cluster";
-        ServiceEndpointWatcher watcher = watcher(watcherId, "invalid-service-name", "my-credential");
-        AggregatedHttpResponse response = createWatcher(watcher, watcherId);
+        final String aggregatorId = "foo-cluster";
+        KubernetesEndpointAggregator aggregator =
+                aggregator(aggregatorId, "invalid-service-name", "my-credential");
+        AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
         assertThat(response.status()).isSameAs(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.contentUtf8()).contains("Failed to retrieve k8s endpoints");
 
-        watcher = watcher(watcherId, "nginx-service", "invalid-credential-id");
-        response = createWatcher(watcher, watcherId);
+        aggregator = aggregator(aggregatorId, "nginx-service", "invalid-credential-id");
+        response = createAggregator(aggregator, aggregatorId);
         assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
         assertThatJson(response.contentUtf8())
                 .node("grpc-code").isEqualTo("INVALID_ARGUMENT")
@@ -186,20 +188,22 @@ class XdsKubernetesServiceTest {
     }
 
     @Test
-    void createWatcherRequest() throws IOException {
-        final String watcherId = "foo-k8s-cluster/1";
-        final String clusterName = "groups/foo/k8s/clusters/" + watcherId;
-        final ServiceEndpointWatcher watcher = watcher(watcherId);
-        final AggregatedHttpResponse response = createWatcher(watcher, watcherId);
+    void createEndpointAggregatorsRequest() throws IOException {
+        final String aggregatorId = "foo-k8s-cluster/1";
+        final String clusterName = "groups/foo/k8s/clusters/" + aggregatorId;
+        final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId);
+        final AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
         assertOk(response);
         final String json = response.contentUtf8();
-        final ServiceEndpointWatcher expectedWatcher =
-                watcher.toBuilder().setClusterName(clusterName).build(); // cluster name is set by the service.
-        assertWatcher(json, expectedWatcher);
+        final KubernetesEndpointAggregator expectedAggregator =
+                aggregator.toBuilder().setClusterName(clusterName) // cluster name is set by the service.
+                          .build();
+        assertAggregator(json, expectedAggregator);
         final Repository fooGroup = dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
         final Entry<JsonNode> entry =
-                fooGroup.get(Revision.HEAD, Query.ofJson(K8S_WATCHERS_DIRECTORY + watcherId + ".json")).join();
-        assertWatcher(entry.contentAsText(), expectedWatcher);
+                fooGroup.get(Revision.HEAD, Query.ofJson(
+                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json")).join();
+        assertAggregator(entry.contentAsText(), expectedAggregator);
         final ClusterLoadAssignment loadAssignment = clusterLoadAssignment(clusterName, 30000);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment, clusterName);
 
@@ -208,7 +212,7 @@ class XdsKubernetesServiceTest {
         // so that endpoints are not updated one by one.
         final Entry<JsonNode> clusterEntry =
                 fooGroup.get(entry.revision().forward(1),
-                             Query.ofJson("/k8s/endpoints/" + watcherId + ".json"))
+                             Query.ofJson("/k8s/endpoints/" + aggregatorId + ".json"))
                         .join();
         final ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder = ClusterLoadAssignment.newBuilder();
         JSON_MESSAGE_MARSHALLER.mergeValue(clusterEntry.contentAsText(), clusterLoadAssignmentBuilder);
@@ -217,51 +221,64 @@ class XdsKubernetesServiceTest {
         dispatcher.queue().forEach(req -> {
             // All requests contain the credential.
             assertThat(req.getHeaders().get(HttpHeaderNames.AUTHORIZATION.toString()))
+                    .describedAs("Request: %s does not contain the credential", req)
                     .isEqualTo("Bearer secret");
         });
     }
 
-    private static ServiceEndpointWatcher watcher(String watcherId) {
-        return watcher(watcherId, "nginx-service", "my-credential");
+    private static KubernetesEndpointAggregator aggregator(String aggregatorId) {
+        return aggregator(aggregatorId, "nginx-service", "my-credential");
     }
 
-    private static ServiceEndpointWatcher watcher(String watcherId, String serviceName, String credentialId) {
-        final KubernetesConfig kubernetesConfig =
-                KubernetesConfig.newBuilder()
-                                .setControlPlaneUrl(client.getMasterUrl().toString())
-                                .setNamespace(client.getNamespace())
-                                .setCredentialId(credentialId)
-                                .setTrustCerts(true)
-                                .build();
-        return ServiceEndpointWatcher.newBuilder()
-                                     .setName("groups/foo/k8s/watchers/" + watcherId)
-                                     .setServiceName(serviceName)
-                                     .setKubernetesConfig(kubernetesConfig)
-                                     .build();
+    private static KubernetesEndpointAggregator aggregator(
+            String aggregatorId, String serviceName, String credentialId) {
+        final Kubeconfig kubeconfig = Kubeconfig.newBuilder()
+                                                .setControlPlaneUrl(client.getMasterUrl().toString())
+                                                .setNamespace(client.getNamespace())
+                                                .setCredentialId(credentialId)
+                                                .setTrustCerts(true)
+                                                .build();
+        final ServiceEndpointWatcher watcher = ServiceEndpointWatcher.newBuilder()
+                                                                     .setServiceName(serviceName)
+                                                                     .setKubeconfig(kubeconfig)
+                                                                     .build();
+        return KubernetesEndpointAggregator
+                .newBuilder().setName("groups/foo/k8s/endpointAggregators/" + aggregatorId)
+                .addLocalityLbEndpoints(KubernetesLocalityLbEndpoints.newBuilder()
+                                                                     .setWatcher(watcher)
+                                                                     .build())
+                .build();
     }
 
-    private static AggregatedHttpResponse createWatcher(
-            ServiceEndpointWatcher watcher, String watcherId) throws IOException {
+    private static AggregatedHttpResponse createAggregator(
+            KubernetesEndpointAggregator aggregator, String aggregatorId) throws IOException {
+        return createAggregator(aggregator, aggregatorId, dogma.httpClient());
+    }
+
+    static AggregatedHttpResponse createAggregator(
+            KubernetesEndpointAggregator aggregator, String aggregatorId,
+            WebClient webClient) throws IOException {
         final RequestHeaders headers =
                 RequestHeaders.builder(HttpMethod.POST,
-                                       "/api/v1/xds/groups/foo/k8s/watchers?watcher_id=" + watcherId)
+                                       "/api/v1/xds/groups/foo/k8s/endpointAggregators?" +
+                                       "aggregator_id=" + aggregatorId)
                               .contentType(MediaType.JSON_UTF_8)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                               .build();
 
-        return dogma.httpClient().blocking().execute(
-                headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(watcher));
+        return webClient.blocking().execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(aggregator));
     }
 
-    private static void assertOk(AggregatedHttpResponse response) {
+    static void assertOk(AggregatedHttpResponse response) {
         assertThat(response.status()).isSameAs(HttpStatus.OK);
         assertThat(response.headers().get("grpc-status")).isEqualTo("0");
     }
 
-    private static void assertWatcher(String json, ServiceEndpointWatcher expected) throws IOException {
-        final ServiceEndpointWatcher.Builder responseWatcherBuilder = ServiceEndpointWatcher.newBuilder();
-        JSON_MESSAGE_MARSHALLER.mergeValue(json, responseWatcherBuilder);
-        assertThat(responseWatcherBuilder.build()).isEqualTo(expected);
+    static void assertAggregator(
+            String json, KubernetesEndpointAggregator expected) throws IOException {
+        final KubernetesEndpointAggregator.Builder responseBuilder = KubernetesEndpointAggregator.newBuilder();
+        JSON_MESSAGE_MARSHALLER.mergeValue(json, responseBuilder);
+        assertThat(responseBuilder.build()).isEqualTo(expected);
     }
 
     private static ClusterLoadAssignment clusterLoadAssignment(String clusterName, int port) {
@@ -276,55 +293,62 @@ class XdsKubernetesServiceTest {
     }
 
     @Test
-    void updateWatcher() throws IOException {
-        final String watcherId = "foo-k8s-cluster/2";
-        final ServiceEndpointWatcher watcher = watcher(watcherId);
-        AggregatedHttpResponse response = createWatcher(watcher, watcherId);
+    void updateAggregator() throws IOException {
+        final String aggregatorId = "foo-k8s-cluster/2";
+        final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId);
+        AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
         assertOk(response);
-        final String clusterName = "groups/foo/k8s/clusters/" + watcherId;
+        final String clusterName = "groups/foo/k8s/clusters/" + aggregatorId;
         final ClusterLoadAssignment loadAssignment = clusterLoadAssignment(clusterName, 30000);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment, clusterName);
 
-        final ServiceEndpointWatcher updatingWatcher = watcher.toBuilder().setPortName("https").build();
-        response = updateWatcher(updatingWatcher, watcherId, dogma.httpClient());
+        final KubernetesLocalityLbEndpoints localityLbEndpoints = aggregator.getLocalityLbEndpoints(0);
+        final ServiceEndpointWatcher updatedWatcher =
+                localityLbEndpoints.getWatcher().toBuilder().setPortName("https").build();
+        final KubernetesLocalityLbEndpoints updatedLbEndpoints =
+                localityLbEndpoints.toBuilder().setWatcher(updatedWatcher).build();
+        final KubernetesEndpointAggregator updatingAggregator =
+                aggregator.toBuilder().setLocalityLbEndpoints(0, updatedLbEndpoints).build();
+        response = updateAggregator(updatingAggregator, aggregatorId, dogma.httpClient());
 
         assertOk(response);
-        assertWatcher(response.contentUtf8(),
-                      // cluster name is set by the service.
-                      updatingWatcher.toBuilder().setClusterName(clusterName).build());
+        assertAggregator(response.contentUtf8(),
+                         // cluster name is set by the service.
+                         updatingAggregator.toBuilder().setClusterName(clusterName).build());
         final ClusterLoadAssignment loadAssignment2 = clusterLoadAssignment(clusterName, 30001);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment2, clusterName);
     }
 
-    public static AggregatedHttpResponse updateWatcher(
-            ServiceEndpointWatcher watcher, String watcherId, WebClient webClient) throws IOException {
+    static AggregatedHttpResponse updateAggregator(
+            KubernetesEndpointAggregator aggregator,
+            String aggregatorId, WebClient webClient) throws IOException {
         final RequestHeaders headers =
                 RequestHeaders.builder(HttpMethod.PATCH,
-                                       "/api/v1/xds/groups/foo/k8s/watchers/" + watcherId)
+                                       "/api/v1/xds/groups/foo/k8s/endpointAggregators/" + aggregatorId)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                               .contentType(MediaType.JSON_UTF_8).build();
-        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(watcher))
+        return webClient.execute(headers, JSON_MESSAGE_MARSHALLER.writeValueAsString(aggregator))
                         .aggregate().join();
     }
 
     @Test
-    void deleteWatcher() throws IOException {
-        final String watcherId = "foo-k8s-cluster/3";
-        final ServiceEndpointWatcher watcher = watcher(watcherId);
-        AggregatedHttpResponse response = createWatcher(watcher, watcherId);
+    void deleteAggregator() throws IOException {
+        final String aggregatorId = "foo-k8s-cluster/3";
+        final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId);
+        AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
         assertOk(response);
-        final String clusterName = "groups/foo/k8s/clusters/" + watcherId;
+        final String clusterName = "groups/foo/k8s/clusters/" + aggregatorId;
         final ClusterLoadAssignment loadAssignment = clusterLoadAssignment(clusterName, 30000);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment, clusterName);
-        response = deleteWatcher(watcher.getName());
+        response = deleteAggregator(aggregator.getName());
         assertOk(response);
         assertThat(response.contentUtf8()).isEqualTo("{}");
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), null, clusterName);
     }
 
-    private static AggregatedHttpResponse deleteWatcher(String watcherName) {
+    private static AggregatedHttpResponse deleteAggregator(String aggregatorName) {
         final RequestHeaders headers =
-                RequestHeaders.builder(HttpMethod.DELETE, "/api/v1/xds/" + watcherName)
+                RequestHeaders.builder(HttpMethod.DELETE, "/api/v1/xds/" + aggregatorName)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
                               .build();
         return dogma.httpClient().execute(headers).aggregate().join();
@@ -351,9 +375,9 @@ class XdsKubernetesServiceTest {
                 .build();
     }
 
-    static Service newService() {
+    static Service newService(String serviceName, Map<String, String> selector) {
         final ObjectMeta metadata = new ObjectMetaBuilder()
-                .withName("nginx-service")
+                .withName(serviceName)
                 .build();
         final ServicePort servicePort = new ServicePortBuilder()
                 .withPort(80)
@@ -366,7 +390,7 @@ class XdsKubernetesServiceTest {
                 .build();
         final ServiceSpec serviceSpec = new ServiceSpecBuilder()
                 .withPorts(servicePort, httpsServicePort)
-                .withSelector(ImmutableMap.of("app", "nginx"))
+                .withSelector(selector)
                 .withType("NodePort")
                 .build();
         return new ServiceBuilder()
@@ -375,17 +399,17 @@ class XdsKubernetesServiceTest {
                 .build();
     }
 
-    static Deployment newDeployment() {
+    static Deployment newDeployment(String deploymentName, Map<String, String> matchLabels) {
         final ObjectMeta metadata = new ObjectMetaBuilder()
-                .withName("nginx-deployment")
+                .withName(deploymentName)
                 .build();
         final LabelSelector selector = new LabelSelectorBuilder()
-                .withMatchLabels(ImmutableMap.of("app", "nginx"))
+                .withMatchLabels(matchLabels)
                 .build();
         final DeploymentSpec deploymentSpec = new DeploymentSpecBuilder()
                 .withReplicas(4)
                 .withSelector(selector)
-                .withTemplate(newPodTemplate())
+                .withTemplate(newPodTemplate(matchLabels))
                 .build();
         return new DeploymentBuilder()
                 .withMetadata(metadata)
@@ -393,9 +417,9 @@ class XdsKubernetesServiceTest {
                 .build();
     }
 
-    private static PodTemplateSpec newPodTemplate() {
+    private static PodTemplateSpec newPodTemplate(Map<String, String> matchLabels) {
         final ObjectMeta metadata = new ObjectMetaBuilder()
-                .withLabels(ImmutableMap.of("app", "nginx"))
+                .withLabels(matchLabels)
                 .build();
         final Container container = new ContainerBuilder()
                 .withName("nginx")
