@@ -85,7 +85,8 @@ class MergeFileTest {
         expectedJson =
                 '{' +
                 "     \"exception\": \"com.linecorp.centraldogma.common.EntryNotFoundException\"," +
-                "     \"message\": \"Entry '/foo3.json (revision: 4)' does not exist.\"" +
+                "     \"message\": \"Entry '/foo3.json (revision: 4)' does not exist.\"," +
+                "     \"detail\": \"${json-unit.ignore}\"" +
                 '}';
         assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
@@ -103,7 +104,8 @@ class MergeFileTest {
         final String expectedJson =
                 '{' +
                 "     \"exception\": \"com.linecorp.centraldogma.common.EntryNotFoundException\"," +
-                "     \"message\": \"Entry '/no_exist1.json,/no_exist2.json (revision: 4)' does not exist.\"" +
+                "     \"message\": \"Entry '/no_exist1.json,/no_exist2.json (revision: 4)' does not exist.\"," +
+                "     \"detail\": \"${json-unit.ignore}\"" +
                 '}';
         assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
@@ -137,7 +139,8 @@ class MergeFileTest {
         expectedJson =
                 '{' +
                 "     \"exception\": \"com.linecorp.centraldogma.common.QueryExecutionException\"," +
-                "     \"message\": \"JSON path evaluation failed: $.c\"" +
+                "     \"message\": \"JSON path evaluation failed: $.c\"," +
+                "     \"detail\": \"${json-unit.ignore}\"" +
                 '}';
         assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
@@ -191,7 +194,8 @@ class MergeFileTest {
             final String expectedJson =
                     '{' +
                     "     \"exception\": \"com.linecorp.centraldogma.common.QueryExecutionException\"," +
-                    "     \"message\": \"Failed to merge tree. /a/ type: NUMBER (expected: STRING)\"" +
+                    "     \"message\": \"Failed to merge tree. /a/ type: NUMBER (expected: STRING)\"," +
+                    "     \"detail\": \"${json-unit.ignore}\"" +
                     '}';
             assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
         }

@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 
-class DefaultMirroringServicePluginTest {
+class MirrorSchedulingServicePluginTest {
 
     @Test
     void pluginConfig() throws Exception {

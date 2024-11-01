@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
 
 import com.cronutils.model.Cron;
 
-import com.linecorp.centraldogma.server.MirrorException;
+import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -40,7 +40,9 @@ public interface Mirror {
 
     /**
      * Returns the schedule for the mirroring task.
+     * {@code null} if the mirroring task is not scheduled.
      */
+    @Nullable
     Cron schedule();
 
     /**
@@ -108,5 +110,5 @@ public interface Mirror {
      * @param maxNumBytes the maximum bytes allowed to the mirroring task. A {@link MirrorException} would be
      *                    raised if the total size of the files to be mirrored exceeds it.
      */
-    void mirror(File workDir, CommandExecutor executor, int maxNumFiles, long maxNumBytes);
+    MirrorResult mirror(File workDir, CommandExecutor executor, int maxNumFiles, long maxNumBytes);
 }
