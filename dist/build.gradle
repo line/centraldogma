@@ -35,6 +35,8 @@ dependencies {
     implementation project(':server-auth:shiro')
     implementation project(':server-mirror-git')
     implementation project(':xds')
+    // Add the optionalImplementation to copy the JAR into the distribution directory.
+    implementation libs.jcommander
 
     // Logging
     runtimeOnly libs.logback12
