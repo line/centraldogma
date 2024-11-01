@@ -148,6 +148,7 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresPermissionDeco
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRoleDecorator.RequiresRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
+import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
@@ -252,6 +253,8 @@ public class CentralDogma implements AutoCloseable {
     private ServerStatusManager statusManager;
     @Nullable
     private InternalProjectInitializer projectInitializer;
+    @Nullable
+    private volatile MirrorRunner mirrorRunner;
 
     CentralDogma(CentralDogmaConfig cfg, MeterRegistry meterRegistry, List<Plugin> plugins) {
         this.cfg = requireNonNull(cfg, "cfg");
@@ -449,7 +452,7 @@ public class CentralDogma implements AutoCloseable {
                 this.server = server;
                 this.sessionManager = sessionManager;
             } else {
-                doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager);
+                doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager, mirrorRunner);
             }
         }
     }
@@ -616,7 +619,6 @@ public class CentralDogma implements AutoCloseable {
                                @Nullable SessionManager sessionManager,
                                InternalProjectInitializer projectInitializer) {
         final ServerBuilder sb = Server.builder();
-        sb.verboseResponses(true);
         cfg.ports().forEach(sb::port);
 
         final boolean needsTls =
@@ -864,11 +866,13 @@ public class CentralDogma implements AutoCloseable {
         apiV1ServiceBuilder
                 .annotatedService(new AdministrativeService(executor, statusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
-                .annotatedService(new RepositoryServiceV1(executor, mds));
+                .annotatedService(new RepositoryServiceV1(executor, mds))
+                .annotatedService(new CredentialServiceV1(projectApiManager, executor));
 
         if (GIT_MIRROR_ENABLED) {
-            apiV1ServiceBuilder.annotatedService(new MirroringServiceV1(projectApiManager, executor))
-                               .annotatedService(new CredentialServiceV1(projectApiManager, executor));
+            mirrorRunner = new MirrorRunner(projectApiManager, executor, cfg, meterRegistry);
+            apiV1ServiceBuilder.annotatedService(new MirroringServiceV1(projectApiManager, executor,
+                                                                        mirrorRunner));
         }
 
         apiV1ServiceBuilder.annotatedService()
@@ -950,13 +954,6 @@ public class CentralDogma implements AutoCloseable {
                                 .serveCompressedFiles(true)
                                 .fallbackFileExtensions("html")
                                 .build());
-
-            sb.serviceUnder("/legacy-web",
-                            FileService.builder(CentralDogma.class.getClassLoader(), "webapp")
-                                       .cacheControl(ServerCacheControl.REVALIDATED)
-                                       .autoDecompress(true)
-                                       .serveCompressedFiles(true)
-                                       .build());
         }
 
         sb.errorHandler(new HttpApiExceptionHandler());
@@ -1075,12 +1072,14 @@ public class CentralDogma implements AutoCloseable {
         final ExecutorService repositoryWorker = this.repositoryWorker;
         final ExecutorService purgeWorker = this.purgeWorker;
         final SessionManager sessionManager = this.sessionManager;
+        final MirrorRunner mirrorRunner = this.mirrorRunner;
 
         this.server = null;
         this.executor = null;
         this.pm = null;
         this.repositoryWorker = null;
         this.sessionManager = null;
+        this.mirrorRunner = null;
         if (meterRegistryToBeClosed != null) {
             assert meterRegistry instanceof CompositeMeterRegistry;
             ((CompositeMeterRegistry) meterRegistry).remove(meterRegistryToBeClosed);
@@ -1089,7 +1088,7 @@ public class CentralDogma implements AutoCloseable {
         }
 
         logger.info("Stopping the Central Dogma ..");
-        if (!doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager)) {
+        if (!doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager, mirrorRunner)) {
             logger.warn("Stopped the Central Dogma with failure.");
         } else {
             logger.info("Stopped the Central Dogma successfully.");
@@ -1103,7 +1102,7 @@ public class CentralDogma implements AutoCloseable {
             @Nullable Server server, @Nullable CommandExecutor executor,
             @Nullable ProjectManager pm,
             @Nullable ExecutorService repositoryWorker, @Nullable ExecutorService purgeWorker,
-            @Nullable SessionManager sessionManager) {
+            @Nullable SessionManager sessionManager, @Nullable MirrorRunner mirrorRunner) {
 
         boolean success = true;
         try {
@@ -1170,6 +1169,17 @@ public class CentralDogma implements AutoCloseable {
         }
         if (!stopWorker.apply(purgeWorker, "purge")) {
             success = false;
+        }
+
+        try {
+            if (mirrorRunner != null) {
+                logger.info("Stopping the mirror runner..");
+                mirrorRunner.close();
+                logger.info("Stopped the mirror runner.");
+            }
+        } catch (Throwable t) {
+            success = false;
+            logger.warn("Failed to stop the mirror runner:", t);
         }
 
         try {

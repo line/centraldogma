@@ -8,6 +8,8 @@ dependencies {
     implementation libs.controlplane.api
     implementation libs.controlplane.cache
     implementation libs.controlplane.server
+    // Declare explicitly to resolve the version conflict.
+    implementation libs.logback12
     implementation libs.reflections
 
     testImplementation libs.armeria.junit5

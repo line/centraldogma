@@ -98,7 +98,8 @@ class RepositoryServiceV1Test {
         final String expectedJson =
                 '{' +
                 "  \"exception\": \"" + RepositoryExistsException.class.getName() + "\"," +
-                "  \"message\": \"Repository 'myPro/myNewRepo' exists already.\"" +
+                "  \"message\": \"Repository 'myPro/myNewRepo' exists already.\"," +
+                "  \"detail\": \"${json-unit.ignore}\"" +
                 '}';
         assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
@@ -122,7 +123,8 @@ class RepositoryServiceV1Test {
         final String expectedJson =
                 '{' +
                 "  \"exception\": \"" + ProjectNotFoundException.class.getName() + "\"," +
-                "  \"message\": \"Project 'absentProject' does not exist.\"" +
+                "  \"message\": \"Project 'absentProject' does not exist.\"," +
+                "  \"detail\": \"${json-unit.ignore}\"" +
                 '}';
         assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }

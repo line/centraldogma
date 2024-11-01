@@ -2,10 +2,12 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import React, { useMemo } from 'react';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { useGetMirrorsQuery } from 'dogma/features/api/apiSlice';
-import { Badge, Code, Link } from '@chakra-ui/react';
+import { Badge, Button, Code, Link } from '@chakra-ui/react';
 import { GoRepo } from 'react-icons/go';
 import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
 import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
+import { RunMirror } from '../../../mirror/RunMirrorButton';
+import { FaPlay } from 'react-icons/fa';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type MirrorListProps<Data extends object> = {
@@ -54,19 +56,43 @@ const MirrorList = <Data extends object>({ projectName }: MirrorListProps<Data>)
         header: 'Direction',
       }),
       columnHelper.accessor((row: MirrorDto) => row.schedule, {
-        cell: (info) => (
-          <Code variant="outline" p={1}>
-            {info.getValue()}
-          </Code>
-        ),
+        cell: (info) => {
+          return (
+            <Code variant="outline" p={1}>
+              {info.getValue() || 'disabled'}
+            </Code>
+          );
+        },
         header: 'Schedule',
+      }),
+      columnHelper.accessor((row: MirrorDto) => row.schedule, {
+        cell: (info) => {
+          return (
+            <RunMirror mirror={info.row.original}>
+              {({ isLoading, onToggle }) => (
+                <Button
+                  isDisabled={!info.row.original.enabled}
+                  onClick={onToggle}
+                  colorScheme={'green'}
+                  size="sm"
+                  aria-label="Run mirror"
+                  isLoading={isLoading}
+                  leftIcon={<FaPlay />}
+                >
+                  Run
+                </Button>
+              )}
+            </RunMirror>
+          );
+        },
+        header: 'Actions',
       }),
       columnHelper.accessor((row: MirrorDto) => row.enabled, {
         cell: (info) => {
           if (info.getValue()) {
-            return <Badge colorScheme="green">Active</Badge>;
+            return <Badge colorScheme={'green'}>Enabled</Badge>;
           } else {
-            return <Badge>Inactive</Badge>;
+            return <Badge colorScheme={'red'}>Disabled</Badge>;
           }
         },
         header: 'Status',

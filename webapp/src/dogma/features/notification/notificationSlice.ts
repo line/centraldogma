@@ -1,19 +1,23 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { ReactNode } from 'react';
+import { StyleProps } from '@chakra-ui/system';
 
 type NotificationType = 'error' | 'info' | 'warning' | 'success' | 'loading';
 
 export interface Notification {
   title: string;
-  text: string;
+  description: string | ReactNode;
   type: NotificationType;
+  containerStyle?: StyleProps;
   timestamp: number;
 }
 
 const initialState: Notification = {
   title: '',
-  text: '',
+  description: '',
   type: 'info',
-  timestamp: Date.now(),
+  containerStyle: {},
+  timestamp: null,
 };
 
 export const notificationSlice = createSlice({
@@ -22,8 +26,9 @@ export const notificationSlice = createSlice({
   reducers: {
     createNotification(state: Notification, action: PayloadAction<Notification>) {
       state.title = action.payload.title;
-      state.text = action.payload.text;
+      state.description = action.payload.description;
       state.type = action.payload.type;
+      state.containerStyle = action.payload.containerStyle;
       state.timestamp = action.payload.timestamp;
     },
     resetState(state: Notification) {
@@ -35,6 +40,11 @@ export const notificationSlice = createSlice({
 export const { createNotification, resetState } = notificationSlice.actions;
 export const notificationReducer = notificationSlice.reducer;
 
-export function newNotification(title: string, text: string, type: NotificationType) {
-  return createNotification({ title, text, type, timestamp: Date.now() });
+export function newNotification(
+  title: string,
+  description: string | ReactNode,
+  type: NotificationType,
+  containerStyle?: StyleProps,
+): PayloadAction<Notification, 'message/createNotification'> {
+  return createNotification({ title, description, type, containerStyle, timestamp: Date.now() });
 }

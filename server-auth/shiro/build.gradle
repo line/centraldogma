@@ -4,6 +4,9 @@ dependencies {
     // Caffeine
     implementation libs.caffeine
 
+    // Declare explicitly to resolve the version conflict.
+    implementation libs.logback12
+
     // Shiro
     implementation libs.shiro.core
 }

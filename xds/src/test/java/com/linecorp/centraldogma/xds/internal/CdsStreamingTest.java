@@ -80,9 +80,18 @@ final class CdsStreamingTest {
         requestStreamObserver.onNext(DiscoveryRequest.newBuilder()
                                                      .setTypeUrl(Resources.V3.CLUSTER_TYPE_URL)
                                                      .build());
+
+        int expectedNonce = 0;
         DiscoveryResponse discoveryResponse = queue.take();
+        while (discoveryResponse.getResourcesList().isEmpty()) {
+            // The commited cluster is not yet available. Send ack and receive the next discovery response.
+            sendAck(requestStreamObserver, discoveryResponse);
+            discoveryResponse = queue.take();
+            expectedNonce++;
+        }
         final String versionInfo1 = discoveryResponse.getVersionInfo();
-        assertDiscoveryResponse(versionInfo1, discoveryResponse, fooCluster, queue, "0");
+        assertDiscoveryResponse(versionInfo1, discoveryResponse, fooCluster,
+                                queue, Integer.toString(expectedNonce));
         // Send ack
         sendAck(requestStreamObserver, discoveryResponse);
         // No discovery response because there's no change.
@@ -91,15 +100,16 @@ final class CdsStreamingTest {
         // Change the configuration.
         fooCluster = cluster(fooClusterName, 2);
         updateCluster(fooGroupName, fooClusterId, fooCluster, webClient);
+        expectedNonce++;
         discoveryResponse = queue.take();
         final String versionInfo2 = discoveryResponse.getVersionInfo();
         assertThat(versionInfo2).isNotEqualTo(versionInfo1);
-        assertDiscoveryResponse(versionInfo2, discoveryResponse, fooCluster, queue, "1");
+        assertDiscoveryResponse(versionInfo2, discoveryResponse, fooCluster,
+                                queue, Integer.toString(expectedNonce));
         // Send ack
         sendAck(requestStreamObserver, discoveryResponse);
         // No discovery response because there's no change.
         assertThat(queue.poll(300, TimeUnit.MILLISECONDS)).isNull();
-
         // Add another cluster
         final String barGroupName = "groups/bar";
         createGroup("bar", webClient);
@@ -108,6 +118,7 @@ final class CdsStreamingTest {
         final Cluster barCluster = cluster(barClusterName, 1);
         createCluster(barGroupName, barClusterId, barCluster, webClient);
 
+        expectedNonce++;
         discoveryResponse = queue.take();
         final String versionInfo3 = discoveryResponse.getVersionInfo();
         assertThat(versionInfo3.length()).isEqualTo(64);
@@ -129,9 +140,11 @@ final class CdsStreamingTest {
 
         // Remove bar group.
         deleteGroup(barGroupName, webClient);
+        expectedNonce++;
         discoveryResponse = queue.take();
         final String versionInfo4 = discoveryResponse.getVersionInfo();
-        assertDiscoveryResponse(versionInfo4, discoveryResponse, fooCluster, queue, "3");
+        assertDiscoveryResponse(versionInfo4, discoveryResponse, fooCluster,
+                                queue, Integer.toString(expectedNonce));
         assertThat(versionInfo4).isEqualTo(versionInfo2);
         // Send ack
         sendAck(requestStreamObserver, discoveryResponse);
@@ -143,7 +156,8 @@ final class CdsStreamingTest {
             String versionInfo, DiscoveryResponse discoveryResponse,
             Cluster fooCluster, BlockingQueue<DiscoveryResponse> queue, String nonce)
             throws InvalidProtocolBufferException, InterruptedException {
-        assertThat(versionInfo.length()).isEqualTo(64); // sha 256 hash length is 64. 256/4
+        assertThat(versionInfo.length()).as("The length of versionInfo is not 64: " + versionInfo)
+                                        .isEqualTo(64); // sha 256 hash length is 64. 256/4
         assertThat(discoveryResponse.getNonce()).isEqualTo(nonce);
         final List<Any> resources = discoveryResponse.getResourcesList();
         assertThat(resources.size()).isOne();

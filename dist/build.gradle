@@ -23,20 +23,21 @@ apply plugin: 'com.bmuschko.docker-remote-api'
 import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
 import com.google.common.base.CaseFormat
 
-evaluationDependsOn(':server')
-evaluationDependsOn(':server-auth:saml')
-evaluationDependsOn(':server-auth:shiro')
-evaluationDependsOn(':server-mirror-git')
-evaluationDependsOn(':xds')
-
 ext {
     distDir = "${project.buildDir}/dist"
     relativeDistDir = distDir.substring("${rootProject.projectDir}/".length())
     cliDownloadDir = "${gradle.gradleUserHomeDir}/caches/centraldogma-go/cli"
 }
 
-
 dependencies {
+    implementation project(':server')
+    implementation project(':server-auth:saml')
+    implementation project(':server-auth:shiro')
+    implementation project(':server-mirror-git')
+    implementation project(':xds')
+    // Add the optionalImplementation in the server module to copy the JAR into the distribution directory.
+    runtimeOnly libs.jcommander
+
     // Logging
     runtimeOnly libs.logback12
     runtimeOnly libs.slf4j1.jcl.over.slf4j
@@ -64,26 +65,7 @@ task copyLib(group: 'Build',
              dependsOn: project(':server').tasks.jar,
              type: Copy) {
 
-    from project(':server').configurations.runtimeClasspath {
-        exclude group: 'org.eclipse.jgit'
-    }
-    from project(':server').tasks.jar
-    from project.configurations.runtimeClasspath
-    from project(':server-auth:saml').configurations.runtimeClasspath {
-        exclude group: 'org.eclipse.jgit'
-    }
-    from project(':server-auth:saml').tasks.jar
-    from project(':server-auth:shiro').configurations.runtimeClasspath {
-        exclude group: 'org.eclipse.jgit'
-    }
-    from project(':server-auth:shiro').tasks.jar
-    from project(':server-mirror-git').configurations.runtimeClasspath
-    from project(':server-mirror-git').tasks.jar
-    from project(':xds').configurations.runtimeClasspath {
-        exclude group: 'org.eclipse.jgit'
-    }
-    from project(':xds').tasks.jar
-
+    from configurations.runtimeClasspath
     File libDir = new File("${project.ext.distDir}/lib")
     into libDir
 
