@@ -72,7 +72,7 @@ class MetadataServiceTest {
     private static final User user2 = new User("user2@localhost.com");
 
     private static final PerRolePermissions ownerOnly =
-            new PerRolePermissions(READ_WRITE, NO_PERMISSION, NO_PERMISSION);
+            new PerRolePermissions(READ_WRITE, NO_PERMISSION, NO_PERMISSION, null);
 
     @Test
     void project() {

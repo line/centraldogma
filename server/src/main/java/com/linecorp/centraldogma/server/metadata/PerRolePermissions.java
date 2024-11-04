@@ -23,6 +23,8 @@ import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
@@ -52,9 +54,9 @@ public class PerRolePermissions {
      */
     @Deprecated
     public static final PerRolePermissions DEFAULT =
-            new PerRolePermissions(READ_WRITE, READ_WRITE, NO_PERMISSION);
+            new PerRolePermissions(READ_WRITE, READ_WRITE, NO_PERMISSION, null);
     private static final PerRolePermissions internalPermissions =
-            new PerRolePermissions(READ_WRITE, NO_PERMISSION, NO_PERMISSION);
+            new PerRolePermissions(READ_WRITE, NO_PERMISSION, NO_PERMISSION, null);
 
     /**
      * Creates a {@link PerRolePermissions} which allows read/write a repository from an owner.
@@ -74,14 +76,14 @@ public class PerRolePermissions {
      * Creates a {@link PerRolePermissions} which allows accessing a repository from everyone.
      */
     public static PerRolePermissions ofPublic() {
-        return new PerRolePermissions(READ_WRITE, READ_WRITE, READ_WRITE);
+        return new PerRolePermissions(READ_WRITE, READ_WRITE, READ_WRITE, null);
     }
 
     /**
      * Creates a {@link PerRolePermissions} which allows accessing a repository from a project member.
      */
     public static PerRolePermissions ofPrivate() {
-        return new PerRolePermissions(READ_WRITE, READ_WRITE, NO_PERMISSION);
+        return new PerRolePermissions(READ_WRITE, READ_WRITE, NO_PERMISSION, null);
     }
 
     /**
@@ -106,7 +108,7 @@ public class PerRolePermissions {
     public PerRolePermissions(@JsonProperty("owner") Iterable<Permission> owner,
                               @JsonProperty("member") Iterable<Permission> member,
                               @JsonProperty("guest") Iterable<Permission> guest,
-                              @JsonProperty("anonymous") Iterable<Permission> unused) {
+                              @Nullable @JsonProperty("anonymous") Iterable<Permission> unused) {
         this.owner = Sets.immutableEnumSet(requireNonNull(owner, "owner"));
         this.member = Sets.immutableEnumSet(requireNonNull(member, "member"));
         this.guest = Sets.immutableEnumSet(requireNonNull(guest, "guest"));
