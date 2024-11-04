@@ -50,10 +50,8 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
-import com.linecorp.centraldogma.xds.internal.XdsResourceManager;
 
 import io.envoyproxy.envoy.config.core.v3.Locality;
 import io.fabric8.kubernetes.api.model.Node;
