@@ -30,6 +30,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.auth.OAuth2Token;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.auth.AuthService;
@@ -64,6 +65,13 @@ class AuthUpstreamTest {
         protected void configure(CentralDogmaBuilder builder) {
             builder.administrators(TestAuthMessageUtil.USERNAME);
             builder.authProviderFactory(new TestAuthProviderFactory());
+        }
+
+        @Override
+        protected String accessToken() throws Exception {
+            // Can't call dogma.httpClient() because the client isn't set yet.
+            return getAccessToken(WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
+                                  TestAuthMessageUtil.USERNAME, TestAuthMessageUtil.PASSWORD);
         }
 
         @Override

@@ -143,7 +143,12 @@ public class CentralDogmaRuleDelegate {
             configureClient(clientBuilder);
             configureClient(legacyClientBuilder);
 
-            final String accessToken = accessToken();
+            final String accessToken;
+            try {
+                accessToken = accessToken();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
             if (accessToken != null) {
                 clientBuilder.accessToken(accessToken);
                 legacyClientBuilder.accessToken(accessToken);
@@ -305,7 +310,7 @@ public class CentralDogmaRuleDelegate {
      * Override this method to inject an access token to the clients.
      */
     @Nullable
-    protected String accessToken() {
+    protected String accessToken() throws Exception {
         return null;
     }
 

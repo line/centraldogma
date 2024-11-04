@@ -61,6 +61,13 @@ class MirrorRunnerTest {
         }
 
         @Override
+        protected String accessToken() throws Exception {
+            // Can't call dogma.httpClient() because the client isn't set yet.
+            return getAccessToken(WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
+                                  USERNAME, PASSWORD);
+        }
+
+        @Override
         protected void scaffold(CentralDogma client) {
             client.createProject(FOO_PROJ).join();
             client.createRepository(FOO_PROJ, BAR_REPO).join();
