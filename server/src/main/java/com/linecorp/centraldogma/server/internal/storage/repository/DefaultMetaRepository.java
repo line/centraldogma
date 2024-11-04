@@ -102,7 +102,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             @SuppressWarnings("unchecked")
             final Entry<JsonNode> entry = (Entry<JsonNode>) entries.get(mirrorFile);
             if (entry == null) {
-                throw new EntryNotFoundException("failed to find credential '" + mirrorFile + "' in " +
+                throw new EntryNotFoundException("failed to find mirror '" + mirrorFile + "' in " +
                                                  parent().name() + '/' + name());
             }
 
