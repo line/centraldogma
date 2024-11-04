@@ -108,7 +108,8 @@ public class PerRolePermissions {
     public PerRolePermissions(@JsonProperty("owner") Iterable<Permission> owner,
                               @JsonProperty("member") Iterable<Permission> member,
                               @JsonProperty("guest") Iterable<Permission> guest,
-                              @Nullable @JsonProperty("anonymous") Iterable<Permission> unused) {
+                              // TODO(minwoox): Remove anonymous field after the migration.
+                              @JsonProperty("anonymous") @Nullable Iterable<Permission> unused) {
         this.owner = Sets.immutableEnumSet(requireNonNull(owner, "owner"));
         this.member = Sets.immutableEnumSet(requireNonNull(member, "member"));
         this.guest = Sets.immutableEnumSet(requireNonNull(guest, "guest"));
