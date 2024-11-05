@@ -904,7 +904,9 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static void validateProjectName(String projectName) {
-        Util.validateProjectName(projectName, "projectName");
+        // We don't know if the token has the permission to access internal projects.
+        // The server will reject the request if the token does not have the permission.
+        Util.validateProjectName(projectName, "projectName", true);
     }
 
     private static void validateProjectAndRepositoryName(String projectName, String repositoryName) {

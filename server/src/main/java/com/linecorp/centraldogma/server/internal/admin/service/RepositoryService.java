@@ -62,6 +62,7 @@ import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -89,8 +90,9 @@ public class RepositoryService extends AbstractService {
     @Get("/projects/{projectName}/repositories/{repoName}/revision/{revision}")
     public RevisionDto normalizeRevision(@Param String projectName,
                                          @Param String repoName,
-                                         @Param String revision) {
-        return DtoConverter.convert(projectApiManager.getProject(projectName).repos().get(repoName)
+                                         @Param String revision,
+                                         User user) {
+        return DtoConverter.convert(projectApiManager.getProject(projectName, user).repos().get(repoName)
                                                      .normalizeNow(new Revision(revision)));
     }
 
@@ -105,10 +107,10 @@ public class RepositoryService extends AbstractService {
                                              @Param String revision,
                                              @Param String path,
                                              @Param @Default("IDENTITY") QueryType queryType,
-                                             @Param @Default("") String expression) {
+                                             @Param @Default("") String expression, User user) {
 
-        final Query<?> query = Query.of(queryType,path, expression);
-        final Repository repo = projectApiManager.getProject(projectName).repos().get(repoName);
+        final Query<?> query = Query.of(queryType, path, expression);
+        final Repository repo = projectApiManager.getProject(projectName, user).repos().get(repoName);
         return repo.get(repo.normalizeNow(new Revision(revision)), query)
                    .thenApply(DtoConverter::convert);
     }
@@ -125,13 +127,14 @@ public class RepositoryService extends AbstractService {
                                                  @Param String repoName,
                                                  @Param String revision,
                                                  AggregatedHttpRequest request,
-                                                 ServiceRequestContext ctx) {
+                                                 ServiceRequestContext ctx,
+                                                 User user) {
         final Entry<CommitMessageDto, Change<?>> p = commitMessageAndChange(request);
         final CommitMessageDto commitMessage = p.getKey();
         final Change<?> change = p.getValue();
         return push(projectName, repoName, new Revision(revision), AuthUtil.currentAuthor(ctx),
                     commitMessage.getSummary(), commitMessage.getDetail().getContent(),
-                    Markup.valueOf(commitMessage.getDetail().getMarkup()), change)
+                    Markup.valueOf(commitMessage.getDetail().getMarkup()), change, user)
                 // This is so weird but there is no way to find a converter for 'null' with the current
                 // Armeria's converter implementation. We will figure out a better way to improve it.
                 .thenApply(unused -> VOID);
@@ -149,7 +152,8 @@ public class RepositoryService extends AbstractService {
                                    @Param String revision,
                                    @Param String path,
                                    AggregatedHttpRequest request,
-                                   ServiceRequestContext ctx) {
+                                   ServiceRequestContext ctx,
+                                   User user) {
         final CommitMessageDto commitMessage;
         try {
             final JsonNode node = Jackson.readTree(request.contentUtf8());
@@ -161,7 +165,7 @@ public class RepositoryService extends AbstractService {
         final CompletableFuture<?> future =
                 push(projectName, repoName, new Revision(revision), AuthUtil.currentAuthor(ctx),
                      commitMessage.getSummary(), commitMessage.getDetail().getContent(),
-                     Markup.valueOf(commitMessage.getDetail().getMarkup()), Change.ofRemoval(path));
+                     Markup.valueOf(commitMessage.getDetail().getMarkup()), Change.ofRemoval(path), user);
 
         return HttpResponse.from(future.thenApply(unused -> HttpResponse.of(HttpStatus.OK)));
     }
@@ -176,8 +180,9 @@ public class RepositoryService extends AbstractService {
                                                        @Param String repoName,
                                                        @Param String path,
                                                        @Param @Default("-1") String from,
-                                                       @Param @Default("1") String to) {
-        return projectApiManager.getProject(projectName).repos().get(repoName)
+                                                       @Param @Default("1") String to,
+                                                       User user) {
+        return projectApiManager.getProject(projectName, user).repos().get(repoName)
                                 .history(new Revision(from),
                                          new Revision(to),
                                          path + "**")
@@ -194,8 +199,9 @@ public class RepositoryService extends AbstractService {
     public CompletionStage<List<EntryDto>> search(@Param String projectName,
                                                   @Param String repoName,
                                                   @Param String revision,
-                                                  @Param String term) {
-        return projectApiManager.getProject(projectName).repos().get(repoName)
+                                                  @Param String term,
+                                                  User user) {
+        return projectApiManager.getProject(projectName, user).repos().get(repoName)
                                 .find(new Revision(revision), normalizeSearchTerm(term), FIND_ALL_WITH_CONTENT)
                                 .thenApply(entries -> entries.values().stream()
                                                              .map(DtoConverter::convert)
@@ -212,8 +218,9 @@ public class RepositoryService extends AbstractService {
                                                     @Param String repoName,
                                                     @Param String path,
                                                     @Param String from,
-                                                    @Param String to) {
-        return projectApiManager.getProject(projectName).repos().get(repoName)
+                                                    @Param String to,
+                                                    User user) {
+        return projectApiManager.getProject(projectName, user).repos().get(repoName)
                                 .diff(new Revision(from), new Revision(to), path)
                                 .thenApply(changeMap -> changeMap.values().stream()
                                                                  .map(DtoConverter::convert)
@@ -223,8 +230,8 @@ public class RepositoryService extends AbstractService {
     private CompletableFuture<?> push(String projectName, String repoName,
                                       Revision revision, Author author,
                                       String commitSummary, String commitDetail, Markup commitMarkup,
-                                      Change<?> change) {
-        final Repository repo = projectApiManager.getProject(projectName).repos().get(repoName);
+                                      Change<?> change, User user) {
+        final Repository repo = projectApiManager.getProject(projectName, user).repos().get(repoName);
         return push0(projectName, repoName, repo.normalizeNow(revision), author,
                      commitSummary, commitDetail, commitMarkup, change);
     }

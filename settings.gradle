@@ -36,6 +36,7 @@ includeWithFlags ':it:it-server',     'java', 'relocate'
 // Set correct directory names
 project(':it:it-server').projectDir = file('it/server')
 includeWithFlags ':testing-internal', 'java', 'relocate'
+includeWithFlags ':it:xds-member-permission', 'java', 'relocate'
 
 // Unpublished projects
 includeWithFlags ':webapp', 'java11'

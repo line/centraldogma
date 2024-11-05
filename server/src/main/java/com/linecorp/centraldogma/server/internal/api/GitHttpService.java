@@ -49,12 +49,17 @@ import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Header;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
+import com.linecorp.armeria.server.annotation.RequestConverter;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
+import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
+import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.storage.project.Project;
 
 /**
  * A service that provides Git HTTP protocol.
  */
+@RequestConverter(HttpApiRequestConverter.class)
 @RequiresReadPermission
 public final class GitHttpService {
 
@@ -96,7 +101,7 @@ public final class GitHttpService {
     @Get("/{projectName}/{repoName}/info/refs")
     public HttpResponse advertiseCapability(@Header("git-protocol") @Nullable String gitProtocol,
                                             @Param String service,
-                                            @Param String projectName, @Param String repoName) {
+                                            @Param String projectName, @Param String repoName, User user) {
         repoName = maybeRemoveGitSuffix(repoName);
         if (!"git-upload-pack".equals(service)) {
             // Return 403 https://www.git-scm.com/docs/http-protocol#_smart_server_response
@@ -113,10 +118,10 @@ public final class GitHttpService {
             return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
                                    "Project not found: " + projectName);
         }
-    if (!projectApiManager.getProject(projectName).repos().exists(repoName)) {
+        if (!projectApiManager.getProject(projectName, user).repos().exists(repoName)) {
             return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
                                    "Repository not found: " + repoName);
-    }
+        }
         return CAPABILITY_ADVERTISEMENT_RESPONSE.toHttpResponse();
     }
 
@@ -130,7 +135,7 @@ public final class GitHttpService {
     // https://www.git-scm.com/docs/gitprotocol-http#_smart_service_git_upload_pack
     @Post("/{projectName}/{repoName}/git-upload-pack")
     public HttpResponse gitUploadPack(AggregatedHttpRequest req,
-                                      @Param String projectName, @Param String repoName) {
+                                      @Param String projectName, @Param String repoName, User user) {
         repoName = maybeRemoveGitSuffix(repoName);
         final String gitProtocol = req.headers().get(HttpHeaderNames.GIT_PROTOCOL);
         if (gitProtocol == null || !gitProtocol.contains(VERSION_2_REQUEST)) {
@@ -148,13 +153,13 @@ public final class GitHttpService {
             return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
                                    "Project not found: " + projectName);
         }
-        if (!projectApiManager.getProject(projectName).repos().exists(repoName)) {
+        final Project project = projectApiManager.getProject(projectName, user);
+        if (!project.repos().exists(repoName)) {
             return HttpResponse.of(HttpStatus.NOT_FOUND, MediaType.PLAIN_TEXT_UTF_8,
                                    "Repository not found: " + repoName);
         }
 
-        final Repository jGitRepository =
-                projectApiManager.getProject(projectName).repos().get(repoName).jGitRepository();
+        final Repository jGitRepository = project.repos().get(repoName).jGitRepository();
 
         final ByteStreamMessage body = StreamMessage.fromOutputStream(os -> {
             // Don't need to close the input stream.

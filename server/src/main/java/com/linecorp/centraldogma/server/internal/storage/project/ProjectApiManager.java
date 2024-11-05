@@ -24,6 +24,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.Nullable;
+
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
@@ -52,13 +54,13 @@ public final class ProjectApiManager {
         this.metadataService = metadataService;
     }
 
-    public Map<String, Project> listProjects() {
+    public Map<String, Project> listProjects(@Nullable User user) {
         final Map<String, Project> projects = projectManager.list();
         if (isAdmin()) {
             return projects;
         }
 
-        return listProjectsWithoutInternal(projects);
+        return listProjectsWithoutInternal(projects, user);
     }
 
     private static boolean isAdmin() {
@@ -70,10 +72,21 @@ public final class ProjectApiManager {
         return currentUserOrNull.isAdmin();
     }
 
-    public static Map<String, Project> listProjectsWithoutInternal(Map<String, Project> projects) {
+    public static Map<String, Project> listProjectsWithoutInternal(Map<String, Project> projects,
+                                                                   @Nullable User user) {
         final Map<String, Project> result = new LinkedHashMap<>(projects.size() - 1);
         for (Map.Entry<String, Project> entry : projects.entrySet()) {
-            if (!isInternalProject(entry.getKey())) {
+            if (isInternalProject(entry.getKey())) {
+                if (user != null) {
+                    final ProjectMetadata metadata = entry.getValue().metadata();
+                    if (metadata != null) {
+                        // Only show internal projects to the members of the project.
+                        if (metadata.memberOrDefault(user.id(), null) != null) {
+                            result.put(entry.getKey(), entry.getValue());
+                        }
+                    }
+                }
+            } else {
                 result.put(entry.getKey(), entry.getValue());
             }
         }
@@ -116,14 +129,34 @@ public final class ProjectApiManager {
         checkInternalProject(projectName, "unremove");
         // Restore the project first then update its metadata as 'active'.
         return commandExecutor.execute(Command.unremoveProject(author, projectName))
-                .thenCompose(unused -> metadataService.restoreProject(author, projectName));
+                              .thenCompose(unused -> metadataService.restoreProject(author, projectName));
     }
 
     public Project getProject(String projectName) {
-        if (isInternalProject(projectName) && !isAdmin()) {
+        return getProject(projectName, AuthUtil.currentUserOrNull());
+    }
+
+    public Project getProject(String projectName, @Nullable User user) {
+        final Project project = projectManager.get(projectName);
+
+        if (!isInternalProject(projectName)) {
+            return project;
+        }
+
+        if (user == null) {
             throw new IllegalArgumentException("Cannot access " + projectName);
         }
-        return projectManager.get(projectName);
+        if (user.isAdmin()) {
+            return project;
+        }
+        final ProjectMetadata metadata = project.metadata();
+        if (metadata != null) {
+            // Only show internal projects to the members of the project.
+            if (metadata.memberOrDefault(user.id(), null) != null) {
+                return project;
+            }
+        }
+        throw new IllegalArgumentException("Cannot access " + projectName);
     }
 
     private static boolean isInternalProject(String projectName) {

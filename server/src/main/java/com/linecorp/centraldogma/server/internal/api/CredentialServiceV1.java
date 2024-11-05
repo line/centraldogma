@@ -62,7 +62,7 @@ public class CredentialServiceV1 extends AbstractService {
     @Get("/projects/{projectName}/credentials")
     public CompletableFuture<List<Credential>> listCredentials(User loginUser,
                                                                @Param String projectName) {
-        final CompletableFuture<List<Credential>> future = metaRepo(projectName).credentials();
+        final CompletableFuture<List<Credential>> future = metaRepo(projectName, loginUser).credentials();
         if (loginUser.isAdmin()) {
             return future;
         }
@@ -83,7 +83,7 @@ public class CredentialServiceV1 extends AbstractService {
     @Get("/projects/{projectName}/credentials/{id}")
     public CompletableFuture<Credential> getCredentialById(User loginUser,
                                                            @Param String projectName, @Param String id) {
-        final CompletableFuture<Credential> future = metaRepo(projectName).credential(id);
+        final CompletableFuture<Credential> future = metaRepo(projectName, loginUser).credential(id);
         if (loginUser.isAdmin()) {
             return future;
         }
@@ -100,8 +100,8 @@ public class CredentialServiceV1 extends AbstractService {
     @ConsumesJson
     @StatusCode(201)
     public CompletableFuture<PushResultDto> createCredential(@Param String projectName,
-                                                             Credential credential, Author author) {
-        return createOrUpdate(projectName, credential, author, false);
+                                                             Credential credential, Author author, User user) {
+        return createOrUpdate(projectName, credential, author, user, false);
     }
 
     /**
@@ -112,24 +112,23 @@ public class CredentialServiceV1 extends AbstractService {
     @RequiresWritePermission(repository = Project.REPO_META)
     @Put("/projects/{projectName}/credentials/{id}")
     @ConsumesJson
-    public CompletableFuture<PushResultDto> updateCredential(@Param String projectName,
-                                                             @Param String id,
-                                                             Credential credential, Author author) {
+    public CompletableFuture<PushResultDto> updateCredential(@Param String projectName, @Param String id,
+                                                             Credential credential, Author author, User user) {
         checkArgument(id.equals(credential.id()), "The credential ID (%s) can't be updated", id);
-        return createOrUpdate(projectName, credential, author, true);
+        return createOrUpdate(projectName, credential, author, user, true);
     }
 
-    private CompletableFuture<PushResultDto> createOrUpdate(String projectName,
-                                                            Credential credential,
-                                                            Author author, boolean update) {
-        return metaRepo(projectName).createPushCommand(credential, author, update).thenCompose(command -> {
-            return executor().execute(command).thenApply(result -> {
-                return new PushResultDto(result.revision(), command.timestamp());
-            });
-        });
+    private CompletableFuture<PushResultDto> createOrUpdate(String projectName, Credential credential,
+                                                            Author author, User user, boolean update) {
+        return metaRepo(projectName, user).createPushCommand(credential, author, update).thenCompose(
+                command -> {
+                    return executor().execute(command).thenApply(result -> {
+                        return new PushResultDto(result.revision(), command.timestamp());
+                    });
+                });
     }
 
-    private MetaRepository metaRepo(String projectName) {
-        return projectApiManager.getProject(projectName).metaRepo();
+    private MetaRepository metaRepo(String projectName, User user) {
+        return projectApiManager.getProject(projectName, user).metaRepo();
     }
 }
