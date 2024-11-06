@@ -131,7 +131,6 @@ import com.linecorp.centraldogma.server.internal.admin.auth.SessionTokenAuthoriz
 import com.linecorp.centraldogma.server.internal.admin.service.DefaultLogoutService;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
 import com.linecorp.centraldogma.server.internal.admin.service.UserService;
-import com.linecorp.centraldogma.server.internal.api.AdministrativeService;
 import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
 import com.linecorp.centraldogma.server.internal.api.CredentialServiceV1;
 import com.linecorp.centraldogma.server.internal.api.GitHttpService;
@@ -140,6 +139,7 @@ import com.linecorp.centraldogma.server.internal.api.MetadataApiService;
 import com.linecorp.centraldogma.server.internal.api.MirroringServiceV1;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
 import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
+import com.linecorp.centraldogma.server.internal.api.SystemAdministrativeService;
 import com.linecorp.centraldogma.server.internal.api.TokenService;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthorizer;
@@ -699,7 +699,7 @@ public class CentralDogma implements AutoCloseable {
         final AuthProviderParameters parameters = new AuthProviderParameters(
                 // Find application first, then find the session token.
                 new ApplicationTokenAuthorizer(mds::findTokenBySecret).orElse(
-                        new SessionTokenAuthorizer(sessionManager, authCfg.administrators())),
+                        new SessionTokenAuthorizer(sessionManager, authCfg.systemAdministrators())),
                 cfg,
                 sessionManager::generateSessionId,
                 // Propagate login and logout events to the other replicas.
@@ -765,7 +765,7 @@ public class CentralDogma implements AutoCloseable {
         final Authorizer<HttpRequest> tokenAuthorizer =
                 new ApplicationTokenAuthorizer(mds::findTokenBySecret)
                         .orElse(new SessionTokenAuthorizer(sessionManager,
-                                                           authCfg.administrators()));
+                                                           authCfg.systemAdministrators()));
         return AuthService.builder()
                           .add(tokenAuthorizer)
                           .onFailure(new CentralDogmaAuthFailureHandler())
@@ -810,7 +810,7 @@ public class CentralDogma implements AutoCloseable {
         assert statusManager != null;
         final ContextPathServicesBuilder apiV1ServiceBuilder = sb.contextPath(API_V1_PATH_PREFIX);
         apiV1ServiceBuilder
-                .annotatedService(new AdministrativeService(executor, statusManager))
+                .annotatedService(new SystemAdministrativeService(executor, statusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
                 .annotatedService(new RepositoryServiceV1(executor, mds))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor));

@@ -55,7 +55,7 @@ final class ShiroCentralDogmaTestServer {
                 // Enable the legacy webapp
                 // .webAppEnabled(true)
                 .port(PORT, SessionProtocol.HTTP)
-                .administrators(USERNAME)
+                .systemAdministrators(USERNAME)
                 .cors("*")
                 .authProviderFactory(new ShiroAuthProviderFactory(unused -> {
                     final Ini iniConfig = new Ini();

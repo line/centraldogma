@@ -40,7 +40,7 @@ const DropdownIndicator = (
 
 const HomePage = () => {
   const { colorMode } = useColorMode();
-  const { data, isLoading } = useGetProjectsQuery({ admin: false });
+  const { data, isLoading } = useGetProjectsQuery({ systemAdmin: false });
   const projects = data || [];
   const projectOptions: ProjectOptionType[] = projects.map((project: ProjectDto) => ({
     value: project.name,

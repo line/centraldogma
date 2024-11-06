@@ -63,7 +63,7 @@ public class CredentialServiceV1 extends AbstractService {
     public CompletableFuture<List<Credential>> listCredentials(User loginUser,
                                                                @Param String projectName) {
         final CompletableFuture<List<Credential>> future = metaRepo(projectName).credentials();
-        if (loginUser.isAdmin()) {
+        if (loginUser.isSystemAdmin()) {
             return future;
         }
         return future.thenApply(credentials -> {
@@ -84,7 +84,7 @@ public class CredentialServiceV1 extends AbstractService {
     public CompletableFuture<Credential> getCredentialById(User loginUser,
                                                            @Param String projectName, @Param String id) {
         final CompletableFuture<Credential> future = metaRepo(projectName).credential(id);
-        if (loginUser.isAdmin()) {
+        if (loginUser.isSystemAdmin()) {
             return future;
         }
         return future.thenApply(Credential::withoutSecret);

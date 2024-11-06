@@ -10,7 +10,7 @@ function badgeColor(role: string) {
     case 'member':
       return 'green';
     case 'owner':
-    case 'admin':
+    case 'system admin':
       return 'blue';
     default:
       return 'gray';

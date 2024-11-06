@@ -114,7 +114,7 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
                 @Override
                 protected void configure(CentralDogmaBuilder builder) {
                     builder.port(new InetSocketAddress(NetUtil.LOCALHOST4, dogmaPort), SessionProtocol.HTTP)
-                           .administrators(TestAuthMessageUtil.USERNAME)
+                           .systemAdministrators(TestAuthMessageUtil.USERNAME)
                            .authProviderFactory(factory)
                            .pluginConfigs(new MirroringServicePluginConfig(false))
                            .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))

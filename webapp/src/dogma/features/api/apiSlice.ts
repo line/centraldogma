@@ -37,7 +37,7 @@ export type ApiAction<Arg, Result> = {
 };
 
 export type GetProjects = {
-  admin: boolean;
+  systemAdmin: boolean;
 };
 
 export type GetHistory = {
@@ -94,7 +94,7 @@ export const apiSlice = createApi({
       async queryFn(arg, _queryApi, _extraOptions, fetchWithBQ) {
         const projects = await fetchWithBQ('/api/v1/projects');
         if (projects.error) return { error: projects.error as FetchBaseQueryError };
-        if (arg.admin) {
+        if (arg.systemAdmin) {
           const removedProjects = await fetchWithBQ('/api/v1/projects?status=removed');
           if (removedProjects.error) return { error: removedProjects.error as FetchBaseQueryError };
           return {

@@ -49,9 +49,9 @@ public final class Token implements Identifiable {
     private final String secret;
 
     /**
-     * Specifies whether this token is for administrators.
+     * Specifies whether this token is for system administrators.
      */
-    private final boolean isAdmin;
+    private final boolean isSystemAdmin;
 
     /**
      * Specifies when this token is created by whom.
@@ -67,8 +67,8 @@ public final class Token implements Identifiable {
     @Nullable
     private final UserAndTimestamp deletion;
 
-    Token(String appId, String secret, boolean isAdmin, UserAndTimestamp creation) {
-        this(appId, secret, isAdmin, creation, null, null);
+    Token(String appId, String secret, boolean isSystemAdmin, UserAndTimestamp creation) {
+        this(appId, secret, null, isSystemAdmin, creation, null, null);
     }
 
     /**
@@ -77,22 +77,25 @@ public final class Token implements Identifiable {
     @JsonCreator
     public Token(@JsonProperty("appId") String appId,
                  @JsonProperty("secret") String secret,
-                 @JsonProperty("admin") boolean isAdmin,
+                 // TODO(minwoox): Remove admin field after all tokens are migrated.
+                 @JsonProperty("admin") @Nullable Boolean isAdmin,
+                 @JsonProperty("systemAdmin") @Nullable Boolean isSystemAdmin,
                  @JsonProperty("creation") UserAndTimestamp creation,
                  @JsonProperty("deactivation") @Nullable UserAndTimestamp deactivation,
                  @JsonProperty("deletion") @Nullable UserAndTimestamp deletion) {
+        assert isAdmin != null || isSystemAdmin != null;
         this.appId = Util.validateFileName(appId, "appId");
         this.secret = Util.validateFileName(secret, "secret");
-        this.isAdmin = isAdmin;
+        this.isSystemAdmin = isSystemAdmin != null ? isSystemAdmin : isAdmin;
         this.creation = requireNonNull(creation, "creation");
         this.deactivation = deactivation;
         this.deletion = deletion;
     }
 
-    private Token(String appId, boolean isAdmin, UserAndTimestamp creation,
+    private Token(String appId, boolean isSystemAdmin, UserAndTimestamp creation,
                   @Nullable UserAndTimestamp deactivation, @Nullable UserAndTimestamp deletion) {
         this.appId = Util.validateFileName(appId, "appId");
-        this.isAdmin = isAdmin;
+        this.isSystemAdmin = isSystemAdmin;
         this.creation = requireNonNull(creation, "creation");
         this.deactivation = deactivation;
         this.deletion = deletion;
@@ -122,11 +125,11 @@ public final class Token implements Identifiable {
     }
 
     /**
-     * Returns whether this token has administrative privileges.
+     * Returns whether this token has system administrative privileges.
      */
     @JsonProperty
-    public boolean isAdmin() {
-        return isAdmin;
+    public boolean isSystemAdmin() {
+        return isSystemAdmin;
     }
 
     /**
@@ -176,7 +179,7 @@ public final class Token implements Identifiable {
         // Do not add "secret" to prevent it from logging.
         return MoreObjects.toStringHelper(this).omitNullValues()
                           .add("appId", appId())
-                          .add("isAdmin", isAdmin())
+                          .add("isSystemAdmin", isSystemAdmin())
                           .add("creation", creation())
                           .add("deactivation", deactivation())
                           .add("deletion", deletion())
@@ -187,6 +190,16 @@ public final class Token implements Identifiable {
      * Returns a new {@link Token} instance without its secret.
      */
     public Token withoutSecret() {
-        return new Token(appId(), isAdmin(), creation(), deactivation(), deletion());
+        return new Token(appId(), isSystemAdmin(), creation(), deactivation(), deletion());
+    }
+
+    /**
+     * Returns a new {@link Token} instance without its secret.
+     * This method must be called by the token whose secret is not null.
+     */
+    public Token withSystemAdmin(boolean isSystemAdmin) {
+        final String secret = secret();
+        assert secret != null;
+        return new Token(appId(), secret, null, isSystemAdmin, creation(), deactivation(), deletion());
     }
 }

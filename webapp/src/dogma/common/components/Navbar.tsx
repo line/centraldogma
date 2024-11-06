@@ -91,7 +91,7 @@ export const Navbar = () => {
   const { colorMode, toggleColorMode } = useColorMode();
   const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
-  const result = useGetProjectsQuery({ admin: false });
+  const result = useGetProjectsQuery({ systemAdmin: false });
   const projects = result.data || [];
   const projectOptions: ProjectOptionType[] = projects.map((project: ProjectDto) => ({
     value: project.name,

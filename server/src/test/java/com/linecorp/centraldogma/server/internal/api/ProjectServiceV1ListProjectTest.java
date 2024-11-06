@@ -66,7 +66,7 @@ class ProjectServiceV1ListProjectTest {
 
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.administrators(TestAuthMessageUtil.USERNAME);
+            builder.systemAdministrators(TestAuthMessageUtil.USERNAME);
             builder.authProviderFactory(new TestAuthProviderFactory());
         }
 
@@ -76,18 +76,18 @@ class ProjectServiceV1ListProjectTest {
         }
     };
 
-    private BlockingWebClient adminClient;
+    private BlockingWebClient systemAdminClient;
     private BlockingWebClient normalClient;
 
     @BeforeEach
     void setUp() throws JsonProcessingException {
         final URI uri = dogma.httpClient().uri();
-        adminClient = WebClient.builder(uri)
-                               .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
-                                                                  TestAuthMessageUtil.USERNAME,
-                                                                  TestAuthMessageUtil.PASSWORD)))
-                               .build()
-                               .blocking();
+        systemAdminClient = WebClient.builder(uri)
+                                     .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
+                                                                        TestAuthMessageUtil.USERNAME,
+                                                                        TestAuthMessageUtil.PASSWORD)))
+                                     .build()
+                                     .blocking();
         normalClient = WebClient.builder(uri)
                                 .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
                                                                    TestAuthMessageUtil.USERNAME2,
@@ -104,7 +104,7 @@ class ProjectServiceV1ListProjectTest {
         createProject(normalClient, "trustin");
         createProject(normalClient, "hyangtack");
         createProject(normalClient, "minwoox");
-        createProject(adminClient, "jrhee17");
+        createProject(systemAdminClient, "jrhee17");
 
         AggregatedHttpResponse aRes = normalClient.get(PROJECTS_PREFIX);
         assertThat(aRes.headers().status()).isEqualTo(HttpStatus.OK);
@@ -156,7 +156,7 @@ class ProjectServiceV1ListProjectTest {
                 .isEqualTo(String.format(normalUserExpect, ""));
 
         // Admin fetches internal project "dogma" as well.
-        aRes = adminClient.get(PROJECTS_PREFIX);
+        aRes = systemAdminClient.get(PROJECTS_PREFIX);
         assertThat(aRes.headers().status()).isEqualTo(HttpStatus.OK);
 
         final String adminUserExpect =
@@ -258,8 +258,8 @@ class ProjectServiceV1ListProjectTest {
 
     @Test
     void userRoleWithLoginUser() {
-        createProject(adminClient, "trustin");
-        createProject(adminClient, "hyangtack");
+        createProject(systemAdminClient, "trustin");
+        createProject(systemAdminClient, "hyangtack");
 
         final Map<String, ProjectDto> projects = getProjects(normalClient);
         assertThat(projects).hasSize(2);
@@ -268,11 +268,11 @@ class ProjectServiceV1ListProjectTest {
                 .containsExactlyInAnyOrder(ProjectRole.GUEST, ProjectRole.GUEST);
 
         AggregatedHttpResponse aRes =
-                adminClient.prepare()
-                           .post("/api/v1/metadata/trustin/members")
-                           .contentJson(new IdentifierWithRole(
+                systemAdminClient.prepare()
+                                 .post("/api/v1/metadata/trustin/members")
+                                 .contentJson(new IdentifierWithRole(
                                    TestAuthMessageUtil.USERNAME2, "MEMBER"))
-                           .execute();
+                                 .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         await().untilAsserted(() -> {
             final Map<String, ProjectDto> projects0 = getProjects(normalClient);
@@ -280,11 +280,11 @@ class ProjectServiceV1ListProjectTest {
             assertThat(projects0.get("hyangtack").userRole()).isEqualTo(ProjectRole.GUEST);
         });
 
-        aRes = adminClient.prepare()
-                          .post("/api/v1/metadata/hyangtack/members")
-                          .contentJson(new IdentifierWithRole(
+        aRes = systemAdminClient.prepare()
+                                .post("/api/v1/metadata/hyangtack/members")
+                                .contentJson(new IdentifierWithRole(
                                   TestAuthMessageUtil.USERNAME2, "OWNER"))
-                          .execute();
+                                .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         await().untilAsserted(() -> {
             final Map<String, ProjectDto> projects0 = getProjects(normalClient);

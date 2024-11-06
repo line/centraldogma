@@ -46,8 +46,8 @@ import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.api.v1.CreateProjectRequest;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.Member;
@@ -95,13 +95,13 @@ public class ProjectServiceV1 extends AbstractService {
     }
 
     private static ProjectRole getUserRole(Project project, User user) {
-        if (user.isAdmin()) {
+        if (user.isSystemAdmin()) {
             return ProjectRole.OWNER;
         }
 
         final ProjectMetadata metadata = project.metadata();
         if (metadata == null) {
-            // Metadata is null for the internal project which belongs to administrators.
+            // Metadata is null for the internal project which belongs to system administrators.
             return ProjectRole.GUEST;
         }
 
@@ -192,7 +192,7 @@ public class ProjectServiceV1 extends AbstractService {
      */
     @Consumes("application/json-patch+json")
     @Patch("/projects/{projectName}")
-    @RequiresAdministrator
+    @RequiresSystemAdministrator
     public CompletableFuture<ProjectDto> patchProject(@Param String projectName, JsonNode node, Author author) {
         checkUnremoveArgument(node);
         return projectApiManager.unremoveProject(projectName, author)

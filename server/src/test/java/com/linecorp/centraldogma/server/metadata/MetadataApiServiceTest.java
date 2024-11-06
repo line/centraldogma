@@ -45,7 +45,7 @@ class MetadataApiServiceTest {
 
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.administrators(TestAuthMessageUtil.USERNAME);
+            builder.systemAdministrators(TestAuthMessageUtil.USERNAME);
             builder.authProviderFactory(new TestAuthProviderFactory());
         }
     };
@@ -61,24 +61,25 @@ class MetadataApiServiceTest {
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
         final String sessionId = Jackson.readValue(response.content().array(), AccessToken.class)
                                         .accessToken();
-        final WebClient adminClient = WebClient.builder(client.uri())
-                                               .auth(AuthToken.ofOAuth2(sessionId)).build();
+        final WebClient systemAdminClient = WebClient.builder(client.uri())
+                                                     .auth(AuthToken.ofOAuth2(sessionId)).build();
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, PROJECTS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final String body = "{\"name\": \"" + projectName + "\"}";
         // Create a project.
-        assertThat(adminClient.execute(headers, body).aggregate().join().status()).isSameAs(HttpStatus.CREATED);
+        assertThat(systemAdminClient.execute(headers, body).aggregate().join().status())
+                .isSameAs(HttpStatus.CREATED);
 
         final String memberToken = "appToken-secret-member";
         // Create a token with a non-random secret.
         HttpRequest request = HttpRequest.builder()
                                          .post("/api/v1/tokens")
                                          .content(MediaType.FORM_DATA,
-                                                  "secret=" + memberToken + "&isAdmin=false&appId=foo")
+                                                  "secret=" + memberToken + "&isSystemAdmin=false&appId=foo")
                                          .build();
-        AggregatedHttpResponse res = adminClient.execute(request).aggregate().join();
+        AggregatedHttpResponse res = systemAdminClient.execute(request).aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.CREATED);
-        res = adminClient.get("/api/v1/tokens").aggregate().join();
+        res = systemAdminClient.get("/api/v1/tokens").aggregate().join();
         assertThat(res.contentUtf8()).contains("\"secret\":\"" + memberToken + '"');
 
         // Add as a member to the project
@@ -90,7 +91,7 @@ class MetadataApiServiceTest {
                                       "\"role\":\"MEMBER\"" +
                                       '}')
                              .build();
-        res = adminClient.execute(request).aggregate().join();
+        res = systemAdminClient.execute(request).aggregate().join();
         assertThat(res.status()).isSameAs(HttpStatus.OK);
 
         final WebClient memberClient = WebClient.builder(client.uri())
@@ -111,7 +112,7 @@ class MetadataApiServiceTest {
                                       "  \"anonymous\": [ ]\n" +
                                       '}')
                              .build();
-        adminClient.execute(request).aggregate().join();
+        systemAdminClient.execute(request).aggregate().join();
 
         // Now the member can access the meta repository.
         res = memberClient.get("/api/v1/projects/" + projectName + "/repos/meta/list").aggregate().join();

@@ -26,7 +26,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
  * A {@link Command} which is used to force-push {@code delegate} even the server is in read-only mode.
  * This command is useful for migrating the repository content during maintenance mode.
  */
-public final class ForcePushCommand<T> extends AdministrativeCommand<T> {
+public final class ForcePushCommand<T> extends SystemAdministrativeCommand<T> {
 
     private final Command<T> delegate;
 
