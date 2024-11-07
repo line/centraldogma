@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -38,6 +39,7 @@ import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.grpc.GrpcService;
 import com.linecorp.armeria.testing.junit5.server.ServerExtension;
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
@@ -68,10 +70,15 @@ class AuthUpstreamTest {
         }
 
         @Override
-        protected String accessToken() throws Exception {
-            // Can't call dogma.httpClient() because the client isn't set yet.
-            return getAccessToken(WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
-                                  TestAuthMessageUtil.USERNAME, TestAuthMessageUtil.PASSWORD);
+        protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
+            try {
+                final String accessToken = getAccessToken(
+                        WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
+                        TestAuthMessageUtil.USERNAME, TestAuthMessageUtil.PASSWORD);
+                builder.accessToken(accessToken);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         @Override

@@ -21,8 +21,6 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
-import javax.annotation.Nullable;
-
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
@@ -94,12 +92,6 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
             @Override
             protected void configureHttpClient(WebClientBuilder builder) {
                 CentralDogmaExtension.this.configureHttpClient(builder);
-            }
-
-            @Nullable
-            @Override
-            protected String accessToken() throws Exception {
-                return CentralDogmaExtension.this.accessToken();
             }
 
             @Override
@@ -276,14 +268,6 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
      * Override this method to configure the {@link WebClient} builder.
      */
     protected void configureHttpClient(WebClientBuilder builder) {}
-
-    /**
-     * Override this method to inject an access token to the clients.
-     */
-    @Nullable
-    protected String accessToken() throws Exception {
-        return null;
-    }
 
     /**
      * Override this method to perform the initial updates on the server,
