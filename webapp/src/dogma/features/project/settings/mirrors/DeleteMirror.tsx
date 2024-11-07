@@ -1,15 +1,5 @@
-import {
-  Button,
-  HStack,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
-  useDisclosure,
-} from '@chakra-ui/react';
+import { Button, useDisclosure } from '@chakra-ui/react';
+import { DeleteConfirmationModal } from 'dogma/features/project/settings/DeleteConfirmationModal';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
@@ -42,26 +32,15 @@ export const DeleteMirror = ({
       <Button leftIcon={<MdDelete />} colorScheme="red" size="sm" variant="ghost" onClick={onToggle}>
         Delete
       </Button>
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Are you sure?</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            Delete mirror &apos{id}&apos from {projectName}?
-          </ModalBody>
-          <ModalFooter>
-            <HStack spacing={3}>
-              <Button colorScheme="red" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button colorScheme="red" onClick={handleDelete} isLoading={isLoading} loadingText="Deleting">
-                Delete
-              </Button>
-            </HStack>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <DeleteConfirmationModal
+        isOpen={isOpen}
+        onClose={onClose}
+        id={id}
+        type={'mirror'}
+        projectName={projectName}
+        handleDelete={handleDelete}
+        isLoading={isLoading}
+      />
     </>
   );
 };
