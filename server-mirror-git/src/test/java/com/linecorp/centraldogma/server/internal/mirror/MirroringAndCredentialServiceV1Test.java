@@ -41,6 +41,7 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
@@ -65,6 +66,18 @@ class MirroringAndCredentialServiceV1Test {
         protected void configure(CentralDogmaBuilder builder) {
             builder.authProviderFactory(new TestAuthProviderFactory());
             builder.administrators(USERNAME);
+        }
+
+        @Override
+        protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
+            try {
+                final String accessToken = getAccessToken(
+                        WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
+                        USERNAME, PASSWORD);
+                builder.accessToken(accessToken);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         @Override

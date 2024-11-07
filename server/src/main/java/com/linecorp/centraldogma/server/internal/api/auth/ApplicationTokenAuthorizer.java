@@ -36,13 +36,11 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.Authorizer;
-import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.Tokens;
-import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.metadata.UserWithToken;
 
 /**
@@ -62,12 +60,6 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
     @Override
     public CompletionStage<Boolean> authorize(ServiceRequestContext ctx, HttpRequest data) {
         final OAuth2Token token = AuthTokenExtractors.oAuth2().apply(data.headers());
-        if (token != null && token.accessToken().equals(CsrfToken.ANONYMOUS)) {
-            AuthUtil.setCurrentUser(ctx, User.ANONYMOUS);
-            HttpApiUtil.setVerboseResponses(ctx, User.ANONYMOUS);
-            return completedFuture(true);
-        }
-
         if (token == null || !Tokens.isValidSecret(token.accessToken())) {
             return completedFuture(false);
         }
