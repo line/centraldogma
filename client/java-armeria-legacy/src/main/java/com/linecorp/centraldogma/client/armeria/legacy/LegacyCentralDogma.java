@@ -513,7 +513,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     }
 
     private static void validateProjectName(String projectName) {
-        Util.validateProjectName(projectName, "projectName");
+        Util.validateProjectName(projectName, "projectName", false);
     }
 
     private static void validateProjectAndRepositoryName(String projectName, String repositoryName) {

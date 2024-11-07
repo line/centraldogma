@@ -40,7 +40,7 @@ public class CreateProjectRequest {
     public CreateProjectRequest(@JsonProperty("name") String name,
                                 @JsonProperty("owners") @Nullable Set<String> owners,
                                 @JsonProperty("members") @Nullable Set<String> members) {
-        this.name = validateProjectName(name, "name");
+        this.name = validateProjectName(name, "name", false);
         this.owners = owners != null ? ImmutableSet.copyOf(owners) : ImmutableSet.of();
         this.members = members != null ? ImmutableSet.copyOf(members) : ImmutableSet.of();
     }

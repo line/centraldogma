@@ -123,7 +123,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     @Override
     public void createProject(String name, AsyncMethodCallback resultHandler) {
-        validateProjectName(name, "name");
+        validateProjectName(name, "name", false);
         // ProjectInitializingCommandExecutor initializes a metadata for the specified project.
         handle(projectApiManager.createProject(name, SYSTEM), resultHandler);
     }

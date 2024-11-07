@@ -156,14 +156,6 @@ public final class Util {
         return PATH_PATTERN_PATTERN.matcher(pathPattern).matches();
     }
 
-    public static String validateProjectName(String projectName, String paramName) {
-        requireNonNull(projectName, paramName);
-        checkArgument(isValidProjectName(projectName),
-                      "%s: %s (expected: %s)", paramName, projectName,
-                      USER_INPUT_PROJECT_AND_REPO_NAME_PATTERN);
-        return projectName;
-    }
-
     public static String validateProjectName(String projectName, String paramName, boolean allowInternal) {
         requireNonNull(projectName, paramName);
         if (allowInternal) {
