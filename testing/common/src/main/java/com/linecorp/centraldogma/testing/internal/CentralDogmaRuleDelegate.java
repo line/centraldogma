@@ -138,16 +138,16 @@ public class CentralDogmaRuleDelegate {
             final ArmeriaCentralDogmaBuilder clientBuilder = new ArmeriaCentralDogmaBuilder();
             final LegacyCentralDogmaBuilder legacyClientBuilder = new LegacyCentralDogmaBuilder();
 
-            configureClientCommon(clientBuilder);
-            configureClientCommon(legacyClientBuilder);
-            configureClient(clientBuilder);
-            configureClient(legacyClientBuilder);
-
             final String accessToken = accessToken();
             if (accessToken != null) {
                 clientBuilder.accessToken(accessToken);
                 legacyClientBuilder.accessToken(accessToken);
             }
+
+            configureClientCommon(clientBuilder);
+            configureClientCommon(legacyClientBuilder);
+            configureClient(clientBuilder);
+            configureClient(legacyClientBuilder);
 
             try {
                 client = clientBuilder.build();

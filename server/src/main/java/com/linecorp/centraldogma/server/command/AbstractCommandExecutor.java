@@ -46,6 +46,10 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     private final Consumer<CommandExecutor> onTakeLeadership;
     @Nullable
     private final Consumer<CommandExecutor> onReleaseLeadership;
+    @Nullable
+    private final Consumer<CommandExecutor> onTakeZoneLeadership;
+    @Nullable
+    private final Consumer<CommandExecutor> onReleaseZoneLeadership;
 
     private final CommandExecutorStartStop startStop = new CommandExecutorStartStop();
     private volatile boolean started;
@@ -58,11 +62,17 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
      *
      * @param onTakeLeadership the callback to be invoked after the replica has taken the leadership
      * @param onReleaseLeadership the callback to be invoked before the replica releases the leadership
+     * @param onTakeZoneLeadership the callback to be invoked after the replica has taken the zone leadership
+     * @param onReleaseZoneLeadership the callback to be invoked before the replica releases the zone leadership
      */
     protected AbstractCommandExecutor(@Nullable Consumer<CommandExecutor> onTakeLeadership,
-                                      @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
+                                      @Nullable Consumer<CommandExecutor> onReleaseLeadership,
+                                      @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
+                                      @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
         this.onTakeLeadership = onTakeLeadership;
         this.onReleaseLeadership = onReleaseLeadership;
+        this.onTakeZoneLeadership = onTakeZoneLeadership;
+        this.onReleaseZoneLeadership = onReleaseZoneLeadership;
         statusManager = new CommandExecutorStatusManager(this);
     }
 
@@ -86,7 +96,9 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     }
 
     protected abstract void doStart(@Nullable Runnable onTakeLeadership,
-                                    @Nullable Runnable onReleaseLeadership) throws Exception;
+                                    @Nullable Runnable onReleaseLeadership,
+                                    @Nullable Runnable onTakeZoneLeadership,
+                                    @Nullable Runnable onReleaseZoneLeadership) throws Exception;
 
     @Override
     public final CompletableFuture<Void> stop() {
@@ -95,7 +107,8 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
         return startStop.stop().thenRun(numPendingStopRequests::decrementAndGet);
     }
 
-    protected abstract void doStop(@Nullable Runnable onReleaseLeadership) throws Exception;
+    protected abstract void doStop(@Nullable Runnable onReleaseLeadership,
+                                   @Nullable Runnable onReleaseZoneLeadership) throws Exception;
 
     @Override
     public final boolean isWritable() {
@@ -155,7 +168,9 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
             return execute("command-executor", () -> {
                 try {
                     AbstractCommandExecutor.this.doStart(toRunnable(onTakeLeadership),
-                                                         toRunnable(onReleaseLeadership));
+                                                         toRunnable(onReleaseLeadership),
+                                                         toRunnable(onTakeZoneLeadership),
+                                                         toRunnable(onReleaseZoneLeadership));
                 } catch (Exception e) {
                     Exceptions.throwUnsafely(e);
                 }
@@ -166,7 +181,8 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
         protected CompletionStage<Void> doStop(@Nullable Void unused) throws Exception {
             return execute("command-executor-shutdown", () -> {
                 try {
-                    AbstractCommandExecutor.this.doStop(toRunnable(onReleaseLeadership));
+                    AbstractCommandExecutor.this.doStop(toRunnable(onReleaseLeadership),
+                                                        toRunnable(onReleaseZoneLeadership));
                 } catch (Exception e) {
                     Exceptions.throwUnsafely(e);
                 }

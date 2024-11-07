@@ -74,6 +74,8 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
      * @param sessionManager the session manager for creating/removing a session
      * @param onTakeLeadership the callback to be invoked after the replica has taken the leadership
      * @param onReleaseLeadership the callback to be invoked before the replica releases the leadership
+     * @param onTakeZoneLeadership the callback to be invoked after the replica has taken the zone leadership
+     * @param onReleaseZoneLeadership the callback to be invoked before the replica releases the zone leadership
      */
     public StandaloneCommandExecutor(ProjectManager projectManager,
                                      Executor repositoryWorker,
@@ -81,10 +83,12 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                                      @Nullable SessionManager sessionManager,
                                      @Nullable QuotaConfig writeQuota,
                                      @Nullable Consumer<CommandExecutor> onTakeLeadership,
-                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
+                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership,
+                                     @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
+                                     @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
         this(projectManager, repositoryWorker, serverStatusManager, sessionManager,
              writeQuota != null ? writeQuota.permitsPerSecond() : 0,
-             onTakeLeadership, onReleaseLeadership);
+             onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
     }
 
     /**
@@ -95,15 +99,19 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
      * @param sessionManager the session manager for creating/removing a session
      * @param onTakeLeadership the callback to be invoked after the replica has taken the leadership
      * @param onReleaseLeadership the callback to be invoked before the replica releases the leadership
+     * @param onTakeZoneLeadership the callback to be invoked after the replica has taken the zone leadership
+     * @param onReleaseZoneLeadership the callback to be invoked before the replica releases the zone leadership
      */
     public StandaloneCommandExecutor(ProjectManager projectManager,
                                      Executor repositoryWorker,
                                      ServerStatusManager serverStatusManager,
                                      @Nullable SessionManager sessionManager,
                                      @Nullable Consumer<CommandExecutor> onTakeLeadership,
-                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
-        this(projectManager, repositoryWorker, serverStatusManager, sessionManager, -1, onTakeLeadership,
-             onReleaseLeadership);
+                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership,
+                                     @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
+                                     @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
+        this(projectManager, repositoryWorker, serverStatusManager, sessionManager, -1,
+             onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
     }
 
     private StandaloneCommandExecutor(ProjectManager projectManager,
@@ -112,8 +120,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                                       @Nullable SessionManager sessionManager,
                                       double permitsPerSecond,
                                       @Nullable Consumer<CommandExecutor> onTakeLeadership,
-                                      @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
-        super(onTakeLeadership, onReleaseLeadership);
+                                      @Nullable Consumer<CommandExecutor> onReleaseLeadership,
+                                      @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
+                                      @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
+        super(onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.serverStatusManager = requireNonNull(serverStatusManager, "serverStatusManager");
@@ -130,16 +140,24 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     @Override
     protected void doStart(@Nullable Runnable onTakeLeadership,
-                           @Nullable Runnable onReleaseLeadership) {
+                           @Nullable Runnable onReleaseLeadership,
+                           @Nullable Runnable onTakeZoneLeadership,
+                           @Nullable Runnable onReleaseZoneLeadership) {
         if (onTakeLeadership != null) {
             onTakeLeadership.run();
+        }
+        if (onTakeZoneLeadership != null) {
+            onTakeZoneLeadership.run();
         }
     }
 
     @Override
-    protected void doStop(@Nullable Runnable onReleaseLeadership) {
+    protected void doStop(@Nullable Runnable onReleaseLeadership, @Nullable Runnable onReleaseZoneLeadership) {
         if (onReleaseLeadership != null) {
             onReleaseLeadership.run();
+        }
+        if (onReleaseZoneLeadership != null) {
+            onReleaseZoneLeadership.run();
         }
     }
 

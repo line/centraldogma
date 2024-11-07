@@ -120,11 +120,7 @@ public class ProjectServiceV1 extends AbstractService {
         }
 
         if (role == null) {
-            if (user.isAnonymous()) {
-                role = ProjectRole.ANONYMOUS;
-            } else {
-                role = ProjectRole.GUEST;
-            }
+            role = ProjectRole.GUEST;
         }
 
         return role;

@@ -169,6 +169,8 @@ public final class ZooKeeperCommandExecutor
 
     @Nullable
     private final QuotaConfig writeQuota;
+    @Nullable
+    private final String zone;
 
     private MetadataService metadataService;
 
@@ -184,6 +186,12 @@ public final class ZooKeeperCommandExecutor
     private volatile OldLogRemover oldLogRemover;
     private volatile ExecutorService leaderSelectorExecutor;
     private volatile LeaderSelector leaderSelector;
+    @Nullable
+    private volatile ZoneLeaderPluginsRunner zonePluginsRunner;
+    @Nullable
+    private volatile ExecutorService zoneLeaderSelectorExecutor;
+    @Nullable
+    private volatile LeaderSelector zoneLeaderSelector;
     private volatile ScheduledExecutorService quotaExecutor;
     private volatile boolean createdParentNodes;
     private volatile boolean canReplicate;
@@ -323,17 +331,73 @@ public final class ZooKeeperCommandExecutor
         }
     }
 
+    private class ZoneLeaderPluginsRunner implements LeaderSelectorListener {
+        volatile boolean hasLeadership;
+
+        @Override
+        public void stateChanged(CuratorFramework client, ConnectionState newState) {
+            //ignore
+        }
+
+        @Override
+        public void takeLeadership(CuratorFramework client) throws Exception {
+            final ListenerInfo listenerInfo = ZooKeeperCommandExecutor.this.listenerInfo;
+            if (listenerInfo == null) {
+                // Stopped.
+                return;
+            }
+
+            logger.info("Taking the {} zone leadership: {}", zone, replicaId());
+            try {
+                hasLeadership = true;
+                if (listenerInfo.onTakeZoneLeadership != null) {
+                    listenerInfo.onTakeZoneLeadership.run();
+                }
+
+                synchronized (this) {
+                    // Wait until the zone leadership is lost.
+                    wait();
+                }
+            } catch (InterruptedException e) {
+                // Leader selector has been closed.
+            } catch (Exception e) {
+                logger.error("Leader stopped due to an unexpected exception:", e);
+            } finally {
+                hasLeadership = false;
+                logger.info("Releasing the zone {} leadership: {}", zone, replicaId());
+                if (listenerInfo.onReleaseZoneLeadership != null) {
+                    listenerInfo.onReleaseZoneLeadership.run();
+                }
+
+                if (ZooKeeperCommandExecutor.this.listenerInfo != null) {
+                    // Requeue only when the executor is not stopped.
+                    zoneLeaderSelector.requeue();
+                }
+            }
+        }
+    }
+
     private static final class ListenerInfo {
         long lastReplayedRevision;
+        @Nullable
         final Runnable onTakeLeadership;
+        @Nullable
         final Runnable onReleaseLeadership;
+        @Nullable
+        final Runnable onTakeZoneLeadership;
+        @Nullable
+        final Runnable onReleaseZoneLeadership;
 
         ListenerInfo(long lastReplayedRevision,
-                     @Nullable Runnable onTakeLeadership, @Nullable Runnable onReleaseLeadership) {
+                     @Nullable Runnable onTakeLeadership, @Nullable Runnable onReleaseLeadership,
+                     @Nullable Runnable onTakeZoneLeadership, @Nullable Runnable onReleaseZoneLeadership
+        ) {
 
             this.lastReplayedRevision = lastReplayedRevision;
             this.onReleaseLeadership = onReleaseLeadership;
             this.onTakeLeadership = onTakeLeadership;
+            this.onTakeZoneLeadership = onTakeZoneLeadership;
+            this.onReleaseZoneLeadership = onReleaseZoneLeadership;
         }
     }
 
@@ -344,9 +408,12 @@ public final class ZooKeeperCommandExecutor
                                     MeterRegistry meterRegistry,
                                     ProjectManager projectManager,
                                     @Nullable QuotaConfig writeQuota,
+                                    @Nullable String zone,
                                     @Nullable Consumer<CommandExecutor> onTakeLeadership,
-                                    @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
-        super(onTakeLeadership, onReleaseLeadership);
+                                    @Nullable Consumer<CommandExecutor> onReleaseLeadership,
+                                    @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
+                                    @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
+        super(onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
 
         this.cfg = requireNonNull(cfg, "cfg");
         requireNonNull(dataDir, "dataDir");
@@ -362,6 +429,7 @@ public final class ZooKeeperCommandExecutor
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
         this.writeQuota = writeQuota;
         metadataService = new MetadataService(projectManager, this);
+        this.zone = zone;
 
         // Register the metrics which are accessible even before started.
         Gauge.builder("replica.id", this, self -> replicaId()).register(meterRegistry);
@@ -377,6 +445,15 @@ public final class ZooKeeperCommandExecutor
                           return remover != null && remover.hasLeadership ? 1 : 0;
                       })
              .register(meterRegistry);
+        if (onTakeZoneLeadership != null) {
+            Gauge.builder("replica.has.zone.leadership", this,
+                          self -> {
+                              final ZoneLeaderPluginsRunner zoneRunner = self.zonePluginsRunner;
+                              return zoneRunner != null && zoneRunner.hasLeadership ? 1 : 0;
+                          })
+                 .tag("zone", zone)
+                 .register(meterRegistry);
+        }
         Gauge.builder("replica.last.replayed.revision", this,
                       self -> {
                           final ListenerInfo info = self.listenerInfo;
@@ -395,13 +472,16 @@ public final class ZooKeeperCommandExecutor
 
     @Override
     protected void doStart(@Nullable Runnable onTakeLeadership,
-                           @Nullable Runnable onReleaseLeadership) throws Exception {
+                           @Nullable Runnable onReleaseLeadership,
+                           @Nullable Runnable onTakeZoneLeadership,
+                           @Nullable Runnable onReleaseZoneLeadership) throws Exception {
         try {
             // Get the last replayed revision.
             final long lastReplayedRevision;
             try {
                 lastReplayedRevision = getLastReplayedRevision();
-                listenerInfo = new ListenerInfo(lastReplayedRevision, onTakeLeadership, onReleaseLeadership);
+                listenerInfo = new ListenerInfo(lastReplayedRevision, onTakeLeadership, onReleaseLeadership,
+                                                onTakeZoneLeadership, onReleaseZoneLeadership);
             } catch (Exception e) {
                 throw new ReplicationException("failed to read " + revisionFile, e);
             }
@@ -442,6 +522,21 @@ public final class ZooKeeperCommandExecutor
             leaderSelector = new LeaderSelector(curator, absolutePath(LEADER_PATH),
                                                 leaderSelectorExecutor, oldLogRemover);
             leaderSelector.start();
+
+            if (onTakeZoneLeadership != null) {
+                // Start the zone leader selection.
+                zonePluginsRunner = new ZoneLeaderPluginsRunner();
+                zoneLeaderSelectorExecutor = ExecutorServiceMetrics.monitor(
+                        meterRegistry,
+                        Executors.newSingleThreadExecutor(
+                                new DefaultThreadFactory("zookeeper-zone-leader-selector", true)),
+                        "zkZoneLeaderSelector");
+
+                assert zone != null;
+                zoneLeaderSelector = new LeaderSelector(curator, absolutePath(LEADER_PATH, zone),
+                                                        zoneLeaderSelectorExecutor, zonePluginsRunner);
+                zoneLeaderSelector.start();
+            }
 
             // Start the delegate.
             // The delegate is StandaloneCommandExecutor, which will be quite fast to start.
@@ -635,7 +730,8 @@ public final class ZooKeeperCommandExecutor
     }
 
     @Override
-    protected void doStop(@Nullable Runnable onReleaseLeadership) throws Exception {
+    protected void doStop(@Nullable Runnable onReleaseLeadership,
+                          @Nullable Runnable onReleaseZoneLeadership) throws Exception {
         canReplicate = false;
         listenerInfo = null;
         logger.info("Stopping the worker threads");
@@ -666,36 +762,47 @@ public final class ZooKeeperCommandExecutor
                 logger.warn("Failed to close the leader selector: {}", e.getMessage(), e);
             } finally {
                 try {
-                    if (logWatcher != null) {
-                        logger.info("Closing the log watcher");
-                        logWatcher.close();
-                        interrupted |= shutdown(logWatcherExecutor);
-                        logger.info("Closed the log watcher");
+                    if (zoneLeaderSelector != null) {
+                        logger.info("Closing the zone {} leader selector", zone);
+                        zoneLeaderSelector.close();
+                        interrupted |= shutdown(zoneLeaderSelectorExecutor);
+                        logger.info("Closed the zone {} leader selector", zone);
                     }
                 } catch (Exception e) {
-                    logger.warn("Failed to close the log watcher: {}", e.getMessage(), e);
+                    logger.warn("Failed to close the zone {} leader selector: {}", zone, e.getMessage(), e);
                 } finally {
                     try {
-                        if (curator != null) {
-                            logger.info("Closing the Curator framework");
-                            curator.close();
-                            logger.info("Closed the Curator framework");
+                        if (logWatcher != null) {
+                            logger.info("Closing the log watcher");
+                            logWatcher.close();
+                            interrupted |= shutdown(logWatcherExecutor);
+                            logger.info("Closed the log watcher");
                         }
                     } catch (Exception e) {
-                        logger.warn("Failed to close the Curator framework: {}", e.getMessage(), e);
+                        logger.warn("Failed to close the log watcher: {}", e.getMessage(), e);
                     } finally {
                         try {
-                            if (quorumPeer != null) {
-                                final long peerId = quorumPeer.getId();
-                                logger.info("Shutting down the ZooKeeper peer ({})", peerId);
-                                quorumPeer.shutdown();
-                                logger.info("Shut down the ZooKeeper peer ({})", peerId);
+                            if (curator != null) {
+                                logger.info("Closing the Curator framework");
+                                curator.close();
+                                logger.info("Closed the Curator framework");
                             }
                         } catch (Exception e) {
-                            logger.warn("Failed to shut down the ZooKeeper peer: {}", e.getMessage(), e);
+                            logger.warn("Failed to close the Curator framework: {}", e.getMessage(), e);
                         } finally {
-                            if (interrupted) {
-                                Thread.currentThread().interrupt();
+                            try {
+                                if (quorumPeer != null) {
+                                    final long peerId = quorumPeer.getId();
+                                    logger.info("Shutting down the ZooKeeper peer ({})", peerId);
+                                    quorumPeer.shutdown();
+                                    logger.info("Shut down the ZooKeeper peer ({})", peerId);
+                                }
+                            } catch (Exception e) {
+                                logger.warn("Failed to shut down the ZooKeeper peer: {}", e.getMessage(), e);
+                            } finally {
+                                if (interrupted) {
+                                    Thread.currentThread().interrupt();
+                                }
                             }
                         }
                     }

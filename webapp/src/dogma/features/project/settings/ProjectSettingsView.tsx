@@ -35,7 +35,7 @@ interface ProjectSettingsViewProps {
 }
 
 type TabName = 'repositories' | 'permissions' | 'members' | 'tokens' | 'mirrors' | 'credentials';
-type UserRole = 'OWNER' | 'MEMBER' | 'GUEST' | 'ANONYMOUS';
+type UserRole = 'OWNER' | 'MEMBER' | 'GUEST';
 
 export interface TapInfo {
   name: TabName;

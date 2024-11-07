@@ -30,9 +30,10 @@ enum DefaultConfigValueConverter implements ConfigValueConverter {
     private static final String PLAINTEXT = "plaintext";
     private static final String FILE = "file";
     private static final String BASE64 = "base64";
+    private static final String ENV = "env";
 
     // TODO(minwoox): Add more prefixes such as classpath, url, etc.
-    private static final List<String> SUPPORTED_PREFIXES = ImmutableList.of(PLAINTEXT, FILE, BASE64);
+    private static final List<String> SUPPORTED_PREFIXES = ImmutableList.of(PLAINTEXT, FILE, BASE64, ENV);
 
     @Override
     public List<String> supportedPrefixes() {
@@ -52,6 +53,8 @@ enum DefaultConfigValueConverter implements ConfigValueConverter {
                 }
             case BASE64:
                 return new String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8).trim();
+            case ENV:
+                return System.getenv(value);
             default:
                 // Should never reach here.
                 throw new Error();

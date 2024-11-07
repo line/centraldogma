@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.common.util.StartStopSupport;
@@ -64,7 +65,7 @@ final class PluginGroup {
      */
     @Nullable
     static PluginGroup loadPlugins(PluginTarget target, CentralDogmaConfig config) {
-        return loadPlugins(PluginGroup.class.getClassLoader(), target, config);
+        return loadPlugins(PluginGroup.class.getClassLoader(), target, config, ImmutableList.of());
     }
 
     /**
@@ -76,21 +77,22 @@ final class PluginGroup {
      * @param target the {@link PluginTarget} which would be loaded
      */
     @Nullable
-    static PluginGroup loadPlugins(ClassLoader classLoader, PluginTarget target, CentralDogmaConfig config) {
+    static PluginGroup loadPlugins(ClassLoader classLoader, PluginTarget target, CentralDogmaConfig config,
+                                   List<Plugin> plugins) {
         requireNonNull(classLoader, "classLoader");
         requireNonNull(target, "target");
         requireNonNull(config, "config");
 
         final ServiceLoader<Plugin> loader = ServiceLoader.load(Plugin.class, classLoader);
-        final ImmutableMap.Builder<Class<?>, Plugin> plugins = new ImmutableMap.Builder<>();
-        for (Plugin plugin : loader) {
+        final ImmutableMap.Builder<Class<?>, Plugin> allPlugins = new ImmutableMap.Builder<>();
+        for (Plugin plugin : Iterables.concat(plugins, loader)) {
             if (target == plugin.target() && plugin.isEnabled(config)) {
-                plugins.put(plugin.configType(), plugin);
+                allPlugins.put(plugin.configType(), plugin);
             }
         }
 
         // IllegalArgumentException is thrown if there are duplicate keys.
-        final Map<Class<?>, Plugin> pluginMap = plugins.build();
+        final Map<Class<?>, Plugin> pluginMap = allPlugins.build();
         if (pluginMap.isEmpty()) {
             return null;
         }
