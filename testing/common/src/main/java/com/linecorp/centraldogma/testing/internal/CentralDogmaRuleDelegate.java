@@ -138,12 +138,7 @@ public class CentralDogmaRuleDelegate {
             final ArmeriaCentralDogmaBuilder clientBuilder = new ArmeriaCentralDogmaBuilder();
             final LegacyCentralDogmaBuilder legacyClientBuilder = new LegacyCentralDogmaBuilder();
 
-            final String accessToken;
-            try {
-                accessToken = accessToken();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+            final String accessToken = accessToken();
             if (accessToken != null) {
                 clientBuilder.accessToken(accessToken);
                 legacyClientBuilder.accessToken(accessToken);
