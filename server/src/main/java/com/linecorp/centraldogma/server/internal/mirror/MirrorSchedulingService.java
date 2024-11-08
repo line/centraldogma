@@ -24,6 +24,7 @@ import java.io.File;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -39,9 +40,10 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
@@ -51,6 +53,8 @@ import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorListener;
+import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -61,6 +65,19 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 public final class MirrorSchedulingService implements MirroringService {
 
     private static final Logger logger = LoggerFactory.getLogger(MirrorSchedulingService.class);
+
+    private static final MirrorListener mirrorListener;
+
+    static {
+        final List<MirrorListener> listeners =
+                ImmutableList.copyOf(ServiceLoader.load(MirrorListener.class,
+                                                        DefaultMirroringServicePlugin.class.getClassLoader()));
+        if (listeners.isEmpty()) {
+            mirrorListener = DefaultMirrorListener.INSTANCE;
+        } else {
+            mirrorListener = new CompositeMirrorListener(listeners);
+        }
+    }
 
     /**
      * How often to check the mirroring schedules. i.e. every second.
@@ -80,8 +97,9 @@ public final class MirrorSchedulingService implements MirroringService {
     private ZonedDateTime lastExecutionTime;
     private final MeterRegistry meterRegistry;
 
-    MirrorSchedulingService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
-                            int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror) {
+    @VisibleForTesting
+    public MirrorSchedulingService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
+                                   int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror) {
 
         this.workDir = requireNonNull(workDir, "workDir");
         this.projectManager = requireNonNull(projectManager, "projectManager");
@@ -220,26 +238,23 @@ public final class MirrorSchedulingService implements MirroringService {
     }
 
     private void run(Project project, Mirror m) {
-        final ListenableFuture<?> future = worker.submit(() -> run(m, project.name(), true));
-        Futures.addCallback(future, new FutureCallback<Object>() {
-            @Override
-            public void onSuccess(@Nullable Object result) {}
-
-            @Override
-            public void onFailure(Throwable cause) {
-                logger.warn("Unexpected Git mirroring failure: {}", m, cause);
-            }
-        }, MoreExecutors.directExecutor());
+        worker.submit(() -> run(m, project.name(), true));
     }
 
-    private void run(Mirror m, String projectName, boolean logOnFailure) {
-        logger.info("Mirroring: {}", m);
+    private void run(Mirror m, String projectName, boolean scheduled) {
         try {
-            new MirroringTask(m, projectName, meterRegistry)
-                    .run(workDir, commandExecutor, maxNumFilesPerMirror, maxNumBytesPerMirror);
+            if (scheduled) {
+                mirrorListener.onStart(m);
+            }
+            final MirrorResult mirrorResult =
+                    new MirroringTask(m, projectName, meterRegistry)
+                            .run(workDir, commandExecutor, maxNumFilesPerMirror, maxNumBytesPerMirror);
+            if (scheduled) {
+                mirrorListener.onComplete(m, mirrorResult);
+            }
         } catch (Exception e) {
-            if (logOnFailure) {
-                logger.warn("Unexpected exception while mirroring: {}", m, e);
+            if (scheduled) {
+                mirrorListener.onError(m, e);
             } else {
                 if (e instanceof MirrorException) {
                     throw (MirrorException) e;
