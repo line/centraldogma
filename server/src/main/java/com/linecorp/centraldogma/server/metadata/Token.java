@@ -198,6 +198,9 @@ public final class Token implements Identifiable {
      * This method must be called by the token whose secret is not null.
      */
     public Token withSystemAdmin(boolean isSystemAdmin) {
+        if (isSystemAdmin == isSystemAdmin()) {
+            return this;
+        }
         final String secret = secret();
         assert secret != null;
         return new Token(appId(), secret, null, isSystemAdmin, creation(), deactivation(), deletion());
