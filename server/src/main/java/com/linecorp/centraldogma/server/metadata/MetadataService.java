@@ -57,6 +57,7 @@ import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.TestAbsenceOperation;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -1011,14 +1012,25 @@ public class MetadataService {
                               "Update the token level: " + appId + " to " + (toBeAdmin ? "admin" : "user"),
                               () -> tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
                                              .thenApply(tokens -> {
-                                                 final JsonPointer adminPath = JsonPointer.compile(
-                                                         "/appIds" + encodeSegment(appId) +
-                                                         "/admin");
+                                                 final Tokens tokens0 = tokens.object();
+                                                 final Token token = tokens0.get(appId);
+                                                 if (token == null) {
+                                                     throw new TokenNotFoundException("App ID: " + appId);
+                                                 }
+                                                 if (toBeAdmin == token.isAdmin()) {
+                                                     throw new IllegalArgumentException(
+                                                             "The token is already " +
+                                                             (toBeAdmin ? "admin" : "user"));
+                                                 }
+                                                 final JsonPointer path = JsonPointer.compile(
+                                                         "/appIds" + encodeSegment(appId));
+
                                                  final Change<JsonNode> change = Change.ofJsonPatch(
                                                          TOKEN_JSON,
-                                                         new ReplaceOperation(adminPath,
-                                                                              Jackson.valueToTree(
-                                                                                      toBeAdmin)).toJsonNode());
+                                                         new ReplaceOperation(
+                                                                 path,
+                                                                 Jackson.valueToTree(token.withAdmin(
+                                                                         toBeAdmin))).toJsonNode());
                                                  return HolderWithRevision.of(change, tokens.revision());
                                              }));
     }

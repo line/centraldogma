@@ -68,7 +68,7 @@ public final class Token implements Identifiable {
     private final UserAndTimestamp deletion;
 
     Token(String appId, String secret, boolean isAdmin, UserAndTimestamp creation) {
-        this(appId, secret, isAdmin, creation, null, null);
+        this(appId, secret, isAdmin, isAdmin, creation, null, null);
     }
 
     /**
@@ -77,13 +77,16 @@ public final class Token implements Identifiable {
     @JsonCreator
     public Token(@JsonProperty("appId") String appId,
                  @JsonProperty("secret") String secret,
-                 @JsonProperty("admin") boolean isAdmin,
+                 // TODO(minwoox): Remove admin field after all tokens are migrated.
+                 @JsonProperty("admin") @Nullable Boolean isAdmin,
+                 @JsonProperty("systemAdmin") @Nullable Boolean isSystemAdmin,
                  @JsonProperty("creation") UserAndTimestamp creation,
                  @JsonProperty("deactivation") @Nullable UserAndTimestamp deactivation,
                  @JsonProperty("deletion") @Nullable UserAndTimestamp deletion) {
+        assert isAdmin != null || isSystemAdmin != null;
         this.appId = Util.validateFileName(appId, "appId");
         this.secret = Util.validateFileName(secret, "secret");
-        this.isAdmin = isAdmin;
+        this.isAdmin = isSystemAdmin != null ? isSystemAdmin : isAdmin;
         this.creation = requireNonNull(creation, "creation");
         this.deactivation = deactivation;
         this.deletion = deletion;
@@ -188,5 +191,18 @@ public final class Token implements Identifiable {
      */
     public Token withoutSecret() {
         return new Token(appId(), isAdmin(), creation(), deactivation(), deletion());
+    }
+
+    /**
+     * Returns a new {@link Token} instance with {@code isAdmin}.
+     * This method must be called by the token whose secret is not null.
+     */
+    public Token withAdmin(boolean isAdmin) {
+        if (isAdmin == isAdmin()) {
+            return this;
+        }
+        final String secret = secret();
+        assert secret != null;
+        return new Token(appId(), secret, isAdmin, isAdmin, creation(), deactivation(), deletion());
     }
 }
