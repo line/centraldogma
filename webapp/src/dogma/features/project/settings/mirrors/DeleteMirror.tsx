@@ -29,7 +29,7 @@ export const DeleteMirror = ({
   };
   return (
     <>
-      <Button leftIcon={<MdDelete />} colorScheme="red" size="sm" variant="ghost" onClick={onToggle}>
+      <Button leftIcon={<MdDelete />} colorScheme="red" size="sm" onClick={onToggle}>
         Delete
       </Button>
       <DeleteConfirmationModal
