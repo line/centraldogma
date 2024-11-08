@@ -42,6 +42,8 @@ jgit = "5.13.3.202401111512-r"
 jgit6 = "6.10.0.202406032230-r"
 junit4 = "4.13.2"
 junit5 = "5.11.0"
+# Don't upgrade junit-pioneer to 2.x.x that requires Java 11
+junit-pioneer = "1.9.1"
 jsch = "0.1.55"
 # Don't update `json-path` version
 json-path = "2.2.0"
@@ -298,6 +300,10 @@ module = "org.junit.vintage:junit-vintage-engine"
 module = "org.junit.platform:junit-platform-commons"
 [libraries.junit5-platform-launcher]
 module = "org.junit.platform:junit-platform-launcher"
+
+[libraries.junit-pioneer]
+module = "org.junit-pioneer:junit-pioneer"
+version.ref = "junit-pioneer"
 
 [libraries.kubernetes-client-api]
 module = "io.fabric8:kubernetes-client-api"

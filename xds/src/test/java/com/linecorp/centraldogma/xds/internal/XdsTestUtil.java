@@ -202,6 +202,7 @@ public final class XdsTestUtil {
                                                       .setEdsConfig(configSource)
                                                       .setServiceName(clusterName))
                       .setType(Cluster.DiscoveryType.EDS)
+                      .setRespectDnsTtl(true)
                       .build();
     }
 

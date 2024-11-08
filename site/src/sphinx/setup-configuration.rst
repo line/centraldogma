@@ -64,7 +64,8 @@ defaults:
         "port": 36463,
         "protocol": null,
         "path": null
-      }
+      },
+      "zone": null
     }
 
 Core properties
@@ -261,6 +262,16 @@ Core properties
   - ``path``
 
     - the path of the management service. If not specified, the management service is mounted at ``/internal/management``.
+
+- ``zone`` (string)
+
+    - the zone name of the server. If not specified, ``PluginTarget.ZONE_LEADER_ONLY`` can't be used.
+
+      - If the value starts with ``env:``, the environment variable is used as the zone name.
+        For example, if the value is ``env:ZONE_NAME``, the environment variable named ``ZONE_NAME`` is used as the
+        zone name.
+
+      - You can also dynamically load a zone name by implementing :api:`com.linecorp.centraldogma.server.ConfigValueConverter`.
 
 .. _replication:
 

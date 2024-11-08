@@ -104,7 +104,8 @@ public final class MirrorRunner implements SafeCloseable {
     }
 
     private MetaRepository metaRepo(String projectName) {
-        return projectApiManager.getProject(projectName).metaRepo();
+        // Assume that internal projects does not have mirrors.
+        return projectApiManager.getProject(projectName, null).metaRepo();
     }
 
     @Override

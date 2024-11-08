@@ -88,7 +88,7 @@ public class ProjectServiceV1 extends AbstractService {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            return projectApiManager.listProjects().values().stream()
+            return projectApiManager.listProjects(user).values().stream()
                                     .map(project -> DtoConverter.convert(project, getUserRole(project, user)))
                                     .collect(toImmutableList());
         }, executor);
@@ -120,11 +120,7 @@ public class ProjectServiceV1 extends AbstractService {
         }
 
         if (role == null) {
-            if (user.isAnonymous()) {
-                role = ProjectRole.ANONYMOUS;
-            } else {
-                role = ProjectRole.GUEST;
-            }
+            role = ProjectRole.GUEST;
         }
 
         return role;
@@ -138,9 +134,9 @@ public class ProjectServiceV1 extends AbstractService {
     @Post("/projects")
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
-    public CompletableFuture<ProjectDto> createProject(CreateProjectRequest request, Author author) {
+    public CompletableFuture<ProjectDto> createProject(CreateProjectRequest request, Author author, User user) {
         return projectApiManager.createProject(request.name(), author).handle(returnOrThrow(() -> {
-            final Project project = projectApiManager.getProject(request.name());
+            final Project project = projectApiManager.getProject(request.name(), user);
             return DtoConverter.convert(project, ProjectRole.OWNER);
         }));
     }
@@ -193,10 +189,11 @@ public class ProjectServiceV1 extends AbstractService {
     @Consumes("application/json-patch+json")
     @Patch("/projects/{projectName}")
     @RequiresAdministrator
-    public CompletableFuture<ProjectDto> patchProject(@Param String projectName, JsonNode node, Author author) {
+    public CompletableFuture<ProjectDto> patchProject(@Param String projectName, JsonNode node, Author author,
+                                                      User user) {
         checkUnremoveArgument(node);
         return projectApiManager.unremoveProject(projectName, author)
                                 .handle(returnOrThrow(() -> DtoConverter.convert(
-                                        projectApiManager.getProject(projectName), ProjectRole.OWNER)));
+                                        projectApiManager.getProject(projectName, user), ProjectRole.OWNER)));
     }
 }

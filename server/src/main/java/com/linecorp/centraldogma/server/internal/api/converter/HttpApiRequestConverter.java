@@ -52,13 +52,14 @@ public final class HttpApiRequestConverter implements RequestConverterFunction {
             ServiceRequestContext ctx, AggregatedHttpRequest request, Class<?> expectedResultType,
             @Nullable ParameterizedType expectedParameterizedResultType) throws Exception {
 
+        final User user = AuthUtil.currentUser(ctx);
         if (expectedResultType == Project.class) {
             final String projectName = ctx.pathParam("projectName");
             checkArgument(!isNullOrEmpty(projectName),
                           "project name should not be null or empty.");
 
             // ProjectNotFoundException would be thrown if there is no project.
-            return projectApiManager.getProject(projectName);
+            return projectApiManager.getProject(projectName, user);
         }
 
         if (expectedResultType == Repository.class) {
@@ -70,14 +71,14 @@ public final class HttpApiRequestConverter implements RequestConverterFunction {
                           "repository name should not be null or empty.");
 
             if (Project.REPO_DOGMA.equals(repositoryName) &&
-                !AuthUtil.currentUser(ctx).isAdmin()) {
+                !user.isAdmin()) {
                 return HttpApiUtil.throwResponse(
                         ctx, HttpStatus.FORBIDDEN,
                         "Repository '%s/%s' can be accessed only by an administrator.",
                         projectName, Project.REPO_DOGMA);
             }
             // RepositoryNotFoundException would be thrown if there is no project or no repository.
-            return projectApiManager.getProject(projectName).repos().get(repositoryName);
+            return projectApiManager.getProject(projectName, user).repos().get(repositoryName);
         }
 
         if (expectedResultType == Author.class) {
@@ -85,7 +86,7 @@ public final class HttpApiRequestConverter implements RequestConverterFunction {
         }
 
         if (expectedResultType == User.class) {
-            return AuthUtil.currentUser(ctx);
+            return user;
         }
 
         return RequestConverterFunction.fallthrough();
