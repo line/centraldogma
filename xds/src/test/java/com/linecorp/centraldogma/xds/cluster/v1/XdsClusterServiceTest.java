@@ -81,7 +81,10 @@ class XdsClusterServiceTest {
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), clusterBuilder);
         final Cluster actualCluster = clusterBuilder.build();
         final String clusterName = "groups/foo/clusters/foo-cluster/1";
-        assertThat(actualCluster).isEqualTo(cluster.toBuilder().setName(clusterName).build());
+        assertThat(actualCluster).isEqualTo(cluster.toBuilder()
+                                                   .setName(clusterName)
+                                                   .setRespectDnsTtl(true)
+                                                   .build());
         checkResourceViaDiscoveryRequest(actualCluster, clusterName, true);
 
         // Create the same cluster again.
@@ -149,11 +152,18 @@ class XdsClusterServiceTest {
         JSON_MESSAGE_MARSHALLER.mergeValue(response.contentUtf8(), clusterBuilder);
         final Cluster actualCluster = clusterBuilder.build();
         final String clusterName = "groups/foo/clusters/foo-cluster/2";
-        assertThat(actualCluster).isEqualTo(cluster.toBuilder().setName(clusterName).build());
+        assertThat(actualCluster).isEqualTo(cluster.toBuilder()
+                                                   .setName(clusterName)
+                                                   .setRespectDnsTtl(true)
+                                                   .build());
         checkResourceViaDiscoveryRequest(actualCluster, clusterName, true);
 
-        final Cluster updatingCluster = cluster.toBuilder().setConnectTimeout(
-                Duration.newBuilder().setSeconds(2).build()).setName(clusterName).build();
+        final Cluster updatingCluster = cluster.toBuilder()
+                                               .setConnectTimeout(
+                                                       Duration.newBuilder().setSeconds(2).build())
+                                               .setName(clusterName)
+                                               .setRespectDnsTtl(false)
+                                               .build();
         response = updateCluster("groups/foo", "foo-cluster/2", updatingCluster, dogma.httpClient());
         assertOk(response);
         final Cluster.Builder clusterBuilder2 = Cluster.newBuilder();
@@ -177,7 +187,10 @@ class XdsClusterServiceTest {
         response = createCluster("groups/foo", "foo-cluster/3/4", cluster, dogma.httpClient());
         assertOk(response);
 
-        final Cluster actualCluster = cluster.toBuilder().setName(clusterName).build();
+        final Cluster actualCluster = cluster.toBuilder()
+                                             .setName(clusterName)
+                                             .setRespectDnsTtl(true)
+                                             .build();
         checkResourceViaDiscoveryRequest(actualCluster, clusterName, true);
 
         // Add permission test.
@@ -204,7 +217,10 @@ class XdsClusterServiceTest {
                                                                     .setClusterId("foo-cluster/5/6")
                                                                     .setCluster(cluster).build());
         final String clusterName = "groups/foo/clusters/foo-cluster/5/6";
-        assertThat(response).isEqualTo(cluster.toBuilder().setName(clusterName).build());
+        assertThat(response).isEqualTo(cluster.toBuilder()
+                                              .setName(clusterName)
+                                              .setRespectDnsTtl(true)
+                                              .build());
 
         final Cluster updatingCluster = cluster.toBuilder().setConnectTimeout(
                 Duration.newBuilder().setSeconds(2).build()).setName(clusterName).build();
