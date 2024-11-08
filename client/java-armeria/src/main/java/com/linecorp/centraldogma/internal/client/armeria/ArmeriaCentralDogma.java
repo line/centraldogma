@@ -91,6 +91,7 @@ import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.common.PathPattern;
+import com.linecorp.centraldogma.common.PermissionException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.PushResult;
@@ -135,6 +136,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                         .put(InvalidPushException.class.getName(), InvalidPushException::new)
                         .put(ReadOnlyException.class.getName(), ReadOnlyException::new)
                         .put(MirrorException.class.getName(), MirrorException::new)
+                        .put(PermissionException.class.getName(), PermissionException::new)
                         .build();
 
     private final WebClient client;
@@ -904,7 +906,9 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static void validateProjectName(String projectName) {
-        Util.validateProjectName(projectName, "projectName");
+        // We don't know if the token has the permission to access internal projects.
+        // The server will reject the request if the token does not have the permission.
+        Util.validateProjectName(projectName, "projectName", true);
     }
 
     private static void validateProjectAndRepositoryName(String projectName, String repositoryName) {

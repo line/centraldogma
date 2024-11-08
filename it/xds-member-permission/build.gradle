@@ -1,0 +1,6 @@
+dependencies {
+    testImplementation(project(':server'))
+    testImplementation(project(":server-auth:shiro"))
+    testImplementation libs.shiro.core
+    testImplementation(project(':xds'))
+}
