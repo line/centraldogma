@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.PermissionException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -156,7 +157,7 @@ public final class ProjectApiManager {
                 return project;
             }
         }
-        throw new IllegalArgumentException("Cannot access " + projectName);
+        throw new PermissionException("Cannot access " + projectName);
     }
 
     private static boolean isInternalProject(String projectName) {

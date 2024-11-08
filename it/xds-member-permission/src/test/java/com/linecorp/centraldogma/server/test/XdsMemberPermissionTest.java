@@ -67,7 +67,6 @@ class XdsMemberPermissionTest {
 
         @Override
         protected void scaffold(CentralDogma client) {
-            client.createProject("foo").join();
         }
     };
 
@@ -80,7 +79,7 @@ class XdsMemberPermissionTest {
                 .host("127.0.0.1", dogma.serverAddress().getPort())
                 .accessToken(adminToken)
                 .build();
-
+        adminClient.createProject("foo").join();
         final BlockingWebClient adminWebClient =
                 WebClient.builder("http://127.0.0.1:" + dogma.serverAddress().getPort())
                          .decorator(LoggingClient.newDecorator())

@@ -32,9 +32,11 @@ import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.ServerErrorHandler;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ExceptionHandlerFunction;
+import com.linecorp.centraldogma.common.AuthorizationException;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.EntryNoContentException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.PermissionException;
 import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
@@ -112,7 +114,11 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                .put(ReadOnlyException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause))
                .put(MirrorException.class,
-                    (ctx, cause) -> newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause));
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause))
+               .put(AuthorizationException.class,
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.UNAUTHORIZED, cause))
+               .put(PermissionException.class,
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.FORBIDDEN, cause));
 
         exceptionHandlers = builder.build();
     }

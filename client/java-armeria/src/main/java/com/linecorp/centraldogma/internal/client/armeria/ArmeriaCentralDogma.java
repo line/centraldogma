@@ -91,6 +91,7 @@ import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.common.PathPattern;
+import com.linecorp.centraldogma.common.PermissionException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.PushResult;
@@ -135,6 +136,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                         .put(InvalidPushException.class.getName(), InvalidPushException::new)
                         .put(ReadOnlyException.class.getName(), ReadOnlyException::new)
                         .put(MirrorException.class.getName(), MirrorException::new)
+                        .put(PermissionException.class.getName(), PermissionException::new)
                         .build();
 
     private final WebClient client;
