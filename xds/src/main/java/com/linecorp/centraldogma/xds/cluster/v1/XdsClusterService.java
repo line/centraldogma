@@ -64,10 +64,20 @@ public final class XdsClusterService extends XdsClusterServiceImplBase {
         }
 
         final String clusterName = parent + CLUSTERS_DIRECTORY + clusterId;
-        // Ignore the specified name in the cluster and set the name
-        // with the format of "groups/{group}/clusters/{cluster}".
-        // https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids
-        final Cluster cluster = request.getCluster().toBuilder().setName(clusterName).build();
+        final Cluster cluster
+                = request.getCluster()
+                         .toBuilder()
+                         // Ignore the specified name in the cluster and set the name with the format of
+                         // "groups/{group}/clusters/{cluster}".
+                         // https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids
+                         .setName(clusterName)
+                         // Respect the DNS TTL would be more efficient in terms of DNS resolution.
+                         // https://github.com/envoyproxy/envoy/issues/6876
+                         // `respect_dns_ttl` is a `bool` field so it is not possible to check whether a value
+                         // has not been set for the field. Until we create our own proto file, the value only
+                         // can be set to false via the update API.
+                         .setRespectDnsTtl(true)
+                         .build();
         xdsResourceManager.push(responseObserver, group, clusterName, CLUSTERS_DIRECTORY + clusterId + ".json",
                                 "Create cluster: " + clusterName, cluster, currentAuthor(), true);
     }

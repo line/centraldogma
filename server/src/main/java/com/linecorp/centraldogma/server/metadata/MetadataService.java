@@ -906,7 +906,8 @@ public class MetadataService {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
-        final Collection<Project> projects = listProjectsWithoutInternal(projectManager.list()).values();
+        final Collection<Project> projects = listProjectsWithoutInternal(projectManager.list(),
+                                                                         User.SYSTEM_ADMIN).values();
         // Remove the token from projects that only have the token.
         for (Project project : projects) {
             final ProjectMetadata projectMetadata = fetchMetadata(project.name()).join().object();

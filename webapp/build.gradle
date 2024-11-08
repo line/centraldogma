@@ -15,6 +15,7 @@ dependencies {
     testImplementation(project(":server"))
     testImplementation(project(":server-mirror-git"))
     testImplementation(project(":server-auth:shiro"))
+    testImplementation(project(":xds"))
     testImplementation libs.shiro.core
 }
 
