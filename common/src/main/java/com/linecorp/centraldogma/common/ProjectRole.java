@@ -29,8 +29,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 public enum ProjectRole {
     OWNER,
     MEMBER,
-    GUEST,
-    ANONYMOUS;
+    GUEST;
 
     /**
      * Returns a {@link ProjectRole} matched with the specified {@code str}.

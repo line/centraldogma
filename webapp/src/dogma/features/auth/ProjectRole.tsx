@@ -4,7 +4,7 @@ import { ReactNode } from 'react';
 import { UserDto } from './UserDto';
 import { ProjectMetadataDto } from '../project/ProjectMetadataDto';
 
-type ProjectRole = 'OWNER' | 'MEMBER' | 'GUEST' | 'ANONYMOUS';
+type ProjectRole = 'OWNER' | 'MEMBER' | 'GUEST';
 
 type WithProjectRoleProps = {
   projectName: string;

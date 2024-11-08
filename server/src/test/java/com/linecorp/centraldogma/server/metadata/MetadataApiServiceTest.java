@@ -108,8 +108,7 @@ class MetadataApiServiceTest {
                                       "{\n" +
                                       "  \"owner\": [ \"READ\", \"WRITE\" ],\n" +
                                       "  \"member\": [ \"READ\" ],\n" +
-                                      "  \"guest\": [ ],\n" +
-                                      "  \"anonymous\": [ ]\n" +
+                                      "  \"guest\": [ ]\n" +
                                       '}')
                              .build();
         systemAdminClient.execute(request).aggregate().join();

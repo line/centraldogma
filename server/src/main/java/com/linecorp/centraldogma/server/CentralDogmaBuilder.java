@@ -49,6 +49,7 @@ import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
 import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -132,8 +133,11 @@ public final class CentralDogmaBuilder {
     private CorsConfig corsConfig;
 
     private final List<PluginConfig> pluginConfigs = new ArrayList<>();
+    private final List<Plugin> plugins = new ArrayList<>();
     @Nullable
     private ManagementConfig managementConfig;
+    @Nullable
+    private String zone;
 
     /**
      * Creates a new builder with the specified data directory.
@@ -532,6 +536,23 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Adds the {@link Plugin}s.
+     */
+    public CentralDogmaBuilder plugins(Plugin... plugins) {
+        requireNonNull(plugins, "plugins");
+        return plugins(ImmutableList.copyOf(plugins));
+    }
+
+    /**
+     * Adds the {@link Plugin}s.
+     */
+    public CentralDogmaBuilder plugins(Iterable<? extends Plugin> plugins) {
+        requireNonNull(plugins, "plugins");
+        this.plugins.addAll(ImmutableList.copyOf(plugins));
+        return this;
+    }
+
+    /**
      * Enables a management service with the specified {@link ManagementConfig}.
      */
     public CentralDogmaBuilder management(ManagementConfig managementConfig) {
@@ -541,10 +562,19 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Specifies the zone of the server.
+     */
+    public CentralDogmaBuilder zone(String zone) {
+        requireNonNull(zone, "zone");
+        this.zone = zone;
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
-        return new CentralDogma(buildConfig(), meterRegistry);
+        return new CentralDogma(buildConfig(), meterRegistry, ImmutableList.copyOf(plugins));
     }
 
     private CentralDogmaConfig buildConfig() {
@@ -573,6 +603,6 @@ public final class CentralDogmaBuilder {
                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
                                       webAppEnabled, webAppTitle,replicationConfig,
                                       null, accessLogFormat, authCfg, quotaConfig,
-                                      corsConfig, pluginConfigs, managementConfig);
+                                      corsConfig, pluginConfigs, managementConfig, zone);
     }
 }

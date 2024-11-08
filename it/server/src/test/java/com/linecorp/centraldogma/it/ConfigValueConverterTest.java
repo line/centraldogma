@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.it;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.SetEnvironmentVariable;
 
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 
@@ -29,5 +30,13 @@ class ConfigValueConverterTest {
                 .isEqualTo("invalid space prefix:invalid");
         assertThat(CentralDogmaConfig.convertValue("valid_prefix:value", "property"))
                 .isEqualTo("valid_value");
+    }
+
+    @SetEnvironmentVariable(key = "ZONE", value = "ZONE_A")
+    @SetEnvironmentVariable(key = "MY_ZONE", value = "ZONE_B")
+    @Test
+    void environmentVariable() {
+        assertThat(CentralDogmaConfig.convertValue("env:ZONE", "zone")).isEqualTo("ZONE_A");
+        assertThat(CentralDogmaConfig.convertValue("env:MY_ZONE", "zone")).isEqualTo("ZONE_B");
     }
 }

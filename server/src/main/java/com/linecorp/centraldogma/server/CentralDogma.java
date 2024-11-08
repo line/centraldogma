@@ -218,7 +218,7 @@ public class CentralDogma implements AutoCloseable {
      */
     public static CentralDogma forConfig(File configFile) throws IOException {
         requireNonNull(configFile, "configFile");
-        return new CentralDogma(CentralDogmaConfig.load(configFile), Flags.meterRegistry());
+        return new CentralDogma(CentralDogmaConfig.load(configFile), Flags.meterRegistry(), ImmutableList.of());
     }
 
     private final SettableHealthChecker serverHealth = new SettableHealthChecker(false);
@@ -230,6 +230,8 @@ public class CentralDogma implements AutoCloseable {
     private final PluginGroup pluginsForAllReplicas;
     @Nullable
     private final PluginGroup pluginsForLeaderOnly;
+    @Nullable
+    private final PluginGroup pluginsForZoneLeaderOnly;
 
     private final CentralDogmaConfig cfg;
     @Nullable
@@ -254,12 +256,18 @@ public class CentralDogma implements AutoCloseable {
     @Nullable
     private volatile MirrorRunner mirrorRunner;
 
-    CentralDogma(CentralDogmaConfig cfg, MeterRegistry meterRegistry) {
+    CentralDogma(CentralDogmaConfig cfg, MeterRegistry meterRegistry, List<Plugin> plugins) {
         this.cfg = requireNonNull(cfg, "cfg");
         pluginsForAllReplicas = PluginGroup.loadPlugins(
-                CentralDogma.class.getClassLoader(), PluginTarget.ALL_REPLICAS, cfg);
+                CentralDogma.class.getClassLoader(), PluginTarget.ALL_REPLICAS, cfg, plugins);
         pluginsForLeaderOnly = PluginGroup.loadPlugins(
-                CentralDogma.class.getClassLoader(), PluginTarget.LEADER_ONLY, cfg);
+                CentralDogma.class.getClassLoader(), PluginTarget.LEADER_ONLY, cfg, plugins);
+        pluginsForZoneLeaderOnly = PluginGroup.loadPlugins(
+                CentralDogma.class.getClassLoader(), PluginTarget.ZONE_LEADER_ONLY, cfg, plugins);
+        if (pluginsForZoneLeaderOnly != null) {
+            checkState(!isNullOrEmpty(cfg.zone()),
+                       "zone must be specified when zone leader plugins are enabled.");
+        }
         startStop = new CentralDogmaStartStop(pluginsForAllReplicas);
         this.meterRegistry = meterRegistry;
     }
@@ -335,6 +343,9 @@ public class CentralDogma implements AutoCloseable {
             case ALL_REPLICAS:
                 return pluginsForAllReplicas != null ? ImmutableList.copyOf(pluginsForAllReplicas.plugins())
                                                      : ImmutableList.of();
+            case ZONE_LEADER_ONLY:
+                return pluginsForZoneLeaderOnly != null ?
+                       ImmutableList.copyOf(pluginsForZoneLeaderOnly.plugins()) : ImmutableList.of();
             default:
                 // Should not reach here.
                 throw new Error("Unknown plugin target: " + target);
@@ -483,6 +494,42 @@ public class CentralDogma implements AutoCloseable {
             }
         };
 
+        Consumer<CommandExecutor> onTakeZoneLeadership = null;
+        Consumer<CommandExecutor> onReleaseZoneLeadership = null;
+        // TODO(ikhoon): Deduplicate
+        if (pluginsForZoneLeaderOnly != null) {
+            final String zone = cfg.zone();
+            onTakeZoneLeadership = exec -> {
+                logger.info("Starting plugins on the {} zone leader replica ..", zone);
+                pluginsForZoneLeaderOnly
+                        .start(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer)
+                        .handle((unused, cause) -> {
+                            if (cause == null) {
+                                logger.info("Started plugins on the {} zone leader replica.", zone);
+                            } else {
+                                logger.error("Failed to start plugins on the {} zone leader replica..",
+                                             zone, cause);
+                            }
+                            return null;
+                        });
+            };
+            onReleaseZoneLeadership = exec -> {
+                logger.info("Stopping plugins on the {} zone leader replica ..", zone);
+                pluginsForZoneLeaderOnly.stop(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer)
+                                        .handle((unused, cause) -> {
+                                            if (cause == null) {
+                                                logger.info("Stopped plugins on the {} zone leader replica.",
+                                                            zone);
+                                            } else {
+                                                logger.error(
+                                                        "Failed to stop plugins on the {} zone leader replica.",
+                                                        zone, cause);
+                                            }
+                                            return null;
+                                        });
+            };
+        }
+
         statusManager = new ServerStatusManager(cfg.dataDir());
         logger.info("Startup mode: {}", statusManager.serverStatus());
         final CommandExecutor executor;
@@ -490,13 +537,15 @@ public class CentralDogma implements AutoCloseable {
         switch (replicationMethod) {
             case ZOOKEEPER:
                 executor = newZooKeeperCommandExecutor(pm, repositoryWorker, statusManager, meterRegistry,
-                                                       sessionManager, onTakeLeadership, onReleaseLeadership);
+                                                       sessionManager, onTakeLeadership, onReleaseLeadership,
+                                                       onTakeZoneLeadership, onReleaseZoneLeadership);
                 break;
             case NONE:
                 logger.info("No replication mechanism specified; entering standalone");
                 executor = new StandaloneCommandExecutor(pm, repositoryWorker, statusManager, sessionManager,
                                                          cfg.writeQuotaPerRepository(),
-                                                         onTakeLeadership, onReleaseLeadership);
+                                                         onTakeLeadership, onReleaseLeadership,
+                                                         onTakeZoneLeadership, onReleaseZoneLeadership);
                 break;
             default:
                 throw new Error("unknown replication method: " + replicationMethod);
@@ -714,7 +763,9 @@ public class CentralDogma implements AutoCloseable {
             MeterRegistry meterRegistry,
             @Nullable SessionManager sessionManager,
             @Nullable Consumer<CommandExecutor> onTakeLeadership,
-            @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
+            @Nullable Consumer<CommandExecutor> onReleaseLeadership,
+            @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
+            @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
         final ZooKeeperReplicationConfig zkCfg = (ZooKeeperReplicationConfig) cfg.replicationConfig();
 
         // Delete the old UUID replica ID which is not used anymore.
@@ -726,8 +777,11 @@ public class CentralDogma implements AutoCloseable {
         return new ZooKeeperCommandExecutor(
                 zkCfg, dataDir,
                 new StandaloneCommandExecutor(pm, repositoryWorker, serverStatusManager, sessionManager,
-                        /* onTakeLeadership */ null, /* onReleaseLeadership */ null),
-                meterRegistry, pm, config().writeQuotaPerRepository(), onTakeLeadership, onReleaseLeadership);
+                        /* onTakeLeadership */ null, /* onReleaseLeadership */ null,
+                        /* onTakeZoneLeadership */ null, /* onReleaseZoneLeadership */ null),
+                meterRegistry, pm, config().writeQuotaPerRepository(), config().zone(),
+                onTakeLeadership, onReleaseLeadership,
+                onTakeZoneLeadership, onReleaseZoneLeadership);
     }
 
     private void configureThriftService(ServerBuilder sb, ProjectApiManager projectApiManager,
@@ -1026,7 +1080,6 @@ public class CentralDogma implements AutoCloseable {
         this.repositoryWorker = null;
         this.sessionManager = null;
         this.mirrorRunner = null;
-        projectInitializer = null;
         if (meterRegistryToBeClosed != null) {
             assert meterRegistry instanceof CompositeMeterRegistry;
             ((CompositeMeterRegistry) meterRegistry).remove(meterRegistryToBeClosed);
@@ -1040,6 +1093,9 @@ public class CentralDogma implements AutoCloseable {
         } else {
             logger.info("Stopped the Central Dogma successfully.");
         }
+
+        // Should be nullified after stopping the command executor because the command executor may access it.
+        projectInitializer = null;
     }
 
     private static boolean doStop(
