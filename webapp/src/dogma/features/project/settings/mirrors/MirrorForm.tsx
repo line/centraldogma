@@ -242,7 +242,11 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
               rules={{ required: true }}
               control={control}
               render={({ field: { onChange, value } }) => (
-                <RadioGroup onChange={onChange} value={value} defaultValue={defaultValue.direction}>
+                <RadioGroup
+                  onChange={onChange}
+                  value={value}
+                  defaultValue={defaultValue.direction || 'REMOTE_TO_LOCAL'}
+                >
                   <Stack direction="row">
                     <Radio value="REMOTE_TO_LOCAL" marginRight={2}>
                       <LabelledIcon icon={GoArrowDown} text="Remote to Central Dogma" />
