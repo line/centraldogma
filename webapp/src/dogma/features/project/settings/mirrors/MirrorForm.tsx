@@ -297,8 +297,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
                 id="localPath"
                 name="localPath"
                 type="text"
-                defaultValue={defaultValue.localPath}
-                placeholder="/"
+                defaultValue={defaultValue.localPath || '/'}
                 {...register('localPath', { required: true })}
               />
               <FieldErrorMessage error={errors.localPath} fieldName="Local path" />
@@ -357,8 +356,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
                 id="remoteBranch"
                 name="remoteBranch"
                 type="text"
-                defaultValue={defaultValue.remoteBranch}
-                placeholder="main"
+                defaultValue={defaultValue.remoteBranch || 'main'}
                 {...register('remoteBranch', { required: true })}
               />
               <FieldErrorMessage error={errors.remoteBranch} fieldName="remote branch" />
@@ -369,8 +367,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
                 id="remotePath"
                 name="remotePath"
                 type="text"
-                defaultValue={defaultValue.remotePath}
-                placeholder="/"
+                defaultValue={defaultValue.remotePath || '/'}
                 {...register('remotePath', { required: true })}
               />
               <FieldErrorMessage error={errors.remotePath} fieldName="remote path" />
