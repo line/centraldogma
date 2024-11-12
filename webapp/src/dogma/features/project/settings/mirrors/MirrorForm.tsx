@@ -198,7 +198,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
                   name="schedule"
                   type="text"
                   placeholder="0 * * * * ?"
-                  defaultValue={defaultValue.schedule || '0 * * * * ?'}
+                  defaultValue={defaultValue.schedule}
                   {...register('schedule', { required: true })}
                 />
                 {schedule && (
@@ -242,11 +242,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
               rules={{ required: true }}
               control={control}
               render={({ field: { onChange, value } }) => (
-                <RadioGroup
-                  onChange={onChange}
-                  value={value}
-                  defaultValue={defaultValue.direction || 'REMOTE_TO_LOCAL'}
-                >
+                <RadioGroup onChange={onChange} value={value} defaultValue={defaultValue.direction}>
                   <Stack direction="row">
                     <Radio value="REMOTE_TO_LOCAL" marginRight={2}>
                       <LabelledIcon icon={GoArrowDown} text="Remote to Central Dogma" />
@@ -301,7 +297,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
                 id="localPath"
                 name="localPath"
                 type="text"
-                defaultValue={defaultValue.localPath || '/'}
+                defaultValue={defaultValue.localPath}
                 {...register('localPath', { required: true })}
               />
               <FieldErrorMessage error={errors.localPath} fieldName="Local path" />
@@ -360,7 +356,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
                 id="remoteBranch"
                 name="remoteBranch"
                 type="text"
-                defaultValue={defaultValue.remoteBranch || 'main'}
+                defaultValue={defaultValue.remoteBranch}
                 {...register('remoteBranch', { required: true })}
               />
               <FieldErrorMessage error={errors.remoteBranch} fieldName="remote branch" />
@@ -371,7 +367,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
                 id="remotePath"
                 name="remotePath"
                 type="text"
-                defaultValue={defaultValue.remotePath || '/'}
+                defaultValue={defaultValue.remotePath}
                 {...register('remotePath', { required: true })}
               />
               <FieldErrorMessage error={errors.remotePath} fieldName="remote path" />
