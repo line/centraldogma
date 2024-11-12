@@ -34,9 +34,11 @@ import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.armeria.common.metric.MoreMeters;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorStatus;
+import com.linecorp.centraldogma.server.mirror.MirrorTask;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -48,9 +50,11 @@ class MirroringTaskTest {
         final MeterRegistry meterRegistry = new SimpleMeterRegistry();
         Mirror mirror = newMirror("git://a.com/b.git", DefaultGitMirror.class, "foo", "bar");
         mirror = spy(mirror);
-        doReturn(new MirrorResult(mirror.id(), "foo", "bar", MirrorStatus.SUCCESS, "", Instant.now()))
-                .when(mirror).mirror(any(), any(), anyInt(), anyLong());
-        new MirroringTask(mirror, "foo", meterRegistry).run(null, null, 0, 0L);
+        doReturn(new MirrorResult(mirror.id(), "foo", "bar", MirrorStatus.SUCCESS, "", Instant.now(),
+                                  Instant.now()))
+                .when(mirror).mirror(any(), any(), anyInt(), anyLong(), any());
+        final MirrorTask mirrorTask = new MirrorTask(mirror, User.SYSTEM, Instant.now(), true);
+        new InstrumentedMirroringJob(mirrorTask, meterRegistry).run(null, null, 0, 0L);
         assertThat(MoreMeters.measureAll(meterRegistry))
                 .contains(entry("mirroring.result#count{direction=LOCAL_TO_REMOTE,localPath=/," +
                                 "localRepo=bar,project=foo,remoteBranch=,remotePath=/,success=true}", 1.0));
@@ -62,8 +66,9 @@ class MirroringTaskTest {
         Mirror mirror = newMirror("git://a.com/b.git#main", DefaultGitMirror.class, "foo", "bar");
         mirror = spy(mirror);
         final RuntimeException e = new RuntimeException();
-        doThrow(e).when(mirror).mirror(any(), any(), anyInt(), anyLong());
-        final MirroringTask task = new MirroringTask(mirror, "foo", meterRegistry);
+        doThrow(e).when(mirror).mirror(any(), any(), anyInt(), anyLong(), any());
+        final MirrorTask mirrorTask = new MirrorTask(mirror, User.SYSTEM, Instant.now(), true);
+        final InstrumentedMirroringJob task = new InstrumentedMirroringJob(mirrorTask, meterRegistry);
         assertThatThrownBy(() -> task.run(null, null, 0, 0L))
                 .isSameAs(e);
         assertThat(MoreMeters.measureAll(meterRegistry))
@@ -80,8 +85,9 @@ class MirroringTaskTest {
         doAnswer(invocation -> {
             Thread.sleep(1000);
             return null;
-        }).when(mirror).mirror(any(), any(), anyInt(), anyLong());
-        new MirroringTask(mirror, "foo", meterRegistry).run(null, null, 0, 0L);
+        }).when(mirror).mirror(any(), any(), anyInt(), anyLong(), any());
+        final MirrorTask mirrorTask = new MirrorTask(mirror, User.SYSTEM, Instant.now(), true);
+        new InstrumentedMirroringJob(mirrorTask, meterRegistry).run(null, null, 0, 0L);
         assertThat(MoreMeters.measureAll(meterRegistry))
                 .hasEntrySatisfying(
                         "mirroring.task#total{direction=LOCAL_TO_REMOTE,localPath=/," +

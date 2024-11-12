@@ -50,6 +50,7 @@ public class User implements Identifiable, Serializable {
 
     public static final User DEFAULT = new User("user@localhost.localdomain", LEVEL_USER);
     public static final User ADMIN = new User("admin@localhost.localdomain", LEVEL_ADMIN);
+    public static final User SYSTEM = new User("system@localhost.localdomain", LEVEL_ADMIN);
 
     private final String login;
     private final String name;

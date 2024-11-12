@@ -14,23 +14,22 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.it.mirror.listener;
+package com.linecorp.centraldogma.it.mirror.git;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorListener;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorTask;
 
-public final class TestMirrorListener implements MirrorListener {
+public class TestMirrorRunnerListener implements MirrorListener {
 
-    static final Map<Mirror, Integer> startCount = new ConcurrentHashMap<>();
-    static final Map<Mirror, List<MirrorResult>> completions = new ConcurrentHashMap<>();
-    static final Map<Mirror, List<Throwable>> errors = new ConcurrentHashMap<>();
+    static final Map<String, Integer> startCount = new ConcurrentHashMap<>();
+    static final Map<String, List<MirrorResult>> completions = new ConcurrentHashMap<>();
+    static final Map<String, List<Throwable>> errors = new ConcurrentHashMap<>();
 
     static void reset() {
         startCount.clear();
@@ -38,16 +37,20 @@ public final class TestMirrorListener implements MirrorListener {
         errors.clear();
     }
 
+    private static String key(MirrorTask task) {
+        return task.project().name() + '/' + task.mirror().id() + '/' + task.triggeredBy().login();
+    }
+
     @Override
     public void onStart(MirrorTask mirror) {
-        startCount.merge(mirror.mirror(), 1, Integer::sum);
+        startCount.merge(key(mirror), 1, Integer::sum);
     }
 
     @Override
     public void onComplete(MirrorTask mirror, MirrorResult result) {
         final List<MirrorResult> results = new ArrayList<>();
         results.add(result);
-        completions.merge(mirror.mirror(), results, (oldValue, newValue) -> {
+        completions.merge(key(mirror), results, (oldValue, newValue) -> {
             oldValue.addAll(newValue);
             return oldValue;
         });
@@ -57,7 +60,7 @@ public final class TestMirrorListener implements MirrorListener {
     public void onError(MirrorTask mirror, Throwable cause) {
         final List<Throwable> exceptions = new ArrayList<>();
         exceptions.add(cause);
-        errors.merge(mirror.mirror(), exceptions, (oldValue, newValue) -> {
+        errors.merge(key(mirror), exceptions, (oldValue, newValue) -> {
             oldValue.addAll(newValue);
             return oldValue;
         });

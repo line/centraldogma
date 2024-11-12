@@ -22,6 +22,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.ServiceLoader;
@@ -52,10 +53,11 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorListener;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
-import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.mirror.MirrorTask;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -66,7 +68,7 @@ public final class MirrorSchedulingService implements MirroringService {
 
     private static final Logger logger = LoggerFactory.getLogger(MirrorSchedulingService.class);
 
-    private static final MirrorListener mirrorListener;
+    static final MirrorListener mirrorListener;
 
     static {
         final List<MirrorListener> listeners =
@@ -209,7 +211,7 @@ public final class MirrorSchedulingService implements MirroringService {
                               }
                               try {
                                   if (m.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0) {
-                                      run(project, m);
+                                      runAsync(new MirrorTask(m, User.SYSTEM, Instant.now(), true));
                                   }
                               } catch (Exception e) {
                                   logger.warn("Unexpected exception while mirroring: {}", m, e);
@@ -220,6 +222,7 @@ public final class MirrorSchedulingService implements MirroringService {
 
     @Override
     public CompletableFuture<Void> mirror() {
+        // Note: This method is not used in the production code.
         if (commandExecutor == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -228,7 +231,7 @@ public final class MirrorSchedulingService implements MirroringService {
                 () -> projectManager.list().values().forEach(p -> {
                     try {
                         p.metaRepo().mirrors().get(5, TimeUnit.SECONDS)
-                         .forEach(m -> run(m, p.name(), false));
+                         .forEach(m -> run(new MirrorTask(m, User.SYSTEM, Instant.now(), false)));
                     } catch (InterruptedException | TimeoutException | ExecutionException e) {
                         throw new IllegalStateException(
                                 "Failed to load mirror list with in 5 seconds. project: " + p.name(), e);
@@ -237,25 +240,20 @@ public final class MirrorSchedulingService implements MirroringService {
                 worker);
     }
 
-    private void run(Project project, Mirror m) {
-        worker.submit(() -> run(m, project.name(), true));
+    private void runAsync(MirrorTask m) {
+        worker.submit(() -> run(m));
     }
 
-    private void run(Mirror m, String projectName, boolean scheduled) {
+    private void run(MirrorTask mirrorTask) {
         try {
-            if (scheduled) {
-                mirrorListener.onStart(m);
-            }
-            final MirrorResult mirrorResult =
-                    new MirroringTask(m, projectName, meterRegistry)
+            mirrorListener.onStart(mirrorTask);
+            final MirrorResult result =
+                    new InstrumentedMirroringJob(mirrorTask, meterRegistry)
                             .run(workDir, commandExecutor, maxNumFilesPerMirror, maxNumBytesPerMirror);
-            if (scheduled) {
-                mirrorListener.onComplete(m, mirrorResult);
-            }
+            mirrorListener.onComplete(mirrorTask, result);
         } catch (Exception e) {
-            if (scheduled) {
-                mirrorListener.onError(m, e);
-            } else {
+            mirrorListener.onError(mirrorTask, e);
+            if (!mirrorTask.scheduled()) {
                 if (e instanceof MirrorException) {
                     throw (MirrorException) e;
                 } else {

@@ -21,9 +21,9 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorListener;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.MirrorTask;
 
 final class CompositeMirrorListener implements MirrorListener {
 
@@ -36,10 +36,10 @@ final class CompositeMirrorListener implements MirrorListener {
     }
 
     @Override
-    public void onStart(Mirror mirror) {
+    public void onStart(MirrorTask mirrorTask) {
         for (MirrorListener delegate : delegates) {
             try {
-                delegate.onStart(mirror);
+                delegate.onStart(mirrorTask);
             } catch (Exception e) {
                 logger.warn("Failed to notify a listener of the mirror start event: {}", delegate, e);
             }
@@ -47,10 +47,10 @@ final class CompositeMirrorListener implements MirrorListener {
     }
 
     @Override
-    public void onComplete(Mirror mirror, MirrorResult result) {
+    public void onComplete(MirrorTask mirrorTask, MirrorResult result) {
         for (MirrorListener delegate : delegates) {
             try {
-                delegate.onComplete(mirror, result);
+                delegate.onComplete(mirrorTask, result);
             } catch (Exception e) {
                 logger.warn("Failed to notify a listener of the mirror complete event: {}", delegate, e);
             }
@@ -58,10 +58,10 @@ final class CompositeMirrorListener implements MirrorListener {
     }
 
     @Override
-    public void onError(Mirror mirror, Throwable cause) {
+    public void onError(MirrorTask mirrorTask, Throwable cause) {
         for (MirrorListener delegate : delegates) {
             try {
-                delegate.onError(mirror, cause);
+                delegate.onError(mirrorTask, cause);
             } catch (Exception e) {
                 logger.warn("Failed to notify a listener of the mirror error event: {}", delegate, e);
             }

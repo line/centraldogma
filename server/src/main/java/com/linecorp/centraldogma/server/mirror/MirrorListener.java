@@ -25,9 +25,10 @@ import javax.annotation.Nullable;
  *
  * <p>Implement this interface and register it using {@link ServiceLoader} to override the default behavior:
  * <ul>
- *     <li>{@link #onStart(Mirror)}: Logs an info message for the start of {@link Mirror}.</li>
- *     <li>{@link #onComplete(Mirror, MirrorResult)}: Does nothing.</li>
- *     <li>{@link #onError(Mirror, Throwable)}: Logs a warning message for the error of {@link Mirror}.</li>
+ *     <li>{@link #onStart(MirrorTask)}: Logs an info message for the start of a scheduled {@link Mirror}.</li>
+ *     <li>{@link #onComplete(MirrorTask, MirrorResult)}: Does nothing.</li>
+ *     <li>{@link #onError(MirrorTask, Throwable)}: Logs a warning message for the error of a scheduled
+ *         {@link Mirror}.</li>
  * </ul>
  */
 @Nullable
@@ -36,15 +37,15 @@ public interface MirrorListener {
     /**
      * Invoked when the {@link Mirror} operation is started.
      */
-    void onStart(Mirror mirror);
+    void onStart(MirrorTask mirror);
 
     /**
      * Invoked when the {@link Mirror} operation is completed.
      */
-    void onComplete(Mirror mirror, MirrorResult result);
+    void onComplete(MirrorTask mirror, MirrorResult result);
 
     /**
      * Invoked when the {@link Mirror} operation is failed.
      */
-    void onError(Mirror mirror, Throwable cause);
+    void onError(MirrorTask mirror, Throwable cause);
 }

@@ -19,9 +19,9 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorListener;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.MirrorTask;
 
 enum DefaultMirrorListener implements MirrorListener {
 
@@ -30,17 +30,21 @@ enum DefaultMirrorListener implements MirrorListener {
     private static final Logger logger = LoggerFactory.getLogger(DefaultMirrorListener.class);
 
     @Override
-    public void onStart(Mirror mirror) {
-        logger.info("Mirroring: {}", mirror);
+    public void onStart(MirrorTask mirrorTask) {
+        if (mirrorTask.scheduled()) {
+            logger.info("Mirroring: {}", mirrorTask);
+        }
     }
 
     @Override
-    public void onComplete(Mirror mirror, MirrorResult result) {
+    public void onComplete(MirrorTask mirrorTask, MirrorResult result) {
         // Do nothing
     }
 
     @Override
-    public void onError(Mirror mirror, Throwable cause) {
-        logger.warn("Unexpected exception while mirroring: {}", mirror, cause);
+    public void onError(MirrorTask mirrorTask, Throwable cause) {
+        if (mirrorTask.scheduled()) {
+            logger.warn("Unexpected exception while mirroring: {}", mirrorTask, cause);
+        }
     }
 }
