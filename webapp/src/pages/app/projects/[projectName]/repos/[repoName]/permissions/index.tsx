@@ -52,12 +52,7 @@ const RepoPermissionPage = () => {
     <Deferred isLoading={isLoading} error={error}>
       {() => (
         <Box p="2">
-          <Breadcrumbs
-            path={router.asPath.split('?')[0]}
-            omitIndexList={[0]}
-            unlinkedList={[3]}
-            suffixes={{}}
-          />
+          <Breadcrumbs path={router.asPath.split('?')[0]} omitIndexList={[0, 3]} suffixes={{}} />
           <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
             <Heading size="lg">
               <HStack>

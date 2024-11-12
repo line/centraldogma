@@ -18,18 +18,17 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { newRandomCredential } from 'pages/api/v1/projects/[projectName]/credentials/index';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 
-const credentials: Map<number, CredentialDto> = new Map();
+const credentials: Map<string, CredentialDto> = new Map();
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  const index = parseInt(req.query.index as string, 10);
+  const id = req.query.id as string;
   switch (req.method) {
     case 'GET':
-      const credential = newRandomCredential(index);
-      credentials.set(index, credential);
+      const credential = newRandomCredential(id);
       res.status(200).json(credential);
       break;
     case 'PUT':
-      credentials.set(index, req.body);
+      credentials.set(id, req.body);
       res.status(201).json(`${credentials.size + 2}`);
       break;
     default:

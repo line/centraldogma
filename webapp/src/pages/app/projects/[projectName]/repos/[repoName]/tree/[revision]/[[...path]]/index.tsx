@@ -95,12 +95,7 @@ cat ${project}/${repo}${path}`;
         files = Array.isArray(files) ? files : [files];
         return (
           <Box p="2">
-            <Breadcrumbs
-              path={directoryPath}
-              omitIndexList={[0, 5, 6]}
-              unlinkedList={[3]}
-              suffixes={{ 4: '/tree/head' }}
-            />
+            <Breadcrumbs path={directoryPath} omitIndexList={[0, 3, 5, 6]} suffixes={{ 4: '/tree/head' }} />
             <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
               <Heading size="lg">
                 {filePath ? (

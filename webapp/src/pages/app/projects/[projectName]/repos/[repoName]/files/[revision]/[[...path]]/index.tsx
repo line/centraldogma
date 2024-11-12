@@ -32,12 +32,7 @@ const FileContentPage = () => {
       {() => {
         return (
           <Box p="2">
-            <Breadcrumbs
-              path={router.asPath}
-              omitIndexList={[0, 5, 6]}
-              unlinkedList={[3]}
-              suffixes={{ 4: '/tree/head' }}
-            />
+            <Breadcrumbs path={router.asPath} omitIndexList={[0, 3, 5, 6]} suffixes={{ 4: '/tree/head' }} />
             <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
               <Heading size="lg">
                 <HStack color="teal">

@@ -13,14 +13,13 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode } from 'react';
 import {
   Box,
   Button,
   Flex,
   HStack,
   IconButton,
-  Kbd,
   Link,
   Menu,
   MenuButton,
@@ -36,14 +35,13 @@ import { CloseIcon, HamburgerIcon, MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { default as RouteLink } from 'next/link';
 import { logout } from 'dogma/features/auth/authSlice';
 import Router from 'next/router';
-import { useGetProjectsQuery, useGetTitleQuery } from 'dogma/features/api/apiSlice';
-import { ProjectDto } from 'dogma/features/project/ProjectDto';
-import { components, DropdownIndicatorProps, GroupBase, OptionBase, Select } from 'chakra-react-select';
+import { useGetTitleQuery } from 'dogma/features/api/apiSlice';
 import { NewProject } from 'dogma/features/project/NewProject';
 import { usePathname } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from 'dogma/hooks';
 import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
 import { FaUser } from 'react-icons/fa';
+import ProjectSearchBox from 'dogma/common/components/ProjectSearchBox';
 
 interface TopMenu {
   name: string;
@@ -66,67 +64,11 @@ const NavLink = ({ link, children }: { link: string; children: ReactNode }) => (
   </Link>
 );
 
-export interface ProjectOptionType extends OptionBase {
-  value: string;
-  label: string;
-}
-
-const initialState: ProjectOptionType = {
-  value: '',
-  label: '',
-};
-
-const DropdownIndicator = (
-  props: JSX.IntrinsicAttributes & DropdownIndicatorProps<unknown, boolean, GroupBase<unknown>>,
-) => {
-  return (
-    <components.DropdownIndicator {...props}>
-      <Kbd>/</Kbd>
-    </components.DropdownIndicator>
-  );
-};
-
 export const Navbar = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { colorMode, toggleColorMode } = useColorMode();
   const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
-  const result = useGetProjectsQuery({ admin: false });
-  const projects = result.data || [];
-  const projectOptions: ProjectOptionType[] = projects.map((project: ProjectDto) => ({
-    value: project.name,
-    label: project.name,
-  }));
-  const [selectedOption, setSelectedOption] = useState(initialState);
-  const handleChange = (option: ProjectOptionType) => {
-    setSelectedOption(option);
-  };
-
-  useEffect(() => {
-    if (selectedOption?.value) {
-      Router.push(`/app/projects/${selectedOption.value}`);
-    }
-  }, [selectedOption?.value]);
-
-  const selectRef = useRef(null);
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = (e.target as HTMLElement).tagName.toLowerCase();
-      if (target == 'textarea' || target == 'input') {
-        return;
-      }
-      if (e.key === '/') {
-        e.preventDefault();
-        selectRef.current.clearValue();
-        selectRef.current.focus();
-      } else if (e.key === 'Escape') {
-        selectRef.current.blur();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   const pathname = usePathname();
 
   const { data: titleDto } = useGetTitleQuery();
@@ -159,26 +101,7 @@ export const Navbar = () => {
           <div />
         ) : (
           <Box w="40%">
-            <Select
-              id="color-select"
-              name="project-search"
-              options={projectOptions}
-              value={selectedOption?.value}
-              onChange={(option: ProjectOptionType) => option && handleChange(option)}
-              placeholder="Jump to project ..."
-              closeMenuOnSelect={true}
-              openMenuOnFocus={true}
-              isClearable={true}
-              isSearchable={true}
-              ref={selectRef}
-              components={{ DropdownIndicator }}
-              chakraStyles={{
-                control: (baseStyles) => ({
-                  ...baseStyles,
-                  backgroundColor: colorMode === 'light' ? 'white' : 'whiteAlpha.50',
-                }),
-              }}
-            />
+            <ProjectSearchBox id="nav-search" placeholder="Jump to project ..." />
           </Box>
         )}
         <Flex alignItems="center" gap={2}>
