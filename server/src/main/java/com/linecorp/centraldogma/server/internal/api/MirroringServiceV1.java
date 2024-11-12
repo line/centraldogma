@@ -42,6 +42,7 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -142,9 +143,9 @@ public class MirroringServiceV1 extends AbstractService {
     // Mirroring may be a long-running task, so we need to increase the timeout.
     @RequestTimeout(value = 5, unit = TimeUnit.MINUTES)
     @Post("/projects/{projectName}/mirrors/{mirrorId}/run")
-    public CompletableFuture<MirrorResult> runMirror(@Param String projectName, @Param String mirrorId)
-            throws Exception {
-        return mirrorRunner.run(projectName, mirrorId);
+    public CompletableFuture<MirrorResult> runMirror(@Param String projectName, @Param String mirrorId,
+                                                     User user) throws Exception {
+        return mirrorRunner.run(projectName, mirrorId, user);
     }
 
     private static MirrorDto convertToMirrorDto(String projectName, Mirror mirror) {

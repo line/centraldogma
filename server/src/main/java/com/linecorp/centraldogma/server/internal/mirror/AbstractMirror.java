@@ -176,8 +176,7 @@ public abstract class AbstractMirror implements Mirror {
 
     @Override
     public final MirrorResult mirror(File workDir, CommandExecutor executor, int maxNumFiles,
-                                     long maxNumBytes) {
-        final Instant triggeredTime = Instant.now();
+                                     long maxNumBytes, Instant triggeredTime) {
         try {
             switch (direction()) {
                 case LOCAL_TO_REMOTE:
@@ -213,7 +212,7 @@ public abstract class AbstractMirror implements Mirror {
     protected final MirrorResult newMirrorResult(MirrorStatus mirrorStatus, @Nullable String description,
                                                  Instant triggeredTime) {
         return new MirrorResult(id, localRepo.parent().name(), localRepo.name(), mirrorStatus, description,
-                                triggeredTime);
+                                triggeredTime, Instant.now());
     }
 
     @Override

@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import static com.linecorp.centraldogma.server.internal.ExecutorServiceUtil.terminate;
 
 import java.io.File;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -35,7 +36,10 @@ import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
+import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.mirror.MirrorListener;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.MirrorTask;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 
@@ -77,12 +81,12 @@ public final class MirrorRunner implements SafeCloseable {
                                                 "mirrorApiWorker");
     }
 
-    public CompletableFuture<MirrorResult> run(String projectName, String mirrorId) {
+    public CompletableFuture<MirrorResult> run(String projectName, String mirrorId, User user) {
         // If there is an inflight request, return it to avoid running the same mirror task multiple times.
-        return inflightRequests.computeIfAbsent(new MirrorKey(projectName, mirrorId), this::run);
+        return inflightRequests.computeIfAbsent(new MirrorKey(projectName, mirrorId), key -> run(key, user));
     }
 
-    private CompletableFuture<MirrorResult> run(MirrorKey mirrorKey) {
+    private CompletableFuture<MirrorResult> run(MirrorKey mirrorKey, User user) {
         try {
             final CompletableFuture<MirrorResult> future =
                     metaRepo(mirrorKey.projectName).mirror(mirrorKey.mirrorId).thenApplyAsync(mirror -> {
@@ -90,9 +94,20 @@ public final class MirrorRunner implements SafeCloseable {
                             throw new MirrorException("The mirror is disabled: " + mirrorKey);
                         }
 
-                        return mirror.mirror(workDir, commandExecutor,
-                                             mirrorConfig.maxNumFilesPerMirror(),
-                                             mirrorConfig.maxNumBytesPerMirror());
+                        final MirrorTask mirrorTask = new MirrorTask(mirror, user, Instant.now(), true);
+                        final MirrorListener listener = MirrorSchedulingService.mirrorListener;
+                        listener.onStart(mirrorTask);
+                        try {
+                            final MirrorResult mirrorResult = mirror.mirror(workDir, commandExecutor,
+                                                                            mirrorConfig.maxNumFilesPerMirror(),
+                                                                            mirrorConfig.maxNumBytesPerMirror(),
+                                                                            mirrorTask.triggeredTime());
+                            listener.onComplete(mirrorTask, mirrorResult);
+                            return mirrorResult;
+                        } catch (Exception e) {
+                            listener.onError(mirrorTask, e);
+                            throw e;
+                        }
                     }, worker);
             // Remove the inflight request when the mirror task is done.
             future.handleAsync((unused0, unused1) -> inflightRequests.remove(mirrorKey), worker);
