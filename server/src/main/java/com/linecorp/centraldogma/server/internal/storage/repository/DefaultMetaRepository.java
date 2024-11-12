@@ -315,6 +315,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                 mirrorDto.localPath(),
                 URI.create(remoteUri),
                 mirrorDto.gitignore(),
-                mirrorDto.credentialId());
+                mirrorDto.credentialId(),
+                mirrorDto.zone());
     }
 }

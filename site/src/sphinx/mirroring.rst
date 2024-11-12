@@ -57,7 +57,8 @@ Setting up a mirroring task
      "gitignore": [
          "/credential.txt",
          "private_dir"
-     ]
+     ],
+     "zone": "zone1"
    }
 
 - ``id`` (string)
@@ -116,6 +117,15 @@ Setting up a mirroring task
     The type of gitignore can either be a string containing the entire file (e.g. ``/filename.txt\ndirectory``) or an array 
     of strings where each line represents a single pattern. The file pattern expressed in gitignore is relative to the
     path of ``remoteUri``.
+
+- ``zone`` (string, optional)
+
+   - the zone where the mirroring task is executed.
+
+   - If unspecified:
+
+     - a mirroring task is executed in the first zone of ``zone.zones`` configuration.
+     - if ``zone.zones`` is not configured, a mirroring task is executed in the leader replica.
 
 Setting up a credential
 ^^^^^^^^^^^^^^^^^^^^^^^

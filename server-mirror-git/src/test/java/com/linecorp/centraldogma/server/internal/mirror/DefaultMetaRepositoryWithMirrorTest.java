@@ -171,9 +171,10 @@ class DefaultMetaRepositoryWithMirrorTest {
         } else {
             final List<MirrorDto> mirrors = ImmutableList.of(
                     new MirrorDto("foo", true, project.name(), DEFAULT_SCHEDULE, "LOCAL_TO_REMOTE", "foo",
-                                  "/mirrors/foo", "git+ssh", "foo.com/foo.git", "", "", null, "alice"),
+                                  "/mirrors/foo", "git+ssh", "foo.com/foo.git", "", "", null, "alice", null),
                     new MirrorDto("bar", true, project.name(), "0 */10 * * * ?", "REMOTE_TO_LOCAL", "bar",
-                                  "", "git+ssh", "bar.com/bar.git", "/some-path", "develop", null, "bob"));
+                                  "", "git+ssh", "bar.com/bar.git", "/some-path", "develop", null, "bob",
+                                  null));
             for (Credential credential : CREDENTIALS) {
                 final Command<CommitResult> command =
                         metaRepo.createPushCommand(credential, Author.SYSTEM, false).join();

@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
@@ -34,11 +35,30 @@ import com.linecorp.centraldogma.server.plugin.PluginTarget;
 public final class DefaultMirroringServicePlugin implements Plugin {
 
     @Nullable
+    public static MirroringServicePluginConfig mirrorConfig(CentralDogmaConfig config) {
+        return (MirroringServicePluginConfig) config.pluginConfigMap().get(MirroringServicePluginConfig.class);
+    }
+
+    @Nullable
     private volatile MirrorSchedulingService mirroringService;
 
+    @Nullable
+    private PluginTarget pluginTarget;
+
     @Override
-    public PluginTarget target() {
-        return PluginTarget.LEADER_ONLY;
+    public PluginTarget target(CentralDogmaConfig config) {
+        requireNonNull(config, "config");
+        if (pluginTarget != null) {
+            return pluginTarget;
+        }
+
+        final MirroringServicePluginConfig mirrorConfig = mirrorConfig(config);
+        if (mirrorConfig != null && mirrorConfig.zonePinned()) {
+            pluginTarget = PluginTarget.ZONE_LEADER_ONLY;
+        } else {
+            pluginTarget = PluginTarget.LEADER_ONLY;
+        }
+        return pluginTarget;
     }
 
     @Override
@@ -48,27 +68,37 @@ public final class DefaultMirroringServicePlugin implements Plugin {
         MirrorSchedulingService mirroringService = this.mirroringService;
         if (mirroringService == null) {
             final CentralDogmaConfig cfg = context.config();
-            final MirroringServicePluginConfig mirroringServicePluginConfig =
-                    (MirroringServicePluginConfig) cfg.pluginConfigMap().get(configType());
+            final MirroringServicePluginConfig mirroringServicePluginConfig = mirrorConfig(cfg);
             final int numThreads;
             final int maxNumFilesPerMirror;
             final long maxNumBytesPerMirror;
+            final ZoneConfig zoneConfig;
 
             if (mirroringServicePluginConfig != null) {
                 numThreads = mirroringServicePluginConfig.numMirroringThreads();
                 maxNumFilesPerMirror = mirroringServicePluginConfig.maxNumFilesPerMirror();
                 maxNumBytesPerMirror = mirroringServicePluginConfig.maxNumBytesPerMirror();
+                if (mirroringServicePluginConfig.zonePinned()) {
+                    zoneConfig = cfg.zone();
+                    if (zoneConfig == null) {
+                        throw new IllegalStateException(
+                                "zonePinned is enabled but no zone configuration found");
+                    }
+                } else {
+                    zoneConfig = null;
+                }
             } else {
                 numThreads = MirroringServicePluginConfig.INSTANCE.numMirroringThreads();
                 maxNumFilesPerMirror = MirroringServicePluginConfig.INSTANCE.maxNumFilesPerMirror();
                 maxNumBytesPerMirror = MirroringServicePluginConfig.INSTANCE.maxNumBytesPerMirror();
+                zoneConfig = null;
             }
             mirroringService = new MirrorSchedulingService(new File(cfg.dataDir(), "_mirrors"),
                                                            context.projectManager(),
                                                            context.meterRegistry(),
                                                            numThreads,
                                                            maxNumFilesPerMirror,
-                                                           maxNumBytesPerMirror);
+                                                           maxNumBytesPerMirror, zoneConfig);
             this.mirroringService = mirroringService;
         }
         mirroringService.start(context.commandExecutor());
@@ -97,8 +127,9 @@ public final class DefaultMirroringServicePlugin implements Plugin {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("configType", configType())
-                          .add("target", target())
+                          .omitNullValues()
+                          .add("configType", configType().getName())
+                          .add("target", pluginTarget)
                           .toString();
     }
 }

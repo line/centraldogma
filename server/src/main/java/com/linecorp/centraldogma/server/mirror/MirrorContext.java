@@ -44,13 +44,15 @@ public final class MirrorContext {
     private final URI remoteUri;
     @Nullable
     private final String gitignore;
+    @Nullable
+    private final String zone;
 
     /**
      * Creates a new instance.
      */
     public MirrorContext(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                          Credential credential, Repository localRepo, String localPath, URI remoteUri,
-                         @Nullable String gitignore) {
+                         @Nullable String gitignore, @Nullable String zone) {
         this.id = requireNonNull(id, "id");
         this.enabled = enabled;
         this.schedule = schedule;
@@ -60,6 +62,7 @@ public final class MirrorContext {
         this.localPath = requireNonNull(localPath, "localPath");
         this.remoteUri = requireNonNull(remoteUri, "remoteUri");
         this.gitignore = gitignore;
+        this.zone = zone;
     }
 
     /**
@@ -128,6 +131,14 @@ public final class MirrorContext {
         return gitignore;
     }
 
+    /**
+     * Returns the zone where this mirror is pinned.
+     */
+    @Nullable
+    public String zone() {
+        return zone;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).omitNullValues()
@@ -140,6 +151,7 @@ public final class MirrorContext {
                           .add("localPath", localPath)
                           .add("remoteUri", remoteUri)
                           .add("gitignore", gitignore)
+                          .add("zone", zone)
                           .toString();
     }
 }

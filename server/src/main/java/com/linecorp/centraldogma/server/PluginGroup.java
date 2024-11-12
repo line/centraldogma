@@ -16,10 +16,12 @@
 package com.linecorp.centraldogma.server;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
@@ -27,12 +29,14 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -63,30 +67,28 @@ final class PluginGroup {
      *
      * @param target the {@link PluginTarget} which would be loaded
      */
+    @VisibleForTesting
     @Nullable
     static PluginGroup loadPlugins(PluginTarget target, CentralDogmaConfig config) {
-        return loadPlugins(PluginGroup.class.getClassLoader(), target, config, ImmutableList.of());
+        return loadPlugins(PluginGroup.class.getClassLoader(), config, ImmutableList.of()).get(target);
     }
 
     /**
      * Returns a new {@link PluginGroup} which holds the {@link Plugin}s loaded from the classpath.
-     * {@code null} is returned if there is no {@link Plugin} whose target equals to the specified
+     * An empty map is returned if there is no {@link Plugin} whose target equals to the specified
      * {@code target}.
      *
      * @param classLoader which is used to load the {@link Plugin}s
-     * @param target the {@link PluginTarget} which would be loaded
      */
-    @Nullable
-    static PluginGroup loadPlugins(ClassLoader classLoader, PluginTarget target, CentralDogmaConfig config,
-                                   List<Plugin> plugins) {
+    static Map<PluginTarget, PluginGroup> loadPlugins(ClassLoader classLoader, CentralDogmaConfig config,
+                                                      List<Plugin> plugins) {
         requireNonNull(classLoader, "classLoader");
-        requireNonNull(target, "target");
         requireNonNull(config, "config");
 
         final ServiceLoader<Plugin> loader = ServiceLoader.load(Plugin.class, classLoader);
         final ImmutableMap.Builder<Class<?>, Plugin> allPlugins = new ImmutableMap.Builder<>();
         for (Plugin plugin : Iterables.concat(plugins, loader)) {
-            if (target == plugin.target() && plugin.isEnabled(config)) {
+            if (plugin.isEnabled(config)) {
                 allPlugins.put(plugin.configType(), plugin);
             }
         }
@@ -94,11 +96,31 @@ final class PluginGroup {
         // IllegalArgumentException is thrown if there are duplicate keys.
         final Map<Class<?>, Plugin> pluginMap = allPlugins.build();
         if (pluginMap.isEmpty()) {
-            return null;
+            return ImmutableMap.of();
         }
 
-        return new PluginGroup(pluginMap.values(), Executors.newSingleThreadExecutor(new DefaultThreadFactory(
-                "plugins-for-" + target.name().toLowerCase().replace("_", "-"), true)));
+        final Map<PluginTarget, PluginGroup> pluginGroups =
+                pluginMap.values()
+                         .stream()
+                         .collect(Collectors.groupingBy(plugin -> plugin.target(config)))
+                         .entrySet()
+                         .stream()
+                         .collect(toImmutableMap(Entry::getKey, e -> {
+                             final PluginTarget target = e.getKey();
+                             final List<Plugin> targetPlugins = e.getValue();
+                             final String poolName = "plugins-for-" + target.name().toLowerCase().replace("_",
+                                                                                                          "-");
+                             return new PluginGroup(targetPlugins,
+                                                    Executors.newSingleThreadExecutor(
+                                                            new DefaultThreadFactory(poolName, true)));
+                         }));
+
+        pluginGroups.forEach((target, group) -> {
+            logger.debug("Loaded plugins for target {}: {}", target,
+                         group.plugins().stream().map(plugin -> plugin.getClass().getName())
+                              .collect(Collectors.toList()));
+        });
+        return pluginGroups;
     }
 
     private final List<Plugin> plugins;
@@ -119,9 +141,10 @@ final class PluginGroup {
     /**
      * Returns the first {@link Plugin} of the specified {@code clazz} as wrapped by an {@link Optional}.
      */
-    <T extends Plugin> Optional<T> findFirstPlugin(Class<T> clazz) {
+    @Nullable
+    <T extends Plugin> T findFirstPlugin(Class<T> clazz) {
         requireNonNull(clazz, "clazz");
-        return plugins.stream().filter(clazz::isInstance).map(clazz::cast).findFirst();
+        return plugins.stream().filter(clazz::isInstance).map(clazz::cast).findFirst().orElse(null);
     }
 
     /**

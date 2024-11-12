@@ -265,13 +265,20 @@ Core properties
 
 - ``zone`` (string)
 
-    - the zone name of the server. If not specified, ``PluginTarget.ZONE_LEADER_ONLY`` can't be used.
+    - the zone information of the server. If not specified, ``PluginTarget.ZONE_LEADER_ONLY`` can't be used.
 
-      - If the value starts with ``env:``, the environment variable is used as the zone name.
+    - ``currentZone`` (string)
+
+      - the current zone name. If the value starts with ``env:``, the environment variable is used as the zone name.
         For example, if the value is ``env:ZONE_NAME``, the environment variable named ``ZONE_NAME`` is used as the
         zone name.
 
       - You can also dynamically load a zone name by implementing :api:`com.linecorp.centraldogma.server.ConfigValueConverter`.
+    - ``zones`` (string array)
+
+      - the list of zone names.
+
+      - The current zone name must be included in the list of zone names.
 
 .. _replication:
 
@@ -528,6 +535,7 @@ with ``pluginConfigs`` property in ``dogma.json`` as follows.
           "numMirroringThreads": null,
           "maxNumFilesPerMirror": null,
           "maxNumBytesPerMirror": null,
+          "zonePinned": false
         }
       ]
     }
@@ -554,6 +562,11 @@ properties that can be configured:
   - the maximum allowed number of bytes in a mirror. If the total size of the files in a Git repository exceeds
     this, Central Dogma will reject to mirror the Git repository. If ``null``, the default value of
     '33554432 bytes' (32 MiB) is used.
+
+- ``zonePinned`` (boolean)
+
+   - whether the mirroring plugin is pinned to a specific zone. If ``true``, a mirroring task will be executed
+     only in the specified zone. If ``false``, the plugin will be executed in the leader replica.
 
 For more information about mirroring, refer to :ref:`mirroring`.
 

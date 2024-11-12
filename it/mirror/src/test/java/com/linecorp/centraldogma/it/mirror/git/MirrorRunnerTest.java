@@ -49,10 +49,10 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class MirrorRunnerTest {
 
-    private static final String FOO_PROJ = "foo";
-    private static final String BAR_REPO = "bar";
-    private static final String PRIVATE_KEY_FILE = "ecdsa_256.openssh";
-    private static final String TEST_MIRROR_ID = "test-mirror";
+    static final String FOO_PROJ = "foo";
+    static final String BAR_REPO = "bar";
+    static final String PRIVATE_KEY_FILE = "ecdsa_256.openssh";
+    static final String TEST_MIRROR_ID = "test-mirror";
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
@@ -159,10 +159,11 @@ class MirrorRunnerTest {
                              "/",
                              "main",
                              null,
-                             PRIVATE_KEY_FILE);
+                             PRIVATE_KEY_FILE,
+                             null);
     }
 
-    private static PublicKeyCredential getCredential() throws Exception {
+    static PublicKeyCredential getCredential() throws Exception {
         final String publicKeyFile = "ecdsa_256.openssh.pub";
 
         final byte[] privateKeyBytes =

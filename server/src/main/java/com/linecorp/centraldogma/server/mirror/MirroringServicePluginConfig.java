@@ -32,7 +32,7 @@ import com.linecorp.centraldogma.server.plugin.AbstractPluginConfig;
 public final class MirroringServicePluginConfig extends AbstractPluginConfig {
 
     public static final MirroringServicePluginConfig INSTANCE =
-            new MirroringServicePluginConfig(true, null, null, null);
+            new MirroringServicePluginConfig(true, null, null, null, false);
 
     static final int DEFAULT_NUM_MIRRORING_THREADS = 16;
     static final int DEFAULT_MAX_NUM_FILES_PER_MIRROR = 8192;
@@ -41,12 +41,13 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
     private final int numMirroringThreads;
     private final int maxNumFilesPerMirror;
     private final long maxNumBytesPerMirror;
+    private final boolean zonePinned;
 
     /**
      * Creates a new instance.
      */
     public MirroringServicePluginConfig(boolean enabled) {
-        this(enabled, null, null, null);
+        this(enabled, null, null, null, false);
     }
 
     /**
@@ -57,7 +58,8 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
             @JsonProperty("enabled") @Nullable Boolean enabled,
             @JsonProperty("numMirroringThreads") @Nullable Integer numMirroringThreads,
             @JsonProperty("maxNumFilesPerMirror") @Nullable Integer maxNumFilesPerMirror,
-            @JsonProperty("maxNumBytesPerMirror") @Nullable Long maxNumBytesPerMirror) {
+            @JsonProperty("maxNumBytesPerMirror") @Nullable Long maxNumBytesPerMirror,
+            @JsonProperty("zonePinned") boolean zonePinned) {
         super(enabled);
         this.numMirroringThreads = firstNonNull(numMirroringThreads, DEFAULT_NUM_MIRRORING_THREADS);
         checkArgument(this.numMirroringThreads > 0,
@@ -68,12 +70,13 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
         this.maxNumBytesPerMirror = firstNonNull(maxNumBytesPerMirror, DEFAULT_MAX_NUM_BYTES_PER_MIRROR);
         checkArgument(this.maxNumBytesPerMirror > 0,
                       "maxNumBytesPerMirror: %s (expected: > 0)", this.maxNumBytesPerMirror);
+        this.zonePinned = zonePinned;
     }
 
     /**
      * Returns the number of mirroring threads.
      */
-    @JsonProperty
+    @JsonProperty("numMirroringThreads")
     public int numMirroringThreads() {
         return numMirroringThreads;
     }
@@ -81,7 +84,7 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
     /**
      * Returns the maximum allowed number of files per mirror.
      */
-    @JsonProperty
+    @JsonProperty("maxNumFilesPerMirror")
     public int maxNumFilesPerMirror() {
         return maxNumFilesPerMirror;
     }
@@ -89,9 +92,17 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
     /**
      * Returns the maximum allowed number of bytes per mirror.
      */
-    @JsonProperty
+    @JsonProperty("maxNumBytesPerMirror")
     public long maxNumBytesPerMirror() {
         return maxNumBytesPerMirror;
+    }
+
+    /**
+     * Returns whether a {@link Mirror} is pinned to a specific zone.
+     */
+    @JsonProperty("zonePinned")
+    public boolean zonePinned() {
+        return zonePinned;
     }
 
     @Override
@@ -100,6 +111,7 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
                           .add("numMirroringThreads", numMirroringThreads)
                           .add("maxNumFilesPerMirror", maxNumFilesPerMirror)
                           .add("maxNumBytesPerMirror", maxNumBytesPerMirror)
+                          .add("zonePinned", zonePinned)
                           .toString();
     }
 }

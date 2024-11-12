@@ -27,8 +27,12 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.google.common.collect.ImmutableList;
+
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
@@ -38,17 +42,18 @@ class ZoneLeaderPluginTest {
 
     private static final List<ZoneLeaderTestPlugin> plugins = new ArrayList<>();
     private static final int NUM_REPLICAS = 9;
+    private static final List<String> zones = ImmutableList.of("zone1", "zone2", "zone3");
 
     @RegisterExtension
     static CentralDogmaReplicationExtension cluster = new CentralDogmaReplicationExtension(NUM_REPLICAS) {
         @Override
         protected void configureEach(int serverId, CentralDogmaBuilder builder) {
             if (serverId <= 3) {
-                builder.zone("zone1");
+                builder.zone(new ZoneConfig("zone1", zones));
             } else if (serverId <= 6) {
-                builder.zone("zone2");
+                builder.zone(new ZoneConfig("zone2", zones));
             } else {
-                builder.zone("zone3");
+                builder.zone(new ZoneConfig("zone3", zones));
             }
             final ZoneLeaderTestPlugin plugin = new ZoneLeaderTestPlugin(serverId);
             plugins.add(plugin);
@@ -114,7 +119,7 @@ class ZoneLeaderPluginTest {
         }
 
         @Override
-        public PluginTarget target() {
+        public PluginTarget target(CentralDogmaConfig config) {
             return PluginTarget.ZONE_LEADER_ONLY;
         }
 

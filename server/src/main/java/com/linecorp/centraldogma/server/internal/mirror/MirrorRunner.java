@@ -29,6 +29,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import javax.annotation.Nullable;
+
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.SafeCloseable;
@@ -56,6 +58,8 @@ public final class MirrorRunner implements SafeCloseable {
     private final ExecutorService worker;
 
     private final Map<MirrorKey, CompletableFuture<MirrorResult>> inflightRequests = new ConcurrentHashMap<>();
+    @Nullable
+    private final String currentZone;
 
     public MirrorRunner(ProjectApiManager projectApiManager, CommandExecutor commandExecutor,
                         CentralDogmaConfig cfg, MeterRegistry meterRegistry) {
@@ -70,6 +74,11 @@ public final class MirrorRunner implements SafeCloseable {
             mirrorConfig = MirroringServicePluginConfig.INSTANCE;
         }
         this.mirrorConfig = mirrorConfig;
+        if (cfg.zone() != null) {
+            currentZone = cfg.zone().currentZone();
+        } else {
+            currentZone = null;
+        }
 
         final ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(
                 0, mirrorConfig.numMirroringThreads(),
@@ -91,10 +100,16 @@ public final class MirrorRunner implements SafeCloseable {
             final CompletableFuture<MirrorResult> future =
                     metaRepo(mirrorKey.projectName).mirror(mirrorKey.mirrorId).thenApplyAsync(mirror -> {
                         if (!mirror.enabled()) {
-                            throw new MirrorException("The mirror is disabled: " + mirrorKey);
+                            throw new MirrorException("The mirror is disabled: " +
+                                                      mirrorKey.projectName + '/' + mirrorKey.mirrorId);
                         }
 
-                        final MirrorTask mirrorTask = new MirrorTask(mirror, user, Instant.now(), true);
+                        final String zone = mirror.zone();
+                        if (zone != null && !zone.equals(currentZone)) {
+                            throw new MirrorException("The mirror is not in the current zone: " + currentZone);
+                        }
+                        final MirrorTask mirrorTask = new MirrorTask(mirror, user, Instant.now(),
+                                                                     currentZone, true);
                         final MirrorListener listener = MirrorSchedulingService.mirrorListener;
                         listener.onStart(mirrorTask);
                         try {

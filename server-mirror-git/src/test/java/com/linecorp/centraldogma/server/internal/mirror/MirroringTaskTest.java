@@ -51,9 +51,9 @@ class MirroringTaskTest {
         Mirror mirror = newMirror("git://a.com/b.git", DefaultGitMirror.class, "foo", "bar");
         mirror = spy(mirror);
         doReturn(new MirrorResult(mirror.id(), "foo", "bar", MirrorStatus.SUCCESS, "", Instant.now(),
-                                  Instant.now()))
+                                  Instant.now(), null))
                 .when(mirror).mirror(any(), any(), anyInt(), anyLong(), any());
-        final MirrorTask mirrorTask = new MirrorTask(mirror, User.SYSTEM, Instant.now(), true);
+        final MirrorTask mirrorTask = new MirrorTask(mirror, User.SYSTEM, Instant.now(), null, true);
         new InstrumentedMirroringJob(mirrorTask, meterRegistry).run(null, null, 0, 0L);
         assertThat(MoreMeters.measureAll(meterRegistry))
                 .contains(entry("mirroring.result#count{direction=LOCAL_TO_REMOTE,localPath=/," +
@@ -67,7 +67,7 @@ class MirroringTaskTest {
         mirror = spy(mirror);
         final RuntimeException e = new RuntimeException();
         doThrow(e).when(mirror).mirror(any(), any(), anyInt(), anyLong(), any());
-        final MirrorTask mirrorTask = new MirrorTask(mirror, User.SYSTEM, Instant.now(), true);
+        final MirrorTask mirrorTask = new MirrorTask(mirror, User.SYSTEM, Instant.now(), null, true);
         final InstrumentedMirroringJob task = new InstrumentedMirroringJob(mirrorTask, meterRegistry);
         assertThatThrownBy(() -> task.run(null, null, 0, 0L))
                 .isSameAs(e);
@@ -86,7 +86,7 @@ class MirroringTaskTest {
             Thread.sleep(1000);
             return null;
         }).when(mirror).mirror(any(), any(), anyInt(), anyLong(), any());
-        final MirrorTask mirrorTask = new MirrorTask(mirror, User.SYSTEM, Instant.now(), true);
+        final MirrorTask mirrorTask = new MirrorTask(mirror, User.SYSTEM, Instant.now(), null, true);
         new InstrumentedMirroringJob(mirrorTask, meterRegistry).run(null, null, 0, 0L);
         assertThat(MoreMeters.measureAll(meterRegistry))
                 .hasEntrySatisfying(
