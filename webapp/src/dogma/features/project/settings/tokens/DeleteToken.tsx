@@ -5,25 +5,25 @@ import { useAppDispatch } from 'dogma/hooks';
 import { MdDelete } from 'react-icons/md';
 import { DeleteConfirmationModal } from '../DeleteConfirmationModal';
 
-export const DeleteMember = ({
+export const DeleteToken = ({
   projectName,
   repoName,
   id,
-  deleteMember,
+  deleteToken,
   isLoading,
 }: {
   projectName: string;
   repoName?: string;
   id: string;
-  deleteMember: (projectName: string, id: string, repoName?: string) => Promise<void>;
+  deleteToken: (projectName: string, id: string, repoName?: string) => Promise<void>;
   isLoading: boolean;
 }): JSX.Element => {
   const { isOpen, onToggle, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
   const handleDelete = async () => {
     try {
-      await deleteMember(projectName, id, repoName);
-      dispatch(newNotification('Member deleted.', `Successfully deleted ${id}`, 'success'));
+      await deleteToken(projectName, id, repoName);
+      dispatch(newNotification('Token deleted.', `Successfully deleted ${id}`, 'success'));
       onClose();
     } catch (error) {
       dispatch(newNotification(`Failed to delete ${id}`, ErrorMessageParser.parse(error), 'error'));
@@ -38,7 +38,7 @@ export const DeleteMember = ({
         isOpen={isOpen}
         onClose={onClose}
         id={id}
-        type={'member'}
+        type={'token'}
         projectName={projectName}
         handleDelete={handleDelete}
         isLoading={isLoading}

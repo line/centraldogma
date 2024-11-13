@@ -113,6 +113,8 @@ class MirroringAndCredentialServiceV1Test {
         createAndReadMirror();
         updateMirror();
         rejectInvalidRepositoryUri();
+        deleteMirror();
+        deleteCredential();
     }
 
     private void rejectInvalidRepositoryUri() {
@@ -323,6 +325,42 @@ class MirroringAndCredentialServiceV1Test {
                           .execute();
         final MirrorDto savedMirror = fetchResponse.content();
         assertThat(savedMirror).isEqualTo(mirror);
+    }
+
+    private void deleteMirror() {
+        final String mirrorId = "mirror-2";
+        assertThat(userClient.prepare()
+                             .delete("/api/v1/projects/{proj}/mirrors/{id}")
+                             .pathParam("proj", FOO_PROJ)
+                             .pathParam("id", mirrorId)
+                             .execute()
+                             .status())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(userClient.prepare()
+                             .get("/api/v1/projects/{proj}/mirrors/{id}")
+                             .pathParam("proj", FOO_PROJ)
+                             .pathParam("id", mirrorId)
+                             .execute()
+                             .status())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    private void deleteCredential() {
+        final String credentialId = "public-key-credential";
+        assertThat(userClient.prepare()
+                             .delete("/api/v1/projects/{proj}/credentials/{id}")
+                             .pathParam("proj", FOO_PROJ)
+                             .pathParam("id", credentialId)
+                             .execute()
+                             .status())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(userClient.prepare()
+                             .get("/api/v1/projects/{proj}/credentials/{id}")
+                             .pathParam("proj", FOO_PROJ)
+                             .pathParam("id", credentialId)
+                             .execute()
+                             .status())
+                .isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     private static MirrorDto newMirror(String id) {

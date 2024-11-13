@@ -122,13 +122,11 @@ class AggregatingMultipleKubernetesTest {
                 fooGroup.get(Revision.HEAD, Query.ofJson(
                         K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json")).join();
         assertAggregator(aggregatorEntry.contentAsText(), expectedAggregator);
-        System.err.println("aggregatorEntry.revision(): " + aggregatorEntry.revision());
 
         await().until(() -> fooGroup.normalizeNow(Revision.HEAD).equals(aggregatorEntry.revision().forward(1)));
 
         final Entry<JsonNode> endpointEntry = fooGroup.getOrNull(Revision.HEAD, Query.ofJson(
                 K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json")).join();
-        System.err.println("endpointEntry.revision(): " + endpointEntry.revision());
         assertThatJson(endpointEntry.content()).isEqualTo(
                 '{' +
                 "  \"clusterName\": \"groups/foo/k8s/clusters/foo-k8s-cluster/1\"," +
@@ -193,7 +191,6 @@ class AggregatingMultipleKubernetesTest {
                 endpointEntry.revision().forward(2))); // 2 because of the aggregator update and endpoint update
         final Entry<JsonNode> endpointEntry1 = fooGroup.getOrNull(Revision.HEAD, Query.ofJson(
                 K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json")).join();
-        System.err.println("endpointEntry.revision(): " + endpointEntry1.revision());
         assertThatJson(endpointEntry1.content()).isEqualTo(
                 '{' +
                 "  \"clusterName\": \"groups/foo/k8s/clusters/foo-k8s-cluster/1\"," +
