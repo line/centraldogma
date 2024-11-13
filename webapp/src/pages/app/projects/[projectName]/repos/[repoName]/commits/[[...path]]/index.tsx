@@ -133,8 +133,7 @@ const HistoryListPage = () => {
               path={
                 directoryPath.split('?')[0] + (router.query.from ? `/${baseRevision}..${fromRevision}` : '')
               }
-              omitIndexList={[0]}
-              unlinkedList={[3]}
+              omitIndexList={[0, 3]}
               omitQueryList={omitQueryList}
               query="type=tree"
             />

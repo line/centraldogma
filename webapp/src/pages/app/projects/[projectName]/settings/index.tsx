@@ -16,7 +16,6 @@
 
 import { useRouter } from 'next/router';
 import { Flex, Spacer } from '@chakra-ui/react';
-import { DeleteProject } from 'dogma/features/project/DeleteProject';
 import { NewRepo } from 'dogma/features/repo/NewRepo';
 import RepoMetaList from 'dogma/features/project/settings/repositories/RepoMetaList';
 import ProjectSettingsView from 'dogma/features/project/settings/ProjectSettingsView';
@@ -31,7 +30,6 @@ const ProjectSettingsPage = () => {
           <>
             <Flex gap={3}>
               <Spacer />
-              <DeleteProject projectName={projectName} />
               <NewRepo projectName={projectName} />
             </Flex>
             <RepoMetaList data={Array.from(Object.values(metadata?.repos || {}))} projectName={projectName} />

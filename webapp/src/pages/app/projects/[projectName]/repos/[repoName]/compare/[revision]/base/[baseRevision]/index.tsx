@@ -101,7 +101,7 @@ const ChangesViewPage = () => {
       {() => {
         return (
           <Box>
-            <Breadcrumbs path={router.asPath} omitIndexList={[0, 6, 7, 8]} unlinkedList={[3, 5]} />
+            <Breadcrumbs path={router.asPath} omitIndexList={[0, 3, 6, 7, 8]} unlinkedList={[5]} />
             <Heading size="lg" marginBottom={5}>
               <HStack color="teal">
                 <Box>

@@ -34,7 +34,14 @@ interface ProjectSettingsViewProps {
   children: (meta: ProjectMetadataDto) => ReactNode;
 }
 
-type TabName = 'repositories' | 'permissions' | 'members' | 'tokens' | 'mirrors' | 'credentials';
+type TabName =
+  | 'repositories'
+  | 'permissions'
+  | 'members'
+  | 'tokens'
+  | 'mirrors'
+  | 'credentials'
+  | 'danger zone';
 type UserRole = 'OWNER' | 'MEMBER' | 'GUEST';
 
 export interface TapInfo {
@@ -52,6 +59,7 @@ const TABS: TapInfo[] = [
   { name: 'tokens', path: 'tokens', accessRole: 'OWNER', allowAnonymous: false },
   { name: 'mirrors', path: 'mirrors', accessRole: 'OWNER', allowAnonymous: true },
   { name: 'credentials', path: 'credentials', accessRole: 'OWNER', allowAnonymous: true },
+  { name: 'danger zone', path: 'danger-zone', accessRole: 'OWNER', allowAnonymous: true },
 ];
 
 function isAllowed(userRole: string, anonymous: boolean, tabInfo: TapInfo): boolean {
