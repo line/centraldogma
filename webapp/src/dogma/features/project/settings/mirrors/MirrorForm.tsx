@@ -198,7 +198,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
                   name="schedule"
                   type="text"
                   placeholder="0 * * * * ?"
-                  defaultValue={defaultValue.schedule || '0 * * * * ?'}
+                  defaultValue={defaultValue.schedule}
                   {...register('schedule', { required: true })}
                 />
                 {schedule && (
