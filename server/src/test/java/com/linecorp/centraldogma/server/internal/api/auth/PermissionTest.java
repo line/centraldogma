@@ -16,13 +16,9 @@
 
 package com.linecorp.centraldogma.server.internal.api.auth;
 
-import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.NO_PERMISSION;
-import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_ONLY;
-import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_WRITE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
-import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Stream;
 
