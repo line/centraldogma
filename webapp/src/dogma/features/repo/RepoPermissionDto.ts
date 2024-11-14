@@ -6,7 +6,7 @@ export interface RepoPermissionDetailDto {
   name: string;
   perRolePermissions: RepoRolePermissionDto;
   perUserPermissions: PerUserPermissionDto;
-  perTokenPermissions: PerTokenPermissonDto;
+  perTokenPermissions: PerTokenPermissionDto;
   creation: RepoCreatorDto;
   removal?: RepoCreatorDto;
 }
@@ -17,15 +17,15 @@ export interface RepoCreatorDto {
 }
 
 export interface RepoRolePermissionDto {
-  owner: Array<'READ' | 'WRITE'>;
-  member: Array<'READ' | 'WRITE'>;
-  guest: Array<'READ' | 'WRITE'>;
+  owner: 'READ' | 'WRITE' | 'REPO_ADMIN';
+  member: 'READ' | 'WRITE' | 'REPO_ADMIN';
+  guest: 'READ' | 'WRITE' | 'REPO_ADMIN';
 }
 
 export interface PerUserPermissionDto {
-  [key: string]: Array<'READ' | 'WRITE'>;
+  [key: string]: 'READ' | 'WRITE' | 'REPO_ADMIN';
 }
 
-export interface PerTokenPermissonDto {
-  [key: string]: Array<'READ' | 'WRITE'>;
+export interface PerTokenPermissionDto {
+  [key: string]: 'READ' | 'WRITE' | 'REPO_ADMIN';
 }

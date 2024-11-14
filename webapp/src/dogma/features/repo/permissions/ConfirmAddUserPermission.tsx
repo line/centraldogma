@@ -17,8 +17,8 @@ import { useAppDispatch } from 'dogma/hooks';
 import { ApiAction } from 'dogma/features/api/apiSlice';
 import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
 
-const constructPermissions = (permission: string): Array<'READ' | 'WRITE'> =>
-  permission === 'write' ? ['READ', 'WRITE'] : permission === 'read' ? ['READ'] : [];
+const constructPermissions = (permission: string): 'READ' | 'WRITE' | 'REPO_ADMIN' =>
+  permission === 'write' ? 'WRITE' : permission === 'read' ? 'READ' : null;
 
 export const ConfirmAddUserPermission = ({
   projectName,
