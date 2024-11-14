@@ -33,6 +33,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -414,8 +416,8 @@ public class MetadataService {
         }
 
         if (Project.REPO_META.equals(repoName)) {
-            final Set<Permission> guest = perRolePermissions.guest();
-            if (!guest.isEmpty()) {
+            final Permission guest = perRolePermissions.guest();
+            if (guest != null) {
                 throw new UnsupportedOperationException(
                         "Can't give a permission to guest for internal repository: " + repoName);
             }
@@ -541,7 +543,7 @@ public class MetadataService {
      */
     public CompletableFuture<Revision> addPerUserPermission(Author author, String projectName,
                                                             String repoName, User member,
-                                                            Collection<Permission> permission) {
+                                                            Permission permission) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -581,7 +583,7 @@ public class MetadataService {
      */
     public CompletableFuture<Revision> updatePerUserPermission(Author author, String projectName,
                                                                String repoName, User member,
-                                                               Collection<Permission> permission) {
+                                                               Permission permission) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -601,7 +603,7 @@ public class MetadataService {
      */
     public CompletableFuture<Revision> addPerTokenPermission(Author author, String projectName,
                                                              String repoName, String appId,
-                                                             Collection<Permission> permission) {
+                                                             Permission permission) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -640,7 +642,7 @@ public class MetadataService {
      */
     public CompletableFuture<Revision> updatePerTokenPermission(Author author, String projectName,
                                                                 String repoName, String appId,
-                                                                Collection<Permission> permission) {
+                                                                Permission permission) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -678,7 +680,7 @@ public class MetadataService {
      */
     private CompletableFuture<Revision> addPermissionAtPointer(Author author,
                                                                String projectName, JsonPointer path,
-                                                               Collection<Permission> permission,
+                                                               Permission permission,
                                                                String commitSummary) {
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
@@ -702,7 +704,7 @@ public class MetadataService {
      */
     private CompletableFuture<Revision> replacePermissionAtPointer(Author author,
                                                                    String projectName, JsonPointer path,
-                                                                   Collection<Permission> permission,
+                                                                   Permission permission,
                                                                    String commitSummary) {
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
@@ -714,11 +716,10 @@ public class MetadataService {
      * Finds {@link Permission}s which belong to the specified {@link User} or {@link UserWithToken}
      * from the specified {@code repoName} in the specified {@code projectName}.
      */
-    public CompletableFuture<Collection<Permission>> findPermissions(String projectName, String repoName,
-                                                                     User user) {
+    public CompletableFuture<Permission> findPermissions(String projectName, String repoName, User user) {
         requireNonNull(user, "user");
         if (user.isAdmin()) {
-            return CompletableFuture.completedFuture(PerRolePermissions.ALL_PERMISSION);
+            return CompletableFuture.completedFuture(Permission.REPO_ADMIN);
         }
         if (user instanceof UserWithToken) {
             return findPermissions(projectName, repoName, ((UserWithToken) user).token().appId());
@@ -731,7 +732,7 @@ public class MetadataService {
      * Finds {@link Permission}s which belong to the specified {@code appId} from the specified
      * {@code repoName} in the specified {@code projectName}.
      */
-    public CompletableFuture<Collection<Permission>> findPermissions(String projectName, String repoName,
+    public CompletableFuture<Permission> findPermissions(String projectName, String repoName,
                                                                      String appId) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -745,7 +746,7 @@ public class MetadataService {
             if (registration == null) {
                 return repositoryMetadata.perRolePermissions().guest();
             }
-            final Collection<Permission> p = repositoryMetadata.perTokenPermissions().get(registration.id());
+            final Permission p = repositoryMetadata.perTokenPermissions().get(registration.id());
             if (p != null) {
                 return p;
             }
@@ -757,8 +758,7 @@ public class MetadataService {
      * Finds {@link Permission}s which belong to the specified {@link User} from the specified
      * {@code repoName} in the specified {@code projectName}.
      */
-    private CompletableFuture<Collection<Permission>> findPermissions0(String projectName, String repoName,
-                                                                       User user) {
+    private CompletableFuture<Permission> findPermissions0(String projectName, String repoName, User user) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(user, "user");
@@ -771,7 +771,7 @@ public class MetadataService {
             if (member == null) {
                 return repositoryMetadata.perRolePermissions().guest();
             }
-            final Collection<Permission> p = repositoryMetadata.perUserPermissions().get(member.id());
+            final Permission p = repositoryMetadata.perUserPermissions().get(member.id());
             if (p != null) {
                 return p;
             }
@@ -779,11 +779,12 @@ public class MetadataService {
         });
     }
 
-    private static Collection<Permission> findPerRolePermissions(RepositoryMetadata repositoryMetadata,
+    @Nullable
+    private static Permission findPerRolePermissions(RepositoryMetadata repositoryMetadata,
                                                                  ProjectRole role) {
         switch (role) {
             case OWNER:
-                return repositoryMetadata.perRolePermissions().owner();
+                return Permission.REPO_ADMIN;
             case MEMBER:
                 return repositoryMetadata.perRolePermissions().member();
             default:

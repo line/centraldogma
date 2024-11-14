@@ -16,26 +16,22 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
-import static java.util.Objects.requireNonNull;
-
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Objects;
-import java.util.Set;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.Sets;
 
-import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
  * A default permission for a {@link Repository}.
  */
+@JsonDeserialize(using = PerRolePermissionsDeserializer.class)
 public class PerRolePermissions {
 
     /**
@@ -53,16 +49,13 @@ public class PerRolePermissions {
      * @deprecated Use {@link #ofDefault()}.
      */
     @Deprecated
-    public static final PerRolePermissions DEFAULT =
-            new PerRolePermissions(READ_WRITE, READ_WRITE, NO_PERMISSION, null);
-    private static final PerRolePermissions internalPermissions =
-            new PerRolePermissions(READ_WRITE, NO_PERMISSION, NO_PERMISSION, null);
+    public static final PerRolePermissions DEFAULT = new PerRolePermissions(Permission.WRITE, null);
 
     /**
      * Creates a {@link PerRolePermissions} which allows read/write a repository from an owner.
      */
     public static PerRolePermissions ofInternal() {
-        return internalPermissions;
+        return new PerRolePermissions(null, null);
     }
 
     /**
@@ -76,72 +69,51 @@ public class PerRolePermissions {
      * Creates a {@link PerRolePermissions} which allows accessing a repository from everyone.
      */
     public static PerRolePermissions ofPublic() {
-        return new PerRolePermissions(READ_WRITE, READ_WRITE, READ_WRITE, null);
+        return new PerRolePermissions(Permission.WRITE, Permission.WRITE);
     }
 
     /**
      * Creates a {@link PerRolePermissions} which allows accessing a repository from a project member.
      */
     public static PerRolePermissions ofPrivate() {
-        return new PerRolePermissions(READ_WRITE, READ_WRITE, NO_PERMISSION, null);
+        return DEFAULT;
     }
 
-    /**
-     * {@link Permission}s for a {@link ProjectRole#OWNER}.
-     */
-    private final Set<Permission> owner;
+    @Nullable
+    private final Permission member;
 
-    /**
-     * {@link Permission}s for a {@link ProjectRole#MEMBER}.
-     */
-    private final Set<Permission> member;
-
-    /**
-     * {@link Permission}s for a {@link ProjectRole#GUEST}.
-     */
-    private final Set<Permission> guest;
+    @Nullable
+    private final Permission guest;
 
     /**
      * Creates an instance.
      */
-    @JsonCreator
-    public PerRolePermissions(@JsonProperty("owner") Iterable<Permission> owner,
-                              @JsonProperty("member") Iterable<Permission> member,
-                              @JsonProperty("guest") Iterable<Permission> guest,
-                              // TODO(minwoox): Remove anonymous field after the migration.
-                              @JsonProperty("anonymous") @Nullable Iterable<Permission> unused) {
-        this.owner = Sets.immutableEnumSet(requireNonNull(owner, "owner"));
-        this.member = Sets.immutableEnumSet(requireNonNull(member, "member"));
-        this.guest = Sets.immutableEnumSet(requireNonNull(guest, "guest"));
+    public PerRolePermissions(@Nullable Permission member, @Nullable Permission guest) {
+        this.member = member;
+        this.guest = guest;
     }
 
     /**
-     * Returns the permissions granted to owners.
+     * Returns the permission granted to members.
      */
+    @Nullable
     @JsonProperty
-    public Set<Permission> owner() {
-        return owner;
-    }
-
-    /**
-     * Returns the permissions granted to members.
-     */
-    @JsonProperty
-    public Set<Permission> member() {
+    public Permission member() {
         return member;
     }
 
     /**
-     * Returns the permissions granted to guests.
+     * Returns the permission granted to guests.
      */
+    @Nullable
     @JsonProperty
-    public Set<Permission> guest() {
+    public Permission guest() {
         return guest;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(owner, member, guest);
+        return Objects.hash(member, guest);
     }
 
     @Override
@@ -154,17 +126,14 @@ public class PerRolePermissions {
         }
 
         final PerRolePermissions that = (PerRolePermissions) o;
-        return owner.equals(that.owner) &&
-               member.equals(that.member) &&
-               guest.equals(that.guest);
+        return member == that.member && guest == that.guest;
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("owner", owner())
-                          .add("member", member())
-                          .add("guest", guest())
+                          .add("member", member)
+                          .add("guest", guest)
                           .toString();
     }
 }

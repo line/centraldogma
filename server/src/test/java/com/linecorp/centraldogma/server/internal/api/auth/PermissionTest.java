@@ -106,14 +106,13 @@ class PermissionTest {
             mds.createToken(AUTHOR, APP_ID_3, SECRET_3).toCompletableFuture().join();
 
             mds.addRepo(AUTHOR, "project1", "repo1",
-                        new PerRolePermissions(READ_ONLY, READ_ONLY, NO_PERMISSION, null))
+                        new PerRolePermissions(Permission.READ, null))
                .toCompletableFuture().join();
 
             // app-1 is an owner and it has read/write permission.
             mds.addToken(AUTHOR, "project1", APP_ID_1, ProjectRole.OWNER)
                .toCompletableFuture().join();
-            mds.addPerTokenPermission(AUTHOR, "project1", "repo1", APP_ID_1,
-                                      READ_WRITE)
+            mds.addPerTokenPermission(AUTHOR, "project1", "repo1", APP_ID_1, Permission.WRITE)
                .toCompletableFuture().join();
 
             // app-2 is a member and it has read-only permission.
@@ -153,7 +152,7 @@ class PermissionTest {
     @ParameterizedTest
     @MethodSource("arguments")
     void test(@Nullable String appId, String secret, String projectName, ProjectRole role, String repoName,
-              Set<Permission> permission, HttpStatus expectedFailureStatus) throws InterruptedException {
+              @Nullable Permission permission, HttpStatus expectedFailureStatus) throws InterruptedException {
         final WebClient client = WebClient.builder(server.httpUri())
                                           .addHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + secret)
                                           .build();
@@ -172,8 +171,8 @@ class PermissionTest {
 
         response = client.post("/projects/" + projectName + "/repos/" + repoName, HttpData.empty())
                          .aggregate().join();
-        assertThat(response.status()).isEqualTo(permission.contains(Permission.WRITE) ? HttpStatus.OK
-                                                                                      : expectedFailureStatus);
+        assertThat(response.status()).isEqualTo(permission == Permission.WRITE ? HttpStatus.OK
+                                                                               : expectedFailureStatus);
         if (appId == null) {
             assertThat(authenticatedUser(server.requestContextCaptor().take())).isNull();
         } else {
@@ -182,8 +181,8 @@ class PermissionTest {
 
         response = client.get("/projects/" + projectName + "/repos/" + repoName)
                          .aggregate().join();
-        assertThat(response.status()).isEqualTo(permission.isEmpty() ? expectedFailureStatus
-                                                                     : HttpStatus.OK);
+        assertThat(response.status()).isEqualTo(permission == null ? expectedFailureStatus
+                                                                   : HttpStatus.OK);
         if (appId == null) {
             assertThat(authenticatedUser(server.requestContextCaptor().take())).isNull();
         } else {
@@ -200,23 +199,23 @@ class PermissionTest {
         return Stream.of(
                 Arguments.of(
                         "app/" + APP_ID_1, SECRET_1,
-                        "project1", ProjectRole.OWNER, "repo1", READ_WRITE,
+                        "project1", ProjectRole.OWNER, "repo1", Permission.WRITE,
                         HttpStatus.FORBIDDEN),
                 Arguments.of(
                         "app/" + APP_ID_2, SECRET_2,
-                        "project1", ProjectRole.MEMBER, "repo1", READ_ONLY,
+                        "project1", ProjectRole.MEMBER, "repo1", Permission.READ,
                         HttpStatus.FORBIDDEN),
                 Arguments.of(
                         "app/" + APP_ID_3, SECRET_3,
-                        "project1", ProjectRole.GUEST, "repo1", NO_PERMISSION,
+                        "project1", ProjectRole.GUEST, "repo1", null,
                         HttpStatus.FORBIDDEN),
                 Arguments.of(
                         "app/" + APP_ID_1, SECRET_1,
-                        "project2", ProjectRole.GUEST, "repo1", NO_PERMISSION,
+                        "project2", ProjectRole.GUEST, "repo1", null,
                         HttpStatus.NOT_FOUND),
                 Arguments.of(
                         null, "appToken-invalid",
-                        "project1", ProjectRole.GUEST, "repo1", NO_PERMISSION,
+                        "project1", ProjectRole.GUEST, "repo1", null,
                         // Need to authorize because the token is invalid.
                         HttpStatus.UNAUTHORIZED));
     }

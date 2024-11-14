@@ -21,7 +21,6 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.server.internal.api.auth.RequiresRoleDecorator.handleException;
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collection;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
@@ -113,7 +112,7 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
 
     private HttpResponse serveUserRepo(ServiceRequestContext ctx, HttpRequest req,
                                        User user, String projectName, String repoName) throws Exception {
-        final CompletionStage<Collection<Permission>> f;
+        final CompletionStage<Permission> f;
         try {
             f = mds.findPermissions(projectName, repoName, user);
         } catch (Throwable cause) {
@@ -124,7 +123,7 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
             if (cause != null) {
                 return handleException(ctx, cause);
             }
-            if (!permission.contains(requiredPermission)) {
+            if (permission == null || !permission.has(requiredPermission)) {
                 return HttpApiUtil.throwResponse(
                         ctx, HttpStatus.FORBIDDEN,
                         "You must have %s permission for repository '%s/%s'.",

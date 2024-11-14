@@ -22,14 +22,12 @@ import static java.util.Objects.requireNonNull;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.Exceptions;
@@ -42,7 +40,6 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
@@ -62,9 +59,6 @@ import com.linecorp.centraldogma.server.metadata.User;
 @ProducesJson
 @RequiresRole(roles = ProjectRole.OWNER)
 public class MetadataApiService extends AbstractService {
-
-    private static final TypeReference<Collection<Permission>> permissionsTypeRef =
-            new TypeReference<Collection<Permission>>() {};
 
     private final MetadataService mds;
     private final Function<String, String> loginNameNormalizer;
@@ -192,33 +186,11 @@ public class MetadataApiService extends AbstractService {
     public CompletableFuture<Revision> addSpecificUserPermission(
             @Param String projectName,
             @Param String repoName,
-            IdentifierWithPermissions memberWithPermissions,
+            IdentifierWithPermission memberWithPermissions,
             Author author) {
         final User member = new User(loginNameNormalizer.apply(memberWithPermissions.id()));
         return mds.addPerUserPermission(author, projectName, repoName,
-                                        member, memberWithPermissions.permissions());
-    }
-
-    /**
-     * PATCH /metadata/{projectName}/repos/{repoName}/perm/users/{memberId}
-     *
-     * <p>Updates {@link Permission}s for the specified {@code memberId} of the specified {@code repoName}
-     * in the specified {@code projectName}.
-     */
-    @Patch("/metadata/{projectName}/repos/{repoName}/perm/users/{memberId}")
-    @Consumes("application/json-patch+json")
-    public CompletableFuture<Revision> updateSpecificUserPermission(@Param String projectName,
-                                                                    @Param String repoName,
-                                                                    @Param String memberId,
-                                                                    JsonPatch jsonPatch,
-                                                                    Author author) {
-        final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/permissions");
-        final Collection<Permission> permissions = Jackson.convertValue(operation.value(), permissionsTypeRef);
-        final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
-        return mds.findPermissions(projectName, repoName, member)
-                  .thenCompose(unused -> mds.updatePerUserPermission(author,
-                                                                     projectName, repoName, member,
-                                                                     permissions));
+                                        member, memberWithPermissions.permission());
     }
 
     /**
@@ -248,30 +220,10 @@ public class MetadataApiService extends AbstractService {
     public CompletableFuture<Revision> addSpecificTokenPermission(
             @Param String projectName,
             @Param String repoName,
-            IdentifierWithPermissions tokenWithPermissions,
+            IdentifierWithPermission tokenWithPermissions,
             Author author) {
         return mds.addPerTokenPermission(author, projectName, repoName,
-                                         tokenWithPermissions.id(), tokenWithPermissions.permissions());
-    }
-
-    /**
-     * PATCH /metadata/{projectName}/repos/{repoName}/perm/tokens/{appId}
-     *
-     * <p>Updates {@link Permission}s for the specified {@code appId} of the specified {@code repoName}
-     * in the specified {@code projectName}.
-     */
-    @Patch("/metadata/{projectName}/repos/{repoName}/perm/tokens/{appId}")
-    @Consumes("application/json-patch+json")
-    public CompletableFuture<Revision> updateSpecificTokenPermission(@Param String projectName,
-                                                                     @Param String repoName,
-                                                                     @Param String appId,
-                                                                     JsonPatch jsonPatch,
-                                                                     Author author) {
-        final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/permissions");
-        final Collection<Permission> permissions = Jackson.convertValue(operation.value(), permissionsTypeRef);
-        return mds.findTokenByAppId(appId)
-                  .thenCompose(token -> mds.updatePerTokenPermission(
-                          author, projectName, repoName, appId, permissions));
+                                         tokenWithPermissions.id(), tokenWithPermissions.permission());
     }
 
     /**
@@ -371,16 +323,16 @@ public class MetadataApiService extends AbstractService {
         }
     }
 
-    static final class IdentifierWithPermissions {
+    static final class IdentifierWithPermission {
 
         private final String id;
-        private final Collection<Permission> permissions;
+        private final Permission permission;
 
         @JsonCreator
-        IdentifierWithPermissions(@JsonProperty("id") String id,
-                                  @JsonProperty("permissions") Collection<Permission> permissions) {
+        IdentifierWithPermission(@JsonProperty("id") String id,
+                                 @JsonProperty("permission") Permission permission) {
             this.id = requireNonNull(id, "id");
-            this.permissions = requireNonNull(permissions, "permissions");
+            this.permission = requireNonNull(permission, "permission");
         }
 
         @JsonProperty
@@ -389,15 +341,15 @@ public class MetadataApiService extends AbstractService {
         }
 
         @JsonProperty
-        public Collection<Permission> permissions() {
-            return permissions;
+        public Permission permission() {
+            return permission;
         }
 
         @Override
         public String toString() {
             return MoreObjects.toStringHelper(this)
                               .add("id", id())
-                              .add("permissions", permissions())
+                              .add("permission", permission())
                               .toString();
         }
     }

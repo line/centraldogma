@@ -18,16 +18,15 @@ package com.linecorp.centraldogma.server.metadata;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collection;
 import java.util.Map;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 
@@ -39,7 +38,8 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
  * Specifies details of a {@link Repository}.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonInclude(Include.NON_NULL)
+@JsonInclude(Include.NON_NULL) // These are used when serializing.
+@JsonDeserialize(using = RepositoryMetadataDeserializer.class)
 public class RepositoryMetadata implements Identifiable {
 
     /**
@@ -55,12 +55,12 @@ public class RepositoryMetadata implements Identifiable {
     /**
      * A map of username and {@link Permission}s who has permission specified by a owner.
      */
-    private final Map<String, Collection<Permission>> perUserPermissions;
+    private final Map<String, Permission> perUserPermissions;
 
     /**
      * A map of token ID and {@link Permission}s who has permission specified by a owner.
      */
-    private final Map<String, Collection<Permission>> perTokenPermissions;
+    private final Map<String, Permission> perTokenPermissions;
 
     /**
      * Specifies when this repository is created by whom.
@@ -90,16 +90,11 @@ public class RepositoryMetadata implements Identifiable {
     /**
      * Creates a new instance.
      */
-    @JsonCreator
-    public RepositoryMetadata(@JsonProperty("name") String name,
-                              @JsonProperty("perRolePermissions") PerRolePermissions perRolePermissions,
-                              @JsonProperty("perUserPermissions")
-                                      Map<String, Collection<Permission>> perUserPermissions,
-                              @JsonProperty("perTokenPermissions")
-                                      Map<String, Collection<Permission>> perTokenPermissions,
-                              @JsonProperty("creation") UserAndTimestamp creation,
-                              @JsonProperty("removal") @Nullable UserAndTimestamp removal,
-                              @JsonProperty("writeQuota") @Nullable QuotaConfig writeQuota) {
+    public RepositoryMetadata(String name, PerRolePermissions perRolePermissions,
+                              Map<String, Permission> perUserPermissions,
+                              Map<String, Permission> perTokenPermissions,
+                              UserAndTimestamp creation,
+                              @Nullable UserAndTimestamp removal, @Nullable QuotaConfig writeQuota) {
         this.name = requireNonNull(name, "name");
         this.perRolePermissions = requireNonNull(perRolePermissions, "perRolePermissions");
         this.perUserPermissions = ImmutableMap.copyOf(requireNonNull(perUserPermissions,
@@ -136,7 +131,7 @@ public class RepositoryMetadata implements Identifiable {
      * Returns the per-user {@link Permission}s of this repository.
      */
     @JsonProperty
-    public Map<String, Collection<Permission>> perUserPermissions() {
+    public Map<String, Permission> perUserPermissions() {
         return perUserPermissions;
     }
 
@@ -144,7 +139,7 @@ public class RepositoryMetadata implements Identifiable {
      * Returns the per-token {@link Permission}s of this repository.
      */
     @JsonProperty
-    public Map<String, Collection<Permission>> perTokenPermissions() {
+    public Map<String, Permission> perTokenPermissions() {
         return perTokenPermissions;
     }
 

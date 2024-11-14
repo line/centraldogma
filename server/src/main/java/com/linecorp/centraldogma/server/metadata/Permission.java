@@ -16,6 +16,10 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
+import java.util.Set;
+
+import javax.annotation.Nullable;
+
 /**
  * Permission for accessing a repository.
  */
@@ -27,5 +31,40 @@ public enum Permission {
     /**
      * Able to write a file to a repository.
      */
-    WRITE
+    WRITE,
+    /**
+     * Able to manage a repository.
+     */
+    REPO_ADMIN;
+
+    /**
+     * Returns whether this permission includes the specified {@code another} permission.
+     */
+    public boolean has(Permission another) {
+        if (this == REPO_ADMIN) {
+            return true;
+        }
+        if (this == READ) {
+            return another == READ;
+        }
+        assert this == WRITE;
+        return another == READ || another == WRITE;
+    }
+
+    /**
+     * Returns the highest {@link Permission} from the specified {@code permissions}.
+     */
+    @Nullable
+    public static Permission highestPermission(Set<Permission> permissions) {
+        if (permissions.isEmpty()) {
+            return null;
+        }
+        if (permissions.contains(REPO_ADMIN)) {
+            return REPO_ADMIN;
+        }
+        if (permissions.contains(WRITE)) {
+            return WRITE;
+        }
+        return READ;
+    }
 }
