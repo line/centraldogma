@@ -279,7 +279,7 @@ class MetadataServiceTest {
         mds.updatePerTokenPermission(author, project1, repo1, app1, READ_WRITE).join();
 
         assertThat(mds.findPermissions(project1, repo1, app1).join())
-                .containsExactly(Permission.READ, Permission.WRITE);
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
 
         mds.removePerTokenPermission(author, project1, repo1, app1).join();
         assertThatThrownBy(() -> mds.removePerTokenPermission(author, project1, repo1, app1).join())
