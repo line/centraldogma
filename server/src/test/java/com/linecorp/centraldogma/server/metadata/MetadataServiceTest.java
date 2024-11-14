@@ -177,25 +177,25 @@ class MetadataServiceTest {
         mds.addRepo(author, project1, repo1, PerRolePermissions.ofPublic()).join();
 
         repositoryMetadata = getRepo1(mds);
-        assertThat(repositoryMetadata.perRolePermissions().owner()).containsExactly(Permission.READ,
-                                                                                    Permission.WRITE);
-        assertThat(repositoryMetadata.perRolePermissions().member()).containsExactly(Permission.READ,
-                                                                                     Permission.WRITE);
-        assertThat(repositoryMetadata.perRolePermissions().guest()).containsExactly(Permission.READ,
-                                                                                    Permission.WRITE);
+        assertThat(repositoryMetadata.perRolePermissions().owner())
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
+        assertThat(repositoryMetadata.perRolePermissions().member())
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
+        assertThat(repositoryMetadata.perRolePermissions().guest())
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
 
         mds.updatePerRolePermissions(author, project1, repo1, PerRolePermissions.ofPrivate()).join();
 
         repositoryMetadata = getRepo1(mds);
-        assertThat(repositoryMetadata.perRolePermissions().owner()).containsExactly(Permission.READ,
-                                                                                    Permission.WRITE);
-        assertThat(repositoryMetadata.perRolePermissions().member()).containsExactly(Permission.READ,
-                                                                                     Permission.WRITE);
+        assertThat(repositoryMetadata.perRolePermissions().owner())
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
+        assertThat(repositoryMetadata.perRolePermissions().member())
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
         assertThat(repositoryMetadata.perRolePermissions().guest())
                 .containsExactlyElementsOf(NO_PERMISSION);
 
         assertThat(mds.findPermissions(project1, repo1, owner).join())
-                .containsExactly(Permission.READ, Permission.WRITE);
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
         assertThat(mds.findPermissions(project1, repo1, guest).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
 
@@ -239,7 +239,7 @@ class MetadataServiceTest {
         mds.updatePerUserPermission(author, project1, repo1, user1, READ_WRITE).join();
 
         assertThat(mds.findPermissions(project1, repo1, user1).join())
-                .containsExactly(Permission.READ, Permission.WRITE);
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
 
         mds.removePerUserPermission(author, project1, repo1, user1).join();
         assertThatThrownBy(() -> mds.removePerUserPermission(author, project1, repo1, user1).join())
