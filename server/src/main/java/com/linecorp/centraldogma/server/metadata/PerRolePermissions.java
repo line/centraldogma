@@ -25,8 +25,8 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Sets;
 
@@ -36,7 +36,8 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 /**
  * A default permission for a {@link Repository}.
  */
-public class PerRolePermissions {
+@JsonDeserialize(using = PerRolePermissionsDeserializer.class)
+public final class PerRolePermissions {
 
     /**
      * {@link Permission}s for administrators.
@@ -104,12 +105,11 @@ public class PerRolePermissions {
     /**
      * Creates an instance.
      */
-    @JsonCreator
-    public PerRolePermissions(@JsonProperty("owner") Iterable<Permission> owner,
-                              @JsonProperty("member") Iterable<Permission> member,
-                              @JsonProperty("guest") Iterable<Permission> guest,
+    public PerRolePermissions(Iterable<Permission> owner,
+                              Iterable<Permission> member,
+                              Iterable<Permission> guest,
                               // TODO(minwoox): Remove anonymous field after the migration.
-                              @JsonProperty("anonymous") @Nullable Iterable<Permission> unused) {
+                              @Nullable Iterable<Permission> unused) {
         this.owner = Sets.immutableEnumSet(requireNonNull(owner, "owner"));
         this.member = Sets.immutableEnumSet(requireNonNull(member, "member"));
         this.guest = Sets.immutableEnumSet(requireNonNull(guest, "guest"));

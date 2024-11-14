@@ -27,5 +27,9 @@ public enum Permission {
     /**
      * Able to write a file to a repository.
      */
-    WRITE
+    WRITE,
+    /**
+     * Able to manage a repository.
+     */
+    REPO_ADMIN
 }
