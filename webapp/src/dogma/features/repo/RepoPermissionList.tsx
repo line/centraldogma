@@ -5,12 +5,10 @@ import { RepoPermissionDetailDto } from 'dogma/features/repo/RepoPermissionDto';
 import { useMemo } from 'react';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { RiGitRepositoryPrivateLine } from 'react-icons/ri';
-import { AppMemberDetailDto } from 'dogma/features/project/settings/members/AppMemberDto';
 
 export type RepoPermissionListProps<Data extends object> = {
   data: Data[];
   projectName: string;
-  members: AppMemberDetailDto[];
 };
 
 const RepoPermissionList = <Data extends object>({ data, projectName }: RepoPermissionListProps<Data>) => {
@@ -28,31 +26,16 @@ const RepoPermissionList = <Data extends object>({ data, projectName }: RepoPerm
         ),
         header: 'Name',
       }),
-      columnHelper.accessor((row: RepoPermissionDetailDto) => row.perRolePermissions.owner, {
-        cell: (info) => (
-          <Wrap>
-            {info.getValue().map((permission) => (
-              <WrapItem key={permission}>
-                <Tag borderRadius="full" colorScheme="blue" size="sm">
-                  <TagLabel>{permission}</TagLabel>
-                </Tag>
-              </WrapItem>
-            ))}
-          </Wrap>
-        ),
-        header: 'Owner',
-        enableSorting: false,
-      }),
       columnHelper.accessor((row: RepoPermissionDetailDto) => row.perRolePermissions.member, {
         cell: (info) => (
           <Wrap>
-            {info.getValue().map((permission) => (
-              <WrapItem key={permission}>
+            {info.getValue() !== null && (
+              <WrapItem key={info.getValue()}>
                 <Tag borderRadius="full" colorScheme="blue" size="sm">
-                  <TagLabel>{permission}</TagLabel>
+                  <TagLabel>{info.getValue() === 'REPO_ADMIN' ? 'ADMIN' : info.getValue()}</TagLabel>
                 </Tag>
               </WrapItem>
-            ))}
+            )}
           </Wrap>
         ),
         header: 'Member',
@@ -61,13 +44,13 @@ const RepoPermissionList = <Data extends object>({ data, projectName }: RepoPerm
       columnHelper.accessor((row: RepoPermissionDetailDto) => row.perRolePermissions.guest, {
         cell: (info) => (
           <Wrap>
-            {info.getValue().map((permission) => (
-              <WrapItem key={permission}>
+            {info.getValue() !== null && (
+              <WrapItem key={info.getValue()}>
                 <Tag borderRadius="full" colorScheme="blue" size="sm">
-                  <TagLabel>{permission}</TagLabel>
+                  <TagLabel>{info.getValue()}</TagLabel>
                 </Tag>
               </WrapItem>
-            ))}
+            )}
           </Wrap>
         ),
         header: 'Guest',

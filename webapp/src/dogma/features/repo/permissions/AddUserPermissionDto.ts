@@ -3,6 +3,6 @@ export interface AddUserPermissionDto {
   repoName: string;
   data: {
     id: string;
-    permissions: 'READ' | 'WRITE' | 'REPO_ADMIN';
+    permission: 'READ' | 'WRITE' | 'REPO_ADMIN';
   };
 }

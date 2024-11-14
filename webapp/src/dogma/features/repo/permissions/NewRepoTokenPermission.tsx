@@ -129,8 +129,9 @@ export const NewRepoTokenPermission = ({
             >
               {tokenOptions.length ? (
                 <Stack spacing={5} direction="row">
-                  <Radio value="read">Read Only</Radio>
-                  <Radio value="write">Read Write</Radio>
+                  <Radio value="repo_admin">Admin</Radio>
+                  <Radio value="write">Write</Radio>
+                  <Radio value="read">Read</Radio>
                 </Stack>
               ) : (
                 ''

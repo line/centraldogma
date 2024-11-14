@@ -7,7 +7,7 @@ import { useMemo } from 'react';
 import { ApiAction } from 'dogma/features/api/apiSlice';
 import { DeleteMember } from 'dogma/features/project/settings/members/DeleteMember';
 
-type UserAndPermission = [string, string[]];
+type UserAndPermission = [string, string];
 
 export const UserPermission = ({
   projectName,
@@ -32,13 +32,11 @@ export const UserPermission = ({
       columnHelper.accessor((row: UserAndPermission) => row[1], {
         cell: (info) => (
           <Wrap>
-            {info.getValue().map((permission) => (
-              <WrapItem key={permission as string}>
-                <Tag borderRadius="full" colorScheme="blue" size="sm">
-                  <TagLabel>{permission}</TagLabel>
-                </Tag>
-              </WrapItem>
-            ))}
+            <WrapItem key={info.getValue()}>
+              <Tag borderRadius="full" colorScheme="blue" size="sm">
+                <TagLabel>{info.getValue() === 'REPO_ADMIN' ? 'ADMIN' : info.getValue()}</TagLabel>
+              </Tag>
+            </WrapItem>
           </Wrap>
         ),
         header: 'Permissions',

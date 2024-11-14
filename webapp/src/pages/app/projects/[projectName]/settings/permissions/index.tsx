@@ -27,7 +27,6 @@ const ProjectPermissionPage = () => {
         <RepoPermissionList
           data={Array.from(Object.values(metadata.repos).filter((repo) => !repo.removal))}
           projectName={projectName}
-          members={Array.from(Object.values(metadata.members))}
         />
       )}
     </ProjectSettingsView>

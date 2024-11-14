@@ -5,24 +5,23 @@ const projectMetadata = {
   repos: {
     meta: {
       name: 'meta',
-      perRolePermissions: { owner: ['READ', 'WRITE'], member: ['READ'], guest: [] as Array<'READ' | 'WRITE'> },
+      perRolePermissions: { member: 'READ', guest: null as 'READ' | 'WRITE' | null },
       perUserPermissions: {},
       perTokenPermissions: {},
       creation: { user: 'lb56789@localhost.localdomain', timestamp: '2022-11-23T03:13:50.128853Z' },
     },
     repo1: {
       name: 'repo1',
-      perRolePermissions: { owner: ['READ', 'WRITE'], member: ['READ', 'WRITE'], guest: ['READ', 'WRITE'] },
-      perUserPermissions: { 'lz123456@localhost.localdomain': ['READ', 'WRITE'] },
-      perTokenPermissions: { 'test-token': ['READ'] },
+      perRolePermissions: { member: 'WRITE', guest: 'WRITE' },
+      perUserPermissions: { 'lz123456@localhost.localdomain': 'WRITE' },
+      perTokenPermissions: { 'test-token': 'READ' },
       creation: { user: 'lb56789@localhost.localdomain', timestamp: '2022-11-23T03:16:18.853509Z' },
     },
     repo2: {
       name: 'repo2',
       perRolePermissions: {
-        owner: ['READ', 'WRITE'],
-        member: ['READ', 'WRITE'],
-        guest: [] as Array<'READ' | 'WRITE'>,
+        member: 'WRITE',
+        guest: null as 'READ' | 'WRITE' | null,
       },
       perUserPermissions: {},
       perTokenPermissions: {},

@@ -4,15 +4,9 @@ import { RepoRolePermissionDto } from 'dogma/features/repo/RepoPermissionDto';
 import { useState } from 'react';
 import { MetadataButton } from 'dogma/common/components/MetadataButton';
 
-const getPermission = (permissions: Array<'READ' | 'WRITE'>) => {
-  return permissions.find((permission) => permission === 'WRITE')
-    ? 'write'
-    : permissions.find((permission) => permission === 'READ')
-      ? 'read'
-      : 'none';
+const getPermission = (permission: 'READ' | 'WRITE' | 'REPO_ADMIN' | null) => {
+  return permission == null ? 'NONE' : permission;
 };
-const constructPermissions = (permission: string): Array<'READ' | 'WRITE'> =>
-  permission === 'write' ? ['READ', 'WRITE'] : permission === 'read' ? ['READ'] : [];
 
 export const RolePermissionForm = ({
   projectName,
@@ -30,22 +24,13 @@ export const RolePermissionForm = ({
       <VStack spacing={10} mt={6}>
         <FormControl as="fieldset">
           <Box borderWidth="1px" borderRadius="lg" overflow="hidden" p={4}>
-            <FormLabel as="legend">Owner</FormLabel>
-            <RadioGroup colorScheme="teal" value="write">
-              <Radio value="write" disabled>
-                Read Write
-              </Radio>
-            </RadioGroup>
-          </Box>
-        </FormControl>
-        <FormControl as="fieldset">
-          <Box borderWidth="1px" borderRadius="lg" overflow="hidden" p={4}>
             <FormLabel as="legend">Member</FormLabel>
             <RadioGroup colorScheme="teal" value={member} onChange={setMember}>
               <HStack spacing={20}>
-                <Radio value="read">Read Only</Radio>
-                <Radio value="write">Read Write</Radio>
-                <Radio value="none">Forbidden</Radio>
+                <Radio value="REPO_ADMIN">Admin</Radio>
+                <Radio value="WRITE">Write</Radio>
+                <Radio value="READ">Read</Radio>
+                <Radio value="NONE">Forbidden</Radio>
               </HStack>
             </RadioGroup>
           </Box>
@@ -55,9 +40,9 @@ export const RolePermissionForm = ({
             <FormLabel as="legend">Guest</FormLabel>
             <RadioGroup colorScheme="teal" value={guest} onChange={setGuest}>
               <HStack spacing={20}>
-                <Radio value="read">Read Only</Radio>
-                <Radio value="write">Read Write</Radio>
-                <Radio value="none">Forbidden</Radio>
+                <Radio value="WRITE">Write</Radio>
+                <Radio value="READ">Read</Radio>
+                <Radio value="NONE">Forbidden</Radio>
               </HStack>
             </RadioGroup>
           </Box>
@@ -70,9 +55,8 @@ export const RolePermissionForm = ({
           projectName={projectName}
           repoName={repoName}
           data={{
-            owner: constructPermissions('write'),
-            member: constructPermissions(member),
-            guest: constructPermissions(guest),
+            member: member === 'NONE' ? null : (member as 'READ' | 'WRITE' | 'REPO_ADMIN'),
+            guest: guest === 'NONE' ? null : (guest as 'READ' | 'WRITE'),
           }}
         />
       </Flex>

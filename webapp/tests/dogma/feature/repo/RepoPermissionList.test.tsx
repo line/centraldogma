@@ -1,6 +1,7 @@
 import { act, fireEvent, render } from '@testing-library/react';
 import RepoPermissionList, { RepoPermissionListProps } from 'dogma/features/repo/RepoPermissionList';
 import { RepoPermissionDetailDto } from 'dogma/features/repo/RepoPermissionDto';
+import '@testing-library/jest-dom';
 
 describe('RepoPermissionList', () => {
   let expectedProps: JSX.IntrinsicAttributes & RepoPermissionListProps<object>;
@@ -11,9 +12,8 @@ describe('RepoPermissionList', () => {
       {
         name: 'meta',
         perRolePermissions: {
-          owner: ['READ', 'WRITE'],
-          member: ['READ'],
-          guest: [] as Array<'READ' | 'WRITE'>,
+          member: 'READ',
+          guest: null as 'READ' | 'WRITE' | null,
         },
         perUserPermissions: {},
         perTokenPermissions: {},
@@ -21,17 +21,16 @@ describe('RepoPermissionList', () => {
       },
       {
         name: 'repo1',
-        perRolePermissions: { owner: ['READ', 'WRITE'], member: ['READ', 'WRITE'], guest: ['READ', 'WRITE'] },
-        perUserPermissions: { 'lz123456@localhost.localdomain': ['READ', 'WRITE'] },
-        perTokenPermissions: { 'test-token': ['READ'] },
+        perRolePermissions: { member: 'WRITE', guest: 'WRITE' },
+        perUserPermissions: { 'lz123456@localhost.localdomain': 'WRITE' },
+        perTokenPermissions: { 'test-token': 'READ' },
         creation: { user: 'lb56789@localhost.localdomain', timestamp: '2022-11-23T03:16:18.853509Z' },
       },
       {
         name: 'repo2',
         perRolePermissions: {
-          owner: ['READ', 'WRITE'],
-          member: ['READ', 'WRITE'],
-          guest: [] as Array<'READ' | 'WRITE'>,
+          member: 'WRITE',
+          guest: null as 'READ' | 'WRITE' | null,
         },
         perUserPermissions: {},
         perTokenPermissions: {},

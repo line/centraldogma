@@ -17,9 +17,8 @@ export interface RepoCreatorDto {
 }
 
 export interface RepoRolePermissionDto {
-  owner: 'READ' | 'WRITE' | 'REPO_ADMIN';
-  member: 'READ' | 'WRITE' | 'REPO_ADMIN';
-  guest: 'READ' | 'WRITE' | 'REPO_ADMIN';
+  member: 'READ' | 'WRITE' | 'REPO_ADMIN' | null;
+  guest: 'READ' | 'WRITE' | null;
 }
 
 export interface PerUserPermissionDto {
