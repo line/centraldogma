@@ -100,7 +100,7 @@ class MetadataApiServiceTest {
         assertThat(res.status()).isSameAs(HttpStatus.FORBIDDEN);
         assertThat(res.contentUtf8()).contains("You must have READ permission for repository");
 
-        // Grant a READ permission to the member.
+        // Grant a READ permission to the member with the legacy format.
         request = HttpRequest.builder()
                              .post("/api/v1/metadata/" + projectName + "/repos/meta/perm/role")
                              .content(MediaType.JSON,
@@ -115,5 +115,20 @@ class MetadataApiServiceTest {
         // Now the member can access the meta repository.
         res = memberClient.get("/api/v1/projects/" + projectName + "/repos/meta/list").aggregate().join();
         assertThat(res.status()).isSameAs(HttpStatus.NO_CONTENT);
+
+        // With the new format.
+        request = HttpRequest.builder()
+                             .post("/api/v1/metadata/" + projectName + "/repos/meta/perm/role")
+                             .content(MediaType.JSON,
+                                      '{' +
+                                      "  \"member\": null," +
+                                      "  \"guest\": null" +
+                                      '}')
+                             .build();
+        adminClient.execute(request).aggregate().join();
+
+        // Now the member cannot access the meta repository.
+        res = memberClient.get("/api/v1/projects/" + projectName + "/repos/meta/list").aggregate().join();
+        assertThat(res.status()).isSameAs(HttpStatus.FORBIDDEN);
     }
 }
