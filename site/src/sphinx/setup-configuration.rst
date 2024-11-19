@@ -278,7 +278,7 @@ Core properties
 
       - the list of zone names.
 
-      - The current zone name must be included in the list of zone names.
+      - the current zone name must be included in the list of zone names.
 
 .. _replication:
 

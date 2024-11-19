@@ -108,8 +108,8 @@ final class PluginGroup {
                          .collect(toImmutableMap(Entry::getKey, e -> {
                              final PluginTarget target = e.getKey();
                              final List<Plugin> targetPlugins = e.getValue();
-                             final String poolName = "plugins-for-" + target.name().toLowerCase().replace("_",
-                                                                                                          "-");
+                             final String poolName =
+                                     "plugins-for-" + target.name().toLowerCase().replace("_", "-");
                              return new PluginGroup(targetPlugins,
                                                     Executors.newSingleThreadExecutor(
                                                             new DefaultThreadFactory(poolName, true)));

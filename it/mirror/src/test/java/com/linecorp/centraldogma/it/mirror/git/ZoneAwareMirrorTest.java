@@ -161,13 +161,6 @@ class ZoneAwareMirrorTest {
         });
     }
 
-    private static List<String> testZone() {
-        final ArrayList<String> zones = new ArrayList<>(ZONES);
-        // Add a null zone to test the default zone.
-        zones.add(null);
-        return zones;
-    }
-
     private static void createMirror(String zone) throws Exception {
         final BlockingWebClient client = WebClient.builder("http://127.0.0.1:" + serverPort)
                                                   .auth(AuthToken.ofOAuth2(accessToken))
