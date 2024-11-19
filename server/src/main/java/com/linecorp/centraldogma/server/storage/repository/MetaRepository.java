@@ -50,24 +50,41 @@ public interface MetaRepository extends Repository {
     CompletableFuture<Mirror> mirror(String id);
 
     /**
-     * Returns a list of mirroring credentials.
+     * Returns a list of project credentials.
      */
     CompletableFuture<List<Credential>> credentials();
 
     /**
-     * Returns a mirroring credential of the specified {@code id}.
+     * Returns a list of credentials of the specified repository.
+     */
+    CompletableFuture<List<Credential>> credentials(String repoName);
+
+    /**
+     * Returns a project credential of the specified {@code id}.
      */
     CompletableFuture<Credential> credential(String id);
 
     /**
+     * Returns a credential of the specified {@code id} in the specified repository.
+     */
+    CompletableFuture<Credential> credential(String repoName, String id);
+
+    /**
      * Create a push {@link Command} for the {@link MirrorDto}.
      */
-    CompletableFuture<Command<CommitResult>> createPushCommand(MirrorDto mirrorDto, Author author,
-                                                               boolean update);
+    CompletableFuture<Command<CommitResult>> createMirrorPushCommand(MirrorDto mirrorDto, Author author,
+                                                                     boolean update);
 
     /**
      * Create a push {@link Command} for the {@link Credential}.
      */
-    CompletableFuture<Command<CommitResult>> createPushCommand(Credential credential, Author author,
-                                                               boolean update);
+    CompletableFuture<Command<CommitResult>> createCredentialPushCommand(Credential credential, Author author,
+                                                                         boolean update);
+
+    /**
+     * Create a push {@link Command} for the {@link Credential}.
+     */
+    CompletableFuture<Command<CommitResult>> createCredentialPushCommand(String repoName, Credential credential,
+                                                                         Author author, boolean update);
+
 }

@@ -154,7 +154,7 @@ public class MirroringServiceV1 extends AbstractService {
     private CompletableFuture<PushResultDto> createOrUpdate(String projectName,
                                                             MirrorDto newMirror,
                                                             Author author, boolean update) {
-        return metaRepo(projectName).createPushCommand(newMirror, author, update).thenCompose(command -> {
+        return metaRepo(projectName).createMirrorPushCommand(newMirror, author, update).thenCompose(command -> {
             return executor().execute(command).thenApply(result -> {
                 return new PushResultDto(result.revision(), command.timestamp());
             });

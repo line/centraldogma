@@ -176,12 +176,12 @@ class DefaultMetaRepositoryWithMirrorTest {
                                   "", "git+ssh", "bar.com/bar.git", "/some-path", "develop", null, "bob"));
             for (Credential credential : CREDENTIALS) {
                 final Command<CommitResult> command =
-                        metaRepo.createPushCommand(credential, Author.SYSTEM, false).join();
+                        metaRepo.createCredentialPushCommand(credential, Author.SYSTEM, false).join();
                 pmExtension.executor().execute(command).join();
             }
             for (MirrorDto mirror : mirrors) {
                 final Command<CommitResult> command =
-                        metaRepo.createPushCommand(mirror, Author.SYSTEM, false).join();
+                        metaRepo.createMirrorPushCommand(mirror, Author.SYSTEM, false).join();
                 pmExtension.executor().execute(command).join();
             }
         }
