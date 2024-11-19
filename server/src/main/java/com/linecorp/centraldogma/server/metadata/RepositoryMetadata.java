@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.annotation.Nullable;
 
@@ -174,6 +175,30 @@ public class RepositoryMetadata implements Identifiable {
     @JsonProperty("writeQuota")
     public QuotaConfig writeQuota() {
         return writeQuota;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        final RepositoryMetadata that = (RepositoryMetadata) o;
+        return name.equals(that.name) &&
+               perRolePermissions.equals(that.perRolePermissions) &&
+               perUserPermissions.equals(that.perUserPermissions) &&
+               perTokenPermissions.equals(that.perTokenPermissions) &&
+               creation.equals(that.creation) && Objects.equals(removal, that.removal) &&
+               Objects.equals(writeQuota, that.writeQuota);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, perRolePermissions, perUserPermissions, perTokenPermissions,
+                            creation, removal, writeQuota);
     }
 
     @Override

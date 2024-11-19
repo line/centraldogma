@@ -20,77 +20,84 @@ import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_
 import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_WRITE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.Test;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.centraldogma.internal.Jackson;
 
 class RepositoryMetadataTest {
 
-    @ValueSource(booleans = { true, false })
-    @ParameterizedTest
-    void deserialize(boolean legacyPermissionsFormat) throws Exception {
-        final RepositoryMetadata repositoryMetadata =
-                Jackson.readValue(metadataString(legacyPermissionsFormat), RepositoryMetadata.class);
+    @Test
+    void deserializeLegacyFormat() throws Exception {
+        final String format = '{' +
+                              "  \"name\": \"minu-test\"," +
+                              "  \"perRolePermissions\": {" +
+                              "    \"owner\": [" +
+                              "      \"READ\"," +
+                              "      \"WRITE\"" +
+                              "    ]," +
+                              "    \"member\": [\"READ\"]," +
+                              "    \"guest\": []" +
+                              "  }," +
+                              "  \"perUserPermissions\": {" +
+                              "    \"foo@dogma.com\": [" +
+                              "      \"READ\"" +
+                              "    ]," +
+                              "    \"bar@dogma.com\": [" +
+                              "      \"READ\"," +
+                              "      \"WRITE\"" +
+                              "    ]" +
+                              "  }," +
+                              "  \"perTokenPermissions\": {" +
+                              "    \"goodman\": [" +
+                              "      \"READ\"" +
+                              "    ]" +
+                              "  }," +
+                              "  \"creation\": {" +
+                              "    \"user\": \"minu.song@dogma.com\"," +
+                              "    \"timestamp\": \"2024-08-19T02:47:23.370762417Z\"" +
+                              "  }" +
+                              '}';
+        validate(Jackson.readValue(format, RepositoryMetadata.class));
+    }
+
+    @Test
+    void deserializeNewFormat() throws Exception {
+        final String format = '{' +
+                              "  \"name\": \"minu-test\"," +
+                              "  \"roles\": {" +
+                              "    \"projectMember\": \"READ\"," +
+                              "    \"projectGuest\": null," +
+                              "    \"users\": {" +
+                              "      \"foo@dogma.com\": \"READ\"," +
+                              "      \"bar@dogma.com\": \"WRITE\"" +
+                              "    }," +
+                              "    \"tokens\": {" +
+                              "      \"goodman\": \"READ\"" +
+                              "    }" +
+                              "  }," +
+                              "  \"creation\": {" +
+                              "    \"user\": \"minu.song@dogma.com\"," +
+                              "    \"timestamp\": \"2024-08-19T02:47:23.370762417Z\"" +
+                              "  }" +
+                              '}';
+        validate(Jackson.readValue(format, RepositoryMetadata.class));
+    }
+
+    private static void validate(RepositoryMetadata repositoryMetadata) {
         assertThat(repositoryMetadata.id()).isEqualTo("minu-test");
         assertThat(repositoryMetadata.name()).isEqualTo("minu-test"); // id and name are the same.
         assertThat(repositoryMetadata.perRolePermissions())
                 .isEqualTo(new PerRolePermissions(READ_WRITE, READ_ONLY, NO_PERMISSION, null));
         assertThat(repositoryMetadata.perUserPermissions())
-                .isEqualTo(ImmutableMap.of("foo@dogma.com", ImmutableSet.of(Permission.READ),
+                .isEqualTo(ImmutableMap.of("foo@dogma.com", ImmutableList.of(Permission.READ),
                                            "bar@dogma.com",
-                                           ImmutableSet.of(Permission.READ, Permission.WRITE)));
+                                           ImmutableList.of(Permission.READ, Permission.WRITE)));
         assertThat(repositoryMetadata.perTokenPermissions())
-                .isEqualTo(ImmutableMap.of("goodman", ImmutableSet.of(Permission.READ)));
+                .isEqualTo(ImmutableMap.of("goodman", ImmutableList.of(Permission.READ)));
         assertThat(repositoryMetadata.creation())
                 .isEqualTo(new UserAndTimestamp("minu.song@dogma.com", "2024-08-19T02:47:23.370762417Z"));
-    }
-
-    private static String metadataString(boolean legacyPermissionsFormat) {
-        final String permissions;
-        if (legacyPermissionsFormat) {
-            permissions = "  \"perUserPermissions\": {" +
-                          "    \"foo@dogma.com\": [" +
-                          "      \"READ\"" +
-                          "    ]," +
-                          "    \"bar@dogma.com\": [" +
-                          "      \"READ\"," +
-                          "      \"WRITE\"" +
-                          "    ]" +
-                          "  }," +
-                          "  \"perTokenPermissions\": {" +
-                          "    \"goodman\": [" +
-                          "      \"READ\"" +
-                          "    ]" +
-                          "  },";
-        } else {
-            permissions = "  \"perUserPermissions\": {" +
-                          "    \"foo@dogma.com\": \"READ\"," +
-                          "    \"bar@dogma.com\": \"WRITE\"" +
-                          "  }," +
-                          "  \"perTokenPermissions\": {" +
-                          "    \"goodman\": \"READ\"" +
-                          "  },";
-        }
-
-        return '{' +
-               "  \"name\": \"minu-test\"," +
-               "  \"perRolePermissions\": {" +
-               "    \"owner\": [" +
-               "      \"READ\"," +
-               "      \"WRITE\"" +
-               "    ]," +
-               "    \"member\": [\"READ\"]," +
-               "    \"guest\": []" +
-               "  }," +
-               permissions +
-               "  \"creation\": {" +
-               "    \"user\": \"minu.song@dogma.com\"," +
-               "    \"timestamp\": \"2024-08-19T02:47:23.370762417Z\"" +
-               "  }" +
-               '}';
     }
 }

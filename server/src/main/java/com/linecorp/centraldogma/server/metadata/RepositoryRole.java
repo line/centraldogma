@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,13 +13,12 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
 package com.linecorp.centraldogma.server.metadata;
 
 /**
- * Permission for accessing a repository.
+ * Roles for a repository.
  */
-public enum Permission {
+public enum RepositoryRole {
     /**
      * Able to read a file from a repository.
      */
@@ -27,5 +26,9 @@ public enum Permission {
     /**
      * Able to write a file to a repository.
      */
-    WRITE
+    WRITE,
+    /**
+     * Able to manage a repository.
+     */
+    ADMIN
 }

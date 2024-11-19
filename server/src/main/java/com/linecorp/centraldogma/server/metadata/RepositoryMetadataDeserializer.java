@@ -15,17 +15,22 @@
  */
 package com.linecorp.centraldogma.server.metadata;
 
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_WRITE;
+
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.QuotaConfig;
@@ -33,6 +38,9 @@ import com.linecorp.centraldogma.server.QuotaConfig;
 final class RepositoryMetadataDeserializer extends StdDeserializer<RepositoryMetadata> {
 
     private static final long serialVersionUID = 1173216371065909688L;
+
+    private static final TypeReference<Map<String, Collection<Permission>>> PER_PERMISSIONS_TYPE =
+            new TypeReference<Map<String, Collection<Permission>>>() {};
 
     RepositoryMetadataDeserializer() {
         super(RepositoryMetadata.class);
@@ -43,12 +51,27 @@ final class RepositoryMetadataDeserializer extends StdDeserializer<RepositoryMet
             throws IOException {
         final JsonNode jsonNode = p.readValueAsTree();
         final String name = jsonNode.get("name").textValue();
-        final PerRolePermissions perRolePermissions =
-                Jackson.treeToValue(jsonNode.get("perRolePermissions"), PerRolePermissions.class);
-        final Map<String, Collection<Permission>> perUserPermissions =
-                perPermission(jsonNode, "perUserPermissions");
-        final Map<String, Collection<Permission>> perTokenPermissions =
-                perPermission(jsonNode, "perTokenPermissions");
+        final JsonNode perRolePermissionsNode = jsonNode.get("perRolePermissions");
+
+        final PerRolePermissions perRolePermissions;
+        final Map<String, Collection<Permission>> perUserPermissions;
+        final Map<String, Collection<Permission>> perTokenPermissions;
+        if (perRolePermissionsNode != null)  {
+            // legacy format
+            perRolePermissions = Jackson.treeToValue(perRolePermissionsNode, PerRolePermissions.class);
+            perUserPermissions = Jackson.readValue(jsonNode.get("perUserPermissions").traverse(),
+                                                   PER_PERMISSIONS_TYPE);
+            perTokenPermissions = Jackson.readValue(jsonNode.get("perTokenPermissions").traverse(),
+                                                    PER_PERMISSIONS_TYPE);
+        } else {
+            // new format
+            final Roles roles = Jackson.treeToValue(jsonNode.get("roles"), Roles.class);
+            perRolePermissions = new PerRolePermissions(READ_WRITE, getPermissions(roles.projectMember()),
+                                                        getPermissions(roles.projectGuest()), null);
+            perUserPermissions = convert(roles.users());
+            perTokenPermissions = convert(roles.tokens());
+        }
+
         final UserAndTimestamp creation = Jackson.treeToValue(jsonNode.get("creation"), UserAndTimestamp.class);
         final JsonNode removalNode = jsonNode.get("removal");
         final UserAndTimestamp removal =
@@ -62,17 +85,20 @@ final class RepositoryMetadataDeserializer extends StdDeserializer<RepositoryMet
                                       creation, removal, writeQuota);
     }
 
-    private static Map<String, Collection<Permission>> perPermission(JsonNode rootNode, String filed) {
-        final JsonNode permissionsNode = rootNode.get(filed);
+    private static Map<String, Collection<Permission>> convert(
+            Map<String, RepositoryRole> roles) {
+        return roles.entrySet().stream()
+                    .collect(toImmutableMap(Entry::getKey, entry -> getPermissions(entry.getValue())));
+    }
 
-        final ImmutableMap.Builder<String, Collection<Permission>> builder = ImmutableMap.builder();
-        final Iterator<Entry<String, JsonNode>> fields = permissionsNode.fields();
-        while (fields.hasNext()) {
-            final Entry<String, JsonNode> field = fields.next();
-            final String id = field.getKey();
-            builder.put(id, PerRolePermissionsDeserializer.getPermission(field.getValue()));
+    static Collection<Permission> getPermissions(@Nullable RepositoryRole repositoryRole) {
+        if (repositoryRole == null) {
+            return ImmutableList.of();
         }
-
-        return builder.build();
+        if (repositoryRole == RepositoryRole.READ) {
+            return ImmutableList.of(Permission.READ);
+        }
+        // WRITE or ADMIN RepositoryRole.
+        return ImmutableList.of(Permission.READ, Permission.WRITE);
     }
 }

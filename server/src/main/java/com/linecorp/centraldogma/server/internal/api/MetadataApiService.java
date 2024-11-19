@@ -29,7 +29,6 @@ import java.util.function.Function;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.Exceptions;
@@ -61,9 +60,6 @@ import com.linecorp.centraldogma.server.metadata.User;
 @ProducesJson
 @RequiresRole(roles = ProjectRole.OWNER)
 public class MetadataApiService extends AbstractService {
-
-    private static final TypeReference<Collection<Permission>> permissionsTypeRef =
-            new TypeReference<Collection<Permission>>() {};
 
     private final MetadataService mds;
     private final Function<String, String> loginNameNormalizer;
