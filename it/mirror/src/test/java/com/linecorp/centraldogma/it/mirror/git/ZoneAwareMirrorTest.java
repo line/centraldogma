@@ -37,6 +37,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 
@@ -61,6 +63,8 @@ import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 class ZoneAwareMirrorTest {
 
     private static final List<String> ZONES = ImmutableList.of("zone1", "zone2", "zone3");
+    private static final Logger logger = LoggerFactory.getLogger(ZoneAwareMirrorTest.class);
+
 
     @RegisterExtension
     CentralDogmaReplicationExtension cluster = new CentralDogmaReplicationExtension(3) {
@@ -121,7 +125,8 @@ class ZoneAwareMirrorTest {
                 assertThat(result.repoName()).isEqualTo(BAR_REPO + '-' + zone);
             });
         });
-        assertThat(TestZoneAwareMirrorListener.errors.get(zone)).isEmpty();
+        logger.info("### listener.errors: {}", TestZoneAwareMirrorListener.errors);
+        assertThat(TestZoneAwareMirrorListener.errors.get(zone)).isNullOrEmpty();
     }
 
     @Test
