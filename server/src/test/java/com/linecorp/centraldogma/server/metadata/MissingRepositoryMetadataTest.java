@@ -24,6 +24,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
+import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -68,9 +69,11 @@ class MissingRepositoryMetadataTest {
         final RepositoryMetadata metadata = mds.getRepo(PROJ, "repo").join();
         assertThat(metadata.id()).isEqualTo("repo");
         assertThat(metadata.name()).isEqualTo("repo");
-        assertThat(metadata.perRolePermissions()).isEqualTo(PerRolePermissions.ofDefault());
-        assertThat(metadata.perTokenPermissions()).isEmpty();
-        assertThat(metadata.perUserPermissions()).isEmpty();
+        final Roles roles = metadata.roles();
+        assertThat(roles.projectRoles().member()).isSameAs(RepositoryRole.WRITE);
+        assertThat(roles.projectRoles().guest()).isNull();
+        assertThat(roles.users()).isEmpty();
+        assertThat(roles.tokens()).isEmpty();
 
         // However, the metadata of a non-existent repository must not trigger auto-generation.
         assertThatThrownBy(() -> mds.getRepo(PROJ, "missing").join())

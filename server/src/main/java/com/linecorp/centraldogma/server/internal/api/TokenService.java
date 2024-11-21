@@ -195,7 +195,7 @@ public class TokenService extends AbstractService {
     /**
      * PATCH /tokens/{appId}/level
      *
-     * <p>Updates a permission of a token of the specified ID.
+     * <p>Updates a level of a token of the specified ID.
      */
     @Patch("/tokens/{appId}/level")
     @RequiresAdministrator

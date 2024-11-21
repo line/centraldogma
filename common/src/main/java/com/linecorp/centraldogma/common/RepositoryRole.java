@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,13 +13,14 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+package com.linecorp.centraldogma.common;
 
-package com.linecorp.centraldogma.server.metadata;
+import static java.util.Objects.requireNonNull;
 
 /**
- * Permission for accessing a repository.
+ * Roles for a repository.
  */
-public enum Permission {
+public enum RepositoryRole {
     /**
      * Able to read a file from a repository.
      */
@@ -27,5 +28,24 @@ public enum Permission {
     /**
      * Able to write a file to a repository.
      */
-    WRITE
+    WRITE,
+    /**
+     * Able to manage a repository.
+     */
+    ADMIN;
+
+    /**
+     * Returns {@code true} if this {@link RepositoryRole} has the specified {@link RepositoryRole}.
+     */
+    public boolean has(RepositoryRole other) {
+        requireNonNull(other, "other");
+        if (this == ADMIN) {
+            return true;
+        }
+        if (this == WRITE) {
+            return other != ADMIN;
+        }
+        // this == READ
+        return this == other;
+    }
 }

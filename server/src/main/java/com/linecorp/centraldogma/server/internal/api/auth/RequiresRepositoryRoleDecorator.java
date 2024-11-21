@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.internal.api.auth;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.linecorp.centraldogma.server.internal.api.auth.RequiresRoleDecorator.handleException;
+import static com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRoleDecorator.handleException;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletionStage;
@@ -37,33 +37,35 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.SimpleDecoratingHttpService;
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.DecoratorFactoryFunction;
+import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.GitHttpService;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.Permission;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
 /**
- * A {@link Decorator} to allow a request from a user who has the specified {@link Permission}.
+ * A {@link Decorator} to allow a request from a user who has the specified {@link RepositoryRole}.
  */
-public final class RequiresPermissionDecorator extends SimpleDecoratingHttpService {
+public final class RequiresRepositoryRoleDecorator extends SimpleDecoratingHttpService {
 
     private final MetadataService mds;
 
-    private final Permission requiredPermission;
+    private final RepositoryRole requiredRole;
+
     @Nullable
     private final String projectName;
     @Nullable
     private final String repoName;
 
-    RequiresPermissionDecorator(HttpService delegate, MetadataService mds, Permission requiredPermission,
-                                @Nullable String projectName,
-                                @Nullable String repoName) {
+    RequiresRepositoryRoleDecorator(HttpService delegate, MetadataService mds,
+                                    RepositoryRole requiredRole,
+                                    @Nullable String projectName,
+                                    @Nullable String repoName) {
         super(delegate);
         this.mds = requireNonNull(mds, "mds");
-        this.requiredPermission = requireNonNull(requiredPermission, "requiredPermission");
+        this.requiredRole = requireNonNull(requiredRole, "requiredRole");
         this.projectName = projectName;
         this.repoName = repoName;
     }
@@ -83,11 +85,12 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
         }
         checkArgument(!isNullOrEmpty(repoName), "no repository name is specified");
 
-        if (Project.REPO_DOGMA.equals(repoName)) {
-            if (!user.isAdmin()) {
-                return throwForbiddenResponse(ctx, projectName, repoName, "administrator");
-            }
+        if (user.isAdmin()) {
             return unwrap().serve(ctx, req);
+        }
+
+        if (Project.REPO_DOGMA.equals(repoName)) {
+            return throwForbiddenResponse(ctx, projectName, repoName, "administrator");
         }
         return serveUserRepo(ctx, req, user, projectName, maybeRemoveGitSuffix(repoName));
     }
@@ -112,22 +115,22 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
 
     private HttpResponse serveUserRepo(ServiceRequestContext ctx, HttpRequest req,
                                        User user, String projectName, String repoName) throws Exception {
-        final CompletionStage<Permission> f;
+        final CompletionStage<RepositoryRole> f;
         try {
-            f = mds.findPermissions(projectName, repoName, user);
+            f = mds.findRepositoryRole(projectName, repoName, user);
         } catch (Throwable cause) {
             return handleException(ctx, cause);
         }
 
-        return HttpResponse.of(f.handle((permission, cause) -> {
+        return HttpResponse.of(f.handle((role, cause) -> {
             if (cause != null) {
                 return handleException(ctx, cause);
             }
-            if (permission == null || !permission.has(requiredPermission)) {
-                return HttpApiUtil.throwResponse(
-                        ctx, HttpStatus.FORBIDDEN,
-                        "You must have %s permission for repository '%s/%s'.",
-                        requiredPermission, projectName, repoName);
+            if (role == null || !role.has(requiredRole)) {
+                 return HttpApiUtil.throwResponse(
+                         ctx, HttpStatus.FORBIDDEN,
+                         "You must have the %s repository role to access the '%s/%s'.",
+                         requiredRole, projectName, repoName);
             }
             try {
                 return unwrap().serve(ctx, req);
@@ -138,46 +141,25 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
     }
 
     /**
-     * A {@link DecoratorFactoryFunction} which creates a {@link RequiresPermissionDecorator} with a read
-     * {@link Permission}.
+     * A {@link DecoratorFactoryFunction} which creates a {@link RequiresRepositoryRoleDecorator} with the
+     * specified {@link RepositoryRole}.
      */
-    public static final class RequiresReadPermissionDecoratorFactory
-            implements DecoratorFactoryFunction<RequiresReadPermission> {
+    public static final class RequiresRepositoryRoleDecoratorFactory
+            implements DecoratorFactoryFunction<RequiresRepositoryRole> {
 
         private final MetadataService mds;
 
-        public RequiresReadPermissionDecoratorFactory(MetadataService mds) {
+        public RequiresRepositoryRoleDecoratorFactory(MetadataService mds) {
             this.mds = requireNonNull(mds, "mds");
         }
 
         @Override
         public Function<? super HttpService, ? extends HttpService>
-        newDecorator(RequiresReadPermission parameter) {
-            return delegate -> new RequiresPermissionDecorator(delegate, mds, Permission.READ,
-                                                               Strings.emptyToNull(parameter.project()),
-                                                               Strings.emptyToNull(parameter.repository()));
-        }
-    }
-
-    /**
-     * A {@link DecoratorFactoryFunction} which creates a {@link RequiresPermissionDecorator} with a write
-     * {@link Permission}.
-     */
-    public static final class RequiresWritePermissionDecoratorFactory
-            implements DecoratorFactoryFunction<RequiresWritePermission> {
-
-        private final MetadataService mds;
-
-        public RequiresWritePermissionDecoratorFactory(MetadataService mds) {
-            this.mds = requireNonNull(mds, "mds");
-        }
-
-        @Override
-        public Function<? super HttpService, ? extends HttpService>
-        newDecorator(RequiresWritePermission parameter) {
-            return delegate -> new RequiresPermissionDecorator(delegate, mds, Permission.WRITE,
-                                                               Strings.emptyToNull(parameter.project()),
-                                                               Strings.emptyToNull(parameter.repository()));
+        newDecorator(RequiresRepositoryRole parameter) {
+            return delegate -> new RequiresRepositoryRoleDecorator(
+                    delegate, mds, parameter.value(),
+                    Strings.emptyToNull(parameter.project()),
+                    Strings.emptyToNull(parameter.repository()));
         }
     }
 }

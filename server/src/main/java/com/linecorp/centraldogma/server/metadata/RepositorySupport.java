@@ -96,15 +96,22 @@ final class RepositorySupport<T> {
 
     private CompletableFuture<Revision> push(String projectName, String repoName, Author author,
                                              String commitSummary, Change<?> change, Revision revision) {
+        requireNonNull(change, "change");
+        return push(projectName, repoName, author, commitSummary, ImmutableList.of(change), revision);
+    }
+
+    private CompletableFuture<Revision> push(String projectName, String repoName, Author author,
+                                             String commitSummary, Iterable<Change<?>> changes,
+                                             Revision revision) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(author, "author");
         requireNonNull(commitSummary, "commitSummary");
-        requireNonNull(change, "change");
+        requireNonNull(changes, "changes");
 
         return executor.execute(
                 Command.push(author, projectName, repoName, revision, commitSummary, "",
-                             Markup.PLAINTEXT, ImmutableList.of(change)))
+                             Markup.PLAINTEXT, changes))
                        .thenApply(CommitResult::revision);
     }
 

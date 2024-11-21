@@ -20,6 +20,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager.listProjectsWithoutInternal;
+import static com.linecorp.centraldogma.server.metadata.RepositoryMetadata.DEFAULT_PROJECT_ROLES;
 import static com.linecorp.centraldogma.server.metadata.RepositorySupport.convertWithJackson;
 import static com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
@@ -33,8 +34,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.annotation.Nullable;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,12 +42,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.spotify.futures.CompletableFutures;
 
+import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
+import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.AddOperation;
@@ -241,8 +242,8 @@ public class MetadataService {
 
     /**
      * Removes the specified {@code member} from the {@link ProjectMetadata} in the specified
-     * {@code projectName}. It also removes permission of the specified {@code member} from every
-     * {@link RepositoryMetadata}.
+     * {@code projectName}. It also removes the {@link RepositoryRole} of the specified {@code member}
+     * from every {@link RepositoryMetadata}.
      */
     public CompletableFuture<Revision> removeMember(Author author, String projectName, User member) {
         requireNonNull(author, "author");
@@ -258,9 +259,21 @@ public class MetadataService {
                             final ImmutableList.Builder<JsonPatchOperation> patches = ImmutableList.builder();
                             metadataWithRevision
                                     .object().repos().values()
-                                    .stream().filter(r -> r.perUserPermissions().containsKey(member.id()))
+                                    .stream().filter(r -> r.roles().users().containsKey(member.id()))
                                     .forEach(r -> patches.add(new RemoveOperation(
-                                            perUserPermissionPointer(r.name(), member.id()))));
+                                            repositoryUserRolePointer(r.name(), member.id()))));
+                            // e.g.
+                            // {
+                            //   "repos": ...
+                            //   "members: {
+                            //     "my-user@linecorp.com": {
+                            //       "login": "my-user@linecorp.com",
+                            //       "role": "OWNER",
+                            //       "creation": ...
+                            //     },
+                            //     ...
+                            //    }
+                            //  }
                             patches.add(new RemoveOperation(JsonPointer.compile("/members" +
                                                                                 encodeSegment(member.id()))));
                             final Change<JsonNode> change =
@@ -302,27 +315,26 @@ public class MetadataService {
 
     /**
      * Adds a {@link RepositoryMetadata} of the specified {@code repoName} to the specified {@code projectName}
-     * with a default {@link PerRolePermissions}.
+     * with a default {@link RepositoryRole}. The member will have the {@link RepositoryRole#WRITE} role and
+     * the guest won't have any role.
      */
     public CompletableFuture<Revision> addRepo(Author author, String projectName, String repoName) {
-        return addRepo(author, projectName, repoName, PerRolePermissions.ofDefault());
+        return addRepo(author, projectName, repoName, DEFAULT_PROJECT_ROLES);
     }
 
     /**
      * Adds a {@link RepositoryMetadata} of the specified {@code repoName} to the specified {@code projectName}
-     * with the specified {@link PerRolePermissions}.
+     * with the specified {@link ProjectRoles}.
      */
     public CompletableFuture<Revision> addRepo(Author author, String projectName, String repoName,
-                                               PerRolePermissions permission) {
+                                               ProjectRoles projectRoles) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
-        requireNonNull(permission, "permission");
 
         final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName));
-        final RepositoryMetadata newRepositoryMetadata = new RepositoryMetadata(repoName,
-                                                                                UserAndTimestamp.of(author),
-                                                                                permission);
+        final RepositoryMetadata newRepositoryMetadata =
+                RepositoryMetadata.of(repoName, UserAndTimestamp.of(author), projectRoles);
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
                                    asJsonArray(new TestAbsenceOperation(path),
@@ -399,38 +411,52 @@ public class MetadataService {
     }
 
     /**
-     * Updates a {@link PerRolePermissions} of the specified {@code repoName} in the specified
+     * Updates the member and guest {@link RepositoryRole} of the specified {@code repoName} in the specified
      * {@code projectName}.
      */
-    public CompletableFuture<Revision> updatePerRolePermissions(Author author,
-                                                                String projectName, String repoName,
-                                                                PerRolePermissions perRolePermissions) {
+    public CompletableFuture<Revision> updateRepositoryProjectRoles(Author author,
+                                                                    String projectName, String repoName,
+                                                                    ProjectRoles projectRoles) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
-        requireNonNull(perRolePermissions, "perRolePermissions");
 
         if (Project.REPO_DOGMA.equals(repoName)) {
             throw new UnsupportedOperationException(
-                    "Can't update the per role permission for internal repository: " + repoName);
+                    "Can't update role for internal repository: " + repoName);
         }
 
         if (Project.REPO_META.equals(repoName)) {
-            final Permission guest = perRolePermissions.guest();
-            if (guest != null) {
+            if (projectRoles.guest() != null) {
                 throw new UnsupportedOperationException(
-                        "Can't give a permission to guest for internal repository: " + repoName);
+                        "Can't give a role to guest for internal repository: " + repoName);
             }
         }
 
-        final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) +
-                                                     "/perRolePermissions");
-        final Change<JsonNode> change =
-                Change.ofJsonPatch(METADATA_JSON,
-                                   new ReplaceOperation(path, Jackson.valueToTree(perRolePermissions))
-                                           .toJsonNode());
+        // e.g.
+        // {
+        //   "repos": {
+        //     "my-repo": {
+        //       "name": "my-repo",
+        //       "roles": {
+        //         "users": {
+        //           "my-user": "READ"
+        //         }
+        //         "tokens": ...
+        //         "projects": {
+        //           "member": "READ",
+        //           "guest": "null",
+        //        }
+        //       }
+        //     }
+        //   }
+        // }
+        final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) + "/roles/projects");
+        final Change<JsonNode> change = Change.ofJsonPatch(METADATA_JSON,
+                                                 new ReplaceOperation(path, Jackson.valueToTree(projectRoles))
+                                                         .toJsonNode());
         final String commitSummary =
-                "Update the role permission of the '" + repoName + "' in the project '" + projectName + '\'';
+                "Update the project roles of the '" + repoName + "' in the project '" + projectName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
@@ -471,7 +497,7 @@ public class MetadataService {
 
     /**
      * Removes the specified {@link Token} from the specified {@code projectName}. It also removes
-     * every token permission belonging to the {@link Token} from every {@link RepositoryMetadata}.
+     * every token repository role belonging to the {@link Token} from every {@link RepositoryMetadata}.
      */
     public CompletableFuture<Revision> removeToken(Author author, String projectName, Token token) {
         return removeToken(author, projectName, requireNonNull(token, "token").appId());
@@ -479,7 +505,8 @@ public class MetadataService {
 
     /**
      * Removes the {@link Token} of the specified {@code appId} from the specified {@code projectName}.
-     * It also removes every token permission belonging to {@link Token} from every {@link RepositoryMetadata}.
+     * It also removes every token repository role belonging to {@link Token} from
+     * every {@link RepositoryMetadata}.
      */
     public CompletableFuture<Revision> removeToken(Author author, String projectName, String appId) {
         requireNonNull(author, "author");
@@ -498,9 +525,9 @@ public class MetadataService {
                     final ImmutableList.Builder<JsonPatchOperation> patches = ImmutableList.builder();
                     final ProjectMetadata metadata = metadataWithRevision.object();
                     metadata.repos().values()
-                            .stream().filter(repo -> repo.perTokenPermissions().containsKey(appId))
+                            .stream().filter(repo -> repo.roles().tokens().containsKey(appId))
                             .forEach(r -> patches.add(
-                                    new RemoveOperation(perTokenPermissionPointer(r.name(), appId))));
+                                    new RemoveOperation(repositoryTokenRolePointer(r.name(), appId))));
                     if (quiet) {
                         patches.add(new RemoveIfExistsOperation(JsonPointer.compile("/tokens" +
                                                                                     encodeSegment(appId))));
@@ -538,121 +565,125 @@ public class MetadataService {
     }
 
     /**
-     * Adds {@link Permission}s for the specified {@code member} to the specified {@code repoName}
+     * Adds the {@link RepositoryRole} for the specified {@code member} to the specified {@code repoName}
      * in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> addPerUserPermission(Author author, String projectName,
-                                                            String repoName, User member,
-                                                            Permission permission) {
+    public CompletableFuture<Revision> addUserRepositoryRole(Author author, String projectName,
+                                                             String repoName, User member,
+                                                             RepositoryRole role) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(member, "member");
-        requireNonNull(permission, "permission");
+        requireNonNull(role, "role");
 
         return getProject(projectName).thenCompose(project -> {
             ensureProjectMember(project, member);
-            final String commitSummary = "Add permission of '" + member.id() +
-                                         "' as '" + permission + "' to the project '" + projectName + '\n';
-            return addPermissionAtPointer(author, projectName, perUserPermissionPointer(repoName, member.id()),
-                                          permission, commitSummary);
+            final String commitSummary = "Add repository role of '" + member.id() +
+                                         "' as '" + role + "' to the '" + projectName + '/' + repoName + '\n';
+            return addRepositoryRoleAtPointer(author, projectName,
+                                              repositoryUserRolePointer(repoName, member.id()),
+                                              role, commitSummary);
         });
     }
 
     /**
-     * Removes {@link Permission}s for the specified {@code member} from the specified {@code repoName}
+     * Removes the {@link RepositoryRole} for the specified {@code member} from the specified {@code repoName}
      * in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> removePerUserPermission(Author author, String projectName,
-                                                               String repoName, User member) {
+    public CompletableFuture<Revision> removeUserRepositoryRole(Author author, String projectName,
+                                                                String repoName, User member) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(member, "member");
 
         final String memberId = member.id();
-        return removePermissionAtPointer(author, projectName,
-                                         perUserPermissionPointer(repoName, memberId),
-                                         "Remove permission of the '" + memberId +
-                                         "' from the project '" + projectName + '\'');
+        return removeRepositoryRoleAtPointer(author, projectName,
+                                             repositoryUserRolePointer(repoName, memberId),
+                                             "Remove repository role of the '" + memberId +
+                                             "' from the '" + projectName + '/' + repoName + '\'');
     }
 
     /**
-     * Updates {@link Permission}s for the specified {@code member} of the specified {@code repoName}
+     * Updates the {@link RepositoryRole} for the specified {@code member} of the specified {@code repoName}
      * in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> updatePerUserPermission(Author author, String projectName,
-                                                               String repoName, User member,
-                                                               Permission permission) {
+    public CompletableFuture<Revision> updateUserRepositoryRole(Author author, String projectName,
+                                                                String repoName, User member,
+                                                                RepositoryRole role) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(member, "member");
-        requireNonNull(permission, "permission");
+        requireNonNull(role, "role");
 
         final String memberId = member.id();
-        return replacePermissionAtPointer(author, projectName,
-                                          perUserPermissionPointer(repoName, memberId), permission,
-                                          "Update permission of the '" + memberId +
-                                          "' as '" + permission + "' for the project '" + projectName + '\'');
+        return replaceRepositoryRoleAtPointer(
+                author, projectName,
+                repositoryUserRolePointer(repoName, memberId), role,
+                "Update repository role of the '" + memberId +
+                "' as '" + role + "' for the '" + projectName + '/' + repoName + '\'');
     }
 
     /**
-     * Adds {@link Permission}s for the {@link Token} of the specified {@code appId} to the specified
+     * Adds the {@link RepositoryRole} for the {@link Token} of the specified {@code appId} to the specified
      * {@code repoName} in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> addPerTokenPermission(Author author, String projectName,
-                                                             String repoName, String appId,
-                                                             Permission permission) {
+    public CompletableFuture<Revision> addTokenRepositoryRole(Author author, String projectName,
+                                                              String repoName, String appId,
+                                                              RepositoryRole role) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(appId, "appId");
-        requireNonNull(permission, "permission");
+        requireNonNull(role, "role");
 
         return getProject(projectName).thenCompose(project -> {
             ensureProjectToken(project, appId);
-            return addPermissionAtPointer(author, projectName,
-                                          perTokenPermissionPointer(repoName, appId), permission,
-                                          "Add permission of the token '" + appId +
-                                          "' as '" + permission + "' to the project '" + projectName + '\'');
+            return addRepositoryRoleAtPointer(
+                    author, projectName,
+                    repositoryTokenRolePointer(repoName, appId), role,
+                    "Add repository role of the token '" + appId +
+                    "' as '" + role + "' to the '" + projectName + '/' + repoName + '\'');
         });
     }
 
     /**
-     * Removes {@link Permission}s for the {@link Token} of the specified {@code appId} from the specified
+     * Removes the {@link RepositoryRole} for the {@link Token} of the specified {@code appId} of the specified
      * {@code repoName} in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> removePerTokenPermission(Author author, String projectName,
-                                                                String repoName, String appId) {
+    public CompletableFuture<Revision> removeTokenRepositoryRole(Author author, String projectName,
+                                                                 String repoName, String appId) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(appId, "appId");
 
-        return removePermissionAtPointer(author, projectName,
-                                         perTokenPermissionPointer(repoName, appId),
-                                         "Remove permission of the token '" + appId +
-                                         "' from the project '" + projectName + '\'');
+        return removeRepositoryRoleAtPointer(author, projectName,
+                                             repositoryTokenRolePointer(repoName, appId),
+                                             "Remove repository role of the token '" + appId +
+                                             "' from the '" + projectName + '/' + repoName + '\'');
     }
 
     /**
-     * Updates {@link Permission}s for the {@link Token} of the specified {@code appId} of the specified
+     * Updates the {@link RepositoryRole} for the {@link Token} of the specified {@code appId} of the specified
      * {@code repoName} in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> updatePerTokenPermission(Author author, String projectName,
-                                                                String repoName, String appId,
-                                                                Permission permission) {
+    public CompletableFuture<Revision> updateTokenRepositoryRole(Author author, String projectName,
+                                                                 String repoName, String appId,
+                                                                 RepositoryRole role) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(appId, "appId");
-        requireNonNull(permission, "permission");
+        requireNonNull(role, "role");
 
-        return replacePermissionAtPointer(author, projectName,
-                                          perTokenPermissionPointer(repoName, appId), permission,
-                                          "Update permission of the token '" + appId +
-                                          "' as '" + permission + "' for the project '" + projectName + '\'');
+        return replaceRepositoryRoleAtPointer(
+                author, projectName,
+                repositoryTokenRolePointer(repoName, appId), role,
+                "Update repository role of the token '" + appId +
+                "' as '" + role + "' for the '" + projectName + '/' + repoName + '\'');
     }
 
     /**
@@ -675,127 +706,127 @@ public class MetadataService {
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
-    /**
-     * Adds {@link Permission}s to the specified {@code path}.
-     */
-    private CompletableFuture<Revision> addPermissionAtPointer(Author author,
-                                                               String projectName, JsonPointer path,
-                                                               Permission permission,
-                                                               String commitSummary) {
+    private CompletableFuture<Revision> addRepositoryRoleAtPointer(Author author,
+                                                                   String projectName, JsonPointer path,
+                                                                   RepositoryRole role,
+                                                                   String commitSummary) {
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
                                    asJsonArray(new TestAbsenceOperation(path),
-                                               new AddOperation(path, Jackson.valueToTree(permission))));
+                                               new AddOperation(path, Jackson.valueToTree(role))));
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**
-     * Removes {@link Permission}s from the specified {@code path}.
+     * Removes {@link RepositoryRole} at the specified {@code path}.
      */
-    private CompletableFuture<Revision> removePermissionAtPointer(Author author, String projectName,
-                                                                  JsonPointer path, String commitSummary) {
+    private CompletableFuture<Revision> removeRepositoryRoleAtPointer(Author author, String projectName,
+                                                                      JsonPointer path, String commitSummary) {
         final Change<JsonNode> change = Change.ofJsonPatch(METADATA_JSON,
                                                            new RemoveOperation(path).toJsonNode());
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
-    /**
-     * Replaces {@link Permission}s of the specified {@code path} with the specified {@code permission}.
-     */
-    private CompletableFuture<Revision> replacePermissionAtPointer(Author author,
-                                                                   String projectName, JsonPointer path,
-                                                                   Permission permission,
-                                                                   String commitSummary) {
+    private CompletableFuture<Revision> replaceRepositoryRoleAtPointer(Author author,
+                                                                       String projectName, JsonPointer path,
+                                                                       RepositoryRole role,
+                                                                       String commitSummary) {
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
-                                   new ReplaceOperation(path, Jackson.valueToTree(permission)).toJsonNode());
+                                   new ReplaceOperation(path, Jackson.valueToTree(role)).toJsonNode());
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**
-     * Finds {@link Permission}s which belong to the specified {@link User} or {@link UserWithToken}
-     * from the specified {@code repoName} in the specified {@code projectName}.
+     * Finds {@link RepositoryRole} of the specified {@link User} or {@link UserWithToken}
+     * from the specified {@code repoName} in the specified {@code projectName}. If the {@link User}
+     * is not found, it will return {@code null}.
      */
-    public CompletableFuture<Permission> findPermissions(String projectName, String repoName, User user) {
+    public CompletableFuture<RepositoryRole> findRepositoryRole(String projectName, String repoName,
+                                                                User user) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repoName, "repoName");
         requireNonNull(user, "user");
         if (user.isAdmin()) {
-            return CompletableFuture.completedFuture(Permission.REPO_ADMIN);
+            return CompletableFuture.completedFuture(RepositoryRole.ADMIN);
         }
         if (user instanceof UserWithToken) {
-            return findPermissions(projectName, repoName, ((UserWithToken) user).token().appId());
-        } else {
-            return findPermissions0(projectName, repoName, user);
+            return findRepositoryRole(projectName, repoName, ((UserWithToken) user).token().appId());
         }
+        return findRepositoryRole0(projectName, repoName, user);
     }
 
     /**
-     * Finds {@link Permission}s which belong to the specified {@code appId} from the specified
-     * {@code repoName} in the specified {@code projectName}.
+     * Finds {@link RepositoryRole} of the specified {@code appId} from the specified
+     * {@code repoName} in the specified {@code projectName}. If the {@code appId} is not found,
+     * it will return {@code null}.
      */
-    public CompletableFuture<Permission> findPermissions(String projectName, String repoName,
-                                                                     String appId) {
+    public CompletableFuture<RepositoryRole> findRepositoryRole(String projectName, String repoName,
+                                                                String appId) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(appId, "appId");
 
         return getProject(projectName).thenApply(metadata -> {
             final RepositoryMetadata repositoryMetadata = metadata.repo(repoName);
-            final TokenRegistration registration = metadata.tokens().getOrDefault(appId, null);
+            final Roles roles = repositoryMetadata.roles();
+            final RepositoryRole tokenRepositoryRole = roles.tokens().get(appId);
 
-            // If the token is guest.
-            if (registration == null) {
-                return repositoryMetadata.perRolePermissions().guest();
-            }
-            final Permission p = repositoryMetadata.perTokenPermissions().get(registration.id());
-            if (p != null) {
-                return p;
-            }
-            return findPerRolePermissions(repositoryMetadata, registration.role());
+            final TokenRegistration projectTokenRegistration = metadata.tokens().get(appId);
+            final ProjectRole projectRole = projectTokenRegistration != null ? projectTokenRegistration.role()
+                                                                             : ProjectRole.GUEST;
+            return repositoryRole(roles, tokenRepositoryRole, projectRole);
         });
     }
 
-    /**
-     * Finds {@link Permission}s which belong to the specified {@link User} from the specified
-     * {@code repoName} in the specified {@code projectName}.
-     */
-    private CompletableFuture<Permission> findPermissions0(String projectName, String repoName, User user) {
+    private CompletableFuture<RepositoryRole> findRepositoryRole0(String projectName, String repoName,
+                                                                  User user) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(user, "user");
 
         return getProject(projectName).thenApply(metadata -> {
             final RepositoryMetadata repositoryMetadata = metadata.repo(repoName);
-            final Member member = metadata.memberOrDefault(user.id(), null);
+            final Roles roles = repositoryMetadata.roles();
+            final RepositoryRole userRepositoryRole = roles.users().get(user.id());
 
-            // If the member is guest.
-            if (member == null) {
-                return repositoryMetadata.perRolePermissions().guest();
-            }
-            final Permission p = repositoryMetadata.perUserPermissions().get(member.id());
-            if (p != null) {
-                return p;
-            }
-            return findPerRolePermissions(repositoryMetadata, member.role());
+            final Member projectUser = metadata.memberOrDefault(user.id(), null);
+            final ProjectRole projectRole = projectUser != null ? projectUser.role() : ProjectRole.GUEST;
+            return repositoryRole(roles, userRepositoryRole, projectRole);
         });
     }
 
     @Nullable
-    private static Permission findPerRolePermissions(RepositoryMetadata repositoryMetadata,
-                                                                 ProjectRole role) {
-        switch (role) {
-            case OWNER:
-                return Permission.REPO_ADMIN;
-            case MEMBER:
-                return repositoryMetadata.perRolePermissions().member();
-            default:
-                return repositoryMetadata.perRolePermissions().guest();
+    private static RepositoryRole repositoryRole(Roles roles, @Nullable RepositoryRole repositoryRole,
+                                                 @Nullable ProjectRole projectRole) {
+        if (repositoryRole == RepositoryRole.ADMIN || projectRole == ProjectRole.OWNER) {
+            return RepositoryRole.ADMIN;
         }
+
+        final RepositoryRole memberOrGuestRole;
+        if (projectRole == ProjectRole.MEMBER) {
+            memberOrGuestRole = roles.projectRoles().member();
+        } else {
+            memberOrGuestRole = roles.projectRoles().guest();
+        }
+
+        if (repositoryRole == null) {
+            return memberOrGuestRole;
+        }
+        if (memberOrGuestRole == null) {
+            return repositoryRole;
+        }
+        if (memberOrGuestRole == RepositoryRole.WRITE || repositoryRole == RepositoryRole.WRITE) {
+            return RepositoryRole.WRITE;
+        }
+
+        return RepositoryRole.READ;
     }
 
     /**
      * Finds a {@link ProjectRole} of the specified {@link User} in the specified {@code projectName}.
      */
-    public CompletableFuture<ProjectRole> findRole(String projectName, User user) {
+    public CompletableFuture<ProjectRole> findProjectRole(String projectName, User user) {
         requireNonNull(projectName, "projectName");
         requireNonNull(user, "user");
 
@@ -1079,20 +1110,37 @@ public class MetadataService {
     }
 
     /**
-     * Generates the path of {@link JsonPointer} of permission of the specified {@code memberId} in the
+     * Generates the path of {@link JsonPointer} of repository role of the specified {@code memberId} in the
      * specified {@code repoName}.
      */
-    private static JsonPointer perUserPermissionPointer(String repoName, String memberId) {
-        return JsonPointer.compile("/repos" + encodeSegment(repoName) +
-                                   "/perUserPermissions" + encodeSegment(memberId));
+    private static JsonPointer repositoryUserRolePointer(String repoName, String memberId) {
+        // e.g.
+        // {
+        //   "repos": {
+        //     "my-repo": {
+        //       "name": "my-repo",
+        //       "roles": {
+        //         "users": {
+        //           "my-user@linecorp.com": "READ"
+        //         }
+        //         "tokens": {
+        //           "my-token": "WRITE"
+        //         }
+        //        "projects": {...}
+        //       }
+        //     }
+        //   }
+        // }
+        return JsonPointer.compile("/repos" + encodeSegment(repoName) + "/roles/users" +
+                                   encodeSegment(memberId));
     }
 
     /**
-     * Generates the path of {@link JsonPointer} of permission of the specified token {@code appId}
+     * Generates the path of {@link JsonPointer} of repository role of the specified token {@code appId}
      * in the specified {@code repoName}.
      */
-    private static JsonPointer perTokenPermissionPointer(String repoName, String appId) {
-        return JsonPointer.compile("/repos" + encodeSegment(repoName) +
-                                   "/perTokenPermissions" + encodeSegment(appId));
+    private static JsonPointer repositoryTokenRolePointer(String repoName, String appId) {
+        return JsonPointer.compile("/repos" + encodeSegment(repoName) + "/roles/tokens" +
+                                   encodeSegment(appId));
     }
 }

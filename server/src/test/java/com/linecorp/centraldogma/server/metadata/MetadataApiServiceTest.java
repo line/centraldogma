@@ -51,7 +51,7 @@ class MetadataApiServiceTest {
     };
 
     @Test
-    void grantPermissionToMemberForMetaRepository() throws Exception {
+    void grantRoleToMemberForMetaRepository() throws Exception {
         final String projectName = "foo_proj";
         final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse response = login(client,
@@ -98,34 +98,34 @@ class MetadataApiServiceTest {
         res = memberClient.get("/api/v1/projects/" + projectName + "/repos/meta/list").aggregate().join();
         // A member isn't allowed to access the meta repository yet.
         assertThat(res.status()).isSameAs(HttpStatus.FORBIDDEN);
-        assertThat(res.contentUtf8()).contains("You must have READ permission for repository");
+        assertThat(res.contentUtf8()).contains(
+                "You must have the READ repository role to access the 'foo_proj/meta'");
 
-        // Grant a READ permission to the member with the legacy format.
+        // Grant a READ role to the member.
         request = HttpRequest.builder()
-                             .post("/api/v1/metadata/" + projectName + "/repos/meta/perm/role")
+                             .post("/api/v1/metadata/" + projectName + "/repos/meta/roles/projects")
                              .content(MediaType.JSON,
-                                      "{\n" +
-                                      "  \"owner\": [ \"READ\", \"WRITE\" ],\n" +
-                                      "  \"member\": [ \"READ\" ],\n" +
-                                      "  \"guest\": [ ]\n" +
+                                      '{' +
+                                      "  \"member\": \"READ\"," +
+                                      "  \"guest\": null" +
                                       '}')
                              .build();
-        adminClient.execute(request).aggregate().join();
+        assertThat(adminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
 
         // Now the member can access the meta repository.
         res = memberClient.get("/api/v1/projects/" + projectName + "/repos/meta/list").aggregate().join();
         assertThat(res.status()).isSameAs(HttpStatus.NO_CONTENT);
 
-        // With the new format.
+        // Revoke the role
         request = HttpRequest.builder()
-                             .post("/api/v1/metadata/" + projectName + "/repos/meta/perm/role")
+                             .post("/api/v1/metadata/" + projectName + "/repos/meta/roles/projects")
                              .content(MediaType.JSON,
                                       '{' +
                                       "  \"member\": null," +
                                       "  \"guest\": null" +
                                       '}')
                              .build();
-        adminClient.execute(request).aggregate().join();
+        assertThat(adminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
 
         // Now the member cannot access the meta repository.
         res = memberClient.get("/api/v1/projects/" + projectName + "/repos/meta/list").aggregate().join();

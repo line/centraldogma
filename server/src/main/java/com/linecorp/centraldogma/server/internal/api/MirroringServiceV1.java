@@ -39,14 +39,14 @@ import com.linecorp.armeria.server.annotation.decorator.RequestTimeout;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.User;
@@ -80,7 +80,7 @@ public class MirroringServiceV1 extends AbstractService {
      *
      * <p>Returns the list of the mirrors in the project.
      */
-    @RequiresReadPermission(repository = Project.REPO_META)
+    @RequiresRepositoryRole(value = RepositoryRole.READ, repository = Project.REPO_META)
     @Get("/projects/{projectName}/mirrors")
     public CompletableFuture<List<MirrorDto>> listMirrors(@Param String projectName) {
         return metaRepo(projectName).mirrors(true).thenApply(mirrors -> {
@@ -95,7 +95,7 @@ public class MirroringServiceV1 extends AbstractService {
      *
      * <p>Returns the mirror of the ID in the project mirror list.
      */
-    @RequiresReadPermission(repository = Project.REPO_META)
+    @RequiresRepositoryRole(value = RepositoryRole.READ, repository = Project.REPO_META)
     @Get("/projects/{projectName}/mirrors/{id}")
     public CompletableFuture<MirrorDto> getMirror(@Param String projectName, @Param String id) {
         return metaRepo(projectName).mirror(id).thenApply(mirror -> {
@@ -108,10 +108,10 @@ public class MirroringServiceV1 extends AbstractService {
      *
      * <p>Creates a new mirror.
      */
-    @RequiresWritePermission(repository = Project.REPO_META)
     @Post("/projects/{projectName}/mirrors")
     @ConsumesJson
     @StatusCode(201)
+    @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
     public CompletableFuture<PushResultDto> createMirror(@Param String projectName, MirrorDto newMirror,
                                                          Author author) {
         return createOrUpdate(projectName, newMirror, author, false);
@@ -122,9 +122,9 @@ public class MirroringServiceV1 extends AbstractService {
      *
      * <p>Update the exising mirror.
      */
-    @RequiresWritePermission(repository = Project.REPO_META)
-    @Put("/projects/{projectName}/mirrors/{id}")
     @ConsumesJson
+    @Put("/projects/{projectName}/mirrors/{id}")
+    @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
     public CompletableFuture<PushResultDto> updateMirror(@Param String projectName, MirrorDto mirror,
                                                          @Param String id, Author author) {
         checkArgument(id.equals(mirror.id()), "The mirror ID (%s) can't be updated", id);
@@ -136,8 +136,8 @@ public class MirroringServiceV1 extends AbstractService {
      *
      * <p>Delete the existing mirror.
      */
-    @RequiresWritePermission(repository = Project.REPO_META)
     @Delete("/projects/{projectName}/mirrors/{id}")
+    @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
     public CompletableFuture<Void> deleteMirror(@Param String projectName,
                                                 @Param String id, Author author) {
         final MetaRepository metaRepository = metaRepo(projectName);
@@ -166,10 +166,10 @@ public class MirroringServiceV1 extends AbstractService {
      *
      * <p>Runs the mirroring task immediately.
      */
-    @RequiresWritePermission(repository = Project.REPO_META)
     // Mirroring may be a long-running task, so we need to increase the timeout.
     @RequestTimeout(value = 5, unit = TimeUnit.MINUTES)
     @Post("/projects/{projectName}/mirrors/{mirrorId}/run")
+    @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
     public CompletableFuture<MirrorResult> runMirror(@Param String projectName, @Param String mirrorId,
                                                      User user) throws Exception {
         return mirrorRunner.run(projectName, mirrorId, user);
