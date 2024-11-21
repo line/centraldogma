@@ -21,43 +21,43 @@ import { Controller, useForm } from 'react-hook-form';
 import { IoMdArrowDropdown } from 'react-icons/io';
 import { useState } from 'react';
 import { OptionBase, Select } from 'chakra-react-select';
-import { ConfirmAddUserPermission } from 'dogma/features/repo/permissions/ConfirmAddUserPermission';
-import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
-import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
+import { ConfirmAddUserRepositoryRole } from 'dogma/features/repo/roles/ConfirmAddUserRepositoryRole';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
+import { UserOrTokenRepositoryRoleDto } from 'dogma/features/repo/RepositoriesMetadataDto';
+import { AddUserRepositoryRoleDto } from 'dogma/features/repo/roles/AddUserRepositoryRoleDto';
 import { ApiAction } from 'dogma/features/api/apiSlice';
-import { AppMemberDetailDto } from 'dogma/features/project/settings/members/AppMemberDto';
+import { AppTokenDetailDto } from 'dogma/features/project/settings/tokens/AppTokenDto';
 
-interface MemberOptionType extends OptionBase {
+interface TokenOptionType extends OptionBase {
   value: string;
   label: string;
 }
 
 type FormData = {
-  loginId: string;
-  permission: string;
+  appId: string;
+  role: string;
 };
 
-export const NewRepoUserPermission = ({
+export const NewTokenRepositoryRole = ({
   projectName,
   repoName,
-  members,
-  addUserPermission,
+  tokens,
+  addTokenRepositoryRole,
   isLoading,
-  perUserPermissions,
+  tokenRepositoryRole,
 }: {
   projectName: string;
   repoName: string;
-  members: AppMemberDetailDto[];
-  addUserPermission: ApiAction<AddUserPermissionDto, void>;
+  tokens: AppTokenDetailDto[];
+  addTokenRepositoryRole: ApiAction<AddUserRepositoryRoleDto, void>;
   isLoading: boolean;
-  perUserPermissions: PerUserPermissionDto;
+  tokenRepositoryRole: UserOrTokenRepositoryRoleDto;
 }) => {
-  const memberOptions: MemberOptionType[] = members
-    .filter((member) => !(member.login in perUserPermissions))
-    .map((member) => ({
-      value: member.login,
-      label: member.login,
+  const tokenOptions: TokenOptionType[] = tokens
+    .filter((token) => !(token.appId in tokenRepositoryRole))
+    .map((token) => ({
+      value: token.appId,
+      label: token.appId,
     }));
   const {
     control,
@@ -71,17 +71,17 @@ export const NewRepoUserPermission = ({
     onToggle: onConfirmAddToggle,
     onClose: onConfirmAddClose,
   } = useDisclosure();
-  const [loginId, setLoginId] = useState('');
-  const [permission, setPermission] = useState('read');
+  const [appId, setAppId] = useState('');
+  const [role, setRole] = useState('read');
   const onSubmit = async (data: FormData) => {
-    setLoginId(data.loginId);
+    setAppId(data.appId);
     onConfirmAddToggle();
   };
   return (
     <Popover placement="bottom" isOpen={isOpen} onClose={onClose}>
       <PopoverTrigger>
         <Button colorScheme="teal" size="sm" onClick={onToggle} rightIcon={<IoMdArrowDropdown />}>
-          New User Permission
+          New Token Role
         </Button>
       </PopoverTrigger>
       <PopoverContent minWidth="md">
@@ -92,22 +92,22 @@ export const NewRepoUserPermission = ({
         <PopoverCloseButton />
         <form onSubmit={handleSubmit(onSubmit)}>
           <PopoverBody minWidth="max-content">
-            <FormControl isInvalid={errors.loginId ? true : false} isRequired>
-              {memberOptions.length ? (
+            <FormControl isInvalid={errors.appId ? true : false} isRequired>
+              {tokenOptions.length ? (
                 <Controller
                   control={control}
-                  name="loginId"
+                  name="appId"
                   rules={{ required: true }}
                   render={({ field: { onChange, value, name, ref } }) => (
                     <Select
                       ref={ref}
-                      id="loginId"
+                      id="appId"
                       name={name}
-                      options={memberOptions}
+                      options={tokenOptions}
                       // The default value of React Select must be null (and not undefined)
-                      value={memberOptions.find((option) => option.value === value) || null}
+                      value={tokenOptions.find((option) => option.value === value) || null}
                       onChange={(option) => option && onChange(option.value)}
-                      placeholder="Enter Login ID ..."
+                      placeholder="Enter App ID ..."
                       closeMenuOnSelect={true}
                       openMenuOnFocus={true}
                       isSearchable={true}
@@ -116,22 +116,16 @@ export const NewRepoUserPermission = ({
                   )}
                 />
               ) : (
-                <FormHelperText>No members available</FormHelperText>
+                <FormHelperText>No tokens available</FormHelperText>
               )}
-              {errors.loginId && <FormErrorMessage>Login ID is required</FormErrorMessage>}
+              {errors.appId && <FormErrorMessage>App ID is required</FormErrorMessage>}
             </FormControl>
-            <RadioGroup
-              defaultValue="none"
-              mt={3}
-              colorScheme="teal"
-              onChange={setPermission}
-              value={permission}
-            >
-              {memberOptions.length ? (
+            <RadioGroup defaultValue="none" mt={3} colorScheme="teal" onChange={setRole} value={role}>
+              {tokenOptions.length ? (
                 <Stack spacing={5} direction="row">
-                  <Radio value="repo_admin">Admin</Radio>
-                  <Radio value="write">Write</Radio>
-                  <Radio value="read">Read</Radio>
+                  <Radio value="ADMIN">Admin</Radio>
+                  <Radio value="WRITE">Write</Radio>
+                  <Radio value="READ">Read</Radio>
                 </Stack>
               ) : (
                 ''
@@ -140,21 +134,21 @@ export const NewRepoUserPermission = ({
           </PopoverBody>
           <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
             <Spacer />
-            {memberOptions.length ? (
-              <ConfirmAddUserPermission
+            {tokenOptions.length ? (
+              <ConfirmAddUserRepositoryRole
                 projectName={projectName}
                 repoName={repoName}
-                loginId={loginId}
-                permission={permission}
+                loginId={appId}
+                repositoryRole={role}
                 isOpen={isConfirmAddOpen}
                 onClose={onConfirmAddClose}
                 resetForm={reset}
-                addUserPermission={addUserPermission}
+                addUserRepositoryRole={addTokenRepositoryRole}
                 isLoading={isLoading}
               />
             ) : (
-              <ChakraLink href={`/app/projects/${projectName}/metadata/#members`} color="teal">
-                Go to project {projectName}&apos;s member page
+              <ChakraLink href={`/app/projects/${projectName}/settings/tokens`} color="teal">
+                Go to project {projectName}&apos;s token page
               </ChakraLink>
             )}
           </PopoverFooter>

@@ -25,8 +25,8 @@ import { FileContentDto } from 'dogma/features/file/FileContentDto';
 import { RevisionDto } from 'dogma/features/history/RevisionDto';
 import { TokenDto } from 'dogma/features/token/TokenDto';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import { DeleteUserPermissionDto } from 'dogma/features/repo/permissions/DeleteUserPermissionDto';
-import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
+import { DeleteUserRepositoryRoleDto } from 'dogma/features/repo/roles/DeleteUserRepositoryRoleDto';
+import { AddUserRepositoryRoleDto } from 'dogma/features/repo/roles/AddUserRepositoryRoleDto';
 import { DeleteMemberDto } from 'dogma/features/project/settings/members/DeleteMemberDto';
 import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
@@ -168,40 +168,40 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    updateRolePermission: builder.mutation({
+    updateRepositoryProjectRoles: builder.mutation({
       query: ({ projectName, repoName, data }) => ({
-        url: `/api/v1/metadata/${projectName}/repos/${repoName}/perm/role`,
+        url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/projects`,
         method: 'POST',
         body: data,
       }),
       invalidatesTags: ['Metadata'],
     }),
-    addUserPermission: builder.mutation<void, AddUserPermissionDto>({
+    addUserRepositoryRole: builder.mutation<void, AddUserRepositoryRoleDto>({
       query: ({ projectName, repoName, data }) => ({
-        url: `/api/v1/metadata/${projectName}/repos/${repoName}/perm/users`,
+        url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/users`,
         method: 'POST',
         body: data,
       }),
       invalidatesTags: ['Metadata'],
     }),
-    deleteUserPermission: builder.mutation<void, DeleteUserPermissionDto>({
+    deleteUserRepositoryRole: builder.mutation<void, DeleteUserRepositoryRoleDto>({
       query: ({ projectName, repoName, id }) => ({
-        url: `/api/v1/metadata/${projectName}/repos/${repoName}/perm/users/${id}`,
+        url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/users/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Metadata'],
     }),
-    addTokenPermission: builder.mutation<void, AddUserPermissionDto>({
+    addTokenRepositoryRole: builder.mutation<void, AddUserRepositoryRoleDto>({
       query: ({ projectName, repoName, data }) => ({
-        url: `/api/v1/metadata/${projectName}/repos/${repoName}/perm/tokens`,
+        url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/tokens`,
         method: 'POST',
         body: data,
       }),
       invalidatesTags: ['Metadata'],
     }),
-    deleteTokenPermission: builder.mutation<void, DeleteUserPermissionDto>({
+    deleteTokenRepositoryRole: builder.mutation<void, DeleteUserRepositoryRoleDto>({
       query: ({ projectName, repoName, id }) => ({
-        url: `/api/v1/metadata/${projectName}/repos/${repoName}/perm/tokens/${id}`,
+        url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/tokens/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Metadata'],
@@ -416,11 +416,11 @@ export const {
   useDeleteMemberMutation,
   useAddNewTokenMemberMutation,
   useDeleteTokenMemberMutation,
-  useUpdateRolePermissionMutation,
-  useAddUserPermissionMutation,
-  useDeleteUserPermissionMutation,
-  useAddTokenPermissionMutation,
-  useDeleteTokenPermissionMutation,
+  useUpdateRepositoryProjectRolesMutation,
+  useAddUserRepositoryRoleMutation,
+  useDeleteUserRepositoryRoleMutation,
+  useAddTokenRepositoryRoleMutation,
+  useDeleteTokenRepositoryRoleMutation,
   // Repo
   useGetReposQuery,
   useAddNewRepoMutation,

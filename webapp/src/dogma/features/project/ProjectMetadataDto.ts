@@ -1,4 +1,4 @@
-import { RepoPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
+import { RepositoriesMetadataDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import { AppMemberDto } from 'dogma/features/project/settings/members/AppMemberDto';
 import { AppTokenDto } from 'dogma/features/project/settings/tokens/AppTokenDto';
 
@@ -9,7 +9,7 @@ export interface ProjectCreatorDto {
 
 export interface ProjectMetadataDto {
   name: string;
-  repos: RepoPermissionDto;
+  repos: RepositoriesMetadataDto;
   members: AppMemberDto;
   tokens: AppTokenDto;
   creation: ProjectCreatorDto;

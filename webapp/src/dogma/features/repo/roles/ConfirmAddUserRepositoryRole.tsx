@@ -15,47 +15,43 @@ import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { ApiAction } from 'dogma/features/api/apiSlice';
-import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
+import { AddUserRepositoryRoleDto } from 'dogma/features/repo/roles/AddUserRepositoryRoleDto';
+import { RepositoryRole } from '../RepositoriesMetadataDto';
 
-const constructPermission = (permission: string): 'READ' | 'WRITE' | 'REPO_ADMIN' =>
-  permission === 'repo_admin' ? 'REPO_ADMIN' : permission === 'write' ? 'WRITE' : 'READ';
-
-export const ConfirmAddUserPermission = ({
+export const ConfirmAddUserRepositoryRole = ({
   projectName,
   repoName,
   loginId,
-  permission,
+  repositoryRole,
   isOpen,
   onClose,
   resetForm,
-  addUserPermission,
+  addUserRepositoryRole,
   isLoading,
 }: {
   projectName: string;
   repoName: string;
   loginId: string;
-  permission: string;
+  repositoryRole: string;
   isOpen: boolean;
   onClose: () => void;
   resetForm: () => void;
-  addUserPermission: ApiAction<AddUserPermissionDto, void>;
+  addUserRepositoryRole: ApiAction<AddUserRepositoryRoleDto, void>;
   isLoading: boolean;
 }) => {
   const dispatch = useAppDispatch();
   const data = {
     id: loginId,
-    permission: constructPermission(permission),
+    role: repositoryRole as RepositoryRole,
   };
 
   const handleUpdate = async () => {
     try {
-      const response = await addUserPermission({ projectName, repoName, data }).unwrap();
+      const response = await addUserRepositoryRole({ projectName, repoName, data }).unwrap();
       if ((response as unknown as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as unknown as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      dispatch(
-        newNotification('Repository user permissions added', `Successfully updated ${repoName}`, 'success'),
-      );
+      dispatch(newNotification('Repository user role is added', `Successfully updated ${repoName}`, 'success'));
     } catch (error) {
       dispatch(newNotification(`Failed to update ${repoName}`, ErrorMessageParser.parse(error), 'error'));
     }

@@ -1,30 +1,47 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { RepositoryRole } from '../../../../../dogma/features/repo/RepositoriesMetadataDto';
 
 const projectMetadata = {
   name: 'abcd',
   repos: {
     meta: {
       name: 'meta',
-      perRolePermissions: { member: 'READ', guest: null as 'READ' | 'WRITE' | null },
-      perUserPermissions: {},
-      perTokenPermissions: {},
+      roles: {
+        projects: {
+          member: 'READ' as RepositoryRole,
+          guest: null as 'READ' | 'WRITE' | null,
+        },
+        users: {},
+        tokens: {},
+      },
       creation: { user: 'lb56789@localhost.localdomain', timestamp: '2022-11-23T03:13:50.128853Z' },
     },
     repo1: {
       name: 'repo1',
-      perRolePermissions: { member: 'WRITE', guest: 'WRITE' },
-      perUserPermissions: { 'lz123456@localhost.localdomain': 'WRITE' },
-      perTokenPermissions: { 'test-token': 'READ' },
+      roles: {
+        projects: {
+          member: 'WRITE' as RepositoryRole,
+          guest: 'WRITE',
+        },
+        users: {
+          'lz123456@localhost.localdomain': 'WRITE',
+        },
+        tokens: {
+          'test-token': 'READ',
+        },
+      },
       creation: { user: 'lb56789@localhost.localdomain', timestamp: '2022-11-23T03:16:18.853509Z' },
     },
     repo2: {
       name: 'repo2',
-      perRolePermissions: {
-        member: 'WRITE',
-        guest: null as 'READ' | 'WRITE' | null,
+      roles: {
+        projects: {
+          member: 'WRITE' as RepositoryRole,
+          guest: null as 'READ' | 'WRITE' | null,
+        },
+        users: {},
+        tokens: {},
       },
-      perUserPermissions: {},
-      perTokenPermissions: {},
       creation: { user: 'lb56789@localhost.localdomain', timestamp: '2022-12-16T05:25:30.973209Z' },
       removal: { user: 'lb56789@localhost.localdomain', timestamp: '2022-12-16T05:25:37.020133Z' },
     },

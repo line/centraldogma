@@ -1,38 +1,38 @@
 import { Icon, Tag, TagLabel, Wrap, WrapItem } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
-import { RepoPermissionDetailDto } from 'dogma/features/repo/RepoPermissionDto';
+import { RepositoryMetadataDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import { useMemo } from 'react';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { RiGitRepositoryPrivateLine } from 'react-icons/ri';
 
-export type RepoPermissionListProps<Data extends object> = {
+export type RepoRoleListProps<Data extends object> = {
   data: Data[];
   projectName: string;
 };
 
-const RepoPermissionList = <Data extends object>({ data, projectName }: RepoPermissionListProps<Data>) => {
-  const columnHelper = createColumnHelper<RepoPermissionDetailDto>();
+const RepoRoleList = <Data extends object>({ data, projectName }: RepoRoleListProps<Data>) => {
+  const columnHelper = createColumnHelper<RepositoryMetadataDto>();
   const columns = useMemo(
     () => [
-      columnHelper.accessor((row: RepoPermissionDetailDto) => row.name, {
+      columnHelper.accessor((row: RepositoryMetadataDto) => row.name, {
         cell: (info) => (
           <ChakraLink
             fontWeight={'semibold'}
-            href={`/app/projects/${projectName}/repos/${info.getValue()}/permissions`}
+            href={`/app/projects/${projectName}/repos/${info.getValue()}/roles`}
           >
             <Icon as={RiGitRepositoryPrivateLine} marginBottom={-0.5} /> {info.getValue()}
           </ChakraLink>
         ),
         header: 'Name',
       }),
-      columnHelper.accessor((row: RepoPermissionDetailDto) => row.perRolePermissions.member, {
+      columnHelper.accessor((row: RepositoryMetadataDto) => row.roles.projects.member, {
         cell: (info) => (
           <Wrap>
             {info.getValue() !== null && (
               <WrapItem key={info.getValue()}>
                 <Tag borderRadius="full" colorScheme="blue" size="sm">
-                  <TagLabel>{info.getValue() === 'REPO_ADMIN' ? 'ADMIN' : info.getValue()}</TagLabel>
+                  <TagLabel>{info.getValue()}</TagLabel>
                 </Tag>
               </WrapItem>
             )}
@@ -41,7 +41,7 @@ const RepoPermissionList = <Data extends object>({ data, projectName }: RepoPerm
         header: 'Member',
         enableSorting: false,
       }),
-      columnHelper.accessor((row: RepoPermissionDetailDto) => row.perRolePermissions.guest, {
+      columnHelper.accessor((row: RepositoryMetadataDto) => row.roles.projects.guest, {
         cell: (info) => (
           <Wrap>
             {info.getValue() !== null && (
@@ -62,4 +62,4 @@ const RepoPermissionList = <Data extends object>({ data, projectName }: RepoPerm
   return <DataTableClientPagination columns={columns as ColumnDef<Data>[]} data={data} />;
 };
 
-export default RepoPermissionList;
+export default RepoRoleList;

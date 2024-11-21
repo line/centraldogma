@@ -1,24 +1,24 @@
 import { Box, Flex, FormControl, FormLabel, HStack, Radio, RadioGroup, Spacer, VStack } from '@chakra-ui/react';
-import { ConfirmUpdateRolePermission } from 'dogma/features/repo/permissions/ConfirmUpdateRolePermission';
-import { RepoRolePermissionDto } from 'dogma/features/repo/RepoPermissionDto';
+import { ConfirmUpdateRepositoryProjectRoles } from 'dogma/features/repo/roles/ConfirmUpdateRepositoryProjectRoles';
+import { ProjectRolesDto, RepositoryRole } from 'dogma/features/repo/RepositoriesMetadataDto';
 import { useState } from 'react';
 import { MetadataButton } from 'dogma/common/components/MetadataButton';
 
-const getPermission = (permission: 'READ' | 'WRITE' | 'REPO_ADMIN' | null) => {
-  return permission == null ? 'NONE' : permission;
+const getRole = (role: RepositoryRole | null) => {
+  return role == null ? 'NONE' : role;
 };
 
-export const RolePermissionForm = ({
+export const ProjectRolesForm = ({
   projectName,
   repoName,
-  perRolePermissions,
+  projectRoles,
 }: {
   projectName: string;
   repoName: string;
-  perRolePermissions: RepoRolePermissionDto;
+  projectRoles: ProjectRolesDto;
 }) => {
-  const [member, setMember] = useState(getPermission(perRolePermissions.member));
-  const [guest, setGuest] = useState(getPermission(perRolePermissions.guest));
+  const [member, setMember] = useState(getRole(projectRoles.member));
+  const [guest, setGuest] = useState(getRole(projectRoles.guest));
   return (
     <Box>
       <VStack spacing={10} mt={6}>
@@ -27,7 +27,7 @@ export const RolePermissionForm = ({
             <FormLabel as="legend">Member</FormLabel>
             <RadioGroup colorScheme="teal" value={member} onChange={setMember}>
               <HStack spacing={20}>
-                <Radio value="REPO_ADMIN">Admin</Radio>
+                <Radio value="ADMIN">Admin</Radio>
                 <Radio value="WRITE">Write</Radio>
                 <Radio value="READ">Read</Radio>
                 <Radio value="NONE">Forbidden</Radio>
@@ -51,11 +51,11 @@ export const RolePermissionForm = ({
       <Flex gap={4} mt={10}>
         <Spacer />
         <MetadataButton href={`/app/projects/${projectName}/settings`} text="Project Settings" />
-        <ConfirmUpdateRolePermission
+        <ConfirmUpdateRepositoryProjectRoles
           projectName={projectName}
           repoName={repoName}
           data={{
-            member: member === 'NONE' ? null : (member as 'READ' | 'WRITE' | 'REPO_ADMIN'),
+            member: member === 'NONE' ? null : (member as RepositoryRole),
             guest: guest === 'NONE' ? null : (guest as 'READ' | 'WRITE'),
           }}
         />
