@@ -274,7 +274,8 @@ Core properties
         zone name.
 
       - You can also dynamically load a zone name by implementing :api:`com.linecorp.centraldogma.server.ConfigValueConverter`.
-    - ``zones`` (string array)
+
+    - ``allZones`` (string array)
 
       - the list of zone names.
 

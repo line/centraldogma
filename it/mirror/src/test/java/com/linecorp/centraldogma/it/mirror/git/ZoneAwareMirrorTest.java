@@ -27,7 +27,6 @@ import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUti
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nullable;
