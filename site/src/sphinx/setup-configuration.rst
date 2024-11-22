@@ -263,7 +263,7 @@ Core properties
 
     - the path of the management service. If not specified, the management service is mounted at ``/internal/management``.
 
-- ``zone`` (string)
+- ``zone``
 
     - the zone information of the server. If not specified, ``PluginTarget.ZONE_LEADER_ONLY`` can't be used.
 
