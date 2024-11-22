@@ -24,7 +24,6 @@ import java.util.Objects;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -93,16 +92,12 @@ public class RepositoryMetadata implements Identifiable {
     /**
      * Creates a new instance.
      */
-    @JsonCreator
-    public RepositoryMetadata(@JsonProperty("name") String name,
-                              @JsonProperty("perRolePermissions") PerRolePermissions perRolePermissions,
-                              @JsonProperty("perUserPermissions")
-                                      Map<String, Collection<Permission>> perUserPermissions,
-                              @JsonProperty("perTokenPermissions")
-                                      Map<String, Collection<Permission>> perTokenPermissions,
-                              @JsonProperty("creation") UserAndTimestamp creation,
-                              @JsonProperty("removal") @Nullable UserAndTimestamp removal,
-                              @JsonProperty("writeQuota") @Nullable QuotaConfig writeQuota) {
+    RepositoryMetadata(String name, PerRolePermissions perRolePermissions,
+                       Map<String, Collection<Permission>> perUserPermissions,
+                       Map<String, Collection<Permission>> perTokenPermissions,
+                       UserAndTimestamp creation,
+                       @Nullable UserAndTimestamp removal,
+                       @Nullable QuotaConfig writeQuota) {
         this.name = requireNonNull(name, "name");
         this.perRolePermissions = requireNonNull(perRolePermissions, "perRolePermissions");
         this.perUserPermissions = ImmutableMap.copyOf(requireNonNull(perUserPermissions,

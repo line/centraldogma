@@ -13,7 +13,9 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.server.metadata;
+package com.linecorp.centraldogma.common;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Roles for a repository.
@@ -30,5 +32,20 @@ public enum RepositoryRole {
     /**
      * Able to manage a repository.
      */
-    ADMIN
+    ADMIN;
+
+    /**
+     * Returns {@code true} if this {@link RepositoryRole} has the specified {@link RepositoryRole}.
+     */
+    public boolean has(RepositoryRole other) {
+        requireNonNull(other, "other");
+        if (this == ADMIN) {
+            return true;
+        }
+        if (this == WRITE) {
+            return other != ADMIN;
+        }
+        // this == READ
+        return this == other;
+    }
 }

@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.QuotaConfig;
 
@@ -66,8 +67,9 @@ final class RepositoryMetadataDeserializer extends StdDeserializer<RepositoryMet
         } else {
             // new format
             final Roles roles = Jackson.treeToValue(jsonNode.get("roles"), Roles.class);
-            perRolePermissions = new PerRolePermissions(READ_WRITE, getPermissions(roles.projectMember()),
-                                                        getPermissions(roles.projectGuest()), null);
+            perRolePermissions = new PerRolePermissions(READ_WRITE,
+                                                        getPermissions(roles.projectRoles().member()),
+                                                        getPermissions(roles.projectRoles().guest()), null);
             perUserPermissions = convert(roles.users());
             perTokenPermissions = convert(roles.tokens());
         }

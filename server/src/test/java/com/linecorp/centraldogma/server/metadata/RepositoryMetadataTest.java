@@ -68,8 +68,10 @@ class RepositoryMetadataTest {
         final String format = '{' +
                               "  \"name\": \"minu-test\"," +
                               "  \"roles\": {" +
-                              "    \"projectMember\": \"READ\"," +
-                              "    \"projectGuest\": null," +
+                              "    \"projects\": {" +
+                              "      \"member\": \"READ\"," +
+                              "      \"guest\": null" +
+                              "    }," +
                               "    \"users\": {" +
                               "      \"foo@dogma.com\": \"READ\"," +
                               "      \"bar@dogma.com\": \"WRITE\"" +

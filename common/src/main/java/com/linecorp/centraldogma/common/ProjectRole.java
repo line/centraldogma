@@ -54,4 +54,19 @@ public enum ProjectRole {
             throw new IllegalArgumentException(e);
         }
     }
+
+    /**
+     * Returns {@code true} if this {@link ProjectRole} has the specified {@link ProjectRole}.
+     */
+    public boolean has(ProjectRole other) {
+        requireNonNull(other, "other");
+        if (this == OWNER) {
+            return true;
+        }
+        if (this == MEMBER) {
+            return other != OWNER;
+        }
+        // this == GUEST
+        return this == other;
+    }
 }
