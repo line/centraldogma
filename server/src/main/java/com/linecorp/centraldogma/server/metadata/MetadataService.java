@@ -445,7 +445,7 @@ public class MetadataService {
         //         "tokens": ...
         //         "projects": {
         //           "member": "READ",
-        //           "guest": "null",
+        //           "guest": null
         //        }
         //       }
         //     }
