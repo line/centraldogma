@@ -109,7 +109,7 @@ public final class MirrorRunner implements SafeCloseable {
                             throw new MirrorException("The mirror is not in the current zone: " + currentZone);
                         }
                         final MirrorTask mirrorTask = new MirrorTask(mirror, user, Instant.now(),
-                                                                     currentZone, true);
+                                                                     currentZone, false);
                         final MirrorListener listener = MirrorSchedulingService.mirrorListener;
                         listener.onStart(mirrorTask);
                         try {

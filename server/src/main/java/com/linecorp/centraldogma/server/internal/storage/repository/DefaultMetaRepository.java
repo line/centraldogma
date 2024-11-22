@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.Nullable;
+
 import com.cronutils.model.Cron;
 import com.cronutils.model.field.CronField;
 import com.cronutils.model.field.CronFieldName;
@@ -44,6 +46,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
@@ -237,8 +240,9 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
 
     @Override
     public CompletableFuture<Command<CommitResult>> createPushCommand(MirrorDto mirrorDto, Author author,
+                                                                      @Nullable ZoneConfig zoneConfig,
                                                                       boolean update) {
-        validateMirror(mirrorDto);
+        validateMirror(mirrorDto, zoneConfig);
         if (update) {
             final String summary = "Update the mirror '" + mirrorDto.id() + '\'';
             return mirror(mirrorDto.id()).thenApply(mirror -> {
@@ -290,7 +294,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                             change);
     }
 
-    private static void validateMirror(MirrorDto mirror) {
+    private static void validateMirror(MirrorDto mirror, @Nullable ZoneConfig zoneConfig) {
         checkArgument(!Strings.isNullOrEmpty(mirror.id()), "Mirror ID is empty");
         final String scheduleString = mirror.schedule();
         if (scheduleString != null) {
@@ -298,6 +302,13 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             final CronField secondField = schedule.retrieve(CronFieldName.SECOND);
             checkArgument(!secondField.getExpression().asString().contains("*"),
                           "The second field of the schedule must be specified. (seconds: *, expected: 0-59)");
+        }
+
+        final String zone = mirror.zone();
+        if (zone != null) {
+            checkArgument(zoneConfig != null, "Zone configuration is missing");
+            checkArgument(zoneConfig.allZones().contains(zone),
+                          "The zone '%s' is not in the zone configuration: %s", zone, zoneConfig);
         }
     }
 

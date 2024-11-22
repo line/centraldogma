@@ -25,6 +25,7 @@ import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUti
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.awaitility.Awaitility.await;
 
 import java.util.List;
@@ -40,6 +41,7 @@ import org.junit.jupiter.params.provider.FieldSource;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.client.BlockingWebClient;
+import com.linecorp.armeria.client.InvalidHttpResponseException;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseEntity;
@@ -144,20 +146,13 @@ class ZoneAwareMirrorTest {
     }
 
     @Test
-    void shouldNotRunMirrorTaskForUnknownZone() throws Exception {
+    void shouldRejectUnknownZone() throws Exception {
         final String unknownZone = "unknown-zone";
-        createMirror(unknownZone);
-
-        // Wait for 3 seconds to ensure that the mirror task is not executed.
-        Thread.sleep(3000);
-
-        await().untilAsserted(() -> {
-            assertThat(TestZoneAwareMirrorListener.startCount).isEmpty();
-        });
-        await().untilAsserted(() -> {
-            assertThat(TestZoneAwareMirrorListener.completions).isEmpty();
-            assertThat(TestZoneAwareMirrorListener.errors).isEmpty();
-        });
+        final InvalidHttpResponseException invalidResponseException =
+                catchThrowableOfType(InvalidHttpResponseException.class, () -> createMirror(unknownZone));
+        assertThat(invalidResponseException.response().status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(invalidResponseException.response().contentUtf8())
+                .contains("The zone 'unknown-zone' is not in the zone configuration");
     }
 
     private static void createMirror(String zone) throws Exception {

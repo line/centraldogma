@@ -69,7 +69,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("configType", configType().getName())
-                          .add("target", PluginTarget.LEADER_ONLY)
+                          .add("target", PluginTarget.ALL_REPLICAS)
                           .toString();
     }
 }

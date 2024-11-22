@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import javax.annotation.Nullable;
+
 import com.cronutils.model.Cron;
 import com.google.common.collect.ImmutableMap;
 
@@ -74,12 +76,15 @@ public class MirroringServiceV1 extends AbstractService {
     private final ProjectApiManager projectApiManager;
     private final MirrorRunner mirrorRunner;
     private final Map<String, Object> mirrorZoneConfig;
+    @Nullable
+    private final ZoneConfig zoneConfig;
 
     public MirroringServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor,
                               MirrorRunner mirrorRunner, CentralDogmaConfig config) {
         super(executor);
         this.projectApiManager = projectApiManager;
         this.mirrorRunner = mirrorRunner;
+        zoneConfig = config.zone();
         mirrorZoneConfig = mirrorZoneConfig(config);
     }
 
@@ -174,11 +179,12 @@ public class MirroringServiceV1 extends AbstractService {
     private CompletableFuture<PushResultDto> createOrUpdate(String projectName,
                                                             MirrorDto newMirror,
                                                             Author author, boolean update) {
-        return metaRepo(projectName).createPushCommand(newMirror, author, update).thenCompose(command -> {
-            return executor().execute(command).thenApply(result -> {
-                return new PushResultDto(result.revision(), command.timestamp());
-            });
-        });
+        return metaRepo(projectName)
+                .createPushCommand(newMirror, author, zoneConfig, update).thenCompose(command -> {
+                    return executor().execute(command).thenApply(result -> {
+                        return new PushResultDto(result.revision(), command.timestamp());
+                    });
+                });
     }
 
     /**
