@@ -22,18 +22,24 @@ import java.lang.annotation.Target;
 
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.DecoratorFactory;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresPermissionDecorator.RequiresWritePermissionDecoratorFactory;
-import com.linecorp.centraldogma.server.metadata.Permission;
+import com.linecorp.centraldogma.common.RepositoryRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRoleDecorator.RequiresRepositoryRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
- * A {@link Decorator} to allow a request from a user who has a write {@link Permission}.
+ * A {@link Decorator} to allow a request from a user granted the specified {@link RepositoryRole}.
  */
-@DecoratorFactory(RequiresWritePermissionDecoratorFactory.class)
+@DecoratorFactory(RequiresRepositoryRoleDecoratorFactory.class)
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.TYPE, ElementType.METHOD })
-public @interface RequiresWritePermission {
+public @interface RequiresRepositoryRole {
+
+    /**
+     * The required {@link RepositoryRole}.
+     */
+    RepositoryRole value();
+
     /**
      * A special parameter in order to specify the order of a {@link Decorator}.
      */

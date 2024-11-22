@@ -3,7 +3,7 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { DeleteRepo } from 'dogma/features/repo/DeleteRepo';
-import { RepoPermissionDetailDto } from 'dogma/features/repo/RepoPermissionDto';
+import { RepositoryMetadataDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import { RestoreRepo } from 'dogma/features/repo/RestoreRepo';
 import { useMemo } from 'react';
 import { RepoIcon } from 'dogma/common/components/RepoIcon';
@@ -14,10 +14,10 @@ export type RepoListProps<Data extends object> = {
 };
 
 const RepoMetaList = <Data extends object>({ data, projectName }: RepoListProps<Data>) => {
-  const columnHelper = createColumnHelper<RepoPermissionDetailDto>();
+  const columnHelper = createColumnHelper<RepositoryMetadataDto>();
   const columns = useMemo(
     () => [
-      columnHelper.accessor((row: RepoPermissionDetailDto) => row.name, {
+      columnHelper.accessor((row: RepositoryMetadataDto) => row.name, {
         cell: (info) => {
           return (
             <RepoIcon
@@ -29,21 +29,21 @@ const RepoMetaList = <Data extends object>({ data, projectName }: RepoListProps<
         },
         header: 'Name',
       }),
-      columnHelper.accessor((row: RepoPermissionDetailDto) => row.removal, {
+      columnHelper.accessor((row: RepositoryMetadataDto) => row.removal, {
         cell: (info) => {
           return info.getValue() ? <Badge>Inactive</Badge> : <Badge colorScheme="blue">Active</Badge>;
         },
         header: 'Status',
       }),
-      columnHelper.accessor((row: RepoPermissionDetailDto) => row.creation.user, {
+      columnHelper.accessor((row: RepositoryMetadataDto) => row.creation.user, {
         cell: (info) => info.getValue(),
         header: 'Creator',
       }),
-      columnHelper.accessor((row: RepoPermissionDetailDto) => row.creation.timestamp, {
+      columnHelper.accessor((row: RepositoryMetadataDto) => row.creation.timestamp, {
         cell: (info) => <DateWithTooltip date={info.getValue()} />,
         header: 'Created',
       }),
-      columnHelper.accessor((row: RepoPermissionDetailDto) => row.name, {
+      columnHelper.accessor((row: RepositoryMetadataDto) => row.name, {
         cell: (info) =>
           info.getValue() !== 'meta' && (
             <Wrap>

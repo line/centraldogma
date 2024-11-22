@@ -143,9 +143,8 @@ import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
 import com.linecorp.centraldogma.server.internal.api.TokenService;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthorizer;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresPermissionDecorator.RequiresReadPermissionDecoratorFactory;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresPermissionDecorator.RequiresWritePermissionDecoratorFactory;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresRoleDecorator.RequiresRoleDecoratorFactory;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRoleDecorator.RequiresProjectRoleDecoratorFactory;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRoleDecorator.RequiresRepositoryRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
@@ -837,9 +836,8 @@ public class CentralDogma implements AutoCloseable {
                 // See JacksonRequestConverterFunctionTest
                 new JacksonRequestConverterFunction(new ObjectMapper()),
                 new HttpApiRequestConverter(projectApiManager),
-                new RequiresReadPermissionDecoratorFactory(mds),
-                new RequiresWritePermissionDecoratorFactory(mds),
-                new RequiresRoleDecoratorFactory(mds)
+                new RequiresRepositoryRoleDecoratorFactory(mds),
+                new RequiresProjectRoleDecoratorFactory(mds)
         );
         sb.dependencyInjector(dependencyInjector, false)
           // TODO(ikhoon): Consider exposing ReflectiveDependencyInjector as a public API via

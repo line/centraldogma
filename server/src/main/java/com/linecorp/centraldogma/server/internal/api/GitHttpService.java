@@ -50,7 +50,8 @@ import com.linecorp.armeria.server.annotation.Header;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.RequestConverter;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
+import com.linecorp.centraldogma.common.RepositoryRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.User;
@@ -60,7 +61,7 @@ import com.linecorp.centraldogma.server.storage.project.Project;
  * A service that provides Git HTTP protocol.
  */
 @RequestConverter(HttpApiRequestConverter.class)
-@RequiresReadPermission
+@RequiresRepositoryRole(RepositoryRole.READ)
 public final class GitHttpService {
 
     private static final Logger logger = LoggerFactory.getLogger(GitHttpService.class);

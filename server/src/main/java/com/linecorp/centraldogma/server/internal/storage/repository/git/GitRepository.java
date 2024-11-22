@@ -1115,7 +1115,8 @@ class GitRepository implements Repository {
                         try {
                             newJsonNode = JsonPatch.fromJson((JsonNode) change.content()).apply(oldJsonNode);
                         } catch (Exception e) {
-                            throw new ChangeConflictException("failed to apply JSON patch: " + change, e);
+                            throw new ChangeConflictException("failed to apply JSON patch: " + change +
+                                                              " old JSON: " + oldJsonNode, e);
                         }
 
                         // Apply only when the contents are really different.

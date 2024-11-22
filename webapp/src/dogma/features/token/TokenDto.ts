@@ -1,4 +1,4 @@
-import { RepoCreatorDto } from 'dogma/features/repo/RepoPermissionDto';
+import { RepoCreatorDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 
 export interface TokenDto {
   appId: string;
