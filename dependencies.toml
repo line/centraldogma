@@ -49,6 +49,7 @@ jsch = "0.1.55"
 json-path = "2.2.0"
 # 3.0.0 requires java 17
 json-unit = "2.38.0"
+jsoup = "1.18.1" # JSoup is only used for Gradle script.
 jmh-core = "1.37"
 jmh-gradle-plugin = "0.7.2"
 jxr = "0.2.1"
@@ -280,6 +281,10 @@ version.ref = "json-unit"
 [libraries.json-unit-fluent]
 module = "net.javacrumbs.json-unit:json-unit-fluent"
 version.ref = "json-unit"
+
+[libraries.jsoup]
+module = "org.jsoup:jsoup"
+version.ref = "jsoup"
 
 [libraries.junit4]
 module = "junit:junit"
