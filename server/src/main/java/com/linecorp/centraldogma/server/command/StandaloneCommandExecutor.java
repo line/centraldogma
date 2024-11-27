@@ -205,6 +205,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                     .thenApply(CommitResult::revision);
         }
 
+        if (command instanceof TransformingContentPushCommand) {
+            return (CompletableFuture<T>) push((TransformingContentPushCommand) command, true);
+        }
+
         if (command instanceof CreateSessionCommand) {
             return (CompletableFuture<T>) createSession((CreateSessionCommand) command);
         }
@@ -315,8 +319,13 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     private CompletableFuture<CommitResult> push0(AbstractPushCommand<?> c, boolean normalizing) {
+        if (c instanceof ChangesPushCommand) {
+            return repo(c).commit(c.baseRevision(), c.timestamp(), c.author(), c.summary(), c.detail(),
+                                  c.markup(), ((ChangesPushCommand<?>) c).changes(), normalizing);
+        }
+        assert c instanceof TransformingContentPushCommand;
         return repo(c).commit(c.baseRevision(), c.timestamp(), c.author(), c.summary(), c.detail(), c.markup(),
-                              c.changes(), normalizing);
+                              ((TransformingContentPushCommand) c).transformer());
     }
 
     private CompletableFuture<RateLimiter> getRateLimiter(String projectName, String repoName) {

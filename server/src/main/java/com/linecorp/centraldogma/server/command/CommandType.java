@@ -29,6 +29,7 @@ public enum CommandType {
     REMOVE_REPOSITORY(Void.class),
     UNREMOVE_REPOSITORY(Void.class),
     NORMALIZING_PUSH(CommitResult.class),
+    TRANSFORMING_CONTENT_PUSH(CommitResult.class),
     PUSH(Revision.class),
     SAVE_NAMED_QUERY(Void.class),
     REMOVE_NAMED_QUERY(Void.class),

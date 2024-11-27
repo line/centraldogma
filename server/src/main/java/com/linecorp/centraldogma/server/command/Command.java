@@ -342,6 +342,21 @@ public interface Command<T> {
     }
 
     /**
+     * Returns a new {@link Command} which is used to push the changes. The changes are normalized via
+     * {@link Repository#previewDiff(Revision, Iterable)} before they are applied.
+     * You can find the normalized changes from the {@link CommitResult#changes()} that is the result of
+     * {@link CommandExecutor#execute(Command)}.
+     */
+    static Command<CommitResult> transformingContentPush(@Nullable Long timestamp, Author author,
+                                                         String projectName, String repositoryName,
+                                                         Revision baseRevision, String summary,
+                                                         String detail, Markup markup,
+                                                         ContentTransformer<?> transformer) {
+        return TransformingContentPushCommand.of(timestamp, author, projectName, repositoryName,
+                                                 baseRevision, summary, detail, markup, transformer);
+    }
+
+    /**
      * Returns a new {@link Command} which is used to create a new session.
      *
      * @param session the session supposed to be created

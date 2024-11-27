@@ -54,6 +54,7 @@ import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.HistoryConstants;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.internal.replication.ReplicationLog;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -403,6 +404,14 @@ public interface Repository {
     CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
                                            Author author, String summary, String detail, Markup markup,
                                            Iterable<Change<?>> changes, boolean directExecution);
+
+    /**
+     * Adds the content that is transformed by the specified {@link ContentTransformer} to
+     * this {@link Repository}.
+     */
+    CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
+                                           Author author, String summary, String detail, Markup markup,
+                                           ContentTransformer<?> transformer);
 
     /**
      * Get a list of {@link Commit} for given pathPattern.

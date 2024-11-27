@@ -30,7 +30,7 @@ import com.linecorp.centraldogma.common.Revision;
  * Unlike {@link NormalizingPushCommand}, the changes of this {@link Command}
  * are not normalized and applied as they are.
  */
-public final class PushAsIsCommand extends AbstractPushCommand<Revision> {
+public final class PushAsIsCommand extends ChangesPushCommand<Revision> {
 
     /**
      * Creates a new instance.

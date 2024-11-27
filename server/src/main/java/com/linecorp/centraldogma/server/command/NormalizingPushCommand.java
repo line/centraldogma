@@ -34,7 +34,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
  * You can find the normalized changes from the {@link CommitResult#changes()} that is the result of
  * {@link CommandExecutor#execute(Command)}.
  */
-public final class NormalizingPushCommand extends AbstractPushCommand<CommitResult> {
+public final class NormalizingPushCommand extends ChangesPushCommand<CommitResult> {
 
     @JsonCreator
     NormalizingPushCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
