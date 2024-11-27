@@ -342,10 +342,9 @@ public interface Command<T> {
     }
 
     /**
-     * Returns a new {@link Command} which is used to push the changes. The change is created by transforming
-     * the content of the base revision with the specified {@link ContentTransformer}.
-     * You can find the normalized changes from the {@link CommitResult#changes()} that is the result of
-     * {@link CommandExecutor#execute(Command)}.
+     * Returns a new {@link Command} that transforms the content at the base revision with
+     * the specified {@link ContentTransformer} and pushed the result of transformation.
+     * You can find the result of transformation from {@link CommitResult#changes()}.
      */
     static Command<CommitResult> transform(@Nullable Long timestamp, Author author,
                                            String projectName, String repositoryName,

@@ -26,10 +26,10 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * A {@link Command} which is used for pushing a change to the repository. The change is created by transforming
- * the content of the base revision with the specified {@link ContentTransformer}.
- * You can find the normalized changes from the {@link CommitResult#changes()} that is the result of
- * {@link CommandExecutor#execute(Command)}. Note that this command is not serialized and deserialized.
+ * A {@link Command} that transforms the content at the base revision with
+ * the specified {@link ContentTransformer} and pushed the result of transformation.
+ * You can find the result of transformation from {@link CommitResult#changes()}.
+ * Note that this command is not serialized and deserialized.
  */
 public final class TransformCommand extends RepositoryCommand<CommitResult> {
 
