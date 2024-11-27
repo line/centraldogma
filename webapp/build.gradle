@@ -74,7 +74,7 @@ if (!rootProject.hasProperty('noLint')) {
     task prettier(type: NpmTask) {
         dependsOn tasks.eslint
 
-        args = ['run', 'format']
+        args = ['run', 'format:fix']
 
         inputs.dir('src')
         inputs.file('package.json')
