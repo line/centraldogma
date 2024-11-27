@@ -17,14 +17,17 @@ package com.linecorp.centraldogma.server.command;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.List;
 import java.util.Objects;
 
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 
@@ -37,16 +40,20 @@ public abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
     private final String summary;
     private final String detail;
     private final Markup markup;
+    private final List<Change<?>> changes;
 
     AbstractPushCommand(CommandType type, @Nullable Long timestamp, @Nullable Author author,
                         String projectName, String repositoryName, Revision baseRevision,
-                        String summary, String detail, Markup markup) {
+                        String summary, String detail, Markup markup, Iterable<Change<?>> changes) {
         super(type, timestamp, author, projectName, repositoryName);
 
         this.baseRevision = requireNonNull(baseRevision, "baseRevision");
         this.summary = requireNonNull(summary, "summary");
         this.detail = requireNonNull(detail, "detail");
         this.markup = requireNonNull(markup, "markup");
+
+        requireNonNull(changes, "changes");
+        this.changes = ImmutableList.copyOf(changes);
     }
 
     /**
@@ -81,6 +88,14 @@ public abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
         return markup;
     }
 
+    /**
+     * Returns the {@link Change}s of the commit.
+     */
+    @JsonProperty
+    public List<Change<?>> changes() {
+        return changes;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {
@@ -96,12 +111,13 @@ public abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
                baseRevision.equals(that.baseRevision) &&
                summary.equals(that.summary) &&
                detail.equals(that.detail) &&
-               markup == that.markup;
+               markup == that.markup &&
+               changes.equals(that.changes);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(baseRevision, summary, detail, markup) * 31 + super.hashCode();
+        return Objects.hash(baseRevision, summary, detail, markup, changes) * 31 + super.hashCode();
     }
 
     @Override
@@ -110,6 +126,7 @@ public abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
                     .add("baseRevision", baseRevision)
                     .add("summary", summary)
                     .add("detail", detail)
-                    .add("markup", markup);
+                    .add("markup", markup)
+                    .add("changes", changes);
     }
 }

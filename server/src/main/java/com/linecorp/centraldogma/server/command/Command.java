@@ -347,13 +347,13 @@ public interface Command<T> {
      * You can find the normalized changes from the {@link CommitResult#changes()} that is the result of
      * {@link CommandExecutor#execute(Command)}.
      */
-    static Command<CommitResult> transformingContentPush(@Nullable Long timestamp, Author author,
-                                                         String projectName, String repositoryName,
-                                                         Revision baseRevision, String summary,
-                                                         String detail, Markup markup,
-                                                         ContentTransformer<?> transformer) {
-        return TransformingContentPushCommand.of(timestamp, author, projectName, repositoryName,
-                                                 baseRevision, summary, detail, markup, transformer);
+    static Command<CommitResult> transform(@Nullable Long timestamp, Author author,
+                                           String projectName, String repositoryName,
+                                           Revision baseRevision, String summary,
+                                           String detail, Markup markup,
+                                           ContentTransformer<?> transformer) {
+        return TransformCommand.of(timestamp, author, projectName, repositoryName,
+                                   baseRevision, summary, detail, markup, transformer);
     }
 
     /**

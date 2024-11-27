@@ -20,14 +20,14 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 
-final class CommitExecutor extends AbstractCommitExecutor {
+final class DefaultCommitExecutor extends AbstractCommitExecutor {
     private final boolean directExecution;
     private final Iterable<Change<?>> changes;
 
-    CommitExecutor(GitRepository gitRepository, long commitTimeMillis,
-                   Author author, String summary, String detail,
-                   Markup markup, boolean allowEmptyCommit,
-                   boolean directExecution, Iterable<Change<?>> changes) {
+    DefaultCommitExecutor(GitRepository gitRepository, long commitTimeMillis,
+                          Author author, String summary, String detail,
+                          Markup markup, boolean allowEmptyCommit,
+                          boolean directExecution, Iterable<Change<?>> changes) {
         super(gitRepository, commitTimeMillis, author, summary, detail, markup, allowEmptyCommit);
         this.directExecution = directExecution;
         this.changes = changes;
@@ -42,7 +42,7 @@ final class CommitExecutor extends AbstractCommitExecutor {
         if (!directExecution) {
             return changes;
         }
-        return gitRepository.blockingPreviewDiff(normBaseRevision, new ChangesApplier(changes))
+        return gitRepository.blockingPreviewDiff(normBaseRevision, new DefaultChangesApplier(changes))
                             .values();
     }
 }

@@ -205,8 +205,8 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                     .thenApply(CommitResult::revision);
         }
 
-        if (command instanceof TransformingContentPushCommand) {
-            return (CompletableFuture<T>) push((TransformingContentPushCommand) command, true);
+        if (command instanceof TransformCommand) {
+            return (CompletableFuture<T>) push((TransformCommand) command, true);
         }
 
         if (command instanceof CreateSessionCommand) {
@@ -292,7 +292,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         }, repositoryWorker);
     }
 
-    private CompletableFuture<CommitResult> push(AbstractPushCommand<?> c, boolean normalizing) {
+    private CompletableFuture<CommitResult> push(RepositoryCommand<?> c, boolean normalizing) {
         if (c.projectName().equals(INTERNAL_PROJECT_DOGMA) || c.repositoryName().equals(Project.REPO_DOGMA) ||
             !writeQuotaEnabled()) {
             return push0(c, normalizing);
@@ -309,7 +309,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     private CompletableFuture<CommitResult> tryPush(
-            AbstractPushCommand<?> c, boolean normalizing, @Nullable RateLimiter rateLimiter) {
+            RepositoryCommand<?> c, boolean normalizing, @Nullable RateLimiter rateLimiter) {
         if (rateLimiter == null || rateLimiter == UNLIMITED || rateLimiter.tryAcquire()) {
             return push0(c, normalizing);
         } else {
@@ -318,14 +318,19 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         }
     }
 
-    private CompletableFuture<CommitResult> push0(AbstractPushCommand<?> c, boolean normalizing) {
-        if (c instanceof ChangesPushCommand) {
-            return repo(c).commit(c.baseRevision(), c.timestamp(), c.author(), c.summary(), c.detail(),
-                                  c.markup(), ((ChangesPushCommand<?>) c).changes(), normalizing);
+    private CompletableFuture<CommitResult> push0(RepositoryCommand<?> c, boolean normalizing) {
+        if (c instanceof TransformCommand) {
+            final TransformCommand transformCommand = (TransformCommand) c;
+            return repo(c).commit(transformCommand.baseRevision(), transformCommand.timestamp(),
+                                  transformCommand.author(), transformCommand.summary(),
+                                  transformCommand.detail(), transformCommand.markup(),
+                                  transformCommand.transformer());
         }
-        assert c instanceof TransformingContentPushCommand;
-        return repo(c).commit(c.baseRevision(), c.timestamp(), c.author(), c.summary(), c.detail(), c.markup(),
-                              ((TransformingContentPushCommand) c).transformer());
+        assert c instanceof AbstractPushCommand;
+        final AbstractPushCommand<?> pushCommand = (AbstractPushCommand<?>) c;
+        return repo(c).commit(pushCommand.baseRevision(), pushCommand.timestamp(), pushCommand.author(),
+                              pushCommand.summary(), pushCommand.detail(), pushCommand.markup(),
+                              pushCommand.changes(), normalizing);
     }
 
     private CompletableFuture<RateLimiter> getRateLimiter(String projectName, String repoName) {

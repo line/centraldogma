@@ -246,8 +246,9 @@ class GitRepository implements Repository {
             // Initialize the commit ID database.
             commitIdDatabase = new CommitIdDatabase(jGitRepository);
 
-            new CommitExecutor(this, creationTimeMillis, author,"Create a new repository", "", Markup.PLAINTEXT,
-                               true, false, Collections.emptyList()).executeInitialCommit();
+            new DefaultCommitExecutor(this, creationTimeMillis, author, "Create a new repository", "",
+                                      Markup.PLAINTEXT, true, false, Collections.emptyList())
+                    .executeInitialCommit();
 
             headRevision = Revision.INIT;
             success = true;
@@ -712,7 +713,7 @@ class GitRepository implements Repository {
         final ServiceRequestContext ctx = context();
         return CompletableFuture.supplyAsync(() -> {
             failFastIfTimedOut(this, logger, ctx, "previewDiff", baseRevision);
-            return blockingPreviewDiff(baseRevision, new ChangesApplier(changes));
+            return blockingPreviewDiff(baseRevision, new DefaultChangesApplier(changes));
         }, repositoryWorker);
     }
 
@@ -852,9 +853,9 @@ class GitRepository implements Repository {
         requireNonNull(detail, "detail");
         requireNonNull(markup, "markup");
         requireNonNull(changes, "changes");
-        final CommitExecutor commitExecutor =
-                new CommitExecutor(this, commitTimeMillis, author, summary, detail,
-                                   markup, false, directExecution, changes);
+        final DefaultCommitExecutor commitExecutor =
+                new DefaultCommitExecutor(this, commitTimeMillis, author, summary, detail,
+                                          markup, false, directExecution, changes);
         return commit(baseRevision, commitExecutor);
     }
 
@@ -1305,14 +1306,16 @@ class GitRepository implements Repository {
                             diff(previousNonEmptyRevision, revision, ALL_PATH).join().values();
 
                     try {
-                        new CommitExecutor(newRepo, c.when(), c.author(), c.summary(), c.detail(), c.markup(),
-                                           false, false, changes).execute(baseRevision);
+                        new DefaultCommitExecutor(newRepo, c.when(), c.author(), c.summary(),
+                                                  c.detail(), c.markup(), false, false, changes)
+                                .execute(baseRevision);
                         previousNonEmptyRevision = revision;
                     } catch (RedundantChangeException e) {
                         // NB: We allow an empty commit here because an old version of Central Dogma had a bug
                         //     which allowed the creation of an empty commit.
-                        new CommitExecutor(newRepo, c.when(), c.author(), c.summary(), c.detail(), c.markup(),
-                                           true, false, changes).execute(baseRevision);
+                        new DefaultCommitExecutor(newRepo, c.when(), c.author(), c.summary(),
+                                                  c.detail(), c.markup(), true, false, changes)
+                                .execute(baseRevision);
                     }
 
                     progressListener.accept(i, endRevision.major());

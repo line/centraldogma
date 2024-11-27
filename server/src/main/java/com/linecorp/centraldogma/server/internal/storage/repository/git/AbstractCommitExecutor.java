@@ -133,7 +133,7 @@ abstract class AbstractCommitExecutor {
             final DirCache dirCache = DirCache.newInCore();
 
             // Apply the changes and retrieve the list of the affected files.
-            final int numEdits = new ChangesApplier(changes)
+            final int numEdits = new DefaultChangesApplier(changes)
                     .apply(jGitRepository, prevRevision, prevTreeId, dirCache);
 
             // Reject empty commit if necessary.

@@ -76,7 +76,7 @@ import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.PushAsIsCommand;
-import com.linecorp.centraldogma.server.command.TransformingContentPushCommand;
+import com.linecorp.centraldogma.server.command.TransformCommand;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.testing.internal.FlakyTest;
 
@@ -384,17 +384,17 @@ class ZooKeeperCommandExecutorTest {
             };
             final ContentTransformer<JsonNode> contentTransformer = new ContentTransformer<>(
                     pushChange.path(), EntryType.JSON, transformer);
-            final Command<CommitResult> transformingContentPushCommand =
-                    Command.transformingContentPush(0L, Author.SYSTEM, "project", "repo1", new Revision(1),
-                                 "summary", "detail",
-                                 Markup.PLAINTEXT, contentTransformer);
+            final Command<CommitResult> transformCommand =
+                    Command.transform(0L, Author.SYSTEM, "project", "repo1", new Revision(1),
+                                      "summary", "detail",
+                                      Markup.PLAINTEXT, contentTransformer);
 
-            assert transformingContentPushCommand instanceof TransformingContentPushCommand;
+            assert transformCommand instanceof TransformCommand;
             final PushAsIsCommand asIsCommand =
-                    ((TransformingContentPushCommand) transformingContentPushCommand).asIs(
+                    ((TransformCommand) transformCommand).asIs(
                             CommitResult.of(new Revision(2), ImmutableList.of(normalizedChange)));
 
-            assertThat(replica1.commandExecutor().execute(transformingContentPushCommand).join().revision())
+            assertThat(replica1.commandExecutor().execute(transformCommand).join().revision())
                     .isEqualTo(new Revision(2));
             return asIsCommand;
         }
@@ -679,10 +679,10 @@ class ZooKeeperCommandExecutorTest {
                          }
                      }
 
-                     if (argument instanceof TransformingContentPushCommand) {
-                         final TransformingContentPushCommand pushCommand =
-                                 (TransformingContentPushCommand) argument;
-                         assertThat(pushCommand.type()).isSameAs(CommandType.TRANSFORMING_CONTENT_PUSH);
+                     if (argument instanceof TransformCommand) {
+                         final TransformCommand pushCommand =
+                                 (TransformCommand) argument;
+                         assertThat(pushCommand.type()).isSameAs(CommandType.TRANSFORM);
                          final Function<JsonNode, JsonNode> transformer =
                                  (Function<JsonNode, JsonNode>) pushCommand.transformer().transformer();
                          final JsonNode applied = transformer.apply(pushChange.content());

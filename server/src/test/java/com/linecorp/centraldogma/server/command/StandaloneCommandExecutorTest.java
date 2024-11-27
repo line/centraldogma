@@ -151,6 +151,8 @@ class StandaloneCommandExecutorTest {
                                                       .join()
                                                       .contentAsJson();
         assertThat(json.get("a").asText()).isEqualTo("b");
+        executor.execute(Command.updateServerStatus(ServerStatus.WRITABLE)).join();
+        assertThat(executor.isWritable()).isTrue();
     }
 
     @Test
@@ -174,7 +176,7 @@ class StandaloneCommandExecutorTest {
     }
 
     @Test
-    void transformingContentPushCommandConvertedIntoJsonPatch() {
+    void transformCommandConvertedIntoJsonPatch() {
         final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) extension.executor();
 
         // Initial commit.
@@ -198,7 +200,7 @@ class StandaloneCommandExecutorTest {
                 new ContentTransformer<>("/bar.json", EntryType.JSON, transformer);
 
         commitResult =
-                executor.execute(Command.transformingContentPush(
+                executor.execute(Command.transform(
                         null, Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD, "", "",
                         Markup.PLAINTEXT, contentTransformer)).join();
 

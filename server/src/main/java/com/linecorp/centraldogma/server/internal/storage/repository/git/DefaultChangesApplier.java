@@ -49,11 +49,11 @@ import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import difflib.DiffUtils;
 import difflib.Patch;
 
-final class ChangesApplier extends AbstractChangesApplier {
+final class DefaultChangesApplier extends AbstractChangesApplier {
 
     private final Iterable<Change<?>> changes;
 
-    ChangesApplier(Iterable<Change<?>> changes) {
+    DefaultChangesApplier(Iterable<Change<?>> changes) {
         this.changes = changes;
     }
 
