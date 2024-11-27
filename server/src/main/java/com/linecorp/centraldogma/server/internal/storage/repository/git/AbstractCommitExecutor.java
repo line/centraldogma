@@ -94,7 +94,7 @@ abstract class AbstractCommitExecutor {
             }
 
             applyingChanges = getOrCreateApplyingChanges(normBaseRevision);
-            res = commit0(headRevision, headRevision.forward(1), applyingChanges);
+            res = commit(headRevision, headRevision.forward(1), applyingChanges);
 
             gitRepository.setHeadRevision(res.revision);
         } finally {
@@ -108,12 +108,10 @@ abstract class AbstractCommitExecutor {
 
     abstract Iterable<Change<?>> getOrCreateApplyingChanges(Revision normBaseRevision);
 
-    RevisionAndEntries commit0(@Nullable Revision prevRevision, Revision nextRevision,
-                               Iterable<Change<?>> changes) {
-        requireNonNull(author, "author");
-        requireNonNull(summary, "summary");
-        requireNonNull(detail, "detail");
-        requireNonNull(markup, "markup");
+    RevisionAndEntries commit(@Nullable Revision prevRevision, Revision nextRevision,
+                              Iterable<Change<?>> changes) {
+        requireNonNull(nextRevision, "nextRevision");
+        requireNonNull(changes, "changes");
 
         assert prevRevision == null || prevRevision.major() > 0;
         assert nextRevision.major() > 0;
@@ -198,7 +196,7 @@ abstract class AbstractCommitExecutor {
         }
     }
 
-    private static final class RevisionAndEntries {
+    static final class RevisionAndEntries {
         final Revision revision;
         final List<DiffEntry> diffEntries;
 

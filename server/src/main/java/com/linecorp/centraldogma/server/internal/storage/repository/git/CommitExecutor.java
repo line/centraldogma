@@ -34,7 +34,7 @@ final class CommitExecutor extends AbstractCommitExecutor {
     }
 
     void executeInitialCommit() {
-        commit0(null, Revision.INIT, changes);
+        commit(null, Revision.INIT, changes);
     }
 
     @Override

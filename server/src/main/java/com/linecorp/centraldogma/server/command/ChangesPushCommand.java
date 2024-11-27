@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -22,7 +22,6 @@ import java.util.Objects;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.collect.ImmutableList;
@@ -39,7 +38,6 @@ public abstract class ChangesPushCommand<T> extends AbstractPushCommand<T> {
 
     private final List<Change<?>> changes;
 
-    @JsonCreator
     ChangesPushCommand(CommandType type, @Nullable Long timestamp, @Nullable Author author,
                        String projectName, String repositoryName, Revision baseRevision,
                        String summary, String detail, Markup markup,

@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.server.command;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.util.function.Function;
@@ -37,6 +38,7 @@ public final class ContentTransformer<T> {
      */
     public ContentTransformer(String path, EntryType entryType, Function<T, T> transformer) {
         this.path = requireNonNull(path, "path");
+        checkArgument(entryType == EntryType.JSON, "entryType: %s (expected: %s)", entryType, EntryType.JSON);
         this.entryType = requireNonNull(entryType, "entryType");
         this.transformer = requireNonNull(transformer, "transformer");
     }

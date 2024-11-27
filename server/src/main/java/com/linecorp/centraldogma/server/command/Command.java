@@ -342,8 +342,8 @@ public interface Command<T> {
     }
 
     /**
-     * Returns a new {@link Command} which is used to push the changes. The changes are normalized via
-     * {@link Repository#previewDiff(Revision, Iterable)} before they are applied.
+     * Returns a new {@link Command} which is used to push the changes. The change is created by transforming
+     * the content of the base revision with the specified {@link ContentTransformer}.
      * You can find the normalized changes from the {@link CommitResult#changes()} that is the result of
      * {@link CommandExecutor#execute(Command)}.
      */
