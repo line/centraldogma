@@ -76,7 +76,7 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
     /**
      * Returns the number of mirroring threads.
      */
-    @JsonProperty("numMirroringThreads")
+    @JsonProperty
     public int numMirroringThreads() {
         return numMirroringThreads;
     }
@@ -84,7 +84,7 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
     /**
      * Returns the maximum allowed number of files per mirror.
      */
-    @JsonProperty("maxNumFilesPerMirror")
+    @JsonProperty
     public int maxNumFilesPerMirror() {
         return maxNumFilesPerMirror;
     }
@@ -92,7 +92,7 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
     /**
      * Returns the maximum allowed number of bytes per mirror.
      */
-    @JsonProperty("maxNumBytesPerMirror")
+    @JsonProperty
     public long maxNumBytesPerMirror() {
         return maxNumBytesPerMirror;
     }

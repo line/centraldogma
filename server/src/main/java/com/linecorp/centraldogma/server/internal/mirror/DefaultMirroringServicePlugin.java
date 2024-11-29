@@ -80,10 +80,7 @@ public final class DefaultMirroringServicePlugin implements Plugin {
                 maxNumBytesPerMirror = mirroringServicePluginConfig.maxNumBytesPerMirror();
                 if (mirroringServicePluginConfig.zonePinned()) {
                     zoneConfig = cfg.zone();
-                    if (zoneConfig == null) {
-                        throw new IllegalStateException(
-                                "zonePinned is enabled but no zone configuration found");
-                    }
+                    assert zoneConfig != null : "zonePinned is enabled but no zone configuration found";
                 } else {
                     zoneConfig = null;
                 }

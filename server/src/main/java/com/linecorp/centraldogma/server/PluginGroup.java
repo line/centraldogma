@@ -118,7 +118,7 @@ final class PluginGroup {
         pluginGroups.forEach((target, group) -> {
             logger.debug("Loaded plugins for target {}: {}", target,
                          group.plugins().stream().map(plugin -> plugin.getClass().getName())
-                              .collect(Collectors.toList()));
+                              .collect(toImmutableList()));
         });
         return pluginGroups;
     }

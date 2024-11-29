@@ -124,8 +124,8 @@ Setting up a mirroring task
 
    - If unspecified:
 
-     - a mirroring task is executed in the first zone of ``zone.zones`` configuration.
-     - if ``zone.zones`` is not configured, a mirroring task is executed in the leader replica.
+     - a mirroring task is executed in the first zone of ``zone.allZones`` configuration.
+     - if ``zone.allZones`` is not configured, a mirroring task is executed in the leader replica.
 
 Setting up a credential
 ^^^^^^^^^^^^^^^^^^^^^^^

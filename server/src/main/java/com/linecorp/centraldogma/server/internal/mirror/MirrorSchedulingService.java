@@ -164,7 +164,7 @@ public final class MirrorSchedulingService implements MirroringService {
                 }));
 
         final ListenableScheduledFuture<?> future = scheduler.scheduleWithFixedDelay(
-                this::schedulePendingMirrors,
+                this::scheduleMirrors,
                 TICK.getSeconds(), TICK.getSeconds(), TimeUnit.SECONDS);
 
         Futures.addCallback(future, new FutureCallback<Object>() {
@@ -193,7 +193,7 @@ public final class MirrorSchedulingService implements MirroringService {
         }
     }
 
-    private void schedulePendingMirrors() {
+    private void scheduleMirrors() {
         final ZonedDateTime now = ZonedDateTime.now();
         if (lastExecutionTime == null) {
             lastExecutionTime = now.minus(TICK);
@@ -228,7 +228,17 @@ public final class MirrorSchedulingService implements MirroringService {
                                       pinnedZone = zoneConfig.allZones().get(0);
                                   }
                                   if (!pinnedZone.equals(currentZone)) {
-                                      // Skip the mirror if the zone does not match.
+                                      // Skip the mirror if it is pinned to a different zone.
+                                      if (!zoneConfig.allZones().contains(pinnedZone)) {
+                                          // The mirror is pinned to an invalid zone.
+                                          final MirrorTask invalidMirror =
+                                                  new MirrorTask(m, User.SYSTEM, Instant.now(),
+                                                                 pinnedZone, true);
+                                          mirrorListener.onStart(invalidMirror);
+                                          mirrorListener.onError(invalidMirror, new MirrorException(
+                                                  "The mirror is pinned to an unknown zone: " + pinnedZone +
+                                                  " (valid zones: " + zoneConfig.allZones() + ')'));
+                                      }
                                       continue;
                                   }
                               }
