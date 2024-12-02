@@ -23,6 +23,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
@@ -51,7 +52,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.storage.StorageException;
 
-abstract class AbstractCommitExecutor {
+final class CommitExecutor {
 
     final GitRepository gitRepository;
     private final long commitTimeMillis;
@@ -61,8 +62,8 @@ abstract class AbstractCommitExecutor {
     private final Markup markup;
     private final boolean allowEmptyCommit;
 
-    AbstractCommitExecutor(GitRepository gitRepository, long commitTimeMillis, Author author,
-                           String summary, String detail, Markup markup, boolean allowEmptyCommit) {
+    CommitExecutor(GitRepository gitRepository, long commitTimeMillis, Author author,
+                   String summary, String detail, Markup markup, boolean allowEmptyCommit) {
         this.gitRepository = gitRepository;
         this.commitTimeMillis = commitTimeMillis;
         this.author = author;
@@ -80,7 +81,12 @@ abstract class AbstractCommitExecutor {
         return summary;
     }
 
-    CommitResult execute(Revision baseRevision) {
+    void executeInitialCommit(Iterable<Change<?>> changes) {
+        commit(null, Revision.INIT, changes);
+    }
+
+    CommitResult execute(Revision baseRevision,
+                         Function<Revision, Iterable<Change<?>>> applyingChangesProvider) {
         final RevisionAndEntries res;
         final Iterable<Change<?>> applyingChanges;
         gitRepository.writeLock();
@@ -93,7 +99,7 @@ abstract class AbstractCommitExecutor {
                         " or equivalent)");
             }
 
-            applyingChanges = getOrCreateApplyingChanges(normBaseRevision);
+            applyingChanges = applyingChangesProvider.apply(normBaseRevision);
             res = commit(headRevision, headRevision.forward(1), applyingChanges);
 
             gitRepository.setHeadRevision(res.revision);
@@ -105,8 +111,6 @@ abstract class AbstractCommitExecutor {
         gitRepository.notifyWatchers(res.revision, res.diffEntries);
         return CommitResult.of(res.revision, applyingChanges);
     }
-
-    abstract Iterable<Change<?>> getOrCreateApplyingChanges(Revision normBaseRevision);
 
     RevisionAndEntries commit(@Nullable Revision prevRevision, Revision nextRevision,
                               Iterable<Change<?>> changes) {

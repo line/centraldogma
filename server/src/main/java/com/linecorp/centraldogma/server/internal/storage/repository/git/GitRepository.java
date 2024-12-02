@@ -44,6 +44,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -246,9 +247,9 @@ class GitRepository implements Repository {
             // Initialize the commit ID database.
             commitIdDatabase = new CommitIdDatabase(jGitRepository);
 
-            new DefaultCommitExecutor(this, creationTimeMillis, author, "Create a new repository", "",
-                                      Markup.PLAINTEXT, true, false, Collections.emptyList())
-                    .executeInitialCommit();
+            new CommitExecutor(this, creationTimeMillis, author, "Create a new repository", "",
+                               Markup.PLAINTEXT, true)
+                    .executeInitialCommit(Collections.emptyList());
 
             headRevision = Revision.INIT;
             success = true;
@@ -853,10 +854,14 @@ class GitRepository implements Repository {
         requireNonNull(detail, "detail");
         requireNonNull(markup, "markup");
         requireNonNull(changes, "changes");
-        final DefaultCommitExecutor commitExecutor =
-                new DefaultCommitExecutor(this, commitTimeMillis, author, summary, detail,
-                                          markup, false, directExecution, changes);
-        return commit(baseRevision, commitExecutor);
+        final CommitExecutor commitExecutor =
+                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, false);
+        return commit(baseRevision, commitExecutor, normBaseRevision -> {
+            if (!directExecution) {
+                return changes;
+            }
+            return blockingPreviewDiff(normBaseRevision, new DefaultChangesApplier(changes)).values();
+        });
     }
 
     @Override
@@ -869,19 +874,22 @@ class GitRepository implements Repository {
         requireNonNull(detail, "detail");
         requireNonNull(markup, "markup");
         requireNonNull(transformer, "transformer");
-        final TransformingCommitExecutor commitExecutor =
-                new TransformingCommitExecutor(this, commitTimeMillis, author, summary,
-                                               detail, markup, transformer);
-        return commit(baseRevision, commitExecutor);
+        final CommitExecutor commitExecutor =
+                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, false);
+        return commit(baseRevision, commitExecutor,
+                      normBaseRevision -> blockingPreviewDiff(
+                              normBaseRevision, new TransformingChangesApplier(transformer)).values());
     }
 
-    private CompletableFuture<CommitResult> commit(Revision baseRevision,
-                                                   AbstractCommitExecutor commitExecutor) {
+    private CompletableFuture<CommitResult> commit(
+            Revision baseRevision,
+            CommitExecutor commitExecutor,
+            Function<Revision, Iterable<Change<?>>> applyingChangesProvider) {
         final ServiceRequestContext ctx = context();
         return CompletableFuture.supplyAsync(() -> {
             failFastIfTimedOut(this, logger, ctx, "commit", baseRevision,
                                commitExecutor.author(), commitExecutor.summary());
-            return commitExecutor.execute(baseRevision);
+            return commitExecutor.execute(baseRevision, applyingChangesProvider);
         }, repositoryWorker);
     }
 
@@ -1306,16 +1314,18 @@ class GitRepository implements Repository {
                             diff(previousNonEmptyRevision, revision, ALL_PATH).join().values();
 
                     try {
-                        new DefaultCommitExecutor(newRepo, c.when(), c.author(), c.summary(),
-                                                  c.detail(), c.markup(), false, false, changes)
-                                .execute(baseRevision);
+                        new CommitExecutor(newRepo, c.when(), c.author(), c.summary(),
+                                           c.detail(), c.markup(), false)
+                                .execute(baseRevision, normBaseRevision -> blockingPreviewDiff(
+                                        normBaseRevision, new DefaultChangesApplier(changes)).values());
                         previousNonEmptyRevision = revision;
                     } catch (RedundantChangeException e) {
                         // NB: We allow an empty commit here because an old version of Central Dogma had a bug
                         //     which allowed the creation of an empty commit.
-                        new DefaultCommitExecutor(newRepo, c.when(), c.author(), c.summary(),
-                                                  c.detail(), c.markup(), true, false, changes)
-                                .execute(baseRevision);
+                        new CommitExecutor(newRepo, c.when(), c.author(), c.summary(),
+                                                  c.detail(), c.markup(), true)
+                                .execute(baseRevision, normBaseRevision -> blockingPreviewDiff(
+                                        normBaseRevision, new DefaultChangesApplier(changes)).values());
                     }
 
                     progressListener.accept(i, endRevision.major());
