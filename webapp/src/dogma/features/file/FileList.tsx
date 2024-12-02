@@ -125,7 +125,7 @@ const FileList = <Data extends object>({
   );
   return (
     <Box>
-      <DynamicDataTable columns={columns as ColumnDef<Data>[]} data={data} />
+      <DynamicDataTable key={slug} columns={columns as ColumnDef<Data>[]} data={data} />
       <DeleteFileModal
         isOpen={isDeleteModalOpen}
         onClose={onDeleteModalClose}
