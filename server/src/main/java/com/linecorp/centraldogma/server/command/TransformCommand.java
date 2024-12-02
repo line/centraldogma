@@ -31,7 +31,7 @@ import com.linecorp.centraldogma.common.Revision;
  * You can find the result of transformation from {@link CommitResult#changes()}.
  * Note that this command is not serialized and deserialized.
  */
-public final class TransformCommand extends RepositoryCommand<CommitResult> {
+public final class TransformCommand extends RepositoryCommand<CommitResult> implements NormalizableCommit {
 
     /**
      * Creates a new instance.
@@ -102,11 +102,7 @@ public final class TransformCommand extends RepositoryCommand<CommitResult> {
         return transformer;
     }
 
-    /**
-     * Returns a new {@link PushAsIsCommand} which is converted from this {@link TransformCommand}
-     * for replicating to other replicas. Unlike the {@link TransformCommand},
-     * the changes of this {@link Command} are not normalized and applied as they are.
-     */
+    @Override
     public PushAsIsCommand asIs(CommitResult commitResult) {
         requireNonNull(commitResult, "commitResult");
         return new PushAsIsCommand(timestamp(), author(), projectName(), repositoryName(),

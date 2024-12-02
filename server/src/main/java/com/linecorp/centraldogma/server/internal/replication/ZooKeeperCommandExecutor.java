@@ -104,9 +104,9 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
+import com.linecorp.centraldogma.server.command.NormalizableCommit;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.RemoveRepositoryCommand;
-import com.linecorp.centraldogma.server.command.TransformCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
@@ -1319,18 +1319,11 @@ public final class ZooKeeperCommandExecutor
             final T result = delegate.execute(command).get();
             final ReplicationLog<?> log;
             final Command<?> maybeUnwrapped = unwrapForcePush(command);
-            if (maybeUnwrapped.type() == CommandType.NORMALIZING_PUSH) {
-                final NormalizingPushCommand normalizingPushCommand = (NormalizingPushCommand) maybeUnwrapped;
+            if (maybeUnwrapped instanceof NormalizableCommit) {
+                final NormalizableCommit normalizingPushCommand = (NormalizableCommit) maybeUnwrapped;
                 assert result instanceof CommitResult : result;
                 final CommitResult commitResult = (CommitResult) result;
                 final Command<Revision> pushAsIsCommand = normalizingPushCommand.asIs(commitResult);
-                log = new ReplicationLog<>(replicaId(),
-                                           maybeWrap(command, pushAsIsCommand), commitResult.revision());
-            } else if (maybeUnwrapped.type() == CommandType.TRANSFORM) {
-                final TransformCommand transformCommand = (TransformCommand) maybeUnwrapped;
-                assert result instanceof CommitResult : result;
-                final CommitResult commitResult = (CommitResult) result;
-                final Command<Revision> pushAsIsCommand = transformCommand.asIs(commitResult);
                 log = new ReplicationLog<>(replicaId(),
                                            maybeWrap(command, pushAsIsCommand), commitResult.revision());
             } else {
