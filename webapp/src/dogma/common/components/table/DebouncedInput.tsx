@@ -5,13 +5,11 @@ type DebouncedInputProps = {
   value: string | number;
   onChange: (value: string | number) => void;
   debounce?: number;
-  clearTrigger?: boolean;
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'>;
 export const DebouncedInput = ({
   value: initialValue,
   onChange,
   debounce = 500,
-  clearTrigger = false,
   ...props
 }: DebouncedInputProps) => {
   const [value, setValue] = useState(initialValue);
@@ -28,14 +26,6 @@ export const DebouncedInput = ({
 
     return () => clearTimeout(timeout);
   }, [debounce, onChange, value, setOldValue, oldValue]);
-
-  useEffect(() => {
-    if (clearTrigger) {
-      setValue('');
-      setOldValue('');
-      onChange('');
-    }
-  }, [clearTrigger, onChange]);
 
   return (
     <Input

@@ -36,7 +36,6 @@ export const DynamicDataTable = <Data extends object>({
 }: DynamicDataTableProps<Data>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [clearFilter, setClearFilter] = useState(false);
   const table = useReactTable({
     columns: columns || [],
     data: data || [],
@@ -56,12 +55,6 @@ export const DynamicDataTable = <Data extends object>({
     },
   });
 
-  const resetTable = () => {
-    setColumnFilters([]);
-    setPagination?.(() => ({ pageIndex: 0, pageSize: 10 }));
-    setClearFilter(true);
-  };
-
   return (
     <>
       {table.getRowModel().rows.length == 0 && onEmptyData ? (
@@ -72,15 +65,8 @@ export const DynamicDataTable = <Data extends object>({
           <Filter
             table={table}
             column={table.getHeaderGroups()[0].headers[0].column /* Filter by the 1st column */}
-            clearFilter={clearFilter}
-            setClearFilter={setClearFilter}
           />
-          <DataTable
-            table={table}
-            onRowClick={() => {
-              resetTable();
-            }}
-          />
+          <DataTable table={table} />
         </>
       )}
       {pagination && <PaginationBar table={table} disableGotoButton={disableGotoButton} />}

@@ -3,13 +3,7 @@ import { chakra, Table, Tbody, Td, Th, Thead, Tr } from '@chakra-ui/react';
 import { flexRender } from '@tanstack/react-table';
 import { Table as ReactTable } from '@tanstack/react-table';
 
-export const DataTable = <Data extends object>({
-  table,
-  onRowClick,
-}: {
-  table: ReactTable<Data>;
-  onRowClick?: (row: Data) => void;
-}) => {
+export const DataTable = <Data extends object>({ table }: { table: ReactTable<Data> }) => {
   return (
     <Table mt={4}>
       <Thead>
@@ -45,7 +39,7 @@ export const DataTable = <Data extends object>({
       <Tbody>
         {table.getRowModel().rows.map((row) => {
           return (
-            <Tr key={row.id} data-testid="table-row" onClick={() => onRowClick?.(row.original)}>
+            <Tr key={row.id} data-testid="table-row">
               {row.getVisibleCells().map((cell) => {
                 // see https://tanstack.com/table/v8/docs/api/core/column-def#meta to type this correctly
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
