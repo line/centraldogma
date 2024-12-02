@@ -17,6 +17,7 @@
 
 package com.linecorp.centraldogma.server;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 import static java.util.Objects.requireNonNull;
 
@@ -45,9 +46,8 @@ public final class ZoneConfig {
         requireNonNull(allZones, "allZones");
         this.currentZone = convertValue(currentZone, "zone.currentZone");
         this.allZones = allZones;
-        if (!allZones.contains(currentZone)) {
-            throw new IllegalArgumentException("The current zone must be one of the all zones.");
-        }
+        checkArgument(allZones.contains(currentZone), "The current zone: %s, (expected: one of %s)",
+                      currentZone, allZones);
     }
 
     /**
