@@ -342,6 +342,20 @@ public interface Command<T> {
     }
 
     /**
+     * Returns a new {@link Command} that transforms the content at the base revision with
+     * the specified {@link ContentTransformer} and pushed the result of transformation.
+     * You can find the result of transformation from {@link CommitResult#changes()}.
+     */
+    static Command<CommitResult> transform(@Nullable Long timestamp, Author author,
+                                           String projectName, String repositoryName,
+                                           Revision baseRevision, String summary,
+                                           String detail, Markup markup,
+                                           ContentTransformer<?> transformer) {
+        return TransformCommand.of(timestamp, author, projectName, repositoryName,
+                                   baseRevision, summary, detail, markup, transformer);
+    }
+
+    /**
      * Returns a new {@link Command} which is used to create a new session.
      *
      * @param session the session supposed to be created

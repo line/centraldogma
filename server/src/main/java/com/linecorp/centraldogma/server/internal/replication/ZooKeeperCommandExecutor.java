@@ -104,6 +104,7 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
+import com.linecorp.centraldogma.server.command.NormalizableCommit;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.RemoveRepositoryCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
@@ -1317,19 +1318,14 @@ public final class ZooKeeperCommandExecutor
 
             final T result = delegate.execute(command).get();
             final ReplicationLog<?> log;
-            if (command.type() == CommandType.NORMALIZING_PUSH) {
-                final NormalizingPushCommand normalizingPushCommand = (NormalizingPushCommand) command;
+            final Command<?> maybeUnwrapped = unwrapForcePush(command);
+            if (maybeUnwrapped instanceof NormalizableCommit) {
+                final NormalizableCommit normalizingPushCommand = (NormalizableCommit) maybeUnwrapped;
                 assert result instanceof CommitResult : result;
                 final CommitResult commitResult = (CommitResult) result;
                 final Command<Revision> pushAsIsCommand = normalizingPushCommand.asIs(commitResult);
-                log = new ReplicationLog<>(replicaId(), pushAsIsCommand, commitResult.revision());
-            } else if (command.type() == CommandType.FORCE_PUSH &&
-                       ((ForcePushCommand<?>) command).delegate().type() == CommandType.NORMALIZING_PUSH) {
-                final NormalizingPushCommand delegated =
-                        (NormalizingPushCommand) ((ForcePushCommand<?>) command).delegate();
-                final CommitResult commitResult = (CommitResult) result;
-                final Command<Revision> command0 = Command.forcePush(delegated.asIs(commitResult));
-                log = new ReplicationLog<>(replicaId(), command0, commitResult.revision());
+                log = new ReplicationLog<>(replicaId(),
+                                           maybeWrap(command, pushAsIsCommand), commitResult.revision());
             } else {
                 log = new ReplicationLog<>(replicaId(), command, result);
             }
@@ -1347,6 +1343,20 @@ public final class ZooKeeperCommandExecutor
             logger.debug("logging OK. revision = {}, log = {}", revision, log);
             return result;
         }
+    }
+
+    private static Command<?> unwrapForcePush(Command<?> command) {
+        if (command.type() == CommandType.FORCE_PUSH) {
+            return ((ForcePushCommand<?>) command).delegate();
+        }
+        return command;
+    }
+
+    private static <T> Command<Revision> maybeWrap(Command<T> oldCommand, Command<Revision> pushAsIsCommand) {
+        if (oldCommand.type() == CommandType.FORCE_PUSH) {
+            return Command.forcePush(pushAsIsCommand);
+        }
+        return pushAsIsCommand;
     }
 
     private void createParentNodes() throws Exception {
