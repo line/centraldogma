@@ -19,12 +19,16 @@ option java_multiple_files = true;
 option java_outer_classname = "XdsEndpointProto";
 option java_package = "com.linecorp.centraldogma.xds.endpoint.v1";
 
+import "envoy/config/core/v3/base.proto";
 import "envoy/config/endpoint/v3/endpoint.proto";
+import "envoy/config/endpoint/v3/endpoint_components.proto";
 
 import "google/api/annotations.proto";
 import "google/api/client.proto";
 import "google/api/field_behavior.proto";
 import "google/protobuf/empty.proto";
+
+import "validate/validate.proto";
 
 // An XdsEndpointService provides methods to manage endpoints.
 service XdsEndpointService {
@@ -53,15 +57,19 @@ service XdsEndpointService {
     };
   }
 
-  // TODO(minwoox): Implement the following methods.
-  //rpc addLocalityLbEndpoint(addLocalityLbEndpointRequest) returns
-  //    (envoy.config.endpoint.v3.ClusterLoadAssignment) {
-  //  ..
-  //}
-  //rpc removeLocalityLbEndpoint(addLocalityLbEndpointRequest) returns
-  //    (envoy.config.endpoint.v3.ClusterLoadAssignment) {
-  //  ..
-  //}
+  rpc RegisterLocalityLbEndpoint(RegisterLocalityLbEndpointRequest) returns (LocalityLbEndpoint) {
+    option (google.api.http) = {
+      patch: "/api/v1/xds/{endpoint_name=groups/*/endpoints/**}:registerLocalityLbEndpoint"
+      body: "locality_lb_endpoint"
+    };
+  }
+
+  rpc DeregisterLocalityLbEndpoint(DeregisterLocalityLbEndpointRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/api/v1/xds/{endpoint_name=groups/*/endpoints/**}:deregisterLocalityLbEndpoint"
+      body: "locality_lb_endpoint"
+    };
+  }
 }
 
 message CreateEndpointRequest {
@@ -99,4 +107,24 @@ message DeleteEndpointRequest {
   // If set to true, and the endpoint is not found, the request will succeed
   // but no action will be taken on the server
   // bool allow_missing = 2;
+}
+
+message RegisterLocalityLbEndpointRequest {
+  // Format: groups/{group}/endpoints/{endpoint}
+  string endpoint_name = 1 [(google.api.field_behavior) = REQUIRED];
+
+  LocalityLbEndpoint locality_lb_endpoint = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+message LocalityLbEndpoint {
+  envoy.config.core.v3.Locality locality = 1;
+  uint32 priority = 2 [(validate.rules).uint32 = {lte: 128}];
+  envoy.config.endpoint.v3.LbEndpoint lb_endpoint = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message DeregisterLocalityLbEndpointRequest {
+  // Format: groups/{group}/endpoints/{endpoint}
+  string endpoint_name = 1 [(google.api.field_behavior) = REQUIRED];
+
+  LocalityLbEndpoint locality_lb_endpoint = 2 [(google.api.field_behavior) = REQUIRED];
 }
