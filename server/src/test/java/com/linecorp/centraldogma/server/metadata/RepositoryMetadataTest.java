@@ -31,36 +31,40 @@ class RepositoryMetadataTest {
 
     @Test
     void deserializeLegacyFormat() throws Exception {
-        final String format = '{' +
-                              "  \"name\": \"minu-test\"," +
-                              "  \"perRolePermissions\": {" +
-                              "    \"owner\": [" +
-                              "      \"READ\"," +
-                              "      \"WRITE\"" +
-                              "    ]," +
-                              "    \"member\": [\"READ\"]," +
-                              "    \"guest\": []" +
-                              "  }," +
-                              "  \"perUserPermissions\": {" +
-                              "    \"foo@dogma.com\": [" +
-                              "      \"READ\"" +
-                              "    ]," +
-                              "    \"bar@dogma.com\": [" +
-                              "      \"READ\"," +
-                              "      \"WRITE\"" +
-                              "    ]" +
-                              "  }," +
-                              "  \"perTokenPermissions\": {" +
-                              "    \"goodman\": [" +
-                              "      \"READ\"" +
-                              "    ]" +
-                              "  }," +
-                              "  \"creation\": {" +
-                              "    \"user\": \"minu.song@dogma.com\"," +
-                              "    \"timestamp\": \"2024-08-19T02:47:23.370762417Z\"" +
-                              "  }" +
-                              '}';
+        final String format = legacyFormat();
         validate(Jackson.readValue(format, RepositoryMetadata.class));
+    }
+
+    private static String legacyFormat() {
+        return '{' +
+               "  \"name\": \"minu-test\"," +
+               "  \"perRolePermissions\": {" +
+               "    \"owner\": [" +
+               "      \"READ\"," +
+               "      \"WRITE\"" +
+               "    ]," +
+               "    \"member\": [\"READ\"]," +
+               "    \"guest\": []" +
+               "  }," +
+               "  \"perUserPermissions\": {" +
+               "    \"bar@dogma.com\": [" +
+               "      \"READ\"," +
+               "      \"WRITE\"" +
+               "    ]," +
+               "    \"foo@dogma.com\": [" +
+               "      \"READ\"" +
+               "    ]" +
+               "  }," +
+               "  \"perTokenPermissions\": {" +
+               "    \"goodman\": [" +
+               "      \"READ\"" +
+               "    ]" +
+               "  }," +
+               "  \"creation\": {" +
+               "    \"user\": \"minu.song@dogma.com\"," +
+               "    \"timestamp\": \"2024-08-19T02:47:23.370762417Z\"" +
+               "  }" +
+               '}';
     }
 
     @Test
@@ -85,7 +89,11 @@ class RepositoryMetadataTest {
                               "    \"timestamp\": \"2024-08-19T02:47:23.370762417Z\"" +
                               "  }" +
                               '}';
-        validate(Jackson.readValue(format, RepositoryMetadata.class));
+        final RepositoryMetadata repositoryMetadata = Jackson.readValue(format, RepositoryMetadata.class);
+        validate(repositoryMetadata);
+        // The new format is also serialized into the legacy format.
+        assertThat(Jackson.writeValueAsString(repositoryMetadata)).isEqualTo(
+                Jackson.writeValueAsString(Jackson.readTree(legacyFormat())));
     }
 
     private static void validate(RepositoryMetadata repositoryMetadata) {

@@ -39,6 +39,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -102,9 +103,28 @@ final class RepositorySupport<T> {
         requireNonNull(commitSummary, "commitSummary");
         requireNonNull(change, "change");
 
-        return executor.execute(
-                Command.push(author, projectName, repoName, revision, commitSummary, "",
-                             Markup.PLAINTEXT, ImmutableList.of(change)))
+        return executor.execute(Command.push(author, projectName, repoName, revision, commitSummary, "",
+                                             Markup.PLAINTEXT, ImmutableList.of(change)))
+                       .thenApply(CommitResult::revision);
+    }
+
+    CompletableFuture<Revision> push(String projectName, String repoName,
+                                     Author author, String commitSummary,
+                                     ContentTransformer<JsonNode> transformer) {
+        return push(projectName, repoName, author, commitSummary, transformer, Revision.HEAD);
+    }
+
+    private CompletableFuture<Revision> push(String projectName, String repoName, Author author,
+                                             String commitSummary, ContentTransformer<JsonNode> transformer,
+                                             Revision revision) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repoName, "repoName");
+        requireNonNull(author, "author");
+        requireNonNull(commitSummary, "commitSummary");
+        requireNonNull(transformer, "transformer");
+
+        return executor.execute(Command.transform(null, author, projectName, repoName, revision, commitSummary,
+                                                  "", Markup.PLAINTEXT, transformer))
                        .thenApply(CommitResult::revision);
     }
 
