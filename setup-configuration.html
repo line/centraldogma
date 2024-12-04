@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Configuration &mdash; Central Dogma 0.70.0 documentation</title>
+  <title>Configuration &mdash; Central Dogma 0.71.0 documentation</title>
   
 
   
@@ -72,7 +72,7 @@
             
             
               <div class="version">
-                0.70
+                0.71
               </div>
             
           
@@ -251,20 +251,21 @@ defaults:</p>
     &quot;port&quot;: 36463,
     &quot;protocol&quot;: null,
     &quot;path&quot;: null
-  }
+  },
+  &quot;zone&quot;: null
 }</pre></div>
 </div>
 <div class="section" id="core-properties">
 <h2>Core properties<a class="headerlink" href="#core-properties" title="Permalink to this headline">¶</a></h2>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">dataDir</span></code> (string)</p>
 <ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">dataDir</span></code> (string)</p>
+<ul class="simple">
 <li><p>the path to the data directory which contains the repositories served by Central Dogma and
 other stateful data. Can be a relative path from the root directory of the distribution.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">ports</span></code></p>
-<ul>
+<ul class="simple">
 <li><p>the server ports that serve the incoming requests.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">localAddress</span></code> - the bind address of server socket.</p>
 <ul>
@@ -288,13 +289,13 @@ other stateful data. Can be a relative path from the root directory of the distr
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">tls</span></code></p>
-<ul>
+<ul class="simple">
 <li><p>the configuration for Transport Layer Security(TLS) support. Specify <code class="docutils literal notranslate"><span class="pre">null</span></code> to disable TLS.
 See <a class="reference internal" href="#tls"><span class="std std-ref">Configuring TLS</span></a> for more information.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">trustedProxyAddresses</span></code> (string array)</p>
-<ul>
+<ul class="simple">
 <li><p>the addresses or ranges of <a class="reference external" href="https://tools.ietf.org/html/rfc4632">Classless Inter-domain Routing (CIDR)</a>
 blocks of trusted proxy servers. e.g. <code class="docutils literal notranslate"><span class="pre">10.0.0.1</span></code> for a single address or <code class="docutils literal notranslate"><span class="pre">10.0.0.0/8</span></code> for a CIDR block.
 With <code class="docutils literal notranslate"><span class="pre">trustedProxyAddresses</span></code> and <code class="docutils literal notranslate"><span class="pre">clientAddressSources</span></code> properties, you can get a client address
@@ -303,7 +304,7 @@ the connection is used as a client address.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">clientAddressSources</span></code> (string array)</p>
-<ul>
+<ul class="simple">
 <li><p>the HTTP header names to be used for retrieving a client address. <code class="docutils literal notranslate"><span class="pre">PROXY_PROTOCOL</span></code> is a reserved keyword
 for getting the source address specified in a
 <a class="reference external" href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt">PROXY protocol</a> message.
@@ -313,73 +314,73 @@ as a client address.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">numWorkers</span></code> (integer)</p>
-<ul>
+<ul class="simple">
 <li><p>the number of I/O worker threads. If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of <code class="docutils literal notranslate"><span class="pre">&lt;numCpuCores&gt;</span> <span class="pre">*</span> <span class="pre">2</span></code>
 is used.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">maxNumConnections</span></code> (integer)</p>
-<ul>
+<ul class="simple">
 <li><p>the maximum number of TCP/IP connections that can be handled concurrently.
 Any connection attempts that make the number of connections exceed this value will be rejected immediately.
 If <code class="docutils literal notranslate"><span class="pre">null</span></code>, no limit is enforced.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">requestTimeoutMillis</span></code> (integer)</p>
-<ul>
+<ul class="simple">
 <li><p>the maximum number of milliseconds allowed for handling a request.
 If a request takes more than this, the server may respond with a <code class="docutils literal notranslate"><span class="pre">503</span> <span class="pre">Service</span> <span class="pre">Unavailable</span></code> response.
 If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of ‘10000 milliseconds’ (10 seconds) is used.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">idleTimeoutMillis</span></code> (integer)</p>
-<ul>
+<ul class="simple">
 <li><p>the number of milliseconds before closing an idle connection.
 The server will close the connection if it stays idle for more than this without any pending requests.
 If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of ‘15000 milliseconds’ (15 seconds) is used.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">maxFrameLength</span></code> (integer)</p>
-<ul>
+<ul class="simple">
 <li><p>the maximum length of request content. If a client sends a request whose content
 is longer than this, the server may respond with a <code class="docutils literal notranslate"><span class="pre">413</span> <span class="pre">Request</span> <span class="pre">Entity</span> <span class="pre">Too</span> <span class="pre">Large</span></code> response.
 If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of ‘10485760 bytes’ (10 MiB) is used.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">numRepositoryWorkers</span></code> (integer)</p>
-<ul>
+<ul class="simple">
 <li><p>the number of worker threads dedicated to handling repository reads and writes.
 If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of ‘16 threads’ is used.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">maxRemovedRepositoryAgeMillis</span></code> (integer)</p>
-<ul>
+<ul class="simple">
 <li><p>the maximum allowed age of removed projects and repositories before they are purged.
 Set 0 to disable automatic purge.
 If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of ‘604800000 milliseconds’ (7 days) is used.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">repositoryCacheSpec</span></code> (string)</p>
-<ul>
+<ul class="simple">
 <li><p>the cache specification string which determines the capacity and behavior of the repository
 access cache. Refer to <a class="reference external" href="https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.6.2/com/github/benmanes/caffeine/cache/CaffeineSpec.html">the Caffeine API documentation</a> for more information.
 Note that the weight of the cache has been tuned to be roughly proportional to its memory usage.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">webAppEnabled</span></code> (boolean)</p>
-<ul>
+<ul class="simple">
 <li><p>whether to enable the web-based administrative console. Enabled by default.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">webAppTitle</span></code> (string)</p>
-<ul>
+<ul class="simple">
 <li><p>the title text which is displayed on the navigation bar of the web-based administrative console.
 If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of <code class="docutils literal notranslate"><span class="pre">Central</span> <span class="pre">Dogma</span> <span class="pre">at</span> <span class="pre">{{hostname}}</span></code> is used. Note that <code class="docutils literal notranslate"><span class="pre">{{hostname}}</span></code>
 will be replaced with the actual hostname that the server is running on.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">gracefulShutdownTimeout</span></code></p>
-<ul>
+<ul class="simple">
 <li><p>the amount of time to wait after the initiation of shutdown procedure for requests to go away before
 the actual shutdown of the server.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">quietPeriodMillis</span></code> (integer)</p>
@@ -398,7 +399,7 @@ even if there is a stuck request.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">replication</span></code></p>
-<ul>
+<ul class="simple">
 <li><p>the replication configuration.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">method</span></code> (string)</p>
 <ul>
@@ -409,7 +410,7 @@ to learn how to configure ZooKeeper-based multi-master replication.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">writeQuotaPerRepository</span></code></p>
-<ul>
+<ul class="simple">
 <li><p>the maximum allowed write quota per repository. If <code class="docutils literal notranslate"><span class="pre">requestQuota</span></code> is set to 5 and
 <code class="docutils literal notranslate"><span class="pre">timeWindowSeconds</span></code> is set to 1, <span class="xref std std-ref">pushing-a-commit`</span> cannot exceed 5 QPS; if exceeded,
 <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429">429 Too Many Requests</a> will be returned.
@@ -427,7 +428,7 @@ If <code class="docutils literal notranslate"><span class="pre">null</span></cod
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">accessLogFormat</span></code> (string)</p>
-<ul>
+<ul class="simple">
 <li><p>the format to be used for writing an access log. <code class="docutils literal notranslate"><span class="pre">common</span></code> and <code class="docutils literal notranslate"><span class="pre">combined</span></code> are pre-defined for NCSA
 common log format and NCSA combined log format, respectively. Also, a custom log format can be specified
 here. Read <a class="reference external" href="https://line.github.io/armeria/docs/server-access-log">Writing an access log</a> for more
@@ -435,13 +436,13 @@ information. Specify <code class="docutils literal notranslate"><span class="pre
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">authentication</span></code></p>
-<ul>
+<ul class="simple">
 <li><p>the authentication configuration. If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the authentication is disabled.
 See <a class="reference internal" href="auth.html#auth"><span class="std std-ref">Authentication and Access Control</span></a> to learn how to configure the authentication layer.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">cors</span></code></p>
-<ul>
+<ul class="simple">
 <li><p>specify <code class="docutils literal notranslate"><span class="pre">null</span></code> to disable CORS entirely.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">allowedOrigins</span></code> (string or string array)</p>
 <ul>
@@ -458,12 +459,12 @@ value <code class="docutils literal notranslate"><span class="pre">7200</span></
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pluginConfigs</span></code></p>
-<ul>
+<ul class="simple">
 <li><p>the list of plugin configuration. See <a class="reference internal" href="#plugins"><span class="std std-ref">Configuring plugins</span></a> for more information.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">management</span></code></p>
-<ul>
+<ul class="simple">
 <li><p>the management server configuration. Read <a class="reference external" href="https://javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/latest/com/linecorp/armeria/server/management/ManagementService.html">ManagementService API documentation</a>
 to know more about the management service.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">port</span></code> (integer)</p>
@@ -490,6 +491,20 @@ If <code class="docutils literal notranslate"><span class="pre">0</span></code>,
 </ul>
 </li>
 </ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">zone</span></code> (string)</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>the zone name of the server. If not specified, <code class="docutils literal notranslate"><span class="pre">PluginTarget.ZONE_LEADER_ONLY</span></code> can’t be used.</p>
+<ul>
+<li><p>If the value starts with <code class="docutils literal notranslate"><span class="pre">env:</span></code>, the environment variable is used as the zone name.
+For example, if the value is <code class="docutils literal notranslate"><span class="pre">env:ZONE_NAME</span></code>, the environment variable named <code class="docutils literal notranslate"><span class="pre">ZONE_NAME</span></code> is used as the
+zone name.</p></li>
+<li><p>You can also dynamically load a zone name by implementing <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/server/ConfigValueConverter.html">ConfigValueConverter</a></code>.</p></li>
+</ul>
+</li>
+</ul>
+</div></blockquote>
 </li>
 </ul>
 </div>

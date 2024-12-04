@@ -72,43 +72,53 @@
 <a class="jxr_linenumber" name="L64" href="#L64">64</a>          }
 <a class="jxr_linenumber" name="L65" href="#L65">65</a>  
 <a class="jxr_linenumber" name="L66" href="#L66">66</a>          <strong class="jxr_keyword">final</strong> String clusterName = parent + CLUSTERS_DIRECTORY + clusterId;
-<a class="jxr_linenumber" name="L67" href="#L67">67</a>          <em class="jxr_comment">// Ignore the specified name in the cluster and set the name</em>
-<a class="jxr_linenumber" name="L68" href="#L68">68</a>          <em class="jxr_comment">// with the format of "groups/{group}/clusters/{cluster}".</em>
-<a class="jxr_linenumber" name="L69" href="#L69">69</a>          <em class="jxr_comment">// https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids</em>
-<a class="jxr_linenumber" name="L70" href="#L70">70</a>          <strong class="jxr_keyword">final</strong> Cluster cluster = request.getCluster().toBuilder().setName(clusterName).build();
-<a class="jxr_linenumber" name="L71" href="#L71">71</a>          xdsResourceManager.push(responseObserver, group, clusterName, CLUSTERS_DIRECTORY + clusterId + <span class="jxr_string">".json"</span>,
-<a class="jxr_linenumber" name="L72" href="#L72">72</a>                                  <span class="jxr_string">"Create cluster: "</span> + clusterName, cluster, currentAuthor(), <strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="L73" href="#L73">73</a>      }
-<a class="jxr_linenumber" name="L74" href="#L74">74</a>  
-<a class="jxr_linenumber" name="L75" href="#L75">75</a>      @Override
-<a class="jxr_linenumber" name="L76" href="#L76">76</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> updateCluster(UpdateClusterRequest request, StreamObserver&lt;Cluster&gt; responseObserver) {
-<a class="jxr_linenumber" name="L77" href="#L77">77</a>          <strong class="jxr_keyword">final</strong> Cluster cluster = request.getCluster();
-<a class="jxr_linenumber" name="L78" href="#L78">78</a>          <strong class="jxr_keyword">final</strong> String clusterName = cluster.getName();
-<a class="jxr_linenumber" name="L79" href="#L79">79</a>          <strong class="jxr_keyword">final</strong> String group = checkClusterName(clusterName).group(1);
-<a class="jxr_linenumber" name="L80" href="#L80">80</a>          xdsResourceManager.checkGroup(group);
-<a class="jxr_linenumber" name="L81" href="#L81">81</a>          xdsResourceManager.update(responseObserver, group, clusterName,
-<a class="jxr_linenumber" name="L82" href="#L82">82</a>                                    <span class="jxr_string">"Update cluster: "</span> + clusterName, cluster, currentAuthor());
+<a class="jxr_linenumber" name="L67" href="#L67">67</a>          <strong class="jxr_keyword">final</strong> Cluster cluster
+<a class="jxr_linenumber" name="L68" href="#L68">68</a>                  = request.getCluster()
+<a class="jxr_linenumber" name="L69" href="#L69">69</a>                           .toBuilder()
+<a class="jxr_linenumber" name="L70" href="#L70">70</a>                           <em class="jxr_comment">// Ignore the specified name in the cluster and set the name with the format of</em>
+<a class="jxr_linenumber" name="L71" href="#L71">71</a>                           <em class="jxr_comment">// "groups/{group}/clusters/{cluster}".</em>
+<a class="jxr_linenumber" name="L72" href="#L72">72</a>                           <em class="jxr_comment">// https://github.com/aip-dev/google.aip.dev/blob/master/aip/general/0133.md#user-specified-ids</em>
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>                           .setName(clusterName)
+<a class="jxr_linenumber" name="L74" href="#L74">74</a>                           <em class="jxr_comment">// Respect the DNS TTL would be more efficient in terms of DNS resolution.</em>
+<a class="jxr_linenumber" name="L75" href="#L75">75</a>                           <em class="jxr_comment">// https://github.com/envoyproxy/envoy/issues/6876</em>
+<a class="jxr_linenumber" name="L76" href="#L76">76</a>                           <em class="jxr_comment">// `respect_dns_ttl` is a `bool` field so it is not possible to check whether a value</em>
+<a class="jxr_linenumber" name="L77" href="#L77">77</a>                           <em class="jxr_comment">// has not been set for the field. Until we create our own proto file, the value only</em>
+<a class="jxr_linenumber" name="L78" href="#L78">78</a>                           <em class="jxr_comment">// can be set to false via the update API.</em>
+<a class="jxr_linenumber" name="L79" href="#L79">79</a>                           .setRespectDnsTtl(<strong class="jxr_keyword">true</strong>)
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>                           .build();
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>          xdsResourceManager.push(responseObserver, group, clusterName, CLUSTERS_DIRECTORY + clusterId + <span class="jxr_string">".json"</span>,
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>                                  <span class="jxr_string">"Create cluster: "</span> + clusterName, cluster, currentAuthor(), <strong class="jxr_keyword">true</strong>);
 <a class="jxr_linenumber" name="L83" href="#L83">83</a>      }
 <a class="jxr_linenumber" name="L84" href="#L84">84</a>  
 <a class="jxr_linenumber" name="L85" href="#L85">85</a>      @Override
-<a class="jxr_linenumber" name="L86" href="#L86">86</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> deleteCluster(DeleteClusterRequest request, StreamObserver&lt;Empty&gt; responseObserver) {
-<a class="jxr_linenumber" name="L87" href="#L87">87</a>          <strong class="jxr_keyword">final</strong> String clusterName = request.getName();
-<a class="jxr_linenumber" name="L88" href="#L88">88</a>          <strong class="jxr_keyword">final</strong> String group = checkClusterName(clusterName).group(1);
-<a class="jxr_linenumber" name="L89" href="#L89">89</a>          xdsResourceManager.checkGroup(group);
-<a class="jxr_linenumber" name="L90" href="#L90">90</a>          xdsResourceManager.delete(responseObserver, group, clusterName, <span class="jxr_string">"Delete cluster: "</span> + clusterName,
-<a class="jxr_linenumber" name="L91" href="#L91">91</a>                                    currentAuthor());
-<a class="jxr_linenumber" name="L92" href="#L92">92</a>      }
-<a class="jxr_linenumber" name="L93" href="#L93">93</a>  
-<a class="jxr_linenumber" name="L94" href="#L94">94</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> Matcher checkClusterName(String clusterName) {
-<a class="jxr_linenumber" name="L95" href="#L95">95</a>          <strong class="jxr_keyword">final</strong> Matcher matcher = CLUSTER_NAME_PATTERN.matcher(clusterName);
-<a class="jxr_linenumber" name="L96" href="#L96">96</a>          <strong class="jxr_keyword">if</strong> (!matcher.matches()) {
-<a class="jxr_linenumber" name="L97" href="#L97">97</a>              <strong class="jxr_keyword">throw</strong> Status.INVALID_ARGUMENT.withDescription(<span class="jxr_string">"Invalid cluster name: "</span> + clusterName +
-<a class="jxr_linenumber" name="L98" href="#L98">98</a>                                                            <span class="jxr_string">" (expected: "</span> + CLUSTER_NAME_PATTERN + ')')
-<a class="jxr_linenumber" name="L99" href="#L99">99</a>                                           .asRuntimeException();
-<a class="jxr_linenumber" name="L100" href="#L100">100</a>         }
-<a class="jxr_linenumber" name="L101" href="#L101">101</a>         <strong class="jxr_keyword">return</strong> matcher;
+<a class="jxr_linenumber" name="L86" href="#L86">86</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> updateCluster(UpdateClusterRequest request, StreamObserver&lt;Cluster&gt; responseObserver) {
+<a class="jxr_linenumber" name="L87" href="#L87">87</a>          <strong class="jxr_keyword">final</strong> Cluster cluster = request.getCluster();
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>          <strong class="jxr_keyword">final</strong> String clusterName = cluster.getName();
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>          <strong class="jxr_keyword">final</strong> String group = checkClusterName(clusterName).group(1);
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>          xdsResourceManager.checkGroup(group);
+<a class="jxr_linenumber" name="L91" href="#L91">91</a>          xdsResourceManager.update(responseObserver, group, clusterName,
+<a class="jxr_linenumber" name="L92" href="#L92">92</a>                                    <span class="jxr_string">"Update cluster: "</span> + clusterName, cluster, currentAuthor());
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>      }
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>  
+<a class="jxr_linenumber" name="L95" href="#L95">95</a>      @Override
+<a class="jxr_linenumber" name="L96" href="#L96">96</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> deleteCluster(DeleteClusterRequest request, StreamObserver&lt;Empty&gt; responseObserver) {
+<a class="jxr_linenumber" name="L97" href="#L97">97</a>          <strong class="jxr_keyword">final</strong> String clusterName = request.getName();
+<a class="jxr_linenumber" name="L98" href="#L98">98</a>          <strong class="jxr_keyword">final</strong> String group = checkClusterName(clusterName).group(1);
+<a class="jxr_linenumber" name="L99" href="#L99">99</a>          xdsResourceManager.checkGroup(group);
+<a class="jxr_linenumber" name="L100" href="#L100">100</a>         xdsResourceManager.delete(responseObserver, group, clusterName, <span class="jxr_string">"Delete cluster: "</span> + clusterName,
+<a class="jxr_linenumber" name="L101" href="#L101">101</a>                                   currentAuthor());
 <a class="jxr_linenumber" name="L102" href="#L102">102</a>     }
-<a class="jxr_linenumber" name="L103" href="#L103">103</a> }
+<a class="jxr_linenumber" name="L103" href="#L103">103</a> 
+<a class="jxr_linenumber" name="L104" href="#L104">104</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> Matcher checkClusterName(String clusterName) {
+<a class="jxr_linenumber" name="L105" href="#L105">105</a>         <strong class="jxr_keyword">final</strong> Matcher matcher = CLUSTER_NAME_PATTERN.matcher(clusterName);
+<a class="jxr_linenumber" name="L106" href="#L106">106</a>         <strong class="jxr_keyword">if</strong> (!matcher.matches()) {
+<a class="jxr_linenumber" name="L107" href="#L107">107</a>             <strong class="jxr_keyword">throw</strong> Status.INVALID_ARGUMENT.withDescription(<span class="jxr_string">"Invalid cluster name: "</span> + clusterName +
+<a class="jxr_linenumber" name="L108" href="#L108">108</a>                                                           <span class="jxr_string">" (expected: "</span> + CLUSTER_NAME_PATTERN + ')')
+<a class="jxr_linenumber" name="L109" href="#L109">109</a>                                          .asRuntimeException();
+<a class="jxr_linenumber" name="L110" href="#L110">110</a>         }
+<a class="jxr_linenumber" name="L111" href="#L111">111</a>         <strong class="jxr_keyword">return</strong> matcher;
+<a class="jxr_linenumber" name="L112" href="#L112">112</a>     }
+<a class="jxr_linenumber" name="L113" href="#L113">113</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2024 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

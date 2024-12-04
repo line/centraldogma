@@ -34,25 +34,27 @@
 <a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.auth.Authorizer;
 <a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.thrift.THttpService;
 <a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.CsrfToken;
-<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.User;
-<a class="jxr_linenumber" name="L30" href="#L30">30</a>  
-<a class="jxr_linenumber" name="L31" href="#L31">31</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L32" href="#L32">32</a>  <em class="jxr_javadoccomment"> * A decorator which checks whether CSRF token exists.</em>
-<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <em class="jxr_javadoccomment"> * This should be used for {@link THttpService} and admin service without security.</em>
-<a class="jxr_linenumber" name="L34" href="#L34">34</a>  <em class="jxr_javadoccomment"> */</em>
-<a class="jxr_linenumber" name="L35" href="#L35">35</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/auth/CsrfTokenAuthorizer.html">CsrfTokenAuthorizer</a> <strong class="jxr_keyword">implements</strong> Authorizer&lt;HttpRequest&gt; {
-<a class="jxr_linenumber" name="L36" href="#L36">36</a>  
-<a class="jxr_linenumber" name="L37" href="#L37">37</a>      @Override
-<a class="jxr_linenumber" name="L38" href="#L38">38</a>      <strong class="jxr_keyword">public</strong> CompletionStage&lt;Boolean&gt; authorize(ServiceRequestContext ctx, HttpRequest data) {
-<a class="jxr_linenumber" name="L39" href="#L39">39</a>          <strong class="jxr_keyword">final</strong> OAuth2Token token = AuthTokenExtractors.oAuth2().apply(data.headers());
-<a class="jxr_linenumber" name="L40" href="#L40">40</a>          <strong class="jxr_keyword">if</strong> (token != <strong class="jxr_keyword">null</strong> &amp;&amp; CsrfToken.ANONYMOUS.equals(token.accessToken())) {
-<a class="jxr_linenumber" name="L41" href="#L41">41</a>              AuthUtil.setCurrentUser(ctx, User.ADMIN);
-<a class="jxr_linenumber" name="L42" href="#L42">42</a>              <strong class="jxr_keyword">return</strong> CompletableFuture.completedFuture(<strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="L43" href="#L43">43</a>          } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L44" href="#L44">44</a>              <strong class="jxr_keyword">return</strong> CompletableFuture.completedFuture(false);
-<a class="jxr_linenumber" name="L45" href="#L45">45</a>          }
-<a class="jxr_linenumber" name="L46" href="#L46">46</a>      }
-<a class="jxr_linenumber" name="L47" href="#L47">47</a>  }
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
+<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.User;
+<a class="jxr_linenumber" name="L31" href="#L31">31</a>  
+<a class="jxr_linenumber" name="L32" href="#L32">32</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <em class="jxr_javadoccomment"> * A decorator which checks whether CSRF token exists.</em>
+<a class="jxr_linenumber" name="L34" href="#L34">34</a>  <em class="jxr_javadoccomment"> * This should be used for {@link THttpService} and admin service without security.</em>
+<a class="jxr_linenumber" name="L35" href="#L35">35</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/auth/CsrfTokenAuthorizer.html">CsrfTokenAuthorizer</a> <strong class="jxr_keyword">implements</strong> Authorizer&lt;HttpRequest&gt; {
+<a class="jxr_linenumber" name="L37" href="#L37">37</a>  
+<a class="jxr_linenumber" name="L38" href="#L38">38</a>      @Override
+<a class="jxr_linenumber" name="L39" href="#L39">39</a>      <strong class="jxr_keyword">public</strong> CompletionStage&lt;Boolean&gt; authorize(ServiceRequestContext ctx, HttpRequest data) {
+<a class="jxr_linenumber" name="L40" href="#L40">40</a>          <strong class="jxr_keyword">final</strong> OAuth2Token token = AuthTokenExtractors.oAuth2().apply(data.headers());
+<a class="jxr_linenumber" name="L41" href="#L41">41</a>          <strong class="jxr_keyword">if</strong> (token != <strong class="jxr_keyword">null</strong> &amp;&amp; CsrfToken.ANONYMOUS.equals(token.accessToken())) {
+<a class="jxr_linenumber" name="L42" href="#L42">42</a>              AuthUtil.setCurrentUser(ctx, User.ADMIN);
+<a class="jxr_linenumber" name="L43" href="#L43">43</a>              HttpApiUtil.setVerboseResponses(ctx, User.ADMIN);
+<a class="jxr_linenumber" name="L44" href="#L44">44</a>              <strong class="jxr_keyword">return</strong> CompletableFuture.completedFuture(<strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L45" href="#L45">45</a>          } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>              <strong class="jxr_keyword">return</strong> CompletableFuture.completedFuture(false);
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>          }
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>      }
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>  }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2024 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

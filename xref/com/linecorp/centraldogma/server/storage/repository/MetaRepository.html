@@ -31,8 +31,8 @@
 <a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 <a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.Command;
 <a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.CommitResult;
-<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.mirror.Mirror;
-<a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.mirror.MirrorCredential;
+<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.credential.Credential;
+<a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.mirror.Mirror;
 <a class="jxr_linenumber" name="L28" href="#L28">28</a>  
 <a class="jxr_linenumber" name="L29" href="#L29">29</a>  <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="L30" href="#L30">30</a>  <em class="jxr_javadoccomment"> * A Revision-controlled filesystem-like repository which is named {@code "meta"}.</em>
@@ -60,12 +60,12 @@
 <a class="jxr_linenumber" name="L52" href="#L52">52</a>      <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="L53" href="#L53">53</a>  <em class="jxr_javadoccomment">     * Returns a list of mirroring credentials.</em>
 <a class="jxr_linenumber" name="L54" href="#L54">54</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L55" href="#L55">55</a>      CompletableFuture&lt;List&lt;MirrorCredential&gt;&gt; credentials();
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>      CompletableFuture&lt;List&lt;Credential&gt;&gt; credentials();
 <a class="jxr_linenumber" name="L56" href="#L56">56</a>  
 <a class="jxr_linenumber" name="L57" href="#L57">57</a>      <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="L58" href="#L58">58</a>  <em class="jxr_javadoccomment">     * Returns a mirroring credential of the specified {@code id}.</em>
 <a class="jxr_linenumber" name="L59" href="#L59">59</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L60" href="#L60">60</a>      CompletableFuture&lt;MirrorCredential&gt; credential(String id);
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>      CompletableFuture&lt;Credential&gt; credential(String id);
 <a class="jxr_linenumber" name="L61" href="#L61">61</a>  
 <a class="jxr_linenumber" name="L62" href="#L62">62</a>      <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="L63" href="#L63">63</a>  <em class="jxr_javadoccomment">     * Create a push {@link Command} for the {@link MirrorDto}.</em>
@@ -74,9 +74,9 @@
 <a class="jxr_linenumber" name="L66" href="#L66">66</a>                                                                 <strong class="jxr_keyword">boolean</strong> update);
 <a class="jxr_linenumber" name="L67" href="#L67">67</a>  
 <a class="jxr_linenumber" name="L68" href="#L68">68</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L69" href="#L69">69</a>  <em class="jxr_javadoccomment">     * Create a push {@link Command} for the {@link MirrorCredential}.</em>
+<a class="jxr_linenumber" name="L69" href="#L69">69</a>  <em class="jxr_javadoccomment">     * Create a push {@link Command} for the {@link Credential}.</em>
 <a class="jxr_linenumber" name="L70" href="#L70">70</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L71" href="#L71">71</a>      CompletableFuture&lt;Command&lt;CommitResult&gt;&gt; createPushCommand(<a href="../../../../../../com/linecorp/centraldogma/server/mirror/MirrorCredential.html">MirrorCredential</a> credential, <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author,
+<a class="jxr_linenumber" name="L71" href="#L71">71</a>      CompletableFuture&lt;Command&lt;CommitResult&gt;&gt; createPushCommand(<a href="../../../../../../com/linecorp/centraldogma/server/credential/Credential.html">Credential</a> credential, <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author,
 <a class="jxr_linenumber" name="L72" href="#L72">72</a>                                                                 <strong class="jxr_keyword">boolean</strong> update);
 <a class="jxr_linenumber" name="L73" href="#L73">73</a>  }
 </pre>

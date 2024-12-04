@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Better configuration change workflow with Git-to-CD mirroring &mdash; Central Dogma 0.70.0 documentation</title>
+  <title>Better configuration change workflow with Git-to-CD mirroring &mdash; Central Dogma 0.71.0 documentation</title>
   
 
   
@@ -72,7 +72,7 @@
             
             
               <div class="version">
-                0.70
+                0.71
               </div>
             
           
@@ -302,11 +302,9 @@ end the URI with <code class="docutils literal notranslate"><span class="pre">.g
 the repository’s default branch is mirrored.</p></li>
 </ul>
 </li>
-<li><p><code class="docutils literal notranslate"><span class="pre">credentialId</span></code> (string, optional)</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">credentialId</span></code> (string)</p>
 <ul>
-<li><p>the ID of the credential to use for authentication, as defined in <code class="docutils literal notranslate"><span class="pre">/credentials/{credential-id}.json</span></code>.
-If unspecified, the credential whose <code class="docutils literal notranslate"><span class="pre">hostnamePattern</span></code> is matched by the host name part of the
-<code class="docutils literal notranslate"><span class="pre">remoteUri</span></code> value will be selected automatically.</p></li>
+<li><p>the ID of the credential to use for authentication, as defined in <code class="docutils literal notranslate"><span class="pre">/credentials/{credential-id}.json</span></code>.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">gitignore</span></code> (string or array of strings, optional)</p>
@@ -330,10 +328,7 @@ the Git repositories defined in <code class="docutils literal notranslate"><span
 <div class="code-block-caption"><span class="caption-text">no_auth.json</span><a class="headerlink" href="#id2" title="Permalink to this code">¶</a></div>
 <div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
   &quot;id&quot;: &quot;no_auth&quot;,
-  &quot;type&quot;: &quot;none&quot;,
-  &quot;hostnamePatterns&quot;: [
-    &quot;^git\.insecure\.com$&quot;
-  ]
+  &quot;type&quot;: &quot;none&quot;
 }</pre></div>
 </div>
 </div>
@@ -345,9 +340,6 @@ the Git repositories defined in <code class="docutils literal notranslate"><span
 <div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
   &quot;id&quot;: &quot;my_password&quot;,
   &quot;type&quot;: &quot;password&quot;,
-  &quot;hostnamePatterns&quot;: [
-    &quot;^git\.password-protected\.com$&quot;
-  ],
   &quot;username&quot;: &quot;alice&quot;,
   &quot;password&quot;: &quot;secret!&quot;
 }</pre></div>
@@ -361,9 +353,6 @@ the Git repositories defined in <code class="docutils literal notranslate"><span
 <div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
   &quot;id&quot;: &quot;my_private_key&quot;,
   &quot;type&quot;: &quot;public_key&quot;,
-  &quot;hostnamePatterns&quot;: [
-    &quot;^.*\.secure\.com$&quot;
-  ],
   &quot;username&quot;: &quot;git&quot;,
   &quot;publicKey&quot;: &quot;ssh-ed25519 ... user@host&quot;,
   &quot;privateKey&quot;: &quot;-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----\n&quot;,
@@ -395,13 +384,6 @@ You can specify the value of this field in the <code class="docutils literal not
 <li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (string)</p>
 <ul class="simple">
 <li><p>the type of authentication mechanism: <code class="docutils literal notranslate"><span class="pre">none</span></code>, <code class="docutils literal notranslate"><span class="pre">password</span></code>, <code class="docutils literal notranslate"><span class="pre">public_key</span></code> or <code class="docutils literal notranslate"><span class="pre">access_token</span></code>.</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">hostnamePatterns</span></code> (array of strings, optional)</p>
-<ul class="simple">
-<li><p>the regular expression that matches a host name. The credential whose hostname pattern matches first will
-be used when accessing a host. You may want to omit this field if you do not want the credential to be
-selected automatically, i.e. a mirror has to specify the <code class="docutils literal notranslate"><span class="pre">credentialId</span></code> field.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">username</span></code> (string)</p>
