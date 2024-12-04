@@ -163,7 +163,7 @@ public class ProjectMetadata implements Identifiable {
         if (member != null) {
             return member;
         }
-        throw new EntryNotFoundException(memberId);
+        throw new EntryNotFoundException("failed to find member " + memberId + " in project " + name());
     }
 
     /**

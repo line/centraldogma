@@ -50,6 +50,7 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
@@ -548,8 +549,8 @@ public class MetadataService {
             final Map<String, TokenRegistration> newTokens;
             if (tokens.get(appId) == null) {
                 if (!quiet) {
-                    throw new IllegalArgumentException(
-                            "the token " + appId + " doesn't exist at '" + projectName + '/');
+                    throw new EntryNotFoundException(
+                            "failed to find the token " + appId + " in project " + projectName);
                 }
                 newTokens = tokens;
             } else {
