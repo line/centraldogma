@@ -59,9 +59,8 @@ public class RedundantChangeException extends CentralDogmaException {
     /**
      * Returns the head revision of the repository when this exception was raised.
      */
+    @Nullable
     public Revision headRevision() {
-        // This is only called from the server-side which always sets the head revision.
-        assert headRevision != null;
         return headRevision;
     }
 }

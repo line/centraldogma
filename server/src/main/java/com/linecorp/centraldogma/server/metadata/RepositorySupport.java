@@ -120,7 +120,9 @@ final class RepositorySupport<T> {
                        .exceptionally(cause -> {
                            final Throwable peeled = Exceptions.peel(cause);
                            if (peeled instanceof RedundantChangeException) {
-                               return ((RedundantChangeException) peeled).headRevision();
+                               final Revision revision = ((RedundantChangeException) peeled).headRevision();
+                               assert revision != null;
+                               return revision;
                            }
                            return Exceptions.throwUnsafely(peeled);
                        });
