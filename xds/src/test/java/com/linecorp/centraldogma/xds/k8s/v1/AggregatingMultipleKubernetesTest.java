@@ -188,7 +188,7 @@ class AggregatingMultipleKubernetesTest {
         );
         // Change service2
         final List<Node> nodes = ImmutableList.of(newNode("5.5.5.5"), newNode("6.6.6.6"));
-        final Map<String, String> selector = ImmutableMap.of("app2", "nginx2");
+        final Map<String, String> selector = ImmutableMap.of("app3", "nginx3");
         final Deployment deployment = newDeployment("deployment3", selector);
         final Service service2 = newService("service2", selector);
         createResources(nodes, deployment, service2, false);
@@ -259,7 +259,8 @@ class AggregatingMultipleKubernetesTest {
                 updateAggregator(aggregator1, aggregatorId, dogma.httpClient());
         assertOk(response1);
         await().until(() -> fooGroup.normalizeNow(Revision.HEAD).equals(
-                endpointEntry.revision().forward(1))); // 2 because of the aggregator update and endpoint update
+                // 1 + 2 because of the aggregator update and endpoint update
+                endpointEntry.revision().forward(3)));
         final Entry<JsonNode> endpointEntry2 = fooGroup.getOrNull(Revision.HEAD, Query.ofJson(
                 K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json")).join();
         assertThatJson(endpointEntry2.content()).isEqualTo(
