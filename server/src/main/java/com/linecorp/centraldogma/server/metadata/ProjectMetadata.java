@@ -48,17 +48,17 @@ public class ProjectMetadata implements Identifiable {
     /**
      * Repositories of this project.
      */
-    private final Map<String, RepositoryMetadata> repos;
+    private Map<String, RepositoryMetadata> repos;
 
     /**
      * Members of this project.
      */
-    private final Map<String, Member> members;
+    private Map<String, Member> members;
 
     /**
      * Tokens which belong to this project.
      */
-    private final Map<String, TokenRegistration> tokens;
+    private Map<String, TokenRegistration> tokens;
 
     /**
      * Specifies when this project is created by whom.
@@ -111,6 +111,16 @@ public class ProjectMetadata implements Identifiable {
     }
 
     /**
+     * Sets the metadata of the repositories in this project.
+     *
+     * @deprecated Do not use this method. This will be removed after the migration is done.
+     */
+    @Deprecated
+    public void setRepos(Map<String, RepositoryMetadata> repos) {
+        this.repos = requireNonNull(repos, "repos");
+    }
+
+    /**
      * Returns the {@link Member}s of this project.
      */
     @JsonProperty
@@ -119,11 +129,31 @@ public class ProjectMetadata implements Identifiable {
     }
 
     /**
+     * Sets the {@link Member}s of this project.
+     *
+     * @deprecated Do not use this method. This will be removed after the migration is done.
+     */
+    @Deprecated
+    public void setMembers(Map<String, Member> members) {
+        this.members = requireNonNull(members, "members");
+    }
+
+    /**
      * Returns the {@link TokenRegistration}s of this project.
      */
     @JsonProperty
     public Map<String, TokenRegistration> tokens() {
         return tokens;
+    }
+
+    /**
+     * Sets the {@link TokenRegistration}s of this project.
+     *
+     * @deprecated Do not use this method. This will be removed after the migration is done.
+     */
+    @Deprecated
+    public void setTokens(Map<String, TokenRegistration> tokens) {
+        this.tokens = requireNonNull(tokens, "tokens");
     }
 
     /**

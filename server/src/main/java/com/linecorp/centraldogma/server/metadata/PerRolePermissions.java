@@ -36,7 +36,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 /**
  * A default permission for a {@link Repository}.
  */
-public class PerRolePermissions {
+public final class PerRolePermissions {
 
     /**
      * {@link Permission}s for administrators.
