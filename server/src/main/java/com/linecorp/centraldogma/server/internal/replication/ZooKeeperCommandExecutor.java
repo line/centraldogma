@@ -83,6 +83,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.escape.Escaper;
@@ -1202,6 +1203,16 @@ public final class ZooKeeperCommandExecutor
 
         public void appendBlock(long blockId) {
             blocks.add(blockId);
+        }
+
+        @Override
+        public String toString() {
+            return MoreObjects.toStringHelper(this)
+                              .add("replicaId", replicaId)
+                              .add("timestamp", timestamp)
+                              .add("size", size)
+                              .add("blocks", blocks)
+                              .toString();
         }
     }
 
