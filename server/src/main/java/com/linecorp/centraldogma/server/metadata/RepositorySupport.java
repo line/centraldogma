@@ -16,13 +16,10 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
-import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
@@ -30,7 +27,6 @@ import com.google.common.collect.ImmutableList;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.RedundantChangeException;
@@ -39,6 +35,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -108,53 +105,27 @@ final class RepositorySupport<T> {
                        .thenApply(CommitResult::revision);
     }
 
-    CompletableFuture<Revision> push(String projectName, String repoName, Author author, String commitSummary,
-                                     Supplier<CompletionStage<HolderWithRevision<Change<?>>>> changeSupplier) {
+    CompletableFuture<Revision> push(String projectName, String repoName,
+                                     Author author, String commitSummary,
+                                     ContentTransformer<JsonNode> transformer) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(author, "author");
         requireNonNull(commitSummary, "commitSummary");
-        requireNonNull(changeSupplier, "changeSupplier");
+        requireNonNull(transformer, "transformer");
 
-        final CompletableFuture<Revision> future = new CompletableFuture<>();
-        push(projectName, repoName, author, commitSummary, changeSupplier, future);
-        return future;
-    }
-
-    private void push(String projectName, String repoName, Author author, String commitSummary,
-                      Supplier<CompletionStage<HolderWithRevision<Change<?>>>> changeSupplier,
-                      CompletableFuture<Revision> future) {
-        changeSupplier.get().thenAccept(changeWithRevision -> {
-            final Revision revision = changeWithRevision.revision();
-            final Change<?> change = changeWithRevision.object();
-
-            push(projectName, repoName, author, commitSummary, change, revision)
-                    .thenAccept(future::complete)
-                    .exceptionally(voidFunction(cause -> {
-                        cause = Exceptions.peel(cause);
-                        if (cause instanceof ChangeConflictException) {
-                            final Revision latestRevision;
-                            try {
-                                latestRevision = projectManager().get(projectName).repos().get(repoName)
-                                                                 .normalizeNow(Revision.HEAD);
-                            } catch (Throwable cause1) {
-                                future.completeExceptionally(cause1);
-                                return;
-                            }
-
-                            if (revision.equals(latestRevision)) {
-                                future.completeExceptionally(cause);
-                                return;
-                            }
-                            // Try again.
-                            push(projectName, repoName, author, commitSummary, changeSupplier, future);
-                        } else if (cause instanceof RedundantChangeException) {
-                            future.complete(revision);
-                        } else {
-                            future.completeExceptionally(cause);
-                        }
-                    }));
-        }).exceptionally(voidFunction(future::completeExceptionally));
+        return executor.execute(Command.transform(null, author, projectName, repoName, Revision.HEAD,
+                                                  commitSummary, "", Markup.PLAINTEXT, transformer))
+                       .thenApply(CommitResult::revision)
+                       .exceptionally(cause -> {
+                           final Throwable peeled = Exceptions.peel(cause);
+                           if (peeled instanceof RedundantChangeException) {
+                               final Revision revision = ((RedundantChangeException) peeled).headRevision();
+                               assert revision != null;
+                               return revision;
+                           }
+                           return Exceptions.throwUnsafely(peeled);
+                       });
     }
 
     Revision normalize(Repository repository) {

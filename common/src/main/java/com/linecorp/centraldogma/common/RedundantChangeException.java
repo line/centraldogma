@@ -16,37 +16,33 @@
 
 package com.linecorp.centraldogma.common;
 
+import static java.util.Objects.requireNonNull;
+
+import javax.annotation.Nullable;
+
 /**
  * A {@link CentralDogmaException} that is raised when attempted to push a commit without effective changes.
  */
 public class RedundantChangeException extends CentralDogmaException {
 
     private static final long serialVersionUID = 8739464985038079688L;
-
-    /**
-     * Creates a new instance.
-     */
-    public RedundantChangeException() {}
+    @Nullable
+    private final Revision headRevision;
 
     /**
      * Creates a new instance.
      */
     public RedundantChangeException(String message) {
         super(message);
+        headRevision = null;
     }
 
     /**
      * Creates a new instance.
      */
-    public RedundantChangeException(Throwable cause) {
-        super(cause);
-    }
-
-    /**
-     * Creates a new instance.
-     */
-    public RedundantChangeException(String message, Throwable cause) {
-        super(message, cause);
+    public RedundantChangeException(Revision headRevision, String message) {
+        super(message);
+        this.headRevision = requireNonNull(headRevision, "headRevision");
     }
 
     /**
@@ -57,13 +53,14 @@ public class RedundantChangeException extends CentralDogmaException {
      */
     public RedundantChangeException(String message, boolean writableStackTrace) {
         super(message, writableStackTrace);
+        headRevision = null;
     }
 
     /**
-     * Creates a new instance.
+     * Returns the head revision of the repository when this exception was raised.
      */
-    protected RedundantChangeException(String message, Throwable cause, boolean enableSuppression,
-                                       boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
+    @Nullable
+    public Revision headRevision() {
+        return headRevision;
     }
 }

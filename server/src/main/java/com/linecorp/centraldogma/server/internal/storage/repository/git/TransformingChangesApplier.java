@@ -30,10 +30,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.ContentTransformer;
+import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
 
 final class TransformingChangesApplier extends AbstractChangesApplier {
 
@@ -61,6 +63,8 @@ final class TransformingChangesApplier extends AbstractChangesApplier {
                 applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
                 return 1;
             }
+        } catch (CentralDogmaException | TokenNotFoundException | IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             throw new ChangeConflictException("failed to transform the content: " + oldJsonNode +
                                               " transformer: " + transformer, e);

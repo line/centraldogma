@@ -38,6 +38,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
 import com.linecorp.centraldogma.server.storage.StorageException;
 
 abstract class AbstractChangesApplier {
@@ -59,7 +60,7 @@ abstract class AbstractChangesApplier {
             }
 
             return doApply(dirCache, reader, inserter);
-        } catch (CentralDogmaException | IllegalArgumentException e) {
+        } catch (CentralDogmaException | TokenNotFoundException | IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
             throw new StorageException("failed to apply changes on revision: " +
