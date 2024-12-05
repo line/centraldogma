@@ -48,6 +48,8 @@ public final class MirrorDto {
     @Nullable
     private final String gitignore;
     private final String credentialId;
+    @Nullable
+    private final String zone;
 
     @JsonCreator
     public MirrorDto(@JsonProperty("id") String id,
@@ -62,7 +64,8 @@ public final class MirrorDto {
                      @JsonProperty("remotePath") String remotePath,
                      @JsonProperty("remoteBranch") String remoteBranch,
                      @JsonProperty("gitignore") @Nullable String gitignore,
-                     @JsonProperty("credentialId") String credentialId) {
+                     @JsonProperty("credentialId") String credentialId,
+                     @JsonProperty("zone") @Nullable String zone) {
         this.id = requireNonNull(id, "id");
         this.enabled = firstNonNull(enabled, true);
         this.projectName = requireNonNull(projectName, "projectName");
@@ -76,6 +79,7 @@ public final class MirrorDto {
         this.remoteBranch = requireNonNull(remoteBranch, "remoteBranch");
         this.gitignore = gitignore;
         this.credentialId = requireNonNull(credentialId, "credentialId");
+        this.zone = zone;
     }
 
     @JsonProperty("id")
@@ -145,6 +149,12 @@ public final class MirrorDto {
         return credentialId;
     }
 
+    @Nullable
+    @JsonProperty("zone")
+    public String zone() {
+        return zone;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -166,13 +176,14 @@ public final class MirrorDto {
                remotePath.equals(mirrorDto.remotePath) &&
                remoteBranch.equals(mirrorDto.remoteBranch) &&
                Objects.equals(gitignore, mirrorDto.gitignore) &&
-               credentialId.equals(mirrorDto.credentialId);
+               credentialId.equals(mirrorDto.credentialId) &&
+               Objects.equals(zone, mirrorDto.zone);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(id, projectName, schedule, direction, localRepo, localPath, remoteScheme,
-                            remoteUrl, remotePath, remoteBranch, gitignore, credentialId, enabled);
+                            remoteUrl, remotePath, remoteBranch, gitignore, credentialId, enabled, zone);
     }
 
     @Override
@@ -191,6 +202,7 @@ public final class MirrorDto {
                           .add("remotePath", remotePath)
                           .add("gitignore", gitignore)
                           .add("credentialId", credentialId)
+                          .add("zone", zone)
                           .toString();
     }
 }

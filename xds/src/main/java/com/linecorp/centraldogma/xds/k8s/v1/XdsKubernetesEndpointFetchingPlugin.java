@@ -23,7 +23,10 @@ import java.util.concurrent.CompletionStage;
 
 import javax.annotation.Nullable;
 
+import com.google.common.base.MoreObjects;
+
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
+import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
@@ -41,7 +44,7 @@ public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
     private XdsKubernetesEndpointFetchingService fetchingService;
 
     @Override
-    public PluginTarget target() {
+    public PluginTarget target(CentralDogmaConfig config) {
         return PluginTarget.LEADER_ONLY;
     }
 
@@ -73,5 +76,13 @@ public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
     @Override
     public Class<?> configType() {
         return getClass();
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                          .add("target", PluginTarget.LEADER_ONLY)
+                          .add("configType", configType().getName())
+                          .toString();
     }
 }

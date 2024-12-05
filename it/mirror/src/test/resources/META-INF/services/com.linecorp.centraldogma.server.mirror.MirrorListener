@@ -1,1 +1,2 @@
 com.linecorp.centraldogma.it.mirror.git.TestMirrorRunnerListener
+com.linecorp.centraldogma.it.mirror.git.TestZoneAwareMirrorListener

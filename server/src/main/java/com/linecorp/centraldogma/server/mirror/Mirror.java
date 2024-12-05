@@ -101,6 +101,12 @@ public interface Mirror {
     boolean enabled();
 
     /**
+     * Returns the zone where this {@link Mirror} is pinned to.
+     */
+    @Nullable
+    String zone();
+
+    /**
      * Performs the mirroring task.
      *
      * @param workDir the local directory where keeps the mirrored files

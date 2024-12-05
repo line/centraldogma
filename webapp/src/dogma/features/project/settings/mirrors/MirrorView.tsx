@@ -30,6 +30,7 @@ import { FiBox } from 'react-icons/fi';
 import cronstrue from 'cronstrue';
 import { RunMirror } from '../../../mirror/RunMirrorButton';
 import { FaPlay } from 'react-icons/fa';
+import { CiLocationOn } from 'react-icons/ci';
 
 const HeadRow = ({ children }: { children: ReactNode }) => (
   <Td width="250px" fontWeight="semibold">
@@ -135,6 +136,14 @@ const MirrorView = ({ projectName, mirror, credential }: MirrorViewProps) => {
                   )}
                 </Td>
               </Tr>
+              {mirror.zone && (
+                <Tr>
+                  <HeadRow>
+                    <AlignedIcon as={CiLocationOn} /> Zone
+                  </HeadRow>
+                  <Td>{mirror.zone}</Td>
+                </Tr>
+              )}
               <Tr>
                 <HeadRow>
                   <AlignedIcon as={IoBanSharp} /> gitignore

@@ -36,7 +36,7 @@ public final class PurgeSchedulingServicePlugin implements Plugin {
     private volatile PurgeSchedulingService purgeSchedulingService;
 
     @Override
-    public PluginTarget target() {
+    public PluginTarget target(CentralDogmaConfig config) {
         return PluginTarget.LEADER_ONLY;
     }
 
@@ -87,7 +87,7 @@ public final class PurgeSchedulingServicePlugin implements Plugin {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .omitNullValues()
-                          .add("target", target())
+                          .add("target", PluginTarget.LEADER_ONLY)
                           .add("purgeSchedulingService", purgeSchedulingService)
                           .toString();
     }

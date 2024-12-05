@@ -116,10 +116,17 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
                     builder.port(new InetSocketAddress(NetUtil.LOCALHOST4, dogmaPort), SessionProtocol.HTTP)
                            .administrators(TestAuthMessageUtil.USERNAME)
                            .authProviderFactory(factory)
-                           .pluginConfigs(new MirroringServicePluginConfig(false))
                            .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
                            .replication(new ZooKeeperReplicationConfig(serverId, zooKeeperServers));
                     configureEach(serverId, builder);
+                    final boolean isMirrorConfigured =
+                            builder.pluginConfigs()
+                                   .stream()
+                                   .anyMatch(pluginCfg -> pluginCfg instanceof MirroringServicePluginConfig);
+                    if (!isMirrorConfigured) {
+                        // Disable the mirroring service when it is not explicitly configured.
+                        builder.pluginConfigs(new MirroringServicePluginConfig(false));
+                    }
                 }
 
                 @Override
