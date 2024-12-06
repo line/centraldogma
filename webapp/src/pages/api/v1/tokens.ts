@@ -7,7 +7,7 @@ const newToken = (id: number) => {
   const token: TokenDto = {
     appId: `${faker.animal.snake().replaceAll(' ', '-').toLowerCase()}-${id}`,
     secret: faker.datatype.uuid(),
-    admin: faker.datatype.boolean(),
+    systemAdmin: faker.datatype.boolean(),
     creation: { user: faker.internet.email(), timestamp: faker.datatype.datetime().toISOString() },
   };
   if (id & 1) {

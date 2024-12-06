@@ -20,9 +20,9 @@ import javax.annotation.Nullable;
 
 import com.linecorp.centraldogma.common.Author;
 
-abstract class AdministrativeCommand<T> extends RootCommand<T> {
-    AdministrativeCommand(CommandType commandType, @Nullable Long timestamp,
-                          @Nullable Author author) {
+abstract class SystemAdministrativeCommand<T> extends RootCommand<T> {
+    SystemAdministrativeCommand(CommandType commandType, @Nullable Long timestamp,
+                                @Nullable Author author) {
         super(commandType, timestamp, author);
     }
 }

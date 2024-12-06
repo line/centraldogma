@@ -75,14 +75,14 @@ class TokenServiceTest {
 
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.administrators(TestAuthMessageUtil.USERNAME);
+            builder.systemAdministrators(TestAuthMessageUtil.USERNAME);
             builder.authProviderFactory(new TestAuthProviderFactory());
         }
     };
 
-    private static final Author adminAuthor = Author.ofEmail("admin@localhost.com");
+    private static final Author systemAdminAuthor = Author.ofEmail("systemAdmin@localhost.com");
     private static final Author guestAuthor = Author.ofEmail("guest@localhost.com");
-    private static final User admin = new User("admin@localhost.com", User.LEVEL_ADMIN);
+    private static final User systemAdmin = new User("systemAdmin@localhost.com", User.LEVEL_SYSTEM_ADMIN);
     private static final User guest = new User("guest@localhost.com");
     private static final JsonNode activation = Jackson.valueToTree(
             ImmutableList.of(
@@ -97,7 +97,7 @@ class TokenServiceTest {
 
     private static TokenService tokenService;
     private static MetadataService metadataService;
-    private static WebClient adminClient;
+    private static WebClient systemAdminClient;
 
     // ctx is only used for getting the blocking task executor.
     private final ServiceRequestContext ctx =
@@ -112,11 +112,11 @@ class TokenServiceTest {
     @BeforeAll
     static void setUp() throws JsonMappingException, JsonParseException {
         final URI uri = dogma.httpClient().uri();
-        adminClient = WebClient.builder(uri)
-                               .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
-                                                                  TestAuthMessageUtil.USERNAME,
-                                                                  TestAuthMessageUtil.PASSWORD)))
-                               .build();
+        systemAdminClient = WebClient.builder(uri)
+                                     .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
+                                                                        TestAuthMessageUtil.USERNAME,
+                                                                        TestAuthMessageUtil.PASSWORD)))
+                                     .build();
         metadataService = new MetadataService(manager.projectManager(), manager.executor());
         tokenService = new TokenService(manager.executor(), metadataService);
     }
@@ -126,18 +126,19 @@ class TokenServiceTest {
         final Tokens tokens = metadataService.getTokens().join();
         tokens.appIds().forEach((appId, token) -> {
             if (!token.isDeleted()) {
-                metadataService.destroyToken(adminAuthor, appId);
+                metadataService.destroyToken(systemAdminAuthor, appId);
             }
-            metadataService.purgeToken(adminAuthor, appId);
+            metadataService.purgeToken(systemAdminAuthor, appId);
         });
     }
 
     @Test
-    void adminToken() {
-        final Token token = tokenService.createToken("forAdmin1", true, null, adminAuthor, admin).join()
+    void systemAdminToken() {
+        final Token token = tokenService.createToken("forAdmin1", true, true, null,
+                                                     systemAdminAuthor, systemAdmin).join()
                                         .content();
         assertThat(token.isActive()).isTrue();
-        assertThatThrownBy(() -> tokenService.createToken("forAdmin2", true, null, guestAuthor, guest)
+        assertThatThrownBy(() -> tokenService.createToken("forAdmin2", true, true, null, guestAuthor, guest)
                                              .join())
                 .isInstanceOf(IllegalArgumentException.class);
 
@@ -146,30 +147,32 @@ class TokenServiceTest {
         metadataService.addToken(Author.SYSTEM, "myPro", "forAdmin1", ProjectRole.OWNER).join();
         assertThat(metadataService.getProject("myPro").join().tokens().containsKey("forAdmin1")).isTrue();
 
-        final Collection<Token> tokens = tokenService.listTokens(admin).join();
+        final Collection<Token> tokens = tokenService.listTokens(systemAdmin).join();
         assertThat(tokens.stream().filter(t -> !StringUtil.isNullOrEmpty(t.secret()))).hasSize(1);
 
         assertThatThrownBy(() -> tokenService.deleteToken(ctx, "forAdmin1", guestAuthor, guest)
                                              .join())
                 .hasCauseInstanceOf(HttpResponseException.class);
 
-        assertThat(tokenService.deleteToken(ctx, "forAdmin1", adminAuthor, admin).thenCompose(
-                unused -> tokenService.purgeToken(ctx, "forAdmin1", adminAuthor, admin)).join()).satisfies(
-                t -> {
+        assertThat(tokenService.deleteToken(ctx, "forAdmin1", systemAdminAuthor, systemAdmin)
+                               .thenCompose(unused -> tokenService.purgeToken(
+                                       ctx, "forAdmin1", systemAdminAuthor, systemAdmin)).join())
+                .satisfies(t -> {
                     assertThat(t.appId()).isEqualTo(token.appId());
-                    assertThat(t.isAdmin()).isEqualTo(token.isAdmin());
+                    assertThat(t.isSystemAdmin()).isEqualTo(token.isSystemAdmin());
                     assertThat(t.creation()).isEqualTo(token.creation());
                     assertThat(t.isDeleted()).isTrue();
                 });
-        assertThat(tokenService.listTokens(admin).join().size()).isEqualTo(0);
+        assertThat(tokenService.listTokens(systemAdmin).join().size()).isEqualTo(0);
         assertThat(metadataService.getProject("myPro").join().tokens().size()).isEqualTo(0);
     }
 
     @Test
     void userToken() {
-        final Token userToken1 = tokenService.createToken("forUser1", false, null, adminAuthor, admin)
+        final Token userToken1 = tokenService.createToken("forUser1", false, false, null, systemAdminAuthor,
+                                                          systemAdmin)
                                              .join().content();
-        final Token userToken2 = tokenService.createToken("forUser2", false, null, guestAuthor, guest)
+        final Token userToken2 = tokenService.createToken("forUser2", false, false, null, guestAuthor, guest)
                                              .join().content();
         assertThat(userToken1.isActive()).isTrue();
         assertThat(userToken2.isActive()).isTrue();
@@ -178,117 +181,126 @@ class TokenServiceTest {
         assertThat(tokens.stream().filter(token -> !StringUtil.isNullOrEmpty(token.secret())).count())
                 .isEqualTo(0);
 
-        assertThat(tokenService.deleteToken(ctx, "forUser1", adminAuthor, admin).thenCompose(
-                unused -> tokenService.purgeToken(ctx, "forUser1", adminAuthor, admin)).join()).satisfies(t -> {
-            assertThat(t.appId()).isEqualTo(userToken1.appId());
-            assertThat(t.isAdmin()).isEqualTo(userToken1.isAdmin());
-            assertThat(t.creation()).isEqualTo(userToken1.creation());
-            assertThat(t.deactivation()).isEqualTo(userToken1.deactivation());
-        });
-        assertThat(tokenService.deleteToken(ctx, "forUser2", guestAuthor, guest).thenCompose(
-                unused -> tokenService.purgeToken(ctx, "forUser2", guestAuthor, guest)).join()).satisfies(t -> {
-            assertThat(t.appId()).isEqualTo(userToken2.appId());
-            assertThat(t.isAdmin()).isEqualTo(userToken2.isAdmin());
-            assertThat(t.creation()).isEqualTo(userToken2.creation());
-            assertThat(t.deactivation()).isEqualTo(userToken2.deactivation());
-        });
+        assertThat(tokenService.deleteToken(ctx, "forUser1", systemAdminAuthor, systemAdmin)
+                               .thenCompose(unused -> tokenService.purgeToken(
+                                       ctx, "forUser1", systemAdminAuthor, systemAdmin)).join())
+                .satisfies(t -> {
+                    assertThat(t.appId()).isEqualTo(userToken1.appId());
+                    assertThat(t.isSystemAdmin()).isEqualTo(userToken1.isSystemAdmin());
+                    assertThat(t.creation()).isEqualTo(userToken1.creation());
+                    assertThat(t.deactivation()).isEqualTo(userToken1.deactivation());
+                });
+        assertThat(tokenService.deleteToken(ctx, "forUser2", guestAuthor, guest)
+                               .thenCompose(unused -> tokenService.purgeToken(
+                                       ctx, "forUser2", guestAuthor, guest)).join())
+                .satisfies(t -> {
+                    assertThat(t.appId()).isEqualTo(userToken2.appId());
+                    assertThat(t.isSystemAdmin()).isEqualTo(userToken2.isSystemAdmin());
+                    assertThat(t.creation()).isEqualTo(userToken2.creation());
+                    assertThat(t.deactivation()).isEqualTo(userToken2.deactivation());
+                });
     }
 
     @Test
     void nonRandomToken() {
-        final Token token = tokenService.createToken("forAdmin1", true, "appToken-secret", adminAuthor,
-                                                     admin)
+        final Token token = tokenService.createToken("forAdmin1", true, true, "appToken-secret",
+                                                     systemAdminAuthor,
+                                                     systemAdmin)
                                         .join().content();
         assertThat(token.isActive()).isTrue();
 
-        final Collection<Token> tokens = tokenService.listTokens(admin).join();
+        final Collection<Token> tokens = tokenService.listTokens(systemAdmin).join();
         assertThat(tokens.stream().filter(t -> !StringUtil.isNullOrEmpty(t.secret()))).hasSize(1);
 
-        assertThatThrownBy(() -> tokenService.createToken("forUser1", true, "appToken-secret", guestAuthor,
-                                                          guest)
+        assertThatThrownBy(() -> tokenService.createToken("forUser1", true, true,
+                                                          "appToken-secret", guestAuthor, guest)
                                              .join())
                 .isInstanceOf(IllegalArgumentException.class);
 
         final ServiceRequestContext ctx = ServiceRequestContext.of(
                 HttpRequest.of(HttpMethod.DELETE, "/tokens/{appId}/removed"));
 
-        tokenService.deleteToken(this.ctx, "forAdmin1", adminAuthor, admin).thenCompose(
-                unused -> tokenService.purgeToken(ctx, "forAdmin1", adminAuthor, admin)).join();
+        tokenService.deleteToken(this.ctx, "forAdmin1", systemAdminAuthor, systemAdmin).thenCompose(
+                unused -> tokenService.purgeToken(ctx, "forAdmin1", systemAdminAuthor, systemAdmin)).join();
     }
 
     @Test
     public void updateToken() {
-        final Token token = tokenService.createToken("forUpdate", true, null, adminAuthor, admin).join()
+        final Token token = tokenService.createToken("forUpdate", true, true, null,
+                                                     systemAdminAuthor, systemAdmin).join()
                                         .content();
         assertThat(token.isActive()).isTrue();
 
-        tokenService.updateToken(ctx, "forUpdate", deactivation, adminAuthor, admin).join();
+        tokenService.updateToken(ctx, "forUpdate", deactivation, systemAdminAuthor, systemAdmin).join();
         final Token deactivatedToken = metadataService.findTokenByAppId("forUpdate").join();
         assertThat(deactivatedToken.isActive()).isFalse();
 
-        tokenService.updateToken(ctx, "forUpdate", activation, adminAuthor, admin).join();
+        tokenService.updateToken(ctx, "forUpdate", activation, systemAdminAuthor, systemAdmin).join();
         final Token activatedToken = metadataService.findTokenByAppId("forUpdate").join();
         assertThat(activatedToken.isActive()).isTrue();
 
         assertThatThrownBy(
                 () -> tokenService.updateToken(ctx, "forUpdate", Jackson.valueToTree(
-                        ImmutableList.of(ImmutableMap.of())), adminAuthor, admin).join())
+                        ImmutableList.of(ImmutableMap.of())), systemAdminAuthor, systemAdmin).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class);
 
-        tokenService.deleteToken(ctx, "forUpdate", adminAuthor, admin).join();
+        tokenService.deleteToken(ctx, "forUpdate", systemAdminAuthor, systemAdmin).join();
         final Token deletedToken = metadataService.findTokenByAppId("forUpdate").join();
         assertThat(deletedToken.isDeleted()).isTrue();
         assertThatThrownBy(
-                () -> tokenService.updateToken(ctx, "forUpdate", activation, adminAuthor, admin).join())
+                () -> tokenService.updateToken(ctx, "forUpdate", activation,
+                                               systemAdminAuthor, systemAdmin).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void updateTokenLevel() {
-        final Token token = tokenService.createToken("forUpdate", false, null, adminAuthor, admin).join()
+        final Token token = tokenService.createToken("forUpdate", false, false, null,
+                                                     systemAdminAuthor, systemAdmin).join()
                                         .content();
         assertThat(token.isActive()).isTrue();
 
-        final Token userToken = tokenService.updateTokenLevel(ctx, "forUpdate", new TokenLevelRequest("ADMIN"),
-                                                              adminAuthor, admin)
+        final Token userToken = tokenService.updateTokenLevel(
+                                                    ctx, "forUpdate", new TokenLevelRequest("SYSTEMADMIN"),
+                                                    systemAdminAuthor, systemAdmin)
                                             .join();
-        assertThat(userToken.isAdmin()).isTrue();
+        assertThat(userToken.isSystemAdmin()).isTrue();
 
         final Token adminToken = tokenService.updateTokenLevel(ctx, "forUpdate", new TokenLevelRequest("USER"),
-                                                               adminAuthor, admin)
+                                                               systemAdminAuthor, systemAdmin)
                                              .join();
-        assertThat(adminToken.isAdmin()).isFalse();
+        assertThat(adminToken.isSystemAdmin()).isFalse();
 
         assertThatThrownBy(
                 () -> tokenService.updateTokenLevel(ctx, "forUpdate", new TokenLevelRequest("INVALID"),
-                                                    adminAuthor, admin).join())
+                                                    systemAdminAuthor, systemAdmin).join())
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void createTokenAndUpdateLevel() throws JsonParseException {
-        assertThat(adminClient.post(API_V1_PATH_PREFIX + "tokens",
-                                    QueryParams.of("appId", "forUpdate", "isAdmin", false),
-                                    HttpData.empty())
-                              .aggregate()
-                              .join()
-                              .headers()
-                              .get(HttpHeaderNames.LOCATION)).isEqualTo("/tokens/forUpdate");
+        assertThat(systemAdminClient.post(API_V1_PATH_PREFIX + "tokens",
+                                          QueryParams.of("appId", "forUpdate", "isSystemAdmin", false),
+                                          HttpData.empty())
+                                    .aggregate()
+                                    .join()
+                                    .headers()
+                                    .get(HttpHeaderNames.LOCATION)).isEqualTo("/tokens/forUpdate");
 
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.PATCH,
                                                          API_V1_PATH_PREFIX + "tokens/forUpdate/level",
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
 
-        final String body = "{\"level\":\"ADMIN\"}";
-        final AggregatedHttpResponse response = adminClient.execute(headers, body).aggregate().join();
+        final String body = "{\"level\":\"SYSTEMADMIN\"}";
+        final AggregatedHttpResponse response = systemAdminClient.execute(headers, body).aggregate().join();
 
         final JsonNode jsonNode = Jackson.readTree(response.contentUtf8());
         assertThat(jsonNode.get("appId").asText()).isEqualTo("forUpdate");
-        assertThat(jsonNode.get("admin").asBoolean()).isEqualTo(true);
+        assertThat(jsonNode.get("systemAdmin").asBoolean()).isEqualTo(true);
 
-        final AggregatedHttpResponse response2 = adminClient.execute(headers, body).aggregate().join();
+        final AggregatedHttpResponse response2 = systemAdminClient.execute(headers, body).aggregate().join();
         assertThat(response2.status()).isEqualTo(HttpStatus.NOT_MODIFIED);
     }
 }

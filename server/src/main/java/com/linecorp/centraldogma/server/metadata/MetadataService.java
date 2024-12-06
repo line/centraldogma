@@ -717,7 +717,7 @@ public class MetadataService {
     public CompletableFuture<Collection<Permission>> findPermissions(String projectName, String repoName,
                                                                      User user) {
         requireNonNull(user, "user");
-        if (user.isAdmin()) {
+        if (user.isSystemAdmin()) {
             return CompletableFuture.completedFuture(PerRolePermissions.ALL_PERMISSION);
         }
         if (user instanceof UserWithToken) {
@@ -798,7 +798,7 @@ public class MetadataService {
         requireNonNull(projectName, "projectName");
         requireNonNull(user, "user");
 
-        if (user.isAdmin()) {
+        if (user.isSystemAdmin()) {
             return CompletableFuture.completedFuture(ProjectRole.OWNER);
         }
         return getProject(projectName).thenApply(project -> {
@@ -830,11 +830,11 @@ public class MetadataService {
     }
 
     /**
-     * Creates a new {@link Token} with the specified {@code appId}, {@code isAdmin} and an auto-generated
+     * Creates a new {@link Token} with the specified {@code appId}, {@code isSystemAdmin} and an auto-generated
      * secret.
      */
-    public CompletableFuture<Revision> createToken(Author author, String appId, boolean isAdmin) {
-        return createToken(author, appId, SECRET_PREFIX + UUID.randomUUID(), isAdmin);
+    public CompletableFuture<Revision> createToken(Author author, String appId, boolean isSystemAdmin) {
+        return createToken(author, appId, SECRET_PREFIX + UUID.randomUUID(), isSystemAdmin);
     }
 
     /**
@@ -845,17 +845,17 @@ public class MetadataService {
     }
 
     /**
-     * Creates a new {@link Token} with the specified {@code appId}, {@code secret} and {@code isAdmin}.
+     * Creates a new {@link Token} with the specified {@code appId}, {@code secret} and {@code isSystemAdmin}.
      */
     public CompletableFuture<Revision> createToken(Author author, String appId, String secret,
-                                                   boolean isAdmin) {
+                                                   boolean isSystemAdmin) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
         requireNonNull(secret, "secret");
 
         checkArgument(secret.startsWith(SECRET_PREFIX), "secret must start with: " + SECRET_PREFIX);
 
-        final Token newToken = new Token(appId, secret, isAdmin, UserAndTimestamp.of(author));
+        final Token newToken = new Token(appId, secret, isSystemAdmin, UserAndTimestamp.of(author));
         final JsonPointer appIdPath = JsonPointer.compile("/appIds" + encodeSegment(newToken.id()));
         final String newTokenSecret = newToken.secret();
         assert newTokenSecret != null;
@@ -907,7 +907,7 @@ public class MetadataService {
         requireNonNull(appId, "appId");
 
         final Collection<Project> projects = listProjectsWithoutInternal(projectManager.list(),
-                                                                         User.ADMIN).values();
+                                                                         User.SYSTEM_ADMIN).values();
         // Remove the token from projects that only have the token.
         for (Project project : projects) {
             final ProjectMetadata projectMetadata = fetchMetadata(project.name()).join().object();
@@ -1005,12 +1005,13 @@ public class MetadataService {
     /**
      * Update the {@link Token} of the specified {@code appId} to user or admin.
      */
-    public CompletableFuture<Revision> updateTokenLevel(Author author, String appId, boolean toBeAdmin) {
+    public CompletableFuture<Revision> updateTokenLevel(Author author, String appId, boolean toBeSystemAdmin) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
-                              "Update the token level: " + appId + " to " + (toBeAdmin ? "admin" : "user"),
+                              "Update the token level: " + appId + " to " +
+                              (toBeSystemAdmin ? "system admin" : "user"),
                               () -> tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
                                              .thenApply(tokens -> {
                                                  final Tokens tokens0 = tokens.object();
@@ -1018,20 +1019,19 @@ public class MetadataService {
                                                  if (token == null) {
                                                      throw new TokenNotFoundException("App ID: " + appId);
                                                  }
-                                                 if (toBeAdmin == token.isAdmin()) {
+                                                 if (toBeSystemAdmin == token.isSystemAdmin()) {
                                                      throw new IllegalArgumentException(
                                                              "The token is already " +
-                                                             (toBeAdmin ? "admin" : "user"));
+                                                             (toBeSystemAdmin ? "system admin" : "user"));
                                                  }
                                                  final JsonPointer path = JsonPointer.compile(
                                                          "/appIds" + encodeSegment(appId));
-
                                                  final Change<JsonNode> change = Change.ofJsonPatch(
                                                          TOKEN_JSON,
                                                          new ReplaceOperation(
                                                                  path,
-                                                                 Jackson.valueToTree(token.withAdmin(
-                                                                         toBeAdmin))).toJsonNode());
+                                                                 Jackson.valueToTree(token.withSystemAdmin(
+                                                                         toBeSystemAdmin))).toJsonNode());
                                                  return HolderWithRevision.of(change, tokens.revision());
                                              }));
     }

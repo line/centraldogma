@@ -15,7 +15,7 @@ type WithProjectRoleProps = {
 export function findUserRole(user: UserDto, metadata: ProjectMetadataDto) {
   let role: ProjectRole;
   if (metadata && user) {
-    if (user.admin) {
+    if (user.systemAdmin) {
       role = 'OWNER';
     } else {
       role = metadata.members[user.email]?.role as ProjectRole;

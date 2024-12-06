@@ -33,7 +33,7 @@ export const DisplaySecretModal = ({
 }) => {
   const dispatch = useAppDispatch();
   if (!response) return;
-  const { appId, secret, admin, creation } = response;
+  const { appId, secret, systemAdmin, creation } = response;
   return (
     <Modal isOpen={isOpen} onClose={onClose} motionPreset="slideInBottom">
       <ModalOverlay />
@@ -67,7 +67,7 @@ export const DisplaySecretModal = ({
                 </Tr>
                 <Tr>
                   <Td>Level</Td>
-                  <Td>{admin ? 'Admin' : 'User'}</Td>
+                  <Td>{systemAdmin ? 'System Admin' : 'User'}</Td>
                 </Tr>
                 <Tr>
                   <Td>Created by</Td>

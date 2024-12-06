@@ -71,7 +71,7 @@ export const Projects = () => {
     error,
     isLoading,
   } = useGetProjectsQuery({
-    admin: user?.admin || false,
+    systemAdmin: user?.systemAdmin || false,
   });
 
   let filteredProjects = projects;
@@ -164,8 +164,8 @@ export const Projects = () => {
             }
           }
 
-          if (user.admin) {
-            // Restore project button for admin users.
+          if (user.systemAdmin) {
+            // Restore project button for system admin users.
             return <RestoreProject projectName={info.getValue()} />;
           } else {
             return null;

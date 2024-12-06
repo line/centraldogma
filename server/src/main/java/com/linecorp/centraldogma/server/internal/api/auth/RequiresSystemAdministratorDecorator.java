@@ -31,34 +31,34 @@ import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.User;
 
 /**
- * A {@link Decorator} to allow a request from an administrator only.
+ * A {@link Decorator} to allow a request from a system administrator only.
  */
-public final class RequiresAdministratorDecorator extends SimpleDecoratingHttpService {
+public final class RequiresSystemAdministratorDecorator extends SimpleDecoratingHttpService {
 
-    RequiresAdministratorDecorator(HttpService delegate) {
+    RequiresSystemAdministratorDecorator(HttpService delegate) {
         super(delegate);
     }
 
     @Override
     public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
         final User user = AuthUtil.currentUser(ctx);
-        if (user.isAdmin()) {
+        if (user.isSystemAdmin()) {
             return unwrap().serve(ctx, req);
         }
         return HttpApiUtil.throwResponse(
                 ctx, HttpStatus.FORBIDDEN,
-                "You must be an administrator to perform this operation.");
+                "You must be a system administrator to perform this operation.");
     }
 
     /**
-     * A {@link DecoratorFactoryFunction} which creates a {@link RequiresAdministratorDecorator}.
+     * A {@link DecoratorFactoryFunction} which creates a {@link RequiresSystemAdministratorDecorator}.
      */
-    public static final class RequiresAdministratorDecoratorFactory
-            implements DecoratorFactoryFunction<RequiresAdministrator> {
+    public static final class RequiresSystemAdministratorDecoratorFactory
+            implements DecoratorFactoryFunction<RequiresSystemAdministrator> {
         @Override
         public Function<? super HttpService, ? extends HttpService>
-        newDecorator(RequiresAdministrator parameter) {
-            return RequiresAdministratorDecorator::new;
+        newDecorator(RequiresSystemAdministrator parameter) {
+            return RequiresSystemAdministratorDecorator::new;
         }
     }
 }

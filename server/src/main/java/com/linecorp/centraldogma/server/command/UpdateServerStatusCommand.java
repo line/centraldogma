@@ -33,7 +33,7 @@ import com.linecorp.centraldogma.server.management.ServerStatus;
  * A {@link Command} which is used to update the status of all servers in the cluster.
  */
 @JsonInclude(Include.NON_NULL)
-public final class UpdateServerStatusCommand extends AdministrativeCommand<Void> {
+public final class UpdateServerStatusCommand extends SystemAdministrativeCommand<Void> {
 
     private final ServerStatus serverStatus;
 

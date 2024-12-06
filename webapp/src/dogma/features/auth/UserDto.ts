@@ -19,5 +19,5 @@ export interface UserDto {
   name: string;
   email: string;
   roles: string[];
-  admin: boolean;
+  systemAdmin: boolean;
 }

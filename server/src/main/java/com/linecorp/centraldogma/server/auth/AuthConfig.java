@@ -60,7 +60,7 @@ public final class AuthConfig {
 
     private final AuthProviderFactory factory;
 
-    private final Set<String> administrators;
+    private final Set<String> systemAdministrators;
     private final boolean caseSensitiveLoginNames;
 
     private final String sessionCacheSpec;
@@ -74,7 +74,7 @@ public final class AuthConfig {
      * Creates a new instance.
      *
      * @param factoryClassName the fully-qualified class name of the {@link AuthProviderFactory}
-     * @param administrators the login names of the administrators
+     * @param systemAdministrators the login names of the system administrators
      * @param caseSensitiveLoginNames the flag whether case-sensitive matching is performed when login names
      *                                are compared
      * @param sessionCacheSpec the cache specification which determines the capacity and behavior of
@@ -86,7 +86,7 @@ public final class AuthConfig {
     @JsonCreator
     public AuthConfig(
             @JsonProperty("factoryClassName") String factoryClassName,
-            @JsonProperty("administrators") @Nullable Set<String> administrators,
+            @JsonProperty("systemAdministrators") @Nullable Set<String> systemAdministrators,
             @JsonProperty("caseSensitiveLoginNames") @Nullable Boolean caseSensitiveLoginNames,
             @JsonProperty("sessionCacheSpec") @Nullable String sessionCacheSpec,
             @JsonProperty("sessionTimeoutMillis") @Nullable Long sessionTimeoutMillis,
@@ -96,7 +96,7 @@ public final class AuthConfig {
                      .getClassLoader()
                      .loadClass(requireNonNull(factoryClassName, "factoryClassName"))
                      .getDeclaredConstructor().newInstance(),
-             administrators != null ? ImmutableSet.copyOf(administrators) : ImmutableSet.of(),
+             systemAdministrators != null ? ImmutableSet.copyOf(systemAdministrators) : ImmutableSet.of(),
              firstNonNull(caseSensitiveLoginNames, false),
              firstNonNull(sessionCacheSpec, DEFAULT_SESSION_CACHE_SPEC),
              firstNonNull(sessionTimeoutMillis, DEFAULT_SESSION_TIMEOUT_MILLIS),
@@ -108,7 +108,7 @@ public final class AuthConfig {
      * Creates a new instance.
      *
      * @param factory the {@link AuthProviderFactory} instance
-     * @param administrators the login names of the administrators
+     * @param systemAdministrators the login names of the system administrators
      * @param caseSensitiveLoginNames the flag whether case-sensitive matching is performed when login names
      *                                are compared
      * @param sessionCacheSpec the cache specification which determines the capacity and behavior of
@@ -118,14 +118,14 @@ public final class AuthConfig {
      * @param properties the additional properties which are used in the factory
      */
     public AuthConfig(AuthProviderFactory factory,
-                      Set<String> administrators,
+                      Set<String> systemAdministrators,
                       boolean caseSensitiveLoginNames,
                       String sessionCacheSpec,
                       long sessionTimeoutMillis,
                       String sessionValidationSchedule,
                       @Nullable JsonNode properties) {
         this.factory = requireNonNull(factory, "factory");
-        this.administrators = requireNonNull(administrators, "administrators");
+        this.systemAdministrators = requireNonNull(systemAdministrators, "systemAdministrators");
         this.caseSensitiveLoginNames = caseSensitiveLoginNames;
         this.sessionCacheSpec = validateCacheSpec(requireNonNull(sessionCacheSpec, "sessionCacheSpec"));
         checkArgument(sessionTimeoutMillis > 0,
@@ -152,11 +152,11 @@ public final class AuthConfig {
     }
 
     /**
-     * Returns the usernames of the users with administrator rights.
+     * Returns the usernames of the users with system administrator rights.
      */
     @JsonProperty
-    public Set<String> administrators() {
-        return administrators;
+    public Set<String> systemAdministrators() {
+        return systemAdministrators;
     }
 
     /**

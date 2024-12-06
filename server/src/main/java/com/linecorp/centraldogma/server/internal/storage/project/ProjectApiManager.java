@@ -57,20 +57,20 @@ public final class ProjectApiManager {
 
     public Map<String, Project> listProjects(@Nullable User user) {
         final Map<String, Project> projects = projectManager.list();
-        if (isAdmin()) {
+        if (isSystemAdmin()) {
             return projects;
         }
 
         return listProjectsWithoutInternal(projects, user);
     }
 
-    private static boolean isAdmin() {
+    private static boolean isSystemAdmin() {
         final User currentUserOrNull = AuthUtil.currentUserOrNull();
         if (currentUserOrNull == null) {
             return false;
         }
 
-        return currentUserOrNull.isAdmin();
+        return currentUserOrNull.isSystemAdmin();
     }
 
     public static Map<String, Project> listProjectsWithoutInternal(Map<String, Project> projects,
@@ -147,7 +147,8 @@ public final class ProjectApiManager {
         if (user == null) {
             throw new IllegalArgumentException("Cannot access " + projectName);
         }
-        if (user.isAdmin()) {
+
+        if (user.isSystemAdmin()) {
             return project;
         }
         final ProjectMetadata metadata = project.metadata();
@@ -165,7 +166,7 @@ public final class ProjectApiManager {
     }
 
     public boolean exists(String projectName) {
-        if (isInternalProject(projectName) && !isAdmin()) {
+        if (isInternalProject(projectName) && !isSystemAdmin()) {
             throw new IllegalArgumentException("Cannot access " + projectName);
         }
         return projectManager.exists(projectName);

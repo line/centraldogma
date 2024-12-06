@@ -32,7 +32,7 @@ const APP_ID_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/;
 
 type FormData = {
   appId: string;
-  isAdmin: boolean;
+  isSystemAdmin: boolean;
 };
 
 export const NewToken = () => {
@@ -57,7 +57,7 @@ export const NewToken = () => {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const onSubmit = async (formData: FormData) => {
-    const data = `appId=${formData.appId}&isAdmin=${formData.isAdmin || false}`;
+    const data = `appId=${formData.appId}&isSystemAdmin=${formData.isSystemAdmin || false}`;
     try {
       const response = await addNewToken({ data }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
@@ -105,11 +105,11 @@ export const NewToken = () => {
                   <FormErrorMessage>The first/last character must be alphanumeric</FormErrorMessage>
                 )}
               </FormControl>
-              {user.roles.includes('LEVEL_ADMIN') && (
+              {user.roles.includes('LEVEL_SYSTEM_ADMIN') && (
                 <Flex mt={4}>
                   <Spacer />
-                  <Checkbox colorScheme="teal" {...register('isAdmin')}>
-                    Administrator-Level Token
+                  <Checkbox colorScheme="teal" {...register('isSystemAdmin')}>
+                    System Administrator-Level Token
                   </Checkbox>
                 </Flex>
               )}

@@ -61,14 +61,14 @@ interface SecretViewerProps {
 
 const SecretViewer = ({ dispatch, secretProvider }: SecretViewerProps) => {
   const [showSecret, setShowSecret] = useState(false);
-  const admin = useAppSelector((state) => state.auth.user.admin);
+  const systemAdmin = useAppSelector((state) => state.auth.user.systemAdmin);
   return (
     <Flex wrap="wrap">
       <Code width="500px" p={10} whiteSpace="pre-wrap">
         {showSecret ? secretProvider() : '****'}
       </Code>
 
-      {admin ? (
+      {systemAdmin ? (
         <div>
           <Button
             aria-label="Show key"

@@ -27,16 +27,16 @@ import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.UpdateServerStatusRequest.Scope;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 
 @ProducesJson
-public final class AdministrativeService extends AbstractService {
+public final class SystemAdministrativeService extends AbstractService {
 
     private final ServerStatusManager serverStatusManager;
 
-    public AdministrativeService(CommandExecutor executor, ServerStatusManager serverStatusManager) {
+    public SystemAdministrativeService(CommandExecutor executor, ServerStatusManager serverStatusManager) {
         super(executor);
         this.serverStatusManager = serverStatusManager;
     }
@@ -62,7 +62,7 @@ public final class AdministrativeService extends AbstractService {
      */
     @Put("/status")
     @Consumes("application/json")
-    @RequiresAdministrator
+    @RequiresSystemAdministrator
     public CompletableFuture<ServerStatus> updateStatus(UpdateServerStatusRequest statusRequest)
             throws Exception {
         // TODO(trustin): Consider extracting this into common utility or Armeria.

@@ -31,7 +31,7 @@ The authentication configuration consists of the following properties:
       ...
       "authentication": {
         "factoryClassName": "the fully-qualified class name of an AuthenticationProviderFactory",
-        "administrators": [],
+        "systemAdministrators": [],
         "caseSensitiveLoginNames": false,
         "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
         "sessionTimeoutMillis": 604800000,
@@ -46,9 +46,10 @@ The authentication configuration consists of the following properties:
     ``com.linecorp.centraldogma.server.auth.saml.SamlAuthProviderFactory`` or
     ``com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory``.
 
-- ``administrators`` (string array)
+- ``systemAdministrators`` (string array)
 
-  - login names of the administrators. A user who has a login name specified here will get the administrator role.
+  - login names of the system administrators. A user who has a login name specified here will get the
+    system administrator role.
 
 - ``caseSensitiveLoginNames`` (boolean)
 
@@ -89,7 +90,7 @@ the authentication to.
       ...
       "authentication": {
         "factoryClassName": "com.linecorp.centraldogma.server.auth.saml.SamlAuthProviderFactory",
-        "administrators": [],
+        "systemAdministrators": [],
         "caseSensitiveLoginNames": false,
         "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
         "sessionTimeoutMillis": 604800000,
@@ -225,7 +226,7 @@ in the ``properties`` property.
       ...
       "authentication": {
         "factoryClassName": "com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory",
-        "administrators": [],
+        "systemAdministrators": [],
         "caseSensitiveLoginNames": false,
         "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
         "sessionTimeoutMillis": 604800000,
@@ -270,10 +271,10 @@ When you add a user as a member of the project, you need to choose the role of t
 There are 4 user role types in the access control system of Central Dogma, but you can choose one
 of ``Owner`` and ``Member`` role in the UI. More information about the role is as follows.
 
-- ``Administrator``
+- ``System Administrator``
 
-  - the user that all permissions are assigned to, a.k.a 'super user'. Only an administrator can restore
-    removed project. The administrators can be configured in ``conf/dogma.json`` as described the above.
+  - the user that all permissions are assigned to, a.k.a 'super user'. Only a system administrator can restore
+    removed project. The system administrators can be configured in ``conf/dogma.json`` as described the above.
 
 - ``Owner`` of a project
 
@@ -335,8 +336,8 @@ request comes from.
 
 Anyone who is logged into the Central Dogma can create a new ``Application Token``, and the token is shared
 for everyone. So any owner of a project can add any token to their project. However only both the token
-creator and the administrator are allowed to deactivate and/or remove the token.
+creator and the system administrator are allowed to deactivate and/or remove the token.
 
-There are two levels of a token, which are ``Admin`` and ``User``. ``Admin`` level token can be created by
-only the administrators. A client who sends a request with the token is allowed to access administrator-level
-APIs.
+There are two levels of a token, which are ``System Admin`` and ``User``. ``System Admin`` level token can be
+created by only the system administrators. A client who sends a request with the token is allowed to access
+system administrator-level APIs.
