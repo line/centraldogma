@@ -137,7 +137,7 @@ public final class CentralDogmaBuilder {
     @Nullable
     private ManagementConfig managementConfig;
     @Nullable
-    private String zone;
+    private ZoneConfig zoneConfig;
 
     /**
      * Creates a new builder with the specified data directory.
@@ -536,6 +536,13 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Returns the {@link PluginConfig}s that have been added.
+     */
+    public List<PluginConfig> pluginConfigs() {
+        return pluginConfigs;
+    }
+
+    /**
      * Adds the {@link Plugin}s.
      */
     public CentralDogmaBuilder plugins(Plugin... plugins) {
@@ -562,11 +569,11 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Specifies the zone of the server.
+     * Specifies the {@link ZoneConfig} of the server.
      */
-    public CentralDogmaBuilder zone(String zone) {
-        requireNonNull(zone, "zone");
-        this.zone = zone;
+    public CentralDogmaBuilder zone(ZoneConfig zoneConfig) {
+        requireNonNull(zoneConfig, "zoneConfig");
+        this.zoneConfig = zoneConfig;
         return this;
     }
 
@@ -601,8 +608,8 @@ public final class CentralDogmaBuilder {
                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
                                       numRepositoryWorkers, repositoryCacheSpec,
                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
-                                      webAppEnabled, webAppTitle,replicationConfig,
+                                      webAppEnabled, webAppTitle, replicationConfig,
                                       null, accessLogFormat, authCfg, quotaConfig,
-                                      corsConfig, pluginConfigs, managementConfig, zone);
+                                      corsConfig, pluginConfigs, managementConfig, zoneConfig);
     }
 }

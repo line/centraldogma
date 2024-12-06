@@ -75,6 +75,16 @@ export type TitleDto = {
   hostname: string;
 };
 
+export type ZoneDto = {
+  currentZone: string;
+  allZones: string[];
+};
+
+export type MirrorConfig = {
+  zonePinned: boolean;
+  zone: ZoneDto;
+};
+
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
@@ -347,12 +357,25 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
+    deleteMirror: builder.mutation({
+      query: ({ projectName, id }) => ({
+        url: `/api/v1/projects/${projectName}/mirrors/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
     runMirror: builder.mutation<MirrorResult, { projectName: string; id: string }>({
       query: ({ projectName, id }) => ({
         url: `/api/v1/projects/${projectName}/mirrors/${id}/run`,
         method: 'POST',
       }),
       invalidatesTags: ['Metadata'],
+    }),
+    getMirrorConfig: builder.query<MirrorConfig, void>({
+      query: () => ({
+        url: `/api/v1/mirror/config`,
+        method: 'GET',
+      }),
     }),
     getCredentials: builder.query<CredentialDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/credentials`,
@@ -380,9 +403,15 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
+    deleteCredential: builder.mutation({
+      query: ({ projectName, id }) => ({
+        url: `/api/v1/projects/${projectName}/credentials/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
     getTitle: builder.query<TitleDto, void>({
       query: () => ({
-        baseUrl: '',
         url: `/title`,
         method: 'GET',
       }),
@@ -430,12 +459,15 @@ export const {
   useGetMirrorQuery,
   useAddNewMirrorMutation,
   useUpdateMirrorMutation,
+  useDeleteMirrorMutation,
   useRunMirrorMutation,
+  useGetMirrorConfigQuery,
   // Credential
   useGetCredentialsQuery,
   useGetCredentialQuery,
   useAddNewCredentialMutation,
   useUpdateCredentialMutation,
+  useDeleteCredentialMutation,
   // Title
   useGetTitleQuery,
 } = apiSlice;

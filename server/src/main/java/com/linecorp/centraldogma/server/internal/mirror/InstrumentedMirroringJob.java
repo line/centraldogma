@@ -22,12 +22,14 @@ import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.MirrorTask;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 
-final class MirroringTask {
+final class InstrumentedMirroringJob {
 
     private static Iterable<Tag> generateTags(Mirror mirror, String projectName) {
         return ImmutableList.of(
@@ -40,13 +42,13 @@ final class MirroringTask {
     }
 
     private final MeterRegistry meterRegistry;
-    private final Mirror mirror;
+    private final MirrorTask mirrorTask;
     private final Iterable<Tag> tags;
 
-    MirroringTask(Mirror mirror, String projectName, MeterRegistry meterRegistry) {
-        this.mirror = mirror;
+    InstrumentedMirroringJob(MirrorTask mirrorTask, MeterRegistry meterRegistry) {
+        this.mirrorTask = mirrorTask;
         this.meterRegistry = meterRegistry;
-        tags = generateTags(mirror, projectName);
+        tags = generateTags(mirrorTask.mirror(), mirrorTask.mirror().localRepo().parent().name());
     }
 
     private Counter counter(boolean success) {
@@ -56,11 +58,15 @@ final class MirroringTask {
                       .register(meterRegistry);
     }
 
-    void run(File workDir, CommandExecutor executor, int maxNumFiles, long maxNumBytes) {
+    MirrorResult run(File workDir, CommandExecutor executor, int maxNumFiles, long maxNumBytes) {
         try {
-            meterRegistry.timer("mirroring.task", tags)
-                         .record(() -> mirror.mirror(workDir, executor, maxNumFiles, maxNumBytes));
+            final MirrorResult mirrorResult =
+                    meterRegistry.timer("mirroring.task", tags)
+                                 .record(() -> mirrorTask.mirror()
+                                                         .mirror(workDir, executor, maxNumFiles, maxNumBytes,
+                                                                 mirrorTask.triggeredTime()));
             counter(true).increment();
+            return mirrorResult;
         } catch (Exception e) {
             counter(false).increment();
             throw e;

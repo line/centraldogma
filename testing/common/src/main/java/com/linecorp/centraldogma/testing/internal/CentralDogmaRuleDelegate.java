@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.testing.internal;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import java.io.File;
 import java.io.IOError;
 import java.net.InetSocketAddress;
@@ -217,7 +219,9 @@ public class CentralDogmaRuleDelegate {
      * @throws IllegalStateException if Central Dogma did not start yet
      */
     public final MirroringService mirroringService() {
-        return dogma().mirroringService().get();
+        final MirroringService mirroringService = dogma().mirroringService();
+        checkState(mirroringService != null, "Mirroring service not available");
+        return mirroringService;
     }
 
     /**

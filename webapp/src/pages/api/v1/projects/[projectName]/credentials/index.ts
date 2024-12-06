@@ -17,14 +17,18 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import _ from 'lodash';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
+import { faker } from '@faker-js/faker';
 
-const credentials: CredentialDto[] = _.range(0, 20).map((i) => newRandomCredential(i));
+const credentials: CredentialDto[] = _.range(0, 20).map(() =>
+  newRandomCredential('credential-' + faker.random.word()),
+);
 
-export function newRandomCredential(index: number): CredentialDto {
+export function newRandomCredential(id: string): CredentialDto {
+  const index = id.length;
   switch (index % 4) {
     case 0:
       return {
-        id: `password-id-${index}`,
+        id,
         type: 'password',
         username: `username-${index}`,
         password: `password-${index}`,
@@ -32,7 +36,7 @@ export function newRandomCredential(index: number): CredentialDto {
       };
     case 1:
       return {
-        id: `public-key-id-${index}`,
+        id,
         type: 'public_key',
         username: `username-${index}`,
         publicKey: `public-key-${index}`,
@@ -42,14 +46,14 @@ export function newRandomCredential(index: number): CredentialDto {
       };
     case 2:
       return {
-        id: `access-token-id-${index}`,
+        id,
         type: 'access_token',
         accessToken: `access-token-${index}`,
         enabled: true,
       };
     case 3:
       return {
-        id: `none-id-${index}`,
+        id,
         type: 'none',
         enabled: true,
       };

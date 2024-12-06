@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import static com.linecorp.centraldogma.server.internal.ExecutorServiceUtil.terminate;
 
 import java.io.File;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -28,6 +29,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import javax.annotation.Nullable;
+
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.SafeCloseable;
@@ -35,7 +38,10 @@ import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
+import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.mirror.MirrorListener;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.MirrorTask;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 
@@ -52,6 +58,8 @@ public final class MirrorRunner implements SafeCloseable {
     private final ExecutorService worker;
 
     private final Map<MirrorKey, CompletableFuture<MirrorResult>> inflightRequests = new ConcurrentHashMap<>();
+    @Nullable
+    private final String currentZone;
 
     public MirrorRunner(ProjectApiManager projectApiManager, CommandExecutor commandExecutor,
                         CentralDogmaConfig cfg, MeterRegistry meterRegistry) {
@@ -66,6 +74,11 @@ public final class MirrorRunner implements SafeCloseable {
             mirrorConfig = MirroringServicePluginConfig.INSTANCE;
         }
         this.mirrorConfig = mirrorConfig;
+        if (cfg.zone() != null) {
+            currentZone = cfg.zone().currentZone();
+        } else {
+            currentZone = null;
+        }
 
         final ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(
                 0, mirrorConfig.numMirroringThreads(),
@@ -77,22 +90,39 @@ public final class MirrorRunner implements SafeCloseable {
                                                 "mirrorApiWorker");
     }
 
-    public CompletableFuture<MirrorResult> run(String projectName, String mirrorId) {
+    public CompletableFuture<MirrorResult> run(String projectName, String mirrorId, User user) {
         // If there is an inflight request, return it to avoid running the same mirror task multiple times.
-        return inflightRequests.computeIfAbsent(new MirrorKey(projectName, mirrorId), this::run);
+        return inflightRequests.computeIfAbsent(new MirrorKey(projectName, mirrorId), key -> run(key, user));
     }
 
-    private CompletableFuture<MirrorResult> run(MirrorKey mirrorKey) {
+    private CompletableFuture<MirrorResult> run(MirrorKey mirrorKey, User user) {
         try {
             final CompletableFuture<MirrorResult> future =
                     metaRepo(mirrorKey.projectName).mirror(mirrorKey.mirrorId).thenApplyAsync(mirror -> {
                         if (!mirror.enabled()) {
-                            throw new MirrorException("The mirror is disabled: " + mirrorKey);
+                            throw new MirrorException("The mirror is disabled: " +
+                                                      mirrorKey.projectName + '/' + mirrorKey.mirrorId);
                         }
 
-                        return mirror.mirror(workDir, commandExecutor,
-                                             mirrorConfig.maxNumFilesPerMirror(),
-                                             mirrorConfig.maxNumBytesPerMirror());
+                        final String zone = mirror.zone();
+                        if (zone != null && !zone.equals(currentZone)) {
+                            throw new MirrorException("The mirror is not in the current zone: " + currentZone);
+                        }
+                        final MirrorTask mirrorTask = new MirrorTask(mirror, user, Instant.now(),
+                                                                     currentZone, false);
+                        final MirrorListener listener = MirrorSchedulingService.mirrorListener;
+                        listener.onStart(mirrorTask);
+                        try {
+                            final MirrorResult mirrorResult = mirror.mirror(workDir, commandExecutor,
+                                                                            mirrorConfig.maxNumFilesPerMirror(),
+                                                                            mirrorConfig.maxNumBytesPerMirror(),
+                                                                            mirrorTask.triggeredTime());
+                            listener.onComplete(mirrorTask, mirrorResult);
+                            return mirrorResult;
+                        } catch (Exception e) {
+                            listener.onError(mirrorTask, e);
+                            throw e;
+                        }
                     }, worker);
             // Remove the inflight request when the mirror task is done.
             future.handleAsync((unused0, unused1) -> inflightRequests.remove(mirrorKey), worker);

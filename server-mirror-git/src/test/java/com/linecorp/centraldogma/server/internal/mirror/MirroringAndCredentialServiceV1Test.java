@@ -113,6 +113,8 @@ class MirroringAndCredentialServiceV1Test {
         createAndReadMirror();
         updateMirror();
         rejectInvalidRepositoryUri();
+        deleteMirror();
+        deleteCredential();
     }
 
     private void rejectInvalidRepositoryUri() {
@@ -130,7 +132,8 @@ class MirroringAndCredentialServiceV1Test {
                               "/remote-path/1",
                               "mirror-branch",
                               ".my-env0\n.my-env1",
-                              "public-key-credential");
+                              "public-key-credential",
+                              null);
         final AggregatedHttpResponse response =
                 userClient.prepare()
                           .post("/api/v1/projects/{proj}/mirrors")
@@ -304,7 +307,8 @@ class MirroringAndCredentialServiceV1Test {
                                                "/updated/remote-path/",
                                                "updated-mirror-branch",
                                                ".updated-env",
-                                               "access-token-credential");
+                                               "access-token-credential",
+                                               null);
         final ResponseEntity<PushResultDto> updateResponse =
                 userClient.prepare()
                           .put("/api/v1/projects/{proj}/mirrors/{id}")
@@ -325,6 +329,42 @@ class MirroringAndCredentialServiceV1Test {
         assertThat(savedMirror).isEqualTo(mirror);
     }
 
+    private void deleteMirror() {
+        final String mirrorId = "mirror-2";
+        assertThat(userClient.prepare()
+                             .delete("/api/v1/projects/{proj}/mirrors/{id}")
+                             .pathParam("proj", FOO_PROJ)
+                             .pathParam("id", mirrorId)
+                             .execute()
+                             .status())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(userClient.prepare()
+                             .get("/api/v1/projects/{proj}/mirrors/{id}")
+                             .pathParam("proj", FOO_PROJ)
+                             .pathParam("id", mirrorId)
+                             .execute()
+                             .status())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    private void deleteCredential() {
+        final String credentialId = "public-key-credential";
+        assertThat(userClient.prepare()
+                             .delete("/api/v1/projects/{proj}/credentials/{id}")
+                             .pathParam("proj", FOO_PROJ)
+                             .pathParam("id", credentialId)
+                             .execute()
+                             .status())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(userClient.prepare()
+                             .get("/api/v1/projects/{proj}/credentials/{id}")
+                             .pathParam("proj", FOO_PROJ)
+                             .pathParam("id", credentialId)
+                             .execute()
+                             .status())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
     private static MirrorDto newMirror(String id) {
         return new MirrorDto(id,
                              true,
@@ -338,6 +378,7 @@ class MirroringAndCredentialServiceV1Test {
                              "/remote-path/" + id + '/',
                              "mirror-branch",
                              ".my-env0\n.my-env1",
-                             "public-key-credential");
+                             "public-key-credential",
+                             null);
     }
 }

@@ -35,6 +35,7 @@ project(':it:it-mirror').projectDir = file('it/mirror')
 includeWithFlags ':it:it-server',     'java', 'relocate'
 // Set correct directory names
 project(':it:it-server').projectDir = file('it/server')
+includeWithFlags ':it:mirror-listener', 'java', 'relocate'
 includeWithFlags ':it:zone-leader-plugin',    'java', 'relocate'
 includeWithFlags ':it:xds-member-permission', 'java', 'relocate'
 includeWithFlags ':testing-internal',         'java', 'relocate'

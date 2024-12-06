@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.server.mirror;
 
 import java.io.File;
 import java.net.URI;
+import java.time.Instant;
 import java.time.ZonedDateTime;
 
 import javax.annotation.Nullable;
@@ -100,6 +101,12 @@ public interface Mirror {
     boolean enabled();
 
     /**
+     * Returns the zone where this {@link Mirror} is pinned to.
+     */
+    @Nullable
+    String zone();
+
+    /**
      * Performs the mirroring task.
      *
      * @param workDir the local directory where keeps the mirrored files
@@ -109,6 +116,8 @@ public interface Mirror {
      *                    would be raised if the number of files to be mirrored exceeds it.
      * @param maxNumBytes the maximum bytes allowed to the mirroring task. A {@link MirrorException} would be
      *                    raised if the total size of the files to be mirrored exceeds it.
+     * @param triggeredTime the time when the mirroring task is triggered.
      */
-    MirrorResult mirror(File workDir, CommandExecutor executor, int maxNumFiles, long maxNumBytes);
+    MirrorResult mirror(File workDir, CommandExecutor executor, int maxNumFiles, long maxNumBytes,
+                        Instant triggeredTime);
 }

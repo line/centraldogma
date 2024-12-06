@@ -88,7 +88,8 @@ class GitMirrorIntegrationTest {
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.pluginConfigs(new MirroringServicePluginConfig(true, 1, MAX_NUM_FILES, MAX_NUM_BYTES));
+            builder.pluginConfigs(new MirroringServicePluginConfig(true, 1, MAX_NUM_FILES, MAX_NUM_BYTES,
+                                                                   false));
         }
     };
 

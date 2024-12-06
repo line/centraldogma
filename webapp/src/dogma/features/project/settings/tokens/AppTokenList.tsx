@@ -6,7 +6,7 @@ import { DataTableClientPagination } from 'dogma/common/components/table/DataTab
 import { useMemo } from 'react';
 import { useDeleteTokenMemberMutation } from 'dogma/features/api/apiSlice';
 import { AppTokenDetailDto } from 'dogma/features/project/settings/tokens/AppTokenDto';
-import { DeleteMember } from 'dogma/features/project/settings/members/DeleteMember';
+import { DeleteToken } from 'dogma/features/project/settings/tokens/DeleteToken';
 
 export type AppTokenListProps<Data extends object> = {
   data: Data[];
@@ -14,7 +14,7 @@ export type AppTokenListProps<Data extends object> = {
 };
 
 const AppTokenList = <Data extends object>({ data, projectName }: AppTokenListProps<Data>) => {
-  const [deleteMember, { isLoading }] = useDeleteTokenMemberMutation();
+  const [deleteToken, { isLoading }] = useDeleteTokenMemberMutation();
   const columnHelper = createColumnHelper<AppTokenDetailDto>();
   const columns = useMemo(
     () => [
@@ -39,10 +39,10 @@ const AppTokenList = <Data extends object>({ data, projectName }: AppTokenListPr
       }),
       columnHelper.accessor((row: AppTokenDetailDto) => row.appId, {
         cell: (info) => (
-          <DeleteMember
+          <DeleteToken
             projectName={projectName}
             id={info.getValue()}
-            deleteMember={(projectName, id) => deleteMember({ projectName, id }).unwrap()}
+            deleteToken={(projectName, id) => deleteToken({ projectName, id }).unwrap()}
             isLoading={isLoading}
           />
         ),
@@ -50,7 +50,7 @@ const AppTokenList = <Data extends object>({ data, projectName }: AppTokenListPr
         enableSorting: false,
       }),
     ],
-    [columnHelper, deleteMember, isLoading, projectName],
+    [columnHelper, deleteToken, isLoading, projectName],
   );
   return <DataTableClientPagination columns={columns as ColumnDef<Data>[]} data={data} />;
 };

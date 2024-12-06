@@ -22,8 +22,10 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -39,9 +41,10 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
@@ -49,9 +52,13 @@ import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
+import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.mirror.Mirror;
-import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.mirror.MirrorListener;
+import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.MirrorTask;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -61,6 +68,19 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 public final class MirrorSchedulingService implements MirroringService {
 
     private static final Logger logger = LoggerFactory.getLogger(MirrorSchedulingService.class);
+
+    static final MirrorListener mirrorListener;
+
+    static {
+        final List<MirrorListener> listeners =
+                ImmutableList.copyOf(ServiceLoader.load(MirrorListener.class,
+                                                        DefaultMirroringServicePlugin.class.getClassLoader()));
+        if (listeners.isEmpty()) {
+            mirrorListener = DefaultMirrorListener.INSTANCE;
+        } else {
+            mirrorListener = new CompositeMirrorListener(listeners);
+        }
+    }
 
     /**
      * How often to check the mirroring schedules. i.e. every second.
@@ -72,6 +92,10 @@ public final class MirrorSchedulingService implements MirroringService {
     private final int numThreads;
     private final int maxNumFilesPerMirror;
     private final long maxNumBytesPerMirror;
+    @Nullable
+    private final ZoneConfig zoneConfig;
+    @Nullable
+    private final String currentZone;
 
     private volatile CommandExecutor commandExecutor;
     private volatile ListeningScheduledExecutorService scheduler;
@@ -80,8 +104,10 @@ public final class MirrorSchedulingService implements MirroringService {
     private ZonedDateTime lastExecutionTime;
     private final MeterRegistry meterRegistry;
 
-    MirrorSchedulingService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
-                            int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror) {
+    @VisibleForTesting
+    public MirrorSchedulingService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
+                                   int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror,
+                                   @Nullable ZoneConfig zoneConfig) {
 
         this.workDir = requireNonNull(workDir, "workDir");
         this.projectManager = requireNonNull(projectManager, "projectManager");
@@ -95,6 +121,12 @@ public final class MirrorSchedulingService implements MirroringService {
         this.numThreads = numThreads;
         this.maxNumFilesPerMirror = maxNumFilesPerMirror;
         this.maxNumBytesPerMirror = maxNumBytesPerMirror;
+        this.zoneConfig = zoneConfig;
+        if (zoneConfig != null) {
+            currentZone = zoneConfig.currentZone();
+        } else {
+            currentZone = null;
+        }
     }
 
     public boolean isStarted() {
@@ -132,7 +164,7 @@ public final class MirrorSchedulingService implements MirroringService {
                 }));
 
         final ListenableScheduledFuture<?> future = scheduler.scheduleWithFixedDelay(
-                this::schedulePendingMirrors,
+                this::scheduleMirrors,
                 TICK.getSeconds(), TICK.getSeconds(), TimeUnit.SECONDS);
 
         Futures.addCallback(future, new FutureCallback<Object>() {
@@ -161,7 +193,7 @@ public final class MirrorSchedulingService implements MirroringService {
         }
     }
 
-    private void schedulePendingMirrors() {
+    private void scheduleMirrors() {
         final ZonedDateTime now = ZonedDateTime.now();
         if (lastExecutionTime == null) {
             lastExecutionTime = now.minus(TICK);
@@ -189,9 +221,31 @@ public final class MirrorSchedulingService implements MirroringService {
                               if (m.schedule() == null) {
                                   continue;
                               }
+                              if (zoneConfig != null) {
+                                  String pinnedZone = m.zone();
+                                  if (pinnedZone == null) {
+                                      // Use the first zone if the mirror does not specify a zone.
+                                      pinnedZone = zoneConfig.allZones().get(0);
+                                  }
+                                  if (!pinnedZone.equals(currentZone)) {
+                                      // Skip the mirror if it is pinned to a different zone.
+                                      if (!zoneConfig.allZones().contains(pinnedZone)) {
+                                          // The mirror is pinned to an invalid zone.
+                                          final MirrorTask invalidMirror =
+                                                  new MirrorTask(m, User.SYSTEM, Instant.now(),
+                                                                 pinnedZone, true);
+                                          mirrorListener.onStart(invalidMirror);
+                                          mirrorListener.onError(invalidMirror, new MirrorException(
+                                                  "The mirror is pinned to an unknown zone: " + pinnedZone +
+                                                  " (valid zones: " + zoneConfig.allZones() + ')'));
+                                      }
+                                      continue;
+                                  }
+                              }
                               try {
                                   if (m.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0) {
-                                      run(project, m);
+                                      runAsync(new MirrorTask(m, User.SYSTEM, Instant.now(),
+                                                              currentZone, true));
                                   }
                               } catch (Exception e) {
                                   logger.warn("Unexpected exception while mirroring: {}", m, e);
@@ -202,6 +256,7 @@ public final class MirrorSchedulingService implements MirroringService {
 
     @Override
     public CompletableFuture<Void> mirror() {
+        // Note: This method is not used in the production code.
         if (commandExecutor == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -210,7 +265,7 @@ public final class MirrorSchedulingService implements MirroringService {
                 () -> projectManager.list().values().forEach(p -> {
                     try {
                         p.metaRepo().mirrors().get(5, TimeUnit.SECONDS)
-                         .forEach(m -> run(m, p.name(), false));
+                         .forEach(m -> run(new MirrorTask(m, User.SYSTEM, Instant.now(), currentZone, false)));
                     } catch (InterruptedException | TimeoutException | ExecutionException e) {
                         throw new IllegalStateException(
                                 "Failed to load mirror list with in 5 seconds. project: " + p.name(), e);
@@ -219,28 +274,20 @@ public final class MirrorSchedulingService implements MirroringService {
                 worker);
     }
 
-    private void run(Project project, Mirror m) {
-        final ListenableFuture<?> future = worker.submit(() -> run(m, project.name(), true));
-        Futures.addCallback(future, new FutureCallback<Object>() {
-            @Override
-            public void onSuccess(@Nullable Object result) {}
-
-            @Override
-            public void onFailure(Throwable cause) {
-                logger.warn("Unexpected Git mirroring failure: {}", m, cause);
-            }
-        }, MoreExecutors.directExecutor());
+    private void runAsync(MirrorTask m) {
+        worker.submit(() -> run(m));
     }
 
-    private void run(Mirror m, String projectName, boolean logOnFailure) {
-        logger.info("Mirroring: {}", m);
+    private void run(MirrorTask mirrorTask) {
         try {
-            new MirroringTask(m, projectName, meterRegistry)
-                    .run(workDir, commandExecutor, maxNumFilesPerMirror, maxNumBytesPerMirror);
+            mirrorListener.onStart(mirrorTask);
+            final MirrorResult result =
+                    new InstrumentedMirroringJob(mirrorTask, meterRegistry)
+                            .run(workDir, commandExecutor, maxNumFilesPerMirror, maxNumBytesPerMirror);
+            mirrorListener.onComplete(mirrorTask, result);
         } catch (Exception e) {
-            if (logOnFailure) {
-                logger.warn("Unexpected exception while mirroring: {}", m, e);
-            } else {
+            mirrorListener.onError(mirrorTask, e);
+            if (!mirrorTask.scheduled()) {
                 if (e instanceof MirrorException) {
                     throw (MirrorException) e;
                 } else {

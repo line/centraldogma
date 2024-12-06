@@ -1,19 +1,9 @@
-import {
-  Button,
-  HStack,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
-  useDisclosure,
-} from '@chakra-ui/react';
+import { Button, useDisclosure } from '@chakra-ui/react';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { MdDelete } from 'react-icons/md';
+import { DeleteConfirmationModal } from '../DeleteConfirmationModal';
 
 export const DeleteMember = ({
   projectName,
@@ -41,29 +31,18 @@ export const DeleteMember = ({
   };
   return (
     <>
-      <Button leftIcon={<MdDelete />} colorScheme="red" size="sm" variant="ghost" onClick={onToggle}>
+      <Button leftIcon={<MdDelete />} colorScheme="red" size="sm" onClick={onToggle}>
         Delete
       </Button>
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Are you sure?</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            Delete {id} from {projectName}?
-          </ModalBody>
-          <ModalFooter>
-            <HStack spacing={3}>
-              <Button colorScheme="red" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button colorScheme="red" onClick={handleDelete} isLoading={isLoading} loadingText="Deleting">
-                Delete
-              </Button>
-            </HStack>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <DeleteConfirmationModal
+        isOpen={isOpen}
+        onClose={onClose}
+        id={id}
+        type={'member'}
+        projectName={projectName}
+        handleDelete={handleDelete}
+        isLoading={isLoading}
+      />
     </>
   );
 };

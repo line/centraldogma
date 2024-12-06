@@ -14,50 +14,10 @@
  * under the License.
  */
 
-import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
-import { ProjectDto } from 'dogma/features/project/ProjectDto';
-import { ProjectOptionType } from 'dogma/common/components/Navbar';
-import { components, DropdownIndicatorProps, GroupBase, Select } from 'chakra-react-select';
-import { useEffect, useState } from 'react';
-import Router from 'next/router';
-import { Box, Heading, useColorMode, VStack } from '@chakra-ui/react';
-import { SearchIcon } from '@chakra-ui/icons';
-
-const initialState: ProjectOptionType = {
-  value: '',
-  label: '',
-};
-
-const DropdownIndicator = (
-  props: JSX.IntrinsicAttributes & DropdownIndicatorProps<unknown, boolean, GroupBase<unknown>>,
-) => {
-  return (
-    <components.DropdownIndicator {...props}>
-      <SearchIcon />
-    </components.DropdownIndicator>
-  );
-};
+import { Box, Heading, VStack } from '@chakra-ui/react';
+import ProjectSearchBox from 'dogma/common/components/ProjectSearchBox';
 
 const HomePage = () => {
-  const { colorMode } = useColorMode();
-  const { data, isLoading } = useGetProjectsQuery({ systemAdmin: false });
-  const projects = data || [];
-  const projectOptions: ProjectOptionType[] = projects.map((project: ProjectDto) => ({
-    value: project.name,
-    label: project.name,
-  }));
-
-  const [selectedOption, setSelectedOption] = useState(initialState);
-  const handleChange = (option: ProjectOptionType) => {
-    setSelectedOption(option);
-  };
-  useEffect(() => {
-    if (selectedOption?.value) {
-      Router.push(`/app/projects/${selectedOption.value}`);
-    }
-  }, [selectedOption?.value]);
-
-  const [onClicked, setOnClicked] = useState(false);
   return (
     <div>
       <VStack spacing={4} align="center">
@@ -65,29 +25,7 @@ const HomePage = () => {
           Welcome to Central Dogma!
         </Heading>
         <Box width="80%" textAlign="center">
-          <Select
-            size="lg"
-            id="project-select"
-            name="project-search"
-            options={projectOptions}
-            value={selectedOption?.value}
-            onChange={(option: ProjectOptionType) => option && handleChange(option)}
-            onMenuOpen={() => setOnClicked(true)}
-            onMenuClose={() => setOnClicked(false)}
-            placeholder={!onClicked ? 'Search project ...' : ''}
-            closeMenuOnSelect={true}
-            openMenuOnFocus={true}
-            isClearable={true}
-            isSearchable={true}
-            isLoading={isLoading}
-            components={{ DropdownIndicator }}
-            chakraStyles={{
-              control: (baseStyles) => ({
-                ...baseStyles,
-                backgroundColor: colorMode === 'light' ? 'white' : 'whiteAlpha.50',
-              }),
-            }}
-          />
+          <ProjectSearchBox id="home-search" size="lg" placeholder="Search project ..." autoFocus={true} />
         </Box>
       </VStack>
     </div>

@@ -41,7 +41,7 @@ class PluginGroupTest {
         final CentralDogmaConfig cfg = mock(CentralDogmaConfig.class);
         final PluginGroup group = PluginGroup.loadPlugins(PluginTarget.ALL_REPLICAS, cfg);
         assertThat(group).isNotNull();
-        confirmPluginStartStop(group.findFirstPlugin(NoopPluginForAllReplicas.class).orElse(null));
+        confirmPluginStartStop(group.findFirstPlugin(NoopPluginForAllReplicas.class));
     }
 
     @Test
@@ -49,7 +49,7 @@ class PluginGroupTest {
         final CentralDogmaConfig cfg = mock(CentralDogmaConfig.class);
         final PluginGroup group = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group).isNotNull();
-        confirmPluginStartStop(group.findFirstPlugin(NoopPluginForLeader.class).orElse(null));
+        confirmPluginStartStop(group.findFirstPlugin(NoopPluginForLeader.class));
     }
 
     @Test
@@ -58,19 +58,19 @@ class PluginGroupTest {
         when(cfg.pluginConfigMap()).thenReturn(ImmutableMap.of());
         final PluginGroup group1 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group1).isNotNull();
-        assertThat(group1.findFirstPlugin(DefaultMirroringServicePlugin.class)).isPresent();
+        assertThat(group1.findFirstPlugin(DefaultMirroringServicePlugin.class)).isNotNull();
 
         when(cfg.pluginConfigMap()).thenReturn(ImmutableMap.of(
                 MirroringServicePluginConfig.class, new MirroringServicePluginConfig(true)));
         final PluginGroup group2 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group2).isNotNull();
-        assertThat(group2.findFirstPlugin(DefaultMirroringServicePlugin.class)).isPresent();
+        assertThat(group2.findFirstPlugin(DefaultMirroringServicePlugin.class)).isNotNull();
 
         when(cfg.pluginConfigMap()).thenReturn(ImmutableMap.of(
                 MirroringServicePluginConfig.class, new MirroringServicePluginConfig(false)));
         final PluginGroup group3 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group3).isNotNull();
-        assertThat(group3.findFirstPlugin(DefaultMirroringServicePlugin.class)).isNotPresent();
+        assertThat(group3.findFirstPlugin(DefaultMirroringServicePlugin.class)).isNull();
     }
 
     /**
@@ -83,12 +83,12 @@ class PluginGroupTest {
         when(cfg.maxRemovedRepositoryAgeMillis()).thenReturn(1L);
         final PluginGroup group1 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group1).isNotNull();
-        assertThat(group1.findFirstPlugin(PurgeSchedulingServicePlugin.class)).isPresent();
+        assertThat(group1.findFirstPlugin(PurgeSchedulingServicePlugin.class)).isNotNull();
 
         when(cfg.maxRemovedRepositoryAgeMillis()).thenReturn(0L);
         final PluginGroup group2 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group2).isNotNull();
-        assertThat(group2.findFirstPlugin(PurgeSchedulingServicePlugin.class)).isNotPresent();
+        assertThat(group2.findFirstPlugin(PurgeSchedulingServicePlugin.class)).isNull();
     }
 
     private static void confirmPluginStartStop(@Nullable AbstractNoopPlugin plugin) {

@@ -271,7 +271,7 @@ public final class CentralDogmaConfig {
     private final ManagementConfig managementConfig;
 
     @Nullable
-    private final String zone;
+    private final ZoneConfig zoneConfig;
 
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
@@ -300,7 +300,7 @@ public final class CentralDogmaConfig {
             @JsonProperty("cors") @Nullable CorsConfig corsConfig,
             @JsonProperty("pluginConfigs") @Nullable List<PluginConfig> pluginConfigs,
             @JsonProperty("management") @Nullable ManagementConfig managementConfig,
-            @JsonProperty("zone") @Nullable String zone) {
+            @JsonProperty("zone") @Nullable ZoneConfig zoneConfig) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -349,7 +349,7 @@ public final class CentralDogmaConfig {
         pluginConfigMap = this.pluginConfigs.stream().collect(
                 toImmutableMap(PluginConfig::getClass, Function.identity()));
         this.managementConfig = managementConfig;
-        this.zone = convertValue(zone, "zone");
+        this.zoneConfig = zoneConfig;
     }
 
     /**
@@ -589,13 +589,13 @@ public final class CentralDogmaConfig {
     }
 
     /**
-     * Returns the zone of the server.
+     * Returns the zone information of the server.
      * Note that the zone must be specified to use the {@link PluginTarget#ZONE_LEADER_ONLY} target.
      */
     @Nullable
     @JsonProperty("zone")
-    public String zone() {
-        return zone;
+    public ZoneConfig zone() {
+        return zoneConfig;
     }
 
     @Override

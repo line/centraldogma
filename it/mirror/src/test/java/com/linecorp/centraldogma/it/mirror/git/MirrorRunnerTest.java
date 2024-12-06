@@ -22,6 +22,7 @@ import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUti
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,10 +49,10 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class MirrorRunnerTest {
 
-    private static final String FOO_PROJ = "foo";
-    private static final String BAR_REPO = "bar";
-    private static final String PRIVATE_KEY_FILE = "ecdsa_256.openssh";
-    private static final String TEST_MIRROR_ID = "test-mirror";
+    static final String FOO_PROJ = "foo";
+    static final String BAR_REPO = "bar";
+    static final String PRIVATE_KEY_FILE = "ecdsa_256.openssh";
+    static final String TEST_MIRROR_ID = "test-mirror";
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
@@ -90,6 +91,7 @@ class MirrorRunnerTest {
                                      .auth(AuthToken.ofOAuth2(adminToken))
                                      .build()
                                      .blocking();
+        TestMirrorRunnerListener.reset();
     }
 
     @Test
@@ -134,6 +136,14 @@ class MirrorRunnerTest {
                         .contains("Repository 'foo/bar' already at");
             }
         }
+
+        final String listenerKey = FOO_PROJ + '/' + TEST_MIRROR_ID + '/' + USERNAME;
+        assertThat(TestMirrorRunnerListener.startCount.get(listenerKey)).isEqualTo(3);
+        final List<MirrorResult> results = TestMirrorRunnerListener.completions.get(listenerKey);
+        final MirrorResult firstResult = results.get(0);
+        assertThat(firstResult.mirrorStatus()).isEqualTo(MirrorStatus.SUCCESS);
+        assertThat(results.get(1).mirrorStatus()).isEqualTo(MirrorStatus.UP_TO_DATE);
+        assertThat(results.get(2).mirrorStatus()).isEqualTo(MirrorStatus.UP_TO_DATE);
     }
 
     private static MirrorDto newMirror() {
@@ -149,10 +159,11 @@ class MirrorRunnerTest {
                              "/",
                              "main",
                              null,
-                             PRIVATE_KEY_FILE);
+                             PRIVATE_KEY_FILE,
+                             null);
     }
 
-    private static PublicKeyCredential getCredential() throws Exception {
+    static PublicKeyCredential getCredential() throws Exception {
         final String publicKeyFile = "ecdsa_256.openssh.pub";
 
         final byte[] privateKeyBytes =

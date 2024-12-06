@@ -1,10 +1,11 @@
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import React, { useMemo } from 'react';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
-import { useGetCredentialsQuery } from 'dogma/features/api/apiSlice';
+import { useGetCredentialsQuery, useDeleteCredentialMutation } from 'dogma/features/api/apiSlice';
 import { Badge } from '@chakra-ui/react';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
+import { DeleteCredential } from 'dogma/features/project/settings/credentials/DeleteCredential';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type CredentialListProps<Data extends object> = {
@@ -13,6 +14,7 @@ export type CredentialListProps<Data extends object> = {
 
 const CredentialList = <Data extends object>({ projectName }: CredentialListProps<Data>) => {
   const { data } = useGetCredentialsQuery(projectName);
+  const [deleteCredential, { isLoading }] = useDeleteCredentialMutation();
   const columnHelper = createColumnHelper<CredentialDto>();
   const columns = useMemo(
     () => [
@@ -46,8 +48,20 @@ const CredentialList = <Data extends object>({ projectName }: CredentialListProp
         },
         header: 'Status',
       }),
+      columnHelper.accessor((row: CredentialDto) => row.id, {
+        cell: (info) => (
+          <DeleteCredential
+            projectName={projectName}
+            id={info.getValue()}
+            deleteCredential={(projectName, id) => deleteCredential({ projectName, id }).unwrap()}
+            isLoading={isLoading}
+          />
+        ),
+        header: 'Actions',
+        enableSorting: false,
+      }),
     ],
-    [columnHelper, projectName],
+    [columnHelper, deleteCredential, isLoading, projectName],
   );
   return <DataTableClientPagination columns={columns as ColumnDef<CredentialDto>[]} data={data || []} />;
 };

@@ -34,7 +34,7 @@ export const DeleteProject = ({ projectName }: { projectName: string }) => {
   return (
     <>
       <Box>
-        <Button colorScheme="red" variant="outline" size="sm" onClick={onToggle}>
+        <Button colorScheme="red" variant="outline" size="lg" onClick={onToggle}>
           Delete Project
         </Button>
       </Box>

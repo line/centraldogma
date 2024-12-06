@@ -41,6 +41,9 @@ public final class MirrorResult {
     @Nullable
     private final String description;
     private final Instant triggeredTime;
+    private final Instant completedTime;
+    @Nullable
+    private final String zone;
 
     /**
      * Creates a new instance.
@@ -51,13 +54,17 @@ public final class MirrorResult {
                         @JsonProperty("repoName") String repoName,
                         @JsonProperty("mirrorStatus") MirrorStatus mirrorStatus,
                         @JsonProperty("description") @Nullable String description,
-                        @JsonProperty("triggeredTime") Instant triggeredTime) {
+                        @JsonProperty("triggeredTime") Instant triggeredTime,
+                        @JsonProperty("completedTime") Instant completedTime,
+                        @JsonProperty("zone") @Nullable String zone) {
         this.mirrorId = requireNonNull(mirrorId, "mirrorId");
         this.projectName = requireNonNull(projectName, "projectName");
         this.repoName = requireNonNull(repoName, "repoName");
         this.mirrorStatus = requireNonNull(mirrorStatus, "mirrorStatus");
         this.description = description;
         this.triggeredTime = requireNonNull(triggeredTime, "triggeredTime");
+        this.completedTime = requireNonNull(completedTime, "completedTime");
+        this.zone = zone;
     }
 
     /**
@@ -109,6 +116,23 @@ public final class MirrorResult {
         return triggeredTime;
     }
 
+    /**
+     * Returns the time when the mirroring operation was completed.
+     */
+    @JsonProperty("completedTime")
+    public Instant completedTime() {
+        return completedTime;
+    }
+
+    /**
+     * Returns the zone where the mirroring operation was performed.
+     */
+    @Nullable
+    @JsonProperty("zone")
+    public String zone() {
+        return zone;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -123,12 +147,15 @@ public final class MirrorResult {
                repoName.equals(that.repoName) &&
                mirrorStatus == that.mirrorStatus &&
                Objects.equals(description, that.description) &&
-               triggeredTime.equals(triggeredTime);
+               triggeredTime.equals(that.triggeredTime) &&
+               completedTime.equals(that.completedTime) &&
+               Objects.equals(zone, that.zone);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(mirrorId, projectName, repoName, mirrorStatus, description, triggeredTime);
+        return Objects.hash(mirrorId, projectName, repoName, mirrorStatus, description,
+                            triggeredTime, completedTime, zone);
     }
 
     @Override
@@ -141,6 +168,8 @@ public final class MirrorResult {
                           .add("mirrorStatus", mirrorStatus)
                           .add("description", description)
                           .add("triggeredTime", triggeredTime)
+                          .add("completedTime", completedTime)
+                          .add("zone", zone)
                           .toString();
     }
 }
