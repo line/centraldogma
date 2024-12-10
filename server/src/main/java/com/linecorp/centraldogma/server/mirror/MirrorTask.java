@@ -19,8 +19,11 @@ package com.linecorp.centraldogma.server.mirror;
 import java.time.Instant;
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
@@ -32,15 +35,19 @@ public final class MirrorTask {
     private final Mirror mirror;
     private final User triggeredBy;
     private final Instant triggeredTime;
+    @Nullable
+    private final String currentZone;
     private final boolean scheduled;
 
     /**
      * Creates a new instance.
      */
-    public MirrorTask(Mirror mirror, User triggeredBy, Instant triggeredTime, boolean scheduled) {
+    public MirrorTask(Mirror mirror, User triggeredBy, Instant triggeredTime, @Nullable String currentZone,
+                      boolean scheduled) {
         this.mirror = mirror;
         this.triggeredTime = triggeredTime;
         this.triggeredBy = triggeredBy;
+        this.currentZone = currentZone;
         this.scheduled = scheduled;
     }
 
@@ -70,6 +77,15 @@ public final class MirrorTask {
      */
     public Instant triggeredTime() {
         return triggeredTime;
+    }
+
+    /**
+     * Returns the current zone where the {@link Mirror} is running.
+     * This value is {@code null} if the {@link ZoneConfig} is not available.
+     */
+    @Nullable
+    public String currentZone() {
+        return currentZone;
     }
 
     /**

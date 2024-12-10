@@ -7,4 +7,6 @@ dependencies {
     testImplementation libs.jsch
     testImplementation libs.mina.sshd.core
     testImplementation libs.mina.sshd.git
+    testImplementation libs.zookeeper
+    testImplementation libs.dropwizard.metrics.core
 }

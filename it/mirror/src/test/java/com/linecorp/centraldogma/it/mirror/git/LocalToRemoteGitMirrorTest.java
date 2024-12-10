@@ -81,7 +81,8 @@ class LocalToRemoteGitMirrorTest {
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.pluginConfigs(new MirroringServicePluginConfig(true, 1, MAX_NUM_FILES, MAX_NUM_BYTES));
+            builder.pluginConfigs(
+                    new MirroringServicePluginConfig(true, 1, MAX_NUM_FILES, MAX_NUM_BYTES, false));
         }
     };
 
@@ -371,7 +372,7 @@ class LocalToRemoteGitMirrorTest {
                   .push().join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof RedundantChangeException) {
-               // The same content can be pushed several times.
+                // The same content can be pushed several times.
             } else {
                 throw e;
             }

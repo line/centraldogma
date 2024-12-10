@@ -35,12 +35,14 @@ import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
 class MetadataServiceTest {
@@ -231,7 +233,7 @@ class MetadataServiceTest {
 
         // Fail due to duplicated addition.
         assertThatThrownBy(() -> mds.addPerUserPermission(author, project1, repo1, user1, READ_ONLY).join())
-                .hasCauseInstanceOf(ChangeConflictException.class);
+                .hasCauseInstanceOf(IllegalArgumentException.class);
 
         assertThat(mds.findPermissions(project1, repo1, user1).join())
                 .containsExactly(Permission.READ);
@@ -243,7 +245,7 @@ class MetadataServiceTest {
 
         mds.removePerUserPermission(author, project1, repo1, user1).join();
         assertThatThrownBy(() -> mds.removePerUserPermission(author, project1, repo1, user1).join())
-                .hasCauseInstanceOf(ChangeConflictException.class);
+                .hasCauseInstanceOf(IllegalArgumentException.class);
 
         assertThat(mds.findPermissions(project1, repo1, user1).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
@@ -283,7 +285,7 @@ class MetadataServiceTest {
 
         mds.removePerTokenPermission(author, project1, repo1, app1).join();
         assertThatThrownBy(() -> mds.removePerTokenPermission(author, project1, repo1, app1).join())
-                .hasCauseInstanceOf(ChangeConflictException.class);
+                .hasCauseInstanceOf(IllegalArgumentException.class);
 
         assertThat(mds.findPermissions(project1, repo1, app1).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
@@ -314,6 +316,10 @@ class MetadataServiceTest {
 
         assertThat(mds.findPermissions(project1, repo1, user2).join())
                 .containsExactly(Permission.READ);
+
+        // Remove 'user1' again.
+        assertThatThrownBy(() -> mds.removeMember(author, project1, user1).join())
+                .hasCauseInstanceOf(EntryNotFoundException.class);
     }
 
     @Test
@@ -340,6 +346,10 @@ class MetadataServiceTest {
 
         assertThat(mds.findPermissions(project1, repo1, app2).join())
                 .containsExactly(Permission.READ);
+
+        // Remove 'app1' again.
+        assertThatThrownBy(() -> mds.removeToken(author, project1, app1).join())
+                .hasCauseInstanceOf(EntryNotFoundException.class);
     }
 
     @Test
@@ -369,6 +379,10 @@ class MetadataServiceTest {
 
         assertThat(mds.findPermissions(project1, repo1, app2).join())
                 .containsExactly(Permission.READ);
+
+        // Remove 'app1' again.
+        assertThatThrownBy(() -> mds.destroyToken(author, app1).join())
+                .hasCauseInstanceOf(TokenNotFoundException.class);
     }
 
     @Test
@@ -387,8 +401,14 @@ class MetadataServiceTest {
         assertThat(token.deactivation()).isNotNull();
         assertThat(token.deactivation().user()).isEqualTo(owner.id());
 
+        assertThatThrownBy(() -> mds.deactivateToken(author, app1).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+
         mds.activateToken(author, app1).join();
         assertThat(mds.getTokens().join().get(app1).isActive()).isTrue();
+
+        assertThatThrownBy(() -> mds.activateToken(author, app1).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -422,10 +442,14 @@ class MetadataServiceTest {
         mds.updateTokenLevel(author, app1, true).join();
         token = mds.getTokens().join().get(app1);
         assertThat(token.isAdmin()).isTrue();
+        assertThatThrownBy(() -> mds.updateTokenLevel(author, app1, true).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class);
 
         mds.updateTokenLevel(author, app1, false).join();
         token = mds.getTokens().join().get(app1);
         assertThat(token.isAdmin()).isFalse();
+        assertThatThrownBy(() -> mds.updateTokenLevel(author, app1, false).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class);
     }
 
     private static RepositoryMetadata getRepo1(MetadataService mds) {

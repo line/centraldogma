@@ -75,7 +75,7 @@ class MirrorSchedulingServiceTest {
         final Mirror mirror = new AbstractMirror("my-mirror-1", true, EVERY_SECOND,
                                                  MirrorDirection.REMOTE_TO_LOCAL,
                                                  Credential.FALLBACK, r, "/",
-                                                 URI.create("unused://uri"), "/", "", null) {
+                                                 URI.create("unused://uri"), "/", "", null, null) {
             @Override
             protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes,
                                                        Instant triggeredTime) {
@@ -96,7 +96,7 @@ class MirrorSchedulingServiceTest {
         when(mr.mirrors()).thenReturn(CompletableFuture.completedFuture(ImmutableList.of(mirror)));
 
         final MirrorSchedulingService service = new MirrorSchedulingService(
-                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1);
+                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null);
         final CommandExecutor executor = mock(CommandExecutor.class);
         service.start(executor);
 

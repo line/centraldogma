@@ -25,6 +25,7 @@ import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
+import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 
 public final class ControlPlanePlugin extends AllReplicasPlugin {
@@ -67,8 +68,8 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("configType", configType())
-                          .add("target", target())
+                          .add("configType", configType().getName())
+                          .add("target", PluginTarget.ALL_REPLICAS)
                           .toString();
     }
 }

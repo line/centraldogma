@@ -81,6 +81,8 @@ public final class MirrorConfig {
     private final String credentialId;
     @Nullable
     private final Cron schedule;
+    @Nullable
+    private final String zone;
 
     @JsonCreator
     public MirrorConfig(@JsonProperty("id") String id,
@@ -91,7 +93,8 @@ public final class MirrorConfig {
                         @JsonProperty("localPath") @Nullable String localPath,
                         @JsonProperty(value = "remoteUri", required = true) URI remoteUri,
                         @JsonProperty("gitignore") @Nullable Object gitignore,
-                        @JsonProperty("credentialId") String credentialId) {
+                        @JsonProperty("credentialId") String credentialId,
+                        @JsonProperty("zone") @Nullable String zone) {
         this.id = requireNonNull(id, "id");
         this.enabled = firstNonNull(enabled, true);
         if (schedule != null) {
@@ -122,6 +125,7 @@ public final class MirrorConfig {
             this.gitignore = null;
         }
         this.credentialId = requireNonNull(credentialId, "credentialId");
+        this.zone = zone;
     }
 
     @Nullable
@@ -132,7 +136,7 @@ public final class MirrorConfig {
 
         final MirrorContext mirrorContext = new MirrorContext(
                 id, enabled, schedule, direction, findCredential(credentials, credentialId),
-                parent.repos().get(localRepo), localPath, remoteUri, gitignore);
+                parent.repos().get(localRepo), localPath, remoteUri, gitignore, zone);
         for (MirrorProvider mirrorProvider : MIRROR_PROVIDERS) {
             final Mirror mirror = mirrorProvider.newMirror(mirrorContext);
             if (mirror != null) {
@@ -209,6 +213,12 @@ public final class MirrorConfig {
         }
     }
 
+    @Nullable
+    @JsonProperty("zone")
+    public String zone() {
+        return zone;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).omitNullValues()
@@ -220,6 +230,7 @@ public final class MirrorConfig {
                           .add("gitignore", gitignore)
                           .add("credentialId", credentialId)
                           .add("schedule", schedule)
+                          .add("zone", zone)
                           .toString();
     }
 }

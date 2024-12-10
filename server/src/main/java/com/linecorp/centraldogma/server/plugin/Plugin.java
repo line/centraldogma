@@ -27,7 +27,7 @@ public interface Plugin {
     /**
      * Returns the {@link PluginTarget} which specifies the replicas that this {@link Plugin} is applied to.
      */
-    PluginTarget target();
+    PluginTarget target(CentralDogmaConfig config);
 
     /**
      * Invoked when this {@link Plugin} is supposed to be started.

@@ -3,14 +3,14 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 [versions]
-armeria = "1.30.1"
+armeria = "1.31.2"
 assertj = "3.26.3"
 awaitility = "4.2.2"
-bouncycastle = "1.78.1"
+bouncycastle = "1.79"
 # Don"t upgrade Caffeine to 3.x that requires Java 11.
 caffeine = "2.9.3"
 checkstyle = "10.3.3"
-controlplane = "1.0.45"
+controlplane = "1.0.46"
 # Ensure that we use the same ZooKeeper version as what Curator depends on.
 # See: https://github.com/apache/curator/blob/master/pom.xml
 #      (Switch to the right tag to find out the right version.)
@@ -20,17 +20,17 @@ cron-utils = "9.2.0"
 diffutils = "1.3.0"
 docker = "9.4.0"
 download = "5.6.0"
-dropwizard-metrics = "4.2.26"
+dropwizard-metrics = "4.2.28"
 eddsa = "0.3.0"
 findbugs = "3.0.2"
 futures-completable = "0.3.6"
-grpc-java = "1.66.0"
-guava = "33.2.1-jre"
+grpc-java = "1.68.1"
+guava = "33.3.1-jre"
 guava-failureaccess = "1.0.1"
 hamcrest-library = "2.2"
 hibernate-validator6 = "6.2.5.Final"
 hibernate-validator8 = "8.0.1.Final"
-jackson = "2.17.2"
+jackson = "2.18.1"
 javassist = "3.30.2-GA"
 javax-annotation = "1.3.2"
 javax-inject = "1"
@@ -41,7 +41,7 @@ jetty-alpn-agent = "2.0.10"
 jgit = "5.13.3.202401111512-r"
 jgit6 = "6.10.0.202406032230-r"
 junit4 = "4.13.2"
-junit5 = "5.11.0"
+junit5 = "5.11.3"
 # Don't upgrade junit-pioneer to 2.x.x that requires Java 11
 junit-pioneer = "1.9.1"
 jsch = "0.1.55"
@@ -53,19 +53,19 @@ jsoup = "1.18.1" # JSoup is only used for Gradle script.
 jmh-core = "1.37"
 jmh-gradle-plugin = "0.7.2"
 jxr = "0.2.1"
-kubernetes-client = "6.12.1"
+kubernetes-client = "6.13.4"
 logback12 = { strictly = "1.2.13" }
 logback15 = { strictly = "1.5.7" }
 logback = "1.2.13"
-micrometer = "1.13.3"
-mina-sshd = "2.13.2"
+micrometer = "1.13.6"
+mina-sshd = "2.14.0"
 # Don't uprade mockito to 5.x.x that requires Java 11
 mockito = "4.11.0"
 nexus-publish-plugin = "2.0.0"
-node-gradle-plugin = "7.0.2"
+node-gradle-plugin = "7.1.0"
 osdetector = "1.7.3"
 proguard = "7.4.2"
-protobuf = "3.25.1"
+protobuf = "3.25.5"
 protobuf-gradle-plugin = "0.8.19"
 quartz = "2.3.2"
 reflections = "0.9.11"
@@ -79,9 +79,9 @@ slf4j2 = { strictly = "2.0.16" }
 snappy = "1.1.10.5"
 sphinx = "2.10.1"
 spring-boot2 = "2.7.18"
-spring-boot3 = "3.3.2"
+spring-boot3 = "3.3.5"
 spring-test-junit5 = "1.5.0"
-testcontainers = "1.20.1"
+testcontainers = "1.20.3"
 thrift09 = { strictly = "0.9.3-1" }
 # Ensure that we use the same ZooKeeper version as what Curator depends on.
 # See: https://github.com/apache/curator/blob/master/pom.xml

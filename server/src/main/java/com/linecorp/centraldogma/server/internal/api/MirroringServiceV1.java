@@ -18,14 +18,19 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin.mirrorConfig;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.mirrorFile;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import javax.annotation.Nullable;
+
 import com.cronutils.model.Cron;
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.server.annotation.ConsumesJson;
 import com.linecorp.armeria.server.annotation.Delete;
@@ -42,6 +47,8 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
+import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
@@ -52,6 +59,7 @@ import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManag
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 
@@ -67,12 +75,29 @@ public class MirroringServiceV1 extends AbstractService {
 
     private final ProjectApiManager projectApiManager;
     private final MirrorRunner mirrorRunner;
+    private final Map<String, Object> mirrorZoneConfig;
+    @Nullable
+    private final ZoneConfig zoneConfig;
 
     public MirroringServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor,
-                              MirrorRunner mirrorRunner) {
+                              MirrorRunner mirrorRunner, CentralDogmaConfig config) {
         super(executor);
         this.projectApiManager = projectApiManager;
         this.mirrorRunner = mirrorRunner;
+        zoneConfig = config.zone();
+        mirrorZoneConfig = mirrorZoneConfig(config);
+    }
+
+    private static Map<String, Object> mirrorZoneConfig(CentralDogmaConfig config) {
+        final MirroringServicePluginConfig mirrorConfig = mirrorConfig(config);
+        final ImmutableMap.Builder<String, Object> builder = ImmutableMap.builderWithExpectedSize(2);
+        final boolean zonePinned = mirrorConfig != null && mirrorConfig.zonePinned();
+        builder.put("zonePinned", zonePinned);
+        final ZoneConfig zone = config.zone();
+        if (zone != null) {
+            builder.put("zone", zone);
+        }
+        return builder.build();
     }
 
     /**
@@ -154,11 +179,12 @@ public class MirroringServiceV1 extends AbstractService {
     private CompletableFuture<PushResultDto> createOrUpdate(String projectName,
                                                             MirrorDto newMirror,
                                                             Author author, boolean update) {
-        return metaRepo(projectName).createPushCommand(newMirror, author, update).thenCompose(command -> {
-            return executor().execute(command).thenApply(result -> {
-                return new PushResultDto(result.revision(), command.timestamp());
-            });
-        });
+        return metaRepo(projectName)
+                .createPushCommand(newMirror, author, zoneConfig, update).thenCompose(command -> {
+                    return executor().execute(command).thenApply(result -> {
+                        return new PushResultDto(result.revision(), command.timestamp());
+                    });
+                });
     }
 
     /**
@@ -173,6 +199,17 @@ public class MirroringServiceV1 extends AbstractService {
     public CompletableFuture<MirrorResult> runMirror(@Param String projectName, @Param String mirrorId,
                                                      User user) throws Exception {
         return mirrorRunner.run(projectName, mirrorId, user);
+    }
+
+    /**
+     * GET /mirror/config
+     *
+     * <p>Returns the configuration of the mirroring service.
+     */
+    @Get("/mirror/config")
+    public Map<String, Object> config() {
+        // TODO(ikhoon): Add more configurations if necessary.
+        return mirrorZoneConfig;
     }
 
     private static MirrorDto convertToMirrorDto(String projectName, Mirror mirror) {
@@ -190,7 +227,7 @@ public class MirroringServiceV1 extends AbstractService {
                              mirror.remotePath(),
                              mirror.remoteBranch(),
                              mirror.gitignore(),
-                             mirror.credential().id());
+                             mirror.credential().id(), mirror.zone());
     }
 
     private MetaRepository metaRepo(String projectName) {

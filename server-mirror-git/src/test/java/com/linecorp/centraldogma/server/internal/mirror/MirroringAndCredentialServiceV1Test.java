@@ -132,7 +132,8 @@ class MirroringAndCredentialServiceV1Test {
                               "/remote-path/1",
                               "mirror-branch",
                               ".my-env0\n.my-env1",
-                              "public-key-credential");
+                              "public-key-credential",
+                              null);
         final AggregatedHttpResponse response =
                 userClient.prepare()
                           .post("/api/v1/projects/{proj}/mirrors")
@@ -306,7 +307,8 @@ class MirroringAndCredentialServiceV1Test {
                                                "/updated/remote-path/",
                                                "updated-mirror-branch",
                                                ".updated-env",
-                                               "access-token-credential");
+                                               "access-token-credential",
+                                               null);
         final ResponseEntity<PushResultDto> updateResponse =
                 userClient.prepare()
                           .put("/api/v1/projects/{proj}/mirrors/{id}")
@@ -376,6 +378,7 @@ class MirroringAndCredentialServiceV1Test {
                              "/remote-path/" + id + '/',
                              "mirror-branch",
                              ".my-env0\n.my-env1",
-                             "public-key-credential");
+                             "public-key-credential",
+                             null);
     }
 }

@@ -49,7 +49,7 @@ public final class GitMirrorProvider implements MirrorProvider {
                                         context.direction(), context.credential(),
                                         context.localRepo(), context.localPath(),
                                         repositoryUri.uri(), repositoryUri.path(), repositoryUri.branch(),
-                                        context.gitignore());
+                                        context.gitignore(), context.zone());
             }
             case SCHEME_GIT_HTTP:
             case SCHEME_GIT_HTTPS:
@@ -60,7 +60,7 @@ public final class GitMirrorProvider implements MirrorProvider {
                                             context.direction(), context.credential(),
                                             context.localRepo(), context.localPath(),
                                             repositoryUri.uri(), repositoryUri.path(), repositoryUri.branch(),
-                                            context.gitignore());
+                                            context.gitignore(), context.zone());
             }
         }
 
