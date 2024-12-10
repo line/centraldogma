@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.admin.auth;
 
-import static com.linecorp.centraldogma.server.metadata.User.LEVEL_ADMIN;
+import static com.linecorp.centraldogma.server.metadata.User.LEVEL_SYSTEM_ADMIN;
 import static com.linecorp.centraldogma.server.metadata.User.LEVEL_USER;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -41,11 +41,11 @@ import com.linecorp.centraldogma.server.metadata.User;
 public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
 
     private final SessionManager sessionManager;
-    private final Set<String> administrators;
+    private final Set<String> systemAdministrators;
 
-    public SessionTokenAuthorizer(SessionManager sessionManager, Set<String> administrators) {
+    public SessionTokenAuthorizer(SessionManager sessionManager, Set<String> systemAdministrators) {
         this.sessionManager = requireNonNull(sessionManager, "sessionManager");
-        this.administrators = requireNonNull(administrators, "administrators");
+        this.systemAdministrators = requireNonNull(systemAdministrators, "systemAdministrators");
     }
 
     @Override
@@ -60,8 +60,9 @@ public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
                                      return false;
                                  }
                                  final String username = session.username();
-                                 final List<String> roles = administrators.contains(username) ? LEVEL_ADMIN
-                                                                                              : LEVEL_USER;
+                                 final List<String> roles =
+                                         systemAdministrators.contains(username) ? LEVEL_SYSTEM_ADMIN
+                                                                                 : LEVEL_USER;
                                  final User user = new User(username, roles);
                                  ctx.logBuilder().authenticatedUser("user/" + username);
                                  AuthUtil.setCurrentUser(ctx, user);

@@ -76,7 +76,7 @@ class ZoneAwareMirrorTest {
         @Override
         protected void configureEach(int serverId, CentralDogmaBuilder builder) {
             builder.authProviderFactory(new TestAuthProviderFactory());
-            builder.administrators(USERNAME);
+            builder.systemAdministrators(USERNAME);
             builder.zone(new ZoneConfig(ZONES.get(serverId - 1), ZONES));
             builder.pluginConfigs(new MirroringServicePluginConfig(true, null, null, null, true));
         }

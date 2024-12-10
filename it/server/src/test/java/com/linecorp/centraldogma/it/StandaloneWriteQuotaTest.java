@@ -45,7 +45,7 @@ class StandaloneWriteQuotaTest extends WriteQuotaTestBase {
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.administrators(TestAuthMessageUtil.USERNAME);
+            builder.systemAdministrators(TestAuthMessageUtil.USERNAME);
             builder.authProviderFactory(new TestAuthProviderFactory());
             // Default write quota
             builder.writeQuotaPerRepository(5, 1);

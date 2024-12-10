@@ -118,7 +118,7 @@ public final class CentralDogmaBuilder {
     // AuthConfig properties
     @Nullable
     private AuthProviderFactory authProviderFactory;
-    private final ImmutableSet.Builder<String> administrators = new Builder<>();
+    private final ImmutableSet.Builder<String> systemAdministrators = new Builder<>();
     private boolean caseSensitiveLoginNames;
     private String sessionCacheSpec = DEFAULT_SESSION_CACHE_SPEC;
     private long sessionTimeoutMillis = DEFAULT_SESSION_TIMEOUT_MILLIS;
@@ -416,22 +416,22 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Adds administrators to the set.
+     * Adds system administrators to the set.
      */
-    public CentralDogmaBuilder administrators(String... administrators) {
-        requireNonNull(administrators, "administrators");
-        for (final String administrator : administrators) {
-            this.administrators.add(administrator);
+    public CentralDogmaBuilder systemAdministrators(String... systemAdministrators) {
+        requireNonNull(systemAdministrators, "systemAdministrators");
+        for (final String systemAdministrator : systemAdministrators) {
+            this.systemAdministrators.add(systemAdministrator);
         }
         return this;
     }
 
     /**
-     * Adds administrators to the set.
+     * Adds system administrators to the set.
      */
-    public CentralDogmaBuilder administrators(Iterable<String> administrators) {
-        requireNonNull(administrators, "administrators");
-        this.administrators.addAll(administrators);
+    public CentralDogmaBuilder systemAdministrators(Iterable<String> systemAdministrators) {
+        requireNonNull(systemAdministrators, "systemAdministrators");
+        this.systemAdministrators.addAll(systemAdministrators);
         return this;
     }
 
@@ -587,11 +587,11 @@ public final class CentralDogmaBuilder {
     private CentralDogmaConfig buildConfig() {
         final List<ServerPort> ports = !this.ports.isEmpty() ? this.ports
                                                              : Collections.singletonList(DEFAULT_PORT);
-        final Set<String> adminSet = administrators.build();
+        final Set<String> systemAdminSet = systemAdministrators.build();
         final AuthConfig authCfg;
         if (authProviderFactory != null) {
             authCfg = new AuthConfig(
-                    authProviderFactory, adminSet, caseSensitiveLoginNames,
+                    authProviderFactory, systemAdminSet, caseSensitiveLoginNames,
                     sessionCacheSpec, sessionTimeoutMillis, sessionValidationSchedule,
                     authProviderProperties != null ? Jackson.valueToTree(authProviderProperties) : null);
         } else {

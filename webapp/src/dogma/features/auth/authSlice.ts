@@ -133,7 +133,7 @@ const anonymousUser: UserDto = {
   name: 'Anonymous',
   email: 'anonymous@localhost',
   roles: [],
-  admin: false,
+  systemAdmin: false,
 };
 
 export const authSlice = createSlice({

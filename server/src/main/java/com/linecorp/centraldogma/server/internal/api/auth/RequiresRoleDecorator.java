@@ -71,7 +71,7 @@ public final class RequiresRoleDecorator extends SimpleDecoratingHttpService {
                 if (cause != null) {
                     return handleException(ctx, cause);
                 }
-                if (!user.isAdmin() && !accessibleRoles.contains(role)) {
+                if (!user.isSystemAdmin() && !accessibleRoles.contains(role)) {
                     return HttpApiUtil.throwResponse(
                             ctx, HttpStatus.FORBIDDEN,
                             "You must have one of the following roles to access the project '%s': %s",

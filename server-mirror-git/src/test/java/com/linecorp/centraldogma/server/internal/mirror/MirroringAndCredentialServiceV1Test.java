@@ -65,7 +65,7 @@ class MirroringAndCredentialServiceV1Test {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
             builder.authProviderFactory(new TestAuthProviderFactory());
-            builder.administrators(USERNAME);
+            builder.systemAdministrators(USERNAME);
         }
 
         @Override
@@ -87,16 +87,16 @@ class MirroringAndCredentialServiceV1Test {
         }
     };
 
-    private BlockingWebClient adminClient;
+    private BlockingWebClient systemAdminClient;
     private BlockingWebClient userClient;
 
     @BeforeEach
     void setUp() throws JsonProcessingException {
-        final String adminToken = getAccessToken(dogma.httpClient(), USERNAME, PASSWORD);
-        adminClient = WebClient.builder(dogma.httpClient().uri())
-                               .auth(AuthToken.ofOAuth2(adminToken))
-                               .build()
-                               .blocking();
+        final String systemAdminToken = getAccessToken(dogma.httpClient(), USERNAME, PASSWORD);
+        systemAdminClient = WebClient.builder(dogma.httpClient().uri())
+                                     .auth(AuthToken.ofOAuth2(systemAdminToken))
+                                     .build()
+                                     .blocking();
 
         final String userToken = getAccessToken(dogma.httpClient(), USERNAME2, PASSWORD2);
         userClient = WebClient.builder(dogma.httpClient().uri())
@@ -146,12 +146,12 @@ class MirroringAndCredentialServiceV1Test {
 
     private void setUpRole() {
         final ResponseEntity<Revision> res =
-                adminClient.prepare()
-                           .post("/api/v1/metadata/{proj}/members")
-                           .pathParam("proj", FOO_PROJ)
-                           .contentJson(ImmutableMap.of("id", USERNAME2, "role", "OWNER"))
-                           .asJson(Revision.class)
-                           .execute();
+                systemAdminClient.prepare()
+                                 .post("/api/v1/metadata/{proj}/members")
+                                 .pathParam("proj", FOO_PROJ)
+                                 .contentJson(ImmutableMap.of("id", USERNAME2, "role", "OWNER"))
+                                 .asJson(Revision.class)
+                                 .execute();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
     }
 
@@ -181,8 +181,8 @@ class MirroringAndCredentialServiceV1Test {
             assertThat(creationResponse.status()).isEqualTo(HttpStatus.CREATED);
             assertThat(creationResponse.content().revision().major()).isEqualTo(i + 2);
 
-            for (BlockingWebClient client : ImmutableList.of(adminClient, userClient)) {
-                final boolean isAdmin = client == adminClient;
+            for (BlockingWebClient client : ImmutableList.of(systemAdminClient, userClient)) {
+                final boolean isSystemAdmin = client == systemAdminClient;
                 final ResponseEntity<Credential> fetchResponse =
                         client.prepare()
                               .get("/api/v1/projects/{proj}/credentials/{id}")
@@ -197,14 +197,14 @@ class MirroringAndCredentialServiceV1Test {
                 if ("password".equals(credentialType)) {
                     final PasswordCredential actual = (PasswordCredential) credentialDto;
                     assertThat(actual.username()).isEqualTo(credential.get("username"));
-                    if (isAdmin) {
+                    if (isSystemAdmin) {
                         assertThat(actual.password()).isEqualTo(credential.get("password"));
                     } else {
                         assertThat(actual.password()).isEqualTo("****");
                     }
                 } else if ("access_token".equals(credentialType)) {
                     final AccessTokenCredential actual = (AccessTokenCredential) credentialDto;
-                    if (isAdmin) {
+                    if (isSystemAdmin) {
                         assertThat(actual.accessToken()).isEqualTo(credential.get("accessToken"));
                     } else {
                         assertThat(actual.accessToken()).isEqualTo("****");
@@ -213,7 +213,7 @@ class MirroringAndCredentialServiceV1Test {
                     final PublicKeyCredential actual = (PublicKeyCredential) credentialDto;
                     assertThat(actual.username()).isEqualTo(credential.get("username"));
                     assertThat(actual.publicKey()).isEqualTo(credential.get("publicKey"));
-                    if (isAdmin) {
+                    if (isSystemAdmin) {
                         assertThat(actual.rawPrivateKey()).isEqualTo(credential.get("privateKey"));
                         assertThat(actual.rawPassphrase()).isEqualTo(credential.get("passphrase"));
                     } else {
@@ -248,8 +248,8 @@ class MirroringAndCredentialServiceV1Test {
                           .execute();
         assertThat(creationResponse.status()).isEqualTo(HttpStatus.OK);
 
-        for (BlockingWebClient client : ImmutableList.of(adminClient, userClient)) {
-            final boolean isAdmin = client == adminClient;
+        for (BlockingWebClient client : ImmutableList.of(systemAdminClient, userClient)) {
+            final boolean isSystemAdmin = client == systemAdminClient;
             final ResponseEntity<Credential> fetchResponse =
                     client.prepare()
                           .get("/api/v1/projects/{proj}/credentials/{id}")
@@ -261,7 +261,7 @@ class MirroringAndCredentialServiceV1Test {
             assertThat(actual.id()).isEqualTo((String) credential.get("id"));
             assertThat(actual.username()).isEqualTo(credential.get("username"));
             assertThat(actual.publicKey()).isEqualTo(credential.get("publicKey"));
-            if (isAdmin) {
+            if (isSystemAdmin) {
                 assertThat(actual.rawPrivateKey()).isEqualTo(credential.get("privateKey"));
                 assertThat(actual.rawPassphrase()).isEqualTo(credential.get("passphrase"));
             } else {

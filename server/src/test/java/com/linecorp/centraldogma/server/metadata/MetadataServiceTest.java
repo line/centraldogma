@@ -437,17 +437,17 @@ class MetadataServiceTest {
         mds.createToken(author, app1).join();
         token = mds.getTokens().join().get(app1);
         assertThat(token).isNotNull();
-        assertThat(token.isAdmin()).isFalse();
+        assertThat(token.isSystemAdmin()).isFalse();
 
         mds.updateTokenLevel(author, app1, true).join();
         token = mds.getTokens().join().get(app1);
-        assertThat(token.isAdmin()).isTrue();
+        assertThat(token.isSystemAdmin()).isTrue();
         assertThatThrownBy(() -> mds.updateTokenLevel(author, app1, true).join())
                 .hasCauseInstanceOf(IllegalArgumentException.class);
 
         mds.updateTokenLevel(author, app1, false).join();
         token = mds.getTokens().join().get(app1);
-        assertThat(token.isAdmin()).isFalse();
+        assertThat(token.isSystemAdmin()).isFalse();
         assertThatThrownBy(() -> mds.updateTokenLevel(author, app1, false).join())
                 .hasCauseInstanceOf(IllegalArgumentException.class);
     }

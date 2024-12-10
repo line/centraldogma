@@ -22,15 +22,15 @@ import java.lang.annotation.Target;
 
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.DecoratorFactory;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministratorDecorator.RequiresAdministratorDecoratorFactory;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministratorDecorator.RequiresSystemAdministratorDecoratorFactory;
 
 /**
- * A {@link Decorator} to allow a request from an administrator only.
+ * A {@link Decorator} to allow a request from a system administrator only.
  */
-@DecoratorFactory(RequiresAdministratorDecoratorFactory.class)
+@DecoratorFactory(RequiresSystemAdministratorDecoratorFactory.class)
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.TYPE, ElementType.METHOD })
-public @interface RequiresAdministrator {
+public @interface RequiresSystemAdministrator {
     /**
      * A special parameter in order to specify the order of a {@link Decorator}.
      */
