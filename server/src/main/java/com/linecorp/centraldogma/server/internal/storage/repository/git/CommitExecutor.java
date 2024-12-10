@@ -156,10 +156,12 @@ final class CommitExecutor {
             }
 
             if (!allowEmptyCommit && isEmpty) {
+                // prevRevision is not null when allowEmptyCommit is false.
+                assert prevRevision != null;
                 throw new RedundantChangeException(
+                        prevRevision,
                         "changes did not change anything in " + gitRepository.parent().name() + '/' +
-                        gitRepository.name() + " at revision " +
-                        (prevRevision != null ? prevRevision.major() : 0) + ": " + changes);
+                        gitRepository.name() + " at revision " + prevRevision.major() + ": " + changes);
             }
 
             // flush the current index to repository and get the result tree object id.
