@@ -943,7 +943,7 @@ public class MetadataService {
     public CompletableFuture<Collection<Permission>> findPermissions(String projectName, String repoName,
                                                                      User user) {
         requireNonNull(user, "user");
-        if (user.isAdmin()) {
+        if (user.isSystemAdmin()) {
             return CompletableFuture.completedFuture(PerRolePermissions.ALL_PERMISSION);
         }
         if (user instanceof UserWithToken) {
@@ -1024,7 +1024,7 @@ public class MetadataService {
         requireNonNull(projectName, "projectName");
         requireNonNull(user, "user");
 
-        if (user.isAdmin()) {
+        if (user.isSystemAdmin()) {
             return CompletableFuture.completedFuture(ProjectRole.OWNER);
         }
         return getProject(projectName).thenApply(project -> {
@@ -1056,11 +1056,11 @@ public class MetadataService {
     }
 
     /**
-     * Creates a new {@link Token} with the specified {@code appId}, {@code isAdmin} and an auto-generated
+     * Creates a new {@link Token} with the specified {@code appId}, {@code isSystemAdmin} and an auto-generated
      * secret.
      */
-    public CompletableFuture<Revision> createToken(Author author, String appId, boolean isAdmin) {
-        return createToken(author, appId, SECRET_PREFIX + UUID.randomUUID(), isAdmin);
+    public CompletableFuture<Revision> createToken(Author author, String appId, boolean isSystemAdmin) {
+        return createToken(author, appId, SECRET_PREFIX + UUID.randomUUID(), isSystemAdmin);
     }
 
     /**
@@ -1071,17 +1071,17 @@ public class MetadataService {
     }
 
     /**
-     * Creates a new {@link Token} with the specified {@code appId}, {@code secret} and {@code isAdmin}.
+     * Creates a new {@link Token} with the specified {@code appId}, {@code secret} and {@code isSystemAdmin}.
      */
     public CompletableFuture<Revision> createToken(Author author, String appId, String secret,
-                                                   boolean isAdmin) {
+                                                   boolean isSystemAdmin) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
         requireNonNull(secret, "secret");
 
         checkArgument(secret.startsWith(SECRET_PREFIX), "secret must start with: " + SECRET_PREFIX);
 
-        final Token newToken = new Token(appId, secret, isAdmin, UserAndTimestamp.of(author));
+        final Token newToken = new Token(appId, secret, isSystemAdmin, UserAndTimestamp.of(author));
         final JsonPointer appIdPath = JsonPointer.compile("/appIds" + encodeSegment(newToken.id()));
         final String newTokenSecret = newToken.secret();
         assert newTokenSecret != null;
@@ -1122,9 +1122,9 @@ public class MetadataService {
                 } else {
                     final String secret = token.secret();
                     assert secret != null;
-                    appIdsBuilder.put(appId, new Token(token.appId(), secret, token.isAdmin(),
-                                                       token.isAdmin(), token.creation(), token.deactivation(),
-                                                       userAndTimestamp));
+                    appIdsBuilder.put(appId, new Token(token.appId(), secret, token.isSystemAdmin(),
+                                                       token.isSystemAdmin(), token.creation(),
+                                                       token.deactivation(), userAndTimestamp));
                 }
             }
             final Map<String, Token> newAppIds = appIdsBuilder.build();
@@ -1143,7 +1143,7 @@ public class MetadataService {
         requireNonNull(appId, "appId");
 
         final Collection<Project> projects = listProjectsWithoutInternal(projectManager.list(),
-                                                                         User.ADMIN).values();
+                                                                         User.SYSTEM_ADMIN).values();
         // Remove the token from projects that only have the token.
         for (Project project : projects) {
             final ProjectMetadata projectMetadata = fetchMetadata(project.name()).join().object();
@@ -1223,8 +1223,8 @@ public class MetadataService {
                 if (!entry.getKey().equals(appId)) {
                     appIdsBuilder.put(entry);
                 } else {
-                    appIdsBuilder.put(appId,
-                                      new Token(token.appId(), secret, token.isAdmin(), token.creation()));
+                    appIdsBuilder.put(appId, new Token(token.appId(), secret, token.isSystemAdmin(),
+                                                       token.creation()));
                 }
             }
             final Map<String, Token> newAppIds = appIdsBuilder.build();
@@ -1264,7 +1264,8 @@ public class MetadataService {
                 if (!entry.getKey().equals(appId)) {
                     appIdsBuilder.put(entry);
                 } else {
-                    appIdsBuilder.put(appId, new Token(token.appId(), secret, token.isAdmin(), token.isAdmin(),
+                    appIdsBuilder.put(appId, new Token(token.appId(), secret, token.isSystemAdmin(),
+                                                       token.isSystemAdmin(),
                                                        token.creation(), userAndTimestamp, null));
                 }
             }
@@ -1279,18 +1280,18 @@ public class MetadataService {
     /**
      * Update the {@link Token} of the specified {@code appId} to user or admin.
      */
-    public CompletableFuture<Revision> updateTokenLevel(Author author, String appId, boolean toBeAdmin) {
+    public CompletableFuture<Revision> updateTokenLevel(Author author, String appId, boolean toBeSystemAdmin) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
         final String commitSummary =
-                "Update the token level: " + appId + " to " + (toBeAdmin ? "admin" : "user");
-
+                "Update the token level: " + appId + " to " + (toBeSystemAdmin ? "admin" : "user");
         final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
                 TOKEN_JSON, EntryType.JSON, node -> {
             final Tokens tokens = tokens(node);
             final Token token = tokens.get(appId); // Raise an exception if not found.
-            if (toBeAdmin == token.isAdmin()) {
-                throw new IllegalArgumentException("The token is already " + (toBeAdmin ? "admin" : "user"));
+            if (toBeSystemAdmin == token.isSystemAdmin()) {
+                throw new IllegalArgumentException(
+                        "The token is already " + (toBeSystemAdmin ? "admin" : "user"));
             }
 
             final ImmutableMap.Builder<String, Token> appIdsBuilder = ImmutableMap.builder();
@@ -1298,7 +1299,7 @@ public class MetadataService {
                 if (!entry.getKey().equals(appId)) {
                     appIdsBuilder.put(entry);
                 } else {
-                    appIdsBuilder.put(appId, token.withAdmin(toBeAdmin));
+                    appIdsBuilder.put(appId, token.withSystemAdmin(toBeSystemAdmin));
                 }
             }
             final Map<String, Token> newAppIds = appIdsBuilder.build();

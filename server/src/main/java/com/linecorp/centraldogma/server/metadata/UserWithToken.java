@@ -45,8 +45,8 @@ public class UserWithToken extends User {
     }
 
     @Override
-    public boolean isAdmin() {
-        return token.isAdmin();
+    public boolean isSystemAdmin() {
+        return token.isSystemAdmin();
     }
 
     @Override

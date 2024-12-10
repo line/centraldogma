@@ -36,7 +36,7 @@ import com.linecorp.centraldogma.server.internal.api.UpdateServerStatusRequest.S
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-class AdministrativeServiceTest {
+class SystemAdministrativeServiceTest {
 
     @RegisterExtension
     final CentralDogmaExtension dogma = new CentralDogmaExtension() {

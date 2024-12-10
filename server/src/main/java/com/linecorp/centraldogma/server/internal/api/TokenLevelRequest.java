@@ -23,7 +23,7 @@ public final class TokenLevelRequest {
     private final String level;
 
     @JsonCreator
-    TokenLevelRequest(@JsonProperty("level") String level) {
+    public TokenLevelRequest(@JsonProperty("level") String level) {
         this.level = level;
     }
 

@@ -5,7 +5,7 @@ const me = {
   name: 'foo',
   email: 'foo@localhost.localdomain',
   roles: ['LEVEL_USER'],
-  admin: false,
+  systemAdmin: false,
 };
 
 export default function handler(_req: NextApiRequest, res: NextApiResponse) {

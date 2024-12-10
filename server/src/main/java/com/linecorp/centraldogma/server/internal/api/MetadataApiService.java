@@ -46,8 +46,8 @@ import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.metadata.Permission;
@@ -251,7 +251,7 @@ public class MetadataApiService extends AbstractService {
      */
     @Patch("/metadata/{projectName}/repos/{repoName}/quota/write")
     @Consumes("application/json-patch+json")
-    @RequiresAdministrator
+    @RequiresSystemAdministrator
     public CompletableFuture<Revision> updateWriteQuota(@Param String projectName,
                                                         @Param String repoName,
                                                         QuotaConfig quota,

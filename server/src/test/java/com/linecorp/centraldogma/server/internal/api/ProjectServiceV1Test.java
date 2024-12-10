@@ -64,25 +64,25 @@ class ProjectServiceV1Test {
 
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.administrators(TestAuthMessageUtil.USERNAME);
+            builder.systemAdministrators(TestAuthMessageUtil.USERNAME);
             builder.authProviderFactory(new TestAuthProviderFactory());
         }
     };
 
     private static final ObjectMapper mapper = new ObjectMapper();
 
-    private BlockingWebClient adminClient;
+    private BlockingWebClient systemAdminClient;
     private BlockingWebClient normalClient;
 
     @BeforeEach
     void setUp() throws JsonProcessingException, UnknownHostException {
         final URI uri = dogma.httpClient().uri();
-        adminClient = WebClient.builder(uri)
-                               .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
-                                                                  TestAuthMessageUtil.USERNAME,
-                                                                  TestAuthMessageUtil.PASSWORD)))
-                               .build()
-                               .blocking();
+        systemAdminClient = WebClient.builder(uri)
+                                     .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
+                                                                        TestAuthMessageUtil.USERNAME,
+                                                                        TestAuthMessageUtil.PASSWORD)))
+                                     .build()
+                                     .blocking();
         normalClient = WebClient.builder(uri)
                                 .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
                                                                    TestAuthMessageUtil.USERNAME2,
@@ -155,9 +155,9 @@ class ProjectServiceV1Test {
                                .status()).isEqualTo(HttpStatus.NO_CONTENT);
 
         // Cannot remove internal dogma project.
-        assertThat(adminClient.delete(PROJECTS_PREFIX + "/dogma")
-                              .headers()
-                              .status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(systemAdminClient.delete(PROJECTS_PREFIX + "/dogma")
+                                    .headers()
+                                    .status()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
@@ -169,14 +169,14 @@ class ProjectServiceV1Test {
     @Test
     void purgeProject() {
         removeProject();
-        assertThat(adminClient.delete(PROJECTS_PREFIX + "/foo/removed")
-                              .headers()
-                              .status()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(systemAdminClient.delete(PROJECTS_PREFIX + "/foo/removed")
+                                    .headers()
+                                    .status()).isEqualTo(HttpStatus.NO_CONTENT);
 
         // Illegal access to the internal project.
-        assertThat(adminClient.delete(PROJECTS_PREFIX + "/dogma/removed")
-                              .headers()
-                              .status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(systemAdminClient.delete(PROJECTS_PREFIX + "/dogma/removed")
+                                    .headers()
+                                    .status()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
@@ -190,7 +190,7 @@ class ProjectServiceV1Test {
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH);
 
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
-        final AggregatedHttpResponse aRes = adminClient.execute(headers, unremovePatch);
+        final AggregatedHttpResponse aRes = systemAdminClient.execute(headers, unremovePatch);
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
                 '{' +
@@ -214,7 +214,7 @@ class ProjectServiceV1Test {
                                                          "application/json-patch+json");
 
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
-        final AggregatedHttpResponse aRes = adminClient.execute(headers, unremovePatch);
+        final AggregatedHttpResponse aRes = systemAdminClient.execute(headers, unremovePatch);
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 }

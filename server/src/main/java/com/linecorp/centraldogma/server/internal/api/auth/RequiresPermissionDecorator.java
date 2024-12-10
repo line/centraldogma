@@ -85,8 +85,8 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
         checkArgument(!isNullOrEmpty(repoName), "no repository name is specified");
 
         if (Project.REPO_DOGMA.equals(repoName)) {
-            if (!user.isAdmin()) {
-                return throwForbiddenResponse(ctx, projectName, repoName, "administrator");
+            if (!user.isSystemAdmin()) {
+                return throwForbiddenResponse(ctx, projectName, repoName);
             }
             return unwrap().serve(ctx, req);
         }
@@ -94,10 +94,10 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
     }
 
     private static HttpResponse throwForbiddenResponse(ServiceRequestContext ctx, String projectName,
-                                                       String repoName, String adminOrOwner) {
+                                                       String repoName) {
         return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
-                                         "Repository '%s/%s' can be accessed only by an %s.",
-                                         projectName, repoName, adminOrOwner);
+                                         "Repository '%s/%s' can be accessed only by a system administrator.",
+                                         projectName, repoName);
     }
 
     /**
