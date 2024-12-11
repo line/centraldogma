@@ -292,6 +292,40 @@ class MirroringAndCredentialServiceV1Test {
             final MirrorDto savedMirror = response1.content();
             assertThat(savedMirror).isEqualTo(newMirror);
         }
+
+        // Make sure that the mirror with a port number in the remote URL can be created and read.
+        final MirrorDto mirrorWithPort = new MirrorDto("mirror-with-port-3",
+                                               true,
+                                               FOO_PROJ,
+                                               "5 * * * * ?",
+                                               "REMOTE_TO_LOCAL",
+                                               BAR_REPO,
+                                               "/updated/local-path/",
+                                               "git+https",
+                                               "git.com:922/line/centraldogma-test.git",
+                                               "/updated/remote-path/",
+                                               "updated-mirror-branch",
+                                               ".updated-env",
+                                               "public-key-credential",
+                                               null);
+
+        final ResponseEntity<PushResultDto> response0 =
+                userClient.prepare()
+                          .post("/api/v1/projects/{proj}/mirrors")
+                          .pathParam("proj", FOO_PROJ)
+                          .contentJson(mirrorWithPort)
+                          .asJson(PushResultDto.class)
+                          .execute();
+        assertThat(response0.status()).isEqualTo(HttpStatus.CREATED);
+        final ResponseEntity<MirrorDto> response1 =
+                userClient.prepare()
+                          .get("/api/v1/projects/{proj}/mirrors/{id}")
+                          .pathParam("proj", FOO_PROJ)
+                          .pathParam("id", mirrorWithPort.id())
+                          .asJson(MirrorDto.class)
+                          .execute();
+        final MirrorDto savedMirror = response1.content();
+        assertThat(savedMirror).isEqualTo(mirrorWithPort);
     }
 
     private void updateMirror() {
