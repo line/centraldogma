@@ -115,16 +115,21 @@ final class RepositorySupport<T> {
 
         return executor.execute(Command.transform(null, author, projectName, repoName, Revision.HEAD,
                                                   commitSummary, "", Markup.PLAINTEXT, transformer))
-                       .thenApply(CommitResult::revision)
-                       .exceptionally(cause -> {
-                           final Throwable peeled = Exceptions.peel(cause);
-                           if (peeled instanceof RedundantChangeException) {
-                               final Revision revision = ((RedundantChangeException) peeled).headRevision();
-                               assert revision != null;
-                               return revision;
-                           }
-                           return Exceptions.throwUnsafely(peeled);
-                       });
+                       .thenApply(CommitResult::revision);
+    }
+
+    CompletableFuture<Revision> pushIgnoringRedundantChange(String projectName, String repoName,
+                                                            Author author, String commitSummary,
+                                                            ContentTransformer<JsonNode> transformer) {
+        return push(projectName, repoName, author, commitSummary, transformer).exceptionally(cause -> {
+            final Throwable peeled = Exceptions.peel(cause);
+            if (peeled instanceof RedundantChangeException) {
+                final Revision revision = ((RedundantChangeException) peeled).headRevision();
+                assert revision != null;
+                return revision;
+            }
+            return Exceptions.throwUnsafely(peeled);
+        });
     }
 
     Revision normalize(Repository repository) {

@@ -52,17 +52,17 @@ public class RepositoryMetadata implements Identifiable {
     /**
      * A default permission of this repository which is based on a {@link ProjectRole} of a user.
      */
-    private PerRolePermissions perRolePermissions;
+    private final PerRolePermissions perRolePermissions;
 
     /**
      * A map of username and {@link Permission}s who has permission specified by a owner.
      */
-    private Map<String, Collection<Permission>> perUserPermissions;
+    private final Map<String, Collection<Permission>> perUserPermissions;
 
     /**
      * A map of token ID and {@link Permission}s who has permission specified by a owner.
      */
-    private Map<String, Collection<Permission>> perTokenPermissions;
+    private final Map<String, Collection<Permission>> perTokenPermissions;
 
     /**
      * Specifies when this repository is created by whom.
@@ -131,13 +131,6 @@ public class RepositoryMetadata implements Identifiable {
     }
 
     /**
-     * Sets the {@link PerRolePermissions} of this repository.
-     */
-    public void setPerRolePermissions(PerRolePermissions perRolePermissions) {
-        this.perRolePermissions = requireNonNull(perRolePermissions, "perRolePermissions");
-    }
-
-    /**
      * Returns the per-user {@link Permission}s of this repository.
      */
     @JsonProperty
@@ -146,26 +139,11 @@ public class RepositoryMetadata implements Identifiable {
     }
 
     /**
-     * Sets the per-user {@link Permission}s of this repository.
-     */
-    public void setPerUserPermissions(Map<String, Collection<Permission>> perUserPermissions) {
-        this.perUserPermissions = ImmutableMap.copyOf(requireNonNull(perUserPermissions, "perUserPermissions"));
-    }
-
-    /**
      * Returns the per-token {@link Permission}s of this repository.
      */
     @JsonProperty
     public Map<String, Collection<Permission>> perTokenPermissions() {
         return perTokenPermissions;
-    }
-
-    /**
-     * Sets the per-token {@link Permission}s of this repository.
-     */
-    public void setPerTokenPermissions(Map<String, Collection<Permission>> perTokenPermissions) {
-        this.perTokenPermissions =
-                ImmutableMap.copyOf(requireNonNull(perTokenPermissions, "perTokenPermissions"));
     }
 
     /**
