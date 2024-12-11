@@ -201,6 +201,11 @@ class MetadataServiceTest {
         assertThat(mds.findPermissions(project1, repo1, guest).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
 
+        // Fail due to duplicated update.
+        assertThatThrownBy(() -> mds.updatePerRolePermissions(
+                author, project1, repo1, PerRolePermissions.ofPrivate()).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+
         assertThatThrownBy(() -> mds.updatePerRolePermissions(
                 author, project1, REPO_DOGMA, PerRolePermissions.ofPublic()).join())
                 .isInstanceOf(UnsupportedOperationException.class)
@@ -224,6 +229,11 @@ class MetadataServiceTest {
         // Be a member of the project.
         mds.addMember(author, project1, user1, ProjectRole.MEMBER).join();
 
+        // invalid repo.
+        assertThatThrownBy(() -> mds.addPerUserPermission(
+                author, project1, "invalid-repo", user1, READ_ONLY).join())
+                .hasCauseInstanceOf(RepositoryNotFoundException.class);
+
         // A member of the project has no permission.
         assertThat(mds.findPermissions(project1, repo1, user1).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
@@ -242,6 +252,14 @@ class MetadataServiceTest {
 
         assertThat(mds.findPermissions(project1, repo1, user1).join())
                 .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
+
+        // Update again with the same permission.
+        assertThatThrownBy(() -> mds.updatePerUserPermission(author, project1, repo1, user1, READ_WRITE).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+
+        // Update invalid user
+        assertThatThrownBy(() -> mds.updatePerUserPermission(author, project1, repo1, user2, READ_WRITE).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class);
 
         mds.removePerUserPermission(author, project1, repo1, user1).join();
         assertThatThrownBy(() -> mds.removePerUserPermission(author, project1, repo1, user1).join())
@@ -278,10 +296,18 @@ class MetadataServiceTest {
         assertThat(mds.findPermissions(project1, repo1, app1).join())
                 .containsExactly(Permission.READ);
 
+        // Add again.
+        assertThatThrownBy(() -> mds.addPerTokenPermission(author, project1, repo1, app1, READ_ONLY).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+
         mds.updatePerTokenPermission(author, project1, repo1, app1, READ_WRITE).join();
 
         assertThat(mds.findPermissions(project1, repo1, app1).join())
                 .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
+
+        // Update again with the same permission.
+        assertThatThrownBy(() -> mds.updatePerTokenPermission(author, project1, repo1, app1, READ_WRITE).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class);
 
         mds.removePerTokenPermission(author, project1, repo1, app1).join();
         assertThatThrownBy(() -> mds.removePerTokenPermission(author, project1, repo1, app1).join())

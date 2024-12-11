@@ -987,7 +987,7 @@ public class MetadataService {
                                                                      User user) {
         requireNonNull(user, "user");
         if (user.isSystemAdmin()) {
-            return CompletableFuture.completedFuture(PerRolePermissions.ALL_PERMISSION);
+            return CompletableFuture.completedFuture(PerRolePermissions.READ_WRITE);
         }
         if (user instanceof UserWithToken) {
             return findPermissions(projectName, repoName, ((UserWithToken) user).token().appId());
