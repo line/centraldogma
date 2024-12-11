@@ -29,7 +29,6 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
-import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
@@ -99,9 +98,8 @@ final class RepositorySupport<T> {
         requireNonNull(commitSummary, "commitSummary");
         requireNonNull(change, "change");
 
-        return executor.execute(
-                Command.push(author, projectName, repoName, revision, commitSummary, "",
-                             Markup.PLAINTEXT, ImmutableList.of(change)))
+        return executor.execute(Command.push(author, projectName, repoName, revision, commitSummary, "",
+                                             Markup.PLAINTEXT, ImmutableList.of(change)))
                        .thenApply(CommitResult::revision);
     }
 
@@ -116,16 +114,7 @@ final class RepositorySupport<T> {
 
         return executor.execute(Command.transform(null, author, projectName, repoName, Revision.HEAD,
                                                   commitSummary, "", Markup.PLAINTEXT, transformer))
-                       .thenApply(CommitResult::revision)
-                       .exceptionally(cause -> {
-                           final Throwable peeled = Exceptions.peel(cause);
-                           if (peeled instanceof RedundantChangeException) {
-                               final Revision revision = ((RedundantChangeException) peeled).headRevision();
-                               assert revision != null;
-                               return revision;
-                           }
-                           return Exceptions.throwUnsafely(peeled);
-                       });
+                       .thenApply(CommitResult::revision);
     }
 
     Revision normalize(Repository repository) {

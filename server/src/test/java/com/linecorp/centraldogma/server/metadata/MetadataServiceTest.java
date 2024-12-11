@@ -179,27 +179,32 @@ class MetadataServiceTest {
         mds.addRepo(author, project1, repo1, PerRolePermissions.ofPublic()).join();
 
         repositoryMetadata = getRepo1(mds);
-        assertThat(repositoryMetadata.perRolePermissions().owner()).containsExactly(Permission.READ,
-                                                                                    Permission.WRITE);
-        assertThat(repositoryMetadata.perRolePermissions().member()).containsExactly(Permission.READ,
-                                                                                     Permission.WRITE);
-        assertThat(repositoryMetadata.perRolePermissions().guest()).containsExactly(Permission.READ,
-                                                                                    Permission.WRITE);
+        assertThat(repositoryMetadata.perRolePermissions().owner())
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
+        assertThat(repositoryMetadata.perRolePermissions().member())
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
+        assertThat(repositoryMetadata.perRolePermissions().guest())
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
 
         mds.updatePerRolePermissions(author, project1, repo1, PerRolePermissions.ofPrivate()).join();
 
         repositoryMetadata = getRepo1(mds);
-        assertThat(repositoryMetadata.perRolePermissions().owner()).containsExactly(Permission.READ,
-                                                                                    Permission.WRITE);
-        assertThat(repositoryMetadata.perRolePermissions().member()).containsExactly(Permission.READ,
-                                                                                     Permission.WRITE);
+        assertThat(repositoryMetadata.perRolePermissions().owner())
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
+        assertThat(repositoryMetadata.perRolePermissions().member())
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
         assertThat(repositoryMetadata.perRolePermissions().guest())
                 .containsExactlyElementsOf(NO_PERMISSION);
 
         assertThat(mds.findPermissions(project1, repo1, owner).join())
-                .containsExactly(Permission.READ, Permission.WRITE);
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
         assertThat(mds.findPermissions(project1, repo1, guest).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
+
+        // Fail due to duplicated update.
+        assertThatThrownBy(() -> mds.updatePerRolePermissions(
+                author, project1, repo1, PerRolePermissions.ofPrivate()).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class);
 
         assertThatThrownBy(() -> mds.updatePerRolePermissions(
                 author, project1, REPO_DOGMA, PerRolePermissions.ofPublic()).join())
@@ -224,6 +229,11 @@ class MetadataServiceTest {
         // Be a member of the project.
         mds.addMember(author, project1, user1, ProjectRole.MEMBER).join();
 
+        // invalid repo.
+        assertThatThrownBy(() -> mds.addPerUserPermission(
+                author, project1, "invalid-repo", user1, READ_ONLY).join())
+                .hasCauseInstanceOf(RepositoryNotFoundException.class);
+
         // A member of the project has no permission.
         assertThat(mds.findPermissions(project1, repo1, user1).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
@@ -233,7 +243,7 @@ class MetadataServiceTest {
 
         // Fail due to duplicated addition.
         assertThatThrownBy(() -> mds.addPerUserPermission(author, project1, repo1, user1, READ_ONLY).join())
-                .hasCauseInstanceOf(ChangeConflictException.class);
+                .hasCauseInstanceOf(IllegalArgumentException.class);
 
         assertThat(mds.findPermissions(project1, repo1, user1).join())
                 .containsExactly(Permission.READ);
@@ -241,11 +251,19 @@ class MetadataServiceTest {
         mds.updatePerUserPermission(author, project1, repo1, user1, READ_WRITE).join();
 
         assertThat(mds.findPermissions(project1, repo1, user1).join())
-                .containsExactly(Permission.READ, Permission.WRITE);
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
+
+        // Update again with the same permission.
+        assertThatThrownBy(() -> mds.updatePerUserPermission(author, project1, repo1, user1, READ_WRITE).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+
+        // Update invalid user
+        assertThatThrownBy(() -> mds.updatePerUserPermission(author, project1, repo1, user2, READ_WRITE).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class);
 
         mds.removePerUserPermission(author, project1, repo1, user1).join();
         assertThatThrownBy(() -> mds.removePerUserPermission(author, project1, repo1, user1).join())
-                .hasCauseInstanceOf(ChangeConflictException.class);
+                .hasCauseInstanceOf(IllegalArgumentException.class);
 
         assertThat(mds.findPermissions(project1, repo1, user1).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
@@ -278,14 +296,22 @@ class MetadataServiceTest {
         assertThat(mds.findPermissions(project1, repo1, app1).join())
                 .containsExactly(Permission.READ);
 
+        // Add again.
+        assertThatThrownBy(() -> mds.addPerTokenPermission(author, project1, repo1, app1, READ_ONLY).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+
         mds.updatePerTokenPermission(author, project1, repo1, app1, READ_WRITE).join();
 
         assertThat(mds.findPermissions(project1, repo1, app1).join())
-                .containsExactly(Permission.READ, Permission.WRITE);
+                .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
+
+        // Update again with the same permission.
+        assertThatThrownBy(() -> mds.updatePerTokenPermission(author, project1, repo1, app1, READ_WRITE).join())
+                .hasCauseInstanceOf(IllegalArgumentException.class);
 
         mds.removePerTokenPermission(author, project1, repo1, app1).join();
         assertThatThrownBy(() -> mds.removePerTokenPermission(author, project1, repo1, app1).join())
-                .hasCauseInstanceOf(ChangeConflictException.class);
+                .hasCauseInstanceOf(IllegalArgumentException.class);
 
         assertThat(mds.findPermissions(project1, repo1, app1).join())
                 .containsExactlyElementsOf(NO_PERMISSION);

@@ -30,10 +30,10 @@ import com.fasterxml.jackson.databind.node.MissingNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * JSON Path {@code remove} operation.
+ * JSON Path {@code removeIfExists} operation.
  *
- * <p>This operation only takes one pointer ({@code path}) as an argument. It
- * is an error condition if no JSON value exists at that pointer.</p>
+ * <p>This operation only takes one pointer ({@code path}) as an argument. Unlike, {@link RemoveOperation}, it
+ * does not throw an error if no JSON value exists at that pointer.</p>
  */
 public final class RemoveIfExistsOperation extends JsonPatchOperation {
 

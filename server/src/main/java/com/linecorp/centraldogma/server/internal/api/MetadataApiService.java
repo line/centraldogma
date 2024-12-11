@@ -29,7 +29,6 @@ import java.util.function.Function;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.Exceptions;
@@ -42,7 +41,6 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
@@ -62,9 +60,6 @@ import com.linecorp.centraldogma.server.metadata.User;
 @ProducesJson
 @RequiresRole(roles = ProjectRole.OWNER)
 public class MetadataApiService extends AbstractService {
-
-    private static final TypeReference<Collection<Permission>> permissionsTypeRef =
-            new TypeReference<Collection<Permission>>() {};
 
     private final MetadataService mds;
     private final Function<String, String> loginNameNormalizer;
@@ -200,28 +195,6 @@ public class MetadataApiService extends AbstractService {
     }
 
     /**
-     * PATCH /metadata/{projectName}/repos/{repoName}/perm/users/{memberId}
-     *
-     * <p>Updates {@link Permission}s for the specified {@code memberId} of the specified {@code repoName}
-     * in the specified {@code projectName}.
-     */
-    @Patch("/metadata/{projectName}/repos/{repoName}/perm/users/{memberId}")
-    @Consumes("application/json-patch+json")
-    public CompletableFuture<Revision> updateSpecificUserPermission(@Param String projectName,
-                                                                    @Param String repoName,
-                                                                    @Param String memberId,
-                                                                    JsonPatch jsonPatch,
-                                                                    Author author) {
-        final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/permissions");
-        final Collection<Permission> permissions = Jackson.convertValue(operation.value(), permissionsTypeRef);
-        final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
-        return mds.findPermissions(projectName, repoName, member)
-                  .thenCompose(unused -> mds.updatePerUserPermission(author,
-                                                                     projectName, repoName, member,
-                                                                     permissions));
-    }
-
-    /**
      * DELETE /metadata/{projectName}/repos/{repoName}/perm/users/{memberId}
      *
      * <p>Removes {@link Permission}s for the specified {@code memberId} from the specified {@code repoName}
@@ -252,26 +225,6 @@ public class MetadataApiService extends AbstractService {
             Author author) {
         return mds.addPerTokenPermission(author, projectName, repoName,
                                          tokenWithPermissions.id(), tokenWithPermissions.permissions());
-    }
-
-    /**
-     * PATCH /metadata/{projectName}/repos/{repoName}/perm/tokens/{appId}
-     *
-     * <p>Updates {@link Permission}s for the specified {@code appId} of the specified {@code repoName}
-     * in the specified {@code projectName}.
-     */
-    @Patch("/metadata/{projectName}/repos/{repoName}/perm/tokens/{appId}")
-    @Consumes("application/json-patch+json")
-    public CompletableFuture<Revision> updateSpecificTokenPermission(@Param String projectName,
-                                                                     @Param String repoName,
-                                                                     @Param String appId,
-                                                                     JsonPatch jsonPatch,
-                                                                     Author author) {
-        final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/permissions");
-        final Collection<Permission> permissions = Jackson.convertValue(operation.value(), permissionsTypeRef);
-        return mds.findTokenByAppId(appId)
-                  .thenCompose(token -> mds.updatePerTokenPermission(
-                          author, projectName, repoName, appId, permissions));
     }
 
     /**

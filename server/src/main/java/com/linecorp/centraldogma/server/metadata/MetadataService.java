@@ -471,16 +471,48 @@ public class MetadataService {
                         "Can't give a permission to guest for internal repository: " + repoName);
             }
         }
-
-        final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) +
-                                                     "/perRolePermissions");
-        final Change<JsonNode> change =
-                Change.ofJsonPatch(METADATA_JSON,
-                                   new ReplaceOperation(path, Jackson.valueToTree(perRolePermissions))
-                                           .toJsonNode());
         final String commitSummary =
                 "Update the role permission of the '" + repoName + "' in the project '" + projectName + '\'';
-        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
+        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
+                METADATA_JSON, EntryType.JSON, node -> {
+            final ProjectMetadata projectMetadata = projectMetadata(node);
+            final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
+            assert repositoryMetadata.name().equals(repoName);
+            if (repositoryMetadata.perRolePermissions().equals(perRolePermissions)) {
+                throw new IllegalArgumentException(
+                        "the role permission of '" + projectName + '/' + repoName + "' isn't changed.");
+            }
+
+            return newProjectMetadata(projectMetadata,
+                                      new RepositoryMetadata(repositoryMetadata.name(),
+                                                             perRolePermissions,
+                                                             repositoryMetadata.perUserPermissions(),
+                                                             repositoryMetadata.perTokenPermissions(),
+                                                             repositoryMetadata.creation(),
+                                                             repositoryMetadata.removal(),
+                                                             repositoryMetadata.writeQuota()));
+        });
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
+    }
+
+    private static JsonNode newProjectMetadata(ProjectMetadata projectMetadata,
+                                               RepositoryMetadata repositoryMetadata) {
+        final ImmutableMap.Builder<String, RepositoryMetadata> builder =
+                ImmutableMap.builderWithExpectedSize(projectMetadata.repos().size());
+        for (Entry<String, RepositoryMetadata> entry : projectMetadata.repos().entrySet()) {
+            if (entry.getKey().equals(repositoryMetadata.name())) {
+                builder.put(entry.getKey(), repositoryMetadata);
+            } else {
+                builder.put(entry);
+            }
+        }
+        final ImmutableMap<String, RepositoryMetadata> newRepos = builder.build();
+        return Jackson.valueToTree(new ProjectMetadata(projectMetadata.name(),
+                                                       newRepos,
+                                                       projectMetadata.members(),
+                                                       projectMetadata.tokens(),
+                                                       projectMetadata.creation(),
+                                                       projectMetadata.removal()));
     }
 
     /**
@@ -612,7 +644,6 @@ public class MetadataService {
         requireNonNull(projectName, "projectName");
         requireNonNull(token, "token");
         requireNonNull(role, "role");
-
         final TokenRegistration registration = new TokenRegistration(token.appId(), role,
                                                                      UserAndTimestamp.of(author));
         final JsonPointer path = JsonPointer.compile("/tokens" + encodeSegment(registration.id()));
@@ -640,10 +671,38 @@ public class MetadataService {
 
         return getProject(projectName).thenCompose(project -> {
             ensureProjectMember(project, member);
-            final String commitSummary = "Add permission of '" + member.id() +
-                                         "' as '" + permission + "' to the project '" + projectName + '\n';
-            return addPermissionAtPointer(author, projectName, perUserPermissionPointer(repoName, member.id()),
-                                          permission, commitSummary);
+            final String commitSummary = "Add permission of '" + member.id() + "' as '" + permission +
+                                         "' to '" + projectName + '/' + repoName + "'\n";
+            final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
+                    METADATA_JSON, EntryType.JSON, node -> {
+                final ProjectMetadata projectMetadata = projectMetadata(node);
+                final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
+                assert repositoryMetadata.name().equals(repoName);
+                final Map<String, Collection<Permission>> perUserPermissions =
+                        repositoryMetadata.perUserPermissions();
+                if (perUserPermissions.get(member.id()) != null) {
+                    throw new IllegalArgumentException(
+                            "the member " + member.id() + " is already added to '" +
+                            projectName + '/' + repoName + '\'');
+                }
+
+                final ImmutableMap<String, Collection<Permission>> newPerUserPermissions =
+                        ImmutableMap.<String, Collection<Permission>>builderWithExpectedSize(
+                                            perUserPermissions.size() + 1)
+                                    .putAll(perUserPermissions)
+                                    .put(member.id(), permission)
+                                    .build();
+
+                return newProjectMetadata(projectMetadata,
+                                          new RepositoryMetadata(repositoryMetadata.name(),
+                                                                 repositoryMetadata.perRolePermissions(),
+                                                                 newPerUserPermissions,
+                                                                 repositoryMetadata.perTokenPermissions(),
+                                                                 repositoryMetadata.creation(),
+                                                                 repositoryMetadata.removal(),
+                                                                 repositoryMetadata.writeQuota()));
+            });
+            return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
         });
     }
 
@@ -659,10 +718,37 @@ public class MetadataService {
         requireNonNull(member, "member");
 
         final String memberId = member.id();
-        return removePermissionAtPointer(author, projectName,
-                                         perUserPermissionPointer(repoName, memberId),
-                                         "Remove permission of the '" + memberId +
-                                         "' from the project '" + projectName + '\'');
+        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
+                METADATA_JSON, EntryType.JSON, node -> {
+            final ProjectMetadata projectMetadata = projectMetadata(node);
+            final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
+            assert repositoryMetadata.name().equals(repoName);
+            final Map<String, Collection<Permission>> perUserPermissions =
+                    repositoryMetadata.perUserPermissions();
+            if (perUserPermissions.get(memberId) == null) {
+                throw new IllegalArgumentException(
+                        "the member " + memberId + " doesn't exist at '" +
+                        projectName + '/' + repoName + '\'');
+            }
+
+            final ImmutableMap.Builder<String, Collection<Permission>> builder =
+                    ImmutableMap.builderWithExpectedSize(perUserPermissions.size() - 1);
+            perUserPermissions.entrySet().stream()
+                              .filter(entry -> !entry.getKey().equals(memberId))
+                              .forEach(builder::put);
+            final ImmutableMap<String, Collection<Permission>> newPerUserPermissions = builder.build();
+            return newProjectMetadata(projectMetadata,
+                                      new RepositoryMetadata(repositoryMetadata.name(),
+                                                             repositoryMetadata.perRolePermissions(),
+                                                             newPerUserPermissions,
+                                                             repositoryMetadata.perTokenPermissions(),
+                                                             repositoryMetadata.creation(),
+                                                             repositoryMetadata.removal(),
+                                                             repositoryMetadata.writeQuota()));
+        });
+        final String commitSummary = "Remove permission of the '" + memberId +
+                                     "' from '" + projectName + '/' + repoName + '\'';
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
@@ -679,10 +765,48 @@ public class MetadataService {
         requireNonNull(permission, "permission");
 
         final String memberId = member.id();
-        return replacePermissionAtPointer(author, projectName,
-                                          perUserPermissionPointer(repoName, memberId), permission,
-                                          "Update permission of the '" + memberId +
-                                          "' as '" + permission + "' for the project '" + projectName + '\'');
+        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
+                METADATA_JSON, EntryType.JSON, node -> {
+            final ProjectMetadata projectMetadata = projectMetadata(node);
+            final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
+            assert repositoryMetadata.name().equals(repoName);
+            final Map<String, Collection<Permission>> perUserPermissions =
+                    repositoryMetadata.perUserPermissions();
+            final Collection<Permission> oldPermissions = perUserPermissions.get(memberId);
+            if (oldPermissions == null) {
+                throw new IllegalArgumentException(
+                        "the member " + memberId + " doesn't exist at '" +
+                        projectName + '/' + repoName + '\'');
+            }
+
+            if (oldPermissions.equals(permission)) {
+                throw new IllegalArgumentException(
+                        "the permission of " + memberId + " in '" + projectName + '/' + repoName +
+                        "' isn't changed.");
+            }
+
+            final ImmutableMap.Builder<String, Collection<Permission>> builder =
+                    ImmutableMap.builderWithExpectedSize(perUserPermissions.size());
+            for (Entry<String, Collection<Permission>> entry : perUserPermissions.entrySet()) {
+                if (entry.getKey().equals(memberId)) {
+                    builder.put(memberId, permission);
+                } else {
+                    builder.put(entry);
+                }
+            }
+            final ImmutableMap<String, Collection<Permission>> newPerUserPermissions = builder.build();
+            return newProjectMetadata(projectMetadata,
+                                      new RepositoryMetadata(repositoryMetadata.name(),
+                                                             repositoryMetadata.perRolePermissions(),
+                                                             newPerUserPermissions,
+                                                             repositoryMetadata.perTokenPermissions(),
+                                                             repositoryMetadata.creation(),
+                                                             repositoryMetadata.removal(),
+                                                             repositoryMetadata.writeQuota()));
+        });
+        final String commitSummary = "Update permission of the '" + memberId + "' as '" + permission +
+                                     "' for '" + projectName + '/' + repoName + '\'';
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
@@ -700,10 +824,36 @@ public class MetadataService {
 
         return getProject(projectName).thenCompose(project -> {
             ensureProjectToken(project, appId);
-            return addPermissionAtPointer(author, projectName,
-                                          perTokenPermissionPointer(repoName, appId), permission,
-                                          "Add permission of the token '" + appId +
-                                          "' as '" + permission + "' to the project '" + projectName + '\'');
+            final String commitSummary = "Add permission of the token '" + appId + "' as '" + permission +
+                                         "' to '" + projectName + '/' + repoName + "'\n";
+            final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
+                    METADATA_JSON, EntryType.JSON, node -> {
+                final ProjectMetadata projectMetadata = projectMetadata(node);
+                final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
+                assert repositoryMetadata.name().equals(repoName);
+                final Map<String, Collection<Permission>> perTokenPermissions =
+                        repositoryMetadata.perTokenPermissions();
+                if (perTokenPermissions.get(appId) != null) {
+                    throw new IllegalArgumentException(
+                            "the token " + appId + " is already added to '" +
+                            projectName + '/' + repoName + '\'');
+                }
+
+                final ImmutableMap.Builder<String, Collection<Permission>> builder =
+                        ImmutableMap.builderWithExpectedSize(perTokenPermissions.size() + 1);
+                builder.putAll(perTokenPermissions);
+                builder.put(appId, permission);
+                final ImmutableMap<String, Collection<Permission>> newPerTokenPermissions = builder.build();
+                return newProjectMetadata(projectMetadata,
+                                          new RepositoryMetadata(repositoryMetadata.name(),
+                                                                 repositoryMetadata.perRolePermissions(),
+                                                                 repositoryMetadata.perUserPermissions(),
+                                                                 newPerTokenPermissions,
+                                                                 repositoryMetadata.creation(),
+                                                                 repositoryMetadata.removal(),
+                                                                 repositoryMetadata.writeQuota()));
+            });
+            return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
         });
     }
 
@@ -718,10 +868,38 @@ public class MetadataService {
         requireNonNull(repoName, "repoName");
         requireNonNull(appId, "appId");
 
-        return removePermissionAtPointer(author, projectName,
-                                         perTokenPermissionPointer(repoName, appId),
-                                         "Remove permission of the token '" + appId +
-                                         "' from the project '" + projectName + '\'');
+        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
+                METADATA_JSON, EntryType.JSON, node -> {
+            final ProjectMetadata projectMetadata = projectMetadata(node);
+            final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
+            assert repositoryMetadata.name().equals(repoName);
+            final Map<String, Collection<Permission>> perTokenPermissions =
+                    repositoryMetadata.perTokenPermissions();
+            if (perTokenPermissions.get(appId) == null) {
+                throw new IllegalArgumentException(
+                        "the token " + appId + " doesn't exist at '" +
+                        projectName + '/' + repoName + '\'');
+            }
+
+            final ImmutableMap.Builder<String, Collection<Permission>> builder =
+                    ImmutableMap.builderWithExpectedSize(
+                    perTokenPermissions.size() - 1);
+            perTokenPermissions.entrySet().stream()
+                               .filter(entry -> !entry.getKey().equals(appId))
+                               .forEach(builder::put);
+            final ImmutableMap<String, Collection<Permission>> newPerTokenPermissions = builder.build();
+            return newProjectMetadata(projectMetadata,
+                                      new RepositoryMetadata(repositoryMetadata.name(),
+                                                             repositoryMetadata.perRolePermissions(),
+                                                             repositoryMetadata.perUserPermissions(),
+                                                             newPerTokenPermissions,
+                                                             repositoryMetadata.creation(),
+                                                             repositoryMetadata.removal(),
+                                                             repositoryMetadata.writeQuota()));
+        });
+        final String commitSummary = "Remove permission of the token '" + appId +
+                                     "' from '" + projectName + '/' + repoName + '\'';
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
@@ -737,10 +915,48 @@ public class MetadataService {
         requireNonNull(appId, "appId");
         requireNonNull(permission, "permission");
 
-        return replacePermissionAtPointer(author, projectName,
-                                          perTokenPermissionPointer(repoName, appId), permission,
-                                          "Update permission of the token '" + appId +
-                                          "' as '" + permission + "' for the project '" + projectName + '\'');
+        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
+                METADATA_JSON, EntryType.JSON, node -> {
+            final ProjectMetadata projectMetadata = projectMetadata(node);
+            final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
+            assert repositoryMetadata.name().equals(repoName);
+            final Map<String, Collection<Permission>> perTokenPermissions =
+                    repositoryMetadata.perTokenPermissions();
+            final Collection<Permission> oldPermissions = perTokenPermissions.get(appId);
+            if (oldPermissions == null) {
+                throw new IllegalArgumentException(
+                        "the token " + appId + " doesn't exist at '" +
+                        projectName + '/' + repoName + '\'');
+            }
+
+            if (oldPermissions.equals(permission)) {
+                throw new IllegalArgumentException(
+                        "the permission of " + appId + " in '" + projectName + '/' + repoName +
+                        "' isn't changed.");
+            }
+
+            final ImmutableMap.Builder<String, Collection<Permission>> builder =
+                    ImmutableMap.builderWithExpectedSize(perTokenPermissions.size());
+            for (Entry<String, Collection<Permission>> entry : perTokenPermissions.entrySet()) {
+                if (entry.getKey().equals(appId)) {
+                    builder.put(appId, permission);
+                } else {
+                    builder.put(entry);
+                }
+            }
+            final ImmutableMap<String, Collection<Permission>> newPerTokenPermissions = builder.build();
+            return newProjectMetadata(projectMetadata,
+                                      new RepositoryMetadata(repositoryMetadata.name(),
+                                                             repositoryMetadata.perRolePermissions(),
+                                                             repositoryMetadata.perUserPermissions(),
+                                                             newPerTokenPermissions,
+                                                             repositoryMetadata.creation(),
+                                                             repositoryMetadata.removal(),
+                                                             repositoryMetadata.writeQuota()));
+        });
+        final String commitSummary = "Update permission of the token '" + appId +
+                                     "' for '" + projectName + '/' + repoName + '\'';
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
@@ -764,43 +980,6 @@ public class MetadataService {
     }
 
     /**
-     * Adds {@link Permission}s to the specified {@code path}.
-     */
-    private CompletableFuture<Revision> addPermissionAtPointer(Author author,
-                                                               String projectName, JsonPointer path,
-                                                               Collection<Permission> permission,
-                                                               String commitSummary) {
-        final Change<JsonNode> change =
-                Change.ofJsonPatch(METADATA_JSON,
-                                   asJsonArray(new TestAbsenceOperation(path),
-                                               new AddOperation(path, Jackson.valueToTree(permission))));
-        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
-    }
-
-    /**
-     * Removes {@link Permission}s from the specified {@code path}.
-     */
-    private CompletableFuture<Revision> removePermissionAtPointer(Author author, String projectName,
-                                                                  JsonPointer path, String commitSummary) {
-        final Change<JsonNode> change = Change.ofJsonPatch(METADATA_JSON,
-                                                           new RemoveOperation(path).toJsonNode());
-        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
-    }
-
-    /**
-     * Replaces {@link Permission}s of the specified {@code path} with the specified {@code permission}.
-     */
-    private CompletableFuture<Revision> replacePermissionAtPointer(Author author,
-                                                                   String projectName, JsonPointer path,
-                                                                   Collection<Permission> permission,
-                                                                   String commitSummary) {
-        final Change<JsonNode> change =
-                Change.ofJsonPatch(METADATA_JSON,
-                                   new ReplaceOperation(path, Jackson.valueToTree(permission)).toJsonNode());
-        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
-    }
-
-    /**
      * Finds {@link Permission}s which belong to the specified {@link User} or {@link UserWithToken}
      * from the specified {@code repoName} in the specified {@code projectName}.
      */
@@ -808,7 +987,7 @@ public class MetadataService {
                                                                      User user) {
         requireNonNull(user, "user");
         if (user.isSystemAdmin()) {
-            return CompletableFuture.completedFuture(PerRolePermissions.ALL_PERMISSION);
+            return CompletableFuture.completedFuture(PerRolePermissions.READ_WRITE);
         }
         if (user instanceof UserWithToken) {
             return findPermissions(projectName, repoName, ((UserWithToken) user).token().appId());
@@ -1211,23 +1390,5 @@ public class MetadataService {
 
         checkArgument(project.tokens().containsKey(appId),
                       appId + " is not a token of the project '" + project.name() + '\'');
-    }
-
-    /**
-     * Generates the path of {@link JsonPointer} of permission of the specified {@code memberId} in the
-     * specified {@code repoName}.
-     */
-    private static JsonPointer perUserPermissionPointer(String repoName, String memberId) {
-        return JsonPointer.compile("/repos" + encodeSegment(repoName) +
-                                   "/perUserPermissions" + encodeSegment(memberId));
-    }
-
-    /**
-     * Generates the path of {@link JsonPointer} of permission of the specified token {@code appId}
-     * in the specified {@code repoName}.
-     */
-    private static JsonPointer perTokenPermissionPointer(String repoName, String appId) {
-        return JsonPointer.compile("/repos" + encodeSegment(repoName) +
-                                   "/perTokenPermissions" + encodeSegment(appId));
     }
 }

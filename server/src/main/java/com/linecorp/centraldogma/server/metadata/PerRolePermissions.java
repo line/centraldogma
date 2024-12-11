@@ -19,7 +19,6 @@ package com.linecorp.centraldogma.server.metadata;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
-import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;
 
@@ -28,6 +27,7 @@ import javax.annotation.Nullable;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
 import com.linecorp.centraldogma.common.ProjectRole;
@@ -36,16 +36,14 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 /**
  * A default permission for a {@link Repository}.
  */
-public class PerRolePermissions {
+public final class PerRolePermissions {
 
     /**
      * {@link Permission}s for administrators.
      */
-    public static final Collection<Permission> ALL_PERMISSION = EnumSet.allOf(Permission.class);
-
-    public static final Collection<Permission> READ_WRITE = EnumSet.of(Permission.READ, Permission.WRITE);
-    public static final Collection<Permission> READ_ONLY = EnumSet.of(Permission.READ);
-    public static final Collection<Permission> NO_PERMISSION = EnumSet.noneOf(Permission.class);
+    public static final Collection<Permission> READ_WRITE = ImmutableList.of(Permission.READ, Permission.WRITE);
+    public static final Collection<Permission> READ_ONLY = ImmutableList.of(Permission.READ);
+    public static final Collection<Permission> NO_PERMISSION = ImmutableList.of();
 
     /**
      * The default permission.
