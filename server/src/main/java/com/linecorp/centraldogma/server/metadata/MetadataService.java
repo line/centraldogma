@@ -279,8 +279,7 @@ public class MetadataService {
                                                            projectMetadata.creation(),
                                                            projectMetadata.removal()));
         });
-        return metadataRepo.pushIgnoringRedundantChange(projectName, Project.REPO_DOGMA,
-                                                        author, commitSummary, transformer);
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     private static ProjectMetadata projectMetadata(JsonNode node) {
@@ -606,8 +605,7 @@ public class MetadataService {
                                                            projectMetadata.creation(),
                                                            projectMetadata.removal()));
         });
-        return metadataRepo.pushIgnoringRedundantChange(projectName, Project.REPO_DOGMA, author,
-                                                        commitSummary, transformer);
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     private static ImmutableMap<String, RepositoryMetadata> removeTokenFromRepositories(
@@ -1175,8 +1173,7 @@ public class MetadataService {
             final Map<String, Token> newAppIds = appIdsBuilder.build();
             return Jackson.valueToTree(new Tokens(newAppIds, tokens.secrets()));
         });
-        return tokenRepo.pushIgnoringRedundantChange(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
-                                                     commitSummary, transformer);
+        return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
@@ -1220,8 +1217,7 @@ public class MetadataService {
 
             return Jackson.valueToTree(new Tokens(newAppIds, newSecrets));
         });
-        return tokenRepo.pushIgnoringRedundantChange(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
-                                                     commitSummary, transformer)
+        return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer)
                         .join();
     }
 
@@ -1283,8 +1279,7 @@ public class MetadataService {
 
             return Jackson.valueToTree(new Tokens(newAppIds, newSecrets));
         });
-        return tokenRepo.pushIgnoringRedundantChange(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
-                                                     commitSummary, transformer);
+        return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
@@ -1322,8 +1317,7 @@ public class MetadataService {
 
             return Jackson.valueToTree(new Tokens(newAppIds, newSecrets));
         });
-        return tokenRepo.pushIgnoringRedundantChange(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
-                                                     commitSummary, transformer);
+        return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
@@ -1354,8 +1348,7 @@ public class MetadataService {
             final Map<String, Token> newAppIds = appIdsBuilder.build();
             return Jackson.valueToTree(new Tokens(newAppIds, tokens.secrets()));
         });
-        return tokenRepo.pushIgnoringRedundantChange(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
-                                                     commitSummary, transformer);
+        return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
