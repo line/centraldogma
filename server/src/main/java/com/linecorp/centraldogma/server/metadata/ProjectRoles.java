@@ -27,10 +27,15 @@ import com.linecorp.centraldogma.common.RepositoryRole;
  */
 public final class ProjectRoles {
 
+    private static final ProjectRoles EMPTY = new ProjectRoles(null, null);
+
     /**
      * Returns a new {@link ProjectRoles} with the specified {@link RepositoryRole}s.
      */
     public static ProjectRoles of(@Nullable RepositoryRole member, @Nullable RepositoryRole guest) {
+        if (member == null && guest == null) {
+            return EMPTY;
+        }
         return new ProjectRoles(member, guest);
     }
 
