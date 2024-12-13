@@ -42,6 +42,7 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
@@ -58,7 +59,8 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
     }
 
     @Override
-    int doApply(DirCache dirCache, ObjectReader reader, ObjectInserter inserter) throws IOException {
+    int doApply(Revision unused, DirCache dirCache,
+                ObjectReader reader, ObjectInserter inserter) throws IOException {
         int numEdits = 0;
         // loop over the specified changes.
         for (Change<?> change : changes) {

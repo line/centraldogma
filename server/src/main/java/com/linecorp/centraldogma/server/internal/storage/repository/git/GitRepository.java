@@ -249,7 +249,7 @@ class GitRepository implements Repository {
 
             new CommitExecutor(this, creationTimeMillis, author, "Create a new repository", "",
                                Markup.PLAINTEXT, true)
-                    .executeInitialCommit(Collections.emptyList());
+                    .executeInitialCommit();
 
             headRevision = Revision.INIT;
             success = true;

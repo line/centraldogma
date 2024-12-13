@@ -33,9 +33,9 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.ContentTransformer;
-import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
 
 final class TransformingChangesApplier extends AbstractChangesApplier {
 
@@ -49,7 +49,8 @@ final class TransformingChangesApplier extends AbstractChangesApplier {
     }
 
     @Override
-    int doApply(DirCache dirCache, ObjectReader reader, ObjectInserter inserter) throws IOException {
+    int doApply(Revision headRevision, DirCache dirCache,
+                ObjectReader reader, ObjectInserter inserter) throws IOException {
         final String changePath = transformer.path().substring(1); // Strip the leading '/'.
         final DirCacheEntry oldEntry = dirCache.getEntry(changePath);
         final byte[] oldContent = oldEntry != null ? reader.open(oldEntry.getObjectId()).getBytes()
@@ -57,13 +58,13 @@ final class TransformingChangesApplier extends AbstractChangesApplier {
         final JsonNode oldJsonNode = oldContent != null ? Jackson.readTree(oldContent)
                                                         : JsonNodeFactory.instance.nullNode();
         try {
-            final JsonNode newJsonNode = transformer.transformer().apply(oldJsonNode.deepCopy());
+            final JsonNode newJsonNode = transformer.transformer().apply(headRevision, oldJsonNode.deepCopy());
             requireNonNull(newJsonNode, "transformer.transformer().apply() returned null");
             if (!Objects.equals(newJsonNode, oldJsonNode)) {
                 applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
                 return 1;
             }
-        } catch (CentralDogmaException | TokenNotFoundException | IllegalArgumentException e) {
+        } catch (CentralDogmaException e) {
             throw e;
         } catch (Exception e) {
             throw new ChangeConflictException("failed to transform the content: " + oldJsonNode +

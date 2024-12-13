@@ -38,14 +38,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
 import com.linecorp.centraldogma.server.storage.StorageException;
 
 abstract class AbstractChangesApplier {
 
     private static final byte[] EMPTY_BYTE = new byte[0];
 
-    int apply(Repository jGitRepository, @Nullable Revision baseRevision,
+    int apply(Repository jGitRepository, Revision headRevision,
               @Nullable ObjectId baseTreeId, DirCache dirCache) {
         try (ObjectInserter inserter = jGitRepository.newObjectInserter();
              ObjectReader reader = jGitRepository.newObjectReader()) {
@@ -59,16 +58,16 @@ abstract class AbstractChangesApplier {
                 builder.finish();
             }
 
-            return doApply(dirCache, reader, inserter);
-        } catch (CentralDogmaException | TokenNotFoundException | IllegalArgumentException e) {
+            return doApply(headRevision, dirCache, reader, inserter);
+        } catch (CentralDogmaException e) {
             throw e;
         } catch (Exception e) {
-            throw new StorageException("failed to apply changes on revision: " +
-                                       (baseRevision != null ? baseRevision.major() : 0), e);
+            throw new StorageException("failed to apply changes on revision: " + headRevision.major(), e);
         }
     }
 
-    abstract int doApply(DirCache dirCache, ObjectReader reader, ObjectInserter inserter) throws IOException;
+    abstract int doApply(Revision headRevision, DirCache dirCache,
+                         ObjectReader reader, ObjectInserter inserter) throws IOException;
 
     static void applyPathEdit(DirCache dirCache, PathEdit edit) {
         final DirCacheEditor e = dirCache.editor();

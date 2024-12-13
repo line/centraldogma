@@ -38,9 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonPointer;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -50,9 +48,8 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
-import com.linecorp.centraldogma.common.EntryNotFoundException;
-import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.ProjectRole;
+import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -62,7 +59,6 @@ import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.TestAbsenceOperation;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -256,39 +252,24 @@ public class MetadataService {
         final String commitSummary =
                 "Remove the member '" + memberId + "' from the project '" + projectName + '\'';
 
-        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                METADATA_JSON, EntryType.JSON, node -> {
-            final ProjectMetadata projectMetadata = projectMetadata(node);
-            projectMetadata.member(memberId); // Raises an exception if the member does not exist.
-            final Map<String, Member> members = projectMetadata.members();
-            final ImmutableMap.Builder<String, Member> membersBuilder =
-                    ImmutableMap.builderWithExpectedSize(members.size() - 1);
-            for (Entry<String, Member> entry : members.entrySet()) {
-                if (!entry.getKey().equals(memberId)) {
-                    membersBuilder.put(entry);
-                }
-            }
-            final Map<String, Member> newMembers = membersBuilder.build();
+        final ProjectMetadataTransformer transformer =
+                new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
+                    projectMetadata.member(memberId); // Raises an exception if the member does not exist.
+                    final Map<String, Member> newMembers =
+                            projectMetadata.members().entrySet().stream()
+                                           .filter(entry -> !entry.getKey().equals(memberId))
+                                           .collect(toImmutableMap(Entry::getKey, Entry::getValue));
 
-            final ImmutableMap<String, RepositoryMetadata> newRepos =
-                    removeMemberFromRepositories(projectMetadata, memberId);
-            return Jackson.valueToTree(new ProjectMetadata(projectMetadata.name(),
-                                                           newRepos,
-                                                           newMembers,
-                                                           projectMetadata.tokens(),
-                                                           projectMetadata.creation(),
-                                                           projectMetadata.removal()));
-        });
+                    final ImmutableMap<String, RepositoryMetadata> newRepos =
+                            removeMemberFromRepositories(projectMetadata, memberId);
+                    return new ProjectMetadata(projectMetadata.name(),
+                                               newRepos,
+                                               newMembers,
+                                               projectMetadata.tokens(),
+                                               projectMetadata.creation(),
+                                               projectMetadata.removal());
+                });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
-    }
-
-    private static ProjectMetadata projectMetadata(JsonNode node) {
-        try {
-            return Jackson.treeToValue(node, ProjectMetadata.class);
-        } catch (JsonParseException | JsonMappingException e) {
-            // Should never reach here.
-            throw new Error();
-        }
     }
 
     private static ImmutableMap<String, RepositoryMetadata> removeMemberFromRepositories(
@@ -473,46 +454,23 @@ public class MetadataService {
         }
         final String commitSummary =
                 "Update the role permission of the '" + repoName + "' in the project '" + projectName + '\'';
-        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                METADATA_JSON, EntryType.JSON, node -> {
-            final ProjectMetadata projectMetadata = projectMetadata(node);
-            final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
-            assert repositoryMetadata.name().equals(repoName);
+        final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
+                repoName, (headRevision, repositoryMetadata) -> {
             if (repositoryMetadata.perRolePermissions().equals(perRolePermissions)) {
-                throw new IllegalArgumentException(
+                throw new RedundantChangeException(
+                        headRevision,
                         "the role permission of '" + projectName + '/' + repoName + "' isn't changed.");
             }
 
-            return newProjectMetadata(projectMetadata,
-                                      new RepositoryMetadata(repositoryMetadata.name(),
-                                                             perRolePermissions,
-                                                             repositoryMetadata.perUserPermissions(),
-                                                             repositoryMetadata.perTokenPermissions(),
-                                                             repositoryMetadata.creation(),
-                                                             repositoryMetadata.removal(),
-                                                             repositoryMetadata.writeQuota()));
+            return new RepositoryMetadata(repositoryMetadata.name(),
+                                          perRolePermissions,
+                                          repositoryMetadata.perUserPermissions(),
+                                          repositoryMetadata.perTokenPermissions(),
+                                          repositoryMetadata.creation(),
+                                          repositoryMetadata.removal(),
+                                          repositoryMetadata.writeQuota());
         });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
-    }
-
-    private static JsonNode newProjectMetadata(ProjectMetadata projectMetadata,
-                                               RepositoryMetadata repositoryMetadata) {
-        final ImmutableMap.Builder<String, RepositoryMetadata> builder =
-                ImmutableMap.builderWithExpectedSize(projectMetadata.repos().size());
-        for (Entry<String, RepositoryMetadata> entry : projectMetadata.repos().entrySet()) {
-            if (entry.getKey().equals(repositoryMetadata.name())) {
-                builder.put(entry.getKey(), repositoryMetadata);
-            } else {
-                builder.put(entry);
-            }
-        }
-        final ImmutableMap<String, RepositoryMetadata> newRepos = builder.build();
-        return Jackson.valueToTree(new ProjectMetadata(projectMetadata.name(),
-                                                       newRepos,
-                                                       projectMetadata.members(),
-                                                       projectMetadata.tokens(),
-                                                       projectMetadata.creation(),
-                                                       projectMetadata.removal()));
     }
 
     /**
@@ -534,8 +492,7 @@ public class MetadataService {
         requireNonNull(role, "role");
 
         return getTokens().thenCompose(tokens -> {
-            final Token token = tokens.appIds().get(appId);
-            checkArgument(token != null, "Token not found: " + appId);
+            tokens.get(appId); // Will raise an exception if not found.
 
             final TokenRegistration registration = new TokenRegistration(appId, role,
                                                                          UserAndTimestamp.of(author));
@@ -574,36 +531,31 @@ public class MetadataService {
                                                     boolean quiet) {
         final String commitSummary = "Remove the token '" + appId + "' from the project '" + projectName + '\'';
 
-        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                METADATA_JSON, EntryType.JSON, node -> {
-            final ProjectMetadata projectMetadata = projectMetadata(node);
+        final ProjectMetadataTransformer transformer =
+                new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
             final Map<String, TokenRegistration> tokens = projectMetadata.tokens();
             final Map<String, TokenRegistration> newTokens;
             if (tokens.get(appId) == null) {
                 if (!quiet) {
-                    throw new EntryNotFoundException(
+                    throw new TokenNotFoundException(
                             "failed to find the token " + appId + " in project " + projectName);
                 }
                 newTokens = tokens;
             } else {
-                final ImmutableMap.Builder<String, TokenRegistration> tokensBuilder =
-                        ImmutableMap.builderWithExpectedSize(tokens.size() - 1);
-                for (Entry<String, TokenRegistration> entry : tokens.entrySet()) {
-                    if (!entry.getKey().equals(appId)) {
-                        tokensBuilder.put(entry);
-                    }
-                }
-                newTokens = tokensBuilder.build();
+                newTokens = tokens.entrySet()
+                                  .stream()
+                                  .filter(entry -> !entry.getKey().equals(appId))
+                                  .collect(toImmutableMap(Entry::getKey, Entry::getValue));
             }
 
             final ImmutableMap<String, RepositoryMetadata> newRepos =
                     removeTokenFromRepositories(appId, projectMetadata);
-            return Jackson.valueToTree(new ProjectMetadata(projectMetadata.name(),
-                                                           newRepos,
-                                                           projectMetadata.members(),
-                                                           newTokens,
-                                                           projectMetadata.creation(),
-                                                           projectMetadata.removal()));
+            return new ProjectMetadata(projectMetadata.name(),
+                                       newRepos,
+                                       projectMetadata.members(),
+                                       newTokens,
+                                       projectMetadata.creation(),
+                                       projectMetadata.removal());
         });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -673,15 +625,12 @@ public class MetadataService {
             ensureProjectMember(project, member);
             final String commitSummary = "Add permission of '" + member.id() + "' as '" + permission +
                                          "' to '" + projectName + '/' + repoName + "'\n";
-            final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                    METADATA_JSON, EntryType.JSON, node -> {
-                final ProjectMetadata projectMetadata = projectMetadata(node);
-                final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
-                assert repositoryMetadata.name().equals(repoName);
+            final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
+                    repoName, (headRevision, repositoryMetadata) -> {
                 final Map<String, Collection<Permission>> perUserPermissions =
                         repositoryMetadata.perUserPermissions();
                 if (perUserPermissions.get(member.id()) != null) {
-                    throw new IllegalArgumentException(
+                    throw new ChangeConflictException(
                             "the member " + member.id() + " is already added to '" +
                             projectName + '/' + repoName + '\'');
                 }
@@ -693,14 +642,13 @@ public class MetadataService {
                                     .put(member.id(), permission)
                                     .build();
 
-                return newProjectMetadata(projectMetadata,
-                                          new RepositoryMetadata(repositoryMetadata.name(),
-                                                                 repositoryMetadata.perRolePermissions(),
-                                                                 newPerUserPermissions,
-                                                                 repositoryMetadata.perTokenPermissions(),
-                                                                 repositoryMetadata.creation(),
-                                                                 repositoryMetadata.removal(),
-                                                                 repositoryMetadata.writeQuota()));
+                return new RepositoryMetadata(repositoryMetadata.name(),
+                                              repositoryMetadata.perRolePermissions(),
+                                              newPerUserPermissions,
+                                              repositoryMetadata.perTokenPermissions(),
+                                              repositoryMetadata.creation(),
+                                              repositoryMetadata.removal(),
+                                              repositoryMetadata.writeQuota());
             });
             return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
         });
@@ -718,33 +666,25 @@ public class MetadataService {
         requireNonNull(member, "member");
 
         final String memberId = member.id();
-        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                METADATA_JSON, EntryType.JSON, node -> {
-            final ProjectMetadata projectMetadata = projectMetadata(node);
-            final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
-            assert repositoryMetadata.name().equals(repoName);
+        final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
+                repoName, (headRevision, repositoryMetadata) -> {
             final Map<String, Collection<Permission>> perUserPermissions =
                     repositoryMetadata.perUserPermissions();
             if (perUserPermissions.get(memberId) == null) {
-                throw new IllegalArgumentException(
-                        "the member " + memberId + " doesn't exist at '" +
-                        projectName + '/' + repoName + '\'');
+                throw new MemberNotFoundException(memberId, projectName, repoName);
             }
 
-            final ImmutableMap.Builder<String, Collection<Permission>> builder =
-                    ImmutableMap.builderWithExpectedSize(perUserPermissions.size() - 1);
-            perUserPermissions.entrySet().stream()
-                              .filter(entry -> !entry.getKey().equals(memberId))
-                              .forEach(builder::put);
-            final ImmutableMap<String, Collection<Permission>> newPerUserPermissions = builder.build();
-            return newProjectMetadata(projectMetadata,
-                                      new RepositoryMetadata(repositoryMetadata.name(),
-                                                             repositoryMetadata.perRolePermissions(),
-                                                             newPerUserPermissions,
-                                                             repositoryMetadata.perTokenPermissions(),
-                                                             repositoryMetadata.creation(),
-                                                             repositoryMetadata.removal(),
-                                                             repositoryMetadata.writeQuota()));
+            final ImmutableMap<String, Collection<Permission>> newPerUserPermissions =
+                    perUserPermissions.entrySet().stream()
+                                      .filter(entry -> !entry.getKey().equals(memberId))
+                                      .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+            return new RepositoryMetadata(repositoryMetadata.name(),
+                                          repositoryMetadata.perRolePermissions(),
+                                          newPerUserPermissions,
+                                          repositoryMetadata.perTokenPermissions(),
+                                          repositoryMetadata.creation(),
+                                          repositoryMetadata.removal(),
+                                          repositoryMetadata.writeQuota());
         });
         final String commitSummary = "Remove permission of the '" + memberId +
                                      "' from '" + projectName + '/' + repoName + '\'';
@@ -765,48 +705,50 @@ public class MetadataService {
         requireNonNull(permission, "permission");
 
         final String memberId = member.id();
-        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                METADATA_JSON, EntryType.JSON, node -> {
-            final ProjectMetadata projectMetadata = projectMetadata(node);
-            final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
-            assert repositoryMetadata.name().equals(repoName);
+        final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
+                repoName, (headRevision, repositoryMetadata) -> {
             final Map<String, Collection<Permission>> perUserPermissions =
                     repositoryMetadata.perUserPermissions();
             final Collection<Permission> oldPermissions = perUserPermissions.get(memberId);
             if (oldPermissions == null) {
-                throw new IllegalArgumentException(
-                        "the member " + memberId + " doesn't exist at '" +
-                        projectName + '/' + repoName + '\'');
+                throw new MemberNotFoundException(memberId, projectName, repoName);
             }
 
             if (oldPermissions.equals(permission)) {
-                throw new IllegalArgumentException(
+                throw new RedundantChangeException(
+                        headRevision,
                         "the permission of " + memberId + " in '" + projectName + '/' + repoName +
                         "' isn't changed.");
             }
 
-            final ImmutableMap.Builder<String, Collection<Permission>> builder =
-                    ImmutableMap.builderWithExpectedSize(perUserPermissions.size());
-            for (Entry<String, Collection<Permission>> entry : perUserPermissions.entrySet()) {
-                if (entry.getKey().equals(memberId)) {
-                    builder.put(memberId, permission);
-                } else {
-                    builder.put(entry);
-                }
-            }
-            final ImmutableMap<String, Collection<Permission>> newPerUserPermissions = builder.build();
-            return newProjectMetadata(projectMetadata,
-                                      new RepositoryMetadata(repositoryMetadata.name(),
-                                                             repositoryMetadata.perRolePermissions(),
-                                                             newPerUserPermissions,
-                                                             repositoryMetadata.perTokenPermissions(),
-                                                             repositoryMetadata.creation(),
-                                                             repositoryMetadata.removal(),
-                                                             repositoryMetadata.writeQuota()));
+            final ImmutableMap<String, Collection<Permission>> newPerUserPermissions =
+                    updatePermissions(permission, perUserPermissions, memberId);
+            return new RepositoryMetadata(repositoryMetadata.name(),
+                                          repositoryMetadata.perRolePermissions(),
+                                          newPerUserPermissions,
+                                          repositoryMetadata.perTokenPermissions(),
+                                          repositoryMetadata.creation(),
+                                          repositoryMetadata.removal(),
+                                          repositoryMetadata.writeQuota());
         });
         final String commitSummary = "Update permission of the '" + memberId + "' as '" + permission +
                                      "' for '" + projectName + '/' + repoName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
+    }
+
+    private static ImmutableMap<String, Collection<Permission>> updatePermissions(
+            Collection<Permission> permission, Map<String, Collection<Permission>> perPermissions,
+            String id) {
+        final ImmutableMap.Builder<String, Collection<Permission>> builder =
+                ImmutableMap.builderWithExpectedSize(perPermissions.size());
+        for (Entry<String, Collection<Permission>> entry : perPermissions.entrySet()) {
+            if (entry.getKey().equals(id)) {
+                builder.put(id, permission);
+            } else {
+                builder.put(entry);
+            }
+        }
+        return builder.build();
     }
 
     /**
@@ -826,32 +768,28 @@ public class MetadataService {
             ensureProjectToken(project, appId);
             final String commitSummary = "Add permission of the token '" + appId + "' as '" + permission +
                                          "' to '" + projectName + '/' + repoName + "'\n";
-            final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                    METADATA_JSON, EntryType.JSON, node -> {
-                final ProjectMetadata projectMetadata = projectMetadata(node);
-                final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
-                assert repositoryMetadata.name().equals(repoName);
+            final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
+                    repoName, (headRevision, repositoryMetadata) -> {
                 final Map<String, Collection<Permission>> perTokenPermissions =
                         repositoryMetadata.perTokenPermissions();
                 if (perTokenPermissions.get(appId) != null) {
-                    throw new IllegalArgumentException(
+                    throw new ChangeConflictException(
                             "the token " + appId + " is already added to '" +
                             projectName + '/' + repoName + '\'');
                 }
 
-                final ImmutableMap.Builder<String, Collection<Permission>> builder =
-                        ImmutableMap.builderWithExpectedSize(perTokenPermissions.size() + 1);
-                builder.putAll(perTokenPermissions);
-                builder.put(appId, permission);
-                final ImmutableMap<String, Collection<Permission>> newPerTokenPermissions = builder.build();
-                return newProjectMetadata(projectMetadata,
-                                          new RepositoryMetadata(repositoryMetadata.name(),
-                                                                 repositoryMetadata.perRolePermissions(),
-                                                                 repositoryMetadata.perUserPermissions(),
-                                                                 newPerTokenPermissions,
-                                                                 repositoryMetadata.creation(),
-                                                                 repositoryMetadata.removal(),
-                                                                 repositoryMetadata.writeQuota()));
+                final ImmutableMap<String, Collection<Permission>> newPerTokenPermissions =
+                        ImmutableMap.<String, Collection<Permission>>builderWithExpectedSize(
+                                            perTokenPermissions.size() + 1)
+                                    .putAll(perTokenPermissions)
+                                    .put(appId, permission).build();
+                return new RepositoryMetadata(repositoryMetadata.name(),
+                                              repositoryMetadata.perRolePermissions(),
+                                              repositoryMetadata.perUserPermissions(),
+                                              newPerTokenPermissions,
+                                              repositoryMetadata.creation(),
+                                              repositoryMetadata.removal(),
+                                              repositoryMetadata.writeQuota());
             });
             return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
         });
@@ -868,34 +806,27 @@ public class MetadataService {
         requireNonNull(repoName, "repoName");
         requireNonNull(appId, "appId");
 
-        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                METADATA_JSON, EntryType.JSON, node -> {
-            final ProjectMetadata projectMetadata = projectMetadata(node);
-            final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
-            assert repositoryMetadata.name().equals(repoName);
+        final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
+                repoName, (headRevision, repositoryMetadata) -> {
             final Map<String, Collection<Permission>> perTokenPermissions =
                     repositoryMetadata.perTokenPermissions();
             if (perTokenPermissions.get(appId) == null) {
-                throw new IllegalArgumentException(
+                throw new ChangeConflictException(
                         "the token " + appId + " doesn't exist at '" +
                         projectName + '/' + repoName + '\'');
             }
 
-            final ImmutableMap.Builder<String, Collection<Permission>> builder =
-                    ImmutableMap.builderWithExpectedSize(
-                    perTokenPermissions.size() - 1);
-            perTokenPermissions.entrySet().stream()
-                               .filter(entry -> !entry.getKey().equals(appId))
-                               .forEach(builder::put);
-            final ImmutableMap<String, Collection<Permission>> newPerTokenPermissions = builder.build();
-            return newProjectMetadata(projectMetadata,
-                                      new RepositoryMetadata(repositoryMetadata.name(),
-                                                             repositoryMetadata.perRolePermissions(),
-                                                             repositoryMetadata.perUserPermissions(),
-                                                             newPerTokenPermissions,
-                                                             repositoryMetadata.creation(),
-                                                             repositoryMetadata.removal(),
-                                                             repositoryMetadata.writeQuota()));
+            final ImmutableMap<String, Collection<Permission>> newPerTokenPermissions =
+                    perTokenPermissions.entrySet().stream()
+                                       .filter(entry -> !entry.getKey().equals(appId))
+                                       .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+            return new RepositoryMetadata(repositoryMetadata.name(),
+                                          repositoryMetadata.perRolePermissions(),
+                                          repositoryMetadata.perUserPermissions(),
+                                          newPerTokenPermissions,
+                                          repositoryMetadata.creation(),
+                                          repositoryMetadata.removal(),
+                                          repositoryMetadata.writeQuota());
         });
         final String commitSummary = "Remove permission of the token '" + appId +
                                      "' from '" + projectName + '/' + repoName + '\'';
@@ -915,44 +846,33 @@ public class MetadataService {
         requireNonNull(appId, "appId");
         requireNonNull(permission, "permission");
 
-        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                METADATA_JSON, EntryType.JSON, node -> {
-            final ProjectMetadata projectMetadata = projectMetadata(node);
-            final RepositoryMetadata repositoryMetadata = projectMetadata.repo(repoName);
-            assert repositoryMetadata.name().equals(repoName);
+        final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
+                repoName, (headRevision, repositoryMetadata) -> {
             final Map<String, Collection<Permission>> perTokenPermissions =
                     repositoryMetadata.perTokenPermissions();
             final Collection<Permission> oldPermissions = perTokenPermissions.get(appId);
             if (oldPermissions == null) {
-                throw new IllegalArgumentException(
+                throw new TokenNotFoundException(
                         "the token " + appId + " doesn't exist at '" +
                         projectName + '/' + repoName + '\'');
             }
 
             if (oldPermissions.equals(permission)) {
-                throw new IllegalArgumentException(
+                throw new RedundantChangeException(
+                        headRevision,
                         "the permission of " + appId + " in '" + projectName + '/' + repoName +
                         "' isn't changed.");
             }
 
-            final ImmutableMap.Builder<String, Collection<Permission>> builder =
-                    ImmutableMap.builderWithExpectedSize(perTokenPermissions.size());
-            for (Entry<String, Collection<Permission>> entry : perTokenPermissions.entrySet()) {
-                if (entry.getKey().equals(appId)) {
-                    builder.put(appId, permission);
-                } else {
-                    builder.put(entry);
-                }
-            }
-            final ImmutableMap<String, Collection<Permission>> newPerTokenPermissions = builder.build();
-            return newProjectMetadata(projectMetadata,
-                                      new RepositoryMetadata(repositoryMetadata.name(),
-                                                             repositoryMetadata.perRolePermissions(),
-                                                             repositoryMetadata.perUserPermissions(),
-                                                             newPerTokenPermissions,
-                                                             repositoryMetadata.creation(),
-                                                             repositoryMetadata.removal(),
-                                                             repositoryMetadata.writeQuota()));
+            final ImmutableMap<String, Collection<Permission>> newPerTokenPermissions =
+                    updatePermissions(permission, perTokenPermissions, appId);
+            return new RepositoryMetadata(repositoryMetadata.name(),
+                                          repositoryMetadata.perRolePermissions(),
+                                          repositoryMetadata.perUserPermissions(),
+                                          newPerTokenPermissions,
+                                          repositoryMetadata.creation(),
+                                          repositoryMetadata.removal(),
+                                          repositoryMetadata.writeQuota());
         });
         final String commitSummary = "Update permission of the token '" + appId +
                                      "' for '" + projectName + '/' + repoName + '\'';
@@ -1147,33 +1067,36 @@ public class MetadataService {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
-        final String commitSummary = "Delete the token: " + appId;
+        final String commitSummary = "Destroy the token: " + appId;
         final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
 
-        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                TOKEN_JSON, EntryType.JSON, node -> {
-            final Tokens tokens = tokens(node);
+        final TokensTransformer transformer = new TokensTransformer((headRevision, tokens) -> {
             final Token token = tokens.get(appId); // Raise an exception if not found.
             if (token.deletion() != null) {
-                throw new IllegalArgumentException("The token is already deleted: " + appId);
+                throw new ChangeConflictException("The token is already destroyed: " + appId);
             }
 
-            final ImmutableMap.Builder<String, Token> appIdsBuilder = ImmutableMap.builder();
-            for (Entry<String, Token> entry : tokens.appIds().entrySet()) {
-                if (!entry.getKey().equals(appId)) {
-                    appIdsBuilder.put(entry);
-                } else {
-                    final String secret = token.secret();
-                    assert secret != null;
-                    appIdsBuilder.put(appId, new Token(token.appId(), secret, token.isSystemAdmin(),
-                                                       token.isSystemAdmin(), token.creation(),
-                                                       token.deactivation(), userAndTimestamp));
-                }
-            }
-            final Map<String, Token> newAppIds = appIdsBuilder.build();
-            return Jackson.valueToTree(new Tokens(newAppIds, tokens.secrets()));
+            final String secret = token.secret();
+            assert secret != null;
+            final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(),
+                                             token.isSystemAdmin(), token.creation(),
+                                             token.deactivation(), userAndTimestamp);
+            return new Tokens(newAppIds(tokens, appId, newToken), tokens.secrets());
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
+    }
+
+    private static Map<String, Token> newAppIds(Tokens tokens, String appId, Token newToken) {
+        final ImmutableMap.Builder<String, Token> appIdsBuilder =
+                ImmutableMap.builderWithExpectedSize(tokens.appIds().size());
+        for (Entry<String, Token> entry : tokens.appIds().entrySet()) {
+            if (!entry.getKey().equals(appId)) {
+                appIdsBuilder.put(entry);
+            } else {
+                appIdsBuilder.put(appId, newToken);
+            }
+        }
+        return appIdsBuilder.build();
     }
 
     /**
@@ -1202,44 +1125,20 @@ public class MetadataService {
 
         final String commitSummary = "Remove the token: " + appId;
 
-        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                TOKEN_JSON, EntryType.JSON, node -> {
-            final Tokens tokens = tokens(node);
-            tokens.get(appId); // Raise an exception if not found.
-            final ImmutableMap.Builder<String, Token> appIdsBuilder = ImmutableMap.builder();
-            for (Entry<String, Token> entry : tokens.appIds().entrySet()) {
-                if (!entry.getKey().equals(appId)) {
-                    appIdsBuilder.put(entry);
-                }
-            }
-            final Map<String, Token> newAppIds = appIdsBuilder.build();
-            final Map<String, String> newSecrets = secretsWithout(appId, tokens);
-
-            return Jackson.valueToTree(new Tokens(newAppIds, newSecrets));
+        final TokensTransformer transformer = new TokensTransformer((headRevision, tokens) -> {
+            final Token token = tokens.get(appId);
+            final Map<String, Token> newAppIds = tokens.appIds().entrySet().stream()
+                                                       .filter(entry -> !entry.getKey().equals(appId))
+                                                       .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+            final String secret = token.secret();
+            assert secret != null;
+            final Map<String, String> newSecrets =
+                    tokens.secrets().entrySet().stream().filter(entry -> !entry.getKey().equals(secret))
+                          .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+            return new Tokens(newAppIds, newSecrets);
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer)
                         .join();
-    }
-
-    private static Tokens tokens(JsonNode node) {
-        final Tokens tokens;
-        try {
-            tokens = Jackson.treeToValue(node, Tokens.class);
-        } catch (JsonParseException | JsonMappingException e) {
-            // Should never reach here.
-            throw new Error(e);
-        }
-        return tokens;
-    }
-
-    private static Map<String, String> secretsWithout(String appId, Tokens tokens) {
-        final ImmutableMap.Builder<String, String> secretsBuilder = ImmutableMap.builder();
-        for (Entry<String, String> entry : tokens.secrets().entrySet()) {
-            if (!entry.getValue().equals(appId)) {
-                secretsBuilder.put(entry);
-            }
-        }
-        return secretsBuilder.build();
     }
 
     /**
@@ -1251,33 +1150,19 @@ public class MetadataService {
 
         final String commitSummary = "Enable the token: " + appId;
 
-        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                TOKEN_JSON, EntryType.JSON, node -> {
-            final Tokens tokens = tokens(node);
+        final TokensTransformer transformer = new TokensTransformer((headRevision, tokens) -> {
             final Token token = tokens.get(appId); // Raise an exception if not found.
             if (token.deactivation() == null) {
-                throw new IllegalArgumentException("The token is already activated: " + appId);
+                throw new RedundantChangeException(headRevision, "The token is already activated: " + appId);
             }
             final String secret = token.secret();
             assert secret != null;
-
-            final ImmutableMap.Builder<String, Token> appIdsBuilder = ImmutableMap.builder();
-            for (Entry<String, Token> entry : tokens.appIds().entrySet()) {
-                if (!entry.getKey().equals(appId)) {
-                    appIdsBuilder.put(entry);
-                } else {
-                    appIdsBuilder.put(appId, new Token(token.appId(), secret, token.isSystemAdmin(),
-                                                       token.creation()));
-                }
-            }
-            final Map<String, Token> newAppIds = appIdsBuilder.build();
-
-            final ImmutableMap.Builder<String, String> secretsBuilder = ImmutableMap.builder();
-            secretsBuilder.putAll(tokens.secrets());
-            secretsBuilder.put(secret, appId);
-            final Map<String, String> newSecrets = secretsBuilder.build();
-
-            return Jackson.valueToTree(new Tokens(newAppIds, newSecrets));
+            final Map<String, String> newSecrets =
+                    ImmutableMap.<String, String>builderWithExpectedSize(tokens.secrets().size() + 1)
+                                .putAll(tokens.secrets())
+                                .put(secret, appId).build();
+            final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(), token.creation());
+            return new Tokens(newAppIds(tokens, appId, newToken), newSecrets);
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -1292,30 +1177,20 @@ public class MetadataService {
         final String commitSummary = "Deactivate the token: " + appId;
         final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
 
-        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                TOKEN_JSON, EntryType.JSON, node -> {
-            final Tokens tokens = tokens(node);
-            final Token token = tokens.get(appId); // Raise an exception if not found.
+        final TokensTransformer transformer = new TokensTransformer((headRevision, tokens) -> {
+            final Token token = tokens.get(appId);
             if (token.deactivation() != null) {
-                throw new IllegalArgumentException("The token is already deactivated: " + appId);
+                throw new RedundantChangeException(headRevision, "The token is already deactivated: " + appId);
             }
             final String secret = token.secret();
             assert secret != null;
-
-            final ImmutableMap.Builder<String, Token> appIdsBuilder = ImmutableMap.builder();
-            for (Entry<String, Token> entry : tokens.appIds().entrySet()) {
-                if (!entry.getKey().equals(appId)) {
-                    appIdsBuilder.put(entry);
-                } else {
-                    appIdsBuilder.put(appId, new Token(token.appId(), secret, token.isSystemAdmin(),
-                                                       token.isSystemAdmin(),
-                                                       token.creation(), userAndTimestamp, null));
-                }
-            }
-            final Map<String, Token> newAppIds = appIdsBuilder.build();
-            final Map<String, String> newSecrets = secretsWithout(appId, tokens);
-
-            return Jackson.valueToTree(new Tokens(newAppIds, newSecrets));
+            final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(),
+                                             token.isSystemAdmin(), token.creation(), userAndTimestamp, null);
+            final Map<String, Token> newAppIds = newAppIds(tokens, appId, newToken);
+            final Map<String, String> newSecrets =
+                    tokens.secrets().entrySet().stream().filter(entry -> !entry.getKey().equals(secret))
+                          .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+            return new Tokens(newAppIds, newSecrets);
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -1328,25 +1203,16 @@ public class MetadataService {
         requireNonNull(appId, "appId");
         final String commitSummary =
                 "Update the token level: " + appId + " to " + (toBeSystemAdmin ? "admin" : "user");
-        final ContentTransformer<JsonNode> transformer = new ContentTransformer<>(
-                TOKEN_JSON, EntryType.JSON, node -> {
-            final Tokens tokens = tokens(node);
+        final TokensTransformer transformer = new TokensTransformer((headRevision, tokens) -> {
             final Token token = tokens.get(appId); // Raise an exception if not found.
             if (toBeSystemAdmin == token.isSystemAdmin()) {
-                throw new IllegalArgumentException(
+                throw new RedundantChangeException(
+                        headRevision,
                         "The token is already " + (toBeSystemAdmin ? "admin" : "user"));
             }
 
-            final ImmutableMap.Builder<String, Token> appIdsBuilder = ImmutableMap.builder();
-            for (Entry<String, Token> entry : tokens.appIds().entrySet()) {
-                if (!entry.getKey().equals(appId)) {
-                    appIdsBuilder.put(entry);
-                } else {
-                    appIdsBuilder.put(appId, token.withSystemAdmin(toBeSystemAdmin));
-                }
-            }
-            final Map<String, Token> newAppIds = appIdsBuilder.build();
-            return Jackson.valueToTree(new Tokens(newAppIds, tokens.secrets()));
+            return new Tokens(newAppIds(tokens, appId, token.withSystemAdmin(toBeSystemAdmin)),
+                              tokens.secrets());
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -1377,8 +1243,9 @@ public class MetadataService {
         requireNonNull(project, "project");
         requireNonNull(user, "user");
 
-        checkArgument(project.members().values().stream().anyMatch(member -> member.login().equals(user.id())),
-                      user.id() + " is not a member of the project '" + project.name() + '\'');
+        if (project.members().values().stream().noneMatch(member -> member.login().equals(user.id()))) {
+            throw new MemberNotFoundException(user.id(), project.name());
+        }
     }
 
     /**
@@ -1388,7 +1255,9 @@ public class MetadataService {
         requireNonNull(project, "project");
         requireNonNull(appId, "appId");
 
-        checkArgument(project.tokens().containsKey(appId),
-                      appId + " is not a token of the project '" + project.name() + '\'');
+        if (!project.tokens().containsKey(appId)) {
+            throw new TokenNotFoundException(
+                    appId + " is not a token of the project '" + project.name() + '\'');
+        }
     }
 }
