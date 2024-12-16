@@ -223,7 +223,7 @@ public class MirroringServiceV1 extends AbstractService {
                              mirror.localRepo().name(),
                              mirror.localPath(),
                              remoteRepoUri.getScheme(),
-                             remoteRepoUri.getHost() + remoteRepoUri.getPath(),
+                             remoteRepoUri.getAuthority() + remoteRepoUri.getPath(),
                              mirror.remotePath(),
                              mirror.remoteBranch(),
                              mirror.gitignore(),
