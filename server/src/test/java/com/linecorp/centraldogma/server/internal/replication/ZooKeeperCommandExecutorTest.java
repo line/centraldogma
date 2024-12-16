@@ -42,6 +42,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -375,7 +376,7 @@ class ZooKeeperCommandExecutorTest {
                     .isEqualTo(new Revision(2));
             return asIsCommand;
         } else {
-            final Function<JsonNode, JsonNode> transformer = jsonNode -> {
+            final BiFunction<Revision, JsonNode, JsonNode> transformer = (revision, jsonNode) -> {
                 final JsonNode oldContent = pushChange.content();
                 assertThat(jsonNode).isEqualTo(oldContent);
                 final JsonNode newContent = oldContent.deepCopy();
@@ -683,9 +684,10 @@ class ZooKeeperCommandExecutorTest {
                          final TransformCommand pushCommand =
                                  (TransformCommand) argument;
                          assertThat(pushCommand.type()).isSameAs(CommandType.TRANSFORM);
-                         final Function<JsonNode, JsonNode> transformer =
-                                 (Function<JsonNode, JsonNode>) pushCommand.transformer().transformer();
-                         final JsonNode applied = transformer.apply(pushChange.content());
+                         final BiFunction<Revision, JsonNode, JsonNode> transformer =
+                                 (BiFunction<Revision, JsonNode, JsonNode>) pushCommand.transformer()
+                                                                                       .transformer();
+                         final JsonNode applied = transformer.apply(null, pushChange.content());
                          assertThat(applied).isEqualTo(JsonNodeFactory.instance.objectNode().put("a", "c"));
                          return completedFuture(
                                  CommitResult.of(revision, ImmutableList.of(normalizedChange)));

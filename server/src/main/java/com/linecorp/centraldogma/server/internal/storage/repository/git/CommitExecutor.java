@@ -41,6 +41,7 @@ import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -81,8 +82,8 @@ final class CommitExecutor {
         return summary;
     }
 
-    void executeInitialCommit(Iterable<Change<?>> changes) {
-        commit(null, Revision.INIT, changes);
+    void executeInitialCommit() {
+        commit(null, Revision.INIT, ImmutableList.of());
     }
 
     CommitResult execute(Revision baseRevision,
@@ -112,56 +113,55 @@ final class CommitExecutor {
         return CommitResult.of(res.revision, applyingChanges);
     }
 
-    RevisionAndEntries commit(@Nullable Revision prevRevision, Revision nextRevision,
+    RevisionAndEntries commit(@Nullable Revision headRevision, Revision nextRevision,
                               Iterable<Change<?>> changes) {
         requireNonNull(nextRevision, "nextRevision");
         requireNonNull(changes, "changes");
 
-        assert prevRevision == null || prevRevision.major() > 0;
+        assert (headRevision == null && Iterables.isEmpty(changes)) ||
+               (headRevision != null && headRevision.major() > 0);
         assert nextRevision.major() > 0;
 
         final Repository jGitRepository = gitRepository.jGitRepository();
         try (ObjectInserter inserter = jGitRepository.newObjectInserter();
              ObjectReader reader = jGitRepository.newObjectReader();
              RevWalk revWalk = newRevWalk(reader)) {
-
             final CommitIdDatabase commitIdDatabase = gitRepository.commitIdDatabase();
 
-            final ObjectId prevTreeId =
-                    prevRevision != null ? toTree(commitIdDatabase, revWalk, prevRevision) : null;
-
             // The staging area that keeps the entries of the new tree.
-            // It starts with the entries of the tree at the prevRevision (or with no entries if the
-            // prevRevision is the initial commit), and then this method will apply the requested changes
+            // It starts with the entries of the tree at the headRevision (or with no entries if the
+            // headRevision is the initial commit), and then this method will apply the requested changes
             // to build the new tree.
             final DirCache dirCache = DirCache.newInCore();
-
-            // Apply the changes and retrieve the list of the affected files.
-            final int numEdits = new DefaultChangesApplier(changes)
-                    .apply(jGitRepository, prevRevision, prevTreeId, dirCache);
-
-            // Reject empty commit if necessary.
             final List<DiffEntry> diffEntries;
-            boolean isEmpty = numEdits == 0;
-            if (!isEmpty) {
-                // Even if there are edits, the resulting tree might be identical with the previous tree.
-                final CanonicalTreeParser p = new CanonicalTreeParser();
-                p.reset(reader, prevTreeId);
-                final DiffFormatter diffFormatter = new DiffFormatter(null);
-                diffFormatter.setRepository(jGitRepository);
-                diffEntries = diffFormatter.scan(p, new DirCacheIterator(dirCache));
-                isEmpty = diffEntries.isEmpty();
-            } else {
-                diffEntries = ImmutableList.of();
-            }
 
-            if (!allowEmptyCommit && isEmpty) {
-                // prevRevision is not null when allowEmptyCommit is false.
-                assert prevRevision != null;
-                throw new RedundantChangeException(
-                        prevRevision,
-                        "changes did not change anything in " + gitRepository.parent().name() + '/' +
-                        gitRepository.name() + " at revision " + prevRevision.major() + ": " + changes);
+            if (headRevision != null) {
+                final ObjectId prevTreeId = toTree(commitIdDatabase, revWalk, headRevision);
+                // Apply the changes and retrieve the list of the affected files.
+                final int numEdits = new DefaultChangesApplier(changes)
+                        .apply(jGitRepository, headRevision, prevTreeId, dirCache);
+                // Reject empty commit if necessary.
+                boolean isEmpty = numEdits == 0;
+                if (!isEmpty) {
+                    // Even if there are edits, the resulting tree might be identical with the previous tree.
+                    final CanonicalTreeParser p = new CanonicalTreeParser();
+                    p.reset(reader, prevTreeId);
+                    final DiffFormatter diffFormatter = new DiffFormatter(null);
+                    diffFormatter.setRepository(jGitRepository);
+                    diffEntries = diffFormatter.scan(p, new DirCacheIterator(dirCache));
+                    isEmpty = diffEntries.isEmpty();
+                } else {
+                    diffEntries = ImmutableList.of();
+                }
+                if (!allowEmptyCommit && isEmpty) {
+                    throw new RedundantChangeException(
+                            headRevision,
+                            "changes did not change anything in " + gitRepository.parent().name() + '/' +
+                            gitRepository.name() + " at revision " + headRevision.major() + ": " + changes);
+                }
+            } else {
+                // initial commit.
+                diffEntries = ImmutableList.of();
             }
 
             // flush the current index to repository and get the result tree object id.
@@ -182,8 +182,8 @@ final class CommitExecutor {
             commitBuilder.setMessage(CommitUtil.toJsonString(summary, detail, markup, nextRevision));
 
             // if the head commit exists, use it as the parent commit.
-            if (prevRevision != null) {
-                commitBuilder.setParentId(commitIdDatabase.get(prevRevision));
+            if (headRevision != null) {
+                commitBuilder.setParentId(commitIdDatabase.get(headRevision));
             }
 
             final ObjectId nextCommitId = inserter.insert(commitBuilder);

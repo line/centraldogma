@@ -48,9 +48,10 @@ import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
-import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
+import com.linecorp.centraldogma.server.metadata.MemberNotFoundException;
+import com.linecorp.centraldogma.server.metadata.TokenNotFoundException;
 
 /**
  * A default {@link ExceptionHandlerFunction} of HTTP API.
@@ -96,8 +97,9 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                     (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
                                                 "Revision %s does not exist.", cause.getMessage()))
                .put(TokenNotFoundException.class,
-                    (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
-                                                "Token '%s' does not exist.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause, cause.getMessage()))
+               .put(MemberNotFoundException.class,
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause, cause.getMessage()))
                .put(QueryExecutionException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
                .put(UnsupportedOperationException.class,

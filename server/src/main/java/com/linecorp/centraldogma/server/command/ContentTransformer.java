@@ -18,25 +18,27 @@ package com.linecorp.centraldogma.server.command;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.Revision;
 
 /**
  * A {@link Function} which is used for transforming the content at the specified path of the repository.
  */
-public final class ContentTransformer<T> {
+public class ContentTransformer<T> {
 
     private final String path;
     private final EntryType entryType;
-    private final Function<T, T> transformer;
+    private final BiFunction<Revision, T, T> transformer;
 
     /**
      * Creates a new instance.
      */
-    public ContentTransformer(String path, EntryType entryType, Function<T, T> transformer) {
+    public ContentTransformer(String path, EntryType entryType, BiFunction<Revision, T, T> transformer) {
         this.path = requireNonNull(path, "path");
         checkArgument(entryType == EntryType.JSON, "entryType: %s (expected: %s)", entryType, EntryType.JSON);
         this.entryType = requireNonNull(entryType, "entryType");
@@ -60,7 +62,7 @@ public final class ContentTransformer<T> {
     /**
      * Returns the {@link Function} which transforms the content.
      */
-    public Function<T, T> transformer() {
+    public BiFunction<Revision, T, T> transformer() {
         return transformer;
     }
 

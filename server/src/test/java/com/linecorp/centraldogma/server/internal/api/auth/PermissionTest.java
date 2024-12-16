@@ -22,7 +22,7 @@ import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
-import java.util.Set;
+import java.util.Collection;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Stream;
 
@@ -153,7 +153,7 @@ class PermissionTest {
     @ParameterizedTest
     @MethodSource("arguments")
     void test(@Nullable String appId, String secret, String projectName, ProjectRole role, String repoName,
-              Set<Permission> permission, HttpStatus expectedFailureStatus) throws InterruptedException {
+              Collection<Permission> permission, HttpStatus expectedFailureStatus) throws InterruptedException {
         final WebClient client = WebClient.builder(server.httpUri())
                                           .addHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + secret)
                                           .build();

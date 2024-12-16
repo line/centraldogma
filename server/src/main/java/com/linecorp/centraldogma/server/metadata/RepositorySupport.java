@@ -99,9 +99,8 @@ final class RepositorySupport<T> {
         requireNonNull(commitSummary, "commitSummary");
         requireNonNull(change, "change");
 
-        return executor.execute(
-                Command.push(author, projectName, repoName, revision, commitSummary, "",
-                             Markup.PLAINTEXT, ImmutableList.of(change)))
+        return executor.execute(Command.push(author, projectName, repoName, revision, commitSummary, "",
+                                             Markup.PLAINTEXT, ImmutableList.of(change)))
                        .thenApply(CommitResult::revision);
     }
 

@@ -29,7 +29,6 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
@@ -163,7 +162,7 @@ public class ProjectMetadata implements Identifiable {
         if (member != null) {
             return member;
         }
-        throw new EntryNotFoundException("failed to find member " + memberId + " in project " + name());
+        throw new MemberNotFoundException(memberId, name());
     }
 
     /**

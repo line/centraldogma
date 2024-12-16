@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -190,7 +190,7 @@ class StandaloneCommandExecutorTest {
         final Revision previousRevision = commitResult.revision();
         assertThat(commitResult).isEqualTo(CommitResult.of(previousRevision, ImmutableList.of(change)));
 
-        final Function<JsonNode, JsonNode> transformer = jsonNode -> {
+        final BiFunction<Revision, JsonNode, JsonNode> transformer = (revision, jsonNode) -> {
             if (jsonNode.has("a")) {
                 ((ObjectNode) jsonNode).put("a", "c");
             }
