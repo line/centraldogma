@@ -206,7 +206,7 @@
 <a class="jxr_linenumber" name="L198" href="#L198">198</a>             <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/CommitMessageDto.html">CommitMessageDto</a> commitMessage,
 <a class="jxr_linenumber" name="L199" href="#L199">199</a>             @RequestConverter(ChangesRequestConverter.<strong class="jxr_keyword">class</strong>) Iterable&lt;Change&lt;?&gt;&gt; changes) {
 <a class="jxr_linenumber" name="L200" href="#L200">200</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a> user = AuthUtil.currentUser(ctx);
-<a class="jxr_linenumber" name="L201" href="#L201">201</a>         checkPush(repository.name(), changes, user.isAdmin());
+<a class="jxr_linenumber" name="L201" href="#L201">201</a>         checkPush(repository.name(), changes, user.isSystemAdmin());
 <a class="jxr_linenumber" name="L202" href="#L202">202</a>         meterRegistry.counter(<span class="jxr_string">"commits.push"</span>,
 <a class="jxr_linenumber" name="L203" href="#L203">203</a>                               <span class="jxr_string">"project"</span>, repository.parent().name(),
 <a class="jxr_linenumber" name="L204" href="#L204">204</a>                               <span class="jxr_string">"repository"</span>, repository.name())
@@ -452,7 +452,7 @@
 <a class="jxr_linenumber" name="L444" href="#L444">444</a> <em class="jxr_javadoccomment">     * Checks if the commit is for creating a file and raises a {@link InvalidPushException} if the</em>
 <a class="jxr_linenumber" name="L445" href="#L445">445</a> <em class="jxr_javadoccomment">     * given {@code repoName} field is one of {@code meta} and {@code dogma} which are internal repositories.</em>
 <a class="jxr_linenumber" name="L446" href="#L446">446</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L447" href="#L447">447</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> checkPush(String repoName, Iterable&lt;Change&lt;?&gt;&gt; changes, <strong class="jxr_keyword">boolean</strong> isAdmin) {
+<a class="jxr_linenumber" name="L447" href="#L447">447</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> checkPush(String repoName, Iterable&lt;Change&lt;?&gt;&gt; changes, <strong class="jxr_keyword">boolean</strong> isSystemAdmin) {
 <a class="jxr_linenumber" name="L448" href="#L448">448</a>         <strong class="jxr_keyword">if</strong> (Project.REPO_META.equals(repoName)) {
 <a class="jxr_linenumber" name="L449" href="#L449">449</a>             <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> hasChangesOtherThanMetaRepoFiles =
 <a class="jxr_linenumber" name="L450" href="#L450">450</a>                     Streams.stream(changes).anyMatch(change -&gt; !isMetaFile(change.path()));
@@ -461,8 +461,8 @@
 <a class="jxr_linenumber" name="L453" href="#L453">453</a>                         <span class="jxr_string">"The "</span> + Project.REPO_META + <span class="jxr_string">" repository is reserved for internal usage."</span>);
 <a class="jxr_linenumber" name="L454" href="#L454">454</a>             }
 <a class="jxr_linenumber" name="L455" href="#L455">455</a> 
-<a class="jxr_linenumber" name="L456" href="#L456">456</a>             <strong class="jxr_keyword">if</strong> (isAdmin) {
-<a class="jxr_linenumber" name="L457" href="#L457">457</a>                 <em class="jxr_comment">// Admin may push the legacy files to test the mirror migration.</em>
+<a class="jxr_linenumber" name="L456" href="#L456">456</a>             <strong class="jxr_keyword">if</strong> (isSystemAdmin) {
+<a class="jxr_linenumber" name="L457" href="#L457">457</a>                 <em class="jxr_comment">// A system admin may push the legacy files to test the mirror migration.</em>
 <a class="jxr_linenumber" name="L458" href="#L458">458</a>             } <strong class="jxr_keyword">else</strong> {
 <a class="jxr_linenumber" name="L459" href="#L459">459</a>                 <strong class="jxr_keyword">for</strong> (Change&lt;?&gt; change : changes) {
 <a class="jxr_linenumber" name="L460" href="#L460">460</a>                     <em class="jxr_comment">// 'mirrors.json' and 'credentials.json' are disallowed to be created or modified.</em>

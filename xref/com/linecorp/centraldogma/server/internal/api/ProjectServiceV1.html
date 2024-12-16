@@ -54,8 +54,8 @@
 <a class="jxr_linenumber" name="L46" href="#L46">46</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.api.v1.CreateProjectRequest;
 <a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.api.v1.ProjectDto;
 <a class="jxr_linenumber" name="L48" href="#L48">48</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.CommandExecutor;
-<a class="jxr_linenumber" name="L49" href="#L49">49</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
-<a class="jxr_linenumber" name="L50" href="#L50">50</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 <a class="jxr_linenumber" name="L51" href="#L51">51</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 <a class="jxr_linenumber" name="L52" href="#L52">52</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 <a class="jxr_linenumber" name="L53" href="#L53">53</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.Member;
@@ -103,13 +103,13 @@
 <a class="jxr_linenumber" name="L95" href="#L95">95</a>      }
 <a class="jxr_linenumber" name="L96" href="#L96">96</a>  
 <a class="jxr_linenumber" name="L97" href="#L97">97</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/common/ProjectRole.html">ProjectRole</a> getUserRole(<a href="../../../../../../com/linecorp/centraldogma/server/storage/project/Project.html">Project</a> project, <a href="../../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a> user) {
-<a class="jxr_linenumber" name="L98" href="#L98">98</a>          <strong class="jxr_keyword">if</strong> (user.isAdmin()) {
+<a class="jxr_linenumber" name="L98" href="#L98">98</a>          <strong class="jxr_keyword">if</strong> (user.isSystemAdmin()) {
 <a class="jxr_linenumber" name="L99" href="#L99">99</a>              <strong class="jxr_keyword">return</strong> ProjectRole.OWNER;
 <a class="jxr_linenumber" name="L100" href="#L100">100</a>         }
 <a class="jxr_linenumber" name="L101" href="#L101">101</a> 
 <a class="jxr_linenumber" name="L102" href="#L102">102</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/metadata/ProjectMetadata.html">ProjectMetadata</a> metadata = project.metadata();
 <a class="jxr_linenumber" name="L103" href="#L103">103</a>         <strong class="jxr_keyword">if</strong> (metadata == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L104" href="#L104">104</a>             <em class="jxr_comment">// Metadata is null for the internal project which belongs to administrators.</em>
+<a class="jxr_linenumber" name="L104" href="#L104">104</a>             <em class="jxr_comment">// Metadata is null for the internal project which belongs to system administrators.</em>
 <a class="jxr_linenumber" name="L105" href="#L105">105</a>             <strong class="jxr_keyword">return</strong> ProjectRole.GUEST;
 <a class="jxr_linenumber" name="L106" href="#L106">106</a>         }
 <a class="jxr_linenumber" name="L107" href="#L107">107</a> 
@@ -196,7 +196,7 @@
 <a class="jxr_linenumber" name="L188" href="#L188">188</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L189" href="#L189">189</a>     @Consumes(<span class="jxr_string">"application/json-patch+json"</span>)
 <a class="jxr_linenumber" name="L190" href="#L190">190</a>     @Patch(<span class="jxr_string">"/projects/{projectName}"</span>)
-<a class="jxr_linenumber" name="L191" href="#L191">191</a>     @RequiresAdministrator
+<a class="jxr_linenumber" name="L191" href="#L191">191</a>     @RequiresSystemAdministrator
 <a class="jxr_linenumber" name="L192" href="#L192">192</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;ProjectDto&gt; patchProject(@Param String projectName, JsonNode node, <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author,
 <a class="jxr_linenumber" name="L193" href="#L193">193</a>                                                       <a href="../../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a> user) {
 <a class="jxr_linenumber" name="L194" href="#L194">194</a>         checkUnremoveArgument(node);

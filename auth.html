@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Authentication and Access Control &mdash; Central Dogma 0.71.0 documentation</title>
+  <title>Authentication and Access Control &mdash; Central Dogma 0.72.0 documentation</title>
   
 
   
@@ -72,7 +72,7 @@
             
             
               <div class="version">
-                0.71
+                0.72
               </div>
             
           
@@ -207,7 +207,7 @@ The authentication configuration consists of the following properties:</p>
   ...
   &quot;authentication&quot;: {
     &quot;factoryClassName&quot;: &quot;the fully-qualified class name of an AuthenticationProviderFactory&quot;,
-    &quot;administrators&quot;: [],
+    &quot;systemAdministrators&quot;: [],
     &quot;caseSensitiveLoginNames&quot;: false,
     &quot;sessionCacheSpec&quot;: &quot;maximumSize=8192,expireAfterWrite=604800s&quot;,
     &quot;sessionTimeoutMillis&quot;: 604800000,
@@ -224,9 +224,10 @@ The authentication configuration consists of the following properties:</p>
 <code class="docutils literal notranslate"><span class="pre">com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory</span></code>.</p></li>
 </ul>
 </li>
-<li><p><code class="docutils literal notranslate"><span class="pre">administrators</span></code> (string array)</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">systemAdministrators</span></code> (string array)</p>
 <ul>
-<li><p>login names of the administrators. A user who has a login name specified here will get the administrator role.</p></li>
+<li><p>login names of the system administrators. A user who has a login name specified here will get the
+system administrator role.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">caseSensitiveLoginNames</span></code> (boolean)</p>
@@ -271,7 +272,7 @@ the authentication to.</p>
   ...
   &quot;authentication&quot;: {
     &quot;factoryClassName&quot;: &quot;com.linecorp.centraldogma.server.auth.saml.SamlAuthProviderFactory&quot;,
-    &quot;administrators&quot;: [],
+    &quot;systemAdministrators&quot;: [],
     &quot;caseSensitiveLoginNames&quot;: false,
     &quot;sessionCacheSpec&quot;: &quot;maximumSize=8192,expireAfterWrite=604800s&quot;,
     &quot;sessionTimeoutMillis&quot;: 604800000,
@@ -424,7 +425,7 @@ in the <code class="docutils literal notranslate"><span class="pre">properties</
   ...
   &quot;authentication&quot;: {
     &quot;factoryClassName&quot;: &quot;com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory&quot;,
-    &quot;administrators&quot;: [],
+    &quot;systemAdministrators&quot;: [],
     &quot;caseSensitiveLoginNames&quot;: false,
     &quot;sessionCacheSpec&quot;: &quot;maximumSize=8192,expireAfterWrite=604800s&quot;,
     &quot;sessionTimeoutMillis&quot;: 604800000,
@@ -461,10 +462,10 @@ add a user or a token as a member of the project and can also remove them from t
 There are 4 user role types in the access control system of Central Dogma, but you can choose one
 of <code class="docutils literal notranslate"><span class="pre">Owner</span></code> and <code class="docutils literal notranslate"><span class="pre">Member</span></code> role in the UI. More information about the role is as follows.</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">Administrator</span></code></p>
+<li><p><code class="docutils literal notranslate"><span class="pre">System</span> <span class="pre">Administrator</span></code></p>
 <ul>
-<li><p>the user that all permissions are assigned to, a.k.a ‘super user’. Only an administrator can restore
-removed project. The administrators can be configured in <code class="docutils literal notranslate"><span class="pre">conf/dogma.json</span></code> as described the above.</p></li>
+<li><p>the user that all permissions are assigned to, a.k.a ‘super user’. Only a system administrator can restore
+removed project. The system administrators can be configured in <code class="docutils literal notranslate"><span class="pre">conf/dogma.json</span></code> as described the above.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">Owner</span></code> of a project</p>
@@ -524,10 +525,10 @@ request comes from.</p>
 <img alt="_images/auth_4.png" src="_images/auth_4.png" />
 <p>Anyone who is logged into the Central Dogma can create a new <code class="docutils literal notranslate"><span class="pre">Application</span> <span class="pre">Token</span></code>, and the token is shared
 for everyone. So any owner of a project can add any token to their project. However only both the token
-creator and the administrator are allowed to deactivate and/or remove the token.</p>
-<p>There are two levels of a token, which are <code class="docutils literal notranslate"><span class="pre">Admin</span></code> and <code class="docutils literal notranslate"><span class="pre">User</span></code>. <code class="docutils literal notranslate"><span class="pre">Admin</span></code> level token can be created by
-only the administrators. A client who sends a request with the token is allowed to access administrator-level
-APIs.</p>
+creator and the system administrator are allowed to deactivate and/or remove the token.</p>
+<p>There are two levels of a token, which are <code class="docutils literal notranslate"><span class="pre">System</span> <span class="pre">Admin</span></code> and <code class="docutils literal notranslate"><span class="pre">User</span></code>. <code class="docutils literal notranslate"><span class="pre">System</span> <span class="pre">Admin</span></code> level token can be
+created by only the system administrators. A client who sends a request with the token is allowed to access
+system administrator-level APIs.</p>
 </div>
 </div>
 </div>

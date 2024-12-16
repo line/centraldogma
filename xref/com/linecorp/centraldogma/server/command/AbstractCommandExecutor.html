@@ -134,7 +134,7 @@
 <a class="jxr_linenumber" name="L126" href="#L126">126</a>         <strong class="jxr_keyword">if</strong> (!isStarted()) {
 <a class="jxr_linenumber" name="L127" href="#L127">127</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/common/ReadOnlyException.html">ReadOnlyException</a>(<span class="jxr_string">"running in read-only mode. command: "</span> + command);
 <a class="jxr_linenumber" name="L128" href="#L128">128</a>         }
-<a class="jxr_linenumber" name="L129" href="#L129">129</a>         <strong class="jxr_keyword">if</strong> (!writable &amp;&amp; !(command instanceof AdministrativeCommand)) {
+<a class="jxr_linenumber" name="L129" href="#L129">129</a>         <strong class="jxr_keyword">if</strong> (!writable &amp;&amp; !(command instanceof SystemAdministrativeCommand)) {
 <a class="jxr_linenumber" name="L130" href="#L130">130</a>             <em class="jxr_comment">// Reject all commands except for AdministrativeCommand when the replica is in read-only mode.</em>
 <a class="jxr_linenumber" name="L131" href="#L131">131</a>             <em class="jxr_comment">// AdministrativeCommand is allowed because it is used to change the read-only mode or migrate</em>
 <a class="jxr_linenumber" name="L132" href="#L132">132</a>             <em class="jxr_comment">// metadata under maintenance mode.</em>

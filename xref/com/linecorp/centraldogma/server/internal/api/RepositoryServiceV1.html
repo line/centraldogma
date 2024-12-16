@@ -108,7 +108,7 @@
 <a class="jxr_linenumber" name="L100" href="#L100">100</a>             }
 <a class="jxr_linenumber" name="L101" href="#L101">101</a> 
 <a class="jxr_linenumber" name="L102" href="#L102">102</a>             <strong class="jxr_keyword">return</strong> project.repos().list().values().stream()
-<a class="jxr_linenumber" name="L103" href="#L103">103</a>                           .filter(r -&gt; user.isAdmin() || !Project.REPO_DOGMA.equals(r.name()))
+<a class="jxr_linenumber" name="L103" href="#L103">103</a>                           .filter(r -&gt; user.isSystemAdmin() || !Project.REPO_DOGMA.equals(r.name()))
 <a class="jxr_linenumber" name="L104" href="#L104">104</a>                           .filter(r -&gt; hasOwnerRole || !Project.REPO_META.equals(r.name()))
 <a class="jxr_linenumber" name="L105" href="#L105">105</a>                           .map(DtoConverter::convert)
 <a class="jxr_linenumber" name="L106" href="#L106">106</a>                           .collect(toImmutableList());

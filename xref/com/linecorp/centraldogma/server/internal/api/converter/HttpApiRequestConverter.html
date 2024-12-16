@@ -78,28 +78,27 @@
 <a class="jxr_linenumber" name="L70" href="#L70">70</a>              checkArgument(!isNullOrEmpty(repositoryName),
 <a class="jxr_linenumber" name="L71" href="#L71">71</a>                            <span class="jxr_string">"repository name should not be null or empty."</span>);
 <a class="jxr_linenumber" name="L72" href="#L72">72</a>  
-<a class="jxr_linenumber" name="L73" href="#L73">73</a>              <strong class="jxr_keyword">if</strong> (Project.REPO_DOGMA.equals(repositoryName) &amp;&amp;
-<a class="jxr_linenumber" name="L74" href="#L74">74</a>                  !user.isAdmin()) {
-<a class="jxr_linenumber" name="L75" href="#L75">75</a>                  <strong class="jxr_keyword">return</strong> HttpApiUtil.throwResponse(
-<a class="jxr_linenumber" name="L76" href="#L76">76</a>                          ctx, HttpStatus.FORBIDDEN,
-<a class="jxr_linenumber" name="L77" href="#L77">77</a>                          <span class="jxr_string">"Repository '%s/%s' can be accessed only by an administrator."</span>,
-<a class="jxr_linenumber" name="L78" href="#L78">78</a>                          projectName, Project.REPO_DOGMA);
-<a class="jxr_linenumber" name="L79" href="#L79">79</a>              }
-<a class="jxr_linenumber" name="L80" href="#L80">80</a>              <em class="jxr_comment">// RepositoryNotFoundException would be thrown if there is no project or no repository.</em>
-<a class="jxr_linenumber" name="L81" href="#L81">81</a>              <strong class="jxr_keyword">return</strong> projectApiManager.getProject(projectName, user).repos().get(repositoryName);
-<a class="jxr_linenumber" name="L82" href="#L82">82</a>          }
-<a class="jxr_linenumber" name="L83" href="#L83">83</a>  
-<a class="jxr_linenumber" name="L84" href="#L84">84</a>          <strong class="jxr_keyword">if</strong> (expectedResultType == Author.<strong class="jxr_keyword">class</strong>) {
-<a class="jxr_linenumber" name="L85" href="#L85">85</a>              <strong class="jxr_keyword">return</strong> AuthUtil.currentAuthor(ctx);
-<a class="jxr_linenumber" name="L86" href="#L86">86</a>          }
-<a class="jxr_linenumber" name="L87" href="#L87">87</a>  
-<a class="jxr_linenumber" name="L88" href="#L88">88</a>          <strong class="jxr_keyword">if</strong> (expectedResultType == User.<strong class="jxr_keyword">class</strong>) {
-<a class="jxr_linenumber" name="L89" href="#L89">89</a>              <strong class="jxr_keyword">return</strong> user;
-<a class="jxr_linenumber" name="L90" href="#L90">90</a>          }
-<a class="jxr_linenumber" name="L91" href="#L91">91</a>  
-<a class="jxr_linenumber" name="L92" href="#L92">92</a>          <strong class="jxr_keyword">return</strong> RequestConverterFunction.fallthrough();
-<a class="jxr_linenumber" name="L93" href="#L93">93</a>      }
-<a class="jxr_linenumber" name="L94" href="#L94">94</a>  }
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>              <strong class="jxr_keyword">if</strong> (Project.REPO_DOGMA.equals(repositoryName) &amp;&amp; !user.isSystemAdmin()) {
+<a class="jxr_linenumber" name="L74" href="#L74">74</a>                  <strong class="jxr_keyword">return</strong> HttpApiUtil.throwResponse(
+<a class="jxr_linenumber" name="L75" href="#L75">75</a>                          ctx, HttpStatus.FORBIDDEN,
+<a class="jxr_linenumber" name="L76" href="#L76">76</a>                          <span class="jxr_string">"Repository '%s/%s' can be accessed only by a system administrator."</span>,
+<a class="jxr_linenumber" name="L77" href="#L77">77</a>                          projectName, Project.REPO_DOGMA);
+<a class="jxr_linenumber" name="L78" href="#L78">78</a>              }
+<a class="jxr_linenumber" name="L79" href="#L79">79</a>              <em class="jxr_comment">// RepositoryNotFoundException would be thrown if there is no project or no repository.</em>
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>              <strong class="jxr_keyword">return</strong> projectApiManager.getProject(projectName, user).repos().get(repositoryName);
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>          }
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>  
+<a class="jxr_linenumber" name="L83" href="#L83">83</a>          <strong class="jxr_keyword">if</strong> (expectedResultType == Author.<strong class="jxr_keyword">class</strong>) {
+<a class="jxr_linenumber" name="L84" href="#L84">84</a>              <strong class="jxr_keyword">return</strong> AuthUtil.currentAuthor(ctx);
+<a class="jxr_linenumber" name="L85" href="#L85">85</a>          }
+<a class="jxr_linenumber" name="L86" href="#L86">86</a>  
+<a class="jxr_linenumber" name="L87" href="#L87">87</a>          <strong class="jxr_keyword">if</strong> (expectedResultType == User.<strong class="jxr_keyword">class</strong>) {
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>              <strong class="jxr_keyword">return</strong> user;
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>          }
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>  
+<a class="jxr_linenumber" name="L91" href="#L91">91</a>          <strong class="jxr_keyword">return</strong> RequestConverterFunction.fallthrough();
+<a class="jxr_linenumber" name="L92" href="#L92">92</a>      }
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>  }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2024 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Configuration &mdash; Central Dogma 0.71.0 documentation</title>
+  <title>Configuration &mdash; Central Dogma 0.72.0 documentation</title>
   
 
   
@@ -72,7 +72,7 @@
             
             
               <div class="version">
-                0.71
+                0.72
               </div>
             
           
@@ -492,15 +492,22 @@ If <code class="docutils literal notranslate"><span class="pre">0</span></code>,
 </li>
 </ul>
 </li>
-<li><p><code class="docutils literal notranslate"><span class="pre">zone</span></code> (string)</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">zone</span></code></p>
 <blockquote>
 <div><ul class="simple">
-<li><p>the zone name of the server. If not specified, <code class="docutils literal notranslate"><span class="pre">PluginTarget.ZONE_LEADER_ONLY</span></code> can’t be used.</p>
+<li><p>the zone information of the server. If not specified, <code class="docutils literal notranslate"><span class="pre">PluginTarget.ZONE_LEADER_ONLY</span></code> can’t be used.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">currentZone</span></code> (string)</p>
 <ul>
-<li><p>If the value starts with <code class="docutils literal notranslate"><span class="pre">env:</span></code>, the environment variable is used as the zone name.
+<li><p>the current zone name. If the value starts with <code class="docutils literal notranslate"><span class="pre">env:</span></code>, the environment variable is used as the zone name.
 For example, if the value is <code class="docutils literal notranslate"><span class="pre">env:ZONE_NAME</span></code>, the environment variable named <code class="docutils literal notranslate"><span class="pre">ZONE_NAME</span></code> is used as the
 zone name.</p></li>
 <li><p>You can also dynamically load a zone name by implementing <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/server/ConfigValueConverter.html">ConfigValueConverter</a></code>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">allZones</span></code> (string array)</p>
+<ul>
+<li><p>the list of zone names.</p></li>
+<li><p>the current zone name must be included in the list of zone names.</p></li>
 </ul>
 </li>
 </ul>
@@ -773,6 +780,7 @@ with <code class="docutils literal notranslate"><span class="pre">pluginConfigs<
       &quot;numMirroringThreads&quot;: null,
       &quot;maxNumFilesPerMirror&quot;: null,
       &quot;maxNumBytesPerMirror&quot;: null,
+      &quot;zonePinned&quot;: false
     }
   ]
 }</pre></div>
@@ -782,26 +790,34 @@ the plugin configuration class. The plugin configuration class must implement th
 that requires <code class="docutils literal notranslate"><span class="pre">enabled</span></code> property. The plugin configuration class can have additional properties that are
 specific to the plugin. The example above shows the configuration of the mirroring plugin and here are the
 properties that can be configured:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">numMirroringThreads</span></code> (integer)</p>
 <ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">numMirroringThreads</span></code> (integer)</p>
+<ul class="simple">
 <li><p>the number of worker threads dedicated to periodic mirroring tasks. If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of
 ‘16 threads’ is used.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">maxNumFilesPerMirror</span></code> (integer)</p>
-<ul>
+<ul class="simple">
 <li><p>the maximum allowed number of files in a mirror. If a Git repository contains more files than this,
 Central Dogma will reject to mirror the Git repository. If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of ‘8192 files’
 is used.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">maxNumBytesPerMirror</span></code> (integer)</p>
-<ul>
+<ul class="simple">
 <li><p>the maximum allowed number of bytes in a mirror. If the total size of the files in a Git repository exceeds
 this, Central Dogma will reject to mirror the Git repository. If <code class="docutils literal notranslate"><span class="pre">null</span></code>, the default value of
 ‘33554432 bytes’ (32 MiB) is used.</p></li>
 </ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">zonePinned</span></code> (boolean)</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>whether the mirroring plugin is pinned to a specific zone. If <code class="docutils literal notranslate"><span class="pre">true</span></code>, a mirroring task will be executed
+only in the specified zone. If <code class="docutils literal notranslate"><span class="pre">false</span></code>, the plugin will be executed in the leader replica.</p></li>
+</ul>
+</div></blockquote>
 </li>
 </ul>
 <p>For more information about mirroring, refer to <a class="reference internal" href="mirroring.html#mirroring"><span class="std std-ref">Better configuration change workflow with Git-to-CD mirroring</span></a>.</p>

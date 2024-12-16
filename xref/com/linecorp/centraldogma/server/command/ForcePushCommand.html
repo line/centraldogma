@@ -34,7 +34,7 @@
 <a class="jxr_linenumber" name="L26" href="#L26">26</a>  <em class="jxr_javadoccomment"> * A {@link Command} which is used to force-push {@code delegate} even the server is in read-only mode.</em>
 <a class="jxr_linenumber" name="L27" href="#L27">27</a>  <em class="jxr_javadoccomment"> * This command is useful for migrating the repository content during maintenance mode.</em>
 <a class="jxr_linenumber" name="L28" href="#L28">28</a>  <em class="jxr_javadoccomment"> */</em>
-<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> ForcePushCommand&lt;T&gt; <strong class="jxr_keyword">extends</strong> AdministrativeCommand&lt;T&gt; {
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> ForcePushCommand&lt;T&gt; <strong class="jxr_keyword">extends</strong> SystemAdministrativeCommand&lt;T&gt; {
 <a class="jxr_linenumber" name="L30" href="#L30">30</a>  
 <a class="jxr_linenumber" name="L31" href="#L31">31</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Command&lt;T&gt; delegate;
 <a class="jxr_linenumber" name="L32" href="#L32">32</a>  

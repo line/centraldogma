@@ -317,7 +317,7 @@
 <a class="jxr_linenumber" name="L309" href="#L309">309</a>     }
 <a class="jxr_linenumber" name="L310" href="#L310">310</a> 
 <a class="jxr_linenumber" name="L311" href="#L311">311</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> setVerboseResponses(ServiceRequestContext ctx, <a href="../../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a> user) {
-<a class="jxr_linenumber" name="L312" href="#L312">312</a>         ctx.setAttr(VERBOSE_RESPONSES, Flags.verboseResponses() || user.isAdmin());
+<a class="jxr_linenumber" name="L312" href="#L312">312</a>         ctx.setAttr(VERBOSE_RESPONSES, Flags.verboseResponses() || user.isSystemAdmin());
 <a class="jxr_linenumber" name="L313" href="#L313">313</a>     }
 <a class="jxr_linenumber" name="L314" href="#L314">314</a> 
 <a class="jxr_linenumber" name="L315" href="#L315">315</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isVerboseResponse(ServiceRequestContext ctx) {

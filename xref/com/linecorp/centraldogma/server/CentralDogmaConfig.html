@@ -279,7 +279,7 @@
 <a class="jxr_linenumber" name="L271" href="#L271">271</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../com/linecorp/centraldogma/server/ManagementConfig.html">ManagementConfig</a> managementConfig;
 <a class="jxr_linenumber" name="L272" href="#L272">272</a> 
 <a class="jxr_linenumber" name="L273" href="#L273">273</a>     @Nullable
-<a class="jxr_linenumber" name="L274" href="#L274">274</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> String zone;
+<a class="jxr_linenumber" name="L274" href="#L274">274</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../com/linecorp/centraldogma/server/ZoneConfig.html">ZoneConfig</a> zoneConfig;
 <a class="jxr_linenumber" name="L275" href="#L275">275</a> 
 <a class="jxr_linenumber" name="L276" href="#L276">276</a>     <a href="../../../../com/linecorp/centraldogma/server/CentralDogmaConfig.html">CentralDogmaConfig</a>(
 <a class="jxr_linenumber" name="L277" href="#L277">277</a>             @JsonProperty(value = <span class="jxr_string">"dataDir"</span>, required = <strong class="jxr_keyword">true</strong>) File dataDir,
@@ -308,7 +308,7 @@
 <a class="jxr_linenumber" name="L300" href="#L300">300</a>             @JsonProperty(<span class="jxr_string">"cors"</span>) @Nullable <a href="../../../../com/linecorp/centraldogma/server/CorsConfig.html">CorsConfig</a> corsConfig,
 <a class="jxr_linenumber" name="L301" href="#L301">301</a>             @JsonProperty(<span class="jxr_string">"pluginConfigs"</span>) @Nullable List&lt;PluginConfig&gt; pluginConfigs,
 <a class="jxr_linenumber" name="L302" href="#L302">302</a>             @JsonProperty(<span class="jxr_string">"management"</span>) @Nullable <a href="../../../../com/linecorp/centraldogma/server/ManagementConfig.html">ManagementConfig</a> managementConfig,
-<a class="jxr_linenumber" name="L303" href="#L303">303</a>             @JsonProperty(<span class="jxr_string">"zone"</span>) @Nullable String zone) {
+<a class="jxr_linenumber" name="L303" href="#L303">303</a>             @JsonProperty(<span class="jxr_string">"zone"</span>) @Nullable <a href="../../../../com/linecorp/centraldogma/server/ZoneConfig.html">ZoneConfig</a> zoneConfig) {
 <a class="jxr_linenumber" name="L304" href="#L304">304</a> 
 <a class="jxr_linenumber" name="L305" href="#L305">305</a>         <strong class="jxr_keyword">this</strong>.dataDir = requireNonNull(dataDir, <span class="jxr_string">"dataDir"</span>);
 <a class="jxr_linenumber" name="L306" href="#L306">306</a>         <strong class="jxr_keyword">this</strong>.ports = ImmutableList.copyOf(requireNonNull(ports, <span class="jxr_string">"ports"</span>));
@@ -357,7 +357,7 @@
 <a class="jxr_linenumber" name="L349" href="#L349">349</a>         pluginConfigMap = <strong class="jxr_keyword">this</strong>.pluginConfigs.stream().collect(
 <a class="jxr_linenumber" name="L350" href="#L350">350</a>                 toImmutableMap(PluginConfig::getClass, Function.identity()));
 <a class="jxr_linenumber" name="L351" href="#L351">351</a>         <strong class="jxr_keyword">this</strong>.managementConfig = managementConfig;
-<a class="jxr_linenumber" name="L352" href="#L352">352</a>         <strong class="jxr_keyword">this</strong>.zone = convertValue(zone, <span class="jxr_string">"zone"</span>);
+<a class="jxr_linenumber" name="L352" href="#L352">352</a>         <strong class="jxr_keyword">this</strong>.zoneConfig = zoneConfig;
 <a class="jxr_linenumber" name="L353" href="#L353">353</a>     }
 <a class="jxr_linenumber" name="L354" href="#L354">354</a> 
 <a class="jxr_linenumber" name="L355" href="#L355">355</a>     <em class="jxr_javadoccomment">/**</em>
@@ -597,13 +597,13 @@
 <a class="jxr_linenumber" name="L589" href="#L589">589</a>     }
 <a class="jxr_linenumber" name="L590" href="#L590">590</a> 
 <a class="jxr_linenumber" name="L591" href="#L591">591</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L592" href="#L592">592</a> <em class="jxr_javadoccomment">     * Returns the zone of the server.</em>
+<a class="jxr_linenumber" name="L592" href="#L592">592</a> <em class="jxr_javadoccomment">     * Returns the zone information of the server.</em>
 <a class="jxr_linenumber" name="L593" href="#L593">593</a> <em class="jxr_javadoccomment">     * Note that the zone must be specified to use the {@link PluginTarget#ZONE_LEADER_ONLY} target.</em>
 <a class="jxr_linenumber" name="L594" href="#L594">594</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L595" href="#L595">595</a>     @Nullable
 <a class="jxr_linenumber" name="L596" href="#L596">596</a>     @JsonProperty(<span class="jxr_string">"zone"</span>)
-<a class="jxr_linenumber" name="L597" href="#L597">597</a>     <strong class="jxr_keyword">public</strong> String zone() {
-<a class="jxr_linenumber" name="L598" href="#L598">598</a>         <strong class="jxr_keyword">return</strong> zone;
+<a class="jxr_linenumber" name="L597" href="#L597">597</a>     <strong class="jxr_keyword">public</strong> <a href="../../../../com/linecorp/centraldogma/server/ZoneConfig.html">ZoneConfig</a> zone() {
+<a class="jxr_linenumber" name="L598" href="#L598">598</a>         <strong class="jxr_keyword">return</strong> zoneConfig;
 <a class="jxr_linenumber" name="L599" href="#L599">599</a>     }
 <a class="jxr_linenumber" name="L600" href="#L600">600</a> 
 <a class="jxr_linenumber" name="L601" href="#L601">601</a>     @Override

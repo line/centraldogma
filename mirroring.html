@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Better configuration change workflow with Git-to-CD mirroring &mdash; Central Dogma 0.71.0 documentation</title>
+  <title>Better configuration change workflow with Git-to-CD mirroring &mdash; Central Dogma 0.72.0 documentation</title>
   
 
   
@@ -72,7 +72,7 @@
             
             
               <div class="version">
-                0.71
+                0.72
               </div>
             
           
@@ -243,49 +243,50 @@ applications access Central Dogma repositories instead:</p>
   &quot;gitignore&quot;: [
       &quot;/credential.txt&quot;,
       &quot;private_dir&quot;
-  ]
+  ],
+  &quot;zone&quot;: &quot;zone1&quot;
 }</pre></div>
 </div>
 </div>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">id</span></code> (string)</p>
 <ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">id</span></code> (string)</p>
+<ul class="simple">
 <li><p>the ID of the mirroring task. You should set the same value specified in the file name.
 For example, if the file name is <code class="docutils literal notranslate"><span class="pre">/mirrors/foo-settings-mirror.json</span></code>, the value of this field should be
 <code class="docutils literal notranslate"><span class="pre">foo-settings-mirror</span></code>.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">enabled</span></code> (boolean, optional)</p>
-<ul>
+<ul class="simple">
 <li><p>whether the mirroring task is enabled. Enabled by default if unspecified.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">schedule</span></code> (string, optional)</p>
-<ul>
+<ul class="simple">
 <li><p>a <a class="reference external" href="https://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html">Quartz cron expression</a>
 that describes when the mirroring task is supposed to be triggered. If unspecified, <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">?</span></code>
 (every minute) is used.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">direction</span></code> (string)</p>
-<ul>
+<ul class="simple">
 <li><p>the direction of mirror. Use <code class="docutils literal notranslate"><span class="pre">REMOTE_TO_LOCAL</span></code>.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">localRepo</span></code> (string)</p>
-<ul>
+<ul class="simple">
 <li><p>the Central Dogma repository name. The content under the location specified in <code class="docutils literal notranslate"><span class="pre">remoteUri</span></code> will be
 mirrored into this repository.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">localPath</span></code> (string, optional)</p>
-<ul>
+<ul class="simple">
 <li><p>the directory path in <code class="docutils literal notranslate"><span class="pre">localRepo</span></code>. The content under the location specified in <code class="docutils literal notranslate"><span class="pre">remoteUri</span></code> will be
 mirrored into this directory in <code class="docutils literal notranslate"><span class="pre">localRepo</span></code>. If unspecified, <code class="docutils literal notranslate"><span class="pre">/</span></code> is used.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">remoteUri</span></code> (string)</p>
-<ul>
+<ul class="simple">
 <li><p>the URI of the Git repository which will be mirrored from.</p></li>
 <li><p>Supported schemes are:</p>
 <ul>
@@ -303,17 +304,30 @@ the repository’s default branch is mirrored.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">credentialId</span></code> (string)</p>
-<ul>
+<ul class="simple">
 <li><p>the ID of the credential to use for authentication, as defined in <code class="docutils literal notranslate"><span class="pre">/credentials/{credential-id}.json</span></code>.</p></li>
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">gitignore</span></code> (string or array of strings, optional)</p>
-<ul>
+<ul class="simple">
 <li><p>a <cite>gitignore &lt;https://git-scm.com/docs/gitignore&gt;</cite> specifies files that should be excluded from mirroring.
 The type of gitignore can either be a string containing the entire file (e.g. <code class="docutils literal notranslate"><span class="pre">/filename.txt\ndirectory</span></code>) or an array
 of strings where each line represents a single pattern. The file pattern expressed in gitignore is relative to the
 path of <code class="docutils literal notranslate"><span class="pre">remoteUri</span></code>.</p></li>
 </ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">zone</span></code> (string, optional)</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>the zone where the mirroring task is executed.</p></li>
+<li><p>If unspecified:</p>
+<ul>
+<li><p>a mirroring task is executed in the first zone of <code class="docutils literal notranslate"><span class="pre">zone.allZones</span></code> configuration.</p></li>
+<li><p>if <code class="docutils literal notranslate"><span class="pre">zone.allZones</span></code> is not configured, a mirroring task is executed in the leader replica.</p></li>
+</ul>
+</li>
+</ul>
+</div></blockquote>
 </li>
 </ul>
 </div>

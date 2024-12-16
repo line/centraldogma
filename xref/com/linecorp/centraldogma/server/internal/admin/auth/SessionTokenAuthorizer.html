@@ -24,7 +24,7 @@
 <a class="jxr_linenumber" name="L16" href="#L16">16</a>  
 <a class="jxr_linenumber" name="L17" href="#L17">17</a>  <strong class="jxr_keyword">package</strong> com.linecorp.centraldogma.server.internal.admin.auth;
 <a class="jxr_linenumber" name="L18" href="#L18">18</a>  
-<a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.User.LEVEL_ADMIN;
+<a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.User.LEVEL_SYSTEM_ADMIN;
 <a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.User.LEVEL_USER;
 <a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> java.util.Objects.requireNonNull;
 <a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> java.util.concurrent.CompletableFuture.completedFuture;
@@ -49,11 +49,11 @@
 <a class="jxr_linenumber" name="L41" href="#L41">41</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/auth/SessionTokenAuthorizer.html">SessionTokenAuthorizer</a> <strong class="jxr_keyword">implements</strong> Authorizer&lt;HttpRequest&gt; {
 <a class="jxr_linenumber" name="L42" href="#L42">42</a>  
 <a class="jxr_linenumber" name="L43" href="#L43">43</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/auth/SessionManager.html">SessionManager</a> sessionManager;
-<a class="jxr_linenumber" name="L44" href="#L44">44</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Set&lt;String&gt; administrators;
+<a class="jxr_linenumber" name="L44" href="#L44">44</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Set&lt;String&gt; systemAdministrators;
 <a class="jxr_linenumber" name="L45" href="#L45">45</a>  
-<a class="jxr_linenumber" name="L46" href="#L46">46</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/auth/SessionTokenAuthorizer.html">SessionTokenAuthorizer</a>(<a href="../../../../../../../com/linecorp/centraldogma/server/auth/SessionManager.html">SessionManager</a> sessionManager, Set&lt;String&gt; administrators) {
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/auth/SessionTokenAuthorizer.html">SessionTokenAuthorizer</a>(<a href="../../../../../../../com/linecorp/centraldogma/server/auth/SessionManager.html">SessionManager</a> sessionManager, Set&lt;String&gt; systemAdministrators) {
 <a class="jxr_linenumber" name="L47" href="#L47">47</a>          <strong class="jxr_keyword">this</strong>.sessionManager = requireNonNull(sessionManager, <span class="jxr_string">"sessionManager"</span>);
-<a class="jxr_linenumber" name="L48" href="#L48">48</a>          <strong class="jxr_keyword">this</strong>.administrators = requireNonNull(administrators, <span class="jxr_string">"administrators"</span>);
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>          <strong class="jxr_keyword">this</strong>.systemAdministrators = requireNonNull(systemAdministrators, <span class="jxr_string">"systemAdministrators"</span>);
 <a class="jxr_linenumber" name="L49" href="#L49">49</a>      }
 <a class="jxr_linenumber" name="L50" href="#L50">50</a>  
 <a class="jxr_linenumber" name="L51" href="#L51">51</a>      @Override
@@ -68,16 +68,17 @@
 <a class="jxr_linenumber" name="L60" href="#L60">60</a>                                       <strong class="jxr_keyword">return</strong> false;
 <a class="jxr_linenumber" name="L61" href="#L61">61</a>                                   }
 <a class="jxr_linenumber" name="L62" href="#L62">62</a>                                   <strong class="jxr_keyword">final</strong> String username = session.username();
-<a class="jxr_linenumber" name="L63" href="#L63">63</a>                                   <strong class="jxr_keyword">final</strong> List&lt;String&gt; roles = administrators.contains(username) ? LEVEL_ADMIN
-<a class="jxr_linenumber" name="L64" href="#L64">64</a>                                                                                                : LEVEL_USER;
-<a class="jxr_linenumber" name="L65" href="#L65">65</a>                                   <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a> user = <strong class="jxr_keyword">new</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a>(username, roles);
-<a class="jxr_linenumber" name="L66" href="#L66">66</a>                                   ctx.logBuilder().authenticatedUser(<span class="jxr_string">"user/"</span> + username);
-<a class="jxr_linenumber" name="L67" href="#L67">67</a>                                   AuthUtil.setCurrentUser(ctx, user);
-<a class="jxr_linenumber" name="L68" href="#L68">68</a>                                   HttpApiUtil.setVerboseResponses(ctx, user);
-<a class="jxr_linenumber" name="L69" href="#L69">69</a>                                   <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="L70" href="#L70">70</a>                               });
-<a class="jxr_linenumber" name="L71" href="#L71">71</a>      }
-<a class="jxr_linenumber" name="L72" href="#L72">72</a>  }
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>                                   <strong class="jxr_keyword">final</strong> List&lt;String&gt; roles =
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>                                           systemAdministrators.contains(username) ? LEVEL_SYSTEM_ADMIN
+<a class="jxr_linenumber" name="L65" href="#L65">65</a>                                                                                   : LEVEL_USER;
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>                                   <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a> user = <strong class="jxr_keyword">new</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a>(username, roles);
+<a class="jxr_linenumber" name="L67" href="#L67">67</a>                                   ctx.logBuilder().authenticatedUser(<span class="jxr_string">"user/"</span> + username);
+<a class="jxr_linenumber" name="L68" href="#L68">68</a>                                   AuthUtil.setCurrentUser(ctx, user);
+<a class="jxr_linenumber" name="L69" href="#L69">69</a>                                   HttpApiUtil.setVerboseResponses(ctx, user);
+<a class="jxr_linenumber" name="L70" href="#L70">70</a>                                   <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L71" href="#L71">71</a>                               });
+<a class="jxr_linenumber" name="L72" href="#L72">72</a>      }
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>  }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2024 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

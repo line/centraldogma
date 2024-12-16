@@ -38,10 +38,10 @@
 <a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> com.fasterxml.jackson.databind.node.ObjectNode;
 <a class="jxr_linenumber" name="L31" href="#L31">31</a>  
 <a class="jxr_linenumber" name="L32" href="#L32">32</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <em class="jxr_javadoccomment"> * JSON Path {@code remove} operation.</em>
+<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <em class="jxr_javadoccomment"> * JSON Path {@code removeIfExists} operation.</em>
 <a class="jxr_linenumber" name="L34" href="#L34">34</a>  <em class="jxr_javadoccomment"> *</em>
-<a class="jxr_linenumber" name="L35" href="#L35">35</a>  <em class="jxr_javadoccomment"> * &lt;p&gt;This operation only takes one pointer ({@code path}) as an argument. It</em>
-<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <em class="jxr_javadoccomment"> * is an error condition if no JSON value exists at that pointer.&lt;/p&gt;</em>
+<a class="jxr_linenumber" name="L35" href="#L35">35</a>  <em class="jxr_javadoccomment"> * &lt;p&gt;This operation only takes one pointer ({@code path}) as an argument. Unlike, {@link RemoveOperation}, it</em>
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <em class="jxr_javadoccomment"> * does not throw an error if no JSON value exists at that pointer.&lt;/p&gt;</em>
 <a class="jxr_linenumber" name="L37" href="#L37">37</a>  <em class="jxr_javadoccomment"> */</em>
 <a class="jxr_linenumber" name="L38" href="#L38">38</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/RemoveIfExistsOperation.html">RemoveIfExistsOperation</a> <strong class="jxr_keyword">extends</strong> <a href="../../../../../com/linecorp/centraldogma/internal/jsonpatch/JsonPatchOperation.html">JsonPatchOperation</a> {
 <a class="jxr_linenumber" name="L39" href="#L39">39</a>  
