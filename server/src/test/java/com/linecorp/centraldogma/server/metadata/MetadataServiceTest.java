@@ -318,6 +318,10 @@ class MetadataServiceTest {
         assertThat(mds.findPermissions(project1, repo1, app1).join())
                 .containsExactlyInAnyOrder(Permission.READ, Permission.WRITE);
 
+        // Update invalid token
+        assertThatThrownBy(() -> mds.updatePerTokenPermission(author, project1, repo1, app2, READ_WRITE).join())
+                .hasCauseInstanceOf(TokenNotFoundException.class);
+
         // Update again with the same permission.
         assertThat(mds.updatePerTokenPermission(author, project1, repo1, app1, READ_WRITE).join())
                 .isEqualTo(revision);
