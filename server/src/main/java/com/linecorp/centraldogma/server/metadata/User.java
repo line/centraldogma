@@ -42,22 +42,23 @@ public class User implements Identifiable, Serializable {
     private static final long serialVersionUID = -5429782019985526549L;
 
     private static final String LEVEL_USER_STR = "LEVEL_USER";
-    private static final String LEVEL_ADMIN_STR = "LEVEL_ADMIN";
+    private static final String LEVEL_SYSTEM_ADMIN_STR = "LEVEL_SYSTEM_ADMIN";
 
     // System-wide roles for a user. It is different from the role in a project.
     public static final List<String> LEVEL_USER = ImmutableList.of(LEVEL_USER_STR);
-    public static final List<String> LEVEL_ADMIN = ImmutableList.of(LEVEL_ADMIN_STR, LEVEL_USER_STR);
+    public static final List<String> LEVEL_SYSTEM_ADMIN =
+            ImmutableList.of(LEVEL_SYSTEM_ADMIN_STR, LEVEL_USER_STR);
 
     public static final User DEFAULT = new User("user@localhost.localdomain", LEVEL_USER);
-    public static final User ADMIN = new User("admin@localhost.localdomain", LEVEL_ADMIN);
-    public static final User SYSTEM = new User("system@localhost.localdomain", LEVEL_ADMIN);
+    public static final User SYSTEM_ADMIN = new User("admin@localhost.localdomain", LEVEL_SYSTEM_ADMIN);
+    public static final User SYSTEM = new User("system@localhost.localdomain", LEVEL_SYSTEM_ADMIN);
 
     private final String login;
     private final String name;
     private final String email;
     private final List<String> roles;
 
-    private final boolean isAdmin;
+    private final boolean isSystemAdmin;
 
     /**
      * Creates a new instance.
@@ -71,7 +72,7 @@ public class User implements Identifiable, Serializable {
         this.name = requireNonNull(name, "name");
         this.email = requireNonNull(email, "email");
         this.roles = ImmutableList.copyOf(requireNonNull(roles, "roles"));
-        isAdmin = roles.stream().anyMatch(LEVEL_ADMIN_STR::equals);
+        isSystemAdmin = roles.stream().anyMatch(LEVEL_SYSTEM_ADMIN_STR::equals);
     }
 
     /**
@@ -95,7 +96,7 @@ public class User implements Identifiable, Serializable {
         name = Util.emailToUsername(email, "login");
 
         this.roles = ImmutableList.copyOf(roles);
-        isAdmin = roles.stream().anyMatch(LEVEL_ADMIN_STR::equals);
+        isSystemAdmin = roles.stream().anyMatch(LEVEL_SYSTEM_ADMIN_STR::equals);
     }
 
     /**
@@ -136,10 +137,10 @@ public class User implements Identifiable, Serializable {
     }
 
     /**
-     * Returns {@code true} if this user has administrative privileges.
+     * Returns {@code true} if this user has system administrative privileges.
      */
-    public boolean isAdmin() {
-        return isAdmin;
+    public boolean isSystemAdmin() {
+        return isSystemAdmin;
     }
 
     @Override
@@ -167,7 +168,7 @@ public class User implements Identifiable, Serializable {
                           .add("name", name())
                           .add("email", email())
                           .add("roles", roles())
-                          .add("isAdmin", isAdmin())
+                          .add("isSystemAdmin", isSystemAdmin())
                           .toString();
     }
 }

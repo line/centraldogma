@@ -42,6 +42,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -49,9 +50,14 @@ import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.function.ThrowingConsumer;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.google.common.collect.ImmutableList;
 
@@ -59,15 +65,19 @@ import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.PushAsIsCommand;
+import com.linecorp.centraldogma.server.command.TransformCommand;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.testing.internal.FlakyTest;
 
@@ -75,9 +85,10 @@ import com.linecorp.centraldogma.testing.internal.FlakyTest;
 class ZooKeeperCommandExecutorTest {
 
     private static final Logger logger = LoggerFactory.getLogger(ZooKeeperCommandExecutorTest.class);
-
-    private static final Change<String> pushChange = Change.ofTextUpsert("/foo", "bar");
-    private static final Change<String> normalizedChange = Change.ofTextUpsert("/foo", "bar_normalized");
+    private static final Change<JsonNode> pushChange = Change.ofJsonUpsert("/foo.json", "{\"a\":\"b\"}");
+    private static final Change<JsonNode> normalizedChange =
+            Change.ofJsonPatch("/foo.json",
+                               "[{\"op\":\"safeReplace\",\"path\":\"/a\",\"oldValue\":\"b\",\"value\":\"c\"}]");
 
     @Test
     void testLogWatch() throws Exception {
@@ -276,9 +287,10 @@ class ZooKeeperCommandExecutorTest {
         }
     }
 
-    @Test
     @Timeout(120)
-    void hierarchicalQuorumsWithFailOver() throws Throwable {
+    @ValueSource(booleans = { true, false })
+    @ParameterizedTest
+    void hierarchicalQuorumsWithFailOver(boolean normalizingPushCommand) throws Throwable {
         try (Cluster cluster = Cluster.builder()
                                       .numReplicas(9)
                                       .numGroup(3)
@@ -313,18 +325,7 @@ class ZooKeeperCommandExecutorTest {
             cluster.get(1).commandExecutor().stop().join();
             cluster.get(4).commandExecutor().stop().join();
 
-            final Command<CommitResult> normalizingPushCommand =
-                    Command.push(0L, Author.SYSTEM, "project", "repo1", new Revision(1),
-                                 "summary", "detail",
-                                 Markup.PLAINTEXT,
-                                 ImmutableList.of(pushChange));
-
-            assert normalizingPushCommand instanceof NormalizingPushCommand;
-            final PushAsIsCommand asIsCommand = ((NormalizingPushCommand) normalizingPushCommand).asIs(
-                    CommitResult.of(new Revision(2), ImmutableList.of(normalizedChange)));
-
-            assertThat(replica1.commandExecutor().execute(normalizingPushCommand).join().revision())
-                    .isEqualTo(new Revision(2));
+            final PushAsIsCommand asIsCommand = executeCommand(replica1, normalizingPushCommand);
             final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).get();
             assertThat(commandResult2.command()).isEqualTo(asIsCommand);
             assertThat(commandResult2.result()).isInstanceOf(Revision.class);
@@ -356,6 +357,47 @@ class ZooKeeperCommandExecutorTest {
             await().untilAsserted(() -> verify(cluster.get(5).delegate()).apply(eq(command3)));
             await().untilAsserted(() -> verify(cluster.get(7).delegate()).apply(eq(command3)));
             await().untilAsserted(() -> verify(cluster.get(8).delegate()).apply(eq(command3)));
+        }
+    }
+
+    private static PushAsIsCommand executeCommand(Replica replica1, boolean normalizingPush) {
+        if (normalizingPush) {
+            final Command<CommitResult> normalizingPushCommand =
+                    Command.push(0L, Author.SYSTEM, "project", "repo1", new Revision(1),
+                                 "summary", "detail",
+                                 Markup.PLAINTEXT,
+                                 ImmutableList.of(pushChange));
+
+            assert normalizingPushCommand instanceof NormalizingPushCommand;
+            final PushAsIsCommand asIsCommand = ((NormalizingPushCommand) normalizingPushCommand).asIs(
+                    CommitResult.of(new Revision(2), ImmutableList.of(normalizedChange)));
+
+            assertThat(replica1.commandExecutor().execute(normalizingPushCommand).join().revision())
+                    .isEqualTo(new Revision(2));
+            return asIsCommand;
+        } else {
+            final BiFunction<Revision, JsonNode, JsonNode> transformer = (revision, jsonNode) -> {
+                final JsonNode oldContent = pushChange.content();
+                assertThat(jsonNode).isEqualTo(oldContent);
+                final JsonNode newContent = oldContent.deepCopy();
+                ((ObjectNode) newContent).put("a", "c");
+                return newContent;
+            };
+            final ContentTransformer<JsonNode> contentTransformer = new ContentTransformer<>(
+                    pushChange.path(), EntryType.JSON, transformer);
+            final Command<CommitResult> transformCommand =
+                    Command.transform(0L, Author.SYSTEM, "project", "repo1", new Revision(1),
+                                      "summary", "detail",
+                                      Markup.PLAINTEXT, contentTransformer);
+
+            assert transformCommand instanceof TransformCommand;
+            final PushAsIsCommand asIsCommand =
+                    ((TransformCommand) transformCommand).asIs(
+                            CommitResult.of(new Revision(2), ImmutableList.of(normalizedChange)));
+
+            assertThat(replica1.commandExecutor().execute(transformCommand).join().revision())
+                    .isEqualTo(new Revision(2));
+            return asIsCommand;
         }
     }
 
@@ -628,11 +670,27 @@ class ZooKeeperCommandExecutorTest {
                          argument = ((ForcePushCommand<?>) argument).delegate();
                      }
                      if (argument instanceof NormalizingPushCommand) {
-                         if (((NormalizingPushCommand) argument).changes().equals(
+                         final NormalizingPushCommand normalizingPushCommand =
+                                 (NormalizingPushCommand) argument;
+                         assertThat(normalizingPushCommand.type()).isSameAs(CommandType.NORMALIZING_PUSH);
+                         if (normalizingPushCommand.changes().equals(
                                  ImmutableList.of(pushChange))) {
                              return completedFuture(
                                      CommitResult.of(revision, ImmutableList.of(normalizedChange)));
                          }
+                     }
+
+                     if (argument instanceof TransformCommand) {
+                         final TransformCommand pushCommand =
+                                 (TransformCommand) argument;
+                         assertThat(pushCommand.type()).isSameAs(CommandType.TRANSFORM);
+                         final BiFunction<Revision, JsonNode, JsonNode> transformer =
+                                 (BiFunction<Revision, JsonNode, JsonNode>) pushCommand.transformer()
+                                                                                       .transformer();
+                         final JsonNode applied = transformer.apply(null, pushChange.content());
+                         assertThat(applied).isEqualTo(JsonNodeFactory.instance.objectNode().put("a", "c"));
+                         return completedFuture(
+                                 CommitResult.of(revision, ImmutableList.of(normalizedChange)));
                      }
                      return completedFuture(CommitResult.of(revision, ImmutableList.of()));
                  });

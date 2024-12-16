@@ -37,9 +37,9 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
-import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.Token;
+import com.linecorp.centraldogma.server.metadata.TokenNotFoundException;
 import com.linecorp.centraldogma.server.metadata.Tokens;
 import com.linecorp.centraldogma.server.metadata.UserWithToken;
 

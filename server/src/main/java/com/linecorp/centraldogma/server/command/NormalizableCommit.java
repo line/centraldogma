@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,16 +13,17 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
 package com.linecorp.centraldogma.server.command;
 
-import javax.annotation.Nullable;
+/**
+ * A {@link Command} that can be transformed to a {@link PushAsIsCommand} via {@link #asIs(CommitResult)}.
+ */
+@FunctionalInterface
+public interface NormalizableCommit {
 
-import com.linecorp.centraldogma.common.Author;
-
-abstract class AdministrativeCommand<T> extends RootCommand<T> {
-    AdministrativeCommand(CommandType commandType, @Nullable Long timestamp,
-                          @Nullable Author author) {
-        super(commandType, timestamp, author);
-    }
+    /**
+     * Returns a new {@link PushAsIsCommand} which is converted using {@link CommitResult}
+     * for replicating to other replicas.
+     */
+    PushAsIsCommand asIs(CommitResult commitResult);
 }

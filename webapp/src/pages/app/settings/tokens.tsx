@@ -26,8 +26,8 @@ const TokenPage = () => {
           ),
         header: 'Application ID',
       }),
-      columnHelper.accessor((row: TokenDto) => row.admin, {
-        cell: (info) => <UserRole role={info.getValue() ? 'Admin' : 'User'} />,
+      columnHelper.accessor((row: TokenDto) => row.systemAdmin, {
+        cell: (info) => <UserRole role={info.getValue() ? 'System Admin' : 'User'} />,
         header: 'Level',
       }),
       columnHelper.accessor((row: TokenDto) => row.creation.user, {

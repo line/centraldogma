@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.metadata;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Objects;
+
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -155,6 +157,27 @@ public final class RepositoryMetadata implements Identifiable {
     @JsonProperty("writeQuota")
     public QuotaConfig writeQuota() {
         return writeQuota;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        final RepositoryMetadata that = (RepositoryMetadata) o;
+        return name.equals(that.name) &&
+               roles.equals(that.roles) &&
+               creation.equals(that.creation) && Objects.equals(removal, that.removal) &&
+               Objects.equals(writeQuota, that.writeQuota);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, roles, creation, removal, writeQuota);
     }
 
     @Override

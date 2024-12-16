@@ -62,6 +62,6 @@ public final class CentralDogmaMirrorProvider implements MirrorProvider {
         return new CentralDogmaMirror(context.id(), context.enabled(), context.schedule(), context.direction(),
                                       context.credential(), context.localRepo(), context.localPath(),
                                       repositoryUri.uri(), remoteProject, remoteRepo, remotePath,
-                                      context.gitignore());
+                                      context.gitignore(), context.zone());
     }
 }

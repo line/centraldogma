@@ -22,6 +22,7 @@ import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 
 import com.linecorp.centraldogma.common.RepositoryRole;
 
@@ -70,6 +71,25 @@ public final class Roles {
     @JsonProperty("tokens")
     public Map<String, RepositoryRole> tokens() {
         return tokens;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Roles)) {
+            return false;
+        }
+        final Roles other = (Roles) o;
+        return projectRoles.equals(other.projectRoles) &&
+               users.equals(other.users) &&
+               tokens.equals(other.tokens);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(projectRoles, users, tokens);
     }
 
     @Override

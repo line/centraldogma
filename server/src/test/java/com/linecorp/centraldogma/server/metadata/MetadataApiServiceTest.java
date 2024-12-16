@@ -59,13 +59,13 @@ class MetadataApiServiceTest {
 
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.administrators(TestAuthMessageUtil.USERNAME);
+            builder.systemAdministrators(TestAuthMessageUtil.USERNAME);
             builder.authProviderFactory(new TestAuthProviderFactory());
         }
     };
 
     @SuppressWarnings("NotNullFieldNotInitialized")
-    static WebClient adminClient;
+    static WebClient systemAdminClient;
 
     @BeforeAll
     static void setUp() throws JsonMappingException, JsonParseException {
@@ -76,26 +76,28 @@ class MetadataApiServiceTest {
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
         final String sessionId = Jackson.readValue(response.content().array(), AccessToken.class)
                                         .accessToken();
-        adminClient = WebClient.builder(dogma.httpClient().uri())
-                               .auth(AuthToken.ofOAuth2(sessionId)).build();
+        systemAdminClient = WebClient.builder(dogma.httpClient().uri())
+                                     .auth(AuthToken.ofOAuth2(sessionId)).build();
         RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, PROJECTS_PREFIX,
                                                    HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         String body = "{\"name\": \"" + PROJECT_NAME + "\"}";
         // Create a project.
-        assertThat(adminClient.execute(headers, body).aggregate().join().status()).isSameAs(HttpStatus.CREATED);
+        assertThat(systemAdminClient.execute(headers, body).aggregate().join().status())
+                .isSameAs(HttpStatus.CREATED);
 
         headers = RequestHeaders.of(HttpMethod.POST, PROJECTS_PREFIX + '/' + PROJECT_NAME + "/repos",
                                     HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         body = "{\"name\": \"" + REPOSITORY_NAME + "\"}";
         // Create a repository.
-        assertThat(adminClient.execute(headers, body).aggregate().join().status()).isSameAs(HttpStatus.CREATED);
+        assertThat(systemAdminClient.execute(headers, body).aggregate().join().status())
+                .isSameAs(HttpStatus.CREATED);
 
         // Create a token
         final HttpRequest request = HttpRequest.builder()
                                                .post("/api/v1/tokens")
                                                .content(MediaType.FORM_DATA, "appId=" + APP_ID)
                                                .build();
-        assertThat(adminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.CREATED);
+        assertThat(systemAdminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.CREATED);
     }
 
     @Test
@@ -110,13 +112,14 @@ class MetadataApiServiceTest {
                                          .patch("/api/v1/metadata/" + PROJECT_NAME + "/members/" + MEMBER_ID)
                                          .content(MediaType.JSON_PATCH, Jackson.writeValueAsString(jsonPatch))
                                          .build();
-        assertThat(adminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
+        assertThat(systemAdminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
 
         // Remove the member
         request = HttpRequest.builder()
                              .delete("/api/v1/metadata/" + PROJECT_NAME + "/members/" + MEMBER_ID)
                              .build();
-        assertThat(adminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.NO_CONTENT);
+        assertThat(systemAdminClient.execute(request).aggregate().join().status())
+                .isSameAs(HttpStatus.NO_CONTENT);
     }
 
     private static void addProjectMember() {
@@ -128,7 +131,7 @@ class MetadataApiServiceTest {
                                                         "\"role\":\"MEMBER\"" +
                                                         '}')
                                                .build();
-        assertThat(adminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
+        assertThat(systemAdminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
     }
 
     @Test
@@ -145,13 +148,14 @@ class MetadataApiServiceTest {
                              .patch("/api/v1/metadata/" + PROJECT_NAME + "/tokens/app_id")
                              .content(MediaType.JSON_PATCH, Jackson.writeValueAsString(jsonPatch))
                              .build();
-        assertThat(adminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
+        assertThat(systemAdminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
 
         // Remove the token
         request = HttpRequest.builder()
                              .delete("/api/v1/metadata/" + PROJECT_NAME + "/tokens/app_id")
                              .build();
-        assertThat(adminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.NO_CONTENT);
+        assertThat(systemAdminClient.execute(request).aggregate().join().status())
+                .isSameAs(HttpStatus.NO_CONTENT);
     }
 
     private static void addProjectToken() {
@@ -163,7 +167,7 @@ class MetadataApiServiceTest {
                                                         "\"role\":\"MEMBER\"" +
                                                         '}')
                                                .build();
-        assertThat(adminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
+        assertThat(systemAdminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
     }
 
     @Test
@@ -178,7 +182,7 @@ class MetadataApiServiceTest {
                                                   "\"role\":\"READ\"" +
                                                   '}')
                                          .build();
-        assertThat(adminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
+        assertThat(systemAdminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
 
         ProjectMetadata projectMetadata = projectMetadata();
         assertThat(projectMetadata.repo(REPOSITORY_NAME).roles().users().get(MEMBER_ID))
@@ -188,7 +192,8 @@ class MetadataApiServiceTest {
         request = HttpRequest.builder()
                              .delete("/api/v1/metadata/" + PROJECT_NAME + "/members/" + MEMBER_ID)
                              .build();
-        assertThat(adminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.NO_CONTENT);
+        assertThat(systemAdminClient.execute(request).aggregate().join().status())
+                .isSameAs(HttpStatus.NO_CONTENT);
         projectMetadata = projectMetadata();
         assertThat(projectMetadata.repo(REPOSITORY_NAME).roles().users().get(MEMBER_ID)).isNull();
     }
@@ -205,7 +210,7 @@ class MetadataApiServiceTest {
                                                   "\"role\":\"READ\"" +
                                                   '}')
                                          .build();
-        assertThat(adminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
+        assertThat(systemAdminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
 
         ProjectMetadata projectMetadata = projectMetadata();
         assertThat(projectMetadata.repo(REPOSITORY_NAME).roles().tokens().get(APP_ID))
@@ -215,7 +220,8 @@ class MetadataApiServiceTest {
         request = HttpRequest.builder()
                              .delete("/api/v1/metadata/" + PROJECT_NAME + "/tokens/" + APP_ID)
                              .build();
-        assertThat(adminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.NO_CONTENT);
+        assertThat(systemAdminClient.execute(request).aggregate().join().status())
+                .isSameAs(HttpStatus.NO_CONTENT);
         projectMetadata = projectMetadata();
         assertThat(projectMetadata.repo(REPOSITORY_NAME).roles().tokens().get(APP_ID)).isNull();
     }
@@ -227,11 +233,11 @@ class MetadataApiServiceTest {
         HttpRequest request = HttpRequest.builder()
                                          .post("/api/v1/tokens")
                                          .content(MediaType.FORM_DATA,
-                                                  "secret=" + memberToken + "&isAdmin=false&appId=foo")
+                                                  "secret=" + memberToken + "&isSystemAdmin=false&appId=foo")
                                          .build();
-        AggregatedHttpResponse res = adminClient.execute(request).aggregate().join();
+        AggregatedHttpResponse res = systemAdminClient.execute(request).aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.CREATED);
-        res = adminClient.get("/api/v1/tokens").aggregate().join();
+        res = systemAdminClient.get("/api/v1/tokens").aggregate().join();
         assertThat(res.contentUtf8()).contains("\"secret\":\"" + memberToken + '"');
 
         // Add as a member to the project
@@ -243,7 +249,7 @@ class MetadataApiServiceTest {
                                       "\"role\":\"MEMBER\"" +
                                       '}')
                              .build();
-        res = adminClient.execute(request).aggregate().join();
+        res = systemAdminClient.execute(request).aggregate().join();
         assertThat(res.status()).isSameAs(HttpStatus.OK);
 
         final WebClient memberClient = WebClient.builder(dogma.httpClient().uri())
@@ -263,7 +269,7 @@ class MetadataApiServiceTest {
                                       "  \"guest\": null" +
                                       '}')
                              .build();
-        assertThat(adminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
+        assertThat(systemAdminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
 
         // Now the member can access the meta repository.
         res = memberClient.get("/api/v1/projects/" + PROJECT_NAME + "/repos/meta/list").aggregate().join();
@@ -278,7 +284,7 @@ class MetadataApiServiceTest {
                                       "  \"guest\": null" +
                                       '}')
                              .build();
-        assertThat(adminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
+        assertThat(systemAdminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
 
         // Now the member cannot access the meta repository.
         res = memberClient.get("/api/v1/projects/" + PROJECT_NAME + "/repos/meta/list").aggregate().join();
@@ -288,8 +294,8 @@ class MetadataApiServiceTest {
     private static ProjectMetadata projectMetadata()
             throws JsonParseException, JsonMappingException {
         return Jackson.readValue(
-                adminClient.prepare()
-                           .get("/api/v1/projects/" + PROJECT_NAME)
-                           .execute().aggregate().join().contentUtf8(), ProjectMetadata.class);
+                systemAdminClient.prepare()
+                                 .get("/api/v1/projects/" + PROJECT_NAME)
+                                 .execute().aggregate().join().contentUtf8(), ProjectMetadata.class);
     }
 }

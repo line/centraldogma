@@ -34,7 +34,8 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
  * You can find the normalized changes from the {@link CommitResult#changes()} that is the result of
  * {@link CommandExecutor#execute(Command)}.
  */
-public final class NormalizingPushCommand extends AbstractPushCommand<CommitResult> {
+public final class NormalizingPushCommand extends AbstractPushCommand<CommitResult>
+        implements NormalizableCommit {
 
     @JsonCreator
     NormalizingPushCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
@@ -50,11 +51,7 @@ public final class NormalizingPushCommand extends AbstractPushCommand<CommitResu
               baseRevision, summary, detail, markup, changes);
     }
 
-    /**
-     * Returns a new {@link PushAsIsCommand} which is converted from this {@link NormalizingPushCommand}
-     * for replicating to other replicas. Unlike the {@link NormalizingPushCommand},
-     * the changes of this {@link Command} are not normalized and applied as they are.
-     */
+    @Override
     public PushAsIsCommand asIs(CommitResult commitResult) {
         requireNonNull(commitResult, "commitResult");
         return new PushAsIsCommand(timestamp(), author(), projectName(), repositoryName(),

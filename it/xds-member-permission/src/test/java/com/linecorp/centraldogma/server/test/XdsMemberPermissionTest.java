@@ -54,7 +54,7 @@ class XdsMemberPermissionTest {
 
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.administrators(USERNAME)
+            builder.systemAdministrators(USERNAME)
                    .cors("*")
                    .authProviderFactory(new ShiroAuthProviderFactory(unused -> {
                        final Ini iniConfig = new Ini();

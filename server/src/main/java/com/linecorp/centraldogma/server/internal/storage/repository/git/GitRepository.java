@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.FailFastUtil.context;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.FailFastUtil.failFastIfTimedOut;
@@ -35,9 +34,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Properties;
-import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
@@ -47,6 +44,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -55,19 +53,10 @@ import javax.annotation.Nullable;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.dircache.DirCache;
-import org.eclipse.jgit.dircache.DirCacheBuilder;
-import org.eclipse.jgit.dircache.DirCacheEditor;
-import org.eclipse.jgit.dircache.DirCacheEditor.DeletePath;
-import org.eclipse.jgit.dircache.DirCacheEditor.DeleteTree;
-import org.eclipse.jgit.dircache.DirCacheEditor.PathEdit;
-import org.eclipse.jgit.dircache.DirCacheEntry;
 import org.eclipse.jgit.dircache.DirCacheIterator;
-import org.eclipse.jgit.lib.CommitBuilder;
 import org.eclipse.jgit.lib.Constants;
-import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectIdOwnerMap;
-import org.eclipse.jgit.lib.ObjectInserter;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.Ref;
@@ -89,7 +78,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
@@ -100,7 +88,6 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
@@ -117,6 +104,7 @@ import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.internal.IsolatedSystemReader;
 import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
@@ -128,8 +116,6 @@ import com.linecorp.centraldogma.server.storage.repository.FindOptions;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
-import difflib.DiffUtils;
-import difflib.Patch;
 import io.netty.channel.EventLoop;
 
 /**
@@ -141,7 +127,6 @@ class GitRepository implements Repository {
 
     static final String R_HEADS_MASTER = Constants.R_HEADS + Constants.MASTER;
 
-    private static final byte[] EMPTY_BYTE = new byte[0];
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
 
     private static final Field revWalkObjectsField;
@@ -262,10 +247,9 @@ class GitRepository implements Repository {
             // Initialize the commit ID database.
             commitIdDatabase = new CommitIdDatabase(jGitRepository);
 
-            // Insert the initial commit into the master branch.
-            commit0(null, Revision.INIT, creationTimeMillis, author,
-                    "Create a new repository", "", Markup.PLAINTEXT,
-                    Collections.emptyList(), true);
+            new CommitExecutor(this, creationTimeMillis, author, "Create a new repository", "",
+                               Markup.PLAINTEXT, true)
+                    .executeInitialCommit();
 
             headRevision = Revision.INIT;
             success = true;
@@ -392,6 +376,10 @@ class GitRepository implements Repository {
 
     void internalClose() {
         close(() -> new CentralDogmaException("should never reach here"));
+    }
+
+    CommitIdDatabase commitIdDatabase() {
+        return commitIdDatabase;
     }
 
     @Override
@@ -726,13 +714,11 @@ class GitRepository implements Repository {
         final ServiceRequestContext ctx = context();
         return CompletableFuture.supplyAsync(() -> {
             failFastIfTimedOut(this, logger, ctx, "previewDiff", baseRevision);
-            return blockingPreviewDiff(baseRevision, changes);
+            return blockingPreviewDiff(baseRevision, new DefaultChangesApplier(changes));
         }, repositoryWorker);
     }
 
-    private Map<String, Change<?>> blockingPreviewDiff(Revision baseRevision, Iterable<Change<?>> changes) {
-        requireNonNull(baseRevision, "baseRevision");
-        requireNonNull(changes, "changes");
+    Map<String, Change<?>> blockingPreviewDiff(Revision baseRevision, AbstractChangesApplier changesApplier) {
         baseRevision = normalizeNow(baseRevision);
 
         readLock();
@@ -742,7 +728,7 @@ class GitRepository implements Repository {
 
             final ObjectId baseTreeId = toTree(revWalk, baseRevision);
             final DirCache dirCache = DirCache.newInCore();
-            final int numEdits = applyChanges(baseRevision, baseTreeId, dirCache, changes);
+            final int numEdits = changesApplier.apply(jGitRepository, baseRevision, baseTreeId, dirCache);
             if (numEdits == 0) {
                 return Collections.emptyMap();
             }
@@ -868,314 +854,49 @@ class GitRepository implements Repository {
         requireNonNull(detail, "detail");
         requireNonNull(markup, "markup");
         requireNonNull(changes, "changes");
-
-        final ServiceRequestContext ctx = context();
-        return CompletableFuture.supplyAsync(() -> {
-            failFastIfTimedOut(this, logger, ctx, "commit", baseRevision, author, summary);
-            return blockingCommit(baseRevision, commitTimeMillis,
-                                  author, summary, detail, markup, changes, false, directExecution);
-        }, repositoryWorker);
+        final CommitExecutor commitExecutor =
+                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, false);
+        return commit(baseRevision, commitExecutor, normBaseRevision -> {
+            if (!directExecution) {
+                return changes;
+            }
+            return blockingPreviewDiff(normBaseRevision, new DefaultChangesApplier(changes)).values();
+        });
     }
 
-    private CommitResult blockingCommit(
-            Revision baseRevision, long commitTimeMillis, Author author, String summary,
-            String detail, Markup markup, Iterable<Change<?>> changes, boolean allowEmptyCommit,
-            boolean directExecution) {
-
+    @Override
+    public CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis, Author author,
+                                                  String summary, String detail, Markup markup,
+                                                  ContentTransformer<?> transformer) {
         requireNonNull(baseRevision, "baseRevision");
-
-        final RevisionAndEntries res;
-        final Iterable<Change<?>> applyingChanges;
-        writeLock();
-        try {
-            final Revision normBaseRevision = normalizeNow(baseRevision);
-            final Revision headRevision = cachedHeadRevision();
-            if (headRevision.major() != normBaseRevision.major()) {
-                throw new ChangeConflictException(
-                        "invalid baseRevision: " + baseRevision + " (expected: " + headRevision +
-                        " or equivalent)");
-            }
-
-            if (directExecution) {
-                applyingChanges = blockingPreviewDiff(normBaseRevision, changes).values();
-            } else {
-                applyingChanges = changes;
-            }
-            res = commit0(headRevision, headRevision.forward(1), commitTimeMillis,
-                          author, summary, detail, markup, applyingChanges, allowEmptyCommit);
-
-            this.headRevision = res.revision;
-        } finally {
-            writeUnLock();
-        }
-
-        // Note that the notification is made while no lock is held to avoid the risk of a dead lock.
-        notifyWatchers(res.revision, res.diffEntries);
-        return CommitResult.of(res.revision, applyingChanges);
-    }
-
-    private RevisionAndEntries commit0(@Nullable Revision prevRevision, Revision nextRevision,
-                                       long commitTimeMillis, Author author, String summary,
-                                       String detail, Markup markup,
-                                       Iterable<Change<?>> changes, boolean allowEmpty) {
-
         requireNonNull(author, "author");
         requireNonNull(summary, "summary");
-        requireNonNull(changes, "changes");
         requireNonNull(detail, "detail");
         requireNonNull(markup, "markup");
-
-        assert prevRevision == null || prevRevision.major() > 0;
-        assert nextRevision.major() > 0;
-
-        try (ObjectInserter inserter = jGitRepository.newObjectInserter();
-             ObjectReader reader = jGitRepository.newObjectReader();
-             RevWalk revWalk = newRevWalk(reader)) {
-
-            final ObjectId prevTreeId = prevRevision != null ? toTree(revWalk, prevRevision) : null;
-
-            // The staging area that keeps the entries of the new tree.
-            // It starts with the entries of the tree at the prevRevision (or with no entries if the
-            // prevRevision is the initial commit), and then this method will apply the requested changes
-            // to build the new tree.
-            final DirCache dirCache = DirCache.newInCore();
-
-            // Apply the changes and retrieve the list of the affected files.
-            final int numEdits = applyChanges(prevRevision, prevTreeId, dirCache, changes);
-
-            // Reject empty commit if necessary.
-            final List<DiffEntry> diffEntries;
-            boolean isEmpty = numEdits == 0;
-            if (!isEmpty) {
-                // Even if there are edits, the resulting tree might be identical with the previous tree.
-                final CanonicalTreeParser p = new CanonicalTreeParser();
-                p.reset(reader, prevTreeId);
-                final DiffFormatter diffFormatter = new DiffFormatter(null);
-                diffFormatter.setRepository(jGitRepository);
-                diffEntries = diffFormatter.scan(p, new DirCacheIterator(dirCache));
-                isEmpty = diffEntries.isEmpty();
-            } else {
-                diffEntries = ImmutableList.of();
-            }
-
-            if (!allowEmpty && isEmpty) {
-                throw new RedundantChangeException(
-                        "changes did not change anything in " + parent().name() + '/' + name() +
-                        " at revision " + (prevRevision != null ? prevRevision.major() : 0) +
-                        ": " + changes);
-            }
-
-            // flush the current index to repository and get the result tree object id.
-            final ObjectId nextTreeId = dirCache.writeTree(inserter);
-
-            // build a commit object
-            final PersonIdent personIdent = new PersonIdent(author.name(), author.email(),
-                                                            commitTimeMillis / 1000L * 1000L, 0);
-
-            final CommitBuilder commitBuilder = new CommitBuilder();
-
-            commitBuilder.setAuthor(personIdent);
-            commitBuilder.setCommitter(personIdent);
-            commitBuilder.setTreeId(nextTreeId);
-            commitBuilder.setEncoding(UTF_8);
-
-            // Write summary, detail and revision to commit's message as JSON format.
-            commitBuilder.setMessage(CommitUtil.toJsonString(summary, detail, markup, nextRevision));
-
-            // if the head commit exists, use it as the parent commit.
-            if (prevRevision != null) {
-                commitBuilder.setParentId(commitIdDatabase.get(prevRevision));
-            }
-
-            final ObjectId nextCommitId = inserter.insert(commitBuilder);
-            inserter.flush();
-
-            // tagging the revision object, for history lookup purpose.
-            commitIdDatabase.put(nextRevision, nextCommitId);
-            doRefUpdate(revWalk, R_HEADS_MASTER, nextCommitId);
-
-            return new RevisionAndEntries(nextRevision, diffEntries);
-        } catch (CentralDogmaException | IllegalArgumentException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new StorageException("failed to push at '" + parent.name() + '/' + name + '\'', e);
-        }
+        requireNonNull(transformer, "transformer");
+        final CommitExecutor commitExecutor =
+                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, false);
+        return commit(baseRevision, commitExecutor,
+                      normBaseRevision -> blockingPreviewDiff(
+                              normBaseRevision, new TransformingChangesApplier(transformer)).values());
     }
 
-    private int applyChanges(@Nullable Revision baseRevision, @Nullable ObjectId baseTreeId, DirCache dirCache,
-                             Iterable<Change<?>> changes) {
-
-        int numEdits = 0;
-
-        try (ObjectInserter inserter = jGitRepository.newObjectInserter();
-             ObjectReader reader = jGitRepository.newObjectReader()) {
-
-            if (baseTreeId != null) {
-                // the DirCacheBuilder is to used for doing update operations on the given DirCache object
-                final DirCacheBuilder builder = dirCache.builder();
-
-                // Add the tree object indicated by the prevRevision to the temporary DirCache object.
-                builder.addTree(EMPTY_BYTE, 0, reader, baseTreeId);
-                builder.finish();
-            }
-
-            // loop over the specified changes.
-            for (Change<?> change : changes) {
-                final String changePath = change.path().substring(1); // Strip the leading '/'.
-                final DirCacheEntry oldEntry = dirCache.getEntry(changePath);
-                final byte[] oldContent = oldEntry != null ? reader.open(oldEntry.getObjectId()).getBytes()
-                                                           : null;
-
-                switch (change.type()) {
-                    case UPSERT_JSON: {
-                        final JsonNode oldJsonNode = oldContent != null ? Jackson.readTree(oldContent) : null;
-                        final JsonNode newJsonNode = firstNonNull((JsonNode) change.content(),
-                                                                  JsonNodeFactory.instance.nullNode());
-
-                        // Upsert only when the contents are really different.
-                        if (!Objects.equals(newJsonNode, oldJsonNode)) {
-                            applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
-                            numEdits++;
-                        }
-                        break;
-                    }
-                    case UPSERT_TEXT: {
-                        final String sanitizedOldText;
-                        if (oldContent != null) {
-                            sanitizedOldText = sanitizeText(new String(oldContent, UTF_8));
-                        } else {
-                            sanitizedOldText = null;
-                        }
-
-                        final String sanitizedNewText = sanitizeText(change.contentAsText());
-
-                        // Upsert only when the contents are really different.
-                        if (!sanitizedNewText.equals(sanitizedOldText)) {
-                            applyPathEdit(dirCache, new InsertText(changePath, inserter, sanitizedNewText));
-                            numEdits++;
-                        }
-                        break;
-                    }
-                    case REMOVE:
-                        if (oldEntry != null) {
-                            applyPathEdit(dirCache, new DeletePath(changePath));
-                            numEdits++;
-                            break;
-                        }
-
-                        // The path might be a directory.
-                        if (applyDirectoryEdits(dirCache, changePath, null, change)) {
-                            numEdits++;
-                        } else {
-                            // Was not a directory either; conflict.
-                            reportNonExistentEntry(change);
-                            break;
-                        }
-                        break;
-                    case RENAME: {
-                        final String newPath =
-                                ((String) change.content()).substring(1); // Strip the leading '/'.
-
-                        if (dirCache.getEntry(newPath) != null) {
-                            throw new ChangeConflictException("a file exists at the target path: " + change);
-                        }
-
-                        if (oldEntry != null) {
-                            if (changePath.equals(newPath)) {
-                                // Redundant rename request - old path and new path are same.
-                                break;
-                            }
-
-                            final DirCacheEditor editor = dirCache.editor();
-                            editor.add(new DeletePath(changePath));
-                            editor.add(new CopyOldEntry(newPath, oldEntry));
-                            editor.finish();
-                            numEdits++;
-                            break;
-                        }
-
-                        // The path might be a directory.
-                        if (applyDirectoryEdits(dirCache, changePath, newPath, change)) {
-                            numEdits++;
-                        } else {
-                            // Was not a directory either; conflict.
-                            reportNonExistentEntry(change);
-                        }
-                        break;
-                    }
-                    case APPLY_JSON_PATCH: {
-                        final JsonNode oldJsonNode;
-                        if (oldContent != null) {
-                            oldJsonNode = Jackson.readTree(oldContent);
-                        } else {
-                            oldJsonNode = Jackson.nullNode;
-                        }
-
-                        final JsonNode newJsonNode;
-                        try {
-                            newJsonNode = JsonPatch.fromJson((JsonNode) change.content()).apply(oldJsonNode);
-                        } catch (Exception e) {
-                            throw new ChangeConflictException("failed to apply JSON patch: " + change +
-                                                              " old JSON: " + oldJsonNode, e);
-                        }
-
-                        // Apply only when the contents are really different.
-                        if (!newJsonNode.equals(oldJsonNode)) {
-                            applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
-                            numEdits++;
-                        }
-                        break;
-                    }
-                    case APPLY_TEXT_PATCH:
-                        final Patch<String> patch = DiffUtils.parseUnifiedDiff(
-                                Util.stringToLines(sanitizeText((String) change.content())));
-
-                        final String sanitizedOldText;
-                        final List<String> sanitizedOldTextLines;
-                        if (oldContent != null) {
-                            sanitizedOldText = sanitizeText(new String(oldContent, UTF_8));
-                            sanitizedOldTextLines = Util.stringToLines(sanitizedOldText);
-                        } else {
-                            sanitizedOldText = null;
-                            sanitizedOldTextLines = Collections.emptyList();
-                        }
-
-                        final String newText;
-                        try {
-                            final List<String> newTextLines = DiffUtils.patch(sanitizedOldTextLines, patch);
-                            if (newTextLines.isEmpty()) {
-                                newText = "";
-                            } else {
-                                final StringJoiner joiner = new StringJoiner("\n", "", "\n");
-                                for (String line : newTextLines) {
-                                    joiner.add(line);
-                                }
-                                newText = joiner.toString();
-                            }
-                        } catch (Exception e) {
-                            throw new ChangeConflictException("failed to apply text patch: " + change, e);
-                        }
-
-                        // Apply only when the contents are really different.
-                        if (!newText.equals(sanitizedOldText)) {
-                            applyPathEdit(dirCache, new InsertText(changePath, inserter, newText));
-                            numEdits++;
-                        }
-                        break;
-                }
-            }
-        } catch (CentralDogmaException | IllegalArgumentException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new StorageException("failed to apply changes on revision " + baseRevision, e);
-        }
-        return numEdits;
+    private CompletableFuture<CommitResult> commit(
+            Revision baseRevision,
+            CommitExecutor commitExecutor,
+            Function<Revision, Iterable<Change<?>>> applyingChangesProvider) {
+        final ServiceRequestContext ctx = context();
+        return CompletableFuture.supplyAsync(() -> {
+            failFastIfTimedOut(this, logger, ctx, "commit", baseRevision,
+                               commitExecutor.author(), commitExecutor.summary());
+            return commitExecutor.execute(baseRevision, applyingChangesProvider);
+        }, repositoryWorker);
     }
 
     /**
      * Removes {@code \r} and appends {@code \n} on the last line if it does not end with {@code \n}.
      */
-    private static String sanitizeText(String text) {
+    static String sanitizeText(String text) {
         if (text.indexOf('\r') >= 0) {
             text = CR.matcher(text).replaceAll("");
         }
@@ -1185,113 +906,6 @@ class GitRepository implements Repository {
         return text;
     }
 
-    private static void reportNonExistentEntry(Change<?> change) {
-        throw new ChangeConflictException("non-existent file/directory: " + change);
-    }
-
-    private static void applyPathEdit(DirCache dirCache, PathEdit edit) {
-        final DirCacheEditor e = dirCache.editor();
-        e.add(edit);
-        e.finish();
-    }
-
-    /**
-     * Applies recursive directory edits.
-     *
-     * @param oldDir the path to the directory to make a recursive change
-     * @param newDir the path to the renamed directory, or {@code null} to remove the directory.
-     *
-     * @return {@code true} if any edits were made to {@code dirCache}, {@code false} otherwise
-     */
-    private static boolean applyDirectoryEdits(DirCache dirCache,
-                                               String oldDir, @Nullable String newDir, Change<?> change) {
-
-        if (!oldDir.endsWith("/")) {
-            oldDir += '/';
-        }
-        if (newDir != null && !newDir.endsWith("/")) {
-            newDir += '/';
-        }
-
-        final byte[] rawOldDir = Constants.encode(oldDir);
-        final byte[] rawNewDir = newDir != null ? Constants.encode(newDir) : null;
-        final int numEntries = dirCache.getEntryCount();
-        DirCacheEditor editor = null;
-
-        loop:
-        for (int i = 0; i < numEntries; i++) {
-            final DirCacheEntry e = dirCache.getEntry(i);
-            final byte[] rawPath = e.getRawPath();
-
-            // Ensure that there are no entries under the newDir; we have a conflict otherwise.
-            if (rawNewDir != null) {
-                boolean conflict = true;
-                if (rawPath.length > rawNewDir.length) {
-                    // Check if there is a file whose path starts with 'newDir'.
-                    for (int j = 0; j < rawNewDir.length; j++) {
-                        if (rawNewDir[j] != rawPath[j]) {
-                            conflict = false;
-                            break;
-                        }
-                    }
-                } else if (rawPath.length == rawNewDir.length - 1) {
-                    // Check if there is a file whose path is exactly same with newDir without trailing '/'.
-                    for (int j = 0; j < rawNewDir.length - 1; j++) {
-                        if (rawNewDir[j] != rawPath[j]) {
-                            conflict = false;
-                            break;
-                        }
-                    }
-                } else {
-                    conflict = false;
-                }
-
-                if (conflict) {
-                    throw new ChangeConflictException("target directory exists already: " + change);
-                }
-            }
-
-            // Skip the entries that do not belong to the oldDir.
-            if (rawPath.length <= rawOldDir.length) {
-                continue;
-            }
-            for (int j = 0; j < rawOldDir.length; j++) {
-                if (rawOldDir[j] != rawPath[j]) {
-                    continue loop;
-                }
-            }
-
-            // Do not create an editor until we find an entry to rename/remove.
-            // We can tell if there was any matching entries or not from the nullness of editor later.
-            if (editor == null) {
-                editor = dirCache.editor();
-                editor.add(new DeleteTree(oldDir));
-                if (newDir == null) {
-                    // Recursive removal
-                    break;
-                }
-            }
-
-            assert newDir != null; // We should get here only when it's a recursive rename.
-
-            final String oldPath = e.getPathString();
-            final String newPath = newDir + oldPath.substring(oldDir.length());
-            editor.add(new CopyOldEntry(newPath, e));
-        }
-
-        if (editor != null) {
-            editor.finish();
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    private void doRefUpdate(RevWalk revWalk, String ref, ObjectId commitId) throws IOException {
-        doRefUpdate(jGitRepository, revWalk, ref, commitId);
-    }
-
-    @VisibleForTesting
     static void doRefUpdate(org.eclipse.jgit.lib.Repository jGitRepository, RevWalk revWalk,
                             String ref, ObjectId commitId) throws IOException {
 
@@ -1559,7 +1173,7 @@ class GitRepository implements Repository {
         listeners.remove(listener);
     }
 
-    private void notifyWatchers(Revision newRevision, List<DiffEntry> diffEntries) {
+    void notifyWatchers(Revision newRevision, List<DiffEntry> diffEntries) {
         for (DiffEntry entry : diffEntries) {
             switch (entry.getChangeType()) {
                 case ADD:
@@ -1575,8 +1189,12 @@ class GitRepository implements Repository {
         }
     }
 
-    private Revision cachedHeadRevision() {
+    Revision cachedHeadRevision() {
         return headRevision;
+    }
+
+    void setHeadRevision(Revision headRevision) {
+        this.headRevision = headRevision;
     }
 
     /**
@@ -1599,6 +1217,10 @@ class GitRepository implements Repository {
     }
 
     private RevTree toTree(RevWalk revWalk, Revision revision) {
+        return toTree(commitIdDatabase, revWalk, revision);
+    }
+
+    static RevTree toTree(CommitIdDatabase commitIdDatabase, RevWalk revWalk, Revision revision) {
         final ObjectId commitId = commitIdDatabase.get(revision);
         try {
             return revWalk.parseCommit(commitId).getTree();
@@ -1613,7 +1235,7 @@ class GitRepository implements Repository {
         return revWalk;
     }
 
-    private static RevWalk newRevWalk(ObjectReader reader) {
+    static RevWalk newRevWalk(ObjectReader reader) {
         final RevWalk revWalk = new RevWalk(reader);
         configureRevWalk(revWalk);
         return revWalk;
@@ -1636,7 +1258,7 @@ class GitRepository implements Repository {
         rwLock.readLock().unlock();
     }
 
-    private void writeLock() {
+    void writeLock() {
         rwLock.writeLock().lock();
         if (closePending.get() != null) {
             writeUnLock();
@@ -1644,7 +1266,7 @@ class GitRepository implements Repository {
         }
     }
 
-    private void writeUnLock() {
+    void writeUnLock() {
         rwLock.writeLock().unlock();
     }
 
@@ -1676,7 +1298,7 @@ class GitRepository implements Repository {
                 final int batch = 16;
                 final List<Commit> commits = blockingHistory(
                         new Revision(i), new Revision(Math.min(endRevision.major(), i + batch - 1)),
-                        Repository.ALL_PATH, batch);
+                        ALL_PATH, batch);
                 checkState(!commits.isEmpty(), "empty commits");
 
                 if (previousNonEmptyRevision == null) {
@@ -1689,19 +1311,21 @@ class GitRepository implements Repository {
 
                     final Revision baseRevision = revision.backward(1);
                     final Collection<Change<?>> changes =
-                            diff(previousNonEmptyRevision, revision, Repository.ALL_PATH).join().values();
+                            diff(previousNonEmptyRevision, revision, ALL_PATH).join().values();
 
                     try {
-                        newRepo.blockingCommit(
-                                baseRevision, c.when(), c.author(), c.summary(), c.detail(), c.markup(),
-                                changes, /* allowEmptyCommit */ false, false);
+                        new CommitExecutor(newRepo, c.when(), c.author(), c.summary(),
+                                           c.detail(), c.markup(), false)
+                                .execute(baseRevision, normBaseRevision -> blockingPreviewDiff(
+                                        normBaseRevision, new DefaultChangesApplier(changes)).values());
                         previousNonEmptyRevision = revision;
                     } catch (RedundantChangeException e) {
                         // NB: We allow an empty commit here because an old version of Central Dogma had a bug
                         //     which allowed the creation of an empty commit.
-                        newRepo.blockingCommit(
-                                baseRevision, c.when(), c.author(), c.summary(), c.detail(), c.markup(),
-                                changes, /* allowEmptyCommit */ true, false);
+                        new CommitExecutor(newRepo, c.when(), c.author(), c.summary(),
+                                                  c.detail(), c.markup(), true)
+                                .execute(baseRevision, normBaseRevision -> blockingPreviewDiff(
+                                        normBaseRevision, new DefaultChangesApplier(changes)).values());
                     }
 
                     progressListener.accept(i, endRevision.major());
@@ -1731,74 +1355,5 @@ class GitRepository implements Repository {
         return MoreObjects.toStringHelper(this)
                           .add("dir", jGitRepository.getDirectory())
                           .toString();
-    }
-
-    private static final class RevisionAndEntries {
-        final Revision revision;
-        final List<DiffEntry> diffEntries;
-
-        RevisionAndEntries(Revision revision, List<DiffEntry> diffEntries) {
-            this.revision = revision;
-            this.diffEntries = diffEntries;
-        }
-    }
-
-    // PathEdit implementations which is used when applying changes.
-
-    private static final class InsertText extends PathEdit {
-        private final ObjectInserter inserter;
-        private final String text;
-
-        InsertText(String entryPath, ObjectInserter inserter, String text) {
-            super(entryPath);
-            this.inserter = inserter;
-            this.text = text;
-        }
-
-        @Override
-        public void apply(DirCacheEntry ent) {
-            try {
-                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, text.getBytes(UTF_8)));
-                ent.setFileMode(FileMode.REGULAR_FILE);
-            } catch (IOException e) {
-                throw new StorageException("failed to create a new text blob", e);
-            }
-        }
-    }
-
-    private static final class InsertJson extends PathEdit {
-        private final ObjectInserter inserter;
-        private final JsonNode jsonNode;
-
-        InsertJson(String entryPath, ObjectInserter inserter, JsonNode jsonNode) {
-            super(entryPath);
-            this.inserter = inserter;
-            this.jsonNode = jsonNode;
-        }
-
-        @Override
-        public void apply(DirCacheEntry ent) {
-            try {
-                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, Jackson.writeValueAsBytes(jsonNode)));
-                ent.setFileMode(FileMode.REGULAR_FILE);
-            } catch (IOException e) {
-                throw new StorageException("failed to create a new JSON blob", e);
-            }
-        }
-    }
-
-    private static final class CopyOldEntry extends PathEdit {
-        private final DirCacheEntry oldEntry;
-
-        CopyOldEntry(String entryPath, DirCacheEntry oldEntry) {
-            super(entryPath);
-            this.oldEntry = oldEntry;
-        }
-
-        @Override
-        public void apply(DirCacheEntry ent) {
-            ent.setFileMode(oldEntry.getFileMode());
-            ent.setObjectId(oldEntry.getObjectId());
-        }
     }
 }

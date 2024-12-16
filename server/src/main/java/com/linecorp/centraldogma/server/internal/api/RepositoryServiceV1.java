@@ -101,7 +101,7 @@ public class RepositoryServiceV1 extends AbstractService {
             }
 
             return project.repos().list().values().stream()
-                          .filter(r -> user.isAdmin() || !Project.REPO_DOGMA.equals(r.name()))
+                          .filter(r -> user.isSystemAdmin() || !Project.REPO_DOGMA.equals(r.name()))
                           .filter(r -> hasOwnerRole || !Project.REPO_META.equals(r.name()))
                           .map(DtoConverter::convert)
                           .collect(toImmutableList());

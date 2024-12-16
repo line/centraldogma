@@ -12,4 +12,5 @@ export interface MirrorDto {
   gitignore?: string;
   credentialId: string;
   enabled: boolean;
+  zone?: string;
 }

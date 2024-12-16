@@ -54,6 +54,7 @@ final class RepositoryMetadataDeserializer extends StdDeserializer<RepositoryMet
 
         final Roles roles;
         if (perRolePermissionsNode != null)  {
+            assert jsonNode.get("roles") == null;
             // legacy format
             final PerRolePermissions perRolePermissions =
                     Jackson.treeToValue(perRolePermissionsNode, PerRolePermissions.class);

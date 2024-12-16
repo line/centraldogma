@@ -58,7 +58,7 @@ public final class RequiresProjectRoleDecorator extends SimpleDecoratingHttpServ
 
         final String projectName = ctx.pathParam("projectName");
         checkArgument(!isNullOrEmpty(projectName), "no project name is specified");
-        if (user.isAdmin()) {
+        if (user.isSystemAdmin()) {
             return unwrap().serve(ctx, req);
         }
 

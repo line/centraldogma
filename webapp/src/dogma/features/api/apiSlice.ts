@@ -37,7 +37,7 @@ export type ApiAction<Arg, Result> = {
 };
 
 export type GetProjects = {
-  admin: boolean;
+  systemAdmin: boolean;
 };
 
 export type GetHistory = {
@@ -75,6 +75,16 @@ export type TitleDto = {
   hostname: string;
 };
 
+export type ZoneDto = {
+  currentZone: string;
+  allZones: string[];
+};
+
+export type MirrorConfig = {
+  zonePinned: boolean;
+  zone: ZoneDto;
+};
+
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
@@ -94,7 +104,7 @@ export const apiSlice = createApi({
       async queryFn(arg, _queryApi, _extraOptions, fetchWithBQ) {
         const projects = await fetchWithBQ('/api/v1/projects');
         if (projects.error) return { error: projects.error as FetchBaseQueryError };
-        if (arg.admin) {
+        if (arg.systemAdmin) {
           const removedProjects = await fetchWithBQ('/api/v1/projects?status=removed');
           if (removedProjects.error) return { error: removedProjects.error as FetchBaseQueryError };
           return {
@@ -361,6 +371,12 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
+    getMirrorConfig: builder.query<MirrorConfig, void>({
+      query: () => ({
+        url: `/api/v1/mirror/config`,
+        method: 'GET',
+      }),
+    }),
     getCredentials: builder.query<CredentialDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/credentials`,
       providesTags: ['Metadata'],
@@ -396,7 +412,6 @@ export const apiSlice = createApi({
     }),
     getTitle: builder.query<TitleDto, void>({
       query: () => ({
-        baseUrl: '',
         url: `/title`,
         method: 'GET',
       }),
@@ -446,6 +461,7 @@ export const {
   useUpdateMirrorMutation,
   useDeleteMirrorMutation,
   useRunMirrorMutation,
+  useGetMirrorConfigQuery,
   // Credential
   useGetCredentialsQuery,
   useGetCredentialQuery,

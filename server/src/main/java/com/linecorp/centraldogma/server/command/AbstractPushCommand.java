@@ -106,7 +106,7 @@ public abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
             return false;
         }
 
-        final AbstractPushCommand that = (AbstractPushCommand) obj;
+        final AbstractPushCommand<?> that = (AbstractPushCommand<?>) obj;
         return super.equals(that) &&
                baseRevision.equals(that.baseRevision) &&
                summary.equals(that.summary) &&
