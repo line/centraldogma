@@ -55,7 +55,6 @@ import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCa
 import com.linecorp.centraldogma.server.internal.storage.repository.cache.CachingRepositoryManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager;
 import com.linecorp.centraldogma.server.metadata.Member;
-import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
@@ -193,8 +192,7 @@ public class DefaultProject implements Project {
             logger.info("Initializing metadata: {}", name);
 
             final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
-            final RepositoryMetadata repo = new RepositoryMetadata(REPO_META, userAndTimestamp,
-                                                                   PerRolePermissions.ofInternal());
+            final RepositoryMetadata repo = RepositoryMetadata.ofInternal(REPO_META, userAndTimestamp);
             final Member member = new Member(author, ProjectRole.OWNER, userAndTimestamp);
             final ProjectMetadata metadata = new ProjectMetadata(name,
                                                                  ImmutableMap.of(repo.id(), repo),

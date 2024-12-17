@@ -21,9 +21,9 @@ import { Controller, useForm } from 'react-hook-form';
 import { IoMdArrowDropdown } from 'react-icons/io';
 import { useState } from 'react';
 import { OptionBase, Select } from 'chakra-react-select';
-import { ConfirmAddUserPermission } from 'dogma/features/repo/permissions/ConfirmAddUserPermission';
-import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
-import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
+import { ConfirmAddUserRepositoryRole } from 'dogma/features/repo/roles/ConfirmAddUserRepositoryRole';
+import { AddUserRepositoryRoleDto } from 'dogma/features/repo/roles/AddUserRepositoryRoleDto';
+import { UserOrTokenRepositoryRoleDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { ApiAction } from 'dogma/features/api/apiSlice';
 import { AppMemberDetailDto } from 'dogma/features/project/settings/members/AppMemberDto';
@@ -35,26 +35,26 @@ interface MemberOptionType extends OptionBase {
 
 type FormData = {
   loginId: string;
-  permission: string;
+  role: string;
 };
 
-export const NewRepoUserPermission = ({
+export const NewUserRepositoryRole = ({
   projectName,
   repoName,
   members,
-  addUserPermission,
+  addUserRepositoryRole,
   isLoading,
-  perUserPermissions,
+  userRepositoryRole,
 }: {
   projectName: string;
   repoName: string;
   members: AppMemberDetailDto[];
-  addUserPermission: ApiAction<AddUserPermissionDto, void>;
+  addUserRepositoryRole: ApiAction<AddUserRepositoryRoleDto, void>;
   isLoading: boolean;
-  perUserPermissions: PerUserPermissionDto;
+  userRepositoryRole: UserOrTokenRepositoryRoleDto;
 }) => {
   const memberOptions: MemberOptionType[] = members
-    .filter((member) => !(member.login in perUserPermissions))
+    .filter((member) => !(member.login in userRepositoryRole))
     .map((member) => ({
       value: member.login,
       label: member.login,
@@ -72,7 +72,7 @@ export const NewRepoUserPermission = ({
     onClose: onConfirmAddClose,
   } = useDisclosure();
   const [loginId, setLoginId] = useState('');
-  const [permission, setPermission] = useState('read');
+  const [role, setRole] = useState('read');
   const onSubmit = async (data: FormData) => {
     setLoginId(data.loginId);
     onConfirmAddToggle();
@@ -81,7 +81,7 @@ export const NewRepoUserPermission = ({
     <Popover placement="bottom" isOpen={isOpen} onClose={onClose}>
       <PopoverTrigger>
         <Button colorScheme="teal" size="sm" onClick={onToggle} rightIcon={<IoMdArrowDropdown />}>
-          New User Permission
+          New User Role
         </Button>
       </PopoverTrigger>
       <PopoverContent minWidth="md">
@@ -120,17 +120,12 @@ export const NewRepoUserPermission = ({
               )}
               {errors.loginId && <FormErrorMessage>Login ID is required</FormErrorMessage>}
             </FormControl>
-            <RadioGroup
-              defaultValue="none"
-              mt={3}
-              colorScheme="teal"
-              onChange={setPermission}
-              value={permission}
-            >
+            <RadioGroup defaultValue="none" mt={3} colorScheme="teal" onChange={setRole} value={role}>
               {memberOptions.length ? (
                 <Stack spacing={5} direction="row">
-                  <Radio value="read">Read Only</Radio>
-                  <Radio value="write">Read Write</Radio>
+                  <Radio value="ADMIN">Admin</Radio>
+                  <Radio value="WRITE">Write</Radio>
+                  <Radio value="READ">Read</Radio>
                 </Stack>
               ) : (
                 ''
@@ -140,15 +135,15 @@ export const NewRepoUserPermission = ({
           <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
             <Spacer />
             {memberOptions.length ? (
-              <ConfirmAddUserPermission
+              <ConfirmAddUserRepositoryRole
                 projectName={projectName}
                 repoName={repoName}
                 loginId={loginId}
-                permission={permission}
+                repositoryRole={role}
                 isOpen={isConfirmAddOpen}
                 onClose={onConfirmAddClose}
                 resetForm={reset}
-                addUserPermission={addUserPermission}
+                addUserRepositoryRole={addUserRepositoryRole}
                 isLoading={isLoading}
               />
             ) : (

@@ -43,7 +43,6 @@ import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -117,8 +116,7 @@ final class Replica {
 
     private static MetadataService mockMetaService() {
         final MetadataService mds = mock(MetadataService.class);
-        final RepositoryMetadata repoMeta =
-                new RepositoryMetadata("", UserAndTimestamp.of(Author.SYSTEM), PerRolePermissions.ofDefault());
+        final RepositoryMetadata repoMeta = RepositoryMetadata.of("", UserAndTimestamp.of(Author.SYSTEM));
         lenient().when(mds.getRepo(anyString(), anyString()))
                  .thenReturn(CompletableFuture.completedFuture(repoMeta));
         return mds;

@@ -18,13 +18,9 @@ package com.linecorp.centraldogma.server.internal.api.auth;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
-import java.util.Set;
 import java.util.function.Function;
-
-import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
@@ -45,18 +41,15 @@ import com.linecorp.centraldogma.server.metadata.User;
 /**
  * A decorator for checking the project role of the user sent a request.
  */
-public final class RequiresRoleDecorator extends SimpleDecoratingHttpService {
+public final class RequiresProjectRoleDecorator extends SimpleDecoratingHttpService {
 
     private final MetadataService mds;
-    private final Set<ProjectRole> accessibleRoles;
-    private final String roleNames;
+    private final ProjectRole requiredRole;
 
-    RequiresRoleDecorator(HttpService delegate, MetadataService mds, Set<ProjectRole> accessibleRoles) {
+    RequiresProjectRoleDecorator(HttpService delegate, MetadataService mds, ProjectRole requiredRole) {
         super(delegate);
         this.mds = requireNonNull(mds, "mds");
-        this.accessibleRoles = ImmutableSet.copyOf(requireNonNull(accessibleRoles, "accessibleRoles"));
-        roleNames = String.join(",",
-                                accessibleRoles.stream().map(ProjectRole::name).collect(toImmutableList()));
+        this.requiredRole = requireNonNull(requiredRole, "requiredRole");
     }
 
     @Override
@@ -65,17 +58,20 @@ public final class RequiresRoleDecorator extends SimpleDecoratingHttpService {
 
         final String projectName = ctx.pathParam("projectName");
         checkArgument(!isNullOrEmpty(projectName), "no project name is specified");
+        if (user.isSystemAdmin()) {
+            return unwrap().serve(ctx, req);
+        }
 
         try {
-            return HttpResponse.from(mds.findRole(projectName, user).handle((role, cause) -> {
+            return HttpResponse.of(mds.findProjectRole(projectName, user).handle((role, cause) -> {
                 if (cause != null) {
                     return handleException(ctx, cause);
                 }
-                if (!user.isSystemAdmin() && !accessibleRoles.contains(role)) {
+                if (role == null || !role.has(requiredRole)) {
                     return HttpApiUtil.throwResponse(
                             ctx, HttpStatus.FORBIDDEN,
-                            "You must have one of the following roles to access the project '%s': %s",
-                            projectName, roleNames);
+                            "You must have the %s project role to access the project '%s'.",
+                            requiredRole, projectName);
                 }
                 try {
                     return unwrap().serve(ctx, req);
@@ -98,18 +94,20 @@ public final class RequiresRoleDecorator extends SimpleDecoratingHttpService {
         }
     }
 
-    public static final class RequiresRoleDecoratorFactory
-            implements DecoratorFactoryFunction<RequiresRole> {
+    public static final class RequiresProjectRoleDecoratorFactory
+            implements DecoratorFactoryFunction<RequiresProjectRole> {
 
         private final MetadataService mds;
 
-        public RequiresRoleDecoratorFactory(MetadataService mds) {
+        public RequiresProjectRoleDecoratorFactory(MetadataService mds) {
             this.mds = mds;
         }
 
         @Override
-        public Function<? super HttpService, ? extends HttpService> newDecorator(RequiresRole parameter) {
-            return delegate -> new RequiresRoleDecorator(delegate, mds, ImmutableSet.copyOf(parameter.roles()));
+        public Function<? super HttpService, ? extends HttpService> newDecorator(
+                RequiresProjectRole parameter) {
+            return delegate -> new RequiresProjectRoleDecorator(
+                    delegate, mds, parameter.value());
         }
     }
 }

@@ -15,23 +15,22 @@
  */
 
 import { useRouter } from 'next/router';
-import RepoPermissionList from 'dogma/features/repo/RepoPermissionList';
+import RepoRoleList from 'dogma/features/repo/RepoRoleList';
 import ProjectSettingsView from 'dogma/features/project/settings/ProjectSettingsView';
 
-const ProjectPermissionPage = () => {
+const ProjectRolePage = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   return (
-    <ProjectSettingsView projectName={projectName} currentTab={'permissions'}>
+    <ProjectSettingsView projectName={projectName} currentTab={'roles'}>
       {(metadata) => (
-        <RepoPermissionList
+        <RepoRoleList
           data={Array.from(Object.values(metadata.repos).filter((repo) => !repo.removal))}
           projectName={projectName}
-          members={Array.from(Object.values(metadata.members))}
         />
       )}
     </ProjectSettingsView>
   );
 };
 
-export default ProjectPermissionPage;
+export default ProjectRolePage;

@@ -31,7 +31,6 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.metadata.Member;
-import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.Token;
@@ -65,9 +64,8 @@ class SerializationTest {
     void testValidProject() throws IOException {
         final String userLogin = "armeria@dogma.org";
         final Member member = new Member(userLogin, ProjectRole.MEMBER, newCreationTag());
-        final RepositoryMetadata repositoryMetadata = new RepositoryMetadata("sample", newCreationTag(),
-                                                                             PerRolePermissions.ofDefault());
-        final Token token = new Token("testApp", "testSecret", null, false, newCreationTag(), null, null);
+        final RepositoryMetadata repositoryMetadata = RepositoryMetadata.of("sample", newCreationTag());
+        final Token token = new Token("testApp", "testSecret", false, false, newCreationTag(), null, null);
         final ProjectMetadata metadata =
                 new ProjectMetadata("test",
                                     ImmutableMap.of(repositoryMetadata.name(), repositoryMetadata),
@@ -83,13 +81,14 @@ class SerializationTest {
                                            "  \"repos\" : {\n" +
                                            "    \"sample\" : {\n" +
                                            "      \"name\" : \"sample\",\n" +
-                                           "      \"perRolePermissions\" : {\n" +
-                                           "        \"owner\" : [ \"READ\", \"WRITE\" ],\n" +
-                                           "        \"member\" : [ \"READ\", \"WRITE\" ],\n" +
-                                           "        \"guest\" : []\n" +
+                                           "      \"roles\" : {\n" +
+                                           "        \"projects\": {" +
+                                           "           \"member\": \"WRITE\"," +
+                                           "           \"guest\": null" +
+                                           "        }," +
+                                           "        \"users\" : { },\n" +
+                                           "        \"tokens\" : { }\n" +
                                            "      },\n" +
-                                           "      \"perUserPermissions\" : { },\n" +
-                                           "      \"perTokenPermissions\" : { },\n" +
                                            "      \"creation\" : {\n" +
                                            "        \"user\" : \"editor@dogma.org\",\n" +
                                            "        \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
@@ -139,9 +138,8 @@ class SerializationTest {
     void testRemovedProject() throws IOException {
         final Member member = new Member("armeria@dogma.org", ProjectRole.MEMBER,
                                          newCreationTag());
-        final RepositoryMetadata repositoryMetadata = new RepositoryMetadata("sample", newCreationTag(),
-                                                                             PerRolePermissions.ofDefault());
-        final Token token = new Token("testApp", "testSecret", null, false, newCreationTag(), null, null);
+        final RepositoryMetadata repositoryMetadata = RepositoryMetadata.of("sample", newCreationTag());
+        final Token token = new Token("testApp", "testSecret", false, false, newCreationTag(), null, null);
         final ProjectMetadata metadata =
                 new ProjectMetadata("test",
                                     ImmutableMap.of(repositoryMetadata.name(), repositoryMetadata),
@@ -158,13 +156,14 @@ class SerializationTest {
                                            "  \"repos\" : {\n" +
                                            "    \"sample\" : {\n" +
                                            "      \"name\" : \"sample\",\n" +
-                                           "      \"perRolePermissions\" : {\n" +
-                                           "        \"owner\" : [ \"READ\", \"WRITE\" ],\n" +
-                                           "        \"member\" : [ \"READ\", \"WRITE\" ],\n" +
-                                           "        \"guest\" : []\n" +
+                                           "      \"roles\" : {\n" +
+                                           "        \"projects\": {" +
+                                           "           \"member\": \"WRITE\"," +
+                                           "           \"guest\": null" +
+                                           "        }," +
+                                           "        \"users\" : { },\n" +
+                                           "        \"tokens\" : { }\n" +
                                            "      },\n" +
-                                           "      \"perUserPermissions\" : { },\n" +
-                                           "      \"perTokenPermissions\" : { },\n" +
                                            "      \"creation\" : {\n" +
                                            "        \"user\" : \"editor@dogma.org\",\n" +
                                            "        \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +

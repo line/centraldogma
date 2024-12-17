@@ -146,9 +146,9 @@ cat ${project}/${repo}${path}`;
                 <WithProjectRole projectName={projectName} roles={['OWNER']}>
                   {() => (
                     <MetadataButton
-                      href={`/app/projects/${projectName}/repos/${repoName}/permissions`}
+                      href={`/app/projects/${projectName}/repos/${repoName}/roles`}
                       props={{ size: 'sm' }}
-                      text={'Repository Permissions'}
+                      text={'Repository roles'}
                     />
                   )}
                 </WithProjectRole>

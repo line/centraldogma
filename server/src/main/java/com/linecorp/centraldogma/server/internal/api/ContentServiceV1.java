@@ -66,6 +66,7 @@ import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.common.ShuttingDownException;
@@ -79,8 +80,7 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.CommitMessageRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.MergeQueryRequestConverter;
@@ -99,7 +99,7 @@ import io.micrometer.core.instrument.MeterRegistry;
  * Annotated service object for managing and watching contents.
  */
 @ProducesJson
-@RequiresReadPermission
+@RequiresRepositoryRole(RepositoryRole.READ)
 @RequestConverter(CommitMessageRequestConverter.class)
 public class ContentServiceV1 extends AbstractService {
 
@@ -189,7 +189,7 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Post("/projects/{projectName}/repos/{repoName}/contents")
     @ConsumesJson
-    @RequiresWritePermission
+    @RequiresRepositoryRole(RepositoryRole.WRITE)
     public CompletableFuture<PushResultDto> push(
             ServiceRequestContext ctx,
             @Param @Default("-1") String revision,
