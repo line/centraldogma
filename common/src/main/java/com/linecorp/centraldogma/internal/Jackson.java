@@ -28,8 +28,6 @@ import java.time.Instant;
 import java.util.Iterator;
 import java.util.Set;
 
-import javax.annotation.Nullable;
-
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParseException;
@@ -238,7 +236,7 @@ public final class Jackson {
         }
     }
 
-    public static <T extends JsonNode> T valueToTree(@Nullable Object value) {
+    public static <T extends JsonNode> T valueToTree(Object value) {
         return compactMapper.valueToTree(value);
     }
 

@@ -94,7 +94,7 @@ public final class Roles {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this).omitNullValues()
+        return MoreObjects.toStringHelper(this)
                           .add("projectRoles", projectRoles)
                           .add("users", users)
                           .add("tokens", tokens)

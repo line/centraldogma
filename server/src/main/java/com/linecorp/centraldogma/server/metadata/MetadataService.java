@@ -258,11 +258,7 @@ public class MetadataService {
         final ProjectMetadataTransformer transformer =
                 new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
                     projectMetadata.member(memberId); // Raises an exception if the member does not exist.
-                    final Map<String, Member> newMembers =
-                            projectMetadata.members().entrySet().stream()
-                                           .filter(entry -> !entry.getKey().equals(memberId))
-                                           .collect(toImmutableMap(Entry::getKey, Entry::getValue));
-
+                    final Map<String, Member> newMembers = removeFromMap(projectMetadata.members(), memberId);
                     final ImmutableMap<String, RepositoryMetadata> newRepos =
                             removeMemberFromRepositories(projectMetadata, memberId);
                     return new ProjectMetadata(projectMetadata.name(),
@@ -284,10 +280,7 @@ public class MetadataService {
             final Roles roles = repositoryMetadata.roles();
             final Map<String, RepositoryRole> users = roles.users();
             if (users.get(memberId) != null) {
-                final ImmutableMap<String, RepositoryRole> newUsers =
-                        users.entrySet().stream()
-                             .filter(e -> !e.getKey().equals(memberId))
-                             .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+                final ImmutableMap<String, RepositoryRole> newUsers = removeFromMap(users, memberId);
                 final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.tokens());
                 reposBuilder.put(entry.getKey(),
                                  new RepositoryMetadata(repositoryMetadata.name(),
@@ -566,10 +559,7 @@ public class MetadataService {
             final RepositoryMetadata repositoryMetadata = entry.getValue();
             final Roles roles = repositoryMetadata.roles();
             if (roles.tokens().get(appId) != null) {
-                final Map<String, RepositoryRole> newTokens =
-                        roles.tokens().entrySet().stream()
-                             .filter(e -> !e.getKey().equals(appId))
-                             .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+                final Map<String, RepositoryRole> newTokens = removeFromMap(roles.tokens(), appId);
                 final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newTokens);
                 builder.put(entry.getKey(), new RepositoryMetadata(repositoryMetadata.name(),
                                                                    newRoles,
@@ -630,11 +620,8 @@ public class MetadataService {
                             projectName + '/' + repoName + '\'');
                 }
 
-                final ImmutableMap<String, RepositoryRole> newUsers =
-                        ImmutableMap.<String, RepositoryRole>builderWithExpectedSize(roles.users().size() + 1)
-                                    .putAll(roles.users())
-                                    .put(member.id(), role)
-                                    .build();
+                final Map<String, RepositoryRole> users = roles.users();
+                final ImmutableMap<String, RepositoryRole> newUsers = addToMap(users, member.id(), role);
                 final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.tokens());
                 return new RepositoryMetadata(repositoryMetadata.name(),
                                               newRoles,
@@ -665,10 +652,7 @@ public class MetadataService {
                 throw new MemberNotFoundException(memberId, projectName, repoName);
             }
 
-            final Map<String, RepositoryRole> newUsers =
-                    roles.users().entrySet().stream()
-                         .filter(entry -> !entry.getKey().equals(memberId))
-                         .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+            final Map<String, RepositoryRole> newUsers = removeFromMap(roles.users(), memberId);
             final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.tokens());
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
@@ -710,8 +694,7 @@ public class MetadataService {
                         "' isn't changed.");
             }
 
-            final Map<String, RepositoryRole> newUsers =
-                    updateRepositoryRole(role, roles.users(), memberId);
+            final Map<String, RepositoryRole> newUsers = updateMap(roles.users(), memberId, role);
             final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.tokens());
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
@@ -722,21 +705,6 @@ public class MetadataService {
         final String commitSummary = "Update repository role of the '" + memberId + "' as '" + role +
                                      "' for '" + projectName + '/' + repoName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
-    }
-
-    private static Map<String, RepositoryRole> updateRepositoryRole(
-            RepositoryRole repositoryRole, Map<String, RepositoryRole> repositoryRoles,
-            String id) {
-        final ImmutableMap.Builder<String, RepositoryRole> builder =
-                ImmutableMap.builderWithExpectedSize(repositoryRoles.size());
-        for (Entry<String, RepositoryRole> entry : repositoryRoles.entrySet()) {
-            if (entry.getKey().equals(id)) {
-                builder.put(id, repositoryRole);
-            } else {
-                builder.put(entry);
-            }
-        }
-        return builder.build();
     }
 
     /**
@@ -765,10 +733,7 @@ public class MetadataService {
                             projectName + '/' + repoName + '\'');
                 }
 
-                final Map<String, RepositoryRole> newTokens =
-                        ImmutableMap.<String, RepositoryRole>builderWithExpectedSize(roles.tokens().size() + 1)
-                                    .putAll(roles.tokens())
-                                    .put(appId, role).build();
+                final Map<String, RepositoryRole> newTokens = addToMap(roles.tokens(), appId, role);
                 final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newTokens);
                 return new RepositoryMetadata(repositoryMetadata.name(),
                                               newRoles,
@@ -800,10 +765,7 @@ public class MetadataService {
                         projectName + '/' + repoName + '\'');
             }
 
-            final Map<String, RepositoryRole> newTokens =
-                    roles.tokens().entrySet().stream()
-                                       .filter(entry -> !entry.getKey().equals(appId))
-                                       .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+            final Map<String, RepositoryRole> newTokens = removeFromMap(roles.tokens(), appId);
             final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newTokens);
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
@@ -846,8 +808,7 @@ public class MetadataService {
                         "' isn't changed.");
             }
 
-            final Map<String, RepositoryRole> newTokens =
-                    updateRepositoryRole(role, roles.tokens(), appId);
+            final Map<String, RepositoryRole> newTokens = updateMap(roles.tokens(), appId, role);
             final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newTokens);
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
@@ -941,7 +902,7 @@ public class MetadataService {
 
     @Nullable
     private static RepositoryRole repositoryRole(Roles roles, @Nullable RepositoryRole repositoryRole,
-                                                 @Nullable ProjectRole projectRole) {
+                                                 ProjectRole projectRole) {
         if (repositoryRole == RepositoryRole.ADMIN || projectRole == ProjectRole.OWNER) {
             return RepositoryRole.ADMIN;
         }
@@ -1067,22 +1028,9 @@ public class MetadataService {
             final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(),
                                              token.isSystemAdmin(), token.creation(),
                                              token.deactivation(), userAndTimestamp);
-            return new Tokens(newAppIds(tokens, appId, newToken), tokens.secrets());
+            return new Tokens(updateMap(tokens.appIds(), appId, newToken), tokens.secrets());
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
-    }
-
-    private static Map<String, Token> newAppIds(Tokens tokens, String appId, Token newToken) {
-        final ImmutableMap.Builder<String, Token> appIdsBuilder =
-                ImmutableMap.builderWithExpectedSize(tokens.appIds().size());
-        for (Entry<String, Token> entry : tokens.appIds().entrySet()) {
-            if (!entry.getKey().equals(appId)) {
-                appIdsBuilder.put(entry);
-            } else {
-                appIdsBuilder.put(appId, newToken);
-            }
-        }
-        return appIdsBuilder.build();
     }
 
     /**
@@ -1113,14 +1061,10 @@ public class MetadataService {
 
         final TokensTransformer transformer = new TokensTransformer((headRevision, tokens) -> {
             final Token token = tokens.get(appId);
-            final Map<String, Token> newAppIds = tokens.appIds().entrySet().stream()
-                                                       .filter(entry -> !entry.getKey().equals(appId))
-                                                       .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+            final Map<String, Token> newAppIds = removeFromMap(tokens.appIds(), appId);
             final String secret = token.secret();
             assert secret != null;
-            final Map<String, String> newSecrets =
-                    tokens.secrets().entrySet().stream().filter(entry -> !entry.getKey().equals(secret))
-                          .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+            final Map<String, String> newSecrets = removeFromMap(tokens.secrets(), secret);
             return new Tokens(newAppIds, newSecrets);
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer)
@@ -1144,11 +1088,9 @@ public class MetadataService {
             final String secret = token.secret();
             assert secret != null;
             final Map<String, String> newSecrets =
-                    ImmutableMap.<String, String>builderWithExpectedSize(tokens.secrets().size() + 1)
-                                .putAll(tokens.secrets())
-                                .put(secret, appId).build();
+                    addToMap(tokens.secrets(), secret, appId); // Note that the key is secret not appId.
             final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(), token.creation());
-            return new Tokens(newAppIds(tokens, appId, newToken), newSecrets);
+            return new Tokens(updateMap(tokens.appIds(), appId, newToken), newSecrets);
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -1172,10 +1114,9 @@ public class MetadataService {
             assert secret != null;
             final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(),
                                              token.isSystemAdmin(), token.creation(), userAndTimestamp, null);
-            final Map<String, Token> newAppIds = newAppIds(tokens, appId, newToken);
+            final Map<String, Token> newAppIds = updateMap(tokens.appIds(), appId, newToken);
             final Map<String, String> newSecrets =
-                    tokens.secrets().entrySet().stream().filter(entry -> !entry.getKey().equals(secret))
-                          .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+                    removeFromMap(tokens.secrets(), secret); // Note that the key is secret not appId.
             return new Tokens(newAppIds, newSecrets);
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
@@ -1197,8 +1138,8 @@ public class MetadataService {
                         "The token is already " + (toBeSystemAdmin ? "admin" : "user"));
             }
 
-            return new Tokens(newAppIds(tokens, appId, token.withSystemAdmin(toBeSystemAdmin)),
-                              tokens.secrets());
+            final Token newToken = token.withSystemAdmin(toBeSystemAdmin);
+            return new Tokens(updateMap(tokens.appIds(), appId, newToken), tokens.secrets());
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -1245,5 +1186,30 @@ public class MetadataService {
             throw new TokenNotFoundException(
                     appId + " is not a token of the project '" + project.name() + '\'');
         }
+    }
+
+    private static <T> ImmutableMap<String, T> addToMap(Map<String, T> map, String key, T value) {
+        return ImmutableMap.<String, T>builderWithExpectedSize(map.size() + 1)
+                           .putAll(map)
+                           .put(key, value)
+                           .build();
+    }
+
+    private static <T> Map<String, T> updateMap(Map<String, T> map, String key, T value) {
+        final ImmutableMap.Builder<String, T> builder = ImmutableMap.builderWithExpectedSize(map.size());
+        for (Entry<String, T> entry : map.entrySet()) {
+            if (entry.getKey().equals(key)) {
+                builder.put(key, value);
+            } else {
+                builder.put(entry);
+            }
+        }
+        return builder.build();
+    }
+
+    private static <T> ImmutableMap<String, T> removeFromMap(Map<String, T> map, String id) {
+        return map.entrySet().stream()
+                  .filter(e -> !e.getKey().equals(id))
+                  .collect(toImmutableMap(Entry::getKey, Entry::getValue));
     }
 }
