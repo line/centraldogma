@@ -903,7 +903,7 @@ public class MetadataService {
     @Nullable
     private static RepositoryRole repositoryRole(Roles roles, @Nullable RepositoryRole repositoryRole,
                                                  ProjectRole projectRole) {
-        if (repositoryRole == RepositoryRole.ADMIN || projectRole == ProjectRole.OWNER) {
+        if (projectRole == ProjectRole.OWNER) {
             return RepositoryRole.ADMIN;
         }
 
@@ -911,20 +911,23 @@ public class MetadataService {
         if (projectRole == ProjectRole.MEMBER) {
             memberOrGuestRole = roles.projectRoles().member();
         } else {
+            assert projectRole == ProjectRole.GUEST;
             memberOrGuestRole = roles.projectRoles().guest();
         }
 
-        if (repositoryRole == null) {
-            return memberOrGuestRole;
+        if (repositoryRole == RepositoryRole.ADMIN || memberOrGuestRole == RepositoryRole.ADMIN) {
+            return RepositoryRole.ADMIN;
         }
-        if (memberOrGuestRole == null) {
-            return repositoryRole;
-        }
-        if (memberOrGuestRole == RepositoryRole.WRITE || repositoryRole == RepositoryRole.WRITE) {
+
+        if (repositoryRole == RepositoryRole.WRITE || memberOrGuestRole == RepositoryRole.WRITE) {
             return RepositoryRole.WRITE;
         }
 
-        return RepositoryRole.READ;
+        if (repositoryRole == RepositoryRole.READ || memberOrGuestRole == RepositoryRole.READ) {
+            return RepositoryRole.READ;
+        }
+
+        return null;
     }
 
     /**
