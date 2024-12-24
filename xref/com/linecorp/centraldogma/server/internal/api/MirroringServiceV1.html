@@ -52,16 +52,16 @@
 <a class="jxr_linenumber" name="L44" href="#L44">44</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Author;
 <a class="jxr_linenumber" name="L45" href="#L45">45</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Change;
 <a class="jxr_linenumber" name="L46" href="#L46">46</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Markup;
-<a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Revision;
-<a class="jxr_linenumber" name="L48" href="#L48">48</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.api.v1.MirrorDto;
-<a class="jxr_linenumber" name="L49" href="#L49">49</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.api.v1.PushResultDto;
-<a class="jxr_linenumber" name="L50" href="#L50">50</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.CentralDogmaConfig;
-<a class="jxr_linenumber" name="L51" href="#L51">51</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.ZoneConfig;
-<a class="jxr_linenumber" name="L52" href="#L52">52</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.Command;
-<a class="jxr_linenumber" name="L53" href="#L53">53</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.CommandExecutor;
-<a class="jxr_linenumber" name="L54" href="#L54">54</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.CommitResult;
-<a class="jxr_linenumber" name="L55" href="#L55">55</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
-<a class="jxr_linenumber" name="L56" href="#L56">56</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.RepositoryRole;
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Revision;
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.api.v1.PushResultDto;
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.CentralDogmaConfig;
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.ZoneConfig;
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.Command;
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.CommandExecutor;
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.CommitResult;
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 <a class="jxr_linenumber" name="L57" href="#L57">57</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
 <a class="jxr_linenumber" name="L58" href="#L58">58</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 <a class="jxr_linenumber" name="L59" href="#L59">59</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.User;
@@ -113,7 +113,7 @@
 <a class="jxr_linenumber" name="L105" href="#L105">105</a> <em class="jxr_javadoccomment">     *</em>
 <a class="jxr_linenumber" name="L106" href="#L106">106</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Returns the list of the mirrors in the project.</em>
 <a class="jxr_linenumber" name="L107" href="#L107">107</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L108" href="#L108">108</a>     @RequiresReadPermission(repository = Project.REPO_META)
+<a class="jxr_linenumber" name="L108" href="#L108">108</a>     @RequiresRepositoryRole(value = RepositoryRole.READ, repository = Project.REPO_META)
 <a class="jxr_linenumber" name="L109" href="#L109">109</a>     @Get(<span class="jxr_string">"/projects/{projectName}/mirrors"</span>)
 <a class="jxr_linenumber" name="L110" href="#L110">110</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;List&lt;MirrorDto&gt;&gt; listMirrors(@Param String projectName) {
 <a class="jxr_linenumber" name="L111" href="#L111">111</a>         <strong class="jxr_keyword">return</strong> metaRepo(projectName).mirrors(<strong class="jxr_keyword">true</strong>).thenApply(mirrors -&gt; {
@@ -128,7 +128,7 @@
 <a class="jxr_linenumber" name="L120" href="#L120">120</a> <em class="jxr_javadoccomment">     *</em>
 <a class="jxr_linenumber" name="L121" href="#L121">121</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Returns the mirror of the ID in the project mirror list.</em>
 <a class="jxr_linenumber" name="L122" href="#L122">122</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L123" href="#L123">123</a>     @RequiresReadPermission(repository = Project.REPO_META)
+<a class="jxr_linenumber" name="L123" href="#L123">123</a>     @RequiresRepositoryRole(value = RepositoryRole.READ, repository = Project.REPO_META)
 <a class="jxr_linenumber" name="L124" href="#L124">124</a>     @Get(<span class="jxr_string">"/projects/{projectName}/mirrors/{id}"</span>)
 <a class="jxr_linenumber" name="L125" href="#L125">125</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;MirrorDto&gt; getMirror(@Param String projectName, @Param String id) {
 <a class="jxr_linenumber" name="L126" href="#L126">126</a>         <strong class="jxr_keyword">return</strong> metaRepo(projectName).mirror(id).thenApply(mirror -&gt; {
@@ -141,10 +141,10 @@
 <a class="jxr_linenumber" name="L133" href="#L133">133</a> <em class="jxr_javadoccomment">     *</em>
 <a class="jxr_linenumber" name="L134" href="#L134">134</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Creates a new mirror.</em>
 <a class="jxr_linenumber" name="L135" href="#L135">135</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L136" href="#L136">136</a>     @RequiresWritePermission(repository = Project.REPO_META)
-<a class="jxr_linenumber" name="L137" href="#L137">137</a>     @Post(<span class="jxr_string">"/projects/{projectName}/mirrors"</span>)
-<a class="jxr_linenumber" name="L138" href="#L138">138</a>     @ConsumesJson
-<a class="jxr_linenumber" name="L139" href="#L139">139</a>     @StatusCode(201)
+<a class="jxr_linenumber" name="L136" href="#L136">136</a>     @Post(<span class="jxr_string">"/projects/{projectName}/mirrors"</span>)
+<a class="jxr_linenumber" name="L137" href="#L137">137</a>     @ConsumesJson
+<a class="jxr_linenumber" name="L138" href="#L138">138</a>     @StatusCode(201)
+<a class="jxr_linenumber" name="L139" href="#L139">139</a>     @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
 <a class="jxr_linenumber" name="L140" href="#L140">140</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;PushResultDto&gt; createMirror(@Param String projectName, <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/MirrorDto.html">MirrorDto</a> newMirror,
 <a class="jxr_linenumber" name="L141" href="#L141">141</a>                                                          <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author) {
 <a class="jxr_linenumber" name="L142" href="#L142">142</a>         <strong class="jxr_keyword">return</strong> createOrUpdate(projectName, newMirror, author, false);
@@ -155,9 +155,9 @@
 <a class="jxr_linenumber" name="L147" href="#L147">147</a> <em class="jxr_javadoccomment">     *</em>
 <a class="jxr_linenumber" name="L148" href="#L148">148</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Update the exising mirror.</em>
 <a class="jxr_linenumber" name="L149" href="#L149">149</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L150" href="#L150">150</a>     @RequiresWritePermission(repository = Project.REPO_META)
+<a class="jxr_linenumber" name="L150" href="#L150">150</a>     @ConsumesJson
 <a class="jxr_linenumber" name="L151" href="#L151">151</a>     @Put(<span class="jxr_string">"/projects/{projectName}/mirrors/{id}"</span>)
-<a class="jxr_linenumber" name="L152" href="#L152">152</a>     @ConsumesJson
+<a class="jxr_linenumber" name="L152" href="#L152">152</a>     @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
 <a class="jxr_linenumber" name="L153" href="#L153">153</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;PushResultDto&gt; updateMirror(@Param String projectName, <a href="../../../../../../com/linecorp/centraldogma/internal/api/v1/MirrorDto.html">MirrorDto</a> mirror,
 <a class="jxr_linenumber" name="L154" href="#L154">154</a>                                                          @Param String id, <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author) {
 <a class="jxr_linenumber" name="L155" href="#L155">155</a>         checkArgument(id.equals(mirror.id()), <span class="jxr_string">"The mirror ID (%s) can't be updated"</span>, id);
@@ -169,8 +169,8 @@
 <a class="jxr_linenumber" name="L161" href="#L161">161</a> <em class="jxr_javadoccomment">     *</em>
 <a class="jxr_linenumber" name="L162" href="#L162">162</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Delete the existing mirror.</em>
 <a class="jxr_linenumber" name="L163" href="#L163">163</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L164" href="#L164">164</a>     @RequiresWritePermission(repository = Project.REPO_META)
-<a class="jxr_linenumber" name="L165" href="#L165">165</a>     @Delete(<span class="jxr_string">"/projects/{projectName}/mirrors/{id}"</span>)
+<a class="jxr_linenumber" name="L164" href="#L164">164</a>     @Delete(<span class="jxr_string">"/projects/{projectName}/mirrors/{id}"</span>)
+<a class="jxr_linenumber" name="L165" href="#L165">165</a>     @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
 <a class="jxr_linenumber" name="L166" href="#L166">166</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; deleteMirror(@Param String projectName,
 <a class="jxr_linenumber" name="L167" href="#L167">167</a>                                                 @Param String id, <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author) {
 <a class="jxr_linenumber" name="L168" href="#L168">168</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/MetaRepository.html">MetaRepository</a> metaRepository = metaRepo(projectName);
@@ -200,10 +200,10 @@
 <a class="jxr_linenumber" name="L192" href="#L192">192</a> <em class="jxr_javadoccomment">     *</em>
 <a class="jxr_linenumber" name="L193" href="#L193">193</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Runs the mirroring task immediately.</em>
 <a class="jxr_linenumber" name="L194" href="#L194">194</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L195" href="#L195">195</a>     @RequiresWritePermission(repository = Project.REPO_META)
-<a class="jxr_linenumber" name="L196" href="#L196">196</a>     <em class="jxr_comment">// Mirroring may be a long-running task, so we need to increase the timeout.</em>
-<a class="jxr_linenumber" name="L197" href="#L197">197</a>     @RequestTimeout(value = 5, unit = TimeUnit.MINUTES)
-<a class="jxr_linenumber" name="L198" href="#L198">198</a>     @Post(<span class="jxr_string">"/projects/{projectName}/mirrors/{mirrorId}/run"</span>)
+<a class="jxr_linenumber" name="L195" href="#L195">195</a>     <em class="jxr_comment">// Mirroring may be a long-running task, so we need to increase the timeout.</em>
+<a class="jxr_linenumber" name="L196" href="#L196">196</a>     @RequestTimeout(value = 5, unit = TimeUnit.MINUTES)
+<a class="jxr_linenumber" name="L197" href="#L197">197</a>     @Post(<span class="jxr_string">"/projects/{projectName}/mirrors/{mirrorId}/run"</span>)
+<a class="jxr_linenumber" name="L198" href="#L198">198</a>     @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
 <a class="jxr_linenumber" name="L199" href="#L199">199</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;MirrorResult&gt; runMirror(@Param String projectName, @Param String mirrorId,
 <a class="jxr_linenumber" name="L200" href="#L200">200</a>                                                      <a href="../../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a> user) <strong class="jxr_keyword">throws</strong> Exception {
 <a class="jxr_linenumber" name="L201" href="#L201">201</a>         <strong class="jxr_keyword">return</strong> mirrorRunner.run(projectName, mirrorId, user);

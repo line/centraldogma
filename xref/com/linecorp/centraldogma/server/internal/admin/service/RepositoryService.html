@@ -55,20 +55,20 @@
 <a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Markup;
 <a class="jxr_linenumber" name="L48" href="#L48">48</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Query;
 <a class="jxr_linenumber" name="L49" href="#L49">49</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.QueryType;
-<a class="jxr_linenumber" name="L50" href="#L50">50</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Revision;
-<a class="jxr_linenumber" name="L51" href="#L51">51</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.Jackson;
-<a class="jxr_linenumber" name="L52" href="#L52">52</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.Command;
-<a class="jxr_linenumber" name="L53" href="#L53">53</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.CommandExecutor;
-<a class="jxr_linenumber" name="L54" href="#L54">54</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
-<a class="jxr_linenumber" name="L55" href="#L55">55</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.dto.ChangeDto;
-<a class="jxr_linenumber" name="L56" href="#L56">56</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.dto.CommitDto;
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.dto.CommitMessageDto;
-<a class="jxr_linenumber" name="L58" href="#L58">58</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.dto.EntryDto;
-<a class="jxr_linenumber" name="L59" href="#L59">59</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.dto.RevisionDto;
-<a class="jxr_linenumber" name="L60" href="#L60">60</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
-<a class="jxr_linenumber" name="L61" href="#L61">61</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.AbstractService;
-<a class="jxr_linenumber" name="L62" href="#L62">62</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
-<a class="jxr_linenumber" name="L63" href="#L63">63</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.RepositoryRole;
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Revision;
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.Jackson;
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.Command;
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.CommandExecutor;
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.dto.ChangeDto;
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.dto.CommitDto;
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.dto.CommitMessageDto;
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.dto.EntryDto;
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.dto.RevisionDto;
+<a class="jxr_linenumber" name="L61" href="#L61">61</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
+<a class="jxr_linenumber" name="L62" href="#L62">62</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.AbstractService;
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 <a class="jxr_linenumber" name="L64" href="#L64">64</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 <a class="jxr_linenumber" name="L65" href="#L65">65</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.User;
 <a class="jxr_linenumber" name="L66" href="#L66">66</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -76,7 +76,7 @@
 <a class="jxr_linenumber" name="L68" href="#L68">68</a>  <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="L69" href="#L69">69</a>  <em class="jxr_javadoccomment"> * Annotated service object for managing repositories.</em>
 <a class="jxr_linenumber" name="L70" href="#L70">70</a>  <em class="jxr_javadoccomment"> */</em>
-<a class="jxr_linenumber" name="L71" href="#L71">71</a>  @RequiresReadPermission
+<a class="jxr_linenumber" name="L71" href="#L71">71</a>  @RequiresRepositoryRole(RepositoryRole.READ)
 <a class="jxr_linenumber" name="L72" href="#L72">72</a>  @ResponseConverter(RestfulJsonResponseConverter.<strong class="jxr_keyword">class</strong>)
 <a class="jxr_linenumber" name="L73" href="#L73">73</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/service/RepositoryService.html">RepositoryService</a> <strong class="jxr_keyword">extends</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/api/AbstractService.html">AbstractService</a> {
 <a class="jxr_linenumber" name="L74" href="#L74">74</a>  
@@ -130,7 +130,7 @@
 <a class="jxr_linenumber" name="L122" href="#L122">122</a>     @Post
 <a class="jxr_linenumber" name="L123" href="#L123">123</a>     @Put
 <a class="jxr_linenumber" name="L124" href="#L124">124</a>     @Path(<span class="jxr_string">"/projects/{projectName}/repositories/{repoName}/files/revisions/{revision}"</span>)
-<a class="jxr_linenumber" name="L125" href="#L125">125</a>     @RequiresWritePermission
+<a class="jxr_linenumber" name="L125" href="#L125">125</a>     @RequiresRepositoryRole(RepositoryRole.WRITE)
 <a class="jxr_linenumber" name="L126" href="#L126">126</a>     <strong class="jxr_keyword">public</strong> CompletionStage&lt;Object&gt; addOrEditFile(@Param String projectName,
 <a class="jxr_linenumber" name="L127" href="#L127">127</a>                                                  @Param String repoName,
 <a class="jxr_linenumber" name="L128" href="#L128">128</a>                                                  @Param String revision,
@@ -154,7 +154,7 @@
 <a class="jxr_linenumber" name="L146" href="#L146">146</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L147" href="#L147">147</a>     @Post(<span class="jxr_string">"regex:/projects/(?&lt;projectName&gt;[^/]+)/repositories/(?&lt;repoName&gt;[^/]+)"</span> +
 <a class="jxr_linenumber" name="L148" href="#L148">148</a>           <span class="jxr_string">"/delete/revisions/(?&lt;revision&gt;[^/]+)(?&lt;path&gt;/.*$)"</span>)
-<a class="jxr_linenumber" name="L149" href="#L149">149</a>     @RequiresWritePermission
+<a class="jxr_linenumber" name="L149" href="#L149">149</a>     @RequiresRepositoryRole(RepositoryRole.WRITE)
 <a class="jxr_linenumber" name="L150" href="#L150">150</a>     <strong class="jxr_keyword">public</strong> HttpResponse deleteFile(@Param String projectName,
 <a class="jxr_linenumber" name="L151" href="#L151">151</a>                                    @Param String repoName,
 <a class="jxr_linenumber" name="L152" href="#L152">152</a>                                    @Param String revision,
