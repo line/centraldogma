@@ -45,12 +45,14 @@ class RepositoryMetadataDeserializerTest {
                               "    \"bar@dogma.com\": [" +
                               "      \"READ\"," +
                               "      \"WRITE\"" +
-                              "    ]" +
+                              "    ]," +
+                              "    \"emptyMember\": []" + // Will be removed
                               "  }," +
                               "  \"perTokenPermissions\": {" +
                               "    \"goodman\": [" +
                               "      \"READ\"" +
-                              "    ]" +
+                              "    ]," +
+                              "    \"emptyToken\": []" + // Will be removed
                               "  }," +
                               "  \"creation\": {" +
                               "    \"user\": \"minu.song@dogma.com\"," +

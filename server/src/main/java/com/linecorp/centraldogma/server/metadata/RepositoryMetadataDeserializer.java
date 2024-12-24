@@ -15,8 +15,6 @@
  */
 package com.linecorp.centraldogma.server.metadata;
 
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
-
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
@@ -29,6 +27,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMap.Builder;
 
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -94,7 +94,16 @@ final class RepositoryMetadataDeserializer extends StdDeserializer<RepositoryMet
     }
 
     private static Map<String, RepositoryRole> convert(Map<String, Collection<Permission>> permissions) {
-        return permissions.entrySet().stream()
-                          .collect(toImmutableMap(Entry::getKey, entry -> repositoryRole(entry.getValue())));
+        final Builder<String, RepositoryRole> builder = ImmutableMap.builder();
+        for (Entry<String, Collection<Permission>> entry : permissions.entrySet()) {
+            final Collection<Permission> value = entry.getValue();
+            if (!value.isEmpty()) {
+                final RepositoryRole repositoryRole = repositoryRole(value);
+                assert repositoryRole != null;
+                builder.put(entry.getKey(), repositoryRole);
+            }
+        }
+
+        return builder.build();
     }
 }
