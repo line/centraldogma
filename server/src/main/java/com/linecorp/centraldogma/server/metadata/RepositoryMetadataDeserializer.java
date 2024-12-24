@@ -96,10 +96,8 @@ final class RepositoryMetadataDeserializer extends StdDeserializer<RepositoryMet
     private static Map<String, RepositoryRole> convert(Map<String, Collection<Permission>> permissions) {
         final Builder<String, RepositoryRole> builder = ImmutableMap.builder();
         for (Entry<String, Collection<Permission>> entry : permissions.entrySet()) {
-            final Collection<Permission> value = entry.getValue();
-            if (!value.isEmpty()) {
-                final RepositoryRole repositoryRole = repositoryRole(value);
-                assert repositoryRole != null;
+            final RepositoryRole repositoryRole = repositoryRole(entry.getValue());
+            if (repositoryRole != null) {
                 builder.put(entry.getKey(), repositoryRole);
             }
         }
