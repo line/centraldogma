@@ -22,32 +22,23 @@ import java.lang.annotation.Target;
 
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.DecoratorFactory;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresPermissionDecorator.RequiresReadPermissionDecoratorFactory;
-import com.linecorp.centraldogma.server.metadata.Permission;
-import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.common.ProjectRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRoleDecorator.RequiresProjectRoleDecoratorFactory;
 
 /**
- * A {@link Decorator} to allow a request from a user who has a read {@link Permission}.
+ * A {@link Decorator} which allows a request from a user granted the specified roles.
  */
-@DecoratorFactory(RequiresReadPermissionDecoratorFactory.class)
+@DecoratorFactory(RequiresProjectRoleDecoratorFactory.class)
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.TYPE, ElementType.METHOD })
-public @interface RequiresReadPermission {
+public @interface RequiresProjectRole {
+    /**
+     * The required {@link ProjectRole}.
+     */
+    ProjectRole value();
+
     /**
      * A special parameter in order to specify the order of a {@link Decorator}.
      */
     int order() default 0;
-
-    /**
-     * The name of the {@link Project} to check the permission.
-     * If not specified, the project name will be extracted from the {@code projectName} path variable.
-     */
-    String project() default "";
-
-    /**
-     * The name of the {@link Repository} to check the permission.
-     * If not specified, the repository name will be extracted from the {@code repoName} path variable.
-     */
-    String repository() default "";
 }

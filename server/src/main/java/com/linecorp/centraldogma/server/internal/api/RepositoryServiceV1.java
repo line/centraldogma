@@ -46,13 +46,14 @@ import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ProjectRole;
+import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.CreateRepositoryRequest;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.User;
@@ -86,7 +87,7 @@ public class RepositoryServiceV1 extends AbstractService {
             HttpApiUtil.checkStatusArgument(status);
         }
 
-        return mds.findRole(project.name(), user).handle((role, throwable) -> {
+        return mds.findProjectRole(project.name(), user).handle((role, throwable) -> {
             final boolean hasOwnerRole = role == ProjectRole.OWNER;
             if (status != null) {
                 if (hasOwnerRole) {
@@ -115,7 +116,7 @@ public class RepositoryServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/repos")
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
-    @RequiresRole(roles = ProjectRole.OWNER)
+    @RequiresProjectRole(ProjectRole.OWNER)
     public CompletableFuture<RepositoryDto> createRepository(ServiceRequestContext ctx, Project project,
                                                              CreateRepositoryRequest request,
                                                              Author author) {
@@ -136,7 +137,7 @@ public class RepositoryServiceV1 extends AbstractService {
      * <p>Removes a repository.
      */
     @Delete("/projects/{projectName}/repos/{repoName}")
-    @RequiresRole(roles = ProjectRole.OWNER)
+    @RequiresProjectRole(ProjectRole.OWNER)
     public CompletableFuture<Void> removeRepository(ServiceRequestContext ctx,
                                                     @Param String repoName,
                                                     Repository repository,
@@ -156,7 +157,7 @@ public class RepositoryServiceV1 extends AbstractService {
      * <p>Purges a repository that was removed before.
      */
     @Delete("/projects/{projectName}/repos/{repoName}/removed")
-    @RequiresRole(roles = ProjectRole.OWNER)
+    @RequiresProjectRole(ProjectRole.OWNER)
     public CompletableFuture<Void> purgeRepository(@Param String repoName,
                                                    Project project, Author author) {
         return execute(Command.purgeRepository(author, project.name(), repoName))
@@ -171,7 +172,7 @@ public class RepositoryServiceV1 extends AbstractService {
      */
     @Consumes("application/json-patch+json")
     @Patch("/projects/{projectName}/repos/{repoName}")
-    @RequiresRole(roles = ProjectRole.OWNER)
+    @RequiresProjectRole(ProjectRole.OWNER)
     public CompletableFuture<RepositoryDto> patchRepository(@Param String repoName,
                                                             Project project,
                                                             JsonNode node,
@@ -188,7 +189,7 @@ public class RepositoryServiceV1 extends AbstractService {
      * <p>Normalizes the revision into an absolute revision.
      */
     @Get("/projects/{projectName}/repos/{repoName}/revision/{revision}")
-    @RequiresReadPermission
+    @RequiresRepositoryRole(RepositoryRole.READ)
     public Map<String, Integer> normalizeRevision(ServiceRequestContext ctx,
                                                   Repository repository, @Param String revision) {
         final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));

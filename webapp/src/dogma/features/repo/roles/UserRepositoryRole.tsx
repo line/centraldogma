@@ -1,50 +1,48 @@
 import { Tag, TagLabel, Wrap, WrapItem } from '@chakra-ui/react';
 import { createColumnHelper } from '@tanstack/react-table';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
-import { DeleteUserPermissionDto } from 'dogma/features/repo/permissions/DeleteUserPermissionDto';
-import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
+import { DeleteUserRepositoryRoleDto } from 'dogma/features/repo/roles/DeleteUserRepositoryRoleDto';
+import { UserOrTokenRepositoryRoleDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import { useMemo } from 'react';
 import { ApiAction } from 'dogma/features/api/apiSlice';
 import { DeleteMember } from 'dogma/features/project/settings/members/DeleteMember';
 
-type UserAndPermission = [string, string[]];
+type UserAndRole = [string, string];
 
-export const UserPermission = ({
+export const UserRepositoryRole = ({
   projectName,
   repoName,
-  perUserPermissions,
+  userOrTokenRepositoryRole,
   deleteMember,
   isLoading,
 }: {
   projectName: string;
   repoName: string;
-  perUserPermissions: PerUserPermissionDto;
-  deleteMember: ApiAction<DeleteUserPermissionDto, void>;
+  userOrTokenRepositoryRole: UserOrTokenRepositoryRoleDto;
+  deleteMember: ApiAction<DeleteUserRepositoryRoleDto, void>;
   isLoading: boolean;
 }) => {
-  const columnHelper = createColumnHelper<UserAndPermission>();
+  const columnHelper = createColumnHelper<UserAndRole>();
   const columns = useMemo(
     () => [
-      columnHelper.accessor((row: UserAndPermission) => row[0], {
+      columnHelper.accessor((row: UserAndRole) => row[0], {
         cell: (info) => info.getValue(),
         header: 'Login ID',
       }),
-      columnHelper.accessor((row: UserAndPermission) => row[1], {
+      columnHelper.accessor((row: UserAndRole) => row[1], {
         cell: (info) => (
           <Wrap>
-            {info.getValue().map((permission) => (
-              <WrapItem key={permission as string}>
-                <Tag borderRadius="full" colorScheme="blue" size="sm">
-                  <TagLabel>{permission}</TagLabel>
-                </Tag>
-              </WrapItem>
-            ))}
+            <WrapItem key={info.getValue()}>
+              <Tag borderRadius="full" colorScheme="blue" size="sm">
+                <TagLabel>{info.getValue()}</TagLabel>
+              </Tag>
+            </WrapItem>
           </Wrap>
         ),
-        header: 'Permissions',
+        header: 'Roles',
         enableSorting: false,
       }),
-      columnHelper.accessor((row: UserAndPermission) => row[0], {
+      columnHelper.accessor((row: UserAndRole) => row[0], {
         cell: (info) => (
           <DeleteMember
             projectName={projectName}
@@ -60,5 +58,5 @@ export const UserPermission = ({
     ],
     [columnHelper, deleteMember, isLoading, projectName, repoName],
   );
-  return <DynamicDataTable columns={columns} data={Object.entries(perUserPermissions)} />;
+  return <DynamicDataTable columns={columns} data={Object.entries(userOrTokenRepositoryRole)} />;
 };

@@ -21,10 +21,10 @@ import { Controller, useForm } from 'react-hook-form';
 import { IoMdArrowDropdown } from 'react-icons/io';
 import { useState } from 'react';
 import { OptionBase, Select } from 'chakra-react-select';
-import { ConfirmAddUserPermission } from 'dogma/features/repo/permissions/ConfirmAddUserPermission';
+import { ConfirmAddUserRepositoryRole } from 'dogma/features/repo/roles/ConfirmAddUserRepositoryRole';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
-import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
-import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
+import { UserOrTokenRepositoryRoleDto } from 'dogma/features/repo/RepositoriesMetadataDto';
+import { AddUserRepositoryRoleDto } from 'dogma/features/repo/roles/AddUserRepositoryRoleDto';
 import { ApiAction } from 'dogma/features/api/apiSlice';
 import { AppTokenDetailDto } from 'dogma/features/project/settings/tokens/AppTokenDto';
 
@@ -35,26 +35,26 @@ interface TokenOptionType extends OptionBase {
 
 type FormData = {
   appId: string;
-  permission: string;
+  role: string;
 };
 
-export const NewRepoTokenPermission = ({
+export const NewTokenRepositoryRole = ({
   projectName,
   repoName,
   tokens,
-  addTokenPermission,
+  addTokenRepositoryRole,
   isLoading,
-  perUserPermissions,
+  tokenRepositoryRole,
 }: {
   projectName: string;
   repoName: string;
   tokens: AppTokenDetailDto[];
-  addTokenPermission: ApiAction<AddUserPermissionDto, void>;
+  addTokenRepositoryRole: ApiAction<AddUserRepositoryRoleDto, void>;
   isLoading: boolean;
-  perUserPermissions: PerUserPermissionDto;
+  tokenRepositoryRole: UserOrTokenRepositoryRoleDto;
 }) => {
   const tokenOptions: TokenOptionType[] = tokens
-    .filter((token) => !(token.appId in perUserPermissions))
+    .filter((token) => !(token.appId in tokenRepositoryRole))
     .map((token) => ({
       value: token.appId,
       label: token.appId,
@@ -72,7 +72,7 @@ export const NewRepoTokenPermission = ({
     onClose: onConfirmAddClose,
   } = useDisclosure();
   const [appId, setAppId] = useState('');
-  const [permission, setPermission] = useState('read');
+  const [role, setRole] = useState('read');
   const onSubmit = async (data: FormData) => {
     setAppId(data.appId);
     onConfirmAddToggle();
@@ -81,7 +81,7 @@ export const NewRepoTokenPermission = ({
     <Popover placement="bottom" isOpen={isOpen} onClose={onClose}>
       <PopoverTrigger>
         <Button colorScheme="teal" size="sm" onClick={onToggle} rightIcon={<IoMdArrowDropdown />}>
-          New Token Permission
+          New Token Role
         </Button>
       </PopoverTrigger>
       <PopoverContent minWidth="md">
@@ -120,17 +120,12 @@ export const NewRepoTokenPermission = ({
               )}
               {errors.appId && <FormErrorMessage>App ID is required</FormErrorMessage>}
             </FormControl>
-            <RadioGroup
-              defaultValue="none"
-              mt={3}
-              colorScheme="teal"
-              onChange={setPermission}
-              value={permission}
-            >
+            <RadioGroup defaultValue="none" mt={3} colorScheme="teal" onChange={setRole} value={role}>
               {tokenOptions.length ? (
                 <Stack spacing={5} direction="row">
-                  <Radio value="read">Read Only</Radio>
-                  <Radio value="write">Read Write</Radio>
+                  <Radio value="ADMIN">Admin</Radio>
+                  <Radio value="WRITE">Write</Radio>
+                  <Radio value="READ">Read</Radio>
                 </Stack>
               ) : (
                 ''
@@ -140,15 +135,15 @@ export const NewRepoTokenPermission = ({
           <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
             <Spacer />
             {tokenOptions.length ? (
-              <ConfirmAddUserPermission
+              <ConfirmAddUserRepositoryRole
                 projectName={projectName}
                 repoName={repoName}
                 loginId={appId}
-                permission={permission}
+                repositoryRole={role}
                 isOpen={isConfirmAddOpen}
                 onClose={onConfirmAddClose}
                 resetForm={reset}
-                addUserPermission={addTokenPermission}
+                addUserRepositoryRole={addTokenRepositoryRole}
                 isLoading={isLoading}
               />
             ) : (

@@ -47,6 +47,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
+import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
@@ -59,8 +60,7 @@ import com.linecorp.centraldogma.server.internal.admin.dto.EntryDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.RevisionDto;
 import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -68,7 +68,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 /**
  * Annotated service object for managing repositories.
  */
-@RequiresReadPermission
+@RequiresRepositoryRole(RepositoryRole.READ)
 @ResponseConverter(RestfulJsonResponseConverter.class)
 public class RepositoryService extends AbstractService {
 
@@ -122,7 +122,7 @@ public class RepositoryService extends AbstractService {
     @Post
     @Put
     @Path("/projects/{projectName}/repositories/{repoName}/files/revisions/{revision}")
-    @RequiresWritePermission
+    @RequiresRepositoryRole(RepositoryRole.WRITE)
     public CompletionStage<Object> addOrEditFile(@Param String projectName,
                                                  @Param String repoName,
                                                  @Param String revision,
@@ -146,7 +146,7 @@ public class RepositoryService extends AbstractService {
      */
     @Post("regex:/projects/(?<projectName>[^/]+)/repositories/(?<repoName>[^/]+)" +
           "/delete/revisions/(?<revision>[^/]+)(?<path>/.*$)")
-    @RequiresWritePermission
+    @RequiresRepositoryRole(RepositoryRole.WRITE)
     public HttpResponse deleteFile(@Param String projectName,
                                    @Param String repoName,
                                    @Param String revision,

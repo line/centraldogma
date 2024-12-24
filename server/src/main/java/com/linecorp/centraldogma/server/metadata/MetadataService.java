@@ -21,6 +21,7 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager.listProjectsWithoutInternal;
+import static com.linecorp.centraldogma.server.metadata.RepositoryMetadata.DEFAULT_PROJECT_ROLES;
 import static com.linecorp.centraldogma.server.metadata.RepositorySupport.convertWithJackson;
 import static com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
@@ -44,6 +45,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.spotify.futures.CompletableFutures;
 
+import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -51,6 +53,7 @@ import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
+import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.AddOperation;
@@ -240,7 +243,7 @@ public class MetadataService {
 
     /**
      * Removes the specified {@code user} from the {@link ProjectMetadata} in the specified
-     * {@code projectName}. It also removes permission of the specified {@code user} from every
+     * {@code projectName}. It also removes the {@link RepositoryRole} of the specified {@code user} from every
      * {@link RepositoryMetadata}.
      */
     public CompletableFuture<Revision> removeMember(Author author, String projectName, User user) {
@@ -255,11 +258,7 @@ public class MetadataService {
         final ProjectMetadataTransformer transformer =
                 new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
                     projectMetadata.member(memberId); // Raises an exception if the member does not exist.
-                    final Map<String, Member> newMembers =
-                            projectMetadata.members().entrySet().stream()
-                                           .filter(entry -> !entry.getKey().equals(memberId))
-                                           .collect(toImmutableMap(Entry::getKey, Entry::getValue));
-
+                    final Map<String, Member> newMembers = removeFromMap(projectMetadata.members(), memberId);
                     final ImmutableMap<String, RepositoryMetadata> newRepos =
                             removeMemberFromRepositories(projectMetadata, memberId);
                     return new ProjectMetadata(projectMetadata.name(),
@@ -278,18 +277,14 @@ public class MetadataService {
                 ImmutableMap.builderWithExpectedSize(projectMetadata.repos().size());
         for (Entry<String, RepositoryMetadata> entry : projectMetadata.repos().entrySet()) {
             final RepositoryMetadata repositoryMetadata = entry.getValue();
-            final Map<String, Collection<Permission>> perUserPermissions =
-                    repositoryMetadata.perUserPermissions();
-            if (perUserPermissions.get(memberId) != null) {
-                final Map<String, Collection<Permission>> newPerUserPermission =
-                        perUserPermissions.entrySet().stream()
-                                          .filter(e -> !e.getKey().equals(memberId))
-                                          .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+            final Roles roles = repositoryMetadata.roles();
+            final Map<String, RepositoryRole> users = roles.users();
+            if (users.get(memberId) != null) {
+                final ImmutableMap<String, RepositoryRole> newUsers = removeFromMap(users, memberId);
+                final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.tokens());
                 reposBuilder.put(entry.getKey(),
                                  new RepositoryMetadata(repositoryMetadata.name(),
-                                                        repositoryMetadata.perRolePermissions(),
-                                                        newPerUserPermission,
-                                                        repositoryMetadata.perTokenPermissions(),
+                                                        newRoles,
                                                         repositoryMetadata.creation(),
                                                         repositoryMetadata.removal(),
                                                         repositoryMetadata.writeQuota()));
@@ -332,27 +327,26 @@ public class MetadataService {
 
     /**
      * Adds a {@link RepositoryMetadata} of the specified {@code repoName} to the specified {@code projectName}
-     * with a default {@link PerRolePermissions}.
+     * with a default {@link RepositoryRole}. The member will have the {@link RepositoryRole#WRITE} role and
+     * the guest won't have any role.
      */
     public CompletableFuture<Revision> addRepo(Author author, String projectName, String repoName) {
-        return addRepo(author, projectName, repoName, PerRolePermissions.ofDefault());
+        return addRepo(author, projectName, repoName, DEFAULT_PROJECT_ROLES);
     }
 
     /**
      * Adds a {@link RepositoryMetadata} of the specified {@code repoName} to the specified {@code projectName}
-     * with the specified {@link PerRolePermissions}.
+     * with the specified {@link ProjectRoles}.
      */
     public CompletableFuture<Revision> addRepo(Author author, String projectName, String repoName,
-                                               PerRolePermissions permission) {
+                                               ProjectRoles projectRoles) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
-        requireNonNull(permission, "permission");
 
         final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName));
-        final RepositoryMetadata newRepositoryMetadata = new RepositoryMetadata(repoName,
-                                                                                UserAndTimestamp.of(author),
-                                                                                permission);
+        final RepositoryMetadata newRepositoryMetadata =
+                RepositoryMetadata.of(repoName, UserAndTimestamp.of(author), projectRoles);
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
                                    asJsonArray(new TestAbsenceOperation(path),
@@ -429,43 +423,40 @@ public class MetadataService {
     }
 
     /**
-     * Updates a {@link PerRolePermissions} of the specified {@code repoName} in the specified
+     * Updates the member and guest {@link RepositoryRole} of the specified {@code repoName} in the specified
      * {@code projectName}.
      */
-    public CompletableFuture<Revision> updatePerRolePermissions(Author author,
-                                                                String projectName, String repoName,
-                                                                PerRolePermissions perRolePermissions) {
+    public CompletableFuture<Revision> updateRepositoryProjectRoles(Author author,
+                                                                    String projectName, String repoName,
+                                                                    ProjectRoles projectRoles) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
-        requireNonNull(perRolePermissions, "perRolePermissions");
 
         if (Project.REPO_DOGMA.equals(repoName)) {
             throw new UnsupportedOperationException(
-                    "Can't update the per role permission for internal repository: " + repoName);
+                    "Can't update role for internal repository: " + repoName);
         }
 
         if (Project.REPO_META.equals(repoName)) {
-            final Set<Permission> guest = perRolePermissions.guest();
-            if (!guest.isEmpty()) {
+            if (projectRoles.guest() != null) {
                 throw new UnsupportedOperationException(
-                        "Can't give a permission to guest for internal repository: " + repoName);
+                        "Can't give a role to guest for internal repository: " + repoName);
             }
         }
         final String commitSummary =
-                "Update the role permission of the '" + repoName + "' in the project '" + projectName + '\'';
+                "Update the project roles of the '" + repoName + "' in the project '" + projectName + '\'';
         final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                 repoName, (headRevision, repositoryMetadata) -> {
-            if (repositoryMetadata.perRolePermissions().equals(perRolePermissions)) {
+            if (repositoryMetadata.roles().projectRoles().equals(projectRoles)) {
                 throw new RedundantChangeException(
                         headRevision,
-                        "the role permission of '" + projectName + '/' + repoName + "' isn't changed.");
+                        "the project roles of '" + projectName + '/' + repoName + "' isn't changed.");
             }
-
+            final Roles newRoles = new Roles(projectRoles, repositoryMetadata.roles().users(),
+                                             repositoryMetadata.roles().tokens());
             return new RepositoryMetadata(repositoryMetadata.name(),
-                                          perRolePermissions,
-                                          repositoryMetadata.perUserPermissions(),
-                                          repositoryMetadata.perTokenPermissions(),
+                                          newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
                                           repositoryMetadata.writeQuota());
@@ -509,7 +500,7 @@ public class MetadataService {
 
     /**
      * Removes the specified {@link Token} from the specified {@code projectName}. It also removes
-     * every token permission belonging to the {@link Token} from every {@link RepositoryMetadata}.
+     * every token repository role belonging to the {@link Token} from every {@link RepositoryMetadata}.
      */
     public CompletableFuture<Revision> removeToken(Author author, String projectName, Token token) {
         return removeToken(author, projectName, requireNonNull(token, "token").appId());
@@ -517,7 +508,8 @@ public class MetadataService {
 
     /**
      * Removes the {@link Token} of the specified {@code appId} from the specified {@code projectName}.
-     * It also removes every token permission belonging to {@link Token} from every {@link RepositoryMetadata}.
+     * It also removes every token repository role belonging to {@link Token} from
+     * every {@link RepositoryMetadata}.
      */
     public CompletableFuture<Revision> removeToken(Author author, String projectName, String appId) {
         requireNonNull(author, "author");
@@ -530,7 +522,6 @@ public class MetadataService {
     private CompletableFuture<Revision> removeToken(String projectName, Author author, String appId,
                                                     boolean quiet) {
         final String commitSummary = "Remove the token '" + appId + "' from the project '" + projectName + '\'';
-
         final ProjectMetadataTransformer transformer =
                 new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
             final Map<String, TokenRegistration> tokens = projectMetadata.tokens();
@@ -566,17 +557,12 @@ public class MetadataService {
                 ImmutableMap.builderWithExpectedSize(projectMetadata.repos().size());
         for (Entry<String, RepositoryMetadata> entry : projectMetadata.repos().entrySet()) {
             final RepositoryMetadata repositoryMetadata = entry.getValue();
-            final Map<String, Collection<Permission>> perTokenPermissions =
-                    repositoryMetadata.perTokenPermissions();
-            if (perTokenPermissions.get(appId) != null) {
-                final Map<String, Collection<Permission>> newPerTokenPermissions =
-                        perTokenPermissions.entrySet().stream()
-                                           .filter(e -> !e.getKey().equals(appId))
-                                           .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+            final Roles roles = repositoryMetadata.roles();
+            if (roles.tokens().get(appId) != null) {
+                final Map<String, RepositoryRole> newTokens = removeFromMap(roles.tokens(), appId);
+                final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newTokens);
                 builder.put(entry.getKey(), new RepositoryMetadata(repositoryMetadata.name(),
-                                                                   repositoryMetadata.perRolePermissions(),
-                                                                   repositoryMetadata.perUserPermissions(),
-                                                                   newPerTokenPermissions,
+                                                                   newRoles,
                                                                    repositoryMetadata.creation(),
                                                                    repositoryMetadata.removal(),
                                                                    repositoryMetadata.writeQuota()));
@@ -609,43 +595,36 @@ public class MetadataService {
     }
 
     /**
-     * Adds {@link Permission}s for the specified {@code member} to the specified {@code repoName}
+     * Adds the {@link RepositoryRole} for the specified {@code member} to the specified {@code repoName}
      * in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> addPerUserPermission(Author author, String projectName,
-                                                            String repoName, User member,
-                                                            Collection<Permission> permission) {
+    public CompletableFuture<Revision> addUserRepositoryRole(Author author, String projectName,
+                                                             String repoName, User member,
+                                                             RepositoryRole role) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(member, "member");
-        requireNonNull(permission, "permission");
+        requireNonNull(role, "role");
 
         return getProject(projectName).thenCompose(project -> {
             ensureProjectMember(project, member);
-            final String commitSummary = "Add permission of '" + member.id() + "' as '" + permission +
-                                         "' to '" + projectName + '/' + repoName + "'\n";
+            final String commitSummary = "Add repository role of '" + member.id() +
+                                         "' as '" + role + "' to '" + projectName + '/' + repoName + '\n';
             final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                     repoName, (headRevision, repositoryMetadata) -> {
-                final Map<String, Collection<Permission>> perUserPermissions =
-                        repositoryMetadata.perUserPermissions();
-                if (perUserPermissions.get(member.id()) != null) {
+                final Roles roles = repositoryMetadata.roles();
+                if (roles.users().get(member.id()) != null) {
                     throw new ChangeConflictException(
                             "the member " + member.id() + " is already added to '" +
                             projectName + '/' + repoName + '\'');
                 }
 
-                final ImmutableMap<String, Collection<Permission>> newPerUserPermissions =
-                        ImmutableMap.<String, Collection<Permission>>builderWithExpectedSize(
-                                            perUserPermissions.size() + 1)
-                                    .putAll(perUserPermissions)
-                                    .put(member.id(), permission)
-                                    .build();
-
+                final Map<String, RepositoryRole> users = roles.users();
+                final ImmutableMap<String, RepositoryRole> newUsers = addToMap(users, member.id(), role);
+                final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.tokens());
                 return new RepositoryMetadata(repositoryMetadata.name(),
-                                              repositoryMetadata.perRolePermissions(),
-                                              newPerUserPermissions,
-                                              repositoryMetadata.perTokenPermissions(),
+                                              newRoles,
                                               repositoryMetadata.creation(),
                                               repositoryMetadata.removal(),
                                               repositoryMetadata.writeQuota());
@@ -655,11 +634,11 @@ public class MetadataService {
     }
 
     /**
-     * Removes {@link Permission}s for the specified {@code member} from the specified {@code repoName}
+     * Removes the {@link RepositoryRole} for the specified {@code member} from the specified {@code repoName}
      * in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> removePerUserPermission(Author author, String projectName,
-                                                               String repoName, User member) {
+    public CompletableFuture<Revision> removeUserRepositoryRole(Author author, String projectName,
+                                                                String repoName, User member) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -668,125 +647,96 @@ public class MetadataService {
         final String memberId = member.id();
         final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                 repoName, (headRevision, repositoryMetadata) -> {
-            final Map<String, Collection<Permission>> perUserPermissions =
-                    repositoryMetadata.perUserPermissions();
-            if (perUserPermissions.get(memberId) == null) {
+            final Roles roles = repositoryMetadata.roles();
+            if (roles.users().get(memberId) == null) {
                 throw new MemberNotFoundException(memberId, projectName, repoName);
             }
 
-            final ImmutableMap<String, Collection<Permission>> newPerUserPermissions =
-                    perUserPermissions.entrySet().stream()
-                                      .filter(entry -> !entry.getKey().equals(memberId))
-                                      .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+            final Map<String, RepositoryRole> newUsers = removeFromMap(roles.users(), memberId);
+            final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.tokens());
             return new RepositoryMetadata(repositoryMetadata.name(),
-                                          repositoryMetadata.perRolePermissions(),
-                                          newPerUserPermissions,
-                                          repositoryMetadata.perTokenPermissions(),
+                                          newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
                                           repositoryMetadata.writeQuota());
         });
-        final String commitSummary = "Remove permission of the '" + memberId +
+        final String commitSummary = "Remove repository role of the '" + memberId +
                                      "' from '" + projectName + '/' + repoName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
-     * Updates {@link Permission}s for the specified {@code member} of the specified {@code repoName}
+     * Updates the {@link RepositoryRole} for the specified {@code member} of the specified {@code repoName}
      * in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> updatePerUserPermission(Author author, String projectName,
-                                                               String repoName, User member,
-                                                               Collection<Permission> permission) {
+    public CompletableFuture<Revision> updateUserRepositoryRole(Author author, String projectName,
+                                                                String repoName, User member,
+                                                                RepositoryRole role) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(member, "member");
-        requireNonNull(permission, "permission");
+        requireNonNull(role, "role");
 
         final String memberId = member.id();
         final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                 repoName, (headRevision, repositoryMetadata) -> {
-            final Map<String, Collection<Permission>> perUserPermissions =
-                    repositoryMetadata.perUserPermissions();
-            final Collection<Permission> oldPermissions = perUserPermissions.get(memberId);
-            if (oldPermissions == null) {
+            final Roles roles = repositoryMetadata.roles();
+            final RepositoryRole oldRepositoryRole = roles.users().get(memberId);
+            if (oldRepositoryRole == null) {
                 throw new MemberNotFoundException(memberId, projectName, repoName);
             }
 
-            if (oldPermissions.equals(permission)) {
+            if (oldRepositoryRole == role) {
                 throw new RedundantChangeException(
                         headRevision,
-                        "the permission of " + memberId + " in '" + projectName + '/' + repoName +
+                        "the repository role of " + memberId + " in '" + projectName + '/' + repoName +
                         "' isn't changed.");
             }
 
-            final ImmutableMap<String, Collection<Permission>> newPerUserPermissions =
-                    updatePermissions(permission, perUserPermissions, memberId);
+            final Map<String, RepositoryRole> newUsers = updateMap(roles.users(), memberId, role);
+            final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.tokens());
             return new RepositoryMetadata(repositoryMetadata.name(),
-                                          repositoryMetadata.perRolePermissions(),
-                                          newPerUserPermissions,
-                                          repositoryMetadata.perTokenPermissions(),
+                                          newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
                                           repositoryMetadata.writeQuota());
         });
-        final String commitSummary = "Update permission of the '" + memberId + "' as '" + permission +
+        final String commitSummary = "Update repository role of the '" + memberId + "' as '" + role +
                                      "' for '" + projectName + '/' + repoName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
-    private static ImmutableMap<String, Collection<Permission>> updatePermissions(
-            Collection<Permission> permission, Map<String, Collection<Permission>> perPermissions,
-            String id) {
-        final ImmutableMap.Builder<String, Collection<Permission>> builder =
-                ImmutableMap.builderWithExpectedSize(perPermissions.size());
-        for (Entry<String, Collection<Permission>> entry : perPermissions.entrySet()) {
-            if (entry.getKey().equals(id)) {
-                builder.put(id, permission);
-            } else {
-                builder.put(entry);
-            }
-        }
-        return builder.build();
-    }
-
     /**
-     * Adds {@link Permission}s for the {@link Token} of the specified {@code appId} to the specified
+     * Adds the {@link RepositoryRole} for the {@link Token} of the specified {@code appId} to the specified
      * {@code repoName} in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> addPerTokenPermission(Author author, String projectName,
-                                                             String repoName, String appId,
-                                                             Collection<Permission> permission) {
+    public CompletableFuture<Revision> addTokenRepositoryRole(Author author, String projectName,
+                                                              String repoName, String appId,
+                                                              RepositoryRole role) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(appId, "appId");
-        requireNonNull(permission, "permission");
+        requireNonNull(role, "role");
 
         return getProject(projectName).thenCompose(project -> {
             ensureProjectToken(project, appId);
-            final String commitSummary = "Add permission of the token '" + appId + "' as '" + permission +
+            final String commitSummary = "Add repository role of the token '" + appId + "' as '" + role +
                                          "' to '" + projectName + '/' + repoName + "'\n";
             final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                     repoName, (headRevision, repositoryMetadata) -> {
-                final Map<String, Collection<Permission>> perTokenPermissions =
-                        repositoryMetadata.perTokenPermissions();
-                if (perTokenPermissions.get(appId) != null) {
+                final Roles roles = repositoryMetadata.roles();
+                if (roles.tokens().get(appId) != null) {
                     throw new ChangeConflictException(
                             "the token " + appId + " is already added to '" +
                             projectName + '/' + repoName + '\'');
                 }
 
-                final ImmutableMap<String, Collection<Permission>> newPerTokenPermissions =
-                        ImmutableMap.<String, Collection<Permission>>builderWithExpectedSize(
-                                            perTokenPermissions.size() + 1)
-                                    .putAll(perTokenPermissions)
-                                    .put(appId, permission).build();
+                final Map<String, RepositoryRole> newTokens = addToMap(roles.tokens(), appId, role);
+                final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newTokens);
                 return new RepositoryMetadata(repositoryMetadata.name(),
-                                              repositoryMetadata.perRolePermissions(),
-                                              repositoryMetadata.perUserPermissions(),
-                                              newPerTokenPermissions,
+                                              newRoles,
                                               repositoryMetadata.creation(),
                                               repositoryMetadata.removal(),
                                               repositoryMetadata.writeQuota());
@@ -796,11 +746,11 @@ public class MetadataService {
     }
 
     /**
-     * Removes {@link Permission}s for the {@link Token} of the specified {@code appId} from the specified
+     * Removes the {@link RepositoryRole} for the {@link Token} of the specified {@code appId} of the specified
      * {@code repoName} in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> removePerTokenPermission(Author author, String projectName,
-                                                                String repoName, String appId) {
+    public CompletableFuture<Revision> removeTokenRepositoryRole(Author author, String projectName,
+                                                                 String repoName, String appId) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -808,73 +758,65 @@ public class MetadataService {
 
         final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                 repoName, (headRevision, repositoryMetadata) -> {
-            final Map<String, Collection<Permission>> perTokenPermissions =
-                    repositoryMetadata.perTokenPermissions();
-            if (perTokenPermissions.get(appId) == null) {
+            final Roles roles = repositoryMetadata.roles();
+            if (roles.tokens().get(appId) == null) {
                 throw new ChangeConflictException(
                         "the token " + appId + " doesn't exist at '" +
                         projectName + '/' + repoName + '\'');
             }
 
-            final ImmutableMap<String, Collection<Permission>> newPerTokenPermissions =
-                    perTokenPermissions.entrySet().stream()
-                                       .filter(entry -> !entry.getKey().equals(appId))
-                                       .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+            final Map<String, RepositoryRole> newTokens = removeFromMap(roles.tokens(), appId);
+            final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newTokens);
             return new RepositoryMetadata(repositoryMetadata.name(),
-                                          repositoryMetadata.perRolePermissions(),
-                                          repositoryMetadata.perUserPermissions(),
-                                          newPerTokenPermissions,
+                                          newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
                                           repositoryMetadata.writeQuota());
         });
-        final String commitSummary = "Remove permission of the token '" + appId +
+        final String commitSummary = "Remove repository role of the token '" + appId +
                                      "' from '" + projectName + '/' + repoName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
-     * Updates {@link Permission}s for the {@link Token} of the specified {@code appId} of the specified
+     * Updates the {@link RepositoryRole} for the {@link Token} of the specified {@code appId} of the specified
      * {@code repoName} in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> updatePerTokenPermission(Author author, String projectName,
-                                                                String repoName, String appId,
-                                                                Collection<Permission> permission) {
+    public CompletableFuture<Revision> updateTokenRepositoryRole(Author author, String projectName,
+                                                                 String repoName, String appId,
+                                                                 RepositoryRole role) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(appId, "appId");
-        requireNonNull(permission, "permission");
+        requireNonNull(role, "role");
 
         final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                 repoName, (headRevision, repositoryMetadata) -> {
-            final Map<String, Collection<Permission>> perTokenPermissions =
-                    repositoryMetadata.perTokenPermissions();
-            final Collection<Permission> oldPermissions = perTokenPermissions.get(appId);
-            if (oldPermissions == null) {
+            final Roles roles = repositoryMetadata.roles();
+            final RepositoryRole oldRepositoryRole = roles.tokens().get(appId);
+            if (oldRepositoryRole == null) {
                 throw new TokenNotFoundException(
                         "the token " + appId + " doesn't exist at '" +
                         projectName + '/' + repoName + '\'');
             }
 
-            if (oldPermissions.equals(permission)) {
+            if (oldRepositoryRole == role) {
                 throw new RedundantChangeException(
                         headRevision,
                         "the permission of " + appId + " in '" + projectName + '/' + repoName +
                         "' isn't changed.");
             }
 
-            final ImmutableMap<String, Collection<Permission>> newPerTokenPermissions =
-                    updatePermissions(permission, perTokenPermissions, appId);
+            final Map<String, RepositoryRole> newTokens = updateMap(roles.tokens(), appId, role);
+            final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newTokens);
             return new RepositoryMetadata(repositoryMetadata.name(),
-                                          repositoryMetadata.perRolePermissions(),
-                                          repositoryMetadata.perUserPermissions(),
-                                          newPerTokenPermissions,
+                                          newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
                                           repositoryMetadata.writeQuota());
         });
-        final String commitSummary = "Update permission of the token '" + appId +
+        final String commitSummary = "Update repository role of the token '" + appId +
                                      "' for '" + projectName + '/' + repoName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -900,90 +842,98 @@ public class MetadataService {
     }
 
     /**
-     * Finds {@link Permission}s which belong to the specified {@link User} or {@link UserWithToken}
-     * from the specified {@code repoName} in the specified {@code projectName}.
+     * Finds {@link RepositoryRole} of the specified {@link User} or {@link UserWithToken}
+     * from the specified {@code repoName} in the specified {@code projectName}. If the {@link User}
+     * is not found, it will return {@code null}.
      */
-    public CompletableFuture<Collection<Permission>> findPermissions(String projectName, String repoName,
-                                                                     User user) {
+    public CompletableFuture<RepositoryRole> findRepositoryRole(String projectName, String repoName,
+                                                                User user) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repoName, "repoName");
         requireNonNull(user, "user");
         if (user.isSystemAdmin()) {
-            return CompletableFuture.completedFuture(PerRolePermissions.READ_WRITE);
+            return CompletableFuture.completedFuture(RepositoryRole.ADMIN);
         }
         if (user instanceof UserWithToken) {
-            return findPermissions(projectName, repoName, ((UserWithToken) user).token().appId());
-        } else {
-            return findPermissions0(projectName, repoName, user);
+            return findRepositoryRole(projectName, repoName, ((UserWithToken) user).token().appId());
         }
+        return findRepositoryRole0(projectName, repoName, user);
     }
 
     /**
-     * Finds {@link Permission}s which belong to the specified {@code appId} from the specified
-     * {@code repoName} in the specified {@code projectName}.
+     * Finds {@link RepositoryRole} of the specified {@code appId} from the specified
+     * {@code repoName} in the specified {@code projectName}. If the {@code appId} is not found,
+     * it will return {@code null}.
      */
-    public CompletableFuture<Collection<Permission>> findPermissions(String projectName, String repoName,
-                                                                     String appId) {
+    public CompletableFuture<RepositoryRole> findRepositoryRole(String projectName, String repoName,
+                                                                String appId) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(appId, "appId");
 
         return getProject(projectName).thenApply(metadata -> {
             final RepositoryMetadata repositoryMetadata = metadata.repo(repoName);
-            final TokenRegistration registration = metadata.tokens().getOrDefault(appId, null);
+            final Roles roles = repositoryMetadata.roles();
+            final RepositoryRole tokenRepositoryRole = roles.tokens().get(appId);
 
-            // If the token is guest.
-            if (registration == null) {
-                return repositoryMetadata.perRolePermissions().guest();
-            }
-            final Collection<Permission> p = repositoryMetadata.perTokenPermissions().get(registration.id());
-            if (p != null) {
-                return p;
-            }
-            return findPerRolePermissions(repositoryMetadata, registration.role());
+            final TokenRegistration projectTokenRegistration = metadata.tokens().get(appId);
+            final ProjectRole projectRole = projectTokenRegistration != null ? projectTokenRegistration.role()
+                                                                             : ProjectRole.GUEST;
+            return repositoryRole(roles, tokenRepositoryRole, projectRole);
         });
     }
 
-    /**
-     * Finds {@link Permission}s which belong to the specified {@link User} from the specified
-     * {@code repoName} in the specified {@code projectName}.
-     */
-    private CompletableFuture<Collection<Permission>> findPermissions0(String projectName, String repoName,
-                                                                       User user) {
+    private CompletableFuture<RepositoryRole> findRepositoryRole0(String projectName, String repoName,
+                                                                  User user) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(user, "user");
 
         return getProject(projectName).thenApply(metadata -> {
             final RepositoryMetadata repositoryMetadata = metadata.repo(repoName);
-            final Member member = metadata.memberOrDefault(user.id(), null);
+            final Roles roles = repositoryMetadata.roles();
+            final RepositoryRole userRepositoryRole = roles.users().get(user.id());
 
-            // If the member is guest.
-            if (member == null) {
-                return repositoryMetadata.perRolePermissions().guest();
-            }
-            final Collection<Permission> p = repositoryMetadata.perUserPermissions().get(member.id());
-            if (p != null) {
-                return p;
-            }
-            return findPerRolePermissions(repositoryMetadata, member.role());
+            final Member projectUser = metadata.memberOrDefault(user.id(), null);
+            final ProjectRole projectRole = projectUser != null ? projectUser.role() : ProjectRole.GUEST;
+            return repositoryRole(roles, userRepositoryRole, projectRole);
         });
     }
 
-    private static Collection<Permission> findPerRolePermissions(RepositoryMetadata repositoryMetadata,
-                                                                 ProjectRole role) {
-        switch (role) {
-            case OWNER:
-                return repositoryMetadata.perRolePermissions().owner();
-            case MEMBER:
-                return repositoryMetadata.perRolePermissions().member();
-            default:
-                return repositoryMetadata.perRolePermissions().guest();
+    @Nullable
+    private static RepositoryRole repositoryRole(Roles roles, @Nullable RepositoryRole repositoryRole,
+                                                 ProjectRole projectRole) {
+        if (projectRole == ProjectRole.OWNER) {
+            return RepositoryRole.ADMIN;
         }
+
+        final RepositoryRole memberOrGuestRole;
+        if (projectRole == ProjectRole.MEMBER) {
+            memberOrGuestRole = roles.projectRoles().member();
+        } else {
+            assert projectRole == ProjectRole.GUEST;
+            memberOrGuestRole = roles.projectRoles().guest();
+        }
+
+        if (repositoryRole == RepositoryRole.ADMIN || memberOrGuestRole == RepositoryRole.ADMIN) {
+            return RepositoryRole.ADMIN;
+        }
+
+        if (repositoryRole == RepositoryRole.WRITE || memberOrGuestRole == RepositoryRole.WRITE) {
+            return RepositoryRole.WRITE;
+        }
+
+        if (repositoryRole == RepositoryRole.READ || memberOrGuestRole == RepositoryRole.READ) {
+            return RepositoryRole.READ;
+        }
+
+        return null;
     }
 
     /**
      * Finds a {@link ProjectRole} of the specified {@link User} in the specified {@code projectName}.
      */
-    public CompletableFuture<ProjectRole> findRole(String projectName, User user) {
+    public CompletableFuture<ProjectRole> findProjectRole(String projectName, User user) {
         requireNonNull(projectName, "projectName");
         requireNonNull(user, "user");
 
@@ -1081,22 +1031,9 @@ public class MetadataService {
             final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(),
                                              token.isSystemAdmin(), token.creation(),
                                              token.deactivation(), userAndTimestamp);
-            return new Tokens(newAppIds(tokens, appId, newToken), tokens.secrets());
+            return new Tokens(updateMap(tokens.appIds(), appId, newToken), tokens.secrets());
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
-    }
-
-    private static Map<String, Token> newAppIds(Tokens tokens, String appId, Token newToken) {
-        final ImmutableMap.Builder<String, Token> appIdsBuilder =
-                ImmutableMap.builderWithExpectedSize(tokens.appIds().size());
-        for (Entry<String, Token> entry : tokens.appIds().entrySet()) {
-            if (!entry.getKey().equals(appId)) {
-                appIdsBuilder.put(entry);
-            } else {
-                appIdsBuilder.put(appId, newToken);
-            }
-        }
-        return appIdsBuilder.build();
     }
 
     /**
@@ -1127,14 +1064,10 @@ public class MetadataService {
 
         final TokensTransformer transformer = new TokensTransformer((headRevision, tokens) -> {
             final Token token = tokens.get(appId);
-            final Map<String, Token> newAppIds = tokens.appIds().entrySet().stream()
-                                                       .filter(entry -> !entry.getKey().equals(appId))
-                                                       .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+            final Map<String, Token> newAppIds = removeFromMap(tokens.appIds(), appId);
             final String secret = token.secret();
             assert secret != null;
-            final Map<String, String> newSecrets =
-                    tokens.secrets().entrySet().stream().filter(entry -> !entry.getKey().equals(secret))
-                          .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+            final Map<String, String> newSecrets = removeFromMap(tokens.secrets(), secret);
             return new Tokens(newAppIds, newSecrets);
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer)
@@ -1158,11 +1091,9 @@ public class MetadataService {
             final String secret = token.secret();
             assert secret != null;
             final Map<String, String> newSecrets =
-                    ImmutableMap.<String, String>builderWithExpectedSize(tokens.secrets().size() + 1)
-                                .putAll(tokens.secrets())
-                                .put(secret, appId).build();
+                    addToMap(tokens.secrets(), secret, appId); // Note that the key is secret not appId.
             final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(), token.creation());
-            return new Tokens(newAppIds(tokens, appId, newToken), newSecrets);
+            return new Tokens(updateMap(tokens.appIds(), appId, newToken), newSecrets);
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -1186,10 +1117,9 @@ public class MetadataService {
             assert secret != null;
             final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(),
                                              token.isSystemAdmin(), token.creation(), userAndTimestamp, null);
-            final Map<String, Token> newAppIds = newAppIds(tokens, appId, newToken);
+            final Map<String, Token> newAppIds = updateMap(tokens.appIds(), appId, newToken);
             final Map<String, String> newSecrets =
-                    tokens.secrets().entrySet().stream().filter(entry -> !entry.getKey().equals(secret))
-                          .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+                    removeFromMap(tokens.secrets(), secret); // Note that the key is secret not appId.
             return new Tokens(newAppIds, newSecrets);
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
@@ -1211,8 +1141,8 @@ public class MetadataService {
                         "The token is already " + (toBeSystemAdmin ? "admin" : "user"));
             }
 
-            return new Tokens(newAppIds(tokens, appId, token.withSystemAdmin(toBeSystemAdmin)),
-                              tokens.secrets());
+            final Token newToken = token.withSystemAdmin(toBeSystemAdmin);
+            return new Tokens(updateMap(tokens.appIds(), appId, newToken), tokens.secrets());
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -1259,5 +1189,30 @@ public class MetadataService {
             throw new TokenNotFoundException(
                     appId + " is not a token of the project '" + project.name() + '\'');
         }
+    }
+
+    private static <T> ImmutableMap<String, T> addToMap(Map<String, T> map, String key, T value) {
+        return ImmutableMap.<String, T>builderWithExpectedSize(map.size() + 1)
+                           .putAll(map)
+                           .put(key, value)
+                           .build();
+    }
+
+    private static <T> Map<String, T> updateMap(Map<String, T> map, String key, T value) {
+        final ImmutableMap.Builder<String, T> builder = ImmutableMap.builderWithExpectedSize(map.size());
+        for (Entry<String, T> entry : map.entrySet()) {
+            if (entry.getKey().equals(key)) {
+                builder.put(key, value);
+            } else {
+                builder.put(entry);
+            }
+        }
+        return builder.build();
+    }
+
+    private static <T> ImmutableMap<String, T> removeFromMap(Map<String, T> map, String id) {
+        return map.entrySet().stream()
+                  .filter(e -> !e.getKey().equals(id))
+                  .collect(toImmutableMap(Entry::getKey, Entry::getValue));
     }
 }

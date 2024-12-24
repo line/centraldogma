@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.metadata;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 
 import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.centraldogma.common.RepositoryRole;
@@ -71,6 +72,23 @@ public final class ProjectRoles {
     @JsonProperty("guest")
     public RepositoryRole guest() {
         return guest;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof ProjectRoles)) {
+            return false;
+        }
+        final ProjectRoles that = (ProjectRoles) o;
+        return member == that.member && guest == that.guest;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(member, guest);
     }
 
     @Override

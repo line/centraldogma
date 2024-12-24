@@ -1,18 +1,18 @@
 import { Box, Flex, Heading, HStack, Spacer, Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import {
-  useAddTokenPermissionMutation,
-  useAddUserPermissionMutation,
-  useDeleteTokenPermissionMutation,
-  useDeleteUserPermissionMutation,
+  useAddTokenRepositoryRoleMutation,
+  useAddUserRepositoryRoleMutation,
+  useDeleteTokenRepositoryRoleMutation,
+  useDeleteUserRepositoryRoleMutation,
   useGetMetadataByProjectNameQuery,
 } from 'dogma/features/api/apiSlice';
-import { NewRepoUserPermission } from 'dogma/features/repo/permissions/NewRepoUserPermission';
-import { RolePermissionForm } from 'dogma/features/repo/permissions/RolePermissionForm';
-import { UserPermission } from 'dogma/features/repo/permissions/UserPermission';
+import { NewUserRepositoryRole } from 'dogma/features/repo/roles/NewUserRepositoryRole';
+import { ProjectRolesForm } from 'dogma/features/repo/roles/ProjectRolesForm';
+import { UserRepositoryRole } from 'dogma/features/repo/roles/UserRepositoryRole';
 import { useRouter } from 'next/router';
-import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
-import { NewRepoTokenPermission } from 'dogma/features/repo/permissions/NewRepoTokenPermission';
+import { UserOrTokenRepositoryRoleDto } from 'dogma/features/repo/RepositoriesMetadataDto';
+import { NewTokenRepositoryRole } from 'dogma/features/repo/roles/NewTokenRepositoryRole';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Deferred } from 'dogma/common/components/Deferred';
@@ -21,7 +21,7 @@ import { isInternalRepo } from 'dogma/util/repo-util';
 
 let tabs = ['role', 'user', 'token'];
 
-const RepoPermissionPage = () => {
+const RepoRolePage = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   const repoName = router.query.repoName ? (router.query.repoName as string) : '';
@@ -36,10 +36,11 @@ const RepoPermissionPage = () => {
     refetchOnFocus: true,
     skip: false,
   });
-  const [addUserPermission, { isLoading: isAddUserLoading }] = useAddUserPermissionMutation();
-  const [deleteUserPermission, { isLoading: isDeleteUserLoading }] = useDeleteUserPermissionMutation();
-  const [addTokenPermission, { isLoading: isAddTokenLoading }] = useAddTokenPermissionMutation();
-  const [deleteTokenPermission, { isLoading: isDeleteTokenLoading }] = useDeleteTokenPermissionMutation();
+  const [addUserRepositoryRole, { isLoading: isAddUserLoading }] = useAddUserRepositoryRoleMutation();
+  const [deleteUserRepositoryRole, { isLoading: isDeleteUserLoading }] = useDeleteUserRepositoryRoleMutation();
+  const [addTokenRepositoryRole, { isLoading: isAddTokenLoading }] = useAddTokenRepositoryRoleMutation();
+  const [deleteTokenRepositoryRole, { isLoading: isDeleteTokenLoading }] =
+    useDeleteTokenRepositoryRoleMutation();
   const [tabIndex, setTabIndex] = useState(0);
   const tab = router.query.tab ? (router.query.tab as string) : '';
   useEffect(() => {
@@ -60,7 +61,7 @@ const RepoPermissionPage = () => {
                   <GoRepo />
                 </Box>
                 <Box color={'teal'}>{repoName}</Box>
-                <Box>permissions</Box>
+                <Box>roles</Box>
               </HStack>
             </Heading>
           </Flex>
@@ -72,7 +73,7 @@ const RepoPermissionPage = () => {
                   key={tabName}
                   replace
                   href={{
-                    pathname: `/app/projects/${projectName}/repos/${repoName}/permissions`,
+                    pathname: `/app/projects/${projectName}/repos/${repoName}/roles`,
                     query: { tab: tabName },
                   }}
                 >
@@ -86,11 +87,11 @@ const RepoPermissionPage = () => {
             <TabPanels>
               {!isInternalRepo(repoName) && (
                 <TabPanel>
-                  {metadata?.repos[repoName]?.perRolePermissions && (
-                    <RolePermissionForm
+                  {metadata?.repos[repoName]?.roles?.projects && (
+                    <ProjectRolesForm
                       projectName={projectName}
                       repoName={repoName}
-                      perRolePermissions={metadata?.repos[repoName]?.perRolePermissions}
+                      projectRoles={metadata.repos[repoName].roles.projects}
                     />
                   )}
                 </TabPanel>
@@ -98,48 +99,48 @@ const RepoPermissionPage = () => {
               <TabPanel>
                 <Flex>
                   <Spacer />
-                  <NewRepoUserPermission
+                  <NewUserRepositoryRole
                     projectName={projectName}
                     repoName={repoName}
                     members={metadata ? Array.from(Object.values(metadata.members)) : []}
-                    addUserPermission={addUserPermission}
+                    addUserRepositoryRole={addUserRepositoryRole}
                     isLoading={isAddUserLoading}
-                    perUserPermissions={
-                      metadata?.repos[repoName]?.perUserPermissions ?? ({} as PerUserPermissionDto)
+                    userRepositoryRole={
+                      metadata?.repos[repoName]?.roles?.users ?? ({} as UserOrTokenRepositoryRoleDto)
                     }
                   />
                 </Flex>
-                <UserPermission
+                <UserRepositoryRole
                   projectName={projectName}
                   repoName={repoName}
-                  perUserPermissions={
-                    metadata?.repos[repoName]?.perUserPermissions ?? ({} as PerUserPermissionDto)
+                  userOrTokenRepositoryRole={
+                    metadata?.repos[repoName]?.roles?.users ?? ({} as UserOrTokenRepositoryRoleDto)
                   }
-                  deleteMember={deleteUserPermission}
+                  deleteMember={deleteUserRepositoryRole}
                   isLoading={isDeleteUserLoading}
                 />
               </TabPanel>
               <TabPanel>
                 <Flex>
                   <Spacer />
-                  <NewRepoTokenPermission
+                  <NewTokenRepositoryRole
                     projectName={projectName}
                     repoName={repoName}
                     tokens={metadata ? Array.from(Object.values(metadata.tokens)) : []}
-                    addTokenPermission={addTokenPermission}
+                    addTokenRepositoryRole={addTokenRepositoryRole}
                     isLoading={isAddTokenLoading}
-                    perUserPermissions={
-                      metadata?.repos[repoName]?.perTokenPermissions ?? ({} as PerUserPermissionDto)
+                    tokenRepositoryRole={
+                      metadata?.repos[repoName]?.roles?.tokens ?? ({} as UserOrTokenRepositoryRoleDto)
                     }
                   />
                 </Flex>
-                <UserPermission
+                <UserRepositoryRole
                   projectName={projectName}
                   repoName={repoName}
-                  perUserPermissions={
-                    metadata?.repos[repoName]?.perTokenPermissions ?? ({} as PerUserPermissionDto)
+                  userOrTokenRepositoryRole={
+                    metadata?.repos[repoName]?.roles?.tokens ?? ({} as UserOrTokenRepositoryRoleDto)
                   }
-                  deleteMember={deleteTokenPermission}
+                  deleteMember={deleteTokenRepositoryRole}
                   isLoading={isDeleteTokenLoading}
                 />
               </TabPanel>
@@ -151,4 +152,4 @@ const RepoPermissionPage = () => {
   );
 };
 
-export default RepoPermissionPage;
+export default RepoRolePage;

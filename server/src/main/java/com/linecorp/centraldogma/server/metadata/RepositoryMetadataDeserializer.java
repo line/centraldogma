@@ -16,7 +16,6 @@
 package com.linecorp.centraldogma.server.metadata;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_WRITE;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -30,7 +29,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -54,25 +52,22 @@ final class RepositoryMetadataDeserializer extends StdDeserializer<RepositoryMet
         final String name = jsonNode.get("name").textValue();
         final JsonNode perRolePermissionsNode = jsonNode.get("perRolePermissions");
 
-        final PerRolePermissions perRolePermissions;
-        final Map<String, Collection<Permission>> perUserPermissions;
-        final Map<String, Collection<Permission>> perTokenPermissions;
+        final Roles roles;
         if (perRolePermissionsNode != null)  {
             assert jsonNode.get("roles") == null;
             // legacy format
-            perRolePermissions = Jackson.treeToValue(perRolePermissionsNode, PerRolePermissions.class);
-            perUserPermissions = Jackson.readValue(jsonNode.get("perUserPermissions").traverse(),
-                                                   PER_PERMISSIONS_TYPE);
-            perTokenPermissions = Jackson.readValue(jsonNode.get("perTokenPermissions").traverse(),
-                                                    PER_PERMISSIONS_TYPE);
+            final PerRolePermissions perRolePermissions =
+                    Jackson.treeToValue(perRolePermissionsNode, PerRolePermissions.class);
+            final Map<String, Collection<Permission>> perUserPermissions =
+                    Jackson.readValue(jsonNode.get("perUserPermissions").traverse(), PER_PERMISSIONS_TYPE);
+            final Map<String, Collection<Permission>> perTokenPermissions =
+                    Jackson.readValue(jsonNode.get("perTokenPermissions").traverse(), PER_PERMISSIONS_TYPE);
+            roles = new Roles(ProjectRoles.of(repositoryRole(perRolePermissions.member()),
+                                              repositoryRole(perRolePermissions.guest())),
+                              convert(perUserPermissions), convert(perTokenPermissions));
         } else {
             // new format
-            final Roles roles = Jackson.treeToValue(jsonNode.get("roles"), Roles.class);
-            perRolePermissions = new PerRolePermissions(READ_WRITE,
-                                                        getPermissions(roles.projectRoles().member()),
-                                                        getPermissions(roles.projectRoles().guest()), null);
-            perUserPermissions = convert(roles.users());
-            perTokenPermissions = convert(roles.tokens());
+            roles = Jackson.treeToValue(jsonNode.get("roles"), Roles.class);
         }
 
         final UserAndTimestamp creation = Jackson.treeToValue(jsonNode.get("creation"), UserAndTimestamp.class);
@@ -84,24 +79,22 @@ final class RepositoryMetadataDeserializer extends StdDeserializer<RepositoryMet
         final QuotaConfig writeQuota =
                 writeQuotaNode == null ? null : Jackson.treeToValue(writeQuotaNode, QuotaConfig.class);
 
-        return new RepositoryMetadata(name, perRolePermissions, perUserPermissions, perTokenPermissions,
-                                      creation, removal, writeQuota);
+        return new RepositoryMetadata(name, roles, creation, removal, writeQuota);
     }
 
-    private static Map<String, Collection<Permission>> convert(
-            Map<String, RepositoryRole> roles) {
-        return roles.entrySet().stream()
-                    .collect(toImmutableMap(Entry::getKey, entry -> getPermissions(entry.getValue())));
+    @Nullable
+    private static RepositoryRole repositoryRole(Collection<Permission> permissions) {
+        if (permissions.isEmpty()) {
+            return null;
+        }
+        if (permissions.contains(Permission.WRITE)) {
+            return RepositoryRole.WRITE;
+        }
+        return RepositoryRole.READ;
     }
 
-    static Collection<Permission> getPermissions(@Nullable RepositoryRole repositoryRole) {
-        if (repositoryRole == null) {
-            return ImmutableList.of();
-        }
-        if (repositoryRole == RepositoryRole.READ) {
-            return ImmutableList.of(Permission.READ);
-        }
-        // WRITE or ADMIN RepositoryRole.
-        return ImmutableList.of(Permission.READ, Permission.WRITE);
+    private static Map<String, RepositoryRole> convert(Map<String, Collection<Permission>> permissions) {
+        return permissions.entrySet().stream()
+                          .collect(toImmutableMap(Entry::getKey, entry -> repositoryRole(entry.getValue())));
     }
 }

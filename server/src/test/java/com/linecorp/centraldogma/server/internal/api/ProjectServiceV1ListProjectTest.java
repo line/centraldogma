@@ -51,7 +51,7 @@ import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.internal.api.MetadataApiService.IdentifierWithRole;
+import com.linecorp.centraldogma.server.internal.api.MetadataApiService.IdAndProjectRole;
 import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -270,8 +270,8 @@ class ProjectServiceV1ListProjectTest {
         AggregatedHttpResponse aRes =
                 systemAdminClient.prepare()
                                  .post("/api/v1/metadata/trustin/members")
-                                 .contentJson(new IdentifierWithRole(
-                                   TestAuthMessageUtil.USERNAME2, "MEMBER"))
+                                 .contentJson(new IdAndProjectRole(
+                                         TestAuthMessageUtil.USERNAME2, ProjectRole.MEMBER))
                                  .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         await().untilAsserted(() -> {
@@ -282,8 +282,8 @@ class ProjectServiceV1ListProjectTest {
 
         aRes = systemAdminClient.prepare()
                                 .post("/api/v1/metadata/hyangtack/members")
-                                .contentJson(new IdentifierWithRole(
-                                  TestAuthMessageUtil.USERNAME2, "OWNER"))
+                                .contentJson(new IdAndProjectRole(
+                                        TestAuthMessageUtil.USERNAME2, ProjectRole.OWNER))
                                 .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         await().untilAsserted(() -> {
@@ -320,7 +320,7 @@ class ProjectServiceV1ListProjectTest {
         AggregatedHttpResponse aRes =
                 normalClient.prepare()
                             .post("/api/v1/metadata/trustin/tokens")
-                            .contentJson(new IdentifierWithRole(appId, "MEMBER"))
+                            .contentJson(new IdAndProjectRole(appId, ProjectRole.MEMBER))
                             .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         await().untilAsserted(() -> {
@@ -331,7 +331,7 @@ class ProjectServiceV1ListProjectTest {
 
         aRes = normalClient.prepare()
                            .post("/api/v1/metadata/hyangtack/tokens")
-                           .contentJson(new IdentifierWithRole(appId, "OWNER"))
+                           .contentJson(new IdAndProjectRole(appId, ProjectRole.OWNER))
                            .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
         await().untilAsserted(() -> {
