@@ -44,7 +44,7 @@ import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { GoArrowBoth, GoArrowDown, GoArrowUp, GoKey, GoRepo } from 'react-icons/go';
 import { Select } from 'chakra-react-select';
 import { IoBanSharp } from 'react-icons/io5';
-import { useGetCredentialsQuery, useGetReposQuery } from 'dogma/features/api/apiSlice';
+import { useGetCredentialsQuery, useGetMirrorConfigQuery, useGetReposQuery } from 'dogma/features/api/apiSlice';
 import React, { useMemo, useState } from 'react';
 import FieldErrorMessage from 'dogma/common/components/form/FieldErrorMessage';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
@@ -52,6 +52,7 @@ import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 import { FiBox } from 'react-icons/fi';
 import cronstrue from 'cronstrue';
+import { CiLocationOn } from 'react-icons/ci';
 
 interface MirrorFormProps {
   projectName: string;
@@ -81,11 +82,14 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
     setValue,
     control,
     watch,
-  } = useForm<MirrorDto>();
+  } = useForm<MirrorDto>({
+    defaultValues: defaultValue,
+  });
 
   const isNew = defaultValue.id === '';
   const { data: repos } = useGetReposQuery(projectName);
   const { data: credentials } = useGetCredentialsQuery(projectName);
+  const { data: zoneConfig } = useGetMirrorConfigQuery();
 
   const [isScheduleEnabled, setScheduleEnabled] = useState<boolean>(defaultValue.schedule != null);
   const schedule = watch('schedule');
@@ -104,6 +108,13 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
       label: credential.id,
     }));
 
+  const zoneOptions: OptionType[] = (zoneConfig?.zonePinned ? zoneConfig.zone.allZones : []).map(
+    (zone: string) => ({
+      value: zone,
+      label: zone,
+    }),
+  );
+
   useMemo(() => {
     // `defaultValue` property is not working when using `react-select` with `react-hook-form`. So we have to
     // set the value manually. https://stackoverflow.com/a/66723262/1736581
@@ -112,6 +123,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
       setValue('remoteScheme', defaultValue.remoteScheme);
       setValue('credentialId', defaultValue.credentialId);
       setValue('direction', defaultValue.direction);
+      setValue('zone', defaultValue.zone);
     }
   }, [
     isNew,
@@ -127,6 +139,9 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
     : null;
   const defaultCredential: OptionType = defaultValue.credentialId
     ? { value: defaultValue.credentialId, label: defaultValue.credentialId }
+    : null;
+  const defaultZone: OptionType = defaultValue.zone
+    ? { value: defaultValue.zone, label: defaultValue.zone }
     : null;
 
   return (
@@ -412,6 +427,40 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
             <FieldErrorMessage error={errors.credentialId} fieldName="Credential" />
           </FormControl>
           <Spacer />
+          {zoneConfig?.zonePinned && (
+            <>
+              <FormControl width="65%" isRequired alignItems="left" isInvalid={errors.zone != null}>
+                <FormLabel>
+                  <LabelledIcon icon={CiLocationOn} text={'Zone'} />
+                </FormLabel>
+                <Controller
+                  control={control}
+                  name="zone"
+                  rules={{ required: true }}
+                  render={({ field: { onChange, value, name, ref } }) => (
+                    <Select
+                      ref={ref}
+                      id="zone"
+                      name={name}
+                      options={zoneOptions}
+                      defaultValue={defaultZone}
+                      // The default value of React Select must be null (and not undefined)
+                      value={zoneOptions.find((option) => option.value === value) || null}
+                      onChange={(option) => onChange(option?.value || '')}
+                      placeholder={'Enter zone ...'}
+                      closeMenuOnSelect={true}
+                      openMenuOnFocus={true}
+                      isSearchable={true}
+                      isClearable={true}
+                    />
+                  )}
+                />
+                <FieldErrorMessage error={errors.zone} fieldName="Zone" />
+                <FormHelperText>The zone where the mirror will be executed.</FormHelperText>
+              </FormControl>
+              <Spacer />
+            </>
+          )}
 
           <FormControl>
             <FormLabel>
@@ -444,8 +493,6 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
 
           {isNew ? (
             <Button
-              // disabled={credentialOptions.length === 0 || repoOptions.length === 0}
-              disabled
               type="submit"
               colorScheme="blue"
               isLoading={isWaitingResponse}
@@ -456,8 +503,6 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
             </Button>
           ) : (
             <Button
-              // disabled={credentialOptions.length === 0 || repoOptions.length === 0}
-              disabled
               type="submit"
               colorScheme="green"
               isDisabled={!isDirty}

@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.Nullable;
+
 import com.cronutils.model.Cron;
 import com.cronutils.model.field.CronField;
 import com.cronutils.model.field.CronFieldName;
@@ -34,7 +36,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
-import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.common.Author;
@@ -45,6 +46,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
@@ -273,13 +275,14 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
 
     @Override
     public CompletableFuture<Command<CommitResult>> createMirrorPushCommand(MirrorDto mirrorDto, Author author,
+                                                                            @Nullable ZoneConfig zoneConfig,
                                                                             boolean update) {
-        validateMirror(mirrorDto);
+        validateMirror(mirrorDto, zoneConfig);
         if (update) {
             final String summary = "Update the mirror '" + mirrorDto.id() + '\'';
             return mirror(mirrorDto.id()).thenApply(mirror -> {
                 // Perform the update operation only if the mirror exists.
-                return newCommand(mirrorDto, author, summary);
+                return newMirrorCommand(mirrorDto, author, summary);
             });
         } else {
             String summary = "Create a new mirror from " + mirrorDto.remoteUrl() +
@@ -290,7 +293,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             } else {
                 summary = "[Local-to-remote] " + summary;
             }
-            return UnmodifiableFuture.completedFuture(newCommand(mirrorDto, author, summary));
+            return UnmodifiableFuture.completedFuture(newMirrorCommand(mirrorDto, author, summary));
         }
     }
 
@@ -337,7 +340,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                             change);
     }
 
-    private Command<CommitResult> newCommand(MirrorDto mirrorDto, Author author, String summary) {
+    private Command<CommitResult> newMirrorCommand(MirrorDto mirrorDto, Author author, String summary) {
         final MirrorConfig mirrorConfig = converterToMirrorConfig(mirrorDto);
         final JsonNode jsonNode = Jackson.valueToTree(mirrorConfig);
         final Change<JsonNode> change = Change.ofJsonUpsert(mirrorFile(mirrorConfig.id()), jsonNode);
@@ -345,7 +348,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                             change);
     }
 
-    private static void validateMirror(MirrorDto mirror) {
+    private static void validateMirror(MirrorDto mirror, @Nullable ZoneConfig zoneConfig) {
         checkArgument(!Strings.isNullOrEmpty(mirror.id()), "Mirror ID is empty");
         final String scheduleString = mirror.schedule();
         if (scheduleString != null) {
@@ -353,6 +356,13 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             final CronField secondField = schedule.retrieve(CronFieldName.SECOND);
             checkArgument(!secondField.getExpression().asString().contains("*"),
                           "The second field of the schedule must be specified. (seconds: *, expected: 0-59)");
+        }
+
+        final String zone = mirror.zone();
+        if (zone != null) {
+            checkArgument(zoneConfig != null, "Zone configuration is missing");
+            checkArgument(zoneConfig.allZones().contains(zone),
+                          "The zone '%s' is not in the zone configuration: %s", zone, zoneConfig);
         }
     }
 
@@ -370,6 +380,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                 mirrorDto.localPath(),
                 URI.create(remoteUri),
                 mirrorDto.gitignore(),
-                mirrorDto.credentialId());
+                mirrorDto.credentialId(),
+                mirrorDto.zone());
     }
 }

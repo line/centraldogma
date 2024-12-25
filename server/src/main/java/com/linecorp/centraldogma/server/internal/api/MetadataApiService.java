@@ -22,14 +22,12 @@ import static java.util.Objects.requireNonNull;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.Exceptions;
@@ -41,18 +39,17 @@ import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ProjectRole;
+import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
-import com.linecorp.centraldogma.server.metadata.Permission;
+import com.linecorp.centraldogma.server.metadata.ProjectRoles;
 import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.User;
 
@@ -60,11 +57,8 @@ import com.linecorp.centraldogma.server.metadata.User;
  * Annotated service object for managing metadata of projects.
  */
 @ProducesJson
-@RequiresRole(roles = ProjectRole.OWNER)
+@RequiresProjectRole(ProjectRole.OWNER)
 public class MetadataApiService extends AbstractService {
-
-    private static final TypeReference<Collection<Permission>> permissionsTypeRef =
-            new TypeReference<Collection<Permission>>() {};
 
     private final MetadataService mds;
     private final Function<String, String> loginNameNormalizer;
@@ -83,11 +77,10 @@ public class MetadataApiService extends AbstractService {
      */
     @Post("/metadata/{projectName}/members")
     public CompletableFuture<Revision> addMember(@Param String projectName,
-                                                 IdentifierWithRole request,
+                                                 IdAndProjectRole request,
                                                  Author author) {
-        final ProjectRole role = toProjectRole(request.role());
         final User member = new User(loginNameNormalizer.apply(request.id()));
-        return mds.addMember(author, projectName, member, role);
+        return mds.addMember(author, projectName, member, request.role());
     }
 
     /**
@@ -130,11 +123,10 @@ public class MetadataApiService extends AbstractService {
      */
     @Post("/metadata/{projectName}/tokens")
     public CompletableFuture<Revision> addToken(@Param String projectName,
-                                                IdentifierWithRole request,
+                                                IdAndProjectRole request,
                                                 Author author) {
-        final ProjectRole role = toProjectRole(request.role());
         return mds.findTokenByAppId(request.id())
-                  .thenCompose(token -> mds.addToken(author, projectName, token.appId(), role));
+                  .thenCompose(token -> mds.addToken(author, projectName, token.appId(), request.role()));
     }
 
     /**
@@ -169,125 +161,90 @@ public class MetadataApiService extends AbstractService {
     }
 
     /**
-     * POST /metadata/{projectName}/repos/{repoName}/perm/role
+     * POST /metadata/{projectName}/repos/{repoName}/roles/projects
      *
-     * <p>Updates the {@link PerRolePermissions} of the specified {@code repoName} in the specified
-     * {@code projectName}.
+     * <p>Updates member and guest's {@link RepositoryRole}s of the specified {@code repoName} in the specified
+     * {@code projectName}. The body of the request will be:
+     * <pre>{@code
+     * {
+     *   "member": "WRITE",
+     *   "guest": "READ"
+     * }
+     * }</pre>
      */
-    @Post("/metadata/{projectName}/repos/{repoName}/perm/role")
-    public CompletableFuture<Revision> updateRolePermission(@Param String projectName,
-                                                            @Param String repoName,
-                                                            PerRolePermissions newPermission,
-                                                            Author author) {
-        return mds.updatePerRolePermissions(author, projectName, repoName, newPermission);
+    @Post("/metadata/{projectName}/repos/{repoName}/roles/projects")
+    public CompletableFuture<Revision> updateRepositoryProjectRoles(
+            @Param String projectName,
+            @Param String repoName,
+            ProjectRoles projectRoles,
+            Author author) {
+        return mds.updateRepositoryProjectRoles(author, projectName, repoName, projectRoles);
     }
 
     /**
-     * POST /metadata/{projectName}/repos/{repoName}/perm/users
+     * POST /metadata/{projectName}/repos/{repoName}/roles/users
      *
-     * <p>Adds {@link Permission}s of the specific users to the specified {@code repoName} in the
+     * <p>Adds the {@link RepositoryRole} of the specific users to the specified {@code repoName} in the
      * specified {@code projectName}.
      */
-    @Post("/metadata/{projectName}/repos/{repoName}/perm/users")
-    public CompletableFuture<Revision> addSpecificUserPermission(
+    @Post("/metadata/{projectName}/repos/{repoName}/roles/users")
+    public CompletableFuture<Revision> addUserRepositoryRole(
             @Param String projectName,
             @Param String repoName,
-            IdentifierWithPermissions memberWithPermissions,
+            IdAndRepositoryRole idAndRepositoryRole,
             Author author) {
-        final User member = new User(loginNameNormalizer.apply(memberWithPermissions.id()));
-        return mds.addPerUserPermission(author, projectName, repoName,
-                                        member, memberWithPermissions.permissions());
+        final User member = new User(loginNameNormalizer.apply(idAndRepositoryRole.id()));
+        return mds.addUserRepositoryRole(author, projectName, repoName,
+                                         member, idAndRepositoryRole.role());
     }
 
     /**
-     * PATCH /metadata/{projectName}/repos/{repoName}/perm/users/{memberId}
+     * DELETE /metadata/{projectName}/repos/{repoName}/roles/users/{memberId}
      *
-     * <p>Updates {@link Permission}s for the specified {@code memberId} of the specified {@code repoName}
+     * <p>Removes {@link RepositoryRole} of the specified {@code memberId} from the specified {@code repoName}
      * in the specified {@code projectName}.
      */
-    @Patch("/metadata/{projectName}/repos/{repoName}/perm/users/{memberId}")
-    @Consumes("application/json-patch+json")
-    public CompletableFuture<Revision> updateSpecificUserPermission(@Param String projectName,
-                                                                    @Param String repoName,
-                                                                    @Param String memberId,
-                                                                    JsonPatch jsonPatch,
-                                                                    Author author) {
-        final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/permissions");
-        final Collection<Permission> permissions = Jackson.convertValue(operation.value(), permissionsTypeRef);
+    @Delete("/metadata/{projectName}/repos/{repoName}/roles/users/{memberId}")
+    public CompletableFuture<Revision> removeUserRepositoryRole(@Param String projectName,
+                                                                @Param String repoName,
+                                                                @Param String memberId,
+                                                                Author author) {
         final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
-        return mds.findPermissions(projectName, repoName, member)
-                  .thenCompose(unused -> mds.updatePerUserPermission(author,
-                                                                     projectName, repoName, member,
-                                                                     permissions));
+        return mds.findRepositoryRole(projectName, repoName, member)
+                  .thenCompose(unused -> mds.removeUserRepositoryRole(author, projectName,
+                                                                      repoName, member));
     }
 
     /**
-     * DELETE /metadata/{projectName}/repos/{repoName}/perm/users/{memberId}
+     * POST /metadata/{projectName}/repos/{repoName}/roles/tokens
      *
-     * <p>Removes {@link Permission}s for the specified {@code memberId} from the specified {@code repoName}
-     * in the specified {@code projectName}.
-     */
-    @Delete("/metadata/{projectName}/repos/{repoName}/perm/users/{memberId}")
-    public CompletableFuture<Revision> removeSpecificUserPermission(@Param String projectName,
-                                                                    @Param String repoName,
-                                                                    @Param String memberId,
-                                                                    Author author) {
-        final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
-        return mds.findPermissions(projectName, repoName, member)
-                  .thenCompose(unused -> mds.removePerUserPermission(author, projectName,
-                                                                     repoName, member));
-    }
-
-    /**
-     * POST /metadata/{projectName}/repos/{repoName}/perm/tokens
-     *
-     * <p>Adds {@link Permission}s for a token to the specified {@code repoName} in the specified
+     * <p>Adds the {@link RepositoryRole} for a token to the specified {@code repoName} in the specified
      * {@code projectName}.
      */
-    @Post("/metadata/{projectName}/repos/{repoName}/perm/tokens")
-    public CompletableFuture<Revision> addSpecificTokenPermission(
+    @Post("/metadata/{projectName}/repos/{repoName}/roles/tokens")
+    public CompletableFuture<Revision> addTokenRepositoryRole(
             @Param String projectName,
             @Param String repoName,
-            IdentifierWithPermissions tokenWithPermissions,
+            IdAndRepositoryRole tokenAndRepositoryRole,
             Author author) {
-        return mds.addPerTokenPermission(author, projectName, repoName,
-                                         tokenWithPermissions.id(), tokenWithPermissions.permissions());
+        return mds.addTokenRepositoryRole(author, projectName, repoName,
+                                          tokenAndRepositoryRole.id(), tokenAndRepositoryRole.role());
     }
 
     /**
-     * PATCH /metadata/{projectName}/repos/{repoName}/perm/tokens/{appId}
+     * DELETE /metadata/{projectName}/repos/{repoName}/roles/tokens/{appId}
      *
-     * <p>Updates {@link Permission}s for the specified {@code appId} of the specified {@code repoName}
+     * <p>Removes the {@link RepositoryRole} of the specified {@code appId} from the specified {@code repoName}
      * in the specified {@code projectName}.
      */
-    @Patch("/metadata/{projectName}/repos/{repoName}/perm/tokens/{appId}")
-    @Consumes("application/json-patch+json")
-    public CompletableFuture<Revision> updateSpecificTokenPermission(@Param String projectName,
-                                                                     @Param String repoName,
-                                                                     @Param String appId,
-                                                                     JsonPatch jsonPatch,
-                                                                     Author author) {
-        final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/permissions");
-        final Collection<Permission> permissions = Jackson.convertValue(operation.value(), permissionsTypeRef);
+    @Delete("/metadata/{projectName}/repos/{repoName}/roles/tokens/{appId}")
+    public CompletableFuture<Revision> removeTokenRepositoryRole(@Param String projectName,
+                                                                 @Param String repoName,
+                                                                 @Param String appId,
+                                                                 Author author) {
         return mds.findTokenByAppId(appId)
-                  .thenCompose(token -> mds.updatePerTokenPermission(
-                          author, projectName, repoName, appId, permissions));
-    }
-
-    /**
-     * DELETE /metadata/{projectName}/repos/{repoName}/perm/tokens/{appId}
-     *
-     * <p>Removes {@link Permission}s of the specified {@code appId} from the specified {@code repoName}
-     * in the specified {@code projectName}.
-     */
-    @Delete("/metadata/{projectName}/repos/{repoName}/perm/tokens/{appId}")
-    public CompletableFuture<Revision> removeSpecificTokenPermission(@Param String projectName,
-                                                                     @Param String repoName,
-                                                                     @Param String appId,
-                                                                     Author author) {
-        return mds.findTokenByAppId(appId)
-                  .thenCompose(token -> mds.removePerTokenPermission(author,
-                                                                     projectName, repoName, appId));
+                  .thenCompose(token -> mds.removeTokenRepositoryRole(author,
+                                                                      projectName, repoName, appId));
     }
 
     /**
@@ -298,7 +255,7 @@ public class MetadataApiService extends AbstractService {
      */
     @Patch("/metadata/{projectName}/repos/{repoName}/quota/write")
     @Consumes("application/json-patch+json")
-    @RequiresAdministrator
+    @RequiresSystemAdministrator
     public CompletableFuture<Revision> updateWriteQuota(@Param String projectName,
                                                         @Param String repoName,
                                                         QuotaConfig quota,
@@ -330,26 +287,20 @@ public class MetadataApiService extends AbstractService {
         }
     }
 
-    private static ProjectRole toProjectRole(String roleStr) {
-        final ProjectRole role = ProjectRole.valueOf(requireNonNull(roleStr, "roleStr"));
-        checkArgument(role == ProjectRole.OWNER || role == ProjectRole.MEMBER,
-                      "Invalid role: " + role +
-                      " (expected: '" + ProjectRole.OWNER + "' or '" + ProjectRole.MEMBER + "')");
-        return role;
-    }
-
-    // TODO(hyangtack) Move these classes to the common module later when our java client accesses to
-    //                 the metadata.
-    static final class IdentifierWithRole {
+    public static final class IdAndProjectRole {
 
         private final String id;
-        private final String role;
+        private final ProjectRole role;
 
         @JsonCreator
-        IdentifierWithRole(@JsonProperty("id") String id,
-                           @JsonProperty("role") String role) {
+        IdAndProjectRole(@JsonProperty("id") String id,
+                         @JsonProperty("role") ProjectRole role) {
             this.id = requireNonNull(id, "id");
-            this.role = requireNonNull(role, "role");
+            requireNonNull(role, "role");
+            checkArgument(role == ProjectRole.OWNER || role == ProjectRole.MEMBER,
+                          "Invalid role: " + role +
+                          " (expected: '" + ProjectRole.OWNER + "' or '" + ProjectRole.MEMBER + "')");
+            this.role = role;
         }
 
         @JsonProperty
@@ -358,7 +309,7 @@ public class MetadataApiService extends AbstractService {
         }
 
         @JsonProperty
-        public String role() {
+        public ProjectRole role() {
             return role;
         }
 
@@ -371,16 +322,16 @@ public class MetadataApiService extends AbstractService {
         }
     }
 
-    static final class IdentifierWithPermissions {
+    public static final class IdAndRepositoryRole {
 
         private final String id;
-        private final Collection<Permission> permissions;
+        private final RepositoryRole role;
 
         @JsonCreator
-        IdentifierWithPermissions(@JsonProperty("id") String id,
-                                  @JsonProperty("permissions") Collection<Permission> permissions) {
+        IdAndRepositoryRole(@JsonProperty("id") String id,
+                            @JsonProperty("role") RepositoryRole role) {
             this.id = requireNonNull(id, "id");
-            this.permissions = requireNonNull(permissions, "permissions");
+            this.role = requireNonNull(role, "role");
         }
 
         @JsonProperty
@@ -389,15 +340,15 @@ public class MetadataApiService extends AbstractService {
         }
 
         @JsonProperty
-        public Collection<Permission> permissions() {
-            return permissions;
+        public RepositoryRole role() {
+            return role;
         }
 
         @Override
         public String toString() {
             return MoreObjects.toStringHelper(this)
                               .add("id", id())
-                              .add("permissions", permissions())
+                              .add("role", role())
                               .toString();
         }
     }

@@ -130,7 +130,7 @@ class ReplicationWriteQuotaTest extends WriteQuotaTestBase {
             int port, int serverId, Map<Integer, ZooKeeperServerConfig> servers) throws IOException {
         return new CentralDogmaBuilder(tempDir.newFolder().toFile())
                 .port(port, SessionProtocol.HTTP)
-                .administrators(TestAuthMessageUtil.USERNAME)
+                .systemAdministrators(TestAuthMessageUtil.USERNAME)
                 .authProviderFactory(factory)
                 .pluginConfigs(new MirroringServicePluginConfig(false))
                 .writeQuotaPerRepository(5, 1)

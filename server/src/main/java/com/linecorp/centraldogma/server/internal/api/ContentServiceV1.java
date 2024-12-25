@@ -66,6 +66,7 @@ import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.common.ShuttingDownException;
@@ -79,8 +80,7 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.CommitMessageRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.MergeQueryRequestConverter;
@@ -99,7 +99,7 @@ import io.micrometer.core.instrument.MeterRegistry;
  * Annotated service object for managing and watching contents.
  */
 @ProducesJson
-@RequiresReadPermission
+@RequiresRepositoryRole(RepositoryRole.READ)
 @RequestConverter(CommitMessageRequestConverter.class)
 public class ContentServiceV1 extends AbstractService {
 
@@ -189,7 +189,7 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Post("/projects/{projectName}/repos/{repoName}/contents")
     @ConsumesJson
-    @RequiresWritePermission
+    @RequiresRepositoryRole(RepositoryRole.WRITE)
     public CompletableFuture<PushResultDto> push(
             ServiceRequestContext ctx,
             @Param @Default("-1") String revision,
@@ -198,7 +198,7 @@ public class ContentServiceV1 extends AbstractService {
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
         final User user = AuthUtil.currentUser(ctx);
-        checkPush(repository.name(), changes, user.isAdmin());
+        checkPush(repository.name(), changes, user.isSystemAdmin());
         meterRegistry.counter("commits.push",
                               "project", repository.parent().name(),
                               "repository", repository.name())
@@ -444,7 +444,7 @@ public class ContentServiceV1 extends AbstractService {
      * Checks if the commit is for creating a file and raises a {@link InvalidPushException} if the
      * given {@code repoName} field is one of {@code meta} and {@code dogma} which are internal repositories.
      */
-    public static void checkPush(String repoName, Iterable<Change<?>> changes, boolean isAdmin) {
+    public static void checkPush(String repoName, Iterable<Change<?>> changes, boolean isSystemAdmin) {
         if (Project.REPO_META.equals(repoName)) {
             final boolean hasChangesOtherThanMetaRepoFiles =
                     Streams.stream(changes).anyMatch(change -> !isMetaFile(change.path()));
@@ -453,8 +453,8 @@ public class ContentServiceV1 extends AbstractService {
                         "The " + Project.REPO_META + " repository is reserved for internal usage.");
             }
 
-            if (isAdmin) {
-                // Admin may push the legacy files to test the mirror migration.
+            if (isSystemAdmin) {
+                // A system admin may push the legacy files to test the mirror migration.
             } else {
                 for (Change<?> change : changes) {
                     // 'mirrors.json' and 'credentials.json' are disallowed to be created or modified.

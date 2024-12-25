@@ -54,7 +54,7 @@ class XdsMemberPermissionTest {
 
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.administrators(USERNAME)
+            builder.systemAdministrators(USERNAME)
                    .cors("*")
                    .authProviderFactory(new ShiroAuthProviderFactory(unused -> {
                        final Ini iniConfig = new Ini();
@@ -144,7 +144,7 @@ class XdsMemberPermissionTest {
                                 .execute().status())
                 .isEqualTo(HttpStatus.FORBIDDEN);
 
-        // Grant the user permission to access the internal project.
+        // Grant the user role to access the internal project.
         final AggregatedHttpResponse res =
                 adminWebClient.prepare()
                               .post("/api/v1/metadata/@xds/members")
@@ -154,7 +154,7 @@ class XdsMemberPermissionTest {
 
         // @xds project should be visible to member users.
         assertThat(userClient.listProjects().join()).containsOnly("foo", "@xds");
-        // Read and write permission should be granted as well.
+        // Read and write should be granted as well.
         userRepo.commit("Update test.txt", Change.ofTextUpsert("/text.txt", "bar"))
                 .push()
                 .join();

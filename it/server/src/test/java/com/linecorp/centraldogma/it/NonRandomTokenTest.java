@@ -41,7 +41,7 @@ class NonRandomTokenTest {
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.administrators(TestAuthMessageUtil.USERNAME);
+            builder.systemAdministrators(TestAuthMessageUtil.USERNAME);
             builder.authProviderFactory(new TestAuthProviderFactory());
         }
     };
@@ -56,17 +56,17 @@ class NonRandomTokenTest {
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
         final String sessionId = Jackson.readValue(response.content().array(), AccessToken.class)
                                         .accessToken();
-        final WebClient adminClient = WebClient.builder(client.uri())
-                                               .auth(AuthToken.ofOAuth2(sessionId)).build();
+        final WebClient systemAdminClient = WebClient.builder(client.uri())
+                                                     .auth(AuthToken.ofOAuth2(sessionId)).build();
 
         final HttpRequest request = HttpRequest.builder()
                                                .post("/api/v1/tokens")
                                                .content(MediaType.FORM_DATA,
-                                                        "secret=appToken-secret&isAdmin=true&appId=foo")
+                                                        "secret=appToken-secret&isSystemAdmin=true&appId=foo")
                                                .build();
-        AggregatedHttpResponse res = adminClient.execute(request).aggregate().join();
+        AggregatedHttpResponse res = systemAdminClient.execute(request).aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.CREATED);
-        res = adminClient.get("/api/v1/tokens").aggregate().join();
+        res = systemAdminClient.get("/api/v1/tokens").aggregate().join();
         assertThat(res.contentUtf8()).contains("\"secret\":\"appToken-secret\"");
     }
 }

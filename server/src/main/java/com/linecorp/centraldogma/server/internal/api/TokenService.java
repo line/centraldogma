@@ -48,7 +48,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.Token;
@@ -86,7 +86,7 @@ public class TokenService extends AbstractService {
      */
     @Get("/tokens")
     public CompletableFuture<Collection<Token>> listTokens(User loginUser) {
-        if (loginUser.isAdmin()) {
+        if (loginUser.isSystemAdmin()) {
             return mds.getTokens()
                       .thenApply(tokens -> tokens.appIds().values());
         } else {
@@ -105,20 +105,24 @@ public class TokenService extends AbstractService {
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
     public CompletableFuture<HttpResult<Token>> createToken(@Param String appId,
+                                                            // TODO(minwoox): Remove isAdmin field.
                                                             @Param @Default("false") boolean isAdmin,
+                                                            @Param @Default("false") boolean isSystemAdmin,
                                                             @Param @Nullable String secret,
                                                             Author author, User loginUser) {
-        checkArgument(!isAdmin || loginUser.isAdmin(),
-                      "Only administrators are allowed to create an admin-level token.");
+        final boolean isSystemAdminToken = isSystemAdmin || isAdmin;
+        checkArgument(!isSystemAdminToken || loginUser.isSystemAdmin(),
+                      "Only system administrators are allowed to create a system admin-level token.");
 
-        checkArgument(secret == null || loginUser.isAdmin(),
-                      "Only administrators are allowed to create a new token from the given secret string");
+        checkArgument(secret == null || loginUser.isSystemAdmin(),
+                      "Only system administrators are allowed to create a new token from " +
+                      " the given secret string");
 
         final CompletableFuture<Revision> tokenFuture;
         if (secret != null) {
-            tokenFuture = mds.createToken(author, appId, secret, isAdmin);
+            tokenFuture = mds.createToken(author, appId, secret, isSystemAdminToken);
         } else {
-            tokenFuture = mds.createToken(author, appId, isAdmin);
+            tokenFuture = mds.createToken(author, appId, isSystemAdminToken);
         }
         return tokenFuture
                 .thenCompose(unused -> mds.findTokenByAppId(appId))
@@ -150,7 +154,7 @@ public class TokenService extends AbstractService {
      * <p>Purges a token of the specified ID that was deleted before.
      */
     @Delete("/tokens/{appId}/removed")
-    @RequiresAdministrator
+    @RequiresSystemAdministrator
     public CompletableFuture<Token> purgeToken(ServiceRequestContext ctx,
                                                @Param String appId,
                                                Author author, User loginUser) {
@@ -195,37 +199,39 @@ public class TokenService extends AbstractService {
     /**
      * PATCH /tokens/{appId}/level
      *
-     * <p>Updates a permission of a token of the specified ID.
+     * <p>Updates a level of a token of the specified ID.
      */
     @Patch("/tokens/{appId}/level")
-    @RequiresAdministrator
+    @RequiresSystemAdministrator
     public CompletableFuture<Token> updateTokenLevel(ServiceRequestContext ctx,
                                                      @Param String appId,
                                                      TokenLevelRequest tokenLevelRequest,
                                                      Author author, User loginUser) {
 
         final String newTokenLevel = tokenLevelRequest.level().toLowerCase();
-        checkArgument("user".equals(newTokenLevel) || "admin".equals(newTokenLevel),
-                      "token level: %s (expected: user or admin)" + tokenLevelRequest.level());
+        checkArgument("user".equals(newTokenLevel) || "admin".equals(newTokenLevel) ||
+                      "systemadmin".equals(newTokenLevel),
+                      "token level: %s (expected: user or systemadmin)" + tokenLevelRequest.level());
 
         return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
                 token -> {
-                    boolean toBeAdmin = false;
+                    boolean toBeSystemAdmin = false;
 
                     switch (newTokenLevel) {
                         case "user":
-                            if (!token.isAdmin()) {
+                            if (!token.isSystemAdmin()) {
                                 throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
                             }
                             break;
                         case "admin":
-                            if (token.isAdmin()) {
+                        case "systemadmin":
+                            if (token.isSystemAdmin()) {
                                 throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
                             }
-                            toBeAdmin = true;
+                            toBeSystemAdmin = true;
                             break;
                     }
-                    return mds.updateTokenLevel(author, appId, toBeAdmin).thenCompose(
+                    return mds.updateTokenLevel(author, appId, toBeSystemAdmin).thenCompose(
                             unused -> mds.findTokenByAppId(appId).thenApply(Token::withoutSecret));
                 });
     }
@@ -233,8 +239,8 @@ public class TokenService extends AbstractService {
     private CompletableFuture<Token> getTokenOrRespondForbidden(ServiceRequestContext ctx,
                                                                 String appId, User loginUser) {
         return mds.findTokenByAppId(appId).thenApply(token -> {
-            // Give permission to the administrators.
-            if (!loginUser.isAdmin() &&
+            // Give permission to the system administrators.
+            if (!loginUser.isSystemAdmin() &&
                 !token.creation().user().equals(loginUser.id())) {
                 return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
                                                  "Unauthorized token: %s", token);

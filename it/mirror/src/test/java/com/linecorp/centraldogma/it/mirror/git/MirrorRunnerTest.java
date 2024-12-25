@@ -49,10 +49,10 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class MirrorRunnerTest {
 
-    private static final String FOO_PROJ = "foo";
-    private static final String BAR_REPO = "bar";
-    private static final String PRIVATE_KEY_FILE = "ecdsa_256.openssh";
-    private static final String TEST_MIRROR_ID = "test-mirror";
+    static final String FOO_PROJ = "foo";
+    static final String BAR_REPO = "bar";
+    static final String PRIVATE_KEY_FILE = "ecdsa_256.openssh";
+    static final String TEST_MIRROR_ID = "test-mirror";
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
@@ -60,7 +60,7 @@ class MirrorRunnerTest {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
             builder.authProviderFactory(new TestAuthProviderFactory());
-            builder.administrators(USERNAME);
+            builder.systemAdministrators(USERNAME);
         }
 
         @Override
@@ -82,15 +82,15 @@ class MirrorRunnerTest {
         }
     };
 
-    private BlockingWebClient adminClient;
+    private BlockingWebClient systemAdminClient;
 
     @BeforeEach
     void setUp() throws Exception {
         final String adminToken = getAccessToken(dogma.httpClient(), USERNAME, PASSWORD);
-        adminClient = WebClient.builder(dogma.httpClient().uri())
-                               .auth(AuthToken.ofOAuth2(adminToken))
-                               .build()
-                               .blocking();
+        systemAdminClient = WebClient.builder(dogma.httpClient().uri())
+                                     .auth(AuthToken.ofOAuth2(adminToken))
+                                     .build()
+                                     .blocking();
         TestMirrorRunnerListener.reset();
     }
 
@@ -98,31 +98,31 @@ class MirrorRunnerTest {
     void triggerMirroring() throws Exception {
         final PublicKeyCredential credential = getCredential();
         ResponseEntity<PushResultDto> response =
-                adminClient.prepare()
-                           .post("/api/v1/projects/{proj}/credentials")
-                           .pathParam("proj", FOO_PROJ)
-                           .contentJson(credential)
-                           .asJson(PushResultDto.class)
-                           .execute();
+                systemAdminClient.prepare()
+                                 .post("/api/v1/projects/{proj}/credentials")
+                                 .pathParam("proj", FOO_PROJ)
+                                 .contentJson(credential)
+                                 .asJson(PushResultDto.class)
+                                 .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
 
         final MirrorDto newMirror = newMirror();
-        response = adminClient.prepare()
-                              .post("/api/v1/projects/{proj}/mirrors")
-                              .pathParam("proj", FOO_PROJ)
-                              .contentJson(newMirror)
-                              .asJson(PushResultDto.class)
-                              .execute();
+        response = systemAdminClient.prepare()
+                                    .post("/api/v1/projects/{proj}/mirrors")
+                                    .pathParam("proj", FOO_PROJ)
+                                    .contentJson(newMirror)
+                                    .asJson(PushResultDto.class)
+                                    .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
 
         for (int i = 0; i < 3; i++) {
             final ResponseEntity<MirrorResult> mirrorResponse =
-                    adminClient.prepare()
-                               .post("/api/v1/projects/{proj}/mirrors/{mirrorId}/run")
-                               .pathParam("proj", FOO_PROJ)
-                               .pathParam("mirrorId", TEST_MIRROR_ID)
-                               .asJson(MirrorResult.class)
-                               .execute();
+                    systemAdminClient.prepare()
+                                     .post("/api/v1/projects/{proj}/mirrors/{mirrorId}/run")
+                                     .pathParam("proj", FOO_PROJ)
+                                     .pathParam("mirrorId", TEST_MIRROR_ID)
+                                     .asJson(MirrorResult.class)
+                                     .execute();
 
             assertThat(mirrorResponse.status()).isEqualTo(HttpStatus.OK);
             if (i == 0) {
@@ -159,10 +159,11 @@ class MirrorRunnerTest {
                              "/",
                              "main",
                              null,
-                             PRIVATE_KEY_FILE);
+                             PRIVATE_KEY_FILE,
+                             null);
     }
 
-    private static PublicKeyCredential getCredential() throws Exception {
+    static PublicKeyCredential getCredential() throws Exception {
         final String publicKeyFile = "ecdsa_256.openssh.pub";
 
         final byte[] privateKeyBytes =

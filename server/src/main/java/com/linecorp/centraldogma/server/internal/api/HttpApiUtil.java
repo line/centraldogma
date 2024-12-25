@@ -309,7 +309,7 @@ public final class HttpApiUtil {
     }
 
     public static void setVerboseResponses(ServiceRequestContext ctx, User user) {
-        ctx.setAttr(VERBOSE_RESPONSES, Flags.verboseResponses() || user.isAdmin());
+        ctx.setAttr(VERBOSE_RESPONSES, Flags.verboseResponses() || user.isSystemAdmin());
     }
 
     private static boolean isVerboseResponse(ServiceRequestContext ctx) {

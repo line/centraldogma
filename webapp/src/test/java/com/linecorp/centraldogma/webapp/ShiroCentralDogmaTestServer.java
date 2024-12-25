@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import org.apache.shiro.config.Ini;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
@@ -39,7 +40,9 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 
 final class ShiroCentralDogmaTestServer {
 
@@ -55,7 +58,7 @@ final class ShiroCentralDogmaTestServer {
                 // Enable the legacy webapp
                 // .webAppEnabled(true)
                 .port(PORT, SessionProtocol.HTTP)
-                .administrators(USERNAME)
+                .systemAdministrators(USERNAME)
                 .cors("*")
                 .authProviderFactory(new ShiroAuthProviderFactory(unused -> {
                     final Ini iniConfig = new Ini();
@@ -64,6 +67,8 @@ final class ShiroCentralDogmaTestServer {
                     users.put(USERNAME2, PASSWORD2);
                     return iniConfig;
                 }))
+                .pluginConfigs(new MirroringServicePluginConfig(true, null, null, null, true))
+                .zone(new ZoneConfig("zoneA", ImmutableList.of("zoneA", "zoneB", "zoneC")))
                 .build();
         server.start().join();
         scaffold();

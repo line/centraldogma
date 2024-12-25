@@ -32,7 +32,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.linecorp.armeria.common.ContextAwareBlockingTaskExecutor;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
-import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
@@ -46,8 +45,8 @@ import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.api.v1.CreateProjectRequest;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.Member;
@@ -95,13 +94,13 @@ public class ProjectServiceV1 extends AbstractService {
     }
 
     private static ProjectRole getUserRole(Project project, User user) {
-        if (user.isAdmin()) {
+        if (user.isSystemAdmin()) {
             return ProjectRole.OWNER;
         }
 
         final ProjectMetadata metadata = project.metadata();
         if (metadata == null) {
-            // Metadata is null for the internal project which belongs to administrators.
+            // Metadata is null for the internal project which belongs to system administrators.
             return ProjectRole.GUEST;
         }
 
@@ -145,17 +144,10 @@ public class ProjectServiceV1 extends AbstractService {
      * GET /projects/{projectName}
      *
      * <p>Gets the {@link ProjectMetadata} of the specified {@code projectName}.
-     * If a {@code checkPermissionOnly} parameter is {@code true}, it is returned whether the user has
-     * permission to read the metadata of the specified {@code projectName}.
      */
     @Get("/projects/{projectName}")
-    @RequiresRole(roles = { ProjectRole.OWNER, ProjectRole.MEMBER })
-    public CompletableFuture<ProjectMetadata> getProjectMetadata(
-            @Param String projectName,
-            @Param("checkPermissionOnly") @Default("false") boolean isCheckPermissionOnly) {
-        if (isCheckPermissionOnly) {
-            return CompletableFuture.completedFuture(null);
-        }
+    @RequiresProjectRole(ProjectRole.MEMBER)
+    public CompletableFuture<ProjectMetadata> getProjectMetadata(@Param String projectName) {
         return projectApiManager.getProjectMetadata(projectName);
     }
 
@@ -165,7 +157,7 @@ public class ProjectServiceV1 extends AbstractService {
      * <p>Removes a project.
      */
     @Delete("/projects/{projectName}")
-    @RequiresRole(roles = ProjectRole.OWNER)
+    @RequiresProjectRole(ProjectRole.OWNER)
     public CompletableFuture<Void> removeProject(Project project, Author author) {
         return projectApiManager.removeProject(project.name(), author);
     }
@@ -176,7 +168,7 @@ public class ProjectServiceV1 extends AbstractService {
      * <p>Purges a project that was removed before.
      */
     @Delete("/projects/{projectName}/removed")
-    @RequiresRole(roles = ProjectRole.OWNER)
+    @RequiresProjectRole(ProjectRole.OWNER)
     public CompletableFuture<Void> purgeProject(@Param String projectName, Author author) {
         return projectApiManager.purgeProject(projectName, author);
     }
@@ -188,7 +180,7 @@ public class ProjectServiceV1 extends AbstractService {
      */
     @Consumes("application/json-patch+json")
     @Patch("/projects/{projectName}")
-    @RequiresAdministrator
+    @RequiresSystemAdministrator
     public CompletableFuture<ProjectDto> patchProject(@Param String projectName, JsonNode node, Author author,
                                                       User user) {
         checkUnremoveArgument(node);

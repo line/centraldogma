@@ -31,6 +31,7 @@ import java.util.Set;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.core.io.JsonStringEncoder;
@@ -183,6 +184,10 @@ public final class Jackson {
 
     public static <T> T readValue(File file, TypeReference<T> typeReference) throws IOException {
         return compactMapper.readValue(file, typeReference);
+    }
+
+    public static <T> T readValue(JsonParser jp, TypeReference<T> typeReference) throws IOException {
+        return compactMapper.readValue(jp, typeReference);
     }
 
     public static JsonNode readTree(String data) throws JsonParseException {

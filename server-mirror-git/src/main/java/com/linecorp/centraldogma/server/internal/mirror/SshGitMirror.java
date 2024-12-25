@@ -85,10 +85,9 @@ final class SshGitMirror extends AbstractGitMirror {
     SshGitMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                  Credential credential, Repository localRepo, String localPath,
                  URI remoteRepoUri, String remotePath, String remoteBranch,
-                 @Nullable String gitignore) {
+                 @Nullable String gitignore, @Nullable String zone) {
         super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath,
-              remoteBranch,
-              gitignore);
+              remoteBranch, gitignore, zone);
     }
 
     @Override

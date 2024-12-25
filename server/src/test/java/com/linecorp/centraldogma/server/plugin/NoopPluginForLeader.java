@@ -15,9 +15,11 @@
  */
 package com.linecorp.centraldogma.server.plugin;
 
+import com.linecorp.centraldogma.server.CentralDogmaConfig;
+
 public class NoopPluginForLeader extends AbstractNoopPlugin {
     @Override
-    public PluginTarget target() {
+    public PluginTarget target(CentralDogmaConfig config) {
         return PluginTarget.LEADER_ONLY;
     }
 

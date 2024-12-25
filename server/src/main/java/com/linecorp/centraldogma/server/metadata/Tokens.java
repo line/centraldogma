@@ -33,8 +33,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 
-import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
-
 /**
  * Holds a token map and a secret map for fast lookup.
  */

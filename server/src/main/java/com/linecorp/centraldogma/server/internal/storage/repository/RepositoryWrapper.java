@@ -34,6 +34,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
@@ -182,6 +183,13 @@ public class RepositoryWrapper implements Repository {
                                                   Author author, String summary, String detail, Markup markup,
                                                   Change<?>... changes) {
         return unwrap().commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes);
+    }
+
+    @Override
+    public CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis, Author author,
+                                                  String summary, String detail, Markup markup,
+                                                  ContentTransformer<?> transformer) {
+        return unwrap().commit(baseRevision, commitTimeMillis, author, summary, detail, markup, transformer);
     }
 
     @Override

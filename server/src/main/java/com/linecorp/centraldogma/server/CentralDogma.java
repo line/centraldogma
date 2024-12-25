@@ -36,6 +36,7 @@ import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -131,7 +132,6 @@ import com.linecorp.centraldogma.server.internal.admin.auth.SessionTokenAuthoriz
 import com.linecorp.centraldogma.server.internal.admin.service.DefaultLogoutService;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
 import com.linecorp.centraldogma.server.internal.admin.service.UserService;
-import com.linecorp.centraldogma.server.internal.api.AdministrativeService;
 import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
 import com.linecorp.centraldogma.server.internal.api.CredentialServiceV1;
 import com.linecorp.centraldogma.server.internal.api.GitHttpService;
@@ -140,12 +140,12 @@ import com.linecorp.centraldogma.server.internal.api.MetadataApiService;
 import com.linecorp.centraldogma.server.internal.api.MirroringServiceV1;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
 import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
+import com.linecorp.centraldogma.server.internal.api.SystemAdministrativeService;
 import com.linecorp.centraldogma.server.internal.api.TokenService;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthorizer;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresPermissionDecorator.RequiresReadPermissionDecoratorFactory;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresPermissionDecorator.RequiresWritePermissionDecoratorFactory;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresRoleDecorator.RequiresRoleDecoratorFactory;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRoleDecorator.RequiresProjectRoleDecoratorFactory;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRoleDecorator.RequiresRepositoryRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
@@ -226,6 +226,7 @@ public class CentralDogma implements AutoCloseable {
 
     private final AtomicInteger numPendingStopRequests = new AtomicInteger();
 
+    private final Map<PluginTarget, PluginGroup> pluginGroups;
     @Nullable
     private final PluginGroup pluginsForAllReplicas;
     @Nullable
@@ -258,14 +259,12 @@ public class CentralDogma implements AutoCloseable {
 
     CentralDogma(CentralDogmaConfig cfg, MeterRegistry meterRegistry, List<Plugin> plugins) {
         this.cfg = requireNonNull(cfg, "cfg");
-        pluginsForAllReplicas = PluginGroup.loadPlugins(
-                CentralDogma.class.getClassLoader(), PluginTarget.ALL_REPLICAS, cfg, plugins);
-        pluginsForLeaderOnly = PluginGroup.loadPlugins(
-                CentralDogma.class.getClassLoader(), PluginTarget.LEADER_ONLY, cfg, plugins);
-        pluginsForZoneLeaderOnly = PluginGroup.loadPlugins(
-                CentralDogma.class.getClassLoader(), PluginTarget.ZONE_LEADER_ONLY, cfg, plugins);
+        pluginGroups = PluginGroup.loadPlugins(CentralDogma.class.getClassLoader(), cfg, plugins);
+        pluginsForAllReplicas = pluginGroups.get(PluginTarget.ALL_REPLICAS);
+        pluginsForLeaderOnly = pluginGroups.get(PluginTarget.LEADER_ONLY);
+        pluginsForZoneLeaderOnly = pluginGroups.get(PluginTarget.ZONE_LEADER_ONLY);
         if (pluginsForZoneLeaderOnly != null) {
-            checkState(!isNullOrEmpty(cfg.zone()),
+            checkState(cfg.zone() != null,
                        "zone must be specified when zone leader plugins are enabled.");
         }
         startStop = new CentralDogmaStartStop(pluginsForAllReplicas);
@@ -320,14 +319,19 @@ public class CentralDogma implements AutoCloseable {
      * Returns the {@link MirroringService} of the server.
      *
      * @return the {@link MirroringService} if the server is started and mirroring is enabled.
-     *         {@link Optional#empty()} otherwise.
+     *         {@code null} otherwise.
      */
-    public Optional<MirroringService> mirroringService() {
-        if (pluginsForLeaderOnly == null) {
-            return Optional.empty();
-        }
-        return pluginsForLeaderOnly.findFirstPlugin(DefaultMirroringServicePlugin.class)
-                                   .map(DefaultMirroringServicePlugin::mirroringService);
+    @Nullable
+    public MirroringService mirroringService() {
+        return pluginGroups.values()
+                           .stream()
+                           .map(group -> {
+                               return group.findFirstPlugin(DefaultMirroringServicePlugin.class);
+                           })
+                           .filter(Objects::nonNull)
+                           .findFirst()
+                           .map(DefaultMirroringServicePlugin::mirroringService)
+                           .orElse(null);
     }
 
     /**
@@ -336,20 +340,8 @@ public class CentralDogma implements AutoCloseable {
      * @param target the {@link PluginTarget} of the {@link Plugin}s to be returned
      */
     public List<Plugin> plugins(PluginTarget target) {
-        switch (requireNonNull(target, "target")) {
-            case LEADER_ONLY:
-                return pluginsForLeaderOnly != null ? ImmutableList.copyOf(pluginsForLeaderOnly.plugins())
-                                                    : ImmutableList.of();
-            case ALL_REPLICAS:
-                return pluginsForAllReplicas != null ? ImmutableList.copyOf(pluginsForAllReplicas.plugins())
-                                                     : ImmutableList.of();
-            case ZONE_LEADER_ONLY:
-                return pluginsForZoneLeaderOnly != null ?
-                       ImmutableList.copyOf(pluginsForZoneLeaderOnly.plugins()) : ImmutableList.of();
-            default:
-                // Should not reach here.
-                throw new Error("Unknown plugin target: " + target);
-        }
+        requireNonNull(target, "target");
+        return pluginGroups.get(target).plugins();
     }
 
     /**
@@ -498,7 +490,8 @@ public class CentralDogma implements AutoCloseable {
         Consumer<CommandExecutor> onReleaseZoneLeadership = null;
         // TODO(ikhoon): Deduplicate
         if (pluginsForZoneLeaderOnly != null) {
-            final String zone = cfg.zone();
+            assert cfg.zone() != null;
+            final String zone = cfg.zone().currentZone();
             onTakeZoneLeadership = exec -> {
                 logger.info("Starting plugins on the {} zone leader replica ..", zone);
                 pluginsForZoneLeaderOnly
@@ -748,7 +741,7 @@ public class CentralDogma implements AutoCloseable {
         final AuthProviderParameters parameters = new AuthProviderParameters(
                 // Find application first, then find the session token.
                 new ApplicationTokenAuthorizer(mds::findTokenBySecret).orElse(
-                        new SessionTokenAuthorizer(sessionManager, authCfg.administrators())),
+                        new SessionTokenAuthorizer(sessionManager, authCfg.systemAdministrators())),
                 cfg,
                 sessionManager::generateSessionId,
                 // Propagate login and logout events to the other replicas.
@@ -772,6 +765,10 @@ public class CentralDogma implements AutoCloseable {
         final File dataDir = cfg.dataDir();
         new File(dataDir, "replica_id").delete();
 
+        String zone = null;
+        if (config().zone() != null) {
+            zone = config().zone().currentZone();
+        }
         // TODO(trustin): Provide a way to restart/reload the replicator
         //                so that we can recover from ZooKeeper maintenance automatically.
         return new ZooKeeperCommandExecutor(
@@ -779,7 +776,7 @@ public class CentralDogma implements AutoCloseable {
                 new StandaloneCommandExecutor(pm, repositoryWorker, serverStatusManager, sessionManager,
                         /* onTakeLeadership */ null, /* onReleaseLeadership */ null,
                         /* onTakeZoneLeadership */ null, /* onReleaseZoneLeadership */ null),
-                meterRegistry, pm, config().writeQuotaPerRepository(), config().zone(),
+                meterRegistry, pm, config().writeQuotaPerRepository(), zone,
                 onTakeLeadership, onReleaseLeadership,
                 onTakeZoneLeadership, onReleaseZoneLeadership);
     }
@@ -819,7 +816,7 @@ public class CentralDogma implements AutoCloseable {
         final Authorizer<HttpRequest> tokenAuthorizer =
                 new ApplicationTokenAuthorizer(mds::findTokenBySecret)
                         .orElse(new SessionTokenAuthorizer(sessionManager,
-                                                           authCfg.administrators()));
+                                                           authCfg.systemAdministrators()));
         return AuthService.builder()
                           .add(tokenAuthorizer)
                           .onFailure(new CentralDogmaAuthFailureHandler())
@@ -837,9 +834,8 @@ public class CentralDogma implements AutoCloseable {
                 // See JacksonRequestConverterFunctionTest
                 new JacksonRequestConverterFunction(new ObjectMapper()),
                 new HttpApiRequestConverter(projectApiManager),
-                new RequiresReadPermissionDecoratorFactory(mds),
-                new RequiresWritePermissionDecoratorFactory(mds),
-                new RequiresRoleDecoratorFactory(mds)
+                new RequiresRepositoryRoleDecoratorFactory(mds),
+                new RequiresProjectRoleDecoratorFactory(mds)
         );
         sb.dependencyInjector(dependencyInjector, false)
           // TODO(ikhoon): Consider exposing ReflectiveDependencyInjector as a public API via
@@ -864,7 +860,7 @@ public class CentralDogma implements AutoCloseable {
         assert statusManager != null;
         final ContextPathServicesBuilder apiV1ServiceBuilder = sb.contextPath(API_V1_PATH_PREFIX);
         apiV1ServiceBuilder
-                .annotatedService(new AdministrativeService(executor, statusManager))
+                .annotatedService(new SystemAdministrativeService(executor, statusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
                 .annotatedService(new RepositoryServiceV1(executor, mds))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor));
@@ -872,7 +868,7 @@ public class CentralDogma implements AutoCloseable {
         if (GIT_MIRROR_ENABLED) {
             mirrorRunner = new MirrorRunner(projectApiManager, executor, cfg, meterRegistry);
             apiV1ServiceBuilder.annotatedService(new MirroringServiceV1(projectApiManager, executor,
-                                                                        mirrorRunner));
+                                                                        mirrorRunner, cfg));
         }
 
         apiV1ServiceBuilder.annotatedService()

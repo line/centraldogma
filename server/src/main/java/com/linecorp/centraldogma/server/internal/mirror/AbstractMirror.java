@@ -64,6 +64,8 @@ public abstract class AbstractMirror implements Mirror {
     @Nullable
     private final String gitignore;
     @Nullable
+    private final String zone;
+    @Nullable
     private final Cron schedule;
     @Nullable
     private final ExecutionTime executionTime;
@@ -72,7 +74,7 @@ public abstract class AbstractMirror implements Mirror {
     protected AbstractMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                              Credential credential, Repository localRepo, String localPath,
                              URI remoteRepoUri, String remotePath, String remoteBranch,
-                             @Nullable String gitignore) {
+                             @Nullable String gitignore, @Nullable String zone) {
         this.id = requireNonNull(id, "id");
         this.enabled = enabled;
         this.direction = requireNonNull(direction, "direction");
@@ -83,6 +85,7 @@ public abstract class AbstractMirror implements Mirror {
         this.remotePath = normalizePath(requireNonNull(remotePath, "remotePath"));
         this.remoteBranch = requireNonNull(remoteBranch, "remoteBranch");
         this.gitignore = gitignore;
+        this.zone = zone;
 
         if (schedule != null) {
             this.schedule = requireNonNull(schedule, "schedule");
@@ -174,6 +177,12 @@ public abstract class AbstractMirror implements Mirror {
         return enabled;
     }
 
+    @Nullable
+    @Override
+    public String zone() {
+        return zone;
+    }
+
     @Override
     public final MirrorResult mirror(File workDir, CommandExecutor executor, int maxNumFiles,
                                      long maxNumBytes, Instant triggeredTime) {
@@ -212,7 +221,7 @@ public abstract class AbstractMirror implements Mirror {
     protected final MirrorResult newMirrorResult(MirrorStatus mirrorStatus, @Nullable String description,
                                                  Instant triggeredTime) {
         return new MirrorResult(id, localRepo.parent().name(), localRepo.name(), mirrorStatus, description,
-                                triggeredTime, Instant.now());
+                                triggeredTime, Instant.now(), zone);
     }
 
     @Override

@@ -94,14 +94,16 @@ abstract class WriteQuotaTestBase {
         assertThat(CompletableFutures.allAsList(futures4).join()).hasSize(8);
     }
 
-    private static QuotaConfig updateWriteQuota(WebClient adminClient, String repoName, QuotaConfig writeQuota)
+    private static QuotaConfig updateWriteQuota(
+            WebClient systemAdminClient, String repoName, QuotaConfig writeQuota)
             throws JsonProcessingException {
         final String updatePath = "/api/v1/metadata/test_prj/repos/" + repoName + "/quota/write";
         final String content = mapper.writeValueAsString(writeQuota);
         final HttpRequest req = HttpRequest.of(HttpMethod.PATCH, updatePath, MediaType.JSON_PATCH, content);
-        assertThat(adminClient.execute(req).aggregate().join().status()).isEqualTo(HttpStatus.OK);
+        assertThat(systemAdminClient.execute(req).aggregate().join().status()).isEqualTo(HttpStatus.OK);
 
-        final AggregatedHttpResponse res = adminClient.get("/api/v1/projects/test_prj").aggregate().join();
+        final AggregatedHttpResponse res = systemAdminClient.get("/api/v1/projects/test_prj")
+                                                            .aggregate().join();
         final ProjectMetadata meta = Jackson.readValue(res.contentUtf8(), ProjectMetadata.class);
         return meta.repo(repoName).writeQuota();
     }

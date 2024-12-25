@@ -906,8 +906,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static void validateProjectName(String projectName) {
-        // We don't know if the token has the permission to access internal projects.
-        // The server will reject the request if the token does not have the permission.
+        // We don't know if the token has the role to access internal projects.
+        // The server will reject the request if the token does not have the required role.
         Util.validateProjectName(projectName, "projectName", true);
     }
 

@@ -19,8 +19,11 @@ package com.linecorp.centraldogma.server.storage.repository;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.Nullable;
+
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
@@ -73,6 +76,7 @@ public interface MetaRepository extends Repository {
      * Create a push {@link Command} for the {@link MirrorDto}.
      */
     CompletableFuture<Command<CommitResult>> createMirrorPushCommand(MirrorDto mirrorDto, Author author,
+                                                                     @Nullable ZoneConfig zoneConfig,
                                                                      boolean update);
 
     /**
