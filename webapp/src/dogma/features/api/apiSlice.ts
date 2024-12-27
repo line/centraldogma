@@ -431,8 +431,8 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     updateRepoCredential: builder.mutation<
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       any,
       { projectName: string; id: string; credential: CredentialDto; repoName: string }
     >({
