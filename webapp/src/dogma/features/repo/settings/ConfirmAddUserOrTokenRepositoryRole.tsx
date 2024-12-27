@@ -15,12 +15,13 @@ import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { ApiAction } from 'dogma/features/api/apiSlice';
-import { AddUserRepositoryRoleDto } from 'dogma/features/repo/roles/AddUserRepositoryRoleDto';
-import { RepositoryRole } from '../RepositoriesMetadataDto';
+import { RepositoryRole } from 'dogma/features/auth/RepositoryRole';
+import { AddUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings/AddUserOrTokenRepositoryRoleDto';
 
-export const ConfirmAddUserRepositoryRole = ({
+export const ConfirmAddUserOrTokenRepositoryRole = ({
   projectName,
   repoName,
+  entityType,
   loginId,
   repositoryRole,
   isOpen,
@@ -31,12 +32,13 @@ export const ConfirmAddUserRepositoryRole = ({
 }: {
   projectName: string;
   repoName: string;
+  entityType: 'user' | 'token';
   loginId: string;
   repositoryRole: string;
   isOpen: boolean;
   onClose: () => void;
   resetForm: () => void;
-  addUserRepositoryRole: ApiAction<AddUserRepositoryRoleDto, void>;
+  addUserRepositoryRole: ApiAction<AddUserOrTokenRepositoryRoleDto, void>;
   isLoading: boolean;
 }) => {
   const dispatch = useAppDispatch();
@@ -51,7 +53,13 @@ export const ConfirmAddUserRepositoryRole = ({
       if ((response as unknown as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as unknown as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      dispatch(newNotification('Repository user role is added', `Successfully updated ${repoName}`, 'success'));
+      dispatch(
+        newNotification(
+          `Repository ${entityType} role is added`,
+          `Successfully updated ${repoName}`,
+          'success',
+        ),
+      );
     } catch (error) {
       dispatch(newNotification(`Failed to update ${repoName}`, ErrorMessageParser.parse(error), 'error'));
     }
@@ -68,7 +76,9 @@ export const ConfirmAddUserRepositoryRole = ({
         <ModalContent>
           <ModalHeader>Repository {repoName}</ModalHeader>
           <ModalCloseButton />
-          <ModalBody>Add a member {loginId}?</ModalBody>
+          <ModalBody>
+            Add a {entityType} {loginId}?
+          </ModalBody>
           <ModalFooter>
             <HStack spacing={3}>
               <Button colorScheme="teal" variant="outline" onClick={onClose}>

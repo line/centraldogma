@@ -19,7 +19,7 @@ const RepoRoleList = <Data extends object>({ data, projectName }: RepoRoleListPr
         cell: (info) => (
           <ChakraLink
             fontWeight={'semibold'}
-            href={`/app/projects/${projectName}/repos/${info.getValue()}/roles`}
+            href={`/app/projects/${projectName}/repos/${info.getValue()}/settings`}
           >
             <Icon as={RiGitRepositoryPrivateLine} marginBottom={-0.5} /> {info.getValue()}
           </ChakraLink>

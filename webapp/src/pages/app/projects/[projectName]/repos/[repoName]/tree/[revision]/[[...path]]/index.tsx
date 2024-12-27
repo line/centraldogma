@@ -142,13 +142,13 @@ cat ${project}/${repo}${path}`;
               >
                 History
               </Button>
-              {projectName == 'dogma' ? null : (
+              {projectName === 'dogma' ? null : (
                 <WithProjectRole projectName={projectName} roles={['OWNER']}>
                   {() => (
                     <MetadataButton
-                      href={`/app/projects/${projectName}/repos/${repoName}/roles`}
+                      href={`/app/projects/${projectName}/repos/${repoName}/settings`}
                       props={{ size: 'sm' }}
-                      text={'Repository roles'}
+                      text={'Repository Settings'}
                     />
                   )}
                 </WithProjectRole>

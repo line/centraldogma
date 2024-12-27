@@ -1,4 +1,4 @@
-export type RepositoryRole = 'READ' | 'WRITE' | 'ADMIN';
+import { RepositoryRole } from 'dogma/features/auth/RepositoryRole';
 
 export interface RepositoriesMetadataDto {
   [key: string]: RepositoryMetadataDto;

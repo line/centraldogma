@@ -1,6 +1,7 @@
 import { act, fireEvent, render } from '@testing-library/react';
+import { RepositoryRole } from 'dogma/features/auth/RepositoryRole';
 import RepoRoleList, { RepoRoleListProps } from 'dogma/features/repo/RepoRoleList';
-import { RepositoryMetadataDto, RepositoryRole } from 'dogma/features/repo/RepositoriesMetadataDto';
+import { RepositoryMetadataDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import '@testing-library/jest-dom';
 
 describe('RepoRoleList', () => {
@@ -90,7 +91,7 @@ describe('RepoRoleList', () => {
     const firstRepoName = 'meta';
     expect(firstCell).toHaveAttribute(
       'href',
-      `/app/projects/${expectedProps.projectName}/repos/${firstRepoName}/roles`,
+      `/app/projects/${expectedProps.projectName}/repos/${firstRepoName}/settings`,
     );
   });
 });

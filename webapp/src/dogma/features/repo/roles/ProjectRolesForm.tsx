@@ -1,8 +1,8 @@
 import { Box, Flex, FormControl, FormLabel, HStack, Radio, RadioGroup, Spacer, VStack } from '@chakra-ui/react';
+import { RepositoryRole } from 'dogma/features/auth/RepositoryRole';
 import { ConfirmUpdateRepositoryProjectRoles } from 'dogma/features/repo/roles/ConfirmUpdateRepositoryProjectRoles';
-import { ProjectRolesDto, RepositoryRole } from 'dogma/features/repo/RepositoriesMetadataDto';
+import { ProjectRolesDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import { useState } from 'react';
-import { MetadataButton } from 'dogma/common/components/MetadataButton';
 
 const getRole = (role: RepositoryRole | null) => {
   return role == null ? 'NONE' : role;
@@ -50,7 +50,6 @@ export const ProjectRolesForm = ({
       </VStack>
       <Flex gap={4} mt={10}>
         <Spacer />
-        <MetadataButton href={`/app/projects/${projectName}/settings`} text="Project Settings" />
         <ConfirmUpdateRepositoryProjectRoles
           projectName={projectName}
           repoName={repoName}

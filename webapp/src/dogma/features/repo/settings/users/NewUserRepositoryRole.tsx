@@ -21,8 +21,8 @@ import { Controller, useForm } from 'react-hook-form';
 import { IoMdArrowDropdown } from 'react-icons/io';
 import { useState } from 'react';
 import { OptionBase, Select } from 'chakra-react-select';
-import { ConfirmAddUserRepositoryRole } from 'dogma/features/repo/roles/ConfirmAddUserRepositoryRole';
-import { AddUserRepositoryRoleDto } from 'dogma/features/repo/roles/AddUserRepositoryRoleDto';
+import { ConfirmAddUserOrTokenRepositoryRole } from 'dogma/features/repo/settings/ConfirmAddUserOrTokenRepositoryRole';
+import { AddUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings/AddUserOrTokenRepositoryRoleDto';
 import { UserOrTokenRepositoryRoleDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { ApiAction } from 'dogma/features/api/apiSlice';
@@ -49,7 +49,7 @@ export const NewUserRepositoryRole = ({
   projectName: string;
   repoName: string;
   members: AppMemberDetailDto[];
-  addUserRepositoryRole: ApiAction<AddUserRepositoryRoleDto, void>;
+  addUserRepositoryRole: ApiAction<AddUserOrTokenRepositoryRoleDto, void>;
   isLoading: boolean;
   userRepositoryRole: UserOrTokenRepositoryRoleDto;
 }) => {
@@ -135,9 +135,10 @@ export const NewUserRepositoryRole = ({
           <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
             <Spacer />
             {memberOptions.length ? (
-              <ConfirmAddUserRepositoryRole
+              <ConfirmAddUserOrTokenRepositoryRole
                 projectName={projectName}
                 repoName={repoName}
+                entityType={'user'}
                 loginId={loginId}
                 repositoryRole={role}
                 isOpen={isConfirmAddOpen}

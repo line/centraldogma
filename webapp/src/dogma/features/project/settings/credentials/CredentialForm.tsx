@@ -42,9 +42,11 @@ import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
 import FieldErrorMessage from 'dogma/common/components/form/FieldErrorMessage';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 import { FiBox } from 'react-icons/fi';
+import { GoRepo } from 'react-icons/go';
 
 interface CredentialFormProps {
   projectName: string;
+  repoName?: string;
   defaultValue: CredentialDto;
   onSubmit: (credential: CredentialDto, onSuccess: () => void) => Promise<void>;
   isWaitingResponse: boolean;
@@ -62,7 +64,13 @@ const CREDENTIAL_TYPES: CredentialType[] = [
   { type: 'none', description: 'No authentication' },
 ];
 
-const CredentialForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: CredentialFormProps) => {
+const CredentialForm = ({
+  projectName,
+  repoName,
+  defaultValue,
+  onSubmit,
+  isWaitingResponse,
+}: CredentialFormProps) => {
   const [credentialType, setCredentialType] = useState<string>(defaultValue.type);
 
   const isNew = defaultValue.id === '';
@@ -104,10 +112,17 @@ const CredentialForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse
           <Heading size="lg" mb={4}>
             {isNew ? 'New Credential' : 'Edit Credential'}
           </Heading>
-          <HStack paddingBottom={2}>
-            <LabelledIcon icon={FiBox} text="Project" />
-            <Tag fontWeight={'bold'}>{projectName}</Tag>
-          </HStack>
+          {repoName ? (
+            <HStack paddingBottom={2}>
+              <LabelledIcon icon={GoRepo} text="Repository" />
+              <Tag fontWeight={'bold'}>{repoName}</Tag>
+            </HStack>
+          ) : (
+            <HStack paddingBottom={2}>
+              <LabelledIcon icon={FiBox} text="Project" />
+              <Tag fontWeight={'bold'}>{projectName}</Tag>
+            </HStack>
+          )}
           <Divider />
           <FormControl isRequired isInvalid={errors.id != null}>
             <FormLabel>

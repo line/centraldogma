@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { RepositoryRole } from '../../../../../dogma/features/repo/RepositoriesMetadataDto';
+import { RepositoryRole } from 'dogma/features/auth/RepositoryRole';
 
 const projectMetadata = {
   name: 'abcd',

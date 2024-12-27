@@ -16,6 +16,7 @@ interface DeleteConfirmationModalProps {
   type: string;
   id: string;
   projectName: string;
+  repoName?: string;
   handleDelete: () => void;
   isLoading: boolean;
 }
@@ -26,6 +27,7 @@ export const DeleteConfirmationModal = ({
   id,
   type,
   projectName,
+  repoName,
   handleDelete,
   isLoading,
 }: DeleteConfirmationModalProps): JSX.Element => {
@@ -36,7 +38,7 @@ export const DeleteConfirmationModal = ({
         <ModalHeader>Are you sure?</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          Delete {type} &apos;{id}&apos; from {projectName}?
+          Delete {type} &apos;{id}&apos; from {repoName ? repoName : projectName}?
         </ModalBody>
         <ModalFooter>
           <HStack spacing={3}>

@@ -14,14 +14,13 @@
  * under the License.
  */
 
+import { ProjectRole } from 'dogma/features/auth/ProjectRole';
 import { CreatorDto } from 'dogma/features/repo/RepoDto';
-
-export type ProjectUserRole = 'OWNER' | 'MEMBER' | 'GUEST';
 
 export interface ProjectDto {
   name: string;
   url?: string;
   creator?: CreatorDto;
   createdAt?: string;
-  userRole?: ProjectUserRole;
+  userRole?: ProjectRole;
 }

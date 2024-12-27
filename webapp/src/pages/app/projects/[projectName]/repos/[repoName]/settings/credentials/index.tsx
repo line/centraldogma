@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -19,25 +19,28 @@ import { Button, Flex, Spacer } from '@chakra-ui/react';
 import Link from 'next/link';
 import { AiOutlinePlus } from 'react-icons/ai';
 import React from 'react';
-import { useGetCredentialsQuery, useDeleteCredentialMutation } from 'dogma/features/api/apiSlice';
-import ProjectSettingsView from 'dogma/features/project/settings/ProjectSettingsView';
+import { useGetRepoCredentialsQuery, useDeleteRepoCredentialMutation } from 'dogma/features/api/apiSlice';
+import RepositorySettingsView from 'dogma/features/repo/settings/RepositorySettingsView';
 import CredentialList from 'dogma/features/project/settings/credentials/CredentialList';
 
-const ProjectCredentialPage = () => {
+const RepositoryCredentialPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
-  const { data: credentialsData } = useGetCredentialsQuery(projectName);
-  const [deleteCredentialMutation, { isLoading }] = useDeleteCredentialMutation();
-
+  const repoName = router.query.repoName ? (router.query.repoName as string) : '';
+  const { data: credentialsData } = useGetRepoCredentialsQuery({
+    projectName: projectName as string,
+    repoName: repoName as string,
+  });
+  const [deleteCredentialMutation, { isLoading }] = useDeleteRepoCredentialMutation();
   return (
-    <ProjectSettingsView projectName={projectName} currentTab={'credentials'}>
+    <RepositorySettingsView projectName={projectName} repoName={repoName} currentTab={'credentials'}>
       {() => (
         <>
           <Flex>
             <Spacer />
             <Button
               as={Link}
-              href={`/app/projects/${projectName}/settings/credentials/new`}
+              href={`/app/projects/${projectName}/repos/${repoName}/settings/credentials/new`}
               size="sm"
               rightIcon={<AiOutlinePlus />}
               colorScheme="teal"
@@ -47,14 +50,17 @@ const ProjectCredentialPage = () => {
           </Flex>
           <CredentialList
             projectName={projectName}
+            repoName={repoName}
             credentials={credentialsData}
-            deleteCredential={(projectName, id) => deleteCredentialMutation({ projectName, id }).unwrap()}
+            deleteCredential={(projectName, id, repoName) =>
+              deleteCredentialMutation({ projectName, id, repoName }).unwrap()
+            }
             isLoading={isLoading}
           />
         </>
       )}
-    </ProjectSettingsView>
+    </RepositorySettingsView>
   );
 };
 
-export default ProjectCredentialPage;
+export default RepositoryCredentialPage;

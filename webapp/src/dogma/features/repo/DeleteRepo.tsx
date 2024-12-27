@@ -20,10 +20,14 @@ export const DeleteRepo = ({
   projectName,
   repoName,
   hidden,
+  buttonVariant,
+  buttonSize,
 }: {
   projectName: string;
   repoName: string;
   hidden: boolean;
+  buttonVariant: 'solid' | 'outline';
+  buttonSize: 'sm' | 'lg';
 }) => {
   const { isOpen, onToggle, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
@@ -42,8 +46,8 @@ export const DeleteRepo = ({
       <Button
         leftIcon={<MdDelete />}
         colorScheme="red"
-        size="sm"
-        variant="ghost"
+        variant={buttonVariant}
+        size={buttonSize}
         onClick={onToggle}
         hidden={hidden}
       >
