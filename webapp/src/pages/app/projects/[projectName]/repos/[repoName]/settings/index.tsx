@@ -15,10 +15,8 @@
  */
 
 import { useRouter } from 'next/router';
-import { Flex, Spacer } from '@chakra-ui/react';
-import { NewRepo } from 'dogma/features/repo/NewRepo';
-import RepoMetaList from 'dogma/features/project/settings/repositories/RepoMetaList';
 import RepositorySettingsView from 'dogma/features/repo/settings/RepositorySettingsView';
+import { ProjectRolesForm } from 'dogma/features/repo/roles/ProjectRolesForm';
 
 const RepositorySettingsPage = () => {
   const router = useRouter();
@@ -26,14 +24,14 @@ const RepositorySettingsPage = () => {
   const repoName = router.query.repoName ? (router.query.repoName as string) : '';
   return (
     <>
-      <RepositorySettingsView projectName={projectName} repoName={repoName} currentTab={'permissions'}>
+      <RepositorySettingsView projectName={projectName} repoName={repoName} currentTab={'roles'}>
         {(metadata) => (
           <>
-            <Flex gap={3}>
-              <Spacer />
-              <NewRepo projectName={projectName} />
-            </Flex>
-            <RepoMetaList data={Array.from(Object.values(metadata?.repos || {}))} projectName={projectName} />
+            <ProjectRolesForm
+              projectName={projectName}
+              repoName={repoName}
+              projectRoles={metadata?.repos[repoName]?.roles.projects}
+            />
           </>
         )}
       </RepositorySettingsView>

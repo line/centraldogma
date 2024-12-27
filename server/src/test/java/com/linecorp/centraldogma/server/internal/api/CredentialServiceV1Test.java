@@ -60,7 +60,7 @@ class CredentialServiceV1Test {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
             builder.authProviderFactory(new TestAuthProviderFactory());
-            builder.administrators(USERNAME);
+            builder.systemAdministrators(USERNAME);
         }
 
         @Override

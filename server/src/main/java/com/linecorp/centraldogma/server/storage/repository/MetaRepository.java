@@ -90,5 +90,4 @@ public interface MetaRepository extends Repository {
      */
     CompletableFuture<Command<CommitResult>> createCredentialPushCommand(String repoName, Credential credential,
                                                                          Author author, boolean update);
-
 }

@@ -26,7 +26,7 @@ import { useAppSelector } from 'dogma/hooks';
 import { FiBox } from 'react-icons/fi';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { HttpStatusCode } from 'dogma/features/api/HttpStatusCode';
-import { findUserRole } from '../../auth/ProjectRole';
+import { findUserRole, ProjectRole } from 'dogma/features/auth/ProjectRole';
 
 interface ProjectSettingsViewProps {
   projectName: string;
@@ -35,12 +35,11 @@ interface ProjectSettingsViewProps {
 }
 
 type TabName = 'repositories' | 'roles' | 'members' | 'tokens' | 'mirrors' | 'credentials' | 'danger zone';
-type UserRole = 'OWNER' | 'MEMBER' | 'GUEST';
 
 export interface TapInfo {
   name: TabName;
   path: string;
-  accessRole: UserRole;
+  accessRole: ProjectRole;
   allowAnonymous: boolean;
 }
 

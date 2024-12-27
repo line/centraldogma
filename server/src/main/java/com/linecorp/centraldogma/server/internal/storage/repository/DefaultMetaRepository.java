@@ -64,13 +64,11 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
 
     public static boolean isMetaFile(String path) {
         return "/mirrors.json".equals(path) || "/credentials.json".equals(path) ||
-               (path.endsWith(".json") &&
-                (path.startsWith(PATH_CREDENTIALS) || path.startsWith(PATH_MIRRORS)));
+               (path.endsWith(".json") && (path.startsWith(PATH_CREDENTIALS) || path.startsWith(PATH_MIRRORS)));
     }
 
     public static boolean isMirrorFile(String path) {
-        return path.endsWith(".json") &&
-               (path.startsWith(PATH_CREDENTIALS) || path.startsWith(PATH_MIRRORS));
+        return path.endsWith(".json") && (path.startsWith(PATH_CREDENTIALS) || path.startsWith(PATH_MIRRORS));
     }
 
     public static String credentialFile(String credentialId) {
@@ -208,26 +206,22 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     @Override
     public CompletableFuture<Credential> credential(String credentialId) {
         final String credentialFile = credentialFile(credentialId);
-        return credential(null, credentialId, credentialFile);
+        return credential0(credentialFile);
     }
 
     @Override
     public CompletableFuture<Credential> credential(String repoName, String id) {
         final String credentialFile = credentialFile(repoName, id);
-        return credential(repoName, id, credentialFile);
+        return credential0(credentialFile);
     }
 
-    private CompletableFuture<Credential> credential(@Nullable String repoName, String id,
-                                                     String credentialFile) {
+    private CompletableFuture<Credential> credential0(String credentialFile) {
         return find(credentialFile).thenApply(entries -> {
             @SuppressWarnings("unchecked")
             final Entry<JsonNode> entry = (Entry<JsonNode>) entries.get(credentialFile);
             if (entry == null) {
-                String path = parent().name() + '/' + name();
-                if (repoName != null) {
-                    path += "/repos/" + repoName;
-                }
-                throw new EntryNotFoundException("failed to find credential '" + id + "' in " + path);
+                throw new EntryNotFoundException("failed to find credential file '" + credentialFile + "' in " +
+                                                 parent().name() + '/' + name());
             }
 
             try {
@@ -323,9 +317,9 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             return credential(repoName, credential.id()).thenApply(c -> {
                 final String summary =
                         "Update the mirror credential '" + repoName + '/' + credential.id() + '\'';
-                return newCredentialCommand(credentialFile(repoName, credential.id()), credential, author, summary);
+                return newCredentialCommand(
+                        credentialFile(repoName, credential.id()), credential, author, summary);
             });
-
         }
         final String summary = "Create a new mirror credential for " + repoName + '/' + credential.id();
         return UnmodifiableFuture.completedFuture(

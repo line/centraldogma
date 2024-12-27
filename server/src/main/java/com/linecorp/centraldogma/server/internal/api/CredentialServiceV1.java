@@ -79,9 +79,12 @@ public class CredentialServiceV1 extends AbstractService {
         if (loginUser.isSystemAdmin()) {
             return future;
         }
-        return future.thenApply(credentials -> credentials.stream()
-                                                          .map(Credential::withoutSecret)
-                                                          .collect(toImmutableList()));
+        return future.thenApply(credentials -> {
+            return credentials
+                    .stream()
+                    .map(Credential::withoutSecret)
+                    .collect(toImmutableList());
+        });
     }
 
     /**
@@ -169,7 +172,7 @@ public class CredentialServiceV1 extends AbstractService {
     // Repository level credential management APIs.
 
     /**
-     * GET /projects/{projectName}/repos/{repoName}credentials
+     * GET /projects/{projectName}/repos/{repoName}/credentials
      *
      * <p>Returns the list of the credentials in the repository.
      */
@@ -207,10 +210,10 @@ public class CredentialServiceV1 extends AbstractService {
      *
      * <p>Creates a new credential.
      */
-    @RequiresRepositoryRole(RepositoryRole.ADMIN)
-    @Post("/projects/{projectName}/repos/{repoName}/credentials")
     @ConsumesJson
     @StatusCode(201)
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    @Post("/projects/{projectName}/repos/{repoName}/credentials")
     public CompletableFuture<PushResultDto> createRepoCredential(@Param String projectName,
                                                                  Repository repository,
                                                                  Credential credential, Author author,
@@ -223,9 +226,9 @@ public class CredentialServiceV1 extends AbstractService {
      *
      * <p>Update the existing credential.
      */
+    @ConsumesJson
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Put("/projects/{projectName}/repos/{repoName}/credentials/{id}")
-    @ConsumesJson
     public CompletableFuture<PushResultDto> updateRepoCredential(@Param String projectName,
                                                                  Repository repository,
                                                                  @Param String id,

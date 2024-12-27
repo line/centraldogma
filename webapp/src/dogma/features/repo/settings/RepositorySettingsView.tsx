@@ -18,44 +18,42 @@ import { Box, Flex, Heading, HStack, Tab, TabList, TabPanel, TabPanels, Tabs } f
 import { useGetMetadataByProjectNameQuery } from 'dogma/features/api/apiSlice';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { ReactNode } from 'react';
-import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
 import Link from 'next/link';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { useRouter } from 'next/router';
 import { useAppSelector } from 'dogma/hooks';
-import { FiBox } from 'react-icons/fi';
+import { GoRepo } from 'react-icons/go';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { HttpStatusCode } from 'dogma/features/api/HttpStatusCode';
-import { findUserRole } from '../../auth/ProjectRole';
+import { findUserRepositoryRole, RepositoryRole } from 'dogma/features/auth/RepositoryRole';
+import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
 
 interface RepositorySettingsViewProps {
   projectName: string;
   repoName: string;
   currentTab: TabName;
-  children: (meta: ProjectMetadataDto) => ReactNode;
+  children?: (meta: ProjectMetadataDto) => ReactNode;
 }
 
-type TabName =
-  | 'permissions'
-  | 'credentials'
-  | 'danger zone';
-type UserRole = 'OWNER' | 'MEMBER' | 'GUEST';
+type TabName = 'users' | 'roles' | 'tokens' | 'credentials' | 'danger zone';
 
 export interface TapInfo {
   name: TabName;
   path: string;
-  accessRole: UserRole;
+  accessRole: RepositoryRole;
   allowAnonymous: boolean;
 }
 
 const TABS: TapInfo[] = [
-  // 'repositories' is the index tab
-  { name: 'permissions', path: 'permissions', accessRole: 'OWNER', allowAnonymous: false },
-  { name: 'credentials', path: 'credentials', accessRole: 'OWNER', allowAnonymous: true },
-  { name: 'danger zone', path: 'danger-zone', accessRole: 'OWNER', allowAnonymous: true },
+  // 'roles' is the index tab
+  { name: 'roles', path: '', accessRole: 'ADMIN', allowAnonymous: false },
+  { name: 'users', path: 'users', accessRole: 'ADMIN', allowAnonymous: false },
+  { name: 'tokens', path: 'tokens', accessRole: 'ADMIN', allowAnonymous: false },
+  { name: 'credentials', path: 'credentials', accessRole: 'ADMIN', allowAnonymous: true },
+  { name: 'danger zone', path: 'danger-zone', accessRole: 'ADMIN', allowAnonymous: true },
 ];
 
-function isAllowed(userRole: string, anonymous: boolean, tabInfo: TapInfo): boolean {
+function isAllowed(userRepositoryRole: string, anonymous: boolean, tabInfo: TapInfo): boolean {
   if (!tabInfo) {
     return false;
   }
@@ -64,22 +62,27 @@ function isAllowed(userRole: string, anonymous: boolean, tabInfo: TapInfo): bool
   }
 
   switch (tabInfo.accessRole) {
-    case 'OWNER':
-      return userRole === 'OWNER';
-    case 'MEMBER':
-      return userRole === 'OWNER' || userRole === 'MEMBER';
-    case 'GUEST':
-      return true;
+    case 'ADMIN':
+      return userRepositoryRole === 'ADMIN';
+    case 'WRITE':
+      return userRepositoryRole === 'ADMIN' || userRepositoryRole === 'WRITE';
+    case 'READ':
+      return userRepositoryRole === 'ADMIN' || userRepositoryRole === 'WRITE' || userRepositoryRole === 'READ';
   }
 }
 
-const RepositorySettingsView = ({ projectName, repoName, currentTab, children }: RepositorySettingsViewProps) => {
+const RepositorySettingsView = ({
+  projectName,
+  repoName,
+  currentTab,
+  children,
+}: RepositorySettingsViewProps) => {
   const { user, isInAnonymousMode } = useAppSelector((state) => state.auth);
   const tabIndex = TABS.findIndex((tab) => tab.name === currentTab);
   const router = useRouter();
 
   const {
-    data: metadata,
+    data: projectMetadata = {} as ProjectMetadataDto,
     isLoading,
     error,
   } = useGetMetadataByProjectNameQuery(projectName, {
@@ -87,13 +90,13 @@ const RepositorySettingsView = ({ projectName, repoName, currentTab, children }:
     skip: false,
   });
 
-  let accessRole = 'GUEST';
+  let accessRole = null;
   let queryError = error as FetchBaseQueryError;
   if (queryError?.status == HttpStatusCode.Forbidden) {
     // 403 Forbidden means the user has a GUEST role
     queryError = null;
   } else {
-    accessRole = findUserRole(user, metadata);
+    accessRole = findUserRepositoryRole(repoName, user, projectMetadata);
   }
   return (
     <Deferred isLoading={isLoading} error={queryError}>
@@ -104,9 +107,9 @@ const RepositorySettingsView = ({ projectName, repoName, currentTab, children }:
             <Heading size="lg">
               <HStack>
                 <Box color={'teal'}>
-                  <FiBox />
+                  <GoRepo />
                 </Box>
-                <Box color={'teal'}>{projectName}</Box>
+                <Box color={'teal'}>{repoName}</Box>
                 <Box>{currentTab}</Box>
               </HStack>
             </Heading>
@@ -136,7 +139,9 @@ const RepositorySettingsView = ({ projectName, repoName, currentTab, children }:
               {TABS.map((tab) => {
                 const allowed = isAllowed(accessRole, isInAnonymousMode, tab);
                 return (
-                  <TabPanel key={tab.name}>{tab.name === currentTab && allowed && children(metadata)}</TabPanel>
+                  <TabPanel key={tab.name}>
+                    {tab.name === currentTab && allowed && children(projectMetadata)}
+                  </TabPanel>
                 );
               })}
             </TabPanels>
