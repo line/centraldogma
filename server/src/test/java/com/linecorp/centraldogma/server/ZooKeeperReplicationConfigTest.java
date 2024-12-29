@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -30,10 +30,10 @@ class ZooKeeperReplicationConfigTest {
 
     @Test
     void testJsonConversion() {
-        final ImmutableMap<Integer, ZooKeeperServerConfig> servers = ImmutableMap.of(
+        final ImmutableMap<Integer, ZooKeeperServerConfigSpec> servers = ImmutableMap.of(
                 1, new ZooKeeperServerConfig("2", 3, 4, 5, /* groupId */ null, /* weight */ 1),
                 6, new ZooKeeperServerConfig("7", 8, 9, 10, /* groupId */ null, /* weight */ 1));
-        final ZooKeeperReplicationConfig cfg = new ZooKeeperReplicationConfig(
+        final ZooKeeperReplicationConfigSpec cfg = new ZooKeeperReplicationConfig(
                 1, servers,
                 "11", ImmutableMap.of("12", "13", "14", "15", "quorumListenOnAllIPs", "true"), 16, 17, 18, 19);
         assertJsonConversion(cfg, ReplicationConfig.class,
@@ -101,7 +101,7 @@ class ZooKeeperReplicationConfigTest {
 
     @Test
     void autoDetection() throws Exception {
-        final ZooKeeperReplicationConfig cfg = Jackson.readValue(
+        final ZooKeeperReplicationConfigSpec cfg = Jackson.readValue(
                 '{' +
                 "  \"method\": \"ZOOKEEPER\"," +
                 "  \"servers\": {" +

@@ -23,6 +23,8 @@ import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
+import com.linecorp.centraldogma.server.plugin.NoopPluginConfig;
+import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
 
@@ -53,7 +55,7 @@ public final class CreatingInternalGroupPlugin extends AllReplicasPlugin {
     }
 
     @Override
-    public Class<?> configType() {
-        return getClass();
+    public Class<? extends PluginConfig> configType() {
+        return NoopPluginConfig.class;
     }
 }

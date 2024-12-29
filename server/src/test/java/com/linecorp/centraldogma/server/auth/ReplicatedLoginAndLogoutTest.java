@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -54,6 +54,7 @@ import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
+import com.linecorp.centraldogma.server.ZooKeeperServerConfigSpec;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.testing.internal.FlakyTest;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
@@ -85,7 +86,7 @@ class ReplicatedLoginAndLogoutTest {
         final int zkElectionPort2 = InstanceSpec.getRandomPort();
         final int zkClientPort2 = InstanceSpec.getRandomPort();
 
-        final Map<Integer, ZooKeeperServerConfig> servers = ImmutableMap.of(
+        final Map<Integer, ZooKeeperServerConfigSpec> servers = ImmutableMap.of(
                 1, new ZooKeeperServerConfig("127.0.0.1", zkQuorumPort1, zkElectionPort1,
                                              zkClientPort1, /* groupId */ null, /* weight */ 1),
                 2, new ZooKeeperServerConfig("127.0.0.1", zkQuorumPort2, zkElectionPort2,

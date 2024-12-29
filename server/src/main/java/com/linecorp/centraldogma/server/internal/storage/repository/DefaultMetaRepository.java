@@ -46,7 +46,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
-import com.linecorp.centraldogma.server.ZoneConfig;
+import com.linecorp.centraldogma.server.ZoneConfigSpec;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
@@ -240,7 +240,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
 
     @Override
     public CompletableFuture<Command<CommitResult>> createPushCommand(MirrorDto mirrorDto, Author author,
-                                                                      @Nullable ZoneConfig zoneConfig,
+                                                                      @Nullable ZoneConfigSpec zoneConfig,
                                                                       boolean update) {
         validateMirror(mirrorDto, zoneConfig);
         if (update) {
@@ -294,7 +294,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                             change);
     }
 
-    private static void validateMirror(MirrorDto mirror, @Nullable ZoneConfig zoneConfig) {
+    private static void validateMirror(MirrorDto mirror, @Nullable ZoneConfigSpec zoneConfig) {
         checkArgument(!Strings.isNullOrEmpty(mirror.id()), "Mirror ID is empty");
         final String scheduleString = mirror.schedule();
         if (scheduleString != null) {

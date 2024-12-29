@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -45,6 +45,7 @@ import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.server.QuotaConfig;
+import com.linecorp.centraldogma.server.QuotaConfigSpec;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
@@ -250,7 +251,7 @@ public class MetadataApiService extends AbstractService {
     /**
      * PATCH /metadata/{projectName}/repos/{repoName}/quota/write
      *
-     * <p>Updates the {@linkplain QuotaConfig write quota} for the specified {@code repoName}
+     * <p>Updates the {@linkplain QuotaConfigSpec write quota} for the specified {@code repoName}
      * in the specified {@code projectName}.
      */
     @Patch("/metadata/{projectName}/repos/{repoName}/quota/write")

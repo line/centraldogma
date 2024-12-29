@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -15,17 +15,11 @@
  */
 package com.linecorp.centraldogma.server.plugin;
 
-import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.CentralDogmaConfigSpec;
 
 public class NoopPluginForLeader extends AbstractNoopPlugin {
     @Override
-    public PluginTarget target(CentralDogmaConfig config) {
+    public PluginTarget target(CentralDogmaConfigSpec config) {
         return PluginTarget.LEADER_ONLY;
-    }
-
-    @Override
-    public Class<?> configType() {
-        // Return the plugin class itself because it does not have a configuration.
-        return getClass();
     }
 }

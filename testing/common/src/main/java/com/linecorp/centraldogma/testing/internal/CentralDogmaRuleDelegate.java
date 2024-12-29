@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -46,6 +46,7 @@ import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.TlsConfig;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfigSpec;
 import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -116,8 +117,8 @@ public class CentralDogmaRuleDelegate {
         configure(builder);
 
         final com.linecorp.centraldogma.server.CentralDogma dogma = builder.build();
-        final PluginConfig mirroringConfig = dogma.config().pluginConfigMap().get(
-                MirroringServicePluginConfig.class);
+        final PluginConfig mirroringConfig = dogma.config().pluginConfig(
+                MirroringServicePluginConfigSpec.class);
         final com.linecorp.centraldogma.server.CentralDogma dogma0;
         if (mirroringConfig == null) {
             // Disable mirror plugin if not configured.
@@ -160,7 +161,7 @@ public class CentralDogmaRuleDelegate {
             }
 
             final String protocol = serverPort.hasHttp() ? "h2c" : "h2";
-            final String uri = protocol +  "://127.0.0.1:" + serverPort.localAddress().getPort();
+            final String uri = protocol + "://127.0.0.1:" + serverPort.localAddress().getPort();
             final WebClientBuilder webClientBuilder = WebClient.builder(uri);
             if (accessToken != null) {
                 webClientBuilder.auth(AuthToken.ofOAuth2(accessToken));

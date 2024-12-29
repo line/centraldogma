@@ -1,0 +1,36 @@
+plugins {
+    alias libs.plugins.spring.boot
+    alias libs.plugins.kotlin.spring
+    alias libs.plugins.jib
+}
+
+dependencies {
+    implementation libs.spring.boot3.starter.web
+    implementation libs.spring.boot3.starter.actuator
+    implementation libs.jackson.kotlin
+    implementation project(":server")
+    implementation project(":server-auth:saml")
+    implementation project(':server-mirror-git')
+
+    implementation(libs.armeria.saml) {
+        exclude group: 'org.bouncycastle', module: 'bcprov-jdk15on'
+    }
+
+    implementation 'org.opensaml:opensaml-security-impl:3.4.6'
+    implementation 'org.opensaml:opensaml-saml-impl:3.4.6'
+
+    testImplementation libs.spring.boot3.starter.test
+
+    testImplementation("com.willowtreeapps.assertk:assertk:0.28.1")
+}
+
+jib {
+    from {
+        image = 'eclipse-temurin:21-jre-jammy'
+    }
+
+    container {
+        creationTime = 'USE_CURRENT_TIMESTAMP'
+        ports = ['8080', '36462']
+    }
+}

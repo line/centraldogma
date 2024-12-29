@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
-import com.linecorp.centraldogma.server.ZoneConfig;
+import com.linecorp.centraldogma.server.ZoneConfigSpec;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
@@ -66,7 +66,7 @@ public interface MetaRepository extends Repository {
      * Create a push {@link Command} for the {@link MirrorDto}.
      */
     CompletableFuture<Command<CommitResult>> createPushCommand(MirrorDto mirrorDto, Author author,
-                                                               @Nullable ZoneConfig zoneConfig,
+                                                               @Nullable ZoneConfigSpec zoneConfig,
                                                                boolean update);
 
     /**

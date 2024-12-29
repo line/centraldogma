@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -97,8 +97,9 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.QuotaConfig;
-import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
-import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
+import com.linecorp.centraldogma.server.QuotaConfigSpec;
+import com.linecorp.centraldogma.server.ZooKeeperReplicationConfigSpec;
+import com.linecorp.centraldogma.server.ZooKeeperServerConfigSpec;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -159,9 +160,9 @@ public final class ZooKeeperCommandExecutor
             new ConcurrentHashMap<>();
 
     @VisibleForTesting
-    final Cache<String, QuotaConfig> writeQuotaCache = Caffeine.newBuilder().maximumSize(2000).build();
+    final Cache<String, QuotaConfigSpec> writeQuotaCache = Caffeine.newBuilder().maximumSize(2000).build();
 
-    private final ZooKeeperReplicationConfig cfg;
+    private final ZooKeeperReplicationConfigSpec cfg;
     private final File revisionFile;
     private final File zkConfFile;
     private final File zkDataDir;
@@ -170,7 +171,7 @@ public final class ZooKeeperCommandExecutor
     private final MeterRegistry meterRegistry;
 
     @Nullable
-    private final QuotaConfig writeQuota;
+    private final QuotaConfigSpec writeQuota;
     @Nullable
     private final String zone;
 
@@ -405,11 +406,11 @@ public final class ZooKeeperCommandExecutor
 
     private volatile ListenerInfo listenerInfo;
 
-    public ZooKeeperCommandExecutor(ZooKeeperReplicationConfig cfg,
+    public ZooKeeperCommandExecutor(ZooKeeperReplicationConfigSpec cfg,
                                     File dataDir, CommandExecutor delegate,
                                     MeterRegistry meterRegistry,
                                     ProjectManager projectManager,
-                                    @Nullable QuotaConfig writeQuota,
+                                    @Nullable QuotaConfigSpec writeQuota,
                                     @Nullable String zone,
                                     @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership,
@@ -626,11 +627,11 @@ public final class ZooKeeperCommandExecutor
             // Set the client port, which is unused.
             zkProps.setProperty("clientPort", String.valueOf(cfg.serverConfig().clientPort()));
 
-            final Map<Integer, ZooKeeperServerConfig> servers = cfg.servers();
+            final Map<Integer, ZooKeeperServerConfigSpec> servers = cfg.servers();
             // Add replicas.
             boolean hasGroupId = false;
-            for (Entry<Integer, ZooKeeperServerConfig> entry : servers.entrySet()) {
-                final ZooKeeperServerConfig serverConfig = entry.getValue();
+            for (Entry<Integer, ZooKeeperServerConfigSpec> entry : servers.entrySet()) {
+                final ZooKeeperServerConfigSpec serverConfig = entry.getValue();
                 zkProps.setProperty(
                         "server." + entry.getKey(),
                         serverConfig.host() + ':' + serverConfig.quorumPort() + ':' +
@@ -645,11 +646,11 @@ public final class ZooKeeperCommandExecutor
             if (hasGroupId) {
                 final ImmutableMultimap.Builder<Integer, Integer> groupBuilder = ImmutableMultimap.builder();
                 boolean isHierarchical = true;
-                for (Entry<Integer, ZooKeeperServerConfig> entry : servers.entrySet()) {
+                for (Entry<Integer, ZooKeeperServerConfigSpec> entry : servers.entrySet()) {
                     final Integer groupId = entry.getValue().groupId();
                     if (groupId == null) {
                         isHierarchical = false;
-                        final List<ZooKeeperServerConfig> noGroupIds =
+                        final List<Object> noGroupIds =
                                 servers.values().stream()
                                        .filter(serverConfig -> serverConfig.groupId() == null)
                                        .collect(toImmutableList());
@@ -1059,7 +1060,7 @@ public final class ZooKeeperCommandExecutor
             return null;
         }
 
-        QuotaConfig writeQuota = writeQuotaCache.getIfPresent(command.executionPath());
+        QuotaConfigSpec writeQuota = writeQuotaCache.getIfPresent(command.executionPath());
         if (writeQuota == UNLIMITED_QUOTA) {
             return null;
         }
@@ -1097,8 +1098,8 @@ public final class ZooKeeperCommandExecutor
     }
 
     @Override
-    public void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfig writeQuota) {
-        final QuotaConfig quota = firstNonNull(writeQuota, UNLIMITED_QUOTA);
+    public void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfigSpec writeQuota) {
+        final QuotaConfigSpec quota = firstNonNull(writeQuota, UNLIMITED_QUOTA);
         writeQuotaCache.put(rateLimiterKey(projectName, repoName), quota);
 
         semaphoreMap.compute(rateLimiterKey(projectName, repoName), (k, v) -> {
@@ -1127,7 +1128,7 @@ public final class ZooKeeperCommandExecutor
 
     private void scheduleWriteLockRelease(WriteLock writeLock, InterProcessMutex mtx, String executionPath) {
         final Lease lease = writeLock.lease;
-        final QuotaConfig writeQuota = writeLock.writeQuota;
+        final QuotaConfigSpec writeQuota = writeLock.writeQuota;
         if (lease == null) {
             safeRelease(mtx);
             throw new TooManyRequestsException("commits", executionPath, writeQuota.permitsPerSecond());
@@ -1406,11 +1407,11 @@ public final class ZooKeeperCommandExecutor
         private final InterProcessSemaphoreV2 semaphore;
         @Nullable
         private final Lease lease;
-        private final QuotaConfig writeQuota;
+        private final QuotaConfigSpec writeQuota;
 
         private WriteLock(InterProcessSemaphoreV2 semaphore,
                           @Nullable Lease lease,
-                          QuotaConfig writeQuota) {
+                          QuotaConfigSpec writeQuota) {
             this.semaphore = semaphore;
             this.lease = lease;
             this.writeQuota = writeQuota;

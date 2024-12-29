@@ -48,8 +48,8 @@ import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
-import com.linecorp.centraldogma.server.CentralDogmaConfig;
-import com.linecorp.centraldogma.server.ZoneConfig;
+import com.linecorp.centraldogma.server.CentralDogmaConfigSpec;
+import com.linecorp.centraldogma.server.ZoneConfigSpec;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
@@ -77,10 +77,10 @@ public class MirroringServiceV1 extends AbstractService {
     private final MirrorRunner mirrorRunner;
     private final Map<String, Object> mirrorZoneConfig;
     @Nullable
-    private final ZoneConfig zoneConfig;
+    private final ZoneConfigSpec zoneConfig;
 
     public MirroringServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor,
-                              MirrorRunner mirrorRunner, CentralDogmaConfig config) {
+                              MirrorRunner mirrorRunner, CentralDogmaConfigSpec config) {
         super(executor);
         this.projectApiManager = projectApiManager;
         this.mirrorRunner = mirrorRunner;
@@ -88,12 +88,12 @@ public class MirroringServiceV1 extends AbstractService {
         mirrorZoneConfig = mirrorZoneConfig(config);
     }
 
-    private static Map<String, Object> mirrorZoneConfig(CentralDogmaConfig config) {
+    private static Map<String, Object> mirrorZoneConfig(CentralDogmaConfigSpec config) {
         final MirroringServicePluginConfig mirrorConfig = mirrorConfig(config);
         final ImmutableMap.Builder<String, Object> builder = ImmutableMap.builderWithExpectedSize(2);
         final boolean zonePinned = mirrorConfig != null && mirrorConfig.zonePinned();
         builder.put("zonePinned", zonePinned);
-        final ZoneConfig zone = config.zone();
+        final ZoneConfigSpec zone = config.zone();
         if (zone != null) {
             builder.put("zone", zone);
         }

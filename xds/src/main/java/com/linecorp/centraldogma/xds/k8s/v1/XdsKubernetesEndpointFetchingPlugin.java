@@ -26,8 +26,10 @@ import javax.annotation.Nullable;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
-import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.CentralDogmaConfigSpec;
+import com.linecorp.centraldogma.server.plugin.NoopPluginConfig;
 import com.linecorp.centraldogma.server.plugin.Plugin;
+import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 
@@ -44,7 +46,7 @@ public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
     private XdsKubernetesEndpointFetchingService fetchingService;
 
     @Override
-    public PluginTarget target(CentralDogmaConfig config) {
+    public PluginTarget target(CentralDogmaConfigSpec config) {
         return PluginTarget.LEADER_ONLY;
     }
 
@@ -74,8 +76,8 @@ public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
     }
 
     @Override
-    public Class<?> configType() {
-        return getClass();
+    public Class<? extends PluginConfig> configType() {
+        return NoopPluginConfig.class;
     }
 
     @Override

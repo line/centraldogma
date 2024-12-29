@@ -52,7 +52,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
-import com.linecorp.centraldogma.server.ZoneConfig;
+import com.linecorp.centraldogma.server.ZoneConfigSpec;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.mirror.Mirror;
@@ -93,7 +93,7 @@ public final class MirrorSchedulingService implements MirroringService {
     private final int maxNumFilesPerMirror;
     private final long maxNumBytesPerMirror;
     @Nullable
-    private final ZoneConfig zoneConfig;
+    private final ZoneConfigSpec zoneConfig;
     @Nullable
     private final String currentZone;
 
@@ -107,7 +107,7 @@ public final class MirrorSchedulingService implements MirroringService {
     @VisibleForTesting
     public MirrorSchedulingService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
                                    int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror,
-                                   @Nullable ZoneConfig zoneConfig) {
+                                   @Nullable ZoneConfigSpec zoneConfig) {
 
         this.workDir = requireNonNull(workDir, "workDir");
         this.projectManager = requireNonNull(projectManager, "projectManager");

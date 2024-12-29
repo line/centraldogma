@@ -123,7 +123,11 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
 
         final String sessionId = sessionIdGenerator.get();
         final Session session =
-                new Session(sessionId, loginNameNormalizer.apply(username), sessionValidDuration);
+                new Session(
+                        sessionId,
+                        loginNameNormalizer.apply(username),
+                        sessionValidDuration
+                );
 
         final String redirectionScript;
         if (!Strings.isNullOrEmpty(relayState)) {

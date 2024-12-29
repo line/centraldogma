@@ -25,7 +25,7 @@ import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
-import com.linecorp.centraldogma.server.QuotaConfig;
+import com.linecorp.centraldogma.server.QuotaConfigSpec;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommandExecutorStatusManager;
@@ -111,7 +111,7 @@ class CommandExecutorStatusManagerTest {
         }
 
         @Override
-        public void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfig writeQuota) {
+        public void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfigSpec writeQuota) {
         }
 
         @Override

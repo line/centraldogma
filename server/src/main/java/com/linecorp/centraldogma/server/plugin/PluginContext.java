@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.concurrent.ScheduledExecutorService;
 
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.CentralDogmaConfigSpec;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
@@ -33,7 +34,7 @@ import io.micrometer.core.instrument.MeterRegistry;
  */
 public class PluginContext {
 
-    private final CentralDogmaConfig config;
+    private final CentralDogmaConfigSpec config;
     private final ProjectManager projectManager;
     private final CommandExecutor commandExecutor;
     private final MeterRegistry meterRegistry;
@@ -49,7 +50,7 @@ public class PluginContext {
      * @param meterRegistry the {@link MeterRegistry} of the Central Dogma server
      * @param purgeWorker the {@link ScheduledExecutorService} for the purging service
      */
-    public PluginContext(CentralDogmaConfig config,
+    public PluginContext(CentralDogmaConfigSpec config,
                          ProjectManager projectManager,
                          CommandExecutor commandExecutor,
                          MeterRegistry meterRegistry,
@@ -67,7 +68,7 @@ public class PluginContext {
     /**
      * Returns the {@link CentralDogmaConfig}.
      */
-    public CentralDogmaConfig config() {
+    public CentralDogmaConfigSpec config() {
         return config;
     }
 

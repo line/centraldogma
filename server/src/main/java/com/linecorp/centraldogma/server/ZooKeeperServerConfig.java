@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.linecorp.centraldogma.server.ZooKeeperServerConfigSpec.validatePort;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -29,7 +30,7 @@ import com.google.common.base.MoreObjects;
 /**
  * Represents the address and port numbers of a ZooKeeper node.
  */
-public final class ZooKeeperServerConfig {
+public final class ZooKeeperServerConfig implements ZooKeeperServerConfigSpec {
 
     private final String host;
     private final int quorumPort;
@@ -66,7 +67,7 @@ public final class ZooKeeperServerConfig {
             clientPort = 0;
         }
         checkArgument(clientPort >= 0 && clientPort <= 65535,
-                      "clientPort: %s (expected: 0-65535)", clientPort);
+                "clientPort: %s (expected: 0-65535)", clientPort);
         this.clientPort = clientPort;
         this.groupId = groupId;
         if (weight == null) {
@@ -76,56 +77,39 @@ public final class ZooKeeperServerConfig {
         this.weight = weight;
     }
 
-    private static int validatePort(int port, String name) {
-        checkArgument(port > 0 && port <= 65535, "%s: %s (expected: 1-65535)", name, port);
-        return port;
-    }
-
-    /**
-     * Returns the IP address or host name of the ZooKeeper server.
-     */
     @JsonProperty
+    @Override
     public String host() {
         return host;
     }
 
-    /**
-     * Returns the quorum port number.
-     */
     @JsonProperty
+    @Override
     public int quorumPort() {
         return quorumPort;
     }
 
-    /**
-     * Returns the election port number.
-     */
     @JsonProperty
+    @Override
     public int electionPort() {
         return electionPort;
     }
 
-    /**
-     * Returns the client port number.
-     */
     @JsonProperty
+    @Override
     public int clientPort() {
         return clientPort;
     }
 
-    /**
-     * Returns the group ID to use hierarchical quorums.
-     */
     @Nullable
     @JsonProperty
+    @Override
     public Integer groupId() {
         return groupId;
     }
 
-    /**
-     * Returns the weight of the ZooKeeper server.
-     */
     @JsonProperty
+    @Override
     public int weight() {
         return weight;
     }
@@ -147,11 +131,11 @@ public final class ZooKeeperServerConfig {
 
         final ZooKeeperServerConfig that = (ZooKeeperServerConfig) o;
         return host.equals(that.host) &&
-               quorumPort == that.quorumPort &&
-               electionPort == that.electionPort &&
-               clientPort == that.clientPort &&
-               Objects.equals(groupId, that.groupId) &&
-               weight == that.weight;
+                quorumPort == that.quorumPort &&
+                electionPort == that.electionPort &&
+                clientPort == that.clientPort &&
+                Objects.equals(groupId, that.groupId) &&
+                weight == that.weight;
     }
 
     @Override

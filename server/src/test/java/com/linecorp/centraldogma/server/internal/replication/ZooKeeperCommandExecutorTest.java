@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -47,6 +47,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.function.ThrowingConsumer;
@@ -70,6 +71,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.QuotaConfig;
+import com.linecorp.centraldogma.server.QuotaConfigSpec;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.CommitResult;
@@ -550,12 +552,12 @@ class ZooKeeperCommandExecutorTest {
             final String key = project + '/' + repo;
             final Replica replica = cluster.get(0);
             final ZooKeeperCommandExecutor executor = replica.commandExecutor();
-            final Cache<String, QuotaConfig> quotaCache = executor.writeQuotaCache;
+            final Cache<String, QuotaConfigSpec> quotaCache = executor.writeQuotaCache;
             final ConcurrentMap<String, Entry<InterProcessSemaphoreV2, SettableSharedCount>> semaphoreMap =
                     executor.semaphoreMap;
 
             // Initial state
-            QuotaConfig writeQuota = quotaCache.getIfPresent(key);
+            @Nullable QuotaConfigSpec writeQuota = quotaCache.getIfPresent(key);
             Entry<InterProcessSemaphoreV2, SettableSharedCount> entry = semaphoreMap.get(key);
             assertThat(writeQuota).isNull();
             assertThat(entry).isNull();

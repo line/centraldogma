@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfigSpec;
 
 class MirrorSchedulingServicePluginTest {
 
@@ -50,9 +51,8 @@ class MirrorSchedulingServicePluginTest {
                                         "    }" +
                                         "  ]\n" +
                                         '}');
-        final MirroringServicePluginConfig mirroringServicePluginConfig =
-                (MirroringServicePluginConfig) centralDogmaConfig.pluginConfigMap()
-                                                                 .get(MirroringServicePluginConfig.class);
+        final MirroringServicePluginConfigSpec mirroringServicePluginConfig =
+                centralDogmaConfig.pluginConfig(MirroringServicePluginConfigSpec.class);
         assertThat(mirroringServicePluginConfig).isNotNull();
         assertThat(mirroringServicePluginConfig.enabled()).isTrue();
         assertThat(mirroringServicePluginConfig.numMirroringThreads()).isOne();

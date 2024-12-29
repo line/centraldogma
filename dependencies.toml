@@ -53,6 +53,9 @@ jsoup = "1.18.1" # JSoup is only used for Gradle script.
 jmh-core = "1.37"
 jmh-gradle-plugin = "0.7.2"
 jxr = "0.2.1"
+ktlint-gradle-plugin = "12.1.1"
+kotlin = "1.9.23"
+kotlin-coroutine = "1.8.1"
 kubernetes-client = "6.13.4"
 logback12 = { strictly = "1.2.13" }
 logback15 = { strictly = "1.5.7" }
@@ -222,6 +225,8 @@ module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
 # Only used for testing. See JacksonRequestConverterFunctionTest for more information.
 [libraries.jackson-module-scala]
 module = "com.fasterxml.jackson.module:jackson-module-scala_3"
+[libraries.jackson-kotlin]
+module = "com.fasterxml.jackson.module:jackson-module-kotlin"
 
 [libraries.javassist]
 module = "org.javassist:javassist"
@@ -454,6 +459,14 @@ version.ref = "spring-boot3"
 module = "org.springframework.boot:spring-boot-starter"
 version.ref = "spring-boot3"
 javadocs = "https://docs.spring.io/spring/docs/current/javadoc-api/"
+[libraries.spring-boot3-starter-actuator]
+module = "org.springframework.boot:spring-boot-starter-actuator"
+version.ref = "spring-boot3"
+javadocs = "https://docs.spring.io/spring/docs/current/javadoc-api/"
+[libraries.spring-boot3-starter-web]
+module = "org.springframework.boot:spring-boot-starter-web"
+version.ref = "spring-boot3"
+javadocs = "https://docs.spring.io/spring/docs/current/javadoc-api/"
 [libraries.spring-boot3-starter-test]
 module = "org.springframework.boot:spring-boot-starter-test"
 version.ref = "spring-boot3"
@@ -485,9 +498,15 @@ exclusions = [
 [plugins]
 docker = { id = "com.bmuschko.docker-remote-api", version.ref = "docker" }
 download = { id = "de.undercouch.download", version.ref = "download" }
+jib = { id = "com.google.cloud.tools.jib", version = "3.2.1" }
 jmh = { id = "me.champeau.jmh", version.ref = "jmh-gradle-plugin" }
 jxr = { id = "net.davidecavestro.gradle.jxr", version.ref = "jxr" }
 nexus-publish = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "nexus-publish-plugin" }
 node-gradle = { id = "com.github.node-gradle.node", version.ref = "node-gradle-plugin" }
 osdetector = { id = "com.google.osdetector", version.ref = "osdetector" }
 sphinx = { id = "kr.motd.sphinx", version.ref = "sphinx" }
+kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint-gradle-plugin" }
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot3" }
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+

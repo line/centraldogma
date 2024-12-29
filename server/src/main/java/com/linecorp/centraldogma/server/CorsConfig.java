@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -28,9 +28,7 @@ import com.google.common.collect.Streams;
 /**
  * CORS configuration.
  */
-public final class CorsConfig {
-
-    private static final int DEFAULT_MAX_AGE = 7200;
+public final class CorsConfig implements CorsConfigSpec {
 
     private final List<String> allowedOrigins;
     private final int maxAgeSeconds;
@@ -60,7 +58,7 @@ public final class CorsConfig {
         }
 
         if (maxAgeSeconds == null) {
-            maxAgeSeconds = DEFAULT_MAX_AGE;
+            maxAgeSeconds = CorsConfigSpec.DEFAULT_MAX_AGE;
         }
         if (maxAgeSeconds <= 0) {
             throw new IllegalArgumentException(
@@ -70,19 +68,14 @@ public final class CorsConfig {
         this.maxAgeSeconds = maxAgeSeconds;
     }
 
-    /**
-     * Returns the list of origins which are allowed a CORS policy.
-     */
     @JsonProperty
+    @Override
     public List<String> allowedOrigins() {
         return allowedOrigins;
     }
 
-    /**
-     * Returns how long in seconds the results of a preflight request can be cached.
-     * If unspecified, the default of {@code 7200} seconds is returned.
-     */
     @JsonProperty
+    @Override
     public int maxAgeSeconds() {
         return maxAgeSeconds;
     }

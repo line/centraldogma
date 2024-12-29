@@ -43,7 +43,7 @@ The authentication configuration consists of the following properties:
 - ``factoryClassName`` (string)
 
   - the fully-qualified class name of the :api:`AuthProviderFactory` implementation. Can be one of
-    ``com.linecorp.centraldogma.server.auth.saml.SamlAuthProviderFactory`` or
+    ``com.linecorp.armeria.auth.saml.SamlAuthProviderFactory`` or
     ``com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory``.
 
 - ``systemAdministrators`` (string array)

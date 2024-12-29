@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -18,12 +18,6 @@ package com.linecorp.centraldogma.server;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static com.linecorp.armeria.common.util.InetAddressPredicates.ofCidr;
-import static com.linecorp.armeria.common.util.InetAddressPredicates.ofExact;
-import static com.linecorp.armeria.server.ClientAddressSource.ofHeader;
-import static com.linecorp.armeria.server.ClientAddressSource.ofProxyProtocol;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_REPOSITORY_WORKERS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC;
@@ -41,7 +35,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.ServiceLoader;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
@@ -69,28 +62,25 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.util.StdConverter;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
 
-import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ClientAddressSource;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
+import com.linecorp.centraldogma.server.auth.AuthConfigSpec;
 import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.plugin.PluginConfigDeserializer;
-import com.linecorp.centraldogma.server.plugin.PluginTarget;
-import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.netty.util.NetUtil;
 
 /**
  * {@link CentralDogma} server configuration.
  */
-public final class CentralDogmaConfig {
+public final class CentralDogmaConfig extends AbstractCentralDogmaConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaConfig.class);
 
@@ -265,7 +255,6 @@ public final class CentralDogmaConfig {
     private final CorsConfig corsConfig;
 
     private final List<PluginConfig> pluginConfigs;
-    private final Map<Class<?>, PluginConfig> pluginConfigMap;
 
     @Nullable
     private final ManagementConfig managementConfig;
@@ -301,6 +290,8 @@ public final class CentralDogmaConfig {
             @JsonProperty("pluginConfigs") @Nullable List<PluginConfig> pluginConfigs,
             @JsonProperty("management") @Nullable ManagementConfig managementConfig,
             @JsonProperty("zone") @Nullable ZoneConfig zoneConfig) {
+
+        super(pluginConfigs);
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -346,130 +337,94 @@ public final class CentralDogmaConfig {
         this.writeQuotaPerRepository = writeQuotaPerRepository;
         this.corsConfig = corsConfig;
         this.pluginConfigs = firstNonNull(pluginConfigs, ImmutableList.of());
-        pluginConfigMap = this.pluginConfigs.stream().collect(
-                toImmutableMap(PluginConfig::getClass, Function.identity()));
         this.managementConfig = managementConfig;
         this.zoneConfig = zoneConfig;
     }
 
-    /**
-     * Returns the data directory.
-     */
     @JsonProperty
+    @Override
     public File dataDir() {
         return dataDir;
     }
 
-    /**
-     * Returns the {@link ServerPort}s.
-     */
     @JsonProperty
     @JsonSerialize(contentUsing = ServerPortSerializer.class)
+    @Override
     public List<ServerPort> ports() {
         return ports;
     }
 
-    /**
-     * Returns the TLS configuration.
-     */
     @Nullable
     @JsonProperty
-    public TlsConfig tls() {
+    @Override
+    public TlsConfigSpec tls() {
         return tls;
     }
 
-    /**
-     * Returns the IP addresses of the trusted proxy servers. If trusted, the sources specified in
-     * {@link #clientAddressSources()} will be used to determine the actual IP address of clients.
-     */
     @Nullable
     @JsonProperty
+    @Override
     public List<String> trustedProxyAddresses() {
         return trustedProxyAddresses;
     }
 
-    /**
-     * Returns the sources that determines a client address. For example:
-     * <ul>
-     *   <li>{@code "forwarded"}</li>
-     *   <li>{@code "x-forwarded-for"}</li>
-     *   <li>{@code "PROXY_PROTOCOL"}</li>
-     * </ul>
-     *
-     */
     @Nullable
     @JsonProperty
+    @Override
     public List<String> clientAddressSources() {
         return clientAddressSources;
     }
 
-    /**
-     * Returns the number of event loop threads.
-     */
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
+    @Override
     public Optional<Integer> numWorkers() {
         return Optional.ofNullable(numWorkers);
     }
 
-    /**
-     * Returns the maximum number of established connections.
-     */
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
+    @Override
     public Optional<Integer> maxNumConnections() {
         return Optional.ofNullable(maxNumConnections);
     }
 
-    /**
-     * Returns the request timeout in milliseconds.
-     */
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
+    @Override
     public Optional<Long> requestTimeoutMillis() {
         return Optional.ofNullable(requestTimeoutMillis);
     }
 
-    /**
-     * Returns the timeout of an idle connection in milliseconds.
-     */
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
+    @Override
     public Optional<Long> idleTimeoutMillis() {
         return Optional.ofNullable(idleTimeoutMillis);
     }
 
-    /**
-     * Returns the maximum length of request content in bytes.
-     */
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
+    @Override
     public Optional<Integer> maxFrameLength() {
         return Optional.ofNullable(maxFrameLength);
     }
 
-    /**
-     * Returns the number of repository worker threads.
-     */
     @JsonProperty
-    int numRepositoryWorkers() {
+    @Override
+    public int numRepositoryWorkers() {
         return numRepositoryWorkers;
     }
 
-    /**
-     * Returns the maximum age of a removed repository in milliseconds. A removed repository is first marked
-     * as removed, and then is purged permanently once the amount of time returned by this property passes
-     * since marked.
-     */
     @JsonProperty
+    @Override
     public long maxRemovedRepositoryAgeMillis() {
         return maxRemovedRepositoryAgeMillis;
     }
 
     /**
-     * Returns the {@code repositoryCacheSpec}.
-     *
-     * @deprecated Use {@link #repositoryCacheSpec()}.
+     * Replaced to {@link CentralDogmaConfig#repositoryCacheSpec() }.
+     * @deprecated This cache spec is replaced to {@link CentralDogmaConfig#repositoryCacheSpec() }.
      */
     @JsonProperty
     @Deprecated
@@ -477,123 +432,88 @@ public final class CentralDogmaConfig {
         return repositoryCacheSpec;
     }
 
-    /**
-     * Returns the cache spec of the repository cache.
-     */
     @JsonProperty
+    @Override
     public String repositoryCacheSpec() {
         return repositoryCacheSpec;
     }
 
-    /**
-     * Returns the graceful shutdown timeout.
-     */
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
-    public Optional<GracefulShutdownTimeout> gracefulShutdownTimeout() {
+    @Override
+    public Optional<GracefulShutdownTimeoutSpec> gracefulShutdownTimeout() {
         return Optional.ofNullable(gracefulShutdownTimeout);
     }
 
-    /**
-     * Returns whether web app is enabled.
-     */
     @JsonProperty
+    @Override
     public boolean isWebAppEnabled() {
         return webAppEnabled;
     }
 
-    /**
-     * Returns the title of the web app.
-     */
     @Nullable
     @JsonProperty("webAppTitle")
+    @Override
     public String webAppTitle() {
         return webAppTitle;
     }
 
-    /**
-     * Returns the {@link ReplicationConfig}.
-     */
     @JsonProperty("replication")
+    @Override
     public ReplicationConfig replicationConfig() {
         return replicationConfig;
     }
 
-    /**
-     * Returns whether a CSRF token is required for Thrift clients. Note that it's not safe to enable this
-     * feature. It only exists for a legacy Thrift client that does not send a CSRF token.
-     */
     @JsonProperty
+    @Override
     public boolean isCsrfTokenRequiredForThrift() {
         return csrfTokenRequiredForThrift;
     }
 
-    /**
-     * Returns the access log format.
-     */
     @JsonProperty
     @Nullable
+    @Override
     public String accessLogFormat() {
         return accessLogFormat;
     }
 
-    /**
-     * Returns the {@link AuthConfig}.
-     */
     @Nullable
     @JsonProperty("authentication")
-    public AuthConfig authConfig() {
+    @Override
+    public AuthConfigSpec authConfig() {
         return authConfig;
     }
 
-    /**
-     * Returns the maximum allowed write quota per {@link Repository}.
-     */
     @Nullable
     @JsonProperty("writeQuotaPerRepository")
-    public QuotaConfig writeQuotaPerRepository() {
+    @Override
+    public QuotaConfigSpec writeQuotaPerRepository() {
         return writeQuotaPerRepository;
     }
 
-    /**
-     * Returns the {@link CorsConfig}.
-     */
     @Nullable
     @JsonProperty("cors")
-    public CorsConfig corsConfig() {
+    @Override
+    public CorsConfigSpec corsConfig() {
         return corsConfig;
     }
 
-    /**
-     * Returns the list of {@link PluginConfig}s.
-     */
     @JsonProperty("pluginConfigs")
+    @Override
     public List<PluginConfig> pluginConfigs() {
         return pluginConfigs;
     }
 
-    /**
-     * Returns the map of {@link PluginConfig}s.
-     */
-    public Map<Class<?>, PluginConfig> pluginConfigMap() {
-        return pluginConfigMap;
-    }
-
-    /**
-     * Returns the {@link ManagementConfig}.
-     */
     @Nullable
     @JsonProperty("management")
-    public ManagementConfig managementConfig() {
+    @Override
+    public ManagementConfigSpec managementConfig() {
         return managementConfig;
     }
 
-    /**
-     * Returns the zone information of the server.
-     * Note that the zone must be specified to use the {@link PluginTarget#ZONE_LEADER_ONLY} target.
-     */
     @Nullable
     @JsonProperty("zone")
+    @Override
     public ZoneConfig zone() {
         return zoneConfig;
     }
@@ -607,44 +527,14 @@ public final class CentralDogmaConfig {
         }
     }
 
-    Predicate<InetAddress> trustedProxyAddressPredicate() {
+    @Override
+    public Predicate<InetAddress> trustedProxyAddressPredicate() {
         return trustedProxyAddressPredicate;
     }
 
-    List<ClientAddressSource> clientAddressSourceList() {
+    @Override
+    public List<ClientAddressSource> clientAddressSourceList() {
         return clientAddressSourceList;
-    }
-
-    private static Predicate<InetAddress> toTrustedProxyAddressPredicate(List<String> trustedProxyAddresses) {
-        final String first = trustedProxyAddresses.get(0);
-        Predicate<InetAddress> predicate = first.indexOf('/') < 0 ? ofExact(first) : ofCidr(first);
-        for (int i = 1; i < trustedProxyAddresses.size(); i++) {
-            final String next = trustedProxyAddresses.get(i);
-            predicate = predicate.or(next.indexOf('/') < 0 ? ofExact(next) : ofCidr(next));
-        }
-        return predicate;
-    }
-
-    private static List<ClientAddressSource> toClientAddressSourceList(
-            @Nullable List<String> clientAddressSources,
-            boolean useDefaultSources, boolean specifiedProxyProtocol) {
-        if (clientAddressSources != null && !clientAddressSources.isEmpty()) {
-            return clientAddressSources.stream().map(
-                    name -> "PROXY_PROTOCOL".equals(name) ? ofProxyProtocol() : ofHeader(name))
-                                       .collect(toImmutableList());
-        }
-
-        if (useDefaultSources) {
-            final Builder<ClientAddressSource> builder = new Builder<>();
-            builder.add(ofHeader(HttpHeaderNames.FORWARDED));
-            builder.add(ofHeader(HttpHeaderNames.X_FORWARDED_FOR));
-            if (specifiedProxyProtocol) {
-                builder.add(ofProxyProtocol());
-            }
-            return builder.build();
-        }
-
-        return ImmutableList.of();
     }
 
     static final class ServerPortSerializer extends JsonSerializer<ServerPort> {

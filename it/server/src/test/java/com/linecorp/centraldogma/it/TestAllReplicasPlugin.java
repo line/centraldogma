@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -21,6 +21,8 @@ import java.util.concurrent.CompletionStage;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
+import com.linecorp.centraldogma.server.plugin.NoopPluginConfig;
+import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
 
@@ -43,8 +45,8 @@ public final class TestAllReplicasPlugin extends AllReplicasPlugin {
     }
 
     @Override
-    public Class<?> configType() {
+    public Class<? extends PluginConfig> configType() {
         // Return the plugin class itself because it does not have a configuration.
-        return TestAllReplicasPlugin.class;
+        return NoopPluginConfig.class;
     }
 }

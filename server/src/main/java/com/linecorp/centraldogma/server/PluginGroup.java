@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -30,6 +30,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 
@@ -69,7 +70,7 @@ final class PluginGroup {
      */
     @VisibleForTesting
     @Nullable
-    static PluginGroup loadPlugins(PluginTarget target, CentralDogmaConfig config) {
+    static PluginGroup loadPlugins(PluginTarget target, CentralDogmaConfigSpec config) {
         return loadPlugins(PluginGroup.class.getClassLoader(), config, ImmutableList.of()).get(target);
     }
 
@@ -80,27 +81,33 @@ final class PluginGroup {
      *
      * @param classLoader which is used to load the {@link Plugin}s
      */
-    static Map<PluginTarget, PluginGroup> loadPlugins(ClassLoader classLoader, CentralDogmaConfig config,
+    static Map<PluginTarget, PluginGroup> loadPlugins(ClassLoader classLoader, CentralDogmaConfigSpec config,
                                                       List<Plugin> plugins) {
         requireNonNull(classLoader, "classLoader");
         requireNonNull(config, "config");
 
         final ServiceLoader<Plugin> loader = ServiceLoader.load(Plugin.class, classLoader);
-        final ImmutableMap.Builder<Class<?>, Plugin> allPlugins = new ImmutableMap.Builder<>();
-        for (Plugin plugin : Iterables.concat(plugins, loader)) {
-            if (plugin.isEnabled(config)) {
-                allPlugins.put(plugin.configType(), plugin);
-            }
+
+        final List<Plugin> allPlugins = StreamSupport.stream(Iterables.concat(plugins, loader).spliterator(),
+                                                             false)
+                                                     .filter(plugin -> plugin.isEnabled(config))
+                                                     .collect(toImmutableList());
+
+        final long uniquePluginCounts = allPlugins.stream()
+                                                  .map(Plugin::getClass)
+                                                  .distinct()
+                                                  .count();
+
+        if (allPlugins.size() != uniquePluginCounts) {
+            throw new IllegalArgumentException("Found duplicated plugins");
         }
 
-        // IllegalArgumentException is thrown if there are duplicate keys.
-        final Map<Class<?>, Plugin> pluginMap = allPlugins.build();
-        if (pluginMap.isEmpty()) {
+        if (allPlugins.isEmpty()) {
             return ImmutableMap.of();
         }
 
         final Map<PluginTarget, PluginGroup> pluginGroups =
-                pluginMap.values()
+                allPlugins
                          .stream()
                          .collect(Collectors.groupingBy(plugin -> plugin.target(config)))
                          .entrySet()
@@ -150,7 +157,7 @@ final class PluginGroup {
     /**
      * Starts the {@link Plugin}s managed by this {@link PluginGroup}.
      */
-    CompletableFuture<Void> start(CentralDogmaConfig config, ProjectManager projectManager,
+    CompletableFuture<Void> start(CentralDogmaConfigSpec config, ProjectManager projectManager,
                                   CommandExecutor commandExecutor, MeterRegistry meterRegistry,
                                   ScheduledExecutorService purgeWorker,
                                   InternalProjectInitializer internalProjectInitializer) {
@@ -162,7 +169,7 @@ final class PluginGroup {
     /**
      * Stops the {@link Plugin}s managed by this {@link PluginGroup}.
      */
-    CompletableFuture<Void> stop(CentralDogmaConfig config, ProjectManager projectManager,
+    CompletableFuture<Void> stop(CentralDogmaConfigSpec config, ProjectManager projectManager,
                                  CommandExecutor commandExecutor, MeterRegistry meterRegistry,
                                  ScheduledExecutorService purgeWorker,
                                  InternalProjectInitializer internalProjectInitializer) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -36,6 +36,7 @@ import com.google.common.collect.ImmutableList.Builder;
 
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
+import com.linecorp.centraldogma.server.ZooKeeperServerConfigSpec;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolder;
 
@@ -89,7 +90,7 @@ final class ClusterBuilder {
         final TemporaryFolder tempFolder = new TemporaryFolder();
         tempFolder.create();
         final List<InstanceSpec> specs = new ArrayList<>();
-        final Map<Integer, ZooKeeperServerConfig> servers = new HashMap<>();
+        final Map<Integer, ZooKeeperServerConfigSpec> servers = new HashMap<>();
         final int groupSize = numReplicas / numGroups;
         for (int i = 0; i < numReplicas; i++) {
             final int serverId = i + 1;

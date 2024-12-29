@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -20,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nullable;
 
-import com.linecorp.centraldogma.server.QuotaConfig;
+import com.linecorp.centraldogma.server.QuotaConfigSpec;
 
 /**
  * An executor interface which executes {@link Command}s.
@@ -61,10 +61,10 @@ public interface CommandExecutor {
     void setWritable(boolean writable);
 
     /**
-     * Sets the specified {@linkplain QuotaConfig write quota} to the specified {@code repoName} in the
+     * Sets the specified {@linkplain QuotaConfigSpec write quota} to the specified {@code repoName} in the
      * specified {@code projectName}.
      */
-    void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfig writeQuota);
+    void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfigSpec writeQuota);
 
     /**
      * Executes the specified {@link Command}.

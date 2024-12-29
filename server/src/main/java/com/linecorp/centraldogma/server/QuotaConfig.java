@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -24,7 +24,7 @@ import com.google.common.base.MoreObjects;
 /**
  * {@link CentralDogma} API quota configuration.
  */
-public final class QuotaConfig {
+public final class QuotaConfig implements QuotaConfigSpec {
 
     private final int requestQuota;
     private final int timeWindowSeconds;
@@ -42,27 +42,16 @@ public final class QuotaConfig {
         this.timeWindowSeconds = timeWindowSeconds;
     }
 
-    /**
-     * Returns a time windows in seconds which is created with the given {@code timeWindowSeconds}.
-     */
     @JsonProperty
+    @Override
     public int timeWindowSeconds() {
         return timeWindowSeconds;
     }
 
-    /**
-     * Returns a maximum number of acceptable requests which is created with the given {@code requestQuota}.
-     */
     @JsonProperty
+    @Override
     public int requestQuota() {
         return requestQuota;
-    }
-
-    /**
-     * Returns a maximum number of acceptable requests per second.
-     */
-    public double permitsPerSecond() {
-        return requestQuota() * 1.0 / timeWindowSeconds();
     }
 
     @Override

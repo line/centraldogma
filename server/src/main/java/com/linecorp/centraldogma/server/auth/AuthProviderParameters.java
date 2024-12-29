@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -23,7 +23,7 @@ import java.util.function.Supplier;
 
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.server.auth.Authorizer;
-import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.CentralDogmaConfigSpec;
 
 /**
  * Parameters which are used to create a new {@link AuthProvider} instance.
@@ -31,8 +31,8 @@ import com.linecorp.centraldogma.server.CentralDogmaConfig;
 public final class AuthProviderParameters {
 
     private final Authorizer<HttpRequest> authorizer;
-    private final CentralDogmaConfig config;
-    private final AuthConfig authConfig;
+    private final CentralDogmaConfigSpec config;
+    private final AuthConfigSpec authConfig;
     private final Supplier<String> sessionIdGenerator;
     private final Function<Session, CompletableFuture<Void>> loginSessionPropagator;
     private final Function<String, CompletableFuture<Void>> logoutSessionPropagator;
@@ -50,7 +50,7 @@ public final class AuthProviderParameters {
      */
     public AuthProviderParameters(
             Authorizer<HttpRequest> authorizer,
-            CentralDogmaConfig config,
+            CentralDogmaConfigSpec config,
             Supplier<String> sessionIdGenerator,
             Function<Session, CompletableFuture<Void>> loginSessionPropagator,
             Function<String, CompletableFuture<Void>> logoutSessionPropagator) {
@@ -72,14 +72,14 @@ public final class AuthProviderParameters {
     /**
      * Returns the configuration for the Central Dogma server.
      */
-    public CentralDogmaConfig config() {
+    public CentralDogmaConfigSpec config() {
         return config;
     }
 
     /**
      * Returns the authentication configuration.
      */
-    public AuthConfig authConfig() {
+    public AuthConfigSpec authConfig() {
         return authConfig;
     }
 

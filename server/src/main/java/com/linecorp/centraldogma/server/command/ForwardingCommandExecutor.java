@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -21,7 +21,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.centraldogma.internal.Util;
-import com.linecorp.centraldogma.server.QuotaConfig;
+import com.linecorp.centraldogma.server.QuotaConfigSpec;
 
 /**
  * A {@link CommandExecutor} which forwards all its method calls to another {@link CommandExecutor}.
@@ -69,7 +69,7 @@ public class ForwardingCommandExecutor implements CommandExecutor {
     }
 
     @Override
-    public void setWriteQuota(String projectName, String repoName, QuotaConfig writeQuota) {
+    public void setWriteQuota(String projectName, String repoName, QuotaConfigSpec writeQuota) {
         delegate().setWriteQuota(projectName, repoName, writeQuota);
     }
 

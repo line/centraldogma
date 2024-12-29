@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -23,22 +24,22 @@ import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
 
-import com.google.common.collect.ImmutableMap;
-
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.storage.PurgeSchedulingServicePlugin;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfigSpec;
 import com.linecorp.centraldogma.server.plugin.AbstractNoopPlugin;
 import com.linecorp.centraldogma.server.plugin.NoopPluginForAllReplicas;
 import com.linecorp.centraldogma.server.plugin.NoopPluginForLeader;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 
+@SuppressWarnings("DataFlowIssue")
 class PluginGroupTest {
 
     @Test
     void confirmPluginsForAllReplicasLoaded() {
-        final CentralDogmaConfig cfg = mock(CentralDogmaConfig.class);
+        final CentralDogmaConfigSpec cfg = mock(CentralDogmaConfigSpec.class);
         final PluginGroup group = PluginGroup.loadPlugins(PluginTarget.ALL_REPLICAS, cfg);
         assertThat(group).isNotNull();
         confirmPluginStartStop(group.findFirstPlugin(NoopPluginForAllReplicas.class));
@@ -46,7 +47,7 @@ class PluginGroupTest {
 
     @Test
     void confirmPluginsForLeaderLoaded() {
-        final CentralDogmaConfig cfg = mock(CentralDogmaConfig.class);
+        final CentralDogmaConfigSpec cfg = mock(CentralDogmaConfigSpec.class);
         final PluginGroup group = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group).isNotNull();
         confirmPluginStartStop(group.findFirstPlugin(NoopPluginForLeader.class));
@@ -54,20 +55,20 @@ class PluginGroupTest {
 
     @Test
     void confirmDefaultMirroringServiceLoadedDependingOnConfig() {
-        final CentralDogmaConfig cfg = mock(CentralDogmaConfig.class);
-        when(cfg.pluginConfigMap()).thenReturn(ImmutableMap.of());
+        final CentralDogmaConfigSpec cfg = mock(CentralDogmaConfigSpec.class);
         final PluginGroup group1 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group1).isNotNull();
         assertThat(group1.findFirstPlugin(DefaultMirroringServicePlugin.class)).isNotNull();
 
-        when(cfg.pluginConfigMap()).thenReturn(ImmutableMap.of(
-                MirroringServicePluginConfig.class, new MirroringServicePluginConfig(true)));
+        when(cfg.pluginConfig(any())).thenReturn(null);
+        when(cfg.pluginConfig(MirroringServicePluginConfigSpec.class))
+                .thenReturn(new MirroringServicePluginConfig(true));
         final PluginGroup group2 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group2).isNotNull();
         assertThat(group2.findFirstPlugin(DefaultMirroringServicePlugin.class)).isNotNull();
 
-        when(cfg.pluginConfigMap()).thenReturn(ImmutableMap.of(
-                MirroringServicePluginConfig.class, new MirroringServicePluginConfig(false)));
+        when(cfg.pluginConfig(MirroringServicePluginConfigSpec.class))
+                .thenReturn(new MirroringServicePluginConfig(false));
         final PluginGroup group3 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group3).isNotNull();
         assertThat(group3.findFirstPlugin(DefaultMirroringServicePlugin.class)).isNull();
@@ -79,7 +80,7 @@ class PluginGroupTest {
      */
     @Test
     void confirmScheduledPurgingServiceLoadedDependingOnConfig() {
-        final CentralDogmaConfig cfg = mock(CentralDogmaConfig.class);
+        final CentralDogmaConfigSpec cfg = mock(CentralDogmaConfigSpec.class);
         when(cfg.maxRemovedRepositoryAgeMillis()).thenReturn(1L);
         final PluginGroup group1 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group1).isNotNull();

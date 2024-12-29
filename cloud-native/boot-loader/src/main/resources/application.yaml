@@ -1,0 +1,28 @@
+---
+central-dogma:
+  dataDir: "./data"
+  ports:
+    - local-address:
+        host: '*'
+        port: 36462
+      protocols:
+        - http
+  num-repository-workers: 16
+  repository-cache-spec: "maximumWeight=134217728,expireAfterAccess=5m"
+  graceful-shutdown-timeout:
+    quiet-period-millis: 1000
+    timeout-millis: 10000
+  web-app-enabled: true
+  replication:
+    method: NONE
+  access-log-format: common
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  endpoint:
+    health:
+      probes:
+        enabled: true

@@ -31,7 +31,7 @@ import com.google.common.base.MoreObjects;
 /**
  * A configuration class for the zone.
  */
-public final class ZoneConfig {
+public final class ZoneConfig implements ZoneConfigSpec {
 
     private final String currentZone;
     private final List<String> allZones;
@@ -50,18 +50,14 @@ public final class ZoneConfig {
                       currentZone, allZones);
     }
 
-    /**
-     * Returns the current zone.
-     */
     @JsonProperty("currentZone")
+    @Override
     public String currentZone() {
         return currentZone;
     }
 
-    /**
-     * Returns all zones.
-     */
     @JsonProperty("allZones")
+    @Override
     public List<String> allZones() {
         return allZones;
     }

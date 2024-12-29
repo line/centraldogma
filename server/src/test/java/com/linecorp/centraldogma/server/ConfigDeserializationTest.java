@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -84,7 +84,7 @@ class ConfigDeserializationTest {
     }
 
     private static void checkContent(String jsonConfig) throws IOException {
-        final TlsConfig tlsConfig = Jackson.readValue(jsonConfig, ParentConfig.class).tlsConfig;
+        final TlsConfigSpec tlsConfig = Jackson.readValue(jsonConfig, ParentConfig.class).tlsConfig;
 
         readStream(tlsConfig.keyCertChainInputStream(), "foo");
         readStream(tlsConfig.keyInputStream(), "bar");
@@ -121,7 +121,7 @@ class ConfigDeserializationTest {
     }
 
     static class ParentConfig {
-        private final TlsConfig tlsConfig;
+        private final TlsConfigSpec tlsConfig;
 
         @JsonCreator
         ParentConfig(@JsonProperty("tls") TlsConfig tlsConfig) {

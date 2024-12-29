@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -30,7 +30,7 @@ import org.apache.shiro.session.mgt.DefaultSessionManager;
 import org.apache.shiro.util.Factory;
 
 import com.linecorp.armeria.server.HttpService;
-import com.linecorp.centraldogma.server.auth.AuthConfig;
+import com.linecorp.centraldogma.server.auth.AuthConfigSpec;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.Session;
 
@@ -42,7 +42,7 @@ public final class ShiroAuthProvider implements AuthProvider {
     private final HttpService loginApiService;
     private final HttpService logoutApiService;
 
-    ShiroAuthProvider(AuthConfig authConfig,
+    ShiroAuthProvider(AuthConfigSpec authConfig,
                       Ini config,
                       Supplier<String> sessionIdGenerator,
                       Function<Session, CompletableFuture<Void>> loginSessionPropagator,

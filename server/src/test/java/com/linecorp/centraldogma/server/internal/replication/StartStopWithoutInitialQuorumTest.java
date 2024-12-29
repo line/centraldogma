@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
+import com.linecorp.centraldogma.server.ZooKeeperServerConfigSpec;
 import com.linecorp.centraldogma.testing.internal.FlakyTest;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -51,7 +52,7 @@ class StartStopWithoutInitialQuorumTest {
             final int electionPort = InstanceSpec.getRandomPort();
             final int clientPort = InstanceSpec.getRandomPort();
 
-            final Map<Integer, ZooKeeperServerConfig> servers =
+            final Map<Integer, ZooKeeperServerConfigSpec> servers =
                     ImmutableMap.of(1,
                                     new ZooKeeperServerConfig("127.0.0.1", quorumPort, electionPort,
                                                               clientPort, /* groupId */ null, /* weight */ 1),

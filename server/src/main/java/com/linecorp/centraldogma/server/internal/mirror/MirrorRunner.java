@@ -35,7 +35,7 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.MirrorException;
-import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.CentralDogmaConfigSpec;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.User;
@@ -62,7 +62,7 @@ public final class MirrorRunner implements SafeCloseable {
     private final String currentZone;
 
     public MirrorRunner(ProjectApiManager projectApiManager, CommandExecutor commandExecutor,
-                        CentralDogmaConfig cfg, MeterRegistry meterRegistry) {
+                        CentralDogmaConfigSpec cfg, MeterRegistry meterRegistry) {
         this.projectApiManager = projectApiManager;
         this.commandExecutor = commandExecutor;
         // TODO(ikhoon): Periodically clean up stale repositories.

@@ -31,9 +31,11 @@ import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.CentralDogmaConfigSpec;
 import com.linecorp.centraldogma.server.ZoneConfig;
+import com.linecorp.centraldogma.server.plugin.NoopPluginConfig;
 import com.linecorp.centraldogma.server.plugin.Plugin;
+import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaReplicationExtension;
@@ -119,7 +121,7 @@ class ZoneLeaderPluginTest {
         }
 
         @Override
-        public PluginTarget target(CentralDogmaConfig config) {
+        public PluginTarget target(CentralDogmaConfigSpec config) {
             return PluginTarget.ZONE_LEADER_ONLY;
         }
 
@@ -140,8 +142,8 @@ class ZoneLeaderPluginTest {
         }
 
         @Override
-        public Class<?> configType() {
-            return getClass();
+        public Class<? extends PluginConfig> configType() {
+            return NoopPluginConfig.class;
         }
     }
 }

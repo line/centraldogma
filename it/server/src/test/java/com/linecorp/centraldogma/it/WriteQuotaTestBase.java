@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -42,6 +42,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.QuotaConfig;
+import com.linecorp.centraldogma.server.QuotaConfigSpec;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 
 abstract class WriteQuotaTestBase {
@@ -65,7 +66,7 @@ abstract class WriteQuotaTestBase {
 
         /// update write quota to 2qps
         QuotaConfig writeQuota = new QuotaConfig(2, 1);
-        QuotaConfig updated = updateWriteQuota(webClient(), repositoryName, writeQuota);
+        QuotaConfigSpec updated = updateWriteQuota(webClient(), repositoryName, writeQuota);
         assertThat(updated).isEqualTo(writeQuota);
 
         // Wait for releasing previously acquired locks
@@ -94,8 +95,8 @@ abstract class WriteQuotaTestBase {
         assertThat(CompletableFutures.allAsList(futures4).join()).hasSize(8);
     }
 
-    private static QuotaConfig updateWriteQuota(
-            WebClient systemAdminClient, String repoName, QuotaConfig writeQuota)
+    private static QuotaConfigSpec updateWriteQuota(WebClient systemAdminClient, String repoName,
+                                                    QuotaConfig writeQuota)
             throws JsonProcessingException {
         final String updatePath = "/api/v1/metadata/test_prj/repos/" + repoName + "/quota/write";
         final String content = mapper.writeValueAsString(writeQuota);

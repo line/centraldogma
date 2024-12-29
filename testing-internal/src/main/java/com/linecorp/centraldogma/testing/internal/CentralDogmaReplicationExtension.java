@@ -51,7 +51,9 @@ import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
+import com.linecorp.centraldogma.server.ZooKeeperReplicationConfigSpec;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
+import com.linecorp.centraldogma.server.ZooKeeperServerConfigSpec;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
@@ -92,7 +94,7 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
     }
 
     private List<CentralDogmaRuleDelegate> newDogmaCluster(int numReplicas) throws IOException {
-        final ImmutableMap.Builder<Integer, ZooKeeperServerConfig> builder =
+        final ImmutableMap.Builder<Integer, ZooKeeperServerConfigSpec> builder =
                 ImmutableMap.builderWithExpectedSize(numReplicas);
         final int[] unusedPorts = TestUtil.unusedTcpPorts(numReplicas * 4);
         for (int i = 0; i < numReplicas; i++) {
@@ -105,7 +107,7 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
                                                          zkClientPort, /* groupId */ null, /* weight */ 1));
         }
 
-        final Map<Integer, ZooKeeperServerConfig> zooKeeperServers = builder.build();
+        final Map<Integer, ZooKeeperServerConfigSpec> zooKeeperServers = builder.build();
 
         return zooKeeperServers.keySet().stream().map(serverId -> {
             final int dogmaPort = unusedPorts[(serverId - 1) * 4 + 3];
@@ -215,9 +217,9 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
         }
 
         final List<Integer> ports = new ArrayList<>(12);
-        final ZooKeeperReplicationConfig zkConfig =
-                (ZooKeeperReplicationConfig) dogmaCluster.get(0).dogma().config().replicationConfig();
-        for (ZooKeeperServerConfig config : zkConfig.servers().values()) {
+        final ZooKeeperReplicationConfigSpec zkConfig =
+                (ZooKeeperReplicationConfigSpec) dogmaCluster.get(0).dogma().config().replicationConfig();
+        for (ZooKeeperServerConfigSpec config : zkConfig.servers().values()) {
             ports.add(config.clientPort());
             ports.add(config.electionPort());
             ports.add(config.quorumPort());
