@@ -1215,4 +1215,20 @@ public class MetadataService {
                   .filter(e -> !e.getKey().equals(id))
                   .collect(toImmutableMap(Entry::getKey, Entry::getValue));
     }
+
+    /**
+     * Migrates the metadata of the specified {@code projectName} with the new format.
+     */
+    public CompletableFuture<Revision> migrateMetadata(String projectName) {
+        requireNonNull(projectName, "projectName");
+
+        final String commitSummary = "Rebuild metadata with the new format";
+
+        final ProjectMetadataTransformer transformer =
+                new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
+                    // The projectMetadata is serialized into the new format.
+                    return projectMetadata;
+                });
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, Author.SYSTEM, commitSummary, transformer);
+    }
 }
