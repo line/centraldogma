@@ -22,6 +22,7 @@ import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUti
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME2;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import java.util.concurrent.CompletionException;
 
@@ -153,7 +154,9 @@ class XdsMemberPermissionTest {
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
 
         // @xds project should be visible to member users.
-        assertThat(userClient.listProjects().join()).containsOnly("foo", "@xds");
+        await().untilAsserted(
+                () -> assertThat(userClient.listProjects().join()).containsOnly("foo", "@xds")
+        );
         // Read and write should be granted as well.
         userRepo.commit("Update test.txt", Change.ofTextUpsert("/text.txt", "bar"))
                 .push()
