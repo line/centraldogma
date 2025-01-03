@@ -90,40 +90,42 @@ public final class MirrorRunner implements SafeCloseable {
                                                 "mirrorApiWorker");
     }
 
-    public CompletableFuture<MirrorResult> run(String projectName, String mirrorId, User user) {
+    public CompletableFuture<MirrorResult> run(String projectName, String repoName,
+                                               String mirrorId, User user) {
         // If there is an inflight request, return it to avoid running the same mirror task multiple times.
-        return inflightRequests.computeIfAbsent(new MirrorKey(projectName, mirrorId), key -> run(key, user));
+        return inflightRequests.computeIfAbsent(new MirrorKey(projectName, repoName, mirrorId),
+                                                key -> run(key, user));
     }
 
     private CompletableFuture<MirrorResult> run(MirrorKey mirrorKey, User user) {
         try {
-            final CompletableFuture<MirrorResult> future =
-                    metaRepo(mirrorKey.projectName).mirror(mirrorKey.mirrorId).thenApplyAsync(mirror -> {
-                        if (!mirror.enabled()) {
-                            throw new MirrorException("The mirror is disabled: " +
-                                                      mirrorKey.projectName + '/' + mirrorKey.mirrorId);
-                        }
+            final CompletableFuture<MirrorResult> future = metaRepo(mirrorKey.projectName).mirror(
+                    mirrorKey.repoName, mirrorKey.mirrorId).thenApplyAsync(mirror -> {
+                if (!mirror.enabled()) {
+                    throw new MirrorException("The mirror is disabled: " + mirrorKey.projectName + '/' +
+                                              mirrorKey.repoName + '/' + mirrorKey.mirrorId);
+                }
 
-                        final String zone = mirror.zone();
-                        if (zone != null && !zone.equals(currentZone)) {
-                            throw new MirrorException("The mirror is not in the current zone: " + currentZone);
-                        }
-                        final MirrorTask mirrorTask = new MirrorTask(mirror, user, Instant.now(),
-                                                                     currentZone, false);
-                        final MirrorListener listener = MirrorSchedulingService.mirrorListener;
-                        listener.onStart(mirrorTask);
-                        try {
-                            final MirrorResult mirrorResult = mirror.mirror(workDir, commandExecutor,
-                                                                            mirrorConfig.maxNumFilesPerMirror(),
-                                                                            mirrorConfig.maxNumBytesPerMirror(),
-                                                                            mirrorTask.triggeredTime());
-                            listener.onComplete(mirrorTask, mirrorResult);
-                            return mirrorResult;
-                        } catch (Exception e) {
-                            listener.onError(mirrorTask, e);
-                            throw e;
-                        }
-                    }, worker);
+                final String zone = mirror.zone();
+                if (zone != null && !zone.equals(currentZone)) {
+                    throw new MirrorException("The mirror is not in the current zone: " + currentZone);
+                }
+                final MirrorTask mirrorTask = new MirrorTask(mirror, user, Instant.now(),
+                                                             currentZone, false);
+                final MirrorListener listener = MirrorSchedulingService.mirrorListener;
+                listener.onStart(mirrorTask);
+                try {
+                    final MirrorResult mirrorResult = mirror.mirror(workDir, commandExecutor,
+                                                                    mirrorConfig.maxNumFilesPerMirror(),
+                                                                    mirrorConfig.maxNumBytesPerMirror(),
+                                                                    mirrorTask.triggeredTime());
+                    listener.onComplete(mirrorTask, mirrorResult);
+                    return mirrorResult;
+                } catch (Exception e) {
+                    listener.onError(mirrorTask, e);
+                    throw e;
+                }
+            }, worker);
             // Remove the inflight request when the mirror task is done.
             future.handleAsync((unused0, unused1) -> inflightRequests.remove(mirrorKey), worker);
             return future;
@@ -149,10 +151,12 @@ public final class MirrorRunner implements SafeCloseable {
 
     private static final class MirrorKey {
         private final String projectName;
+        private final String repoName;
         private final String mirrorId;
 
-        private MirrorKey(String projectName, String mirrorId) {
+        private MirrorKey(String projectName, String repoName, String mirrorId) {
             this.projectName = projectName;
+            this.repoName = repoName;
             this.mirrorId = mirrorId;
         }
 
@@ -166,18 +170,20 @@ public final class MirrorRunner implements SafeCloseable {
             }
             final MirrorKey mirrorKey = (MirrorKey) o;
             return projectName.equals(mirrorKey.projectName) &&
+                   repoName.equals(mirrorKey.repoName) &&
                    mirrorId.equals(mirrorKey.mirrorId);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(projectName, mirrorId);
+            return Objects.hash(projectName, repoName, mirrorId);
         }
 
         @Override
         public String toString() {
             return MoreObjects.toStringHelper(this)
                               .add("projectName", projectName)
+                              .add("repoName", repoName)
                               .add("mirrorId", mirrorId)
                               .toString();
         }

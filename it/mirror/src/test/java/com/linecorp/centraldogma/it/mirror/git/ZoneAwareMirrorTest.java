@@ -78,7 +78,7 @@ class ZoneAwareMirrorTest {
             builder.authProviderFactory(new TestAuthProviderFactory());
             builder.systemAdministrators(USERNAME);
             builder.zone(new ZoneConfig(ZONES.get(serverId - 1), ZONES));
-            builder.pluginConfigs(new MirroringServicePluginConfig(true, null, null, null, true));
+            builder.pluginConfigs(new MirroringServicePluginConfig(true, null, null, null, true, false));
         }
 
         @Override
@@ -176,13 +176,13 @@ class ZoneAwareMirrorTest {
                                  MirrorDirection.REMOTE_TO_LOCAL,
                                  "bar-unknown-zone",
                                  "/",
-                                 URI.create(
-                                         "git+ssh://github.com/line/centraldogma-authtest.git/#main"),
+                                 URI.create("git+ssh://github.com/line/centraldogma-authtest.git/#main"),
                                  null,
                                  "foo",
                                  unknownZone);
-        final Change<JsonNode> change =
-                Change.ofJsonUpsert("/mirrors/" + mirrorId + ".json", Jackson.writeValueAsString(mirrorConfig));
+        final Change<JsonNode> change = Change.ofJsonUpsert(
+                "/repos/bar-unknown-zone/mirrors/" + mirrorId + ".json",
+                Jackson.writeValueAsString(mirrorConfig));
         repo.commit("Add a mirror having an invalid zone", change)
             .push().join();
 
@@ -204,7 +204,7 @@ class ZoneAwareMirrorTest {
         });
     }
 
-    private static void createMirror(String zone) throws Exception {
+    private static void createMirror(@Nullable String zone) throws Exception {
         final BlockingWebClient client = WebClient.builder("http://127.0.0.1:" + serverPort)
                                                   .auth(AuthToken.ofOAuth2(accessToken))
                                                   .build()
@@ -222,8 +222,9 @@ class ZoneAwareMirrorTest {
 
         final MirrorDto newMirror = newMirror(zone);
         response = client.prepare()
-                         .post("/api/v1/projects/{proj}/mirrors")
+                         .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                          .pathParam("proj", FOO_PROJ)
+                         .pathParam("repo", BAR_REPO + '-' + (zone == null ? "default" : zone))
                          .contentJson(newMirror)
                          .asJson(PushResultDto.class)
                          .execute();

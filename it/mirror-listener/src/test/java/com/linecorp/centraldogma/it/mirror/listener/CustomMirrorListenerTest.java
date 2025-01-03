@@ -114,7 +114,7 @@ class CustomMirrorListenerTest {
         when(mr.mirrors()).thenReturn(CompletableFuture.completedFuture(ImmutableList.of(mirror)));
 
         final MirrorSchedulingService service = new MirrorSchedulingService(
-                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null);
+                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null, false);
         final CommandExecutor executor = mock(CommandExecutor.class);
         service.start(executor);
 

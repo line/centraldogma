@@ -73,6 +73,7 @@ public final class DefaultMirroringServicePlugin implements Plugin {
             final int maxNumFilesPerMirror;
             final long maxNumBytesPerMirror;
             final ZoneConfig zoneConfig;
+            final boolean runMigration;
 
             if (mirroringServicePluginConfig != null) {
                 numThreads = mirroringServicePluginConfig.numMirroringThreads();
@@ -84,18 +85,20 @@ public final class DefaultMirroringServicePlugin implements Plugin {
                 } else {
                     zoneConfig = null;
                 }
+                runMigration = mirroringServicePluginConfig.runMigration();
             } else {
                 numThreads = MirroringServicePluginConfig.INSTANCE.numMirroringThreads();
                 maxNumFilesPerMirror = MirroringServicePluginConfig.INSTANCE.maxNumFilesPerMirror();
                 maxNumBytesPerMirror = MirroringServicePluginConfig.INSTANCE.maxNumBytesPerMirror();
                 zoneConfig = null;
+                runMigration = true;
             }
             mirroringService = new MirrorSchedulingService(new File(cfg.dataDir(), "_mirrors"),
                                                            context.projectManager(),
                                                            context.meterRegistry(),
                                                            numThreads,
                                                            maxNumFilesPerMirror,
-                                                           maxNumBytesPerMirror, zoneConfig);
+                                                           maxNumBytesPerMirror, zoneConfig, runMigration);
             this.mirroringService = mirroringService;
         }
         mirroringService.start(context.commandExecutor());

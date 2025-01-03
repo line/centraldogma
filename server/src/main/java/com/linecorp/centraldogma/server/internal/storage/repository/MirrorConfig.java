@@ -72,7 +72,6 @@ public final class MirrorConfig {
     private final String id;
     private final boolean enabled;
     private final MirrorDirection direction;
-    @Nullable
     private final String localRepo;
     private final String localPath;
     private final URI remoteUri;
@@ -130,7 +129,7 @@ public final class MirrorConfig {
 
     @Nullable
     Mirror toMirror(Project parent, Iterable<Credential> credentials) {
-        if (localRepo == null || !parent.repos().exists(localRepo)) {
+        if (!parent.repos().exists(localRepo)) {
             return null;
         }
 
@@ -176,7 +175,6 @@ public final class MirrorConfig {
         return direction;
     }
 
-    @Nullable
     @JsonProperty("localRepo")
     public String localRepo() {
         return localRepo;
