@@ -21,17 +21,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.mirror.MirrorListener;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorTask;
 
 public class TestMirrorRunnerListener implements MirrorListener {
 
+    static final Map<String, Integer> creationCount = new ConcurrentHashMap<>();
+    static final Map<String, Integer> updateCount = new ConcurrentHashMap<>();
     static final Map<String, Integer> startCount = new ConcurrentHashMap<>();
     static final Map<String, List<MirrorResult>> completions = new ConcurrentHashMap<>();
     static final Map<String, List<Throwable>> errors = new ConcurrentHashMap<>();
 
     static void reset() {
+        creationCount.clear();
+        updateCount.clear();
         startCount.clear();
         completions.clear();
         errors.clear();
@@ -39,6 +45,16 @@ public class TestMirrorRunnerListener implements MirrorListener {
 
     private static String key(MirrorTask task) {
         return task.project().name() + '/' + task.mirror().id() + '/' + task.triggeredBy().login();
+    }
+
+    @Override
+    public void onCreate(Mirror mirror, MirrorAccessController accessController) {
+        creationCount.merge(mirror.remoteRepoUri().toString(), 1, Integer::sum);
+    }
+
+    @Override
+    public void onUpdate(Mirror mirror, MirrorAccessController accessController) {
+        updateCount.merge(mirror.remoteRepoUri().toString(), 1, Integer::sum);
     }
 
     @Override

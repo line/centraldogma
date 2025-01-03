@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.mirror.MirrorListener;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorTask;
@@ -37,6 +38,12 @@ public final class TestMirrorListener implements MirrorListener {
         completions.clear();
         errors.clear();
     }
+
+    @Override
+    public void onCreate(Mirror mirror, MirrorAccessController accessController) {}
+
+    @Override
+    public void onUpdate(Mirror mirror, MirrorAccessController accessController) {}
 
     @Override
     public void onStart(MirrorTask mirror) {

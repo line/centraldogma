@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.api;
+package com.linecorp.centraldogma.server.internal.api.sysadmin;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -26,17 +26,18 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.api.UpdateServerStatusRequest.Scope;
+import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest.Scope;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 
 @ProducesJson
-public final class SystemAdministrativeService extends AbstractService {
+public final class ServerStatusService extends AbstractService {
 
     private final ServerStatusManager serverStatusManager;
 
-    public SystemAdministrativeService(CommandExecutor executor, ServerStatusManager serverStatusManager) {
+    public ServerStatusService(CommandExecutor executor, ServerStatusManager serverStatusManager) {
         super(executor);
         this.serverStatusManager = serverStatusManager;
     }

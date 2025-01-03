@@ -95,7 +95,8 @@ public final class DefaultMirroringServicePlugin implements Plugin {
                                                            context.meterRegistry(),
                                                            numThreads,
                                                            maxNumFilesPerMirror,
-                                                           maxNumBytesPerMirror, zoneConfig);
+                                                           maxNumBytesPerMirror, zoneConfig,
+                                                           context.mirrorAccessController());
             this.mirroringService = mirroringService;
         }
         mirroringService.start(context.commandExecutor());

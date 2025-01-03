@@ -21,7 +21,7 @@ import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { MirrorResult } from './MirrorResult';
-import { MirrorDto } from '../project/settings/mirrors/MirrorDto';
+import { MirrorRequest } from 'dogma/features/project/settings/mirrors/MirrorRequest';
 import {
   Button,
   ButtonGroup,
@@ -40,7 +40,7 @@ import {
 import { ReactNode } from 'react';
 
 type RunMirrorProps = {
-  mirror: MirrorDto;
+  mirror: MirrorRequest;
   children: ({ isLoading }: { isLoading: boolean; onToggle: () => void }) => ReactNode;
 };
 export const RunMirror = ({ mirror, children }: RunMirrorProps) => {

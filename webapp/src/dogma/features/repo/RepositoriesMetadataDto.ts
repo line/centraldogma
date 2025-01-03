@@ -1,3 +1,5 @@
+import { UserAndTimestamp } from 'dogma/common/UserAndTimestamp';
+
 export type RepositoryRole = 'READ' | 'WRITE' | 'ADMIN';
 
 export interface RepositoriesMetadataDto {
@@ -7,8 +9,8 @@ export interface RepositoriesMetadataDto {
 export interface RepositoryMetadataDto {
   name: string;
   roles: RolesDto;
-  creation: RepoCreatorDto;
-  removal?: RepoCreatorDto;
+  creation: UserAndTimestamp;
+  removal?: UserAndTimestamp;
 }
 
 export interface RolesDto {
@@ -24,9 +26,4 @@ export interface ProjectRolesDto {
 
 export interface UserOrTokenRepositoryRoleDto {
   [key: string]: RepositoryRole;
-}
-
-export interface RepoCreatorDto {
-  user: string;
-  timestamp: string;
 }

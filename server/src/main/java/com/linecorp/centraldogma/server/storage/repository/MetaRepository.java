@@ -22,7 +22,9 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
@@ -50,7 +52,14 @@ public interface MetaRepository extends Repository {
     /**
      * Returns a mirroring task of the specified {@code id}.
      */
-    CompletableFuture<Mirror> mirror(String id);
+    default CompletableFuture<Mirror> mirror(String id) {
+        return mirror(id, Revision.HEAD);
+    }
+
+    /**
+     * Returns a mirroring task of the specified {@code id} at the specified {@link Revision}.
+     */
+    CompletableFuture<Mirror> mirror(String id, Revision revision);
 
     /**
      * Returns a list of mirroring credentials.
@@ -65,7 +74,7 @@ public interface MetaRepository extends Repository {
     /**
      * Create a push {@link Command} for the {@link MirrorDto}.
      */
-    CompletableFuture<Command<CommitResult>> createPushCommand(MirrorDto mirrorDto, Author author,
+    CompletableFuture<Command<CommitResult>> createPushCommand(MirrorRequest mirrorDto, Author author,
                                                                @Nullable ZoneConfig zoneConfig,
                                                                boolean update);
 
