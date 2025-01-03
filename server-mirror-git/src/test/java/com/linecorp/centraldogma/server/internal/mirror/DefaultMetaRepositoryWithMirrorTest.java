@@ -24,7 +24,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletionException;
-import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -118,22 +117,22 @@ class DefaultMetaRepositoryWithMirrorTest {
     void testInvalidMirrors() {
         // not an object but an array
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
-                        Change.ofJsonUpsert("/mirrors/foo.json", "[]")).join();
-        assertThatThrownBy(() -> metaRepo.mirror("foo").join())
+                        Change.ofJsonUpsert("/repos/repo/mirrors/foo.json", "[]")).join();
+        assertThatThrownBy(() -> metaRepo.mirror("repo", "foo").join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RepositoryMetadataException.class);
 
         // not an object but a value
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
-                        Change.ofJsonUpsert("/mirrors/bar.json", "\"oops\"")).join();
-        assertThatThrownBy(() -> metaRepo.mirror("bar").join())
+                        Change.ofJsonUpsert("/repos/repo/mirrors/bar.json", "\"oops\"")).join();
+        assertThatThrownBy(() -> metaRepo.mirror("repo", "bar").join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RepositoryMetadataException.class);
 
         // an empty object
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
-                        Change.ofJsonUpsert("/mirrors/qux.json", "{}")).join();
-        assertThatThrownBy(() -> metaRepo.mirror("qux").join())
+                        Change.ofJsonUpsert("/repos/repo/mirrors/qux.json", "{}")).join();
+        assertThatThrownBy(() -> metaRepo.mirror("repo", "qux").join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RepositoryMetadataException.class);
     }
@@ -144,7 +143,7 @@ class DefaultMetaRepositoryWithMirrorTest {
         if (useRawApi) {
             final List<Change<?>> mirrors = ImmutableList.of(
                     Change.ofJsonUpsert(
-                            "/mirrors/foo.json",
+                            "/repos/repo/mirrors/foo.json",
                             '{' +
                             "  \"id\": \"foo\"," +
                             "  \"enabled\": true," +
@@ -156,7 +155,7 @@ class DefaultMetaRepositoryWithMirrorTest {
                             "  \"credentialId\": \"alice\"" +
                             '}'),
                     Change.ofJsonUpsert(
-                            "/mirrors/bar.json",
+                            "/repos/repo/mirrors/bar.json",
                             '{' +
                             "  \"id\": \"bar\"," +
                             "  \"enabled\": true," +
@@ -182,7 +181,7 @@ class DefaultMetaRepositoryWithMirrorTest {
             }
             for (MirrorDto mirror : mirrors) {
                 final Command<CommitResult> command =
-                        metaRepo.createPushCommand(mirror, Author.SYSTEM, null, false).join();
+                        metaRepo.createMirrorPushCommand(mirror, Author.SYSTEM, null, false).join();
                 pmExtension.executor().execute(command).join();
             }
         }
@@ -196,7 +195,7 @@ class DefaultMetaRepositoryWithMirrorTest {
         final List<Mirror> mirrors = findMirrors();
         assertThat(mirrors.stream()
                           .map(m -> m.localRepo().name())
-                          .collect(Collectors.toList())).containsExactly("bar", "foo");
+                          .collect(toImmutableList())).containsExactly("bar", "foo");
 
         final Mirror foo = mirrors.get(1);
         final Mirror bar = mirrors.get(0);
@@ -240,7 +239,7 @@ class DefaultMetaRepositoryWithMirrorTest {
         final List<Change<?>> changes =
                 ImmutableList.<Change<?>>builder()
                              .add(Change.ofJsonUpsert(
-                                     "/mirrors/foo.json",
+                                     "/repos/repo/mirrors/foo.json",
                                      '{' +
                                      "  \"id\": \"foo\"," +
                                      // type isn't used from https://github.com/line/centraldogma/pull/836 but

@@ -136,8 +136,9 @@ class MirroringAndCredentialServiceV1Test {
                               null);
         final AggregatedHttpResponse response =
                 userClient.prepare()
-                          .post("/api/v1/projects/{proj}/mirrors")
+                          .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                           .pathParam("proj", FOO_PROJ)
+                          .pathParam("repo", BAR_REPO)
                           .contentJson(newMirror)
                           .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -276,16 +277,18 @@ class MirroringAndCredentialServiceV1Test {
             final MirrorDto newMirror = newMirror("mirror-" + i);
             final ResponseEntity<PushResultDto> response0 =
                     userClient.prepare()
-                              .post("/api/v1/projects/{proj}/mirrors")
+                              .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                               .pathParam("proj", FOO_PROJ)
+                              .pathParam("repo", BAR_REPO)
                               .contentJson(newMirror)
                               .asJson(PushResultDto.class)
                               .execute();
             assertThat(response0.status()).isEqualTo(HttpStatus.CREATED);
             final ResponseEntity<MirrorDto> response1 =
                     userClient.prepare()
-                              .get("/api/v1/projects/{proj}/mirrors/{id}")
+                              .get("/api/v1/projects/{proj}/repos/{repo}/mirrors/{id}")
                               .pathParam("proj", FOO_PROJ)
+                              .pathParam("repo", BAR_REPO)
                               .pathParam("id", newMirror.id())
                               .asJson(MirrorDto.class)
                               .execute();
@@ -311,16 +314,18 @@ class MirroringAndCredentialServiceV1Test {
 
         final ResponseEntity<PushResultDto> response0 =
                 userClient.prepare()
-                          .post("/api/v1/projects/{proj}/mirrors")
+                          .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                           .pathParam("proj", FOO_PROJ)
+                          .pathParam("repo", BAR_REPO)
                           .contentJson(mirrorWithPort)
                           .asJson(PushResultDto.class)
                           .execute();
         assertThat(response0.status()).isEqualTo(HttpStatus.CREATED);
         final ResponseEntity<MirrorDto> response1 =
                 userClient.prepare()
-                          .get("/api/v1/projects/{proj}/mirrors/{id}")
+                          .get("/api/v1/projects/{proj}/repos/{repo}/mirrors/{id}")
                           .pathParam("proj", FOO_PROJ)
+                          .pathParam("repo", BAR_REPO)
                           .pathParam("id", mirrorWithPort.id())
                           .asJson(MirrorDto.class)
                           .execute();
@@ -345,8 +350,9 @@ class MirroringAndCredentialServiceV1Test {
                                                null);
         final ResponseEntity<PushResultDto> updateResponse =
                 userClient.prepare()
-                          .put("/api/v1/projects/{proj}/mirrors/{id}")
+                          .put("/api/v1/projects/{proj}/repos/{repo}/mirrors/{id}")
                           .pathParam("proj", FOO_PROJ)
+                          .pathParam("repo", BAR_REPO)
                           .pathParam("id", mirror.id())
                           .contentJson(mirror)
                           .asJson(PushResultDto.class)
@@ -354,8 +360,9 @@ class MirroringAndCredentialServiceV1Test {
         assertThat(updateResponse.status()).isEqualTo(HttpStatus.OK);
         final ResponseEntity<MirrorDto> fetchResponse =
                 userClient.prepare()
-                          .get("/api/v1/projects/{proj}/mirrors/{id}")
+                          .get("/api/v1/projects/{proj}/repos/{repo}/mirrors/{id}")
                           .pathParam("proj", FOO_PROJ)
+                          .pathParam("repo", BAR_REPO)
                           .pathParam("id", mirror.id())
                           .asJson(MirrorDto.class)
                           .execute();
@@ -366,15 +373,17 @@ class MirroringAndCredentialServiceV1Test {
     private void deleteMirror() {
         final String mirrorId = "mirror-2";
         assertThat(userClient.prepare()
-                             .delete("/api/v1/projects/{proj}/mirrors/{id}")
+                             .delete("/api/v1/projects/{proj}/repos/{repo}/mirrors/{id}")
                              .pathParam("proj", FOO_PROJ)
+                             .pathParam("repo", BAR_REPO)
                              .pathParam("id", mirrorId)
                              .execute()
                              .status())
                 .isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(userClient.prepare()
-                             .get("/api/v1/projects/{proj}/mirrors/{id}")
+                             .get("/api/v1/projects/{proj}/repos/{repo}/mirrors/{id}")
                              .pathParam("proj", FOO_PROJ)
+                             .pathParam("repo", BAR_REPO)
                              .pathParam("id", mirrorId)
                              .execute()
                              .status())

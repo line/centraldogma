@@ -48,9 +48,15 @@ public interface MetaRepository extends Repository {
     CompletableFuture<List<Mirror>> mirrors(boolean includeDisabled);
 
     /**
+     * Returns a set of mirroring tasks of the specified repository. If {@code includeDisabled} is {@code true},
+     * disabled mirroring tasks are also included in the returned {@link Mirror}s.
+     */
+    CompletableFuture<List<Mirror>> mirrors(String repoName, boolean includeDisabled);
+
+    /**
      * Returns a mirroring task of the specified {@code id}.
      */
-    CompletableFuture<Mirror> mirror(String id);
+    CompletableFuture<Mirror> mirror(String repoName, String id);
 
     /**
      * Returns a list of mirroring credentials.
@@ -65,9 +71,9 @@ public interface MetaRepository extends Repository {
     /**
      * Create a push {@link Command} for the {@link MirrorDto}.
      */
-    CompletableFuture<Command<CommitResult>> createPushCommand(MirrorDto mirrorDto, Author author,
-                                                               @Nullable ZoneConfig zoneConfig,
-                                                               boolean update);
+    CompletableFuture<Command<CommitResult>> createMirrorPushCommand(MirrorDto mirrorDto, Author author,
+                                                                     @Nullable ZoneConfig zoneConfig,
+                                                                     boolean update);
 
     /**
      * Create a push {@link Command} for the {@link Credential}.

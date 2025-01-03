@@ -108,8 +108,9 @@ class MirrorRunnerTest {
 
         final MirrorDto newMirror = newMirror();
         response = systemAdminClient.prepare()
-                                    .post("/api/v1/projects/{proj}/mirrors")
+                                    .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                                     .pathParam("proj", FOO_PROJ)
+                                    .pathParam("repo", BAR_REPO)
                                     .contentJson(newMirror)
                                     .asJson(PushResultDto.class)
                                     .execute();
@@ -118,8 +119,9 @@ class MirrorRunnerTest {
         for (int i = 0; i < 3; i++) {
             final ResponseEntity<MirrorResult> mirrorResponse =
                     systemAdminClient.prepare()
-                                     .post("/api/v1/projects/{proj}/mirrors/{mirrorId}/run")
+                                     .post("/api/v1/projects/{proj}/repos/{repo}/mirrors/{mirrorId}/run")
                                      .pathParam("proj", FOO_PROJ)
+                                     .pathParam("repo", BAR_REPO)
                                      .pathParam("mirrorId", TEST_MIRROR_ID)
                                      .asJson(MirrorResult.class)
                                      .execute();

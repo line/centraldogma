@@ -499,8 +499,8 @@ class GitMirrorIntegrationTest {
             }
         }
         client.forRepo(projName, Project.REPO_META)
-              .commit("Add /mirrors/foo.json",
-                      Change.ofJsonUpsert("/mirrors/foo.json",
+              .commit("Add /repos/" + localRepo + "/mirrors/foo.json",
+                      Change.ofJsonUpsert("/repos/" + localRepo + "/mirrors/foo.json",
                                           '{' +
                                           "  \"id\": \"foo\"," +
                                           "  \"enabled\": true," +

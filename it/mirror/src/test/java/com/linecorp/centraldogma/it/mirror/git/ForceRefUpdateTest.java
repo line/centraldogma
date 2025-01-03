@@ -106,7 +106,7 @@ class ForceRefUpdateTest {
              .forRepo(projName, Project.REPO_META)
              .commit("cleanup",
                      Change.ofRemoval("/credentials/public-key-id.json"),
-                     Change.ofRemoval("/mirrors/foo.json"))
+                     Change.ofRemoval("/repos/" + REPO_FOO + "/mirrors/foo.json"))
              .push().join();
     }
 
@@ -215,7 +215,7 @@ class ForceRefUpdateTest {
     private void pushMirror(String gitUri, MirrorDirection mirrorDirection) {
         dogma.client().forRepo(projName, Project.REPO_META)
              .commit("Add a mirror",
-                     Change.ofJsonUpsert("/mirrors/foo.json",
+                     Change.ofJsonUpsert("/repos/" + REPO_FOO + "/mirrors/foo.json",
                                          '{' +
                                          "  \"id\": \"foo\"," +
                                          "  \"enabled\": true," +

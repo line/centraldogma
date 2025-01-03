@@ -44,6 +44,7 @@ import com.linecorp.armeria.server.annotation.decorator.RequestTimeout;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
@@ -53,6 +54,7 @@ import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
@@ -62,6 +64,7 @@ import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
  * Annotated service object for managing mirroring service.
@@ -105,82 +108,99 @@ public class MirroringServiceV1 extends AbstractService {
      *
      * <p>Returns the list of the mirrors in the project.
      */
-    @RequiresRepositoryRole(value = RepositoryRole.READ, repository = Project.REPO_META)
+    @RequiresProjectRole(ProjectRole.OWNER)
     @Get("/projects/{projectName}/mirrors")
-    public CompletableFuture<List<MirrorDto>> listMirrors(@Param String projectName) {
-        return metaRepo(projectName).mirrors(true).thenApply(mirrors -> {
-            return mirrors.stream()
-                          .map(mirror -> convertToMirrorDto(projectName, mirror))
-                          .collect(toImmutableList());
-        });
+    public CompletableFuture<List<MirrorDto>> listProjectMirrors(@Param String projectName) {
+        final CompletableFuture<List<Mirror>> future = metaRepo(projectName).mirrors(true);
+        return convertToMirrorDtos(projectName, future);
     }
 
     /**
-     * GET /projects/{projectName}/mirrors/{id}
+     * GET /projects/{projectName}/repos/{repoName}/mirrors
+     *
+     * <p>Returns the list of the mirrors in the repository.
+     */
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    @Get("/projects/{projectName}/repos/{repoName}/mirrors")
+    public CompletableFuture<List<MirrorDto>> listRepoMirrors(@Param String projectName,
+                                                              Repository repository) {
+        final CompletableFuture<List<Mirror>> future = metaRepo(projectName).mirrors(repository.name(), true);
+        return convertToMirrorDtos(projectName, future);
+    }
+
+    /**
+     * GET /projects/{projectName}/repos/{repoName}/mirrors/{id}
      *
      * <p>Returns the mirror of the ID in the project mirror list.
      */
-    @RequiresRepositoryRole(value = RepositoryRole.READ, repository = Project.REPO_META)
-    @Get("/projects/{projectName}/mirrors/{id}")
-    public CompletableFuture<MirrorDto> getMirror(@Param String projectName, @Param String id) {
-        return metaRepo(projectName).mirror(id).thenApply(mirror -> {
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    @Get("/projects/{projectName}/repos/{repoName}/mirrors/{id}")
+    public CompletableFuture<MirrorDto> getMirror(@Param String projectName,
+                                                  Repository repository,
+                                                  @Param String id) {
+        return metaRepo(projectName).mirror(repository.name(), id).thenApply(mirror -> {
             return convertToMirrorDto(projectName, mirror);
         });
     }
 
     /**
-     * POST /projects/{projectName}/mirrors
+     * POST /projects/{projectName}/repos/{repoName}/mirrors
      *
      * <p>Creates a new mirror.
      */
-    @Post("/projects/{projectName}/mirrors")
+    @Post("/projects/{projectName}/repos/{repoName}/mirrors")
     @ConsumesJson
     @StatusCode(201)
-    @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
-    public CompletableFuture<PushResultDto> createMirror(@Param String projectName, MirrorDto newMirror,
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    public CompletableFuture<PushResultDto> createMirror(@Param String projectName,
+                                                         Repository ignored,
+                                                         MirrorDto newMirror,
                                                          Author author) {
         return createOrUpdate(projectName, newMirror, author, false);
     }
 
     /**
-     * PUT /projects/{projectName}/mirrors
+     * PUT /projects/{projectName}/repos/{repoName}/mirrors
      *
      * <p>Update the exising mirror.
      */
     @ConsumesJson
-    @Put("/projects/{projectName}/mirrors/{id}")
-    @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
-    public CompletableFuture<PushResultDto> updateMirror(@Param String projectName, MirrorDto mirror,
+    @Put("/projects/{projectName}/repos/{repoName}/mirrors/{id}")
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    public CompletableFuture<PushResultDto> updateMirror(@Param String projectName,
+                                                         Repository ignored,
+                                                         MirrorDto mirror,
                                                          @Param String id, Author author) {
         checkArgument(id.equals(mirror.id()), "The mirror ID (%s) can't be updated", id);
         return createOrUpdate(projectName, mirror, author, true);
     }
 
     /**
-     * DELETE /projects/{projectName}/mirrors/{id}
+     * DELETE /projects/{projectName}/repos/{repoName}/mirrors/{id}
      *
      * <p>Delete the existing mirror.
      */
-    @Delete("/projects/{projectName}/mirrors/{id}")
+    @Delete("/projects/{projectName}/repos/{repoName}/mirrors/{id}")
     @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
     public CompletableFuture<Void> deleteMirror(@Param String projectName,
+                                                Repository repository,
                                                 @Param String id, Author author) {
         final MetaRepository metaRepository = metaRepo(projectName);
-        return metaRepository.mirror(id).thenCompose(mirror -> {
+        final String repoName = repository.name();
+        return metaRepository.mirror(repoName, id).thenCompose(mirror -> {
             // mirror exists.
             final Command<CommitResult> command =
                     Command.push(author, projectName, metaRepository.name(),
-                                 Revision.HEAD, "Delete mirror: " + id, "",
-                                 Markup.PLAINTEXT, Change.ofRemoval(mirrorFile(id)));
+                                 Revision.HEAD, "Delete mirror: " + id + " in " + repoName, "",
+                                 Markup.PLAINTEXT, Change.ofRemoval(mirrorFile(repoName, id)));
             return executor().execute(command).thenApply(result -> null);
         });
     }
 
-    private CompletableFuture<PushResultDto> createOrUpdate(String projectName,
-                                                            MirrorDto newMirror,
+    private CompletableFuture<PushResultDto> createOrUpdate(String projectName, MirrorDto newMirror,
                                                             Author author, boolean update) {
         return metaRepo(projectName)
-                .createPushCommand(newMirror, author, zoneConfig, update).thenCompose(command -> {
+                .createMirrorPushCommand(newMirror, author, zoneConfig, update).thenCompose(command -> {
                     return executor().execute(command).thenApply(result -> {
                         return new PushResultDto(result.revision(), command.timestamp());
                     });
@@ -188,17 +208,19 @@ public class MirroringServiceV1 extends AbstractService {
     }
 
     /**
-     * POST /projects/{projectName}/mirrors/{mirrorId}/run
+     * POST /projects/{projectName}/repos/{repoName}/mirrors/{mirrorId}/run
      *
      * <p>Runs the mirroring task immediately.
      */
     // Mirroring may be a long-running task, so we need to increase the timeout.
     @RequestTimeout(value = 5, unit = TimeUnit.MINUTES)
-    @Post("/projects/{projectName}/mirrors/{mirrorId}/run")
+    @Post("/projects/{projectName}/repos/{repoName}/mirrors/{mirrorId}/run")
     @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
-    public CompletableFuture<MirrorResult> runMirror(@Param String projectName, @Param String mirrorId,
+    public CompletableFuture<MirrorResult> runMirror(@Param String projectName,
+                                                     Repository repository,
+                                                     @Param String mirrorId,
                                                      User user) throws Exception {
-        return mirrorRunner.run(projectName, mirrorId, user);
+        return mirrorRunner.run(projectName, repository.name(), mirrorId, user);
     }
 
     /**
@@ -210,6 +232,13 @@ public class MirroringServiceV1 extends AbstractService {
     public Map<String, Object> config() {
         // TODO(ikhoon): Add more configurations if necessary.
         return mirrorZoneConfig;
+    }
+
+    private static CompletableFuture<List<MirrorDto>> convertToMirrorDtos(
+            String projectName, CompletableFuture<List<Mirror>> future) {
+        return future.thenApply(mirrors -> mirrors.stream()
+                                                  .map(mirror -> convertToMirrorDto(projectName, mirror))
+                                                  .collect(toImmutableList()));
     }
 
     private static MirrorDto convertToMirrorDto(String projectName, Mirror mirror) {
