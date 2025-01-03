@@ -3,7 +3,7 @@ import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { MdDelete } from 'react-icons/md';
-import { DeleteConfirmationModal } from 'dogma/features/project/settings/DeleteConfirmationModal';
+import { DeleteConfirmationModal } from 'dogma/common/components/DeleteConfirmationModal';
 
 export const DeleteCredential = ({
   projectName,

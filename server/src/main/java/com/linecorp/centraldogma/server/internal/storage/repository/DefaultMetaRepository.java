@@ -45,7 +45,7 @@ import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
@@ -99,14 +99,15 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     @Override
-    public CompletableFuture<Mirror> mirror(String id) {
+    public CompletableFuture<Mirror> mirror(String id, Revision revision) {
         final String mirrorFile = mirrorFile(id);
-        return find(mirrorFile).thenCompose(entries -> {
+        return find(revision, mirrorFile).thenCompose(entries -> {
             @SuppressWarnings("unchecked")
             final Entry<JsonNode> entry = (Entry<JsonNode>) entries.get(mirrorFile);
             if (entry == null) {
-                throw new EntryNotFoundException("failed to find mirror '" + mirrorFile + "' in " +
-                                                 parent().name() + '/' + name());
+                throw new EntryNotFoundException(
+                        "failed to find mirror '" + mirrorFile + "' in " + parent().name() + '/' + name() +
+                        " (revision: " + revision + ')');
             }
 
             final JsonNode mirrorJson = entry.content();
@@ -129,8 +130,9 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             return credentials.thenApply(credentials0 -> {
                 final Mirror mirror = c.toMirror(parent(), credentials0);
                 if (mirror == null) {
-                    throw new EntryNotFoundException("failed to find a mirror config for '" + mirrorFile +
-                                                     "' in " + parent().name() + '/' + name());
+                    throw new EntryNotFoundException(
+                            "failed to find a mirror config for '" + mirrorFile + "' in " +
+                            parent().name() + '/' + name() + " (revision: " + revision + ')');
                 }
                 return mirror;
             });
@@ -239,26 +241,26 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     @Override
-    public CompletableFuture<Command<CommitResult>> createPushCommand(MirrorDto mirrorDto, Author author,
-                                                                      @Nullable ZoneConfig zoneConfig,
-                                                                      boolean update) {
-        validateMirror(mirrorDto, zoneConfig);
+    public CompletableFuture<Command<CommitResult>> createPushCommand(
+            MirrorRequest mirrorRequest, Author author,
+            @Nullable ZoneConfig zoneConfig, boolean update) {
+        validateMirror(mirrorRequest, zoneConfig);
         if (update) {
-            final String summary = "Update the mirror '" + mirrorDto.id() + '\'';
-            return mirror(mirrorDto.id()).thenApply(mirror -> {
+            final String summary = "Update the mirror '" + mirrorRequest.id() + '\'';
+            return mirror(mirrorRequest.id()).thenApply(mirror -> {
                 // Perform the update operation only if the mirror exists.
-                return newCommand(mirrorDto, author, summary);
+                return newCommand(mirrorRequest, author, summary);
             });
         } else {
-            String summary = "Create a new mirror from " + mirrorDto.remoteUrl() +
-                             mirrorDto.remotePath() + '#' + mirrorDto.remoteBranch() + " into " +
-                             mirrorDto.localRepo() + mirrorDto.localPath();
-            if (MirrorDirection.valueOf(mirrorDto.direction()) == MirrorDirection.REMOTE_TO_LOCAL) {
+            String summary = "Create a new mirror from " + mirrorRequest.remoteUrl() +
+                             mirrorRequest.remotePath() + '#' + mirrorRequest.remoteBranch() + " into " +
+                             mirrorRequest.localRepo() + mirrorRequest.localPath();
+            if (MirrorDirection.valueOf(mirrorRequest.direction()) == MirrorDirection.REMOTE_TO_LOCAL) {
                 summary = "[Remote-to-local] " + summary;
             } else {
                 summary = "[Local-to-remote] " + summary;
             }
-            return UnmodifiableFuture.completedFuture(newCommand(mirrorDto, author, summary));
+            return UnmodifiableFuture.completedFuture(newCommand(mirrorRequest, author, summary));
         }
     }
 
@@ -279,8 +281,8 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         }
     }
 
-    private Command<CommitResult> newCommand(MirrorDto mirrorDto, Author author, String summary) {
-        final MirrorConfig mirrorConfig = converterToMirrorConfig(mirrorDto);
+    private Command<CommitResult> newCommand(MirrorRequest mirrorRequest, Author author, String summary) {
+        final MirrorConfig mirrorConfig = converterToMirrorConfig(mirrorRequest);
         final JsonNode jsonNode = Jackson.valueToTree(mirrorConfig);
         final Change<JsonNode> change = Change.ofJsonUpsert(mirrorFile(mirrorConfig.id()), jsonNode);
         return Command.push(author, parent().name(), name(), Revision.HEAD, summary, "", Markup.PLAINTEXT,
@@ -294,7 +296,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                             change);
     }
 
-    private static void validateMirror(MirrorDto mirror, @Nullable ZoneConfig zoneConfig) {
+    private static void validateMirror(MirrorRequest mirror, @Nullable ZoneConfig zoneConfig) {
         checkArgument(!Strings.isNullOrEmpty(mirror.id()), "Mirror ID is empty");
         final String scheduleString = mirror.schedule();
         if (scheduleString != null) {
@@ -312,7 +314,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         }
     }
 
-    private static MirrorConfig converterToMirrorConfig(MirrorDto mirrorDto) {
+    private static MirrorConfig converterToMirrorConfig(MirrorRequest mirrorDto) {
         final String remoteUri =
                 mirrorDto.remoteScheme() + "://" + mirrorDto.remoteUrl() +
                 MirrorUtil.normalizePath(mirrorDto.remotePath()) + '#' + mirrorDto.remoteBranch();

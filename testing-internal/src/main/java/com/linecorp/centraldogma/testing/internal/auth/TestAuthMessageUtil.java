@@ -77,12 +77,15 @@ public final class TestAuthMessageUtil {
                                   HttpHeaderNames.AUTHORIZATION, "Bearer " + sessionId)).aggregate().join();
     }
 
-    public static String getAccessToken(WebClient client, String username, String password)
-            throws JsonProcessingException {
+    public static String getAccessToken(WebClient client, String username, String password) {
         final AggregatedHttpResponse response = login(client, username, password);
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        return Jackson.readValue(response.content().array(), AccessToken.class)
-                      .accessToken();
+        try {
+            return Jackson.readValue(response.content().array(), AccessToken.class)
+                          .accessToken();
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private TestAuthMessageUtil() {}

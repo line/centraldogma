@@ -1,4 +1,4 @@
-import { Badge, Box, Flex, Heading, Spacer, Text, Wrap } from '@chakra-ui/react';
+import { Badge, Box, Flex, Spacer, Text, Wrap } from '@chakra-ui/react';
 import { createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { NewToken } from 'dogma/features/token/NewToken';
@@ -12,6 +12,7 @@ import { DeactivateToken } from 'dogma/features/token/DeactivateToken';
 import { ActivateToken } from 'dogma/features/token/ActivateToken';
 import { DeleteToken } from 'dogma/features/token/DeleteToken';
 import { Deferred } from 'dogma/common/components/Deferred';
+import SettingView from 'dogma/features/settings/SettingView';
 
 const TokenPage = () => {
   const columnHelper = createColumnHelper<TokenDto>();
@@ -62,20 +63,19 @@ const TokenPage = () => {
   );
   const { data, error, isLoading } = useGetTokensQuery();
   return (
-    <Deferred isLoading={isLoading} error={error}>
-      {() => (
-        <Box p="2">
-          <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-            <Heading size="lg">Application Tokens</Heading>
-          </Flex>
-          <Flex>
-            <Spacer />
-            <NewToken />
-          </Flex>
-          <DataTableClientPagination columns={columns} data={data || []} />
-        </Box>
-      )}
-    </Deferred>
+    <SettingView currentTab={'Application Tokens'}>
+      <Deferred isLoading={isLoading} error={error}>
+        {() => (
+          <Box p="2">
+            <Flex>
+              <Spacer />
+              <NewToken />
+            </Flex>
+            <DataTableClientPagination columns={columns} data={data || []} />
+          </Box>
+        )}
+      </Deferred>
+    </SettingView>
   );
 };
 

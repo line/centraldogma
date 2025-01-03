@@ -27,8 +27,8 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.UnprocessedRequestException;
 import com.linecorp.centraldogma.common.ReadOnlyException;
-import com.linecorp.centraldogma.server.internal.api.UpdateServerStatusRequest;
-import com.linecorp.centraldogma.server.internal.api.UpdateServerStatusRequest.Scope;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest.Scope;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaReplicationExtension;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaRuleDelegate;
 

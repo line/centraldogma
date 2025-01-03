@@ -15,11 +15,11 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
+import { MirrorRequest } from 'dogma/features/project/settings/mirrors/MirrorRequest';
 
-const mirrors: Map<number, MirrorDto> = new Map();
+const mirrors: Map<number, MirrorRequest> = new Map();
 
-function newMirror(index: number, projectName: string): MirrorDto {
+function newMirror(index: number, projectName: string): MirrorRequest {
   return {
     id: `mirror-${index}`,
     projectName: projectName,

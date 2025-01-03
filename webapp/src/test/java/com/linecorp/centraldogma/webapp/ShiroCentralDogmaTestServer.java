@@ -32,9 +32,11 @@ import org.apache.shiro.config.Ini;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.SessionProtocol;
+import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
@@ -42,6 +44,7 @@ import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory;
+import com.linecorp.centraldogma.server.internal.credential.NoneCredential;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 
 final class ShiroCentralDogmaTestServer {
@@ -76,12 +79,22 @@ final class ShiroCentralDogmaTestServer {
     }
 
     private static void scaffold() throws UnknownHostException, JsonProcessingException {
+        final String token = getSessionToken();
         final com.linecorp.centraldogma.client.CentralDogma client = new ArmeriaCentralDogmaBuilder()
                 .host("127.0.0.1", PORT)
-                .accessToken(getSessionToken())
+                .accessToken(token)
                 .build();
         client.createProject("foo").join();
         client.createRepository("foo", "bar").join();
+
+        final BlockingWebClient webClient = WebClient.builder("http://127.0.0.1:" + PORT)
+                                                     .auth(AuthToken.ofOAuth2(token))
+                                                     .build()
+                                                     .blocking();
+        final AggregatedHttpResponse res = webClient.prepare()
+                                                    .post("/api/v1/projects/foo/credentials")
+                                                    .contentJson(new NoneCredential("none", true))
+                                                    .execute();
     }
 
     private static String getSessionToken() throws JsonProcessingException {

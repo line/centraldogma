@@ -24,7 +24,7 @@ import { EditIcon } from '@chakra-ui/icons';
 import React, { ReactNode } from 'react';
 import { IconType } from 'react-icons';
 import { VscMirror, VscRepoClone } from 'react-icons/vsc';
-import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
+import { MirrorRequest } from 'dogma/features/project/settings/mirrors/MirrorRequest';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 import { FiBox } from 'react-icons/fi';
 import cronstrue from 'cronstrue';
@@ -42,7 +42,7 @@ const AlignedIcon = ({ as }: { as: IconType }) => <Icon as={as} marginBottom="-4
 
 interface MirrorViewProps {
   projectName: string;
-  mirror: MirrorDto;
+  mirror: MirrorRequest;
   credential: CredentialDto;
 }
 

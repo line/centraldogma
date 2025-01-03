@@ -32,11 +32,12 @@ import com.linecorp.armeria.client.logging.LoggingClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.centraldogma.server.internal.api.UpdateServerStatusRequest.Scope;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest.Scope;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-class SystemAdministrativeServiceTest {
+class ServerStatusServiceTest {
 
     @RegisterExtension
     final CentralDogmaExtension dogma = new CentralDogmaExtension() {

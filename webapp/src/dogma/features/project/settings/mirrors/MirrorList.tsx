@@ -1,11 +1,11 @@
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import React, { useMemo } from 'react';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
-import { useGetMirrorsQuery, useDeleteMirrorMutation } from 'dogma/features/api/apiSlice';
-import { Badge, Button, Code, HStack, Link, Wrap, WrapItem } from '@chakra-ui/react';
+import { useDeleteMirrorMutation, useGetMirrorsQuery } from 'dogma/features/api/apiSlice';
+import { Badge, Button, Code, HStack, Link, Tooltip, Wrap, WrapItem } from '@chakra-ui/react';
 import { GoRepo } from 'react-icons/go';
 import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
-import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
+import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorRequest';
 import { RunMirror } from '../../../mirror/RunMirrorButton';
 import { FaPlay } from 'react-icons/fa';
 import { DeleteMirror } from 'dogma/features/project/settings/mirrors/DeleteMirror';
@@ -73,6 +73,20 @@ const MirrorList = <Data extends object>({ projectName }: MirrorListProps<Data>)
         },
         header: 'Status',
       }),
+      columnHelper.accessor((row: MirrorDto) => row.allow, {
+        cell: (info) => {
+          if (info.getValue()) {
+            return <Badge colorScheme={'blue'}>Allowed</Badge>;
+          } else {
+            return (
+              <Tooltip label="Access to the remote repository is disallowed. Please contact the administrator.">
+                <Badge colorScheme={'red'}>Disallowed</Badge>
+              </Tooltip>
+            );
+          }
+        },
+        header: 'Access',
+      }),
       columnHelper.accessor((row: MirrorDto) => row.id, {
         cell: (info) => (
           <HStack>
@@ -81,7 +95,7 @@ const MirrorList = <Data extends object>({ projectName }: MirrorListProps<Data>)
                 <RunMirror mirror={info.row.original}>
                   {({ isLoading, onToggle }) => (
                     <Button
-                      isDisabled={!info.row.original.enabled}
+                      isDisabled={!info.row.original.enabled || !info.row.original.allow}
                       onClick={onToggle}
                       colorScheme={'green'}
                       size="sm"

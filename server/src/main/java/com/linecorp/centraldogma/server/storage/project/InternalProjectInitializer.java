@@ -90,7 +90,7 @@ public final class InternalProjectInitializer {
     /**
      * Creates an internal project and repositories such as a token storage.
      */
-    public void initialize0(String projectName) {
+    private void initialize0(String projectName) {
         final long creationTimeMillis = System.currentTimeMillis();
         if (!projectManager.exists(projectName)) {
             try {

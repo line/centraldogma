@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LINE Corporation
+ * Copyright 2025 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,21 +14,16 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.api;
+import { UserAndTimestamp } from 'dogma/common/UserAndTimestamp';
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+export interface MirrorAccessControlRequest {
+  id: string;
+  targetPattern: string;
+  allow: boolean;
+  description: string;
+  order: number;
+}
 
-public final class TokenLevelRequest {
-    private final String level;
-
-    @JsonCreator
-    public TokenLevelRequest(@JsonProperty("level") String level) {
-        this.level = level;
-    }
-
-    @JsonProperty
-    String level() {
-        return level;
-    }
+export interface MirrorAccessControl extends MirrorAccessControlRequest {
+  creation: UserAndTimestamp;
 }

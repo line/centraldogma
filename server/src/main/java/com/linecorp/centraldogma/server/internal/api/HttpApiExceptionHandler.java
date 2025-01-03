@@ -37,6 +37,7 @@ import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.EntryNoContentException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.InvalidPushException;
+import com.linecorp.centraldogma.common.MirrorAccessException;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.common.PermissionException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
@@ -117,6 +118,8 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                     (ctx, cause) -> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause))
                .put(MirrorException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause))
+               .put(MirrorAccessException.class,
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.FORBIDDEN, cause))
                .put(AuthorizationException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.UNAUTHORIZED, cause))
                .put(PermissionException.class,

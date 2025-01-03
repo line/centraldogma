@@ -44,6 +44,7 @@ import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.common.util.StartStopSupport;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
@@ -153,9 +154,11 @@ final class PluginGroup {
     CompletableFuture<Void> start(CentralDogmaConfig config, ProjectManager projectManager,
                                   CommandExecutor commandExecutor, MeterRegistry meterRegistry,
                                   ScheduledExecutorService purgeWorker,
-                                  InternalProjectInitializer internalProjectInitializer) {
+                                  InternalProjectInitializer internalProjectInitializer,
+                                  MirrorAccessController mirrorAccessController) {
         final PluginContext context = new PluginContext(config, projectManager, commandExecutor, meterRegistry,
-                                                        purgeWorker, internalProjectInitializer);
+                                                        purgeWorker, internalProjectInitializer,
+                                                        mirrorAccessController);
         return startStop.start(context, context, true);
     }
 
@@ -165,10 +168,11 @@ final class PluginGroup {
     CompletableFuture<Void> stop(CentralDogmaConfig config, ProjectManager projectManager,
                                  CommandExecutor commandExecutor, MeterRegistry meterRegistry,
                                  ScheduledExecutorService purgeWorker,
-                                 InternalProjectInitializer internalProjectInitializer) {
+                                 InternalProjectInitializer internalProjectInitializer,
+                                 MirrorAccessController mirrorAccessController) {
         return startStop.stop(
                 new PluginContext(config, projectManager, commandExecutor, meterRegistry, purgeWorker,
-                                  internalProjectInitializer));
+                                  internalProjectInitializer, mirrorAccessController));
     }
 
     private class PluginGroupStartStop extends StartStopSupport<PluginContext, PluginContext, Void, Void> {

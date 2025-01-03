@@ -1,4 +1,4 @@
-export interface MirrorDto {
+export interface MirrorRequest {
   id: string;
   projectName: string;
   schedule?: string;
@@ -13,4 +13,8 @@ export interface MirrorDto {
   credentialId: string;
   enabled: boolean;
   zone?: string;
+}
+
+export interface MirrorDto extends MirrorRequest {
+  allow: boolean;
 }
