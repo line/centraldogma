@@ -385,7 +385,7 @@ public class CentralDogma implements AutoCloseable {
         startStop.close();
     }
 
-    private void doStart() throws Exception {
+    private boolean doStart() throws Exception {
         boolean success = false;
         ExecutorService repositoryWorker = null;
         ScheduledExecutorService purgeWorker = null;
@@ -436,7 +436,6 @@ public class CentralDogma implements AutoCloseable {
             success = true;
         } finally {
             if (success) {
-                serverHealth.setHealthy(true);
                 this.repositoryWorker = repositoryWorker;
                 this.purgeWorker = purgeWorker;
                 this.pm = pm;
@@ -447,6 +446,7 @@ public class CentralDogma implements AutoCloseable {
                 doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager, mirrorRunner);
             }
         }
+        return success;
     }
 
     private CommandExecutor startCommandExecutor(
@@ -1206,15 +1206,18 @@ public class CentralDogma implements AutoCloseable {
         protected CompletionStage<Void> doStart(@Nullable Void unused) throws Exception {
             return execute("startup", () -> {
                 try {
-                    CentralDogma.this.doStart();
-                    if (pluginsForAllReplicas != null) {
-                        final ProjectManager pm = CentralDogma.this.pm;
-                        final CommandExecutor executor = CentralDogma.this.executor;
-                        final MeterRegistry meterRegistry = CentralDogma.this.meterRegistry;
-                        if (pm != null && executor != null && meterRegistry != null) {
-                            pluginsForAllReplicas.start(cfg, pm, executor, meterRegistry, purgeWorker,
-                                                        projectInitializer).join();
+                    final boolean success = CentralDogma.this.doStart();
+                    if (success) {
+                        if (pluginsForAllReplicas != null) {
+                            final ProjectManager pm = CentralDogma.this.pm;
+                            final CommandExecutor executor = CentralDogma.this.executor;
+                            final MeterRegistry meterRegistry = CentralDogma.this.meterRegistry;
+                            if (pm != null && executor != null && meterRegistry != null) {
+                                pluginsForAllReplicas.start(cfg, pm, executor, meterRegistry, purgeWorker,
+                                                            projectInitializer).join();
+                            }
                         }
+                        serverHealth.setHealthy(true);
                     }
                 } catch (Exception e) {
                     Exceptions.throwUnsafely(e);
