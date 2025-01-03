@@ -78,7 +78,6 @@ public final class MetadataRolesMigrationPlugin implements Plugin {
             } catch (Exception ex) {
                 // No need to rollback because the migration is not committed. Just log the error.
                 logger.warn("Failed to migrate metadata roles of {}", name, ex);
-                return UnmodifiableFuture.completedFuture(null);
             }
         }
         logMigrationJob(context.commandExecutor());
