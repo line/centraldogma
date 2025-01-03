@@ -71,7 +71,7 @@ class CustomMirrorListenerTest {
     @RegisterExtension
     static CrudRepositoryExtension<MirrorAccessControl> repositoryExtension =
             new CrudRepositoryExtension<>(MirrorAccessControl.class, "dogma", "dogma",
-                                          "mirror_access_control");
+                                          "/mirror_access_control/");
 
     @BeforeEach
     void setUp() {
