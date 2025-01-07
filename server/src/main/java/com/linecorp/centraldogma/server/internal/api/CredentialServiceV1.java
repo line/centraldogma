@@ -70,21 +70,21 @@ public class CredentialServiceV1 extends AbstractService {
     @Get("/projects/{projectName}/credentials")
     public CompletableFuture<List<Credential>> listCredentials(User loginUser,
                                                                @Param String projectName) {
-        final CompletableFuture<List<Credential>> future = metaRepo(projectName, loginUser).credentials();
-        return credentials(loginUser, future);
+        final CompletableFuture<List<Credential>> future =
+                metaRepo(projectName, loginUser).projectCredentials();
+        return maybeMaskSecret(loginUser, future);
     }
 
-    private static CompletableFuture<List<Credential>> credentials(User loginUser,
-                                                                   CompletableFuture<List<Credential>> future) {
+    private static CompletableFuture<List<Credential>> maybeMaskSecret(
+            User loginUser,
+            CompletableFuture<List<Credential>> future) {
         if (loginUser.isSystemAdmin()) {
             return future;
         }
-        return future.thenApply(credentials -> {
-            return credentials
-                    .stream()
-                    .map(Credential::withoutSecret)
-                    .collect(toImmutableList());
-        });
+        return future.thenApply(credentials -> credentials
+                .stream()
+                .map(Credential::withoutSecret)
+                .collect(toImmutableList()));
     }
 
     /**
@@ -96,7 +96,7 @@ public class CredentialServiceV1 extends AbstractService {
     @Get("/projects/{projectName}/credentials/{id}")
     public CompletableFuture<Credential> getCredentialById(User loginUser,
                                                            @Param String projectName, @Param String id) {
-        final CompletableFuture<Credential> future = metaRepo(projectName, loginUser).credential(id);
+        final CompletableFuture<Credential> future = metaRepo(projectName, loginUser).projectCredential(id);
         if (loginUser.isSystemAdmin()) {
             return future;
         }
@@ -141,7 +141,7 @@ public class CredentialServiceV1 extends AbstractService {
     public CompletableFuture<Void> deleteCredential(@Param String projectName,
                                                     @Param String id, Author author, User user) {
         final MetaRepository metaRepository = metaRepo(projectName, user);
-        return metaRepository.credential(id).thenCompose(credential -> {
+        return metaRepository.projectCredential(id).thenCompose(credential -> {
             // credential exists.
             final Command<CommitResult> command =
                     Command.push(author, projectName, metaRepository.name(),
@@ -182,8 +182,8 @@ public class CredentialServiceV1 extends AbstractService {
                                                                    @Param String projectName,
                                                                    Repository repository) {
         final CompletableFuture<List<Credential>> future =
-                metaRepo(projectName, loginUser).credentials(repository.name());
-        return credentials(loginUser, future);
+                metaRepo(projectName, loginUser).repoCredentials(repository.name());
+        return maybeMaskSecret(loginUser, future);
     }
 
     /**
@@ -198,7 +198,7 @@ public class CredentialServiceV1 extends AbstractService {
                                                                Repository repository,
                                                                @Param String id) {
         final CompletableFuture<Credential> future =
-                metaRepo(projectName, loginUser).credential(repository.name(), id);
+                metaRepo(projectName, loginUser).repoCredential(repository.name(), id);
         if (loginUser.isSystemAdmin()) {
             return future;
         }
@@ -257,7 +257,7 @@ public class CredentialServiceV1 extends AbstractService {
                                                         Repository repository,
                                                         @Param String id, Author author, User user) {
         final MetaRepository metaRepository = metaRepo(projectName, user);
-        return metaRepository.credential(repository.name(), id).thenCompose(credential -> {
+        return metaRepository.repoCredential(repository.name(), id).thenCompose(credential -> {
             // credential exists.
             final Command<CommitResult> command =
                     Command.push(author, projectName, metaRepository.name(),

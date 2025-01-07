@@ -60,7 +60,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
 
     private static final String PATH_CREDENTIALS = "/credentials/";
 
-    public static final String PATH_MIRRORS = "/mirrors/";
+    private static final String PATH_MIRRORS = "/mirrors/";
 
     public static boolean isMetaFile(String path) {
         return "/mirrors.json".equals(path) || "/credentials.json".equals(path) ||
@@ -126,9 +126,9 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
 
             final CompletableFuture<List<Credential>> credentials;
             if (Strings.isNullOrEmpty(c.credentialId())) {
-                credentials = credentials();
+                credentials = projectCredentials();
             } else {
-                credentials = credential(c.credentialId()).thenApply(ImmutableList::of);
+                credentials = projectCredential(c.credentialId()).thenApply(ImmutableList::of);
             }
             return credentials.thenApply(credentials0 -> {
                 final Mirror mirror = c.toMirror(parent(), credentials0);
@@ -147,7 +147,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                 return UnmodifiableFuture.completedFuture(ImmutableList.of());
             }
 
-            return credentials().thenApply(credentials -> {
+            return projectCredentials().thenApply(credentials -> {
                 try {
                     return parseMirrors(entries, credentials);
                 } catch (JsonProcessingException e) {
@@ -178,12 +178,12 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     @Override
-    public CompletableFuture<List<Credential>> credentials() {
+    public CompletableFuture<List<Credential>> projectCredentials() {
         return find(PATH_CREDENTIALS + "*.json").thenApply(entries -> credentials(entries, null));
     }
 
     @Override
-    public CompletableFuture<List<Credential>> credentials(String repoName) {
+    public CompletableFuture<List<Credential>> repoCredentials(String repoName) {
         return find("/repos/" + repoName + PATH_CREDENTIALS + "*.json").thenApply(
                 entries -> credentials(entries, repoName));
     }
@@ -204,13 +204,13 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     @Override
-    public CompletableFuture<Credential> credential(String credentialId) {
+    public CompletableFuture<Credential> projectCredential(String credentialId) {
         final String credentialFile = credentialFile(credentialId);
         return credential0(credentialFile);
     }
 
     @Override
-    public CompletableFuture<Credential> credential(String repoName, String id) {
+    public CompletableFuture<Credential> repoCredential(String repoName, String id) {
         final String credentialFile = credentialFile(repoName, id);
         return credential0(credentialFile);
     }
@@ -297,7 +297,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         checkArgument(!credential.id().isEmpty(), "Credential ID should not be empty");
 
         if (update) {
-            return credential(credential.id()).thenApply(c -> {
+            return projectCredential(credential.id()).thenApply(c -> {
                 final String summary = "Update the mirror credential '" + credential.id() + '\'';
                 return newCredentialCommand(credentialFile(credential.id()), credential, author, summary);
             });
@@ -314,7 +314,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         checkArgument(!credential.id().isEmpty(), "Credential ID should not be empty");
 
         if (update) {
-            return credential(repoName, credential.id()).thenApply(c -> {
+            return repoCredential(repoName, credential.id()).thenApply(c -> {
                 final String summary =
                         "Update the mirror credential '" + repoName + '/' + credential.id() + '\'';
                 return newCredentialCommand(
