@@ -5,25 +5,29 @@ import { useAppDispatch } from 'dogma/hooks';
 import { MdDelete } from 'react-icons/md';
 import { DeleteConfirmationModal } from 'dogma/common/components/DeleteConfirmationModal';
 
-export const DeleteMember = ({
-  projectName,
-  repoName,
-  id,
-  deleteMember,
-  isLoading,
-}: {
+type DeleteEntityProps = {
   projectName: string;
   repoName?: string;
   id: string;
-  deleteMember: (projectName: string, id: string, repoName?: string) => Promise<void>;
+  entityType: 'member' | 'token' | 'user';
+  deleteEntity: (projectName: string, id: string, repoName?: string) => Promise<void>;
   isLoading: boolean;
-}): JSX.Element => {
+};
+
+export const DeleteAppEntity = ({
+  projectName,
+  repoName,
+  id,
+  entityType,
+  deleteEntity,
+  isLoading,
+}: DeleteEntityProps): JSX.Element => {
   const { isOpen, onToggle, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
   const handleDelete = async () => {
     try {
-      await deleteMember(projectName, id, repoName);
-      dispatch(newNotification('Member deleted.', `Successfully deleted ${id}`, 'success'));
+      await deleteEntity(projectName, id, repoName);
+      dispatch(newNotification(`${entityType} deleted.`, `Successfully deleted ${id}`, 'success'));
       onClose();
     } catch (error) {
       dispatch(newNotification(`Failed to delete ${id}`, ErrorMessageParser.parse(error), 'error'));
@@ -38,8 +42,9 @@ export const DeleteMember = ({
         isOpen={isOpen}
         onClose={onClose}
         id={id}
-        type={'member'}
+        type={entityType}
         projectName={projectName}
+        repoName={repoName}
         handleDelete={handleDelete}
         isLoading={isLoading}
       />

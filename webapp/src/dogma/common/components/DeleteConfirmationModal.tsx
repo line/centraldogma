@@ -32,6 +32,7 @@ interface DeleteConfirmationModalProps {
   type: string;
   id: string;
   projectName?: string;
+  repoName?: string;
   handleDelete: () => void;
   isLoading: boolean;
 }
@@ -42,9 +43,16 @@ export const DeleteConfirmationModal = ({
   id,
   type,
   projectName,
+  repoName,
   handleDelete,
   isLoading,
 }: DeleteConfirmationModalProps): JSX.Element => {
+  let from;
+  if (repoName) {
+    from = ` from ${repoName}`;
+  } else if (projectName) {
+    from = ` from ${projectName}`;
+  }
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <ModalOverlay />
@@ -52,7 +60,7 @@ export const DeleteConfirmationModal = ({
         <ModalHeader>Are you sure?</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          Delete {type} {`'${id}'`} {projectName ? `from ${projectName}` : ''}?
+          Delete {type} &apos;{id}&apos;{from}?
         </ModalBody>
         <ModalFooter>
           <HStack spacing={3}>

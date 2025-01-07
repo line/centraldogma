@@ -25,8 +25,8 @@ import { FileContentDto } from 'dogma/features/file/FileContentDto';
 import { RevisionDto } from 'dogma/features/history/RevisionDto';
 import { TokenDto } from 'dogma/features/token/TokenDto';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import { DeleteUserRepositoryRoleDto } from 'dogma/features/repo/roles/DeleteUserRepositoryRoleDto';
-import { AddUserRepositoryRoleDto } from 'dogma/features/repo/roles/AddUserRepositoryRoleDto';
+import { DeleteUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings/DeleteUserOrTokenRepositoryRoleDto';
+import { AddUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings/AddUserOrTokenRepositoryRoleDto';
 import { DeleteMemberDto } from 'dogma/features/project/settings/members/DeleteMemberDto';
 import { MirrorDto, MirrorRequest } from 'dogma/features/project/settings/mirrors/MirrorRequest';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
@@ -190,7 +190,7 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    addUserRepositoryRole: builder.mutation<void, AddUserRepositoryRoleDto>({
+    addUserRepositoryRole: builder.mutation<void, AddUserOrTokenRepositoryRoleDto>({
       query: ({ projectName, repoName, data }) => ({
         url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/users`,
         method: 'POST',
@@ -198,14 +198,14 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    deleteUserRepositoryRole: builder.mutation<void, DeleteUserRepositoryRoleDto>({
+    deleteUserRepositoryRole: builder.mutation<void, DeleteUserOrTokenRepositoryRoleDto>({
       query: ({ projectName, repoName, id }) => ({
         url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/users/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Metadata'],
     }),
-    addTokenRepositoryRole: builder.mutation<void, AddUserRepositoryRoleDto>({
+    addTokenRepositoryRole: builder.mutation<void, AddUserOrTokenRepositoryRoleDto>({
       query: ({ projectName, repoName, data }) => ({
         url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/tokens`,
         method: 'POST',
@@ -213,7 +213,7 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    deleteTokenRepositoryRole: builder.mutation<void, DeleteUserRepositoryRoleDto>({
+    deleteTokenRepositoryRole: builder.mutation<void, DeleteUserOrTokenRepositoryRoleDto>({
       query: ({ projectName, repoName, id }) => ({
         url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/tokens/${id}`,
         method: 'DELETE',
@@ -447,6 +447,46 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
+    getRepoCredentials: builder.query<CredentialDto[], { projectName: string; repoName: string }>({
+      query: ({ projectName, repoName }) => `/api/v1/projects/${projectName}/repos/${repoName}/credentials`,
+      providesTags: ['Metadata'],
+    }),
+    getRepoCredential: builder.query<CredentialDto, { projectName: string; id: string; repoName: string }>({
+      query: ({ projectName, id, repoName }) =>
+        `/api/v1/projects/${projectName}/repos/${repoName}/credentials/${id}`,
+      providesTags: ['Metadata'],
+    }),
+    addNewRepoCredential: builder.mutation<
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      any,
+      { projectName: string; credential: CredentialDto; repoName: string }
+    >({
+      query: ({ projectName, credential, repoName }) => ({
+        url: `/api/v1/projects/${projectName}/repos/${repoName}/credentials`,
+        method: 'POST',
+        body: credential,
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    updateRepoCredential: builder.mutation<
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      any,
+      { projectName: string; id: string; credential: CredentialDto; repoName: string }
+    >({
+      query: ({ projectName, id, credential, repoName }) => ({
+        url: `/api/v1/projects/${projectName}/repos/${repoName}/credentials/${id}`,
+        method: 'PUT',
+        body: credential,
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    deleteRepoCredential: builder.mutation({
+      query: ({ projectName, id, repoName }) => ({
+        url: `/api/v1/projects/${projectName}/repos/${repoName}/credentials/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
     getTitle: builder.query<TitleDto, void>({
       query: () => ({
         url: `/title`,
@@ -510,6 +550,11 @@ export const {
   useAddNewCredentialMutation,
   useUpdateCredentialMutation,
   useDeleteCredentialMutation,
+  useGetRepoCredentialsQuery,
+  useGetRepoCredentialQuery,
+  useAddNewRepoCredentialMutation,
+  useUpdateRepoCredentialMutation,
+  useDeleteRepoCredentialMutation,
   // Title
   useGetTitleQuery,
 } = apiSlice;

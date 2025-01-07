@@ -177,12 +177,12 @@ class DefaultMetaRepositoryWithMirrorTest {
                                   null));
             for (Credential credential : CREDENTIALS) {
                 final Command<CommitResult> command =
-                        metaRepo.createPushCommand(credential, Author.SYSTEM, false).join();
+                        metaRepo.createCredentialPushCommand(credential, Author.SYSTEM, false).join();
                 pmExtension.executor().execute(command).join();
             }
             for (MirrorRequest mirror : mirrors) {
                 final Command<CommitResult> command =
-                        metaRepo.createPushCommand(mirror, Author.SYSTEM, null, false).join();
+                        metaRepo.createMirrorPushCommand(mirror, Author.SYSTEM, null, false).join();
                 pmExtension.executor().execute(command).join();
             }
         }

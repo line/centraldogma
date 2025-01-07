@@ -7,20 +7,22 @@ import { DeleteConfirmationModal } from 'dogma/common/components/DeleteConfirmat
 
 export const DeleteCredential = ({
   projectName,
+  repoName,
   id,
   deleteCredential,
   isLoading,
 }: {
   projectName: string;
+  repoName?: string;
   id: string;
-  deleteCredential: (projectName: string, id: string) => Promise<void>;
+  deleteCredential: (projectName: string, id: string, repoName?: string) => Promise<void>;
   isLoading: boolean;
 }): JSX.Element => {
   const { isOpen, onToggle, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
   const handleDelete = async () => {
     try {
-      await deleteCredential(projectName, id);
+      await deleteCredential(projectName, id, repoName);
       dispatch(newNotification('Credential deleted.', `Successfully deleted ${id}`, 'success'));
       onClose();
     } catch (error) {
@@ -38,6 +40,7 @@ export const DeleteCredential = ({
         id={id}
         type={'credential'}
         projectName={projectName}
+        repoName={repoName}
         handleDelete={handleDelete}
         isLoading={isLoading}
       />

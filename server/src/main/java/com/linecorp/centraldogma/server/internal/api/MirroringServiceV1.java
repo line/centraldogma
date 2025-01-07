@@ -199,7 +199,7 @@ public class MirroringServiceV1 extends AbstractService {
                                                             MirrorRequest newMirror,
                                                             Author author, boolean update) {
         final MetaRepository metaRepo = metaRepo(projectName);
-        return metaRepo.createPushCommand(newMirror, author, zoneConfig, update).thenCompose(command -> {
+        return metaRepo.createMirrorPushCommand(newMirror, author, zoneConfig, update).thenCompose(command -> {
             return executor().execute(command).thenApply(result -> {
                 metaRepo.mirror(newMirror.id(), result.revision()).handle((mirror, cause) -> {
                     if (cause != null) {
