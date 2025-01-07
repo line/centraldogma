@@ -234,8 +234,7 @@ public final class MirrorSchedulingService implements MirroringService {
                                   final boolean allowed = mirrorAccessController.isAllowed(m)
                                                                                 .get(5, TimeUnit.SECONDS);
                                   if (!allowed) {
-                                      logger.debug("The mirroring from {} is not allowed. mirror: {}",
-                                                   m.remoteRepoUri(), m);
+                                      mirrorListener.onDisallowed(m);
                                       continue;
                                   }
                               } catch (Exception e) {

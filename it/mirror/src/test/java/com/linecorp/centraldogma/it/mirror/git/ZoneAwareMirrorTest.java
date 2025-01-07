@@ -236,7 +236,7 @@ class ZoneAwareMirrorTest {
                                  FOO_PROJ,
                                  "0/1 * * * * ?",
                                  "REMOTE_TO_LOCAL",
-                             BAR_REPO + '-' + (zone == null ? "default" : zone),
+                                 BAR_REPO + '-' + (zone == null ? "default" : zone),
                                  "/",
                                  "git+ssh",
                                  "github.com/line/centraldogma-authtest.git",

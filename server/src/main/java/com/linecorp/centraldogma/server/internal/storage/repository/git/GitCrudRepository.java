@@ -124,9 +124,9 @@ public final class GitCrudRepository<T> implements CrudRepository<T> {
         return targetPath + id + ".json";
     }
 
-    private static void validateId(String id) {
+    public static String validateId(String id) {
         checkArgument(!id.isEmpty(), "id is empty.");
-        Util.validateFileName(id, "id");
+        return Util.validateFileName(id, "id");
     }
 
     @Override

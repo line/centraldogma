@@ -60,6 +60,17 @@ final class CompositeMirrorListener implements MirrorListener {
     }
 
     @Override
+    public void onDisallowed(Mirror mirror) {
+        for (MirrorListener delegate : delegates) {
+            try {
+                delegate.onDisallowed(mirror);
+            } catch (Exception e) {
+                logger.warn("Failed to notify a listener of the mirror disallowed event: {}", delegate, e);
+            }
+        }
+    }
+
+    @Override
     public void onStart(MirrorTask mirrorTask) {
         for (MirrorListener delegate : delegates) {
             try {

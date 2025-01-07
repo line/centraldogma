@@ -46,6 +46,9 @@ public final class TestMirrorListener implements MirrorListener {
     public void onUpdate(Mirror mirror, MirrorAccessController accessController) {}
 
     @Override
+    public void onDisallowed(Mirror mirror) {}
+
+    @Override
     public void onStart(MirrorTask mirror) {
         startCount.merge(mirror.mirror(), 1, Integer::sum);
     }

@@ -691,7 +691,7 @@ public class CentralDogma implements AutoCloseable {
         final Function<? super HttpService, AuthService> authService =
                 authService(mds, authProvider, sessionManager);
         configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, authService,
-                         meterRegistry, pm);
+                         meterRegistry);
 
         configureMetrics(sb, meterRegistry);
         // Add the CORS service as the last decorator(executed first) so that the CORS service is applied
@@ -848,7 +848,7 @@ public class CentralDogma implements AutoCloseable {
                                   WatchService watchService, MetadataService mds,
                                   @Nullable AuthProvider authProvider,
                                   Function<? super HttpService, AuthService> authService,
-                                  MeterRegistry meterRegistry, ProjectManager pm) {
+                                  MeterRegistry meterRegistry) {
         final DependencyInjector dependencyInjector = DependencyInjector.ofSingletons(
                 // Use the default ObjectMapper without any configuration.
                 // See JacksonRequestConverterFunctionTest

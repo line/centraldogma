@@ -127,12 +127,13 @@ class MirrorAccessControlTest {
         assertThat(accessResponse.content().id()).isEqualTo("default");
 
         createMirror();
-        Thread.sleep(10000);
-        assertThat(creationCount.get("git+ssh://github.com/line/centraldogma-authtest.git"))
-                .isOne();
-
         final String listenerKey = TEST_PROJ + '/' + TEST_MIRROR_ID + '/' + Author.SYSTEM.email();
-        assertThat(startCount.get(listenerKey)).isNull();
+        await().untilAsserted(() -> {
+            assertThat(creationCount.get("git+ssh://github.com/line/centraldogma-authtest.git"))
+                    .isOne();
+
+            assertThat(startCount.get(listenerKey)).isNull();
+        });
 
         accessResponse = client.prepare()
                                .post("/api/v1/mirror/access")

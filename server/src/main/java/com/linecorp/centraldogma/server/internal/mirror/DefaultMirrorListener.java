@@ -33,12 +33,18 @@ enum DefaultMirrorListener implements MirrorListener {
 
     @Override
     public void onCreate(Mirror mirror, MirrorAccessController accessController) {
-        // Do nothing
+        logger.debug("A new mirroring from {} is created. mirror: {}", mirror.remoteRepoUri(), mirror);
     }
 
     @Override
     public void onUpdate(Mirror mirror, MirrorAccessController accessController) {
-        // Do nothing
+        logger.debug("The mirroring ID {} is updated. mirror: {}", mirror.id(), mirror);
+    }
+
+    @Override
+    public void onDisallowed(Mirror mirror) {
+        logger.debug("The mirroring from {} is not allowed. mirror: {}",
+                     mirror.remoteRepoUri(), mirror);
     }
 
     @Override

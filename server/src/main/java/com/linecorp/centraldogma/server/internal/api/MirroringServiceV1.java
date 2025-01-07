@@ -218,14 +218,12 @@ public class MirroringServiceV1 extends AbstractService {
         try {
             final MirrorListener listener = MirrorSchedulingService.mirrorListener();
             if (update) {
-                logger.debug("Notifying the mirror listener of the update event: {}", mirror);
                 listener.onUpdate(mirror, accessController);
             } else {
-                logger.debug("Notifying the mirror listener of the create event: {}", mirror);
                 listener.onCreate(mirror, accessController);
             }
         } catch (Throwable ex) {
-            logger.warn("Failed to notify the mirror listener", ex);
+            logger.warn("Failed to notify the mirror listener. (mirror: {})", mirror, ex);
         }
         return null;
     }

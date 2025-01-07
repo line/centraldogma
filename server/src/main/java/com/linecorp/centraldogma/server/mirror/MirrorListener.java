@@ -45,6 +45,11 @@ public interface MirrorListener {
     void onUpdate(Mirror mirror, MirrorAccessController accessController);
 
     /**
+     * Invoked when the {@link Mirror} operation is disallowed.
+     */
+    void onDisallowed(Mirror mirror);
+
+    /**
      * Invoked when the {@link Mirror} operation is started.
      */
     void onStart(MirrorTask mirror);

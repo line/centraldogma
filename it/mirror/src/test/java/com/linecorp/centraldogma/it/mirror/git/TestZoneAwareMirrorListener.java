@@ -57,6 +57,9 @@ public class TestZoneAwareMirrorListener implements MirrorListener {
     public void onUpdate(Mirror mirror, MirrorAccessController accessController) {}
 
     @Override
+    public void onDisallowed(Mirror mirror) {}
+
+    @Override
     public void onStart(MirrorTask mirror) {
         logger.debug("onStart: {}", mirror);
         startCount.merge(key(mirror), 1, Integer::sum);

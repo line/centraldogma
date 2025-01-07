@@ -209,7 +209,6 @@ class MirrorRunnerTest {
                                           .pathParam("proj", FOO_PROJ)
                                           .pathParam("mirrorId", TEST_MIRROR_ID)
                                           .execute();
-        // Mirror execution should be forbidden.
         assertThat(mirrorResponse.status()).isEqualTo(HttpStatus.OK);
     }
 

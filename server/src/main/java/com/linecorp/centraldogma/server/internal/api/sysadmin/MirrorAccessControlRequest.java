@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api.sysadmin;
 
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitCrudRepository.validateId;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -39,7 +40,7 @@ public final class MirrorAccessControlRequest {
                                       @JsonProperty("allow") boolean allow,
                                       @JsonProperty("description") String description,
                                       @JsonProperty("order") int order) {
-        this.id = requireNonNull(id, "id");
+        this.id = validateId(id);
         // Validate the target pattern.
         try {
             Pattern.compile(targetPattern);

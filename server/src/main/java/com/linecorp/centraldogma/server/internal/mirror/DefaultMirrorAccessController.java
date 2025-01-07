@@ -39,7 +39,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.HasRevision;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 
-public class DefaultMirrorAccessController implements MirrorAccessController {
+public final class DefaultMirrorAccessController implements MirrorAccessController {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultMirrorAccessController.class);
 
@@ -89,7 +89,7 @@ public class DefaultMirrorAccessController implements MirrorAccessController {
         final Author author = Author.SYSTEM;
         final MirrorAccessControl accessControl =
                 new MirrorAccessControl(idGenerator.generateId().toString(), targetPattern, true,
-                                        reason, 0, UserAndTimestamp.of(author));
+                                        reason, order, UserAndTimestamp.of(author));
         logger.info("Allowing the target pattern: {}", accessControl);
         // If there is a duplicate target pattern, the order will be considered first.
         // If the order is the same, the latest one will be considered first.
@@ -101,7 +101,7 @@ public class DefaultMirrorAccessController implements MirrorAccessController {
         final Author author = Author.SYSTEM;
         final MirrorAccessControl accessControl =
                 new MirrorAccessControl(idGenerator.generateId().toString(), targetPattern, false,
-                                        reason, 0, UserAndTimestamp.of(author));
+                                        reason, order, UserAndTimestamp.of(author));
         logger.info("Disallowing the target pattern: {}", accessControl);
         return repository().save(accessControl, author).thenApply(unused -> true);
     }
@@ -140,6 +140,7 @@ public class DefaultMirrorAccessController implements MirrorAccessController {
             if (acl.isEmpty()) {
                 // If there is no access control, it is allowed by default.
                 return Streams.stream(repoUris)
+                              .distinct()
                               .collect(toImmutableMap(uri -> uri, uri -> true));
             }
 

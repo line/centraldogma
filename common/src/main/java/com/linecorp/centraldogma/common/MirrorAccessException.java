@@ -28,4 +28,11 @@ public final class MirrorAccessException extends MirrorException {
     public MirrorAccessException(String message) {
         super(message);
     }
+
+    /**
+     * Creates a new instance.
+     */
+    public MirrorAccessException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

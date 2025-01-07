@@ -58,6 +58,9 @@ public class TestMirrorRunnerListener implements MirrorListener {
     }
 
     @Override
+    public void onDisallowed(Mirror mirror) {}
+
+    @Override
     public void onStart(MirrorTask mirror) {
         startCount.merge(key(mirror), 1, Integer::sum);
     }
