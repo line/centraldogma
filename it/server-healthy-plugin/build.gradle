@@ -1,0 +1,5 @@
+// Need a dedicated module for testing the com.linecorp.centraldogma.it.ServerHealthyTest$HealthCheckingPlugin
+
+dependencies {
+    testImplementation project(':server')
+}
