@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -29,7 +29,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.linecorp.armeria.server.saml.KeyStoreCredentialResolverBuilder;
 import com.linecorp.armeria.server.saml.SamlServiceProvider;
 import com.linecorp.armeria.server.saml.SamlServiceProviderBuilder;
-import com.linecorp.centraldogma.server.auth.AuthConfig;
+import com.linecorp.centraldogma.server.auth.AuthConfigSpec;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
 import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
@@ -73,14 +73,14 @@ public final class SamlAuthProviderFactory implements AuthProviderFactory {
         }
     }
 
-    private static SamlAuthProperties getProperties(AuthConfig authConfig) {
+    private static SamlAuthProperties getProperties(AuthConfigSpec authConfig) {
         try {
             final SamlAuthProperties p = authConfig.properties(SamlAuthProperties.class);
             checkState(p != null, "authentication properties are not specified");
             return p;
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("Failed to get properties from " +
-                                               AuthConfig.class.getSimpleName(), e);
+                                               authConfig.getClass().getSimpleName(), e);
         }
     }
 

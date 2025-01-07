@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -29,6 +29,7 @@ import com.google.common.collect.Maps;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.ConfigValueConverter;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
+import com.linecorp.centraldogma.server.auth.AuthConfigSpec;
 
 class AuthenticationDeserializationTest {
 
@@ -51,7 +52,7 @@ class AuthenticationDeserializationTest {
                               "       \"entityId\": \"dogma-saml\", " +
                               "       \"uri\": \"https://dogma.com/signon\"" +
                               "}}}}", SamlAuthProviderFactory.class.getName());
-        final AuthConfig authConfig = Jackson.readValue(jsonConfig, ParentConfig.class).authConfig;
+        final AuthConfigSpec authConfig = Jackson.readValue(jsonConfig, ParentConfig.class).authConfig;
         final SamlAuthProperties properties = authConfig.properties(SamlAuthProperties.class);
         assertThat(properties.keyStore().password()).isEqualTo("foo1");
         assertThat(properties.keyStore().keyPasswords()).containsOnly(Maps.immutableEntry("dogma", "bar1"));
@@ -77,7 +78,7 @@ class AuthenticationDeserializationTest {
     }
 
     static class ParentConfig {
-        private final AuthConfig authConfig;
+        private final AuthConfigSpec authConfig;
 
         @JsonCreator
         ParentConfig(@JsonProperty("authentication") AuthConfig authConfig) {

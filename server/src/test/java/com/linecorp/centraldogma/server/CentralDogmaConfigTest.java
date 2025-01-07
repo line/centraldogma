@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -38,7 +38,7 @@ class CentralDogmaConfigTest {
 
     @Test
     void trustedProxyAddress_withCustomClientAddressSources() throws Exception {
-        final CentralDogmaConfig cfg =
+        final CentralDogmaConfigSpec cfg =
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +
                                   "  \"ports\": [\n" +
@@ -84,7 +84,7 @@ class CentralDogmaConfigTest {
 
     @Test
     void trustedProxyAddress_withDefaultClientAddressSources() throws Exception {
-        final CentralDogmaConfig cfg =
+        final CentralDogmaConfigSpec cfg =
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +
                                   "  \"ports\": [\n" +
@@ -121,7 +121,7 @@ class CentralDogmaConfigTest {
 
     @Test
     void trustedProxyAddress_withDefaultClientAddressSources_withoutProxyProtocol() throws Exception {
-        final CentralDogmaConfig cfg =
+        final CentralDogmaConfigSpec cfg =
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +
                                   "  \"ports\": [\n" +
@@ -153,7 +153,7 @@ class CentralDogmaConfigTest {
 
     @Test
     void noTrustedProxyAddress() throws Exception {
-        final CentralDogmaConfig cfg =
+        final CentralDogmaConfigSpec cfg =
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +
                                   "  \"ports\": [\n" +
@@ -178,7 +178,7 @@ class CentralDogmaConfigTest {
 
     @Test
     void maxRemovedRepositoryAgeMillis() throws Exception {
-        final CentralDogmaConfig cfg =
+        final CentralDogmaConfigSpec cfg =
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +
                                   "  \"ports\": [\n" +
@@ -202,7 +202,7 @@ class CentralDogmaConfigTest {
 
     @Test
     void maxRemovedRepositoryAgeMillis_withDefault() throws Exception {
-        final CentralDogmaConfig cfg =
+        final CentralDogmaConfigSpec cfg =
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +
                                   "  \"ports\": [\n" +
@@ -249,7 +249,7 @@ class CentralDogmaConfigTest {
 
     @Test
     void corsConfig_withSingleAllowOriginA_withDefaultMaxAge() throws Exception {
-        final CentralDogmaConfig cfg =
+        final CentralDogmaConfigSpec cfg =
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +
                                   "  \"ports\": [\n" +
@@ -282,7 +282,7 @@ class CentralDogmaConfigTest {
 
     @Test
     void corsConfig_withListAllowOrigins_withSpecifiedMaxAge() throws Exception {
-        final CentralDogmaConfig cfg =
+        final CentralDogmaConfigSpec cfg =
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +
                                   "  \"ports\": [\n" +

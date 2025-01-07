@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -20,13 +20,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
-import java.text.ParseException;
 import java.util.Set;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
-
-import org.quartz.CronExpression;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -40,23 +37,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 /**
  * An authentication configuration for the Central Dogma server.
  */
-public final class AuthConfig {
-    /**
-     * A default session timeout in milliseconds.
-     */
-    public static final long DEFAULT_SESSION_TIMEOUT_MILLIS = 604800000;   // 7 days
-
-    /**
-     * A default specification for a session cache.
-     */
-    public static final String DEFAULT_SESSION_CACHE_SPEC =
-            // Expire after the duration of session timeout.
-            "maximumSize=8192,expireAfterWrite=" + (DEFAULT_SESSION_TIMEOUT_MILLIS / 1000) + 's';
-
-    /**
-     * A default schedule for validating sessions at 0:30, 4:30, 8:30, 12:30, 16:30 and 20:30 for every day.
-     */
-    public static final String DEFAULT_SESSION_VALIDATION_SCHEDULE = "0 30 */4 ? * *";
+public final class AuthConfig implements AuthConfigSpec {
 
     private final AuthProviderFactory factory;
 
@@ -131,7 +112,7 @@ public final class AuthConfig {
         checkArgument(sessionTimeoutMillis > 0,
                       "sessionTimeoutMillis: %s (expected: > 0)", sessionTimeoutMillis);
         this.sessionTimeoutMillis = sessionTimeoutMillis;
-        this.sessionValidationSchedule = validateSchedule(
+        this.sessionValidationSchedule = AuthConfigSpec.validateSchedule(
                 requireNonNull(sessionValidationSchedule, "sessionValidationSchedule"));
         this.properties = properties;
     }
@@ -139,14 +120,13 @@ public final class AuthConfig {
     /**
      * Returns the {@link AuthProviderFactory}.
      */
+    @Override
     public AuthProviderFactory factory() {
         return factory;
     }
 
-    /**
-     * Returns the class name of the {@link AuthProviderFactory}.
-     */
     @JsonProperty
+    @Override
     public String factoryClassName() {
         return factory.getClass().getName();
     }
@@ -155,63 +135,42 @@ public final class AuthConfig {
      * Returns the usernames of the users with system administrator rights.
      */
     @JsonProperty
+    @Override
     public Set<String> systemAdministrators() {
         return systemAdministrators;
     }
 
-    /**
-     * Returns whether login names are case-sensitive.
-     */
     @JsonProperty
+    @Override
     public boolean caseSensitiveLoginNames() {
         return caseSensitiveLoginNames;
     }
 
-    /**
-     * Returns the spec of the session cache.
-     */
     @JsonProperty
+    @Override
     public String sessionCacheSpec() {
         return sessionCacheSpec;
     }
 
-    /**
-     * Returns the timeout of an inactive session in milliseconds.
-     */
     @JsonProperty
+    @Override
     public long sessionTimeoutMillis() {
         return sessionTimeoutMillis;
     }
 
-    /**
-     * Returns the cron expression that describes how often session validation task should run.
-     */
     @JsonProperty
+    @Override
     public String sessionValidationSchedule() {
         return sessionValidationSchedule;
     }
 
-    /**
-     * Returns the additional properties given to the {@link AuthProviderFactory}.
-     */
     @Nullable
-    @JsonProperty
-    public JsonNode properties() {
-        return properties;
-    }
-
-    /**
-     * Returns the additional properties, converted to {@code T}.
-     */
-    @Nullable
+    @Override
     public <T> T properties(Class<T> clazz) throws JsonProcessingException {
         return properties != null ? Jackson.treeToValue(properties, clazz) : null;
     }
 
-    /**
-     * Returns a {@link Function} which normalizes a login name based on the
-     * {@link AuthConfig#caseSensitiveLoginNames()} property.
-     */
+    @Override
     public Function<String, String> loginNameNormalizer() {
         return caseSensitiveLoginNames() ? Function.identity() : Ascii::toLowerCase;
     }
@@ -222,15 +181,6 @@ public final class AuthConfig {
             return Jackson.writeValueAsPrettyString(this);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
-        }
-    }
-
-    private static String validateSchedule(String sessionValidationSchedule) {
-        try {
-            CronExpression.validateExpression(sessionValidationSchedule);
-            return sessionValidationSchedule;
-        } catch (ParseException e) {
-            throw new IllegalArgumentException("Invalid session validation schedule", e);
         }
     }
 }

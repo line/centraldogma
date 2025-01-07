@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -21,7 +21,7 @@ import java.util.function.Function;
 
 import org.apache.shiro.config.Ini;
 
-import com.linecorp.centraldogma.server.auth.AuthConfig;
+import com.linecorp.centraldogma.server.auth.AuthConfigSpec;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
 import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
@@ -31,7 +31,7 @@ import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
  */
 public final class ShiroAuthProviderFactory implements AuthProviderFactory {
 
-    private final Function<AuthConfig, Ini> iniConfigResolver;
+    private final Function<AuthConfigSpec, Ini> iniConfigResolver;
 
     /**
      * Creates a new instance with the default {@link Ini} config resolver.
@@ -43,7 +43,7 @@ public final class ShiroAuthProviderFactory implements AuthProviderFactory {
     /**
      * Creates a new instance with the specified {@code iniConfigResolver}.
      */
-    public ShiroAuthProviderFactory(Function<AuthConfig, Ini> iniConfigResolver) {
+    public ShiroAuthProviderFactory(Function<AuthConfigSpec, Ini> iniConfigResolver) {
         this.iniConfigResolver = requireNonNull(iniConfigResolver, "iniConfigResolver");
     }
 
@@ -57,7 +57,7 @@ public final class ShiroAuthProviderFactory implements AuthProviderFactory {
                                      parameters.logoutSessionPropagator());
     }
 
-    private static Ini fromConfig(AuthConfig cfg) {
+    private static Ini fromConfig(AuthConfigSpec cfg) {
         try {
             final String iniPath = cfg.properties(String.class);
             return Ini.fromResourcePath(iniPath);

@@ -15,10 +15,10 @@
  */
 package com.linecorp.centraldogma.server.plugin;
 
-import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.CentralDogmaConfigSpec;
 
 /**
- * A Base class for {@link Plugin} whose {@link #target(CentralDogmaConfig)} is
+ * A Base class for {@link Plugin} whose {@link #target(CentralDogmaConfigSpec)} is
  * {@link PluginTarget#ALL_REPLICAS}.
  */
 public abstract class AllReplicasPlugin implements Plugin {
@@ -29,7 +29,7 @@ public abstract class AllReplicasPlugin implements Plugin {
     public void init(PluginInitContext pluginInitContext) {}
 
     @Override
-    public final PluginTarget target(CentralDogmaConfig config) {
+    public final PluginTarget target(CentralDogmaConfigSpec config) {
         return PluginTarget.ALL_REPLICAS;
     }
 }

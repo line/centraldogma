@@ -29,14 +29,11 @@ import com.linecorp.centraldogma.server.plugin.AbstractPluginConfig;
 /**
  * A mirroring service plugin configuration.
  */
-public final class MirroringServicePluginConfig extends AbstractPluginConfig {
+public final class MirroringServicePluginConfig extends AbstractPluginConfig
+        implements MirroringServicePluginConfigSpec {
 
     public static final MirroringServicePluginConfig INSTANCE =
             new MirroringServicePluginConfig(true, null, null, null, false);
-
-    static final int DEFAULT_NUM_MIRRORING_THREADS = 16;
-    static final int DEFAULT_MAX_NUM_FILES_PER_MIRROR = 8192;
-    static final long DEFAULT_MAX_NUM_BYTES_PER_MIRROR = 32 * 1048576; // 32 MiB
 
     private final int numMirroringThreads;
     private final int maxNumFilesPerMirror;
@@ -73,26 +70,20 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
         this.zonePinned = zonePinned;
     }
 
-    /**
-     * Returns the number of mirroring threads.
-     */
     @JsonProperty
+    @Override
     public int numMirroringThreads() {
         return numMirroringThreads;
     }
 
-    /**
-     * Returns the maximum allowed number of files per mirror.
-     */
     @JsonProperty
+    @Override
     public int maxNumFilesPerMirror() {
         return maxNumFilesPerMirror;
     }
 
-    /**
-     * Returns the maximum allowed number of bytes per mirror.
-     */
     @JsonProperty
+    @Override
     public long maxNumBytesPerMirror() {
         return maxNumBytesPerMirror;
     }

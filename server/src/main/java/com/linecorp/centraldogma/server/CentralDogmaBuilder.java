@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -17,9 +17,6 @@
 package com.linecorp.centraldogma.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_CACHE_SPEC;
-import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_TIMEOUT_MILLIS;
-import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_VALIDATION_SCHEDULE;
 import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
@@ -46,6 +43,7 @@ import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
+import com.linecorp.centraldogma.server.auth.AuthConfigSpec;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
 import com.linecorp.centraldogma.server.auth.Session;
@@ -120,9 +118,9 @@ public final class CentralDogmaBuilder {
     private AuthProviderFactory authProviderFactory;
     private final ImmutableSet.Builder<String> systemAdministrators = new Builder<>();
     private boolean caseSensitiveLoginNames;
-    private String sessionCacheSpec = DEFAULT_SESSION_CACHE_SPEC;
-    private long sessionTimeoutMillis = DEFAULT_SESSION_TIMEOUT_MILLIS;
-    private String sessionValidationSchedule = DEFAULT_SESSION_VALIDATION_SCHEDULE;
+    private String sessionCacheSpec = AuthConfigSpec.DEFAULT_SESSION_CACHE_SPEC;
+    private long sessionTimeoutMillis = AuthConfigSpec.DEFAULT_SESSION_TIMEOUT_MILLIS;
+    private String sessionValidationSchedule = AuthConfigSpec.DEFAULT_SESSION_VALIDATION_SCHEDULE;
     @Nullable
     private Object authProviderProperties;
     private int writeQuota;
@@ -446,7 +444,7 @@ public final class CentralDogmaBuilder {
     /**
      * Sets the cache specification which determines the capacity and behavior of the cache for
      * {@link Session} of the server. See {@link CaffeineSpec} for the syntax of the spec.
-     * If unspecified, the default cache spec of {@value AuthConfig#DEFAULT_SESSION_CACHE_SPEC}
+     * If unspecified, the default cache spec of {@value AuthConfigSpec#DEFAULT_SESSION_CACHE_SPEC}
      * is used.
      */
     public CentralDogmaBuilder sessionCacheSpec(String sessionCacheSpec) {
@@ -456,7 +454,7 @@ public final class CentralDogmaBuilder {
 
     /**
      * Sets the session timeout for administrative web application, in milliseconds.
-     * If unspecified, {@value AuthConfig#DEFAULT_SESSION_TIMEOUT_MILLIS} is used.
+     * If unspecified, {@value AuthConfigSpec#DEFAULT_SESSION_TIMEOUT_MILLIS} is used.
      */
     public CentralDogmaBuilder sessionTimeoutMillis(long sessionTimeoutMillis) {
         this.sessionTimeoutMillis = sessionTimeoutMillis;
@@ -465,7 +463,7 @@ public final class CentralDogmaBuilder {
 
     /**
      * Sets the session timeout for administrative web application.
-     * If unspecified, {@value AuthConfig#DEFAULT_SESSION_TIMEOUT_MILLIS} is used.
+     * If unspecified, {@value AuthConfigSpec#DEFAULT_SESSION_TIMEOUT_MILLIS} is used.
      */
     public CentralDogmaBuilder sessionTimeout(Duration sessionTimeout) {
         return sessionTimeoutMillis(
@@ -474,7 +472,7 @@ public final class CentralDogmaBuilder {
 
     /**
      * Sets a schedule for validating sessions.
-     * If unspecified, {@value AuthConfig#DEFAULT_SESSION_VALIDATION_SCHEDULE} is used.
+     * If unspecified, {@value AuthConfigSpec#DEFAULT_SESSION_VALIDATION_SCHEDULE} is used.
      */
     public CentralDogmaBuilder sessionValidationSchedule(String sessionValidationSchedule) {
         this.sessionValidationSchedule =

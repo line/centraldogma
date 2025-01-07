@@ -32,9 +32,7 @@ import com.linecorp.armeria.server.management.ManagementService;
 /**
  * A configuration for the {@link ManagementService}.
  */
-public final class ManagementConfig {
-    private static final String DEFAULT_PROTOCOL = "http";
-    private static final String DEFAULT_PATH = "/internal/management";
+public final class ManagementConfig implements ManagementConfigSpec {
 
     private final SessionProtocol protocol;
     private final @Nullable String address;
@@ -70,34 +68,26 @@ public final class ManagementConfig {
         this.path = firstNonNull(path, DEFAULT_PATH);
     }
 
-    /**
-     * Returns the protocol of the management service.
-     */
     @JsonProperty("protocol")
+    @Override
     public SessionProtocol protocol() {
         return protocol;
     }
 
-    /**
-     * Returns the address of the management service.
-     */
     @JsonProperty("address")
+    @Override
     public @Nullable String address() {
         return address;
     }
 
-    /**
-     * Returns the port of the management service.
-     */
     @JsonProperty("port")
+    @Override
     public int port() {
         return port;
     }
 
-    /**
-     * Returns the path of the management service.
-     */
     @JsonProperty("path")
+    @Override
     public String path() {
         return path;
     }

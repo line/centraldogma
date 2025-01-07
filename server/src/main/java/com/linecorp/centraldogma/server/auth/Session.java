@@ -53,11 +53,23 @@ public final class Session {
      * @param sessionValidDuration the {@link Duration} that this session is valid
      */
     public Session(String id, String username, Duration sessionValidDuration) {
+        this(id, username, sessionValidDuration, null);
+    }
+
+    /**
+     * Creates a new {@link Session} instance.
+     *
+     * @param id the session ID
+     * @param username the name of the user which belongs to this session
+     * @param sessionValidDuration the {@link Duration} that this session is valid
+     * @param rawSession the serializable session object which is specific to authentication provider
+     */
+    public Session(String id, String username, Duration sessionValidDuration, Serializable rawSession) {
         this.id = requireNonNull(id, "id");
         this.username = requireNonNull(username, "username");
         creationTime = Instant.now();
         expirationTime = creationTime.plus(requireNonNull(sessionValidDuration, "sessionValidDuration"));
-        rawSession = null;
+        this.rawSession = rawSession;
     }
 
     /**
@@ -132,7 +144,7 @@ public final class Session {
      * @throws NullPointerException if the {@code rawSession} is {@code null}
      * @throws ClassCastException if the {@code rawSession} cannot be casted to {@code T}
      */
-    <T> T castRawSession() {
+    public <T> T castRawSession() {
         return Util.unsafeCast(requireNonNull(rawSession, "rawSession"));
     }
 

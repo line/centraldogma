@@ -51,6 +51,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.deser.InstantDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.InstantSerializer;
+import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.jayway.jsonpath.Configuration;
@@ -79,7 +80,8 @@ public final class Jackson {
         prettyMapper.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
 
         registerModules(new SimpleModule().addSerializer(Instant.class, InstantSerializer.INSTANCE)
-                                          .addDeserializer(Instant.class, InstantDeserializer.INSTANT));
+                                          .addDeserializer(Instant.class, InstantDeserializer.INSTANT),
+                        new KotlinModule.Builder().build());
     }
 
     private static final JsonFactory compactFactory = new JsonFactory(compactMapper);

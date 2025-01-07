@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -46,6 +46,7 @@ import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
+import com.linecorp.centraldogma.server.ZooKeeperServerConfigSpec;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.testing.internal.FlakyTest;
@@ -80,7 +81,7 @@ class ReplicationWriteQuotaTest extends WriteQuotaTestBase {
         final int port2 = InstanceSpec.getRandomPort();
         final int port3 = InstanceSpec.getRandomPort();
 
-        final Map<Integer, ZooKeeperServerConfig> servers = randomServerConfigs(3);
+        final Map<Integer, ZooKeeperServerConfigSpec> servers = randomServerConfigs(3);
 
         final CompletableFuture<Void> r1 = startNewReplicaWithRetries(port1, 1, servers);
         final CompletableFuture<Void> r2 = startNewReplicaWithRetries(port2, 2, servers);
@@ -101,8 +102,8 @@ class ReplicationWriteQuotaTest extends WriteQuotaTestBase {
                 .build();
     }
 
-    private static Map<Integer, ZooKeeperServerConfig> randomServerConfigs(int numReplicas) {
-        final ImmutableMap.Builder<Integer, ZooKeeperServerConfig> builder =
+    private static Map<Integer, ZooKeeperServerConfigSpec> randomServerConfigs(int numReplicas) {
+        final ImmutableMap.Builder<Integer, ZooKeeperServerConfigSpec> builder =
                 ImmutableMap.builderWithExpectedSize(numReplicas);
         for (int i = 0; i < numReplicas; i++) {
             final int zkQuorumPort = InstanceSpec.getRandomPort();
@@ -116,7 +117,7 @@ class ReplicationWriteQuotaTest extends WriteQuotaTestBase {
     }
 
     private static CompletableFuture<Void> startNewReplicaWithRetries(
-            int port, int serverId, Map<Integer, ZooKeeperServerConfig> servers) throws IOException {
+            int port, int serverId, Map<Integer, ZooKeeperServerConfigSpec> servers) throws IOException {
         final AtomicReference<CompletableFuture<Void>> futureRef = new AtomicReference<>();
         await().pollInSameThread().pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
             assertThatCode(() -> {
@@ -127,7 +128,7 @@ class ReplicationWriteQuotaTest extends WriteQuotaTestBase {
     }
 
     private static CompletableFuture<Void> startNewReplica(
-            int port, int serverId, Map<Integer, ZooKeeperServerConfig> servers) throws IOException {
+            int port, int serverId, Map<Integer, ZooKeeperServerConfigSpec> servers) throws IOException {
         return new CentralDogmaBuilder(tempDir.newFolder().toFile())
                 .port(port, SessionProtocol.HTTP)
                 .systemAdministrators(TestAuthMessageUtil.USERNAME)

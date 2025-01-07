@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -35,7 +35,7 @@ import com.google.errorprone.annotations.MustBeClosed;
 /**
  * TLS configuration.
  */
-public final class TlsConfig {
+public final class TlsConfig implements TlsConfigSpec {
 
     @Nullable
     private final File keyCertChainFile;
@@ -103,18 +103,14 @@ public final class TlsConfig {
         return keyFile;
     }
 
-    /**
-     * Returns an {@link InputStream} of the certificate chain.
-     */
     @MustBeClosed
+    @Override
     public InputStream keyCertChainInputStream() {
         return inputStream(keyCertChainFile, keyCertChain, "keyCertChain");
     }
 
-    /**
-     * Returns an {@link InputStream} of the private key.
-     */
     @MustBeClosed
+    @Override
     public InputStream keyInputStream() {
         return inputStream(keyFile, key, "key");
     }
@@ -138,11 +134,9 @@ public final class TlsConfig {
         return new ByteArrayInputStream(converted.getBytes());
     }
 
-    /**
-     * Returns a password for the private key file. Return {@code null} if no password is set.
-     */
     @JsonProperty
     @Nullable
+    @Override
     public String keyPassword() {
         return convertValue(keyPassword, "tls.keyPassword");
     }

@@ -1,0 +1,104 @@
+---
+central-dogma:
+  dataDir: "./data"
+  ports:
+    - local-address:
+        host: '*'
+        port: 36462
+      protocols:
+        - http
+  num-repository-workers: 16
+  repository-cache-spec: "maximumWeight=134217728,expireAfterAccess=5m"
+  graceful-shutdown-timeout:
+    quiet-period-millis: 1000
+    timeout-millis: 10000
+  web-app-enabled: true
+  replication:
+    method: ZOOKEEPER
+    secret: secretKey
+    servers:
+      '1':
+        host: 127.0.0.1
+        quorumPort: 2030
+        electionPort: 2345
+        clientPort: 2345
+        groupId: null
+        weight: 1
+  access-log-format: common
+  pluginConfigs:
+    - enabled: true
+      type: com.linecorp.centraldogma.config.MirroringServicePluginConfig
+      num-mirroring-threads: 10
+      max-num-files-per-mirror: 10
+  authentication:
+    administrators: [ "test@linecorp.com" ]
+    factoryClassName: com.linecorp.centraldogma.server.auth.saml.SamlAuthProviderFactory
+    properties:
+      entityId: https://dogma.com
+      hostname: dogma.com
+      signatureAlgorithm: http://www.w3.org/2000/09/xmldsig#rsa-sha1
+      samlMetadata: |-
+        Bag Attributes
+            friendlyName: encryption
+            localKeyID: 54 69 6D 65 20 31 37 32 37 32 33 31 35 36 33 35 34 34 
+        subject=C=Unknown, ST=Unknown, L=Unknown, O=Unknown, OU=Unknown, CN=Unknown
+        issuer=C=Unknown, ST=Unknown, L=Unknown, O=Unknown, OU=Unknown, CN=Unknown
+        -----BEGIN CERTIFICATE-----
+        MIIDdzCCAl+gAwIBAgIEbiT6NTANBgkqhkiG9w0BAQUFADBsMRAwDgYDVQQGEwdV
+        bmtub3duMRAwDgYDVQQIEwdVbmtub3duMRAwDgYDVQQHEwdVbmtub3duMRAwDgYD
+        VQQKEwdVbmtub3duMRAwDgYDVQQLEwdVbmtub3duMRAwDgYDVQQDEwdVbmtub3du
+        MB4XDTE4MTAwNTA2MjcyNVoXDTE5MDEwMzA2MjcyNVowbDEQMA4GA1UEBhMHVW5r
+        bm93bjEQMA4GA1UECBMHVW5rbm93bjEQMA4GA1UEBxMHVW5rbm93bjEQMA4GA1UE
+        ChMHVW5rbm93bjEQMA4GA1UECxMHVW5rbm93bjEQMA4GA1UEAxMHVW5rbm93bjCC
+        ASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAK9V1vYacLGyBk3owicRYamd
+        ttk/VJ0Y79BhjJobpMCeP8oyqiLNoeQXh3q5MI3YRSrSewtJKweun1E2rNHWveuk
+        6+wIEtJ4HChAorNLkI4R0OG99Qe/kltRsr3Q1GDycuAFi9jWTN221S40Zj9kIadn
+        3dtwXUrg2gSIdFW7+mhTuODKRzBaZAO/5OZN7600ZL9j7IjtldpIZCum3FIIXTQD
+        6z88Ymfbgs8eMQzNmXvC04ULWjgD5KzbJX5W2df1Yg3a4QJBcTIyD2NBJKL1410R
+        t4/tHd7bhcJ+MXU23qShWkxThP8n4akFZ38uslNQeI86F2wWT5uxyrsFmVXtAqMC
+        AwEAAaMhMB8wHQYDVR0OBBYEFLKyum/cqOwnnMFJdc9SRa9j5H8oMA0GCSqGSIb3
+        DQEBBQUAA4IBAQBYLxmsaljw9qLFxWBjaQBKv1xSzQIwL01zaXntkS7zhffhdElS
+        fn9ril18N32M6K/l4wkjY57tUXNyDr6WsYouP+Xv8FilwVM3GKW6Jj3ED5rtkRzr
+        jWU1t4Si8rLSVClIRw/4UTy7BLonhE47DI/3jGIC60jxrE8fomtHeusioXn1NYfK
+        Qvrfjd0ZldhBz1ZEU7Dlx6+vQ4YfonFUWDByUJUobF6NIWP+kmdRVV6fX4fP6+Yq
+        ciPzN59IELyxvnvCSBvuE8ihIzT6zg5bundOU+ATOvTIe+94tXmFwU3+0ifHdmas
+        fAzZ+eEXN6iz7yZLHLQg5FuRUjvJRWQmSkfe
+        -----END CERTIFICATE-----
+        Bag Attributes
+            friendlyName: signing
+            localKeyID: 54 69 6D 65 20 31 37 32 37 32 33 31 35 36 33 36 33 33 
+        subject=C=Unknown, ST=Unknown, L=Unknown, O=Unknown, OU=Unknown, CN=Unknown
+        issuer=C=Unknown, ST=Unknown, L=Unknown, O=Unknown, OU=Unknown, CN=Unknown
+        -----BEGIN CERTIFICATE-----
+        MIIDdzCCAl+gAwIBAgIEIXeHCDANBgkqhkiG9w0BAQUFADBsMRAwDgYDVQQGEwdV
+        bmtub3duMRAwDgYDVQQIEwdVbmtub3duMRAwDgYDVQQHEwdVbmtub3duMRAwDgYD
+        VQQKEwdVbmtub3duMRAwDgYDVQQLEwdVbmtub3duMRAwDgYDVQQDEwdVbmtub3du
+        MB4XDTE4MTAwNTA2Mjc0M1oXDTE5MDEwMzA2Mjc0M1owbDEQMA4GA1UEBhMHVW5r
+        bm93bjEQMA4GA1UECBMHVW5rbm93bjEQMA4GA1UEBxMHVW5rbm93bjEQMA4GA1UE
+        ChMHVW5rbm93bjEQMA4GA1UECxMHVW5rbm93bjEQMA4GA1UEAxMHVW5rbm93bjCC
+        ASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKubyc0G4ekrNBd131G1+WCS
+        QIMLYhunLfUjz+46PngDWWt7nS21RbHvV8eDirpc3wEuEfTYP4FpwF6etTHB92u6
+        X+1oSboiMfx3EiEDA+3ziBinzhBP9lL6Xd8x0v7hPCTtlWrwBY5RMSkvBT5N4khX
+        APQwCgYmwK2UBoTEPcr3O/s2ysbnpu4fa5SAX1mxQhUAeZMRgG7j05jP9Np8KoIH
+        W0zPsF4W+n+09pbG5JYOgVFkM1gVc56PmTUwFa+4D6Wqq/LyRowkXvjyWPoAE6JI
+        jbFhu2UTMKpL6kA9j/48b/ixULOblfV6ahB+kA9Pw9kjMAgcXUTm6hRepmu+gTcC
+        AwEAAaMhMB8wHQYDVR0OBBYEFDXaz1aatlHvzZi355hb+PHMtlK4MA0GCSqGSIb3
+        DQEBBQUAA4IBAQCXcCcwTpj2bWMzrxJOv1YScPT/KzRNlj3Bu6bKh4UW3//wwfO4
+        1uUhiYL9ont+EFCX6qtxbrWz16fahklaHKIc4AlKvwplwAqw2FUlNKhztmDDC0UM
+        as9o/TUs9rIthOofrfho8FeLULsiKQbZjwSp2o81xooIElBxilkXin+5GjyTQIlL
+        COMJngk/mFdOP5oCvAXVI3YsISgUsDFmR1A1vO0oiUKZY2evruMb7O+Pk2JieyJZ
+        AYI29mmfoDtaBH9pb1OpqEs1dpkTT1EkM51qOQv0wDGV7cksPOHqBNnJHzc9oyuW
+        tCaFCVVxUeL48EUfHU3efqCMw9ba++1LlYAp
+        -----END CERTIFICATE-----
+      idp:
+        entityId: dogma-saml
+        uri: https://dogma.com/signon
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  endpoint:
+    health:
+      probes:
+        enabled: true

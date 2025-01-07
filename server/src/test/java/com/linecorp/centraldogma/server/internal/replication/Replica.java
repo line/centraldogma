@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -38,8 +38,10 @@ import org.apache.curator.test.InstanceSpec;
 import com.linecorp.armeria.common.prometheus.PrometheusMeterRegistries;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.QuotaConfig;
+import com.linecorp.centraldogma.server.QuotaConfigSpec;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
-import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
+import com.linecorp.centraldogma.server.ZooKeeperReplicationConfigSpec;
+import com.linecorp.centraldogma.server.ZooKeeperServerConfigSpec;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
@@ -56,7 +58,7 @@ final class Replica {
     private final MeterRegistry meterRegistry;
     private final CompletableFuture<Void> startFuture;
 
-    Replica(InstanceSpec spec, Map<Integer, ZooKeeperServerConfig> servers,
+    Replica(InstanceSpec spec, Map<Integer, ZooKeeperServerConfigSpec> servers,
             Function<Command<?>, CompletableFuture<?>> delegate,
             @Nullable QuotaConfig writeQuota, boolean start) {
         this.delegate = delegate;
@@ -65,7 +67,7 @@ final class Replica {
         meterRegistry = PrometheusMeterRegistries.newRegistry();
 
         final int id = spec.getServerId();
-        final ZooKeeperReplicationConfig zkCfg = new ZooKeeperReplicationConfig(id, servers);
+        final ZooKeeperReplicationConfigSpec zkCfg = new ZooKeeperReplicationConfig(id, servers);
 
         commandExecutor = new ZooKeeperCommandExecutor(
                 zkCfg, dataDir, new AbstractCommandExecutor(null, null, null, null) {
@@ -75,7 +77,7 @@ final class Replica {
             }
 
             @Override
-            public void setWriteQuota(String projectName, String repoName, QuotaConfig writeQuota) {}
+            public void setWriteQuota(String projectName, String repoName, QuotaConfigSpec writeQuota) {}
 
             @Override
             protected void doStart(

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -23,6 +23,7 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
+import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
@@ -61,7 +62,7 @@ public final class ControlPlanePlugin extends AllReplicasPlugin {
     }
 
     @Override
-    public Class<?> configType() {
+    public Class<? extends PluginConfig> configType() {
         return ControlPlanePluginConfig.class;
     }
 

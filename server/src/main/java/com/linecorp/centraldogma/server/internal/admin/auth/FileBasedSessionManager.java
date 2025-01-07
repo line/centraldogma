@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.auth.AuthConfig;
+import com.linecorp.centraldogma.server.auth.AuthConfigSpec;
 import com.linecorp.centraldogma.server.auth.AuthException;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionManager;
@@ -61,7 +61,7 @@ import com.linecorp.centraldogma.server.auth.SessionManager;
 /**
  * A {@link SessionManager} based on the file system. The sessions stored in the file system would be
  * deleted when the {@link #delete(String)} method is called or when the {@link ExpiredSessionDeletingJob}
- * finds the expired session. The {@link AuthConfig#sessionValidationSchedule()} can configure
+ * finds the expired session. The {@link AuthConfigSpec#sessionValidationSchedule()} can configure
  * the schedule for deleting expired sessions.
  */
 public final class FileBasedSessionManager implements SessionManager {
