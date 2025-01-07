@@ -180,7 +180,7 @@ public class MirroringServiceV1 extends AbstractService {
                                                             MirrorDto newMirror,
                                                             Author author, boolean update) {
         return metaRepo(projectName)
-                .createPushCommand(newMirror, author, zoneConfig, update).thenCompose(command -> {
+                .createMirrorPushCommand(newMirror, author, zoneConfig, update).thenCompose(command -> {
                     return executor().execute(command).thenApply(result -> {
                         return new PushResultDto(result.revision(), command.timestamp());
                     });

@@ -184,7 +184,9 @@ class XdsKubernetesServiceTest {
         assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
         assertThatJson(response.contentUtf8())
                 .node("grpc-code").isEqualTo("INVALID_ARGUMENT")
-                .node("message").isEqualTo("failed to find credential 'invalid-credential-id' in @xds/meta");
+                .node("message").isEqualTo(
+                        "failed to find credential file " +
+                        "'/credentials/invalid-credential-id.json' in @xds/meta");
     }
 
     @Test

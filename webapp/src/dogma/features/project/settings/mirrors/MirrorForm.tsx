@@ -132,6 +132,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
     defaultValue.remoteScheme,
     defaultValue.credentialId,
     defaultValue.direction,
+    defaultValue.zone,
   ]);
 
   const defaultRemoteScheme: OptionType = defaultValue.remoteScheme

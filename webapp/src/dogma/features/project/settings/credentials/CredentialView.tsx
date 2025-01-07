@@ -47,6 +47,7 @@ import { RiGitRepositoryPrivateLine } from 'react-icons/ri';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 import { CiLock } from 'react-icons/ci';
 import { FiBox } from 'react-icons/fi';
+import { GoRepo } from 'react-icons/go';
 
 const HeadRow = ({ children }: { children: ReactNode }) => (
   <Td width="250px" fontWeight="bold">
@@ -103,12 +104,13 @@ const SecretViewer = ({ dispatch, secretProvider }: SecretViewerProps) => {
 
 interface CredentialViewProps {
   projectName: string;
+  repoName?: string;
   credential: CredentialDto;
 }
 
 const AlignedIcon = ({ as }: { as: IconType }) => <Icon as={as} marginBottom="-4px" marginRight={2} />;
 
-const CredentialView = ({ projectName, credential }: CredentialViewProps) => {
+const CredentialView = ({ projectName, repoName, credential }: CredentialViewProps) => {
   const dispatch = useAppDispatch();
 
   return (
@@ -127,12 +129,21 @@ const CredentialView = ({ projectName, credential }: CredentialViewProps) => {
         <TableContainer>
           <Table fontSize={'lg'} variant="unstyled">
             <Tbody>
-              <Tr>
-                <HeadRow>
-                  <AlignedIcon as={FiBox} /> Project
-                </HeadRow>
-                <Td fontWeight="semibold">{projectName}</Td>
-              </Tr>
+              {repoName ? (
+                <Tr>
+                  <HeadRow>
+                    <AlignedIcon as={GoRepo} /> Repository
+                  </HeadRow>
+                  <Td fontWeight="semibold">{repoName}</Td>
+                </Tr>
+              ) : (
+                <Tr>
+                  <HeadRow>
+                    <AlignedIcon as={FiBox} /> Project
+                  </HeadRow>
+                  <Td fontWeight="semibold">{projectName}</Td>
+                </Tr>
+              )}
               <Tr>
                 <HeadRow>
                   <AlignedIcon as={HiOutlineIdentification} /> Credential ID
@@ -219,7 +230,9 @@ const CredentialView = ({ projectName, credential }: CredentialViewProps) => {
         </TableContainer>
 
         <Center mt={10}>
-          <Link href={`/app/projects/${projectName}/settings/credentials/${credential.id}/edit`}>
+          <Link
+            href={`/app/projects/${projectName}${repoName ? `/repos/${repoName}` : ''}/settings/credentials/${credential.id}/edit`}
+          >
             <Button colorScheme="teal">
               <EditIcon mr={2} />
               Edit Credential

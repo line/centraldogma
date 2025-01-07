@@ -51,6 +51,8 @@ const RepoMetaList = <Data extends object>({ data, projectName }: RepoListProps<
                 projectName={projectName}
                 repoName={info.getValue()}
                 hidden={info.row.original.removal !== undefined}
+                buttonVariant={'solid'}
+                buttonSize={'sm'}
               />
               <RestoreRepo
                 projectName={projectName}

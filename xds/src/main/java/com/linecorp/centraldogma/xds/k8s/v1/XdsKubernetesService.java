@@ -225,7 +225,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
             return CompletableFuture.completedFuture(configBuilder.build());
         }
 
-        return metaRepository.credential(credentialId)
+        return metaRepository.projectCredential(credentialId)
                              .thenApply(credential -> {
                                  if (!(credential instanceof AccessTokenCredential)) {
                                      throw new IllegalArgumentException(
