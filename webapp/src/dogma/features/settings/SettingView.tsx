@@ -54,7 +54,6 @@ const SettingView = ({ currentTab, children }: SettingsViewProps) => {
             <Box color={'darkred'}>
               <GrSystem />
             </Box>
-            {/*<Box color={'darkred'}>System administrator</Box>*/}
             <Box>{currentTab}</Box>
           </HStack>
         </Heading>
