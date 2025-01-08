@@ -48,7 +48,6 @@ import com.linecorp.centraldogma.server.internal.mirror.DefaultMirrorAccessContr
 import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorSchedulingService;
 import com.linecorp.centraldogma.server.mirror.Mirror;
-import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorStatus;
@@ -123,8 +122,8 @@ class CustomMirrorListenerTest {
 
         when(mr.mirrors()).thenReturn(CompletableFuture.completedFuture(ImmutableList.of(mirror)));
 
-        final MirrorAccessController ac =
-                new DefaultMirrorAccessController(repositoryExtension.crudRepository());
+        final DefaultMirrorAccessController ac = new DefaultMirrorAccessController();
+        ac.setRepository(repositoryExtension.crudRepository());
         final MirrorSchedulingService service = new MirrorSchedulingService(
                 temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null,
                 ac);

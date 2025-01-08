@@ -48,12 +48,6 @@ public final class DefaultMirrorAccessController implements MirrorAccessControll
     @Nullable
     private CrudRepository<MirrorAccessControl> repository;
 
-    public DefaultMirrorAccessController(CrudRepository<MirrorAccessControl> repository) {
-        this.repository = repository;
-    }
-
-    public DefaultMirrorAccessController() {}
-
     public void setRepository(CrudRepository<MirrorAccessControl> repository) {
         checkState(this.repository == null, "repository is already set.");
         this.repository = repository;

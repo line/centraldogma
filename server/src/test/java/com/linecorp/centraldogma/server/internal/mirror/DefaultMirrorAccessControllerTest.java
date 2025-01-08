@@ -42,7 +42,8 @@ class DefaultMirrorAccessControllerTest {
 
     @BeforeEach
     void setUp() {
-        accessController = new DefaultMirrorAccessController(repositoryExtension.crudRepository());
+        accessController = new DefaultMirrorAccessController();
+        accessController.setRepository(repositoryExtension.crudRepository());
     }
 
     @Test
