@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.api;
+package com.linecorp.centraldogma.server.internal.api.sysadmin;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.util.Objects.requireNonNull;

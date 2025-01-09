@@ -24,14 +24,14 @@ import Router, { useRouter } from 'next/router';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import React from 'react';
-import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
+import { MirrorRequest } from 'dogma/features/project/settings/mirrors/MirrorRequest';
 import MirrorForm from 'dogma/features/project/settings/mirrors/MirrorForm';
 
 const NewMirrorPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
 
-  const emptyMirror: MirrorDto = {
+  const emptyMirror: MirrorRequest = {
     id: '',
     direction: 'REMOTE_TO_LOCAL',
     schedule: '0 * * * * ?',
@@ -50,7 +50,11 @@ const NewMirrorPage = () => {
   const [addNewMirror, { isLoading }] = useAddNewMirrorMutation();
   const dispatch = useAppDispatch();
 
-  const onSubmit = async (formData: MirrorDto, onSuccess: () => void, setError: UseFormSetError<MirrorDto>) => {
+  const onSubmit = async (
+    formData: MirrorRequest,
+    onSuccess: () => void,
+    setError: UseFormSetError<MirrorRequest>,
+  ) => {
     try {
       formData.projectName = projectName;
       if (formData.remoteScheme.startsWith('git') && !formData.remoteUrl.endsWith('.git')) {

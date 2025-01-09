@@ -28,20 +28,22 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.io.Resources;
 
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
-import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlRequest;
 import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
+import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorStatus;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -55,7 +57,7 @@ class MirrorRunnerTest {
     static final String TEST_MIRROR_ID = "test-mirror";
 
     @RegisterExtension
-    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
+    CentralDogmaExtension dogma = new CentralDogmaExtension() {
 
         @Override
         protected void configure(CentralDogmaBuilder builder) {
@@ -65,20 +67,21 @@ class MirrorRunnerTest {
 
         @Override
         protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-            try {
-                final String accessToken = getAccessToken(
-                        WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
-                        USERNAME, PASSWORD);
-                builder.accessToken(accessToken);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
+            final String accessToken = getAccessToken(
+                    WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
+                    USERNAME, PASSWORD);
+            builder.accessToken(accessToken);
         }
 
         @Override
         protected void scaffold(CentralDogma client) {
             client.createProject(FOO_PROJ).join();
             client.createRepository(FOO_PROJ, BAR_REPO).join();
+        }
+
+        @Override
+        protected boolean runForEachTest() {
+            return true;
         }
     };
 
@@ -106,7 +109,7 @@ class MirrorRunnerTest {
                                  .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
 
-        final MirrorDto newMirror = newMirror();
+        final MirrorRequest newMirror = newMirror();
         response = systemAdminClient.prepare()
                                     .post("/api/v1/projects/{proj}/mirrors")
                                     .pathParam("proj", FOO_PROJ)
@@ -146,21 +149,84 @@ class MirrorRunnerTest {
         assertThat(results.get(2).mirrorStatus()).isEqualTo(MirrorStatus.UP_TO_DATE);
     }
 
-    private static MirrorDto newMirror() {
-        return new MirrorDto(TEST_MIRROR_ID,
-                             true,
-                             FOO_PROJ,
-                             null,
-                             "REMOTE_TO_LOCAL",
-                             BAR_REPO,
-                             "/",
-                             "git+ssh",
-                             "github.com/line/centraldogma-authtest.git",
-                             "/",
-                             "main",
-                             null,
-                             PRIVATE_KEY_FILE,
-                             null);
+    @Test
+    void shouldControlGitMirrorAccess() throws Exception {
+        ResponseEntity<MirrorAccessControl> accessResponse =
+                systemAdminClient.prepare()
+                                 .post("/api/v1/mirror/access")
+                                 .contentJson(new MirrorAccessControlRequest(
+                                         "default",
+                                         ".*",
+                                         false,
+                                         "disallow by default",
+                                         Integer.MAX_VALUE))
+                                 .asJson(MirrorAccessControl.class)
+                                 .execute();
+        assertThat(accessResponse.status()).isEqualTo(HttpStatus.CREATED);
+        assertThat(accessResponse.content().id()).isEqualTo("default");
+
+        final PublicKeyCredential credential = getCredential();
+        ResponseEntity<PushResultDto> response =
+                systemAdminClient.prepare()
+                                 .post("/api/v1/projects/{proj}/credentials")
+                                 .pathParam("proj", FOO_PROJ)
+                                 .contentJson(credential)
+                                 .asJson(PushResultDto.class)
+                                 .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
+
+        final MirrorRequest newMirror = newMirror();
+        response = systemAdminClient.prepare()
+                                    .post("/api/v1/projects/{proj}/mirrors")
+                                    .pathParam("proj", FOO_PROJ)
+                                    .contentJson(newMirror)
+                                    .asJson(PushResultDto.class)
+                                    .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
+
+        AggregatedHttpResponse mirrorResponse =
+                systemAdminClient.prepare()
+                                 .post("/api/v1/projects/{proj}/mirrors/{mirrorId}/run")
+                                 .pathParam("proj", FOO_PROJ)
+                                 .pathParam("mirrorId", TEST_MIRROR_ID)
+                                 .execute();
+        // Mirror execution should be forbidden.
+        assertThat(mirrorResponse.status()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        accessResponse = systemAdminClient.prepare()
+                                          .post("/api/v1/mirror/access")
+                                          .contentJson(new MirrorAccessControlRequest(
+                                                  "centraldogma-authtest",
+                                                  newMirror.remoteScheme() + "://" + newMirror.remoteUrl(),
+                                                  true,
+                                                  "allow centraldogma-authtest",
+                                                  0))
+                                          .asJson(MirrorAccessControl.class)
+                                          .execute();
+        assertThat(accessResponse.status()).isEqualTo(HttpStatus.CREATED);
+        mirrorResponse = systemAdminClient.prepare()
+                                          .post("/api/v1/projects/{proj}/mirrors/{mirrorId}/run")
+                                          .pathParam("proj", FOO_PROJ)
+                                          .pathParam("mirrorId", TEST_MIRROR_ID)
+                                          .execute();
+        assertThat(mirrorResponse.status()).isEqualTo(HttpStatus.OK);
+    }
+
+    private static MirrorRequest newMirror() {
+        return new MirrorRequest(TEST_MIRROR_ID,
+                                 true,
+                                 FOO_PROJ,
+                                 null,
+                                 "REMOTE_TO_LOCAL",
+                                 BAR_REPO,
+                                 "/",
+                                 "git+ssh",
+                                 "github.com/line/centraldogma-authtest.git",
+                                 "/",
+                                 "main",
+                                 null,
+                                 PRIVATE_KEY_FILE,
+                                 null);
     }
 
     static PublicKeyCredential getCredential() throws Exception {

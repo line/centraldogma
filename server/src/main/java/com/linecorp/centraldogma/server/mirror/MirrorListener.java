@@ -35,6 +35,21 @@ import javax.annotation.Nullable;
 public interface MirrorListener {
 
     /**
+     * Invoked when a new {@link Mirror} is created.
+     */
+    void onCreate(Mirror mirror, MirrorAccessController accessController);
+
+    /**
+     * Invoked when the {@link Mirror} is updated.
+     */
+    void onUpdate(Mirror mirror, MirrorAccessController accessController);
+
+    /**
+     * Invoked when the {@link Mirror} operation is disallowed.
+     */
+    void onDisallowed(Mirror mirror);
+
+    /**
      * Invoked when the {@link Mirror} operation is started.
      */
     void onStart(MirrorTask mirror);

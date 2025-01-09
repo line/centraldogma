@@ -24,7 +24,7 @@ import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import React from 'react';
-import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
+import { MirrorRequest } from 'dogma/features/project/settings/mirrors/MirrorRequest';
 import MirrorForm from 'dogma/features/project/settings/mirrors/MirrorForm';
 
 const MirrorEditPage = () => {
@@ -36,7 +36,7 @@ const MirrorEditPage = () => {
   const [updateMirror, { isLoading: isWaitingMutationResponse }] = useUpdateMirrorMutation();
   const dispatch = useAppDispatch();
 
-  const onSubmit = async (mirror: MirrorDto, onSuccess: () => void) => {
+  const onSubmit = async (mirror: MirrorRequest, onSuccess: () => void) => {
     try {
       mirror.projectName = projectName;
       const response = await updateMirror({ projectName, id, mirror }).unwrap();

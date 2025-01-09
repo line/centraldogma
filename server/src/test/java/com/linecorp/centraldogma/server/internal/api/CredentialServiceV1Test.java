@@ -27,7 +27,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -66,26 +65,18 @@ class CredentialServiceV1Test {
         @Override
         protected void configureHttpClient(WebClientBuilder builder) {
             // TODO(minwoox): Override accessToken to provide token to both WebClient and CentralDogma client.
-            try {
-                final String accessToken = getAccessToken(
-                        WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
-                        USERNAME, PASSWORD);
-                builder.auth(AuthToken.ofOAuth2(accessToken));
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
+            final String accessToken = getAccessToken(
+                    WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
+                    USERNAME, PASSWORD);
+            builder.auth(AuthToken.ofOAuth2(accessToken));
         }
 
         @Override
         protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-            try {
-                final String accessToken = getAccessToken(
-                        WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
-                        USERNAME, PASSWORD);
-                builder.accessToken(accessToken);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
+            final String accessToken = getAccessToken(
+                    WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
+                    USERNAME, PASSWORD);
+            builder.accessToken(accessToken);
         }
 
         @Override

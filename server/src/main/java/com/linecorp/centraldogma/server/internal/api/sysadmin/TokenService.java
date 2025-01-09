@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2024 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.api;
+package com.linecorp.centraldogma.server.internal.api.sysadmin;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
@@ -48,6 +48,8 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.api.AbstractService;
+import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.metadata.MetadataService;

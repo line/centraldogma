@@ -48,7 +48,7 @@ import { useGetCredentialsQuery, useGetMirrorConfigQuery, useGetReposQuery } fro
 import React, { useMemo, useState } from 'react';
 import FieldErrorMessage from 'dogma/common/components/form/FieldErrorMessage';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
-import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
+import { MirrorRequest } from 'dogma/features/project/settings/mirrors/MirrorRequest';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 import { FiBox } from 'react-icons/fi';
 import cronstrue from 'cronstrue';
@@ -56,8 +56,12 @@ import { CiLocationOn } from 'react-icons/ci';
 
 interface MirrorFormProps {
   projectName: string;
-  defaultValue: MirrorDto;
-  onSubmit: (mirror: MirrorDto, onSuccess: () => void, setError: UseFormSetError<MirrorDto>) => Promise<void>;
+  defaultValue: MirrorRequest;
+  onSubmit: (
+    mirror: MirrorRequest,
+    onSuccess: () => void,
+    setError: UseFormSetError<MirrorRequest>,
+  ) => Promise<void>;
   isWaitingResponse: boolean;
 }
 
@@ -82,7 +86,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
     setValue,
     control,
     watch,
-  } = useForm<MirrorDto>({
+  } = useForm<MirrorRequest>({
     defaultValues: defaultValue,
   });
 

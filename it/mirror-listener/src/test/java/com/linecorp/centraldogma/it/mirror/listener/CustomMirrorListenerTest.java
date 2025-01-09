@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.cronutils.model.Cron;
@@ -43,6 +44,8 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.mirror.AbstractMirror;
+import com.linecorp.centraldogma.server.internal.mirror.DefaultMirrorAccessController;
+import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorSchedulingService;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
@@ -52,6 +55,7 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.testing.internal.CrudRepositoryExtension;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
@@ -62,6 +66,11 @@ class CustomMirrorListenerTest {
 
     @TempDir
     static File temporaryFolder;
+
+    @RegisterExtension
+    static CrudRepositoryExtension<MirrorAccessControl> repositoryExtension =
+            new CrudRepositoryExtension<>(MirrorAccessControl.class, "dogma", "dogma",
+                                          "/mirror_access_control/");
 
     @BeforeEach
     void setUp() {
@@ -113,8 +122,11 @@ class CustomMirrorListenerTest {
 
         when(mr.mirrors()).thenReturn(CompletableFuture.completedFuture(ImmutableList.of(mirror)));
 
+        final DefaultMirrorAccessController ac = new DefaultMirrorAccessController();
+        ac.setRepository(repositoryExtension.crudRepository());
         final MirrorSchedulingService service = new MirrorSchedulingService(
-                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null);
+                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null,
+                ac);
         final CommandExecutor executor = mock(CommandExecutor.class);
         service.start(executor);
 

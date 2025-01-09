@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LINE Corporation
+ * Copyright 2025 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,21 +14,25 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.api;
+package com.linecorp.centraldogma.common;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+/**
+ * A {@link MirrorException} raised when failed to access to the remote repository for mirroring.
+ */
+public final class MirrorAccessException extends MirrorException {
+    private static final long serialVersionUID = 6673537965128335081L;
 
-public final class TokenLevelRequest {
-    private final String level;
-
-    @JsonCreator
-    public TokenLevelRequest(@JsonProperty("level") String level) {
-        this.level = level;
+    /**
+     * Creates a new instance.
+     */
+    public MirrorAccessException(String message) {
+        super(message);
     }
 
-    @JsonProperty
-    String level() {
-        return level;
+    /**
+     * Creates a new instance.
+     */
+    public MirrorAccessException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

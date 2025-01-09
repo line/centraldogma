@@ -20,6 +20,7 @@ import ProjectSearchBox from 'dogma/common/components/ProjectSearchBox';
 const HomePage = () => {
   return (
     <div>
+      <title>Central Dogma</title>
       <VStack spacing={4} align="center">
         <Heading as="h1" marginTop="20" marginBottom="20">
           Welcome to Central Dogma!

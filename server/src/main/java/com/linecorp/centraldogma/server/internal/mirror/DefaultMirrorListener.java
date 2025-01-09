@@ -19,6 +19,8 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.mirror.MirrorListener;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorTask;
@@ -28,6 +30,22 @@ enum DefaultMirrorListener implements MirrorListener {
     INSTANCE;
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultMirrorListener.class);
+
+    @Override
+    public void onCreate(Mirror mirror, MirrorAccessController accessController) {
+        logger.debug("A new mirroring from {} is created. mirror: {}", mirror.remoteRepoUri(), mirror);
+    }
+
+    @Override
+    public void onUpdate(Mirror mirror, MirrorAccessController accessController) {
+        logger.debug("The mirroring ID {} is updated. mirror: {}", mirror.id(), mirror);
+    }
+
+    @Override
+    public void onDisallowed(Mirror mirror) {
+        logger.debug("The mirroring from {} is not allowed. mirror: {}",
+                     mirror.remoteRepoUri(), mirror);
+    }
 
     @Override
     public void onStart(MirrorTask mirrorTask) {

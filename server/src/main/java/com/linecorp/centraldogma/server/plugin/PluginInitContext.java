@@ -26,6 +26,7 @@ import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -48,8 +49,10 @@ public final class PluginInitContext extends PluginContext {
                              MeterRegistry meterRegistry,
                              ScheduledExecutorService purgeWorker, ServerBuilder serverBuilder,
                              Function<? super HttpService, AuthService> authService,
-                             InternalProjectInitializer projectInitializer) {
-        super(config, projectManager, commandExecutor, meterRegistry, purgeWorker, projectInitializer);
+                             InternalProjectInitializer projectInitializer,
+                             MirrorAccessController mirrorAccessController) {
+        super(config, projectManager, commandExecutor, meterRegistry, purgeWorker, projectInitializer,
+              mirrorAccessController);
         this.serverBuilder = requireNonNull(serverBuilder, "serverBuilder");
         this.authService = requireNonNull(authService, "authService");
     }

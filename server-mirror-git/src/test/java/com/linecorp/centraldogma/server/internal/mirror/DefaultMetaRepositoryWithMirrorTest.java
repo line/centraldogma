@@ -42,7 +42,7 @@ import com.google.common.collect.ImmutableList;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
@@ -169,10 +169,10 @@ class DefaultMetaRepositoryWithMirrorTest {
             metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", mirrors).join();
             metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", UPSERT_RAW_CREDENTIALS).join();
         } else {
-            final List<MirrorDto> mirrors = ImmutableList.of(
-                    new MirrorDto("foo", true, project.name(), DEFAULT_SCHEDULE, "LOCAL_TO_REMOTE", "foo",
+            final List<MirrorRequest> mirrors = ImmutableList.of(
+                    new MirrorRequest("foo", true, project.name(), DEFAULT_SCHEDULE, "LOCAL_TO_REMOTE", "foo",
                                   "/mirrors/foo", "git+ssh", "foo.com/foo.git", "", "", null, "alice", null),
-                    new MirrorDto("bar", true, project.name(), "0 */10 * * * ?", "REMOTE_TO_LOCAL", "bar",
+                    new MirrorRequest("bar", true, project.name(), "0 */10 * * * ?", "REMOTE_TO_LOCAL", "bar",
                                   "", "git+ssh", "bar.com/bar.git", "/some-path", "develop", null, "bob",
                                   null));
             for (Credential credential : CREDENTIALS) {
@@ -180,7 +180,7 @@ class DefaultMetaRepositoryWithMirrorTest {
                         metaRepo.createCredentialPushCommand(credential, Author.SYSTEM, false).join();
                 pmExtension.executor().execute(command).join();
             }
-            for (MirrorDto mirror : mirrors) {
+            for (MirrorRequest mirror : mirrors) {
                 final Command<CommitResult> command =
                         metaRepo.createMirrorPushCommand(mirror, Author.SYSTEM, null, false).join();
                 pmExtension.executor().execute(command).join();

@@ -27,6 +27,8 @@ import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_API_ROUTE
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_PATH;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_API_ROUTES;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_PATH;
+import static com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlService.MIRROR_ACCESS_CONTROL_PATH;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -140,19 +142,24 @@ import com.linecorp.centraldogma.server.internal.api.MetadataApiService;
 import com.linecorp.centraldogma.server.internal.api.MirroringServiceV1;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
 import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
-import com.linecorp.centraldogma.server.internal.api.SystemAdministrativeService;
-import com.linecorp.centraldogma.server.internal.api.TokenService;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRoleDecorator.RequiresProjectRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRoleDecorator.RequiresRepositoryRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlService;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.ServerStatusService;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.TokenService;
+import com.linecorp.centraldogma.server.internal.mirror.DefaultMirrorAccessController;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
+import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
+import com.linecorp.centraldogma.server.internal.storage.repository.CrudRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
+import com.linecorp.centraldogma.server.internal.storage.repository.git.GitCrudRepository;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTranslator;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutScheduler;
@@ -166,6 +173,7 @@ import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -256,6 +264,8 @@ public class CentralDogma implements AutoCloseable {
     private InternalProjectInitializer projectInitializer;
     @Nullable
     private volatile MirrorRunner mirrorRunner;
+    @Nullable
+    private volatile DefaultMirrorAccessController mirrorAccessController;
 
     CentralDogma(CentralDogmaConfig cfg, MeterRegistry meterRegistry, List<Plugin> plugins) {
         this.cfg = requireNonNull(cfg, "cfg");
@@ -458,7 +468,8 @@ public class CentralDogma implements AutoCloseable {
             if (pluginsForLeaderOnly != null) {
                 logger.info("Starting plugins on the leader replica ..");
                 pluginsForLeaderOnly
-                        .start(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer)
+                        .start(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer,
+                               mirrorAccessController)
                         .handle((unused, cause) -> {
                             if (cause == null) {
                                 logger.info("Started plugins on the leader replica.");
@@ -473,7 +484,8 @@ public class CentralDogma implements AutoCloseable {
         final Consumer<CommandExecutor> onReleaseLeadership = exec -> {
             if (pluginsForLeaderOnly != null) {
                 logger.info("Stopping plugins on the leader replica ..");
-                pluginsForLeaderOnly.stop(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer)
+                pluginsForLeaderOnly.stop(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer,
+                                          mirrorAccessController)
                                     .handle((unused, cause) -> {
                                         if (cause == null) {
                                             logger.info("Stopped plugins on the leader replica.");
@@ -495,7 +507,8 @@ public class CentralDogma implements AutoCloseable {
             onTakeZoneLeadership = exec -> {
                 logger.info("Starting plugins on the {} zone leader replica ..", zone);
                 pluginsForZoneLeaderOnly
-                        .start(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer)
+                        .start(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer,
+                               mirrorAccessController)
                         .handle((unused, cause) -> {
                             if (cause == null) {
                                 logger.info("Started plugins on the {} zone leader replica.", zone);
@@ -508,7 +521,8 @@ public class CentralDogma implements AutoCloseable {
             };
             onReleaseZoneLeadership = exec -> {
                 logger.info("Stopping plugins on the {} zone leader replica ..", zone);
-                pluginsForZoneLeaderOnly.stop(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer)
+                pluginsForZoneLeaderOnly.stop(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer,
+                                              mirrorAccessController)
                                         .handle((unused, cause) -> {
                                             if (cause == null) {
                                                 logger.info("Stopped plugins on the {} zone leader replica.",
@@ -544,6 +558,7 @@ public class CentralDogma implements AutoCloseable {
                 throw new Error("unknown replication method: " + replicationMethod);
         }
         projectInitializer = new InternalProjectInitializer(executor, pm);
+        mirrorAccessController = new DefaultMirrorAccessController();
 
         final ServerStatus initialServerStatus = statusManager.serverStatus();
         executor.setWritable(initialServerStatus.writable());
@@ -570,6 +585,11 @@ public class CentralDogma implements AutoCloseable {
             // Trigger the exception if any.
             startFuture.get();
             projectInitializer.initialize();
+            final CrudRepository<MirrorAccessControl> accessControlRepository =
+                    new GitCrudRepository<>(MirrorAccessControl.class, executor, pm,
+                                            INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
+                                            MIRROR_ACCESS_CONTROL_PATH);
+            mirrorAccessController.setRepository(accessControlRepository);
         } catch (Exception e) {
             projectInitializer.whenInitialized().complete(null);
             logger.warn("Failed to start the command executor. Entering read-only.", e);
@@ -693,7 +713,7 @@ public class CentralDogma implements AutoCloseable {
         if (pluginsForAllReplicas != null) {
             final PluginInitContext pluginInitContext =
                     new PluginInitContext(config(), pm, executor, meterRegistry, purgeWorker, sb,
-                                          authService, projectInitializer);
+                                          authService, projectInitializer, mirrorAccessController);
             pluginsForAllReplicas.plugins()
                                  .forEach(p -> {
                                      if (!(p instanceof AllReplicasPlugin)) {
@@ -860,15 +880,19 @@ public class CentralDogma implements AutoCloseable {
         assert statusManager != null;
         final ContextPathServicesBuilder apiV1ServiceBuilder = sb.contextPath(API_V1_PATH_PREFIX);
         apiV1ServiceBuilder
-                .annotatedService(new SystemAdministrativeService(executor, statusManager))
+                .annotatedService(new ServerStatusService(executor, statusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
                 .annotatedService(new RepositoryServiceV1(executor, mds))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor));
 
         if (GIT_MIRROR_ENABLED) {
-            mirrorRunner = new MirrorRunner(projectApiManager, executor, cfg, meterRegistry);
-            apiV1ServiceBuilder.annotatedService(new MirroringServiceV1(projectApiManager, executor,
-                                                                        mirrorRunner, cfg));
+            mirrorRunner = new MirrorRunner(projectApiManager, executor, cfg, meterRegistry,
+                                            mirrorAccessController);
+
+            apiV1ServiceBuilder
+                    .annotatedService(new MirroringServiceV1(projectApiManager, executor, mirrorRunner, cfg,
+                                                             mirrorAccessController))
+                    .annotatedService(new MirrorAccessControlService(executor, mirrorAccessController));
         }
 
         apiV1ServiceBuilder.annotatedService()
@@ -1214,7 +1238,7 @@ public class CentralDogma implements AutoCloseable {
                             final MeterRegistry meterRegistry = CentralDogma.this.meterRegistry;
                             if (pm != null && executor != null && meterRegistry != null) {
                                 pluginsForAllReplicas.start(cfg, pm, executor, meterRegistry, purgeWorker,
-                                                            projectInitializer).join();
+                                                            projectInitializer, mirrorAccessController).join();
                             }
                         }
                         serverHealth.setHealthy(true);
@@ -1234,7 +1258,7 @@ public class CentralDogma implements AutoCloseable {
                     final MeterRegistry meterRegistry = CentralDogma.this.meterRegistry;
                     if (pm != null && executor != null && meterRegistry != null) {
                         pluginsForAllReplicas.stop(cfg, pm, executor, meterRegistry, purgeWorker,
-                                                   projectInitializer).join();
+                                                   projectInitializer, mirrorAccessController).join();
                     }
                 }
                 CentralDogma.this.doStop();
