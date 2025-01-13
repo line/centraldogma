@@ -44,6 +44,7 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.credential.Credential;
@@ -70,14 +71,10 @@ class MirroringAndCredentialServiceV1Test {
 
         @Override
         protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-            try {
-                final String accessToken = getAccessToken(
-                        WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
-                        USERNAME, PASSWORD);
-                builder.accessToken(accessToken);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
+            final String accessToken = getAccessToken(
+                    WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
+                    USERNAME, PASSWORD);
+            builder.accessToken(accessToken);
         }
 
         @Override
@@ -118,22 +115,22 @@ class MirroringAndCredentialServiceV1Test {
     }
 
     private void rejectInvalidRepositoryUri() {
-        final MirrorDto newMirror =
-                new MirrorDto("invalid-mirror",
-                              true,
-                              FOO_PROJ,
-                              "5 * * * * ?",
-                              "REMOTE_TO_LOCAL",
-                              BAR_REPO,
-                              "/local-path/1/",
-                              "git+https",
-                              // Expect github.com/line/centraldogma-authtest.git
-                              "github.com:line/centraldogma-authtest.git",
-                              "/remote-path/1",
-                              "mirror-branch",
-                              ".my-env0\n.my-env1",
-                              "public-key-credential",
-                              null);
+        final MirrorRequest newMirror =
+                new MirrorRequest("invalid-mirror",
+                                  true,
+                                  FOO_PROJ,
+                                  "5 * * * * ?",
+                                  "REMOTE_TO_LOCAL",
+                                  BAR_REPO,
+                                  "/local-path/1/",
+                                  "git+https",
+                                  // Expect github.com/line/centraldogma-authtest.git
+                                  "github.com:line/centraldogma-authtest.git",
+                                  "/remote-path/1",
+                                  "mirror-branch",
+                                  ".my-env0\n.my-env1",
+                                  "public-key-credential",
+                                  null);
         final AggregatedHttpResponse response =
                 userClient.prepare()
                           .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
@@ -274,7 +271,7 @@ class MirroringAndCredentialServiceV1Test {
 
     private void createAndReadMirror() {
         for (int i = 0; i < 3; i++) {
-            final MirrorDto newMirror = newMirror("mirror-" + i);
+            final MirrorRequest newMirror = newMirror("mirror-" + i);
             final ResponseEntity<PushResultDto> response0 =
                     userClient.prepare()
                               .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
@@ -293,24 +290,27 @@ class MirroringAndCredentialServiceV1Test {
                               .asJson(MirrorDto.class)
                               .execute();
             final MirrorDto savedMirror = response1.content();
-            assertThat(savedMirror).isEqualTo(newMirror);
+            assertThat(savedMirror)
+                    .usingRecursiveComparison()
+                    .ignoringFields("allow")
+                    .isEqualTo(newMirror);
         }
 
         // Make sure that the mirror with a port number in the remote URL can be created and read.
-        final MirrorDto mirrorWithPort = new MirrorDto("mirror-with-port-3",
-                                               true,
-                                               FOO_PROJ,
-                                               "5 * * * * ?",
-                                               "REMOTE_TO_LOCAL",
-                                               BAR_REPO,
-                                               "/updated/local-path/",
-                                               "git+https",
-                                               "git.com:922/line/centraldogma-test.git",
-                                               "/updated/remote-path/",
-                                               "updated-mirror-branch",
-                                               ".updated-env",
-                                               "public-key-credential",
-                                               null);
+        final MirrorRequest mirrorWithPort = new MirrorRequest("mirror-with-port-3",
+                                                               true,
+                                                               FOO_PROJ,
+                                                               "5 * * * * ?",
+                                                               "REMOTE_TO_LOCAL",
+                                                               BAR_REPO,
+                                                               "/updated/local-path/",
+                                                               "git+https",
+                                                               "git.com:922/line/centraldogma-test.git",
+                                                               "/updated/remote-path/",
+                                                               "updated-mirror-branch",
+                                                               ".updated-env",
+                                                               "public-key-credential",
+                                                               null);
 
         final ResponseEntity<PushResultDto> response0 =
                 userClient.prepare()
@@ -330,24 +330,27 @@ class MirroringAndCredentialServiceV1Test {
                           .asJson(MirrorDto.class)
                           .execute();
         final MirrorDto savedMirror = response1.content();
-        assertThat(savedMirror).isEqualTo(mirrorWithPort);
+        assertThat(savedMirror)
+                .usingRecursiveComparison()
+                .ignoringFields("allow")
+                .isEqualTo(mirrorWithPort);
     }
 
     private void updateMirror() {
-        final MirrorDto mirror = new MirrorDto("mirror-2",
-                                               true,
-                                               FOO_PROJ,
-                                               "5 * * * * ?",
-                                               "REMOTE_TO_LOCAL",
-                                               BAR_REPO,
-                                               "/updated/local-path/",
-                                               "git+https",
-                                               "github.com/line/centraldogma-updated.git",
-                                               "/updated/remote-path/",
-                                               "updated-mirror-branch",
-                                               ".updated-env",
-                                               "access-token-credential",
-                                               null);
+        final MirrorRequest mirror = new MirrorRequest("mirror-2",
+                                                       true,
+                                                       FOO_PROJ,
+                                                       "5 * * * * ?",
+                                                       "REMOTE_TO_LOCAL",
+                                                       BAR_REPO,
+                                                       "/updated/local-path/",
+                                                       "git+https",
+                                                       "github.com/line/centraldogma-updated.git",
+                                                       "/updated/remote-path/",
+                                                       "updated-mirror-branch",
+                                                       ".updated-env",
+                                                       "access-token-credential",
+                                                       null);
         final ResponseEntity<PushResultDto> updateResponse =
                 userClient.prepare()
                           .put("/api/v1/projects/{proj}/repos/{repo}/mirrors/{id}")
@@ -367,7 +370,10 @@ class MirroringAndCredentialServiceV1Test {
                           .asJson(MirrorDto.class)
                           .execute();
         final MirrorDto savedMirror = fetchResponse.content();
-        assertThat(savedMirror).isEqualTo(mirror);
+        assertThat(savedMirror)
+                .usingRecursiveComparison()
+                .ignoringFields("allow")
+                .isEqualTo(mirror);
     }
 
     private void deleteMirror() {
@@ -408,20 +414,20 @@ class MirroringAndCredentialServiceV1Test {
                 .isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    private static MirrorDto newMirror(String id) {
-        return new MirrorDto(id,
-                             true,
-                             FOO_PROJ,
-                             "5 * * * * ?",
-                             "REMOTE_TO_LOCAL",
-                             BAR_REPO,
-                             "/local-path/" + id + '/',
-                             "git+https",
-                             "github.com/line/centraldogma-authtest.git",
-                             "/remote-path/" + id + '/',
-                             "mirror-branch",
-                             ".my-env0\n.my-env1",
-                             "public-key-credential",
-                             null);
+    private static MirrorRequest newMirror(String id) {
+        return new MirrorRequest(id,
+                                 true,
+                                 FOO_PROJ,
+                                 "5 * * * * ?",
+                                 "REMOTE_TO_LOCAL",
+                                 BAR_REPO,
+                                 "/local-path/" + id + '/',
+                                 "git+https",
+                                 "github.com/line/centraldogma-authtest.git",
+                                 "/remote-path/" + id + '/',
+                                 "mirror-branch",
+                                 ".my-env0\n.my-env1",
+                                 "public-key-credential",
+                                 null);
     }
 }

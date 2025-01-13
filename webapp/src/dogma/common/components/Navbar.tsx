@@ -76,10 +76,12 @@ export const Navbar = () => {
   const topMenus: TopMenu[] = [
     { name: title, path: '/' },
     { name: 'Projects', path: '/app/projects' },
+    { name: 'Settings', path: '/app/settings' },
   ];
 
   return (
     <Box bg={useColorModeValue('gray.100', 'gray.900')} px={4}>
+      <title>{title}</title>
       <Flex h={16} alignItems="center" justifyContent="space-between" fontWeight="semibold">
         <IconButton
           size="md"

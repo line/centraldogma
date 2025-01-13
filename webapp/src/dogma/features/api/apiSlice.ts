@@ -25,12 +25,16 @@ import { FileContentDto } from 'dogma/features/file/FileContentDto';
 import { RevisionDto } from 'dogma/features/history/RevisionDto';
 import { TokenDto } from 'dogma/features/token/TokenDto';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import { DeleteUserRepositoryRoleDto } from 'dogma/features/repo/roles/DeleteUserRepositoryRoleDto';
-import { AddUserRepositoryRoleDto } from 'dogma/features/repo/roles/AddUserRepositoryRoleDto';
+import { DeleteUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings/DeleteUserOrTokenRepositoryRoleDto';
+import { AddUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings/AddUserOrTokenRepositoryRoleDto';
 import { DeleteMemberDto } from 'dogma/features/project/settings/members/DeleteMemberDto';
-import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorDto';
+import { MirrorDto, MirrorRequest } from 'dogma/features/project/settings/mirrors/MirrorRequest';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 import { MirrorResult } from '../mirror/MirrorResult';
+import {
+  MirrorAccessControl,
+  MirrorAccessControlRequest,
+} from 'dogma/features/settings/mirror-access/MirrorAccessControl';
 
 export type ApiAction<Arg, Result> = {
   (arg: Arg): { unwrap: () => Promise<Result> };
@@ -98,7 +102,7 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  tagTypes: ['Project', 'Metadata', 'Repo', 'File', 'Token'],
+  tagTypes: ['Project', 'Metadata', 'Repo', 'File', 'Token', 'Mirror'],
   endpoints: (builder) => ({
     getProjects: builder.query<ProjectDto[], GetProjects>({
       async queryFn(arg, _queryApi, _extraOptions, fetchWithBQ) {
@@ -186,7 +190,7 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    addUserRepositoryRole: builder.mutation<void, AddUserRepositoryRoleDto>({
+    addUserRepositoryRole: builder.mutation<void, AddUserOrTokenRepositoryRoleDto>({
       query: ({ projectName, repoName, data }) => ({
         url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/users`,
         method: 'POST',
@@ -194,14 +198,14 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    deleteUserRepositoryRole: builder.mutation<void, DeleteUserRepositoryRoleDto>({
+    deleteUserRepositoryRole: builder.mutation<void, DeleteUserOrTokenRepositoryRoleDto>({
       query: ({ projectName, repoName, id }) => ({
         url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/users/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Metadata'],
     }),
-    addTokenRepositoryRole: builder.mutation<void, AddUserRepositoryRoleDto>({
+    addTokenRepositoryRole: builder.mutation<void, AddUserOrTokenRepositoryRoleDto>({
       query: ({ projectName, repoName, data }) => ({
         url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/tokens`,
         method: 'POST',
@@ -209,7 +213,7 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    deleteTokenRepositoryRole: builder.mutation<void, DeleteUserRepositoryRoleDto>({
+    deleteTokenRepositoryRole: builder.mutation<void, DeleteUserOrTokenRepositoryRoleDto>({
       query: ({ projectName, repoName, id }) => ({
         url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/tokens/${id}`,
         method: 'DELETE',
@@ -340,7 +344,7 @@ export const apiSlice = createApi({
       providesTags: ['Metadata'],
     }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    addNewMirror: builder.mutation<any, MirrorDto>({
+    addNewMirror: builder.mutation<any, MirrorRequest>({
       query: (mirror) => ({
         url: `/api/v1/projects/${mirror.projectName}/mirrors`,
         method: 'POST',
@@ -349,7 +353,7 @@ export const apiSlice = createApi({
       invalidatesTags: ['Metadata'],
     }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    updateMirror: builder.mutation<any, { projectName: string; id: string; mirror: MirrorDto }>({
+    updateMirror: builder.mutation<any, { projectName: string; id: string; mirror: MirrorRequest }>({
       query: ({ projectName, id, mirror }) => ({
         url: `/api/v1/projects/${projectName}/mirrors/${id}`,
         method: 'PUT',
@@ -376,6 +380,39 @@ export const apiSlice = createApi({
         url: `/api/v1/mirror/config`,
         method: 'GET',
       }),
+    }),
+    getMirrorAccessControl: builder.query<MirrorAccessControl, { id: string }>({
+      query: ({ id }) => `/api/v1/mirror/access/${id}`,
+      providesTags: ['Mirror'],
+    }),
+    getMirrorAccessControls: builder.query<MirrorAccessControl[], void>({
+      query: () => `/api/v1/mirror/access`,
+      providesTags: ['Mirror'],
+    }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    addNewMirrorAccessControl: builder.mutation<any, MirrorAccessControlRequest>({
+      query: (data) => ({
+        url: `/api/v1/mirror/access`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Mirror'],
+    }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    updateMirrorAccessControl: builder.mutation<any, MirrorAccessControlRequest>({
+      query: (data) => ({
+        url: `/api/v1/mirror/access`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['Mirror'],
+    }),
+    deleteMirrorAccessControl: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/api/v1/mirror/access/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Mirror'],
     }),
     getCredentials: builder.query<CredentialDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/credentials`,
@@ -406,6 +443,46 @@ export const apiSlice = createApi({
     deleteCredential: builder.mutation({
       query: ({ projectName, id }) => ({
         url: `/api/v1/projects/${projectName}/credentials/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    getRepoCredentials: builder.query<CredentialDto[], { projectName: string; repoName: string }>({
+      query: ({ projectName, repoName }) => `/api/v1/projects/${projectName}/repos/${repoName}/credentials`,
+      providesTags: ['Metadata'],
+    }),
+    getRepoCredential: builder.query<CredentialDto, { projectName: string; id: string; repoName: string }>({
+      query: ({ projectName, id, repoName }) =>
+        `/api/v1/projects/${projectName}/repos/${repoName}/credentials/${id}`,
+      providesTags: ['Metadata'],
+    }),
+    addNewRepoCredential: builder.mutation<
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      any,
+      { projectName: string; credential: CredentialDto; repoName: string }
+    >({
+      query: ({ projectName, credential, repoName }) => ({
+        url: `/api/v1/projects/${projectName}/repos/${repoName}/credentials`,
+        method: 'POST',
+        body: credential,
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    updateRepoCredential: builder.mutation<
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      any,
+      { projectName: string; id: string; credential: CredentialDto; repoName: string }
+    >({
+      query: ({ projectName, id, credential, repoName }) => ({
+        url: `/api/v1/projects/${projectName}/repos/${repoName}/credentials/${id}`,
+        method: 'PUT',
+        body: credential,
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    deleteRepoCredential: builder.mutation({
+      query: ({ projectName, id, repoName }) => ({
+        url: `/api/v1/projects/${projectName}/repos/${repoName}/credentials/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Metadata'],
@@ -462,12 +539,22 @@ export const {
   useDeleteMirrorMutation,
   useRunMirrorMutation,
   useGetMirrorConfigQuery,
+  useGetMirrorAccessControlQuery,
+  useGetMirrorAccessControlsQuery,
+  useUpdateMirrorAccessControlMutation,
+  useAddNewMirrorAccessControlMutation,
+  useDeleteMirrorAccessControlMutation,
   // Credential
   useGetCredentialsQuery,
   useGetCredentialQuery,
   useAddNewCredentialMutation,
   useUpdateCredentialMutation,
   useDeleteCredentialMutation,
+  useGetRepoCredentialsQuery,
+  useGetRepoCredentialQuery,
+  useAddNewRepoCredentialMutation,
+  useUpdateRepoCredentialMutation,
+  useDeleteRepoCredentialMutation,
   // Title
   useGetTitleQuery,
 } = apiSlice;

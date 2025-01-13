@@ -54,7 +54,7 @@ import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.ZoneConfig;
@@ -220,7 +220,7 @@ class ZoneAwareMirrorTest {
                       .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
 
-        final MirrorDto newMirror = newMirror(zone);
+        final MirrorRequest newMirror = newMirror(zone);
         response = client.prepare()
                          .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                          .pathParam("proj", FOO_PROJ)
@@ -231,20 +231,20 @@ class ZoneAwareMirrorTest {
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
     }
 
-    private static MirrorDto newMirror(@Nullable String zone) {
-        return new MirrorDto(TEST_MIRROR_ID + '-' + (zone == null ? "default" : zone),
-                             true,
-                             FOO_PROJ,
-                             "0/1 * * * * ?",
-                             "REMOTE_TO_LOCAL",
-                             BAR_REPO + '-' + (zone == null ? "default" : zone),
-                             "/",
-                             "git+ssh",
-                             "github.com/line/centraldogma-authtest.git",
-                             "/",
-                             "main",
-                             null,
-                             PRIVATE_KEY_FILE,
-                             zone);
+    private static MirrorRequest newMirror(@Nullable String zone) {
+        return new MirrorRequest(TEST_MIRROR_ID + '-' + (zone == null ? "default" : zone),
+                                 true,
+                                 FOO_PROJ,
+                                 "0/1 * * * * ?",
+                                 "REMOTE_TO_LOCAL",
+                                 BAR_REPO + '-' + (zone == null ? "default" : zone),
+                                 "/",
+                                 "git+ssh",
+                                 "github.com/line/centraldogma-authtest.git",
+                                 "/",
+                                 "main",
+                                 null,
+                                 PRIVATE_KEY_FILE,
+                                 zone);
     }
 }

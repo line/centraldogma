@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -23,6 +24,7 @@ import static org.mockito.Mockito.when;
 import java.io.File;
 import java.net.URI;
 import java.time.Instant;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -35,10 +37,13 @@ import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.parser.CronParser;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Streams;
 
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorStatus;
@@ -94,7 +99,8 @@ class MirrorSchedulingServiceTest {
         when(mr.mirrors()).thenReturn(CompletableFuture.completedFuture(ImmutableList.of(mirror)));
 
         final MirrorSchedulingService service = new MirrorSchedulingService(
-                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null, false);
+                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null, false,
+                AlwaysAllowedMirrorAccessController.INSTANCE);
         final CommandExecutor executor = mock(CommandExecutor.class);
         service.start(executor);
 
@@ -103,6 +109,40 @@ class MirrorSchedulingServiceTest {
             await().until(() -> taskCounter.get() > 1);
         } finally {
             service.stop();
+        }
+    }
+
+    private enum AlwaysAllowedMirrorAccessController implements MirrorAccessController {
+
+        INSTANCE;
+
+        @Override
+        public CompletableFuture<Boolean> allow(String targetPattern, String reason,
+                                                int order) {
+            return UnmodifiableFuture.completedFuture(true);
+        }
+
+        @Override
+        public CompletableFuture<Boolean> disallow(String targetPattern, String reason,
+                                                   int order) {
+            return UnmodifiableFuture.completedFuture(true);
+        }
+
+        @Override
+        public CompletableFuture<Boolean> isAllowed(Mirror mirror) {
+            return UnmodifiableFuture.completedFuture(true);
+        }
+
+        @Override
+        public CompletableFuture<Boolean> isAllowed(String repoUri) {
+            return UnmodifiableFuture.completedFuture(true);
+        }
+
+        @Override
+        public CompletableFuture<Map<String, Boolean>> isAllowed(Iterable<String> repoUris) {
+            return UnmodifiableFuture.completedFuture(
+                    Streams.stream(repoUris)
+                           .collect(toImmutableMap(uri -> uri, uri -> true)));
         }
     }
 }

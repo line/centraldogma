@@ -23,6 +23,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
 
 import javax.annotation.Nullable;
@@ -128,13 +129,21 @@ public final class MirrorConfig {
     }
 
     @Nullable
-    Mirror toMirror(Project parent, Iterable<Credential> credentials) {
+    Mirror toMirror(Project parent, Map<String, List<Credential>> repoCredentials,
+                    List<Credential> projectCredentials) {
         if (!parent.repos().exists(localRepo)) {
             return null;
         }
 
+        final Credential credential = findCredential(repoCredentials, projectCredentials, localRepo,
+                                                     credentialId);
+        return toMirror(parent, credential);
+    }
+
+    Mirror toMirror(Project parent, Credential credential) {
         final MirrorContext mirrorContext = new MirrorContext(
-                id, enabled, schedule, direction, findCredential(credentials, credentialId),
+                id, enabled, schedule, direction,
+                credential,
                 parent.repos().get(localRepo), localPath, remoteUri, gitignore, zone);
         for (MirrorProvider mirrorProvider : MIRROR_PROVIDERS) {
             final Mirror mirror = mirrorProvider.newMirror(mirrorContext);
@@ -146,10 +155,22 @@ public final class MirrorConfig {
         throw new IllegalArgumentException("could not find a mirror provider for " + mirrorContext);
     }
 
-    public static Credential findCredential(Iterable<Credential> credentials,
-                                            @Nullable String credentialId) {
+    public static Credential findCredential(Map<String, List<Credential>> repoCredentials,
+                                            List<Credential> projectCredentials,
+                                            String repoName, @Nullable String credentialId) {
         if (credentialId != null) {
-            for (Credential c : credentials) {
+            // Repository credentials take precedence over project credentials.
+            final List<Credential> credentials = repoCredentials.get(repoName);
+            if (credentials != null) {
+                for (Credential c : credentials) {
+                    final String id = c.id();
+                    if (credentialId.equals(id)) {
+                        return c;
+                    }
+                }
+            }
+
+            for (Credential c : projectCredentials) {
                 final String id = c.id();
                 if (credentialId.equals(id)) {
                     return c;

@@ -22,6 +22,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -39,6 +40,7 @@ public class PluginContext {
     private final MeterRegistry meterRegistry;
     private final ScheduledExecutorService purgeWorker;
     private final InternalProjectInitializer internalProjectInitializer;
+    private final MirrorAccessController mirrorAccessController;
 
     /**
      * Creates a new instance.
@@ -48,13 +50,16 @@ public class PluginContext {
      * @param commandExecutor the executor which executes the {@link Command}s
      * @param meterRegistry the {@link MeterRegistry} of the Central Dogma server
      * @param purgeWorker the {@link ScheduledExecutorService} for the purging service
+     * @param internalProjectInitializer the initializer for the internal projects
+     * @param mirrorAccessController the controller which controls the access to the remote repos of mirrors
      */
     public PluginContext(CentralDogmaConfig config,
                          ProjectManager projectManager,
                          CommandExecutor commandExecutor,
                          MeterRegistry meterRegistry,
                          ScheduledExecutorService purgeWorker,
-                         InternalProjectInitializer internalProjectInitializer) {
+                         InternalProjectInitializer internalProjectInitializer,
+                         MirrorAccessController mirrorAccessController) {
         this.config = requireNonNull(config, "config");
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
@@ -62,6 +67,7 @@ public class PluginContext {
         this.purgeWorker = requireNonNull(purgeWorker, "purgeWorker");
         this.internalProjectInitializer = requireNonNull(internalProjectInitializer,
                                                          "internalProjectInitializer");
+        this.mirrorAccessController = requireNonNull(mirrorAccessController, "mirrorAccessController");
     }
 
     /**
@@ -104,5 +110,12 @@ public class PluginContext {
      */
     public InternalProjectInitializer internalProjectInitializer() {
         return internalProjectInitializer;
+    }
+
+    /**
+     * Returns the {@link MirrorAccessController}.
+     */
+    public MirrorAccessController mirrorAccessController() {
+        return mirrorAccessController;
     }
 }

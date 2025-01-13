@@ -29,7 +29,11 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.cronutils.model.Cron;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.server.annotation.ConsumesJson;
@@ -48,6 +52,7 @@ import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
+import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.ZoneConfig;
@@ -57,9 +62,12 @@ import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
+import com.linecorp.centraldogma.server.internal.mirror.MirrorSchedulingService;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
+import com.linecorp.centraldogma.server.mirror.MirrorListener;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -72,6 +80,8 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 @ProducesJson
 public class MirroringServiceV1 extends AbstractService {
 
+    private static final Logger logger = LoggerFactory.getLogger(MirroringServiceV1.class);
+
     // TODO(ikhoon):
     //  - Write documentation for the REST API specification
     //  - Add Java APIs to the CentralDogma client
@@ -81,14 +91,17 @@ public class MirroringServiceV1 extends AbstractService {
     private final Map<String, Object> mirrorZoneConfig;
     @Nullable
     private final ZoneConfig zoneConfig;
+    private final MirrorAccessController accessController;
 
     public MirroringServiceV1(ProjectApiManager projectApiManager, CommandExecutor executor,
-                              MirrorRunner mirrorRunner, CentralDogmaConfig config) {
+                              MirrorRunner mirrorRunner, CentralDogmaConfig config,
+                              MirrorAccessController accessController) {
         super(executor);
         this.projectApiManager = projectApiManager;
         this.mirrorRunner = mirrorRunner;
         zoneConfig = config.zone();
         mirrorZoneConfig = mirrorZoneConfig(config);
+        this.accessController = accessController;
     }
 
     private static Map<String, Object> mirrorZoneConfig(CentralDogmaConfig config) {
@@ -138,8 +151,10 @@ public class MirroringServiceV1 extends AbstractService {
     public CompletableFuture<MirrorDto> getMirror(@Param String projectName,
                                                   Repository repository,
                                                   @Param String id) {
-        return metaRepo(projectName).mirror(repository.name(), id).thenApply(mirror -> {
-            return convertToMirrorDto(projectName, mirror);
+        return metaRepo(projectName).mirror(repository.name(), id).thenCompose(mirror -> {
+            return accessController.isAllowed(mirror.remoteRepoUri()).thenApply(allowed -> {
+                return convertToMirrorDto(projectName, mirror, allowed);
+            });
         });
     }
 
@@ -154,7 +169,7 @@ public class MirroringServiceV1 extends AbstractService {
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     public CompletableFuture<PushResultDto> createMirror(@Param String projectName,
                                                          Repository ignored,
-                                                         MirrorDto newMirror,
+                                                         MirrorRequest newMirror,
                                                          Author author) {
         return createOrUpdate(projectName, newMirror, author, false);
     }
@@ -169,7 +184,7 @@ public class MirroringServiceV1 extends AbstractService {
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     public CompletableFuture<PushResultDto> updateMirror(@Param String projectName,
                                                          Repository ignored,
-                                                         MirrorDto mirror,
+                                                         MirrorRequest mirror,
                                                          @Param String id, Author author) {
         checkArgument(id.equals(mirror.id()), "The mirror ID (%s) can't be updated", id);
         return createOrUpdate(projectName, mirror, author, true);
@@ -197,14 +212,37 @@ public class MirroringServiceV1 extends AbstractService {
         });
     }
 
-    private CompletableFuture<PushResultDto> createOrUpdate(String projectName, MirrorDto newMirror,
+    private CompletableFuture<PushResultDto> createOrUpdate(String projectName, MirrorRequest newMirror,
                                                             Author author, boolean update) {
-        return metaRepo(projectName)
-                .createMirrorPushCommand(newMirror, author, zoneConfig, update).thenCompose(command -> {
-                    return executor().execute(command).thenApply(result -> {
-                        return new PushResultDto(result.revision(), command.timestamp());
-                    });
-                });
+        final MetaRepository metaRepo = metaRepo(projectName);
+        return metaRepo.createMirrorPushCommand(newMirror, author, zoneConfig, update).thenCompose(command -> {
+            return executor().execute(command).thenApply(result -> {
+                metaRepo.mirror(newMirror.localRepo(), newMirror.id(), result.revision())
+                        .handle((mirror, cause) -> {
+                            if (cause != null) {
+                                // This should not happen in normal cases.
+                                logger.warn("Failed to get the mirror: {}", newMirror.id(), cause);
+                                return null;
+                            }
+                            return notifyMirrorEvent(mirror, update);
+                        });
+                return new PushResultDto(result.revision(), command.timestamp());
+            });
+        });
+    }
+
+    private Void notifyMirrorEvent(Mirror mirror, boolean update) {
+        try {
+            final MirrorListener listener = MirrorSchedulingService.mirrorListener();
+            if (update) {
+                listener.onUpdate(mirror, accessController);
+            } else {
+                listener.onCreate(mirror, accessController);
+            }
+        } catch (Throwable ex) {
+            logger.warn("Failed to notify the mirror listener. (mirror: {})", mirror, ex);
+        }
+        return null;
     }
 
     /**
@@ -234,14 +272,26 @@ public class MirroringServiceV1 extends AbstractService {
         return mirrorZoneConfig;
     }
 
-    private static CompletableFuture<List<MirrorDto>> convertToMirrorDtos(
+    private CompletableFuture<List<MirrorDto>> convertToMirrorDtos(
             String projectName, CompletableFuture<List<Mirror>> future) {
-        return future.thenApply(mirrors -> mirrors.stream()
-                                                  .map(mirror -> convertToMirrorDto(projectName, mirror))
-                                                  .collect(toImmutableList()));
+        return future.thenCompose(mirrors -> {
+            final ImmutableList<String> remoteUris = mirrors.stream().map(
+                    mirror -> mirror.remoteRepoUri().toString()).collect(
+                    toImmutableList());
+            return accessController.isAllowed(remoteUris).thenApply(acl -> {
+                return mirrors.stream()
+                              .map(mirror -> convertToMirrorDto(projectName, mirror, acl))
+                              .collect(toImmutableList());
+            });
+        });
     }
 
-    private static MirrorDto convertToMirrorDto(String projectName, Mirror mirror) {
+    private static MirrorDto convertToMirrorDto(String projectName, Mirror mirror, Map<String, Boolean> acl) {
+        final boolean allowed = acl.get(mirror.remoteRepoUri().toString());
+        return convertToMirrorDto(projectName, mirror, allowed);
+    }
+
+    private static MirrorDto convertToMirrorDto(String projectName, Mirror mirror, boolean allowed) {
         final URI remoteRepoUri = mirror.remoteRepoUri();
         final Cron schedule = mirror.schedule();
         final String scheduleStr = schedule != null ? schedule.asString() : null;
@@ -256,7 +306,7 @@ public class MirroringServiceV1 extends AbstractService {
                              mirror.remotePath(),
                              mirror.remoteBranch(),
                              mirror.gitignore(),
-                             mirror.credential().id(), mirror.zone());
+                             mirror.credential().id(), mirror.zone(), allowed);
     }
 
     private MetaRepository metaRepo(String projectName) {

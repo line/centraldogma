@@ -21,6 +21,8 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.mirror.MirrorListener;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorTask;
@@ -33,6 +35,39 @@ final class CompositeMirrorListener implements MirrorListener {
 
     CompositeMirrorListener(List<MirrorListener> delegates) {
         this.delegates = delegates;
+    }
+
+    @Override
+    public void onCreate(Mirror mirror, MirrorAccessController accessController) {
+        for (MirrorListener delegate : delegates) {
+            try {
+                delegate.onCreate(mirror, accessController);
+            } catch (Exception e) {
+                logger.warn("Failed to notify a listener of the mirror create event: {}", delegate, e);
+            }
+        }
+    }
+
+    @Override
+    public void onUpdate(Mirror mirror, MirrorAccessController accessController) {
+        for (MirrorListener delegate : delegates) {
+            try {
+                delegate.onUpdate(mirror, accessController);
+            } catch (Exception e) {
+                logger.warn("Failed to notify a listener of the mirror update event: {}", delegate, e);
+            }
+        }
+    }
+
+    @Override
+    public void onDisallowed(Mirror mirror) {
+        for (MirrorListener delegate : delegates) {
+            try {
+                delegate.onDisallowed(mirror);
+            } catch (Exception e) {
+                logger.warn("Failed to notify a listener of the mirror disallowed event: {}", delegate, e);
+            }
+        }
     }
 
     @Override

@@ -56,6 +56,7 @@ import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.mirror.MirrorListener;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorTask;
@@ -69,7 +70,7 @@ public final class MirrorSchedulingService implements MirroringService {
 
     private static final Logger logger = LoggerFactory.getLogger(MirrorSchedulingService.class);
 
-    static final MirrorListener mirrorListener;
+    private static final MirrorListener mirrorListener;
 
     static {
         final List<MirrorListener> listeners =
@@ -87,6 +88,10 @@ public final class MirrorSchedulingService implements MirroringService {
      */
     private static final Duration TICK = Duration.ofSeconds(1);
 
+    public static MirrorListener mirrorListener() {
+        return mirrorListener;
+    }
+
     private final File workDir;
     private final ProjectManager projectManager;
     private final int numThreads;
@@ -96,6 +101,7 @@ public final class MirrorSchedulingService implements MirroringService {
     private final ZoneConfig zoneConfig;
     @Nullable
     private final String currentZone;
+    private final MirrorAccessController mirrorAccessController;
 
     private volatile CommandExecutor commandExecutor;
     private volatile ListeningScheduledExecutorService scheduler;
@@ -109,7 +115,8 @@ public final class MirrorSchedulingService implements MirroringService {
     @VisibleForTesting
     public MirrorSchedulingService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
                                    int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror,
-                                   @Nullable ZoneConfig zoneConfig, boolean runMigration) {
+                                   @Nullable ZoneConfig zoneConfig, boolean runMigration,
+                                   MirrorAccessController mirrorAccessController) {
 
         this.workDir = requireNonNull(workDir, "workDir");
         this.projectManager = requireNonNull(projectManager, "projectManager");
@@ -130,6 +137,7 @@ public final class MirrorSchedulingService implements MirroringService {
         } else {
             currentZone = null;
         }
+        this.mirrorAccessController = mirrorAccessController;
     }
 
     public boolean isStarted() {
@@ -233,6 +241,20 @@ public final class MirrorSchedulingService implements MirroringService {
                               if (m.schedule() == null) {
                                   continue;
                               }
+
+                              try {
+                                  final boolean allowed = mirrorAccessController.isAllowed(m)
+                                                                                .get(5, TimeUnit.SECONDS);
+                                  if (!allowed) {
+                                      mirrorListener.onDisallowed(m);
+                                      continue;
+                                  }
+                              } catch (Exception e) {
+                                  logger.warn("Failed to check the access control. mirror: {}",
+                                              m, e);
+                                  continue;
+                              }
+
                               if (zoneConfig != null) {
                                   String pinnedZone = m.zone();
                                   if (pinnedZone == null) {

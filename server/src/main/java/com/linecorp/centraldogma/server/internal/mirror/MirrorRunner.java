@@ -34,11 +34,13 @@ import javax.annotation.Nullable;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.SafeCloseable;
+import com.linecorp.centraldogma.common.MirrorAccessException;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.mirror.MirrorListener;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorTask;
@@ -60,9 +62,11 @@ public final class MirrorRunner implements SafeCloseable {
     private final Map<MirrorKey, CompletableFuture<MirrorResult>> inflightRequests = new ConcurrentHashMap<>();
     @Nullable
     private final String currentZone;
+    private final MirrorAccessController mirrorAccessController;
 
     public MirrorRunner(ProjectApiManager projectApiManager, CommandExecutor commandExecutor,
-                        CentralDogmaConfig cfg, MeterRegistry meterRegistry) {
+                        CentralDogmaConfig cfg, MeterRegistry meterRegistry,
+                        MirrorAccessController mirrorAccessController) {
         this.projectApiManager = projectApiManager;
         this.commandExecutor = commandExecutor;
         // TODO(ikhoon): Periodically clean up stale repositories.
@@ -79,6 +83,7 @@ public final class MirrorRunner implements SafeCloseable {
         } else {
             currentZone = null;
         }
+        this.mirrorAccessController = mirrorAccessController;
 
         final ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(
                 0, mirrorConfig.numMirroringThreads(),
@@ -99,33 +104,45 @@ public final class MirrorRunner implements SafeCloseable {
 
     private CompletableFuture<MirrorResult> run(MirrorKey mirrorKey, User user) {
         try {
-            final CompletableFuture<MirrorResult> future = metaRepo(mirrorKey.projectName).mirror(
-                    mirrorKey.repoName, mirrorKey.mirrorId).thenApplyAsync(mirror -> {
-                if (!mirror.enabled()) {
-                    throw new MirrorException("The mirror is disabled: " + mirrorKey.projectName + '/' +
-                                              mirrorKey.repoName + '/' + mirrorKey.mirrorId);
-                }
+            final CompletableFuture<MirrorResult> future =
+                    metaRepo(mirrorKey.projectName).mirror(mirrorKey.repoName, mirrorKey.mirrorId).thenCompose(
+                            mirror -> {
+                                if (!mirror.enabled()) {
+                                    throw new MirrorException("The mirror is disabled: " +
+                                                              mirrorKey.repoName + '/' + mirrorKey.mirrorId);
+                                }
 
-                final String zone = mirror.zone();
-                if (zone != null && !zone.equals(currentZone)) {
-                    throw new MirrorException("The mirror is not in the current zone: " + currentZone);
-                }
-                final MirrorTask mirrorTask = new MirrorTask(mirror, user, Instant.now(),
-                                                             currentZone, false);
-                final MirrorListener listener = MirrorSchedulingService.mirrorListener;
-                listener.onStart(mirrorTask);
-                try {
-                    final MirrorResult mirrorResult = mirror.mirror(workDir, commandExecutor,
-                                                                    mirrorConfig.maxNumFilesPerMirror(),
-                                                                    mirrorConfig.maxNumBytesPerMirror(),
-                                                                    mirrorTask.triggeredTime());
-                    listener.onComplete(mirrorTask, mirrorResult);
-                    return mirrorResult;
-                } catch (Exception e) {
-                    listener.onError(mirrorTask, e);
-                    throw e;
-                }
-            }, worker);
+                                return mirrorAccessController.isAllowed(mirror).thenApplyAsync(allowed -> {
+                                    if (!allowed) {
+                                        throw new MirrorAccessException(
+                                                "The mirroring from " + mirror.remoteRepoUri() +
+                                                " is not allowed: " +
+                                                mirrorKey.projectName + '/' + mirrorKey.mirrorId);
+                                    }
+
+                                    final String zone = mirror.zone();
+                                    if (zone != null && !zone.equals(currentZone)) {
+                                        throw new MirrorException(
+                                                "The mirror is not in the current zone: " + currentZone);
+                                    }
+                                    final MirrorTask mirrorTask = new MirrorTask(mirror, user, Instant.now(),
+                                                                                 currentZone, false);
+                                    final MirrorListener listener = MirrorSchedulingService.mirrorListener();
+                                    listener.onStart(mirrorTask);
+                                    try {
+                                        final MirrorResult mirrorResult =
+                                                mirror.mirror(workDir, commandExecutor,
+                                                              mirrorConfig.maxNumFilesPerMirror(),
+                                                              mirrorConfig.maxNumBytesPerMirror(),
+                                                              mirrorTask.triggeredTime());
+                                        listener.onComplete(mirrorTask, mirrorResult);
+                                        return mirrorResult;
+                                    } catch (Exception e) {
+                                        listener.onError(mirrorTask, e);
+                                        throw e;
+                                    }
+                                }, worker);
+                            });
             // Remove the inflight request when the mirror task is done.
             future.handleAsync((unused0, unused1) -> inflightRequests.remove(mirrorKey), worker);
             return future;

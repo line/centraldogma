@@ -16,13 +16,18 @@
 
 import { useRouter } from 'next/router';
 import { Flex, Spacer } from '@chakra-ui/react';
+import { useAppSelector } from 'dogma/hooks';
+import { useDeleteMemberMutation } from 'dogma/features/api/apiSlice';
 import ProjectSettingsView from 'dogma/features/project/settings/ProjectSettingsView';
 import { AddMember } from 'dogma/features/project/settings/members/AddMember';
-import AppMemberList from 'dogma/features/project/settings/members/AppMemberList';
+import AppEntityList from 'dogma/features/project/settings/AppEntityList';
 
 const ProjectMemberPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
+  const [deleteMember, { isLoading }] = useDeleteMemberMutation();
+  const auth = useAppSelector((state) => state.auth);
+
   return (
     <ProjectSettingsView projectName={projectName} currentTab={'members'}>
       {(metadata) => (
@@ -31,7 +36,18 @@ const ProjectMemberPage = () => {
             <Spacer />
             <AddMember projectName={projectName} />
           </Flex>
-          <AppMemberList data={Array.from(Object.values(metadata.members))} projectName={projectName} />
+          <AppEntityList
+            data={Array.from(Object.values(metadata.members))}
+            projectName={projectName}
+            entityType={'member'}
+            getId={(row) => row.login}
+            getRole={(row) => row.role}
+            getAddedBy={(row) => row.creation.user}
+            getTimestamp={(row) => row.creation.timestamp}
+            deleteMutation={(projectName, id) => deleteMember({ projectName, id }).unwrap()}
+            showDeleteButton={(row) => row.login !== auth.user?.email}
+            isLoading={isLoading}
+          />
         </>
       )}
     </ProjectSettingsView>

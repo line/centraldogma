@@ -16,13 +16,15 @@
 
 import { useRouter } from 'next/router';
 import { Flex, Spacer } from '@chakra-ui/react';
+import { useDeleteTokenMemberMutation } from 'dogma/features/api/apiSlice';
 import ProjectSettingsView from 'dogma/features/project/settings/ProjectSettingsView';
 import { AddAppToken } from 'dogma/features/project/settings/tokens/AddAppToken';
-import AppTokenList from 'dogma/features/project/settings/tokens/AppTokenList';
+import AppEntityList from 'dogma/features/project/settings/AppEntityList';
 
 const ProjectTokenPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
+  const [deleteToken, { isLoading }] = useDeleteTokenMemberMutation();
   return (
     <ProjectSettingsView projectName={projectName} currentTab={'tokens'}>
       {(metadata) => (
@@ -31,9 +33,16 @@ const ProjectTokenPage = () => {
             <Spacer />
             <AddAppToken projectName={projectName} />
           </Flex>
-          <AppTokenList
+          <AppEntityList
             data={metadata ? Array.from(Object.values(metadata.tokens)) : []}
             projectName={projectName}
+            entityType={'token'}
+            getId={(row) => row.appId}
+            getRole={(row) => row.role}
+            getAddedBy={(row) => row.creation.user}
+            getTimestamp={(row) => row.creation.timestamp}
+            deleteMutation={(projectName, id) => deleteToken({ projectName, id }).unwrap()}
+            isLoading={isLoading}
           />
         </>
       )}

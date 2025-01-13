@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -71,14 +70,10 @@ class AuthUpstreamTest {
 
         @Override
         protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-            try {
-                final String accessToken = getAccessToken(
-                        WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
-                        TestAuthMessageUtil.USERNAME, TestAuthMessageUtil.PASSWORD);
-                builder.accessToken(accessToken);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
+            final String accessToken = getAccessToken(
+                    WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
+                    TestAuthMessageUtil.USERNAME, TestAuthMessageUtil.PASSWORD);
+            builder.accessToken(accessToken);
         }
 
         @Override

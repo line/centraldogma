@@ -19,12 +19,16 @@ import { Button, Flex, Spacer } from '@chakra-ui/react';
 import Link from 'next/link';
 import { AiOutlinePlus } from 'react-icons/ai';
 import React from 'react';
+import { useGetCredentialsQuery, useDeleteCredentialMutation } from 'dogma/features/api/apiSlice';
 import ProjectSettingsView from 'dogma/features/project/settings/ProjectSettingsView';
 import CredentialList from 'dogma/features/project/settings/credentials/CredentialList';
 
 const ProjectCredentialPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
+  const { data: credentialsData } = useGetCredentialsQuery(projectName);
+  const [deleteCredentialMutation, { isLoading }] = useDeleteCredentialMutation();
+
   return (
     <ProjectSettingsView projectName={projectName} currentTab={'credentials'}>
       {() => (
@@ -41,7 +45,12 @@ const ProjectCredentialPage = () => {
               New Credential
             </Button>
           </Flex>
-          <CredentialList projectName={projectName} />
+          <CredentialList
+            projectName={projectName}
+            credentials={credentialsData}
+            deleteCredential={(projectName, id) => deleteCredentialMutation({ projectName, id }).unwrap()}
+            isLoading={isLoading}
+          />
         </>
       )}
     </ProjectSettingsView>
