@@ -81,6 +81,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Streams;
 
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.util.Exceptions;
@@ -88,6 +89,7 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
@@ -854,8 +856,12 @@ class GitRepository implements Repository {
         requireNonNull(detail, "detail");
         requireNonNull(markup, "markup");
         requireNonNull(changes, "changes");
+
+        // JsonPatch operations its own validation for the changes so we don't need to validate them here.
+        final boolean allowEmptyCommit = Streams.stream(changes).allMatch(
+                change -> change.type() == ChangeType.APPLY_JSON_PATCH);
         final CommitExecutor commitExecutor =
-                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, false);
+                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, allowEmptyCommit);
         return commit(baseRevision, commitExecutor, normBaseRevision -> {
             if (!directExecution) {
                 return changes;
@@ -1323,7 +1329,7 @@ class GitRepository implements Repository {
                         // NB: We allow an empty commit here because an old version of Central Dogma had a bug
                         //     which allowed the creation of an empty commit.
                         new CommitExecutor(newRepo, c.when(), c.author(), c.summary(),
-                                                  c.detail(), c.markup(), true)
+                                           c.detail(), c.markup(), true)
                                 .execute(baseRevision, normBaseRevision -> blockingPreviewDiff(
                                         normBaseRevision, new DefaultChangesApplier(changes)).values());
                     }

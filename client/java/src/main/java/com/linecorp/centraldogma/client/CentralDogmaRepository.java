@@ -55,11 +55,17 @@ public final class CentralDogmaRepository {
         return centralDogma;
     }
 
-    String projectName() {
+    /**
+     * Returns the name of the project.
+     */
+    public String projectName() {
         return projectName;
     }
 
-    String repositoryName() {
+    /**
+     * Returns the name of the repository.
+     */
+    public String repositoryName() {
         return repositoryName;
     }
 

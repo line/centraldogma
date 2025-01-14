@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2025 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,26 +13,10 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-/*
- * Copyright (c) 2014, Francis Galiegue (fgaliegue@gmail.com)
- *
- * This software is dual-licensed under:
- *
- * - the Lesser General Public License (LGPL) version 3.0 or, at your option, any
- *   later version;
- * - the Apache Software License (ASL) version 2.0.
- *
- * The text of this file and of both licenses is available at the root of this
- * project or, if you have the jar distribution, in directory META-INF/, under
- * the names LGPL-3.0.txt and ASL-2.0.txt respectively.
- *
- * Direct link to the sources:
- *
- * - LGPL 3.0: https://www.gnu.org/licenses/lgpl-3.0.txt
- * - ASL 2.0: https://www.apache.org/licenses/LICENSE-2.0.txt
- */
 
-package com.linecorp.centraldogma.internal.jsonpatch;
+package com.linecorp.centraldogma.common.jsonpatch;
+
+import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
 
@@ -48,30 +32,39 @@ import com.fasterxml.jackson.databind.node.MissingNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * JSON Path {@code remove} operation.
+ * JSON Path {@code removeIfExists} operation.
  *
- * <p>This operation only takes one pointer ({@code path}) as an argument. It
- * is an error condition if no JSON value exists at that pointer.</p>
+ * <p>This operation only takes one pointer ({@code path}) as an argument. Unlike, {@link RemoveOperation}, it
+ * does not throw an error if no JSON value exists at that pointer.</p>
  */
-public final class RemoveOperation extends JsonPatchOperation {
+public final class RemoveIfExistsOperation extends JsonPatchOperation {
 
+    /**
+     * Creates a new instance.
+     */
     @JsonCreator
-    public RemoveOperation(@JsonProperty("path") final JsonPointer path) {
-        super("remove", path);
+    RemoveIfExistsOperation(@JsonProperty("path") final JsonPointer path) {
+        super("removeIfExists", path);
     }
 
     @Override
-    JsonNode apply(final JsonNode node) {
+    public JsonNode apply(final JsonNode node) {
+        requireNonNull(node, "node");
+        final JsonPointer path = path();
         if (path.toString().isEmpty()) {
             return MissingNode.getInstance();
         }
-        ensureExistence(node);
+
+        final JsonNode found = node.at(path);
+        if (found.isMissingNode()) {
+            return node;
+        }
 
         final JsonNode parentNode = node.at(path.head());
         final String raw = path.last().getMatchingProperty();
         if (parentNode.isObject()) {
             ((ObjectNode) parentNode).remove(raw);
-        } else {
+        } else if (parentNode.isArray()) {
             ((ArrayNode) parentNode).remove(Integer.parseInt(raw));
         }
         return node;
@@ -80,9 +73,10 @@ public final class RemoveOperation extends JsonPatchOperation {
     @Override
     public void serialize(final JsonGenerator jgen,
                           final SerializerProvider provider) throws IOException {
+        requireNonNull(jgen, "jgen");
         jgen.writeStartObject();
-        jgen.writeStringField("op", "remove");
-        jgen.writeStringField("path", path.toString());
+        jgen.writeStringField("op", op());
+        jgen.writeStringField("path", path().toString());
         jgen.writeEndObject();
     }
 
@@ -95,6 +89,6 @@ public final class RemoveOperation extends JsonPatchOperation {
 
     @Override
     public String toString() {
-        return "op: " + op + "; path: \"" + path + '"';
+        return "op: " + op() + "; path: \"" + path() + '"';
     }
 }

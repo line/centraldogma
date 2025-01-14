@@ -52,6 +52,16 @@ import com.google.common.base.Equivalence;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.centraldogma.common.jsonpatch.AddOperation;
+import com.linecorp.centraldogma.common.jsonpatch.CopyOperation;
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
+import com.linecorp.centraldogma.common.jsonpatch.MoveOperation;
+import com.linecorp.centraldogma.common.jsonpatch.RemoveIfExistsOperation;
+import com.linecorp.centraldogma.common.jsonpatch.RemoveOperation;
+import com.linecorp.centraldogma.common.jsonpatch.ReplaceOperation;
+import com.linecorp.centraldogma.common.jsonpatch.TestAbsenceOperation;
+import com.linecorp.centraldogma.common.jsonpatch.TestOperation;
+
 class JsonPatchOperationSerializationTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

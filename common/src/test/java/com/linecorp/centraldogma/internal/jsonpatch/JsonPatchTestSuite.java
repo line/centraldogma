@@ -49,6 +49,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchException;
+
 class JsonPatchTestSuite {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

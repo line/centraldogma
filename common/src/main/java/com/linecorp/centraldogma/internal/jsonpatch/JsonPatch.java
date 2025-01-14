@@ -62,6 +62,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchException;
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.Jackson;
 
 /**

@@ -105,6 +105,7 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchException;
 import com.linecorp.centraldogma.internal.HistoryConstants;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
@@ -137,6 +138,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                         .put(ReadOnlyException.class.getName(), ReadOnlyException::new)
                         .put(MirrorException.class.getName(), MirrorException::new)
                         .put(PermissionException.class.getName(), PermissionException::new)
+                        .put(JsonPatchException.class.getName(), JsonPatchException::new)
                         .build();
 
     private final WebClient client;
@@ -153,7 +155,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Void> whenEndpointReady() {
-        return client.endpointGroup().whenReady().thenRun(() -> {});
+        return client.endpointGroup().whenReady().thenRun(() -> {
+        });
     }
 
     @Override

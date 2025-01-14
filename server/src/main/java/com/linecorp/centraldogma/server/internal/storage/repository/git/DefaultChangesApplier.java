@@ -43,6 +43,7 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
@@ -158,7 +159,7 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
                     try {
                         newJsonNode = JsonPatch.fromJson((JsonNode) change.content()).apply(oldJsonNode);
                     } catch (Exception e) {
-                        throw new ChangeConflictException("failed to apply JSON patch: " + change, e);
+                        throw new JsonPatchException("failed to apply JSON patch: " + change, e);
                     }
 
                     // Apply only when the contents are really different.

@@ -56,7 +56,7 @@ import com.google.common.collect.Sets;
  * equal if their mathematical value is the same. This class implements this
  * kind of equality.</p>
  */
-final class JsonNumEquals extends Equivalence<JsonNode> {
+public final class JsonNumEquals extends Equivalence<JsonNode> {
 
     private static final Equivalence<JsonNode> INSTANCE = new JsonNumEquals();
 

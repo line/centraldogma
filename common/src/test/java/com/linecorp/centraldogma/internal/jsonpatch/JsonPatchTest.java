@@ -52,6 +52,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchException;
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
+
 class JsonPatchTest {
 
     private static final JsonNodeFactory FACTORY = JsonNodeFactory.instance;

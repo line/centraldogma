@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2025 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,7 +14,9 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.internal.jsonpatch;
+package com.linecorp.centraldogma.common.jsonpatch;
+
+import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
 
@@ -30,34 +32,35 @@ import com.fasterxml.jackson.databind.node.MissingNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * JSON Path {@code removeIfExists} operation.
+ * JSON Path {@code remove} operation.
  *
- * <p>This operation only takes one pointer ({@code path}) as an argument. Unlike, {@link RemoveOperation}, it
- * does not throw an error if no JSON value exists at that pointer.</p>
+ * <p>This operation only takes one pointer ({@code path}) as an argument. It
+ * is an error condition if no JSON value exists at that pointer.</p>
  */
-public final class RemoveIfExistsOperation extends JsonPatchOperation {
+public final class RemoveOperation extends JsonPatchOperation {
 
+    /**
+     * Creates a new instance.
+     */
     @JsonCreator
-    public RemoveIfExistsOperation(@JsonProperty("path") final JsonPointer path) {
-        super("removeIfExists", path);
+    RemoveOperation(@JsonProperty("path") final JsonPointer path) {
+        super("remove", path);
     }
 
     @Override
-    JsonNode apply(final JsonNode node) {
+    public JsonNode apply(final JsonNode node) {
+        requireNonNull(node, "node");
+        final JsonPointer path = path();
         if (path.toString().isEmpty()) {
             return MissingNode.getInstance();
         }
-
-        final JsonNode found = node.at(path);
-        if (found.isMissingNode()) {
-            return node;
-        }
+        ensureExistence(node);
 
         final JsonNode parentNode = node.at(path.head());
         final String raw = path.last().getMatchingProperty();
         if (parentNode.isObject()) {
             ((ObjectNode) parentNode).remove(raw);
-        } else if (parentNode.isArray()) {
+        } else {
             ((ArrayNode) parentNode).remove(Integer.parseInt(raw));
         }
         return node;
@@ -66,9 +69,10 @@ public final class RemoveIfExistsOperation extends JsonPatchOperation {
     @Override
     public void serialize(final JsonGenerator jgen,
                           final SerializerProvider provider) throws IOException {
+        requireNonNull(jgen, "jgen");
         jgen.writeStartObject();
-        jgen.writeStringField("op", "removeIfExists");
-        jgen.writeStringField("path", path.toString());
+        jgen.writeStringField("op", "remove");
+        jgen.writeStringField("path", path().toString());
         jgen.writeEndObject();
     }
 
@@ -81,6 +85,6 @@ public final class RemoveIfExistsOperation extends JsonPatchOperation {
 
     @Override
     public String toString() {
-        return "op: " + op + "; path: \"" + path + '"';
+        return "op: " + op() + "; path: \"" + path() + '"';
     }
 }
