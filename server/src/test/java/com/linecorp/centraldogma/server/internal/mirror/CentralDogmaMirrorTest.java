@@ -123,7 +123,7 @@ class CentralDogmaMirrorTest {
         final Mirror mirror =
                 new CentralDogmaMirrorProvider().newMirror(
                         new MirrorContext(mirrorId, true, schedule, MirrorDirection.LOCAL_TO_REMOTE,
-                                          credential, repository, "/", URI.create(remoteUri), null, null));
+                                          credential, "", repository, "/", URI.create(remoteUri), null, null));
 
         assertThat(mirror).isInstanceOf(mirrorType);
         assertThat(mirror.id()).isEqualTo(mirrorId);
@@ -141,7 +141,8 @@ class CentralDogmaMirrorTest {
         final Credential credential = mock(Credential.class);
         final Mirror mirror = new CentralDogmaMirrorProvider().newMirror(
                 new MirrorContext("mirror-id", true, EVERY_MINUTE, MirrorDirection.LOCAL_TO_REMOTE,
-                                  credential, mock(Repository.class), "/", URI.create(remoteUri), null, null));
+                                  credential, "", mock(Repository.class), "/", URI.create(remoteUri),
+                                  null, null));
         assertThat(mirror).isNull();
     }
 }

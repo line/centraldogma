@@ -77,7 +77,7 @@ class MirrorSchedulingServiceTest {
 
         final Mirror mirror = new AbstractMirror("my-mirror-1", true, EVERY_SECOND,
                                                  MirrorDirection.REMOTE_TO_LOCAL,
-                                                 Credential.FALLBACK, r, "/",
+                                                 Credential.FALLBACK, "", r, "/",
                                                  URI.create("unused://uri"), "/", "", null, null) {
             @Override
             protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes,

@@ -56,6 +56,7 @@ public abstract class AbstractMirror implements Mirror {
     private final boolean enabled;
     private final MirrorDirection direction;
     private final Credential credential;
+    private final String mirrorCredentialId;
     private final Repository localRepo;
     private final String localPath;
     private final URI remoteRepoUri;
@@ -72,13 +73,14 @@ public abstract class AbstractMirror implements Mirror {
     private final long jitterMillis;
 
     protected AbstractMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
-                             Credential credential, Repository localRepo, String localPath,
-                             URI remoteRepoUri, String remotePath, String remoteBranch,
+                             Credential credential, String mirrorCredentialId, Repository localRepo,
+                             String localPath, URI remoteRepoUri, String remotePath, String remoteBranch,
                              @Nullable String gitignore, @Nullable String zone) {
         this.id = requireNonNull(id, "id");
         this.enabled = enabled;
         this.direction = requireNonNull(direction, "direction");
         this.credential = requireNonNull(credential, "credential");
+        this.mirrorCredentialId = requireNonNull(mirrorCredentialId, "mirrorCredentialId");
         this.localRepo = requireNonNull(localRepo, "localRepo");
         this.localPath = normalizePath(requireNonNull(localPath, "localPath"));
         this.remoteRepoUri = requireNonNull(remoteRepoUri, "remoteRepoUri");
@@ -140,6 +142,11 @@ public abstract class AbstractMirror implements Mirror {
     @Override
     public final Credential credential() {
         return credential;
+    }
+
+    @Override
+    public String mirrorCredentialId() {
+        return mirrorCredentialId;
     }
 
     @Override

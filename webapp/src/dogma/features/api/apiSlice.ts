@@ -28,7 +28,7 @@ import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { DeleteUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings/DeleteUserOrTokenRepositoryRoleDto';
 import { AddUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings/AddUserOrTokenRepositoryRoleDto';
 import { DeleteMemberDto } from 'dogma/features/project/settings/members/DeleteMemberDto';
-import { MirrorDto, MirrorRequest } from 'dogma/features/project/settings/mirrors/MirrorRequest';
+import { MirrorDto, MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
 import { MirrorResult } from '../mirror/MirrorResult';
 import {
@@ -335,42 +335,50 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Token'],
     }),
-    getMirrors: builder.query<MirrorDto[], string>({
+    getProjectMirrors: builder.query<MirrorDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/mirrors`,
       providesTags: ['Metadata'],
     }),
-    getMirror: builder.query<MirrorDto, { projectName: string; id: string }>({
-      query: ({ projectName, id }) => `/api/v1/projects/${projectName}/mirrors/${id}`,
+    getMirrors: builder.query<MirrorDto[], { projectName: string; repoName: string }>({
+      query: ({ projectName, repoName }) => `/api/v1/projects/${projectName}/repos/${repoName}/mirrors`,
+      providesTags: ['Metadata'],
+    }),
+    getMirror: builder.query<MirrorDto, { projectName: string; repoName: string; id: string }>({
+      query: ({ projectName, repoName, id }) =>
+        `/api/v1/projects/${projectName}/repos/${repoName}/mirrors/${id}`,
       providesTags: ['Metadata'],
     }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     addNewMirror: builder.mutation<any, MirrorRequest>({
       query: (mirror) => ({
-        url: `/api/v1/projects/${mirror.projectName}/mirrors`,
+        url: `/api/v1/projects/${mirror.projectName}/repos/${mirror.localRepo}/mirrors`,
         method: 'POST',
         body: mirror,
       }),
       invalidatesTags: ['Metadata'],
     }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    updateMirror: builder.mutation<any, { projectName: string; id: string; mirror: MirrorRequest }>({
-      query: ({ projectName, id, mirror }) => ({
-        url: `/api/v1/projects/${projectName}/mirrors/${id}`,
+    updateMirror: builder.mutation<
+      any,
+      { projectName: string; repoName: string; id: string; mirror: MirrorRequest }
+    >({
+      query: ({ projectName, repoName, id, mirror }) => ({
+        url: `/api/v1/projects/${projectName}/repos/${repoName}/mirrors/${id}`,
         method: 'PUT',
         body: mirror,
       }),
       invalidatesTags: ['Metadata'],
     }),
     deleteMirror: builder.mutation({
-      query: ({ projectName, id }) => ({
-        url: `/api/v1/projects/${projectName}/mirrors/${id}`,
+      query: ({ projectName, repoName, id }) => ({
+        url: `/api/v1/projects/${projectName}/repos/${repoName}/mirrors/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Metadata'],
     }),
-    runMirror: builder.mutation<MirrorResult, { projectName: string; id: string }>({
-      query: ({ projectName, id }) => ({
-        url: `/api/v1/projects/${projectName}/mirrors/${id}/run`,
+    runMirror: builder.mutation<MirrorResult, { projectName: string; repoName: string; id: string }>({
+      query: ({ projectName, repoName, id }) => ({
+        url: `/api/v1/projects/${projectName}/repos/${repoName}/mirrors/${id}/run`,
         method: 'POST',
       }),
       invalidatesTags: ['Metadata'],
@@ -414,7 +422,7 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Mirror'],
     }),
-    getCredentials: builder.query<CredentialDto[], string>({
+    getProjectCredentials: builder.query<CredentialDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/credentials`,
       providesTags: ['Metadata'],
     }),
@@ -532,6 +540,7 @@ export const {
   useGetHistoryQuery,
   useGetNormalisedRevisionQuery,
   // Mirror
+  useGetProjectMirrorsQuery,
   useGetMirrorsQuery,
   useGetMirrorQuery,
   useAddNewMirrorMutation,
@@ -545,7 +554,7 @@ export const {
   useAddNewMirrorAccessControlMutation,
   useDeleteMirrorAccessControlMutation,
   // Credential
-  useGetCredentialsQuery,
+  useGetProjectCredentialsQuery,
   useGetCredentialQuery,
   useAddNewCredentialMutation,
   useUpdateCredentialMutation,

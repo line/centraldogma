@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.projectMirrorCredentialId;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.LEGACY_MIRRORS_PATH;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -47,40 +48,37 @@ class MigratingMirrorToRepositoryServiceTest {
     static final String REPO0_MIRROR_0 =
             '{' +
             "  \"id\": \"mirror-0\"," +
-            "  \"type\": \"single\"," +
             "  \"enabled\": true," +
             "  \"schedule\": \"0 * * * * ?\"," +
             "  \"direction\": \"REMOTE_TO_LOCAL\"," +
             "  \"localRepo\": \"" + TEST_REPO0 + "\"," +
             "  \"localPath\": \"/\"," +
             "  \"remoteUri\": \"git+ssh://git.foo.com/foo.git/settings#release\"," +
-            "  \"credentialId\": \"credential-1\"" +
+            "  \"credentialId\": \"%s\"" +
             '}';
 
     static final String REPO0_MIRROR_1 =
             '{' +
             "  \"id\": \"mirror-1\"," +
-            "  \"type\": \"single\"," +
             "  \"enabled\": true," +
             "  \"schedule\": \"0 * * * * ?\"," +
             "  \"direction\": \"REMOTE_TO_LOCAL\"," +
             "  \"localRepo\": \"" + TEST_REPO0 + "\"," +
             "  \"localPath\": \"/\"," +
             "  \"remoteUri\": \"git+ssh://git.bar.com/foo.git/settings#release\"," +
-            "  \"credentialId\": \"credential-1\"" +
+            "  \"credentialId\": \"%s\"" +
             '}';
 
     static final String REPO1_MIRROR =
             '{' +
             "  \"id\": \"mirror-2\"," +
-            "  \"type\": \"single\"," +
             "  \"enabled\": true," +
             "  \"schedule\": \"0 * * * * ?\"," +
             "  \"direction\": \"REMOTE_TO_LOCAL\"," +
             "  \"localRepo\": \"" + TEST_REPO1 + "\"," +
             "  \"localPath\": \"/\"," +
             "  \"remoteUri\": \"git+ssh://git.qux.com/foo.git/settings#release\"," +
-            "  \"credentialId\": \"credential-1\"" +
+            "  \"credentialId\": \"%s\"" +
             '}';
 
     @RegisterExtension
@@ -110,9 +108,12 @@ class MigratingMirrorToRepositoryServiceTest {
         final Project project = projectManager.get(TEST_PROJ);
 
         final List<Change<?>> changes = new ArrayList<>();
-        changes.add(Change.ofJsonUpsert(LEGACY_MIRRORS_PATH + "mirror-0.json", REPO0_MIRROR_0));
-        changes.add(Change.ofJsonUpsert(LEGACY_MIRRORS_PATH + "mirror-1.json", REPO0_MIRROR_1));
-        changes.add(Change.ofJsonUpsert(LEGACY_MIRRORS_PATH + "mirror-2.json", REPO1_MIRROR));
+        changes.add(Change.ofJsonUpsert(LEGACY_MIRRORS_PATH + "mirror-0.json",
+                                        String.format(REPO0_MIRROR_0, "credential-1")));
+        changes.add(Change.ofJsonUpsert(LEGACY_MIRRORS_PATH + "mirror-1.json",
+                                        String.format(REPO0_MIRROR_1, "credential-1")));
+        changes.add(Change.ofJsonUpsert(LEGACY_MIRRORS_PATH + "mirror-2.json",
+                                        String.format(REPO1_MIRROR, "credential-1")));
 
         project.metaRepo().commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
                                   "Create a legacy mirrors.json", changes).join();
@@ -127,13 +128,19 @@ class MigratingMirrorToRepositoryServiceTest {
         assertThat(entries).containsExactlyInAnyOrderEntriesOf(ImmutableMap.of(
                 "/repos/" + TEST_REPO0 + "/mirrors/mirror-0.json",
                 Entry.ofJson(new Revision(3),
-                             "/repos/" + TEST_REPO0 + "/mirrors/mirror-0.json", REPO0_MIRROR_0),
+                             "/repos/" + TEST_REPO0 + "/mirrors/mirror-0.json",
+                             String.format(REPO0_MIRROR_0,
+                                           projectMirrorCredentialId(TEST_PROJ, "credential-1"))),
                 "/repos/" + TEST_REPO0 + "/mirrors/mirror-1.json",
                 Entry.ofJson(new Revision(3),
-                             "/repos/" + TEST_REPO0 + "/mirrors/mirror-1.json", REPO0_MIRROR_1),
+                             "/repos/" + TEST_REPO0 + "/mirrors/mirror-1.json",
+                             String.format(REPO0_MIRROR_1,
+                                           projectMirrorCredentialId(TEST_PROJ, "credential-1"))),
                 "/repos/" + TEST_REPO1 + "/mirrors/mirror-2.json",
                 Entry.ofJson(new Revision(3),
-                             "/repos/" + TEST_REPO1 + "/mirrors/mirror-2.json", REPO1_MIRROR)
+                             "/repos/" + TEST_REPO1 + "/mirrors/mirror-2.json",
+                             String.format(REPO1_MIRROR,
+                                           projectMirrorCredentialId(TEST_PROJ, "credential-1")))
         ));
     }
 }

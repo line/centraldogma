@@ -70,7 +70,6 @@ import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.mirror.MirrorListener;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
-import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -196,7 +195,7 @@ public class MirroringServiceV1 extends AbstractService {
      * <p>Delete the existing mirror.
      */
     @Delete("/projects/{projectName}/repos/{repoName}/mirrors/{id}")
-    @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
     public CompletableFuture<Void> deleteMirror(@Param String projectName,
                                                 Repository repository,
                                                 @Param String id, Author author) {
@@ -253,7 +252,7 @@ public class MirroringServiceV1 extends AbstractService {
     // Mirroring may be a long-running task, so we need to increase the timeout.
     @RequestTimeout(value = 5, unit = TimeUnit.MINUTES)
     @Post("/projects/{projectName}/repos/{repoName}/mirrors/{mirrorId}/run")
-    @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
     public CompletableFuture<MirrorResult> runMirror(@Param String projectName,
                                                      Repository repository,
                                                      @Param String mirrorId,
@@ -306,7 +305,7 @@ public class MirroringServiceV1 extends AbstractService {
                              mirror.remotePath(),
                              mirror.remoteBranch(),
                              mirror.gitignore(),
-                             mirror.credential().id(), mirror.zone(), allowed);
+                             mirror.mirrorCredentialId(), mirror.zone(), allowed);
     }
 
     private MetaRepository metaRepo(String projectName) {

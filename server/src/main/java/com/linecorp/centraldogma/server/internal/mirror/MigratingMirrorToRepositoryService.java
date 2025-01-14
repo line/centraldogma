@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.projectMirrorCredentialId;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.LEGACY_MIRRORS_PATH;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.mirrorFile;
 import static com.linecorp.centraldogma.server.storage.project.Project.REPO_META;
@@ -141,7 +142,7 @@ final class MigratingMirrorToRepositoryService {
         if (entries.isEmpty()) {
             return false;
         }
-
+        repository.parent().name();
         final List<Change<?>> changes = new ArrayList<>();
         for (Map.Entry<String, Entry<?>> entry : entries.entrySet()) {
             final JsonNode content = (JsonNode) entry.getValue().content();
@@ -156,8 +157,10 @@ final class MigratingMirrorToRepositoryService {
                     warnInvalidMirrorConfig(entry, content);
                     continue;
                 }
+                final MirrorConfig newMirrorConfig = mirrorConfig.withCredentialId(
+                        projectMirrorCredentialId(repository.parent().name(), mirrorConfig.credentialId()));
                 changes.add(Change.ofJsonUpsert(mirrorFile(repoName, mirrorConfig.id()),
-                                                Jackson.valueToTree(content)));
+                                                Jackson.valueToTree(newMirrorConfig)));
             } catch (JsonProcessingException e) {
                 warnInvalidMirrorConfig(entry, content);
             }

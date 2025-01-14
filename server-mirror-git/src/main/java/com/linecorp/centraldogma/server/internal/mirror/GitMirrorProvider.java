@@ -47,6 +47,7 @@ public final class GitMirrorProvider implements MirrorProvider {
                 final RepositoryUri repositoryUri = RepositoryUri.parse(remoteUri, "git");
                 return new SshGitMirror(context.id(), context.enabled(), context.schedule(),
                                         context.direction(), context.credential(),
+                                        context.mirrorCredentialId(),
                                         context.localRepo(), context.localPath(),
                                         repositoryUri.uri(), repositoryUri.path(), repositoryUri.branch(),
                                         context.gitignore(), context.zone());
@@ -58,6 +59,7 @@ public final class GitMirrorProvider implements MirrorProvider {
                 final RepositoryUri repositoryUri = RepositoryUri.parse(remoteUri, "git");
                 return new DefaultGitMirror(context.id(), context.enabled(), context.schedule(),
                                             context.direction(), context.credential(),
+                                            context.mirrorCredentialId(),
                                             context.localRepo(), context.localPath(),
                                             repositoryUri.uri(), repositoryUri.path(), repositoryUri.branch(),
                                             context.gitignore(), context.zone());

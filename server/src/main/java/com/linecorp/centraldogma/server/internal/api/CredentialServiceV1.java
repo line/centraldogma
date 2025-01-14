@@ -34,6 +34,7 @@ import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
@@ -41,10 +42,10 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.User;
-import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -66,7 +67,7 @@ public class CredentialServiceV1 extends AbstractService {
      *
      * <p>Returns the list of the credentials in the project.
      */
-    @RequiresRepositoryRole(value = RepositoryRole.READ, repository = Project.REPO_META)
+    @RequiresProjectRole(ProjectRole.OWNER)
     @Get("/projects/{projectName}/credentials")
     public CompletableFuture<List<Credential>> listCredentials(User loginUser,
                                                                @Param String projectName) {
@@ -92,7 +93,7 @@ public class CredentialServiceV1 extends AbstractService {
      *
      * <p>Returns the credential for the ID in the project.
      */
-    @RequiresRepositoryRole(value = RepositoryRole.READ, repository = Project.REPO_META)
+    @RequiresProjectRole(ProjectRole.OWNER)
     @Get("/projects/{projectName}/credentials/{id}")
     public CompletableFuture<Credential> getCredentialById(User loginUser,
                                                            @Param String projectName, @Param String id) {
@@ -111,7 +112,7 @@ public class CredentialServiceV1 extends AbstractService {
     @ConsumesJson
     @StatusCode(201)
     @Post("/projects/{projectName}/credentials")
-    @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
+    @RequiresProjectRole(ProjectRole.OWNER)
     public CompletableFuture<PushResultDto> createCredential(@Param String projectName,
                                                              Credential credential, Author author, User user) {
         return createOrUpdate(projectName, credential, author, user, false);
@@ -124,7 +125,7 @@ public class CredentialServiceV1 extends AbstractService {
      */
     @ConsumesJson
     @Put("/projects/{projectName}/credentials/{id}")
-    @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
+    @RequiresProjectRole(ProjectRole.OWNER)
     public CompletableFuture<PushResultDto> updateCredential(@Param String projectName, @Param String id,
                                                              Credential credential, Author author, User user) {
         checkArgument(id.equals(credential.id()), "The credential ID (%s) can't be updated", id);
@@ -137,7 +138,7 @@ public class CredentialServiceV1 extends AbstractService {
      * <p>Delete the existing credential.
      */
     @Delete("/projects/{projectName}/credentials/{id}")
-    @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
+    @RequiresProjectRole(ProjectRole.OWNER)
     public CompletableFuture<Void> deleteCredential(@Param String projectName,
                                                     @Param String id, Author author, User user) {
         final MetaRepository metaRepository = metaRepo(projectName, user);

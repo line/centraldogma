@@ -18,43 +18,34 @@ import { useRouter } from 'next/router';
 import { Button, Flex, Spacer } from '@chakra-ui/react';
 import Link from 'next/link';
 import { AiOutlinePlus } from 'react-icons/ai';
-import React from 'react';
-import { useGetProjectCredentialsQuery, useDeleteCredentialMutation } from 'dogma/features/api/apiSlice';
-import ProjectSettingsView from 'dogma/features/project/settings/ProjectSettingsView';
-import CredentialList from 'dogma/features/project/settings/credentials/CredentialList';
+import RepositorySettingsView from 'dogma/features/repo/settings/RepositorySettingsView';
+import MirrorList from 'dogma/features/repo/settings/mirrors/MirrorList';
 
-const ProjectCredentialPage = () => {
+const RepoMirrorPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
-  const { data: credentialsData } = useGetProjectCredentialsQuery(projectName);
-  const [deleteCredentialMutation, { isLoading }] = useDeleteCredentialMutation();
-
+  const repoName = router.query.repoName ? (router.query.repoName as string) : '';
   return (
-    <ProjectSettingsView projectName={projectName} currentTab={'credentials'}>
+    <RepositorySettingsView projectName={projectName} repoName={repoName} currentTab={'mirrors'}>
       {() => (
         <>
           <Flex>
             <Spacer />
             <Button
               as={Link}
-              href={`/app/projects/${projectName}/settings/credentials/new`}
+              href={`/app/projects/${projectName}/repos/${repoName}/settings/mirrors/new`}
               size="sm"
               rightIcon={<AiOutlinePlus />}
               colorScheme="teal"
             >
-              New Credential
+              New Mirror
             </Button>
           </Flex>
-          <CredentialList
-            projectName={projectName}
-            credentials={credentialsData}
-            deleteCredential={(projectName, id) => deleteCredentialMutation({ projectName, id }).unwrap()}
-            isLoading={isLoading}
-          />
+          <MirrorList projectName={projectName} repoName={repoName} />
         </>
       )}
-    </ProjectSettingsView>
+    </RepositorySettingsView>
   );
 };
 
-export default ProjectCredentialPage;
+export default RepoMirrorPage;

@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
+import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.projectMirrorCredentialId;
+import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.repoMirrorCredentialId;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.BAR_REPO;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.FOO_PROJ;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.PRIVATE_KEY_FILE;
@@ -178,7 +180,7 @@ class ZoneAwareMirrorTest {
                                  "/",
                                  URI.create("git+ssh://github.com/line/centraldogma-authtest.git/#main"),
                                  null,
-                                 "foo",
+                                 repoMirrorCredentialId("foo", "bar-unknown-zone", "credential-id"),
                                  unknownZone);
         final Change<JsonNode> change = Change.ofJsonUpsert(
                 "/repos/bar-unknown-zone/mirrors/" + mirrorId + ".json",
@@ -244,7 +246,7 @@ class ZoneAwareMirrorTest {
                                  "/",
                                  "main",
                                  null,
-                                 PRIVATE_KEY_FILE,
+                                 projectMirrorCredentialId(FOO_PROJ, PRIVATE_KEY_FILE),
                                  zone);
     }
 }

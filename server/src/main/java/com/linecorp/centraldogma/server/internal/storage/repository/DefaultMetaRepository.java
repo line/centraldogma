@@ -20,9 +20,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.regex.Pattern;
@@ -156,7 +159,17 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                 return CompletableFuture.completedFuture(c.toMirror(parent(), Credential.FALLBACK));
             }
 
-            return convert(ImmutableList.of(repoName), (repoCredentials, projectCredentials) -> {
+            final List<String> credentialRepoNames;
+            final boolean hasProjectCredential;
+            if (c.repoCredential()) {
+                credentialRepoNames = ImmutableList.of(repoName);
+                hasProjectCredential = false;
+            } else {
+                credentialRepoNames = ImmutableList.of();
+                hasProjectCredential = true;
+            }
+
+            return convert(credentialRepoNames, hasProjectCredential, (repoCredentials, projectCredentials) -> {
                 final Mirror mirror = c.toMirror(parent(), repoCredentials, projectCredentials);
                 if (mirror == null) {
                     throw mirrorNotFound(revision, mirrorFile);
@@ -173,84 +186,90 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     private CompletableFuture<List<Mirror>> allMirrors() {
-        return find("/repos/*/mirrors/*.json").thenCompose(entries -> {
-            if (entries.isEmpty()) {
-                return UnmodifiableFuture.completedFuture(ImmutableList.of());
-            }
-
-            final List<String> repoNames = entries.keySet().stream()
-                                                  .map(path -> path.substring(7, path.indexOf('/', 8)))
-                                                  .distinct()
-                                                  .collect(toImmutableList());
-            return convert(entries, repoNames);
-        });
+        return find(NEW_MIRRORS_PATH + "*.json").thenCompose(this::handleAllMirrors);
     }
 
     private CompletableFuture<List<Mirror>> allMirrors(String repoName) {
-        return find("/repos/" + repoName + "/mirrors/*.json").thenCompose(entries -> {
-            if (entries.isEmpty()) {
-                return UnmodifiableFuture.completedFuture(ImmutableList.of());
-            }
-
-            return convert(entries, ImmutableList.of(repoName));
-        });
+        return find("/repos/" + repoName + "/mirrors/*.json").thenCompose(this::handleAllMirrors);
     }
 
-    private CompletableFuture<List<Mirror>> convert(
-            Map<String, Entry<?>> entries, List<String> repoNames) {
-        return convert(repoNames, (repoCredentials, projectCredentials) -> {
-            try {
-                return parseMirrors(entries, repoCredentials, projectCredentials);
-            } catch (JsonProcessingException e) {
-                return Exceptions.throwUnsafely(e);
+    private CompletableFuture<List<Mirror>> handleAllMirrors(Map<String, Entry<?>> entries) {
+        if (entries.isEmpty()) {
+            return UnmodifiableFuture.completedFuture(ImmutableList.of());
+        }
+
+        final Set<String> repoNames = new HashSet<>();
+        boolean hasProjectCredential = false;
+        final List<MirrorConfig> mirrorConfigs = toMirrorConfigs(entries);
+        for (MirrorConfig mirrorConfig : mirrorConfigs) {
+            if (mirrorConfig.repoCredential()) {
+                repoNames.add(mirrorConfig.localRepo());
+            } else {
+                hasProjectCredential = true;
             }
-        });
+        }
+
+        return convert(new ArrayList<>(repoNames), hasProjectCredential,
+                       (repoCredentials, projectCredentials) -> {
+                           return mirrorConfigs.stream()
+                                               .map(mirrorConfig -> mirrorConfig.toMirror(
+                                                       parent(), repoCredentials, projectCredentials))
+                                               .filter(Objects::nonNull)
+                                               .collect(toImmutableList());
+                       });
     }
 
     private <T> CompletableFuture<T> convert(
-            List<String> repoNames,
+            List<String> credentialRepoNames,
+            boolean hasProjectCredential,
             BiFunction<Map<String, List<Credential>>, List<Credential>, T> convertFunction) {
-        final ImmutableList.Builder<CompletableFuture<List<Credential>>> builder = ImmutableList.builder();
+        final ImmutableList<CompletableFuture<List<Credential>>> repoCredentialFutures;
+        if (credentialRepoNames.isEmpty()) {
+            repoCredentialFutures = ImmutableList.of();
+        } else {
+            final ImmutableList.Builder<CompletableFuture<List<Credential>>> builder = ImmutableList.builder();
 
-        for (String repoName : repoNames) {
-            builder.add(repoCredentials(repoName));
+            for (String repoName : credentialRepoNames) {
+                builder.add(repoCredentials(repoName));
+            }
+            repoCredentialFutures = builder.build();
         }
-        final ImmutableList<CompletableFuture<List<Credential>>> futures = builder.build();
-        final CompletableFuture<List<Credential>> projectCredentialsFuture = projectCredentials();
+
+        final CompletableFuture<List<Credential>> projectCredentialsFuture;
+        if (hasProjectCredential) {
+            projectCredentialsFuture = projectCredentials();
+        } else {
+            projectCredentialsFuture = UnmodifiableFuture.completedFuture(ImmutableList.of());
+        }
 
         final CompletableFuture<Void> allOfFuture =
-                CompletableFuture.allOf(Stream.concat(futures.stream(),
+                CompletableFuture.allOf(Stream.concat(repoCredentialFutures.stream(),
                                                       Stream.of(projectCredentialsFuture))
                                               .toArray(CompletableFuture<?>[]::new));
+
         return allOfFuture.thenApply(unused -> {
             final ImmutableMap.Builder<String, List<Credential>> repoCredentialsBuilder =
                     ImmutableMap.builder();
-            for (int i = 0; i < repoNames.size(); i++) {
-                repoCredentialsBuilder.put(repoNames.get(i), futures.get(i).join());
+            for (int i = 0; i < credentialRepoNames.size(); i++) {
+                repoCredentialsBuilder.put(credentialRepoNames.get(i), repoCredentialFutures.get(i).join());
             }
             final List<Credential> projectCredentials = projectCredentialsFuture.join();
             return convertFunction.apply(repoCredentialsBuilder.build(), projectCredentials);
         });
     }
 
-    private List<Mirror> parseMirrors(Map<String, Entry<?>> entries,
-                                      Map<String, List<Credential>> repoCredentials,
-                                      List<Credential> projectCredentials)
-            throws JsonProcessingException {
+    private List<MirrorConfig> toMirrorConfigs(Map<String, Entry<?>> entries) {
         return entries.entrySet().stream().map(entry -> {
                           final JsonNode mirrorJson = (JsonNode) entry.getValue().content();
                           if (!mirrorJson.isObject()) {
                               throw newInvalidJsonTypeException(entry.getKey(), mirrorJson);
                           }
-                          final MirrorConfig c;
                           try {
-                              c = Jackson.treeToValue(mirrorJson, MirrorConfig.class);
+                              return Jackson.treeToValue(mirrorJson, MirrorConfig.class);
                           } catch (JsonProcessingException e) {
                               return Exceptions.throwUnsafely(e);
                           }
-                          return c.toMirror(parent(), repoCredentials, projectCredentials);
                       })
-                      .filter(Objects::nonNull)
                       .collect(toImmutableList());
     }
 
@@ -437,21 +456,21 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         }
     }
 
-    private static MirrorConfig converterToMirrorConfig(MirrorRequest mirrorDto) {
+    private static MirrorConfig converterToMirrorConfig(MirrorRequest mirrorRequest) {
         final String remoteUri =
-                mirrorDto.remoteScheme() + "://" + mirrorDto.remoteUrl() +
-                MirrorUtil.normalizePath(mirrorDto.remotePath()) + '#' + mirrorDto.remoteBranch();
+                mirrorRequest.remoteScheme() + "://" + mirrorRequest.remoteUrl() +
+                MirrorUtil.normalizePath(mirrorRequest.remotePath()) + '#' + mirrorRequest.remoteBranch();
 
         return new MirrorConfig(
-                mirrorDto.id(),
-                mirrorDto.enabled(),
-                mirrorDto.schedule(),
-                MirrorDirection.valueOf(mirrorDto.direction()),
-                mirrorDto.localRepo(),
-                mirrorDto.localPath(),
+                mirrorRequest.id(),
+                mirrorRequest.enabled(),
+                mirrorRequest.schedule(),
+                MirrorDirection.valueOf(mirrorRequest.direction()),
+                mirrorRequest.localRepo(),
+                mirrorRequest.localPath(),
                 URI.create(remoteUri),
-                mirrorDto.gitignore(),
-                mirrorDto.credentialId(),
-                mirrorDto.zone());
+                mirrorRequest.gitignore(),
+                mirrorRequest.credentialId(),
+                mirrorRequest.zone());
     }
 }

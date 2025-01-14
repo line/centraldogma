@@ -15,7 +15,7 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { MirrorRequest } from 'dogma/features/project/settings/mirrors/MirrorRequest';
+import { MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
 
 let mirrors: MirrorRequest[] = [];
 for (let i = 0; i < 10; i++) {

@@ -21,6 +21,8 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
@@ -33,6 +35,15 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 @JsonInclude(Include.NON_NULL)
 public class MirrorRequest {
+
+    // TODO(minwoox): remove ._ from the ID which violates Google AIP.
+    public static final Pattern PROJECT_CREDENTIAL_ID_PATTERN =
+            Pattern.compile("^projects/([^/]+)/credentials/([a-z](?:[a-z0-9-_.]{0,61}[a-z0-9])?)$");
+
+    // TODO(minwoox): remove ._ from the ID.
+    public static final Pattern REPO_CREDENTIAL_ID_PATTERN =
+            Pattern.compile(
+                    "^projects/([^/]+)/repos/([^/]+)/credentials/([a-z](?:[a-z0-9-_.]{0,61}[a-z0-9])?)$");
 
     private final String id;
     private final boolean enabled;
@@ -79,8 +90,54 @@ public class MirrorRequest {
         this.remotePath = requireNonNull(remotePath, "remotePath");
         this.remoteBranch = requireNonNull(remoteBranch, "remoteBranch");
         this.gitignore = gitignore;
-        this.credentialId = requireNonNull(credentialId, "credentialId");
+        this.credentialId = validateCredentialId(projectName, localRepo, credentialId);
         this.zone = zone;
+    }
+
+    private static String validateCredentialId(String projectName, String localRepo,
+                                              String credentialId) {
+        requireNonNull(credentialId, "credentialId");
+        if (credentialId.isEmpty()) {
+            // Allow an empty credential ID for Credential.FALLBACK.
+            return "";
+        }
+
+        Matcher matcher = PROJECT_CREDENTIAL_ID_PATTERN.matcher(credentialId);
+        if (matcher.matches()) {
+            checkProjectName(projectName, matcher);
+            return credentialId;
+        }
+
+        matcher = REPO_CREDENTIAL_ID_PATTERN.matcher(credentialId);
+        if (!matcher.matches()) {
+            throw new IllegalArgumentException("invalid credentialId: " + credentialId + " (expected: " +
+                                               PROJECT_CREDENTIAL_ID_PATTERN.pattern() + " or " +
+                                               REPO_CREDENTIAL_ID_PATTERN.pattern() + ')');
+        }
+        checkProjectName(projectName, matcher);
+        final String repoNameGroup = matcher.group(2);
+        if (!localRepo.equals(repoNameGroup)) {
+            throw new IllegalArgumentException("localRepo and credentialId do not match: " +
+                                               localRepo + " vs " + repoNameGroup);
+        }
+
+        return credentialId;
+    }
+
+    private static void checkProjectName(String projectName, Matcher matcher) {
+        final String projectNameGroup = matcher.group(1);
+        if (!projectName.equals(projectNameGroup)) {
+            throw new IllegalArgumentException("projectName and credentialId do not match: " +
+                                               projectName + " vs " + projectNameGroup);
+        }
+    }
+
+    public static String projectMirrorCredentialId(String projectName, String credentialId) {
+        return "projects/" + projectName + "/credentials/" + credentialId;
+    }
+
+    public static String repoMirrorCredentialId(String projectName, String repoName, String credentialId) {
+        return "projects/" + projectName + "/repos/" + repoName + "/credentials/" + credentialId;
     }
 
     @JsonProperty("id")
@@ -164,21 +221,21 @@ public class MirrorRequest {
         if (!(o instanceof MirrorRequest)) {
             return false;
         }
-        final MirrorRequest mirrorDto = (MirrorRequest) o;
-        return id.equals(mirrorDto.id) &&
-               enabled == mirrorDto.enabled &&
-               projectName.equals(mirrorDto.projectName) &&
-               Objects.equals(schedule, mirrorDto.schedule) &&
-               direction.equals(mirrorDto.direction) &&
-               localRepo.equals(mirrorDto.localRepo) &&
-               localPath.equals(mirrorDto.localPath) &&
-               remoteScheme.equals(mirrorDto.remoteScheme) &&
-               remoteUrl.equals(mirrorDto.remoteUrl) &&
-               remotePath.equals(mirrorDto.remotePath) &&
-               remoteBranch.equals(mirrorDto.remoteBranch) &&
-               Objects.equals(gitignore, mirrorDto.gitignore) &&
-               credentialId.equals(mirrorDto.credentialId) &&
-               Objects.equals(zone, mirrorDto.zone);
+        final MirrorRequest mirrorRequest = (MirrorRequest) o;
+        return id.equals(mirrorRequest.id) &&
+               enabled == mirrorRequest.enabled &&
+               projectName.equals(mirrorRequest.projectName) &&
+               Objects.equals(schedule, mirrorRequest.schedule) &&
+               direction.equals(mirrorRequest.direction) &&
+               localRepo.equals(mirrorRequest.localRepo) &&
+               localPath.equals(mirrorRequest.localPath) &&
+               remoteScheme.equals(mirrorRequest.remoteScheme) &&
+               remoteUrl.equals(mirrorRequest.remoteUrl) &&
+               remotePath.equals(mirrorRequest.remotePath) &&
+               remoteBranch.equals(mirrorRequest.remoteBranch) &&
+               Objects.equals(gitignore, mirrorRequest.gitignore) &&
+               credentialId.equals(mirrorRequest.credentialId) &&
+               Objects.equals(zone, mirrorRequest.zone);
     }
 
     @Override

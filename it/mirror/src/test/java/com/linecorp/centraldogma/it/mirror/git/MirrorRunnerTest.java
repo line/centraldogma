@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
+import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.projectMirrorCredentialId;
+import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.repoMirrorCredentialId;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
@@ -42,6 +44,7 @@ import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlRequest;
+import com.linecorp.centraldogma.server.internal.credential.NoneCredential;
 import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
@@ -99,17 +102,30 @@ class MirrorRunnerTest {
 
     @Test
     void triggerMirroring() throws Exception {
-        final PublicKeyCredential credential = getCredential();
+        // Put an invalid credential to project with ID PRIVATE_KEY_FILE.
+        final NoneCredential noneCredential = new NoneCredential(PRIVATE_KEY_FILE, true);
         ResponseEntity<PushResultDto> response =
                 systemAdminClient.prepare()
                                  .post("/api/v1/projects/{proj}/credentials")
                                  .pathParam("proj", FOO_PROJ)
-                                 .contentJson(credential)
+                                 .contentJson(noneCredential)
                                  .asJson(PushResultDto.class)
                                  .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
 
-        final MirrorRequest newMirror = newMirror();
+        // Put valid credential to repository with ID PRIVATE_KEY_FILE.
+        // This credential will be used for mirroring because it has higher priority than project credential.
+        final PublicKeyCredential credential = getCredential();
+        response = systemAdminClient.prepare()
+                                    .post("/api/v1/projects/{proj}/repos/{repo}/credentials")
+                                    .pathParam("proj", FOO_PROJ)
+                                    .pathParam("repo", BAR_REPO)
+                                    .contentJson(credential)
+                                    .asJson(PushResultDto.class)
+                                    .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
+
+        final MirrorRequest newMirror = newMirror(repoMirrorCredentialId(FOO_PROJ, BAR_REPO, PRIVATE_KEY_FILE));
         response = systemAdminClient.prepare()
                                     .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                                     .pathParam("proj", FOO_PROJ)
@@ -177,7 +193,7 @@ class MirrorRunnerTest {
                                  .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
 
-        final MirrorRequest newMirror = newMirror();
+        final MirrorRequest newMirror = newMirror(projectMirrorCredentialId(FOO_PROJ, PRIVATE_KEY_FILE));
         response = systemAdminClient.prepare()
                                     .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                                     .pathParam("proj", FOO_PROJ)
@@ -217,7 +233,7 @@ class MirrorRunnerTest {
         assertThat(mirrorResponse.status()).isEqualTo(HttpStatus.OK);
     }
 
-    private static MirrorRequest newMirror() {
+    private static MirrorRequest newMirror(String credentialId) {
         return new MirrorRequest(TEST_MIRROR_ID,
                                  true,
                                  FOO_PROJ,
@@ -230,7 +246,7 @@ class MirrorRunnerTest {
                                  "/",
                                  "main",
                                  null,
-                                 PRIVATE_KEY_FILE,
+                                 credentialId,
                                  null);
     }
 

@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
+import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.repoMirrorCredentialId;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.PRIVATE_KEY_FILE;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.TEST_MIRROR_ID;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.getCredential;
@@ -167,20 +168,7 @@ class MirrorAccessControlTest {
                     .isOne();
         });
 
-        final MirrorRequest updating = new MirrorRequest(TEST_MIRROR_ID,
-                                                         true,
-                                                         TEST_PROJ,
-                                                         "0/2 * * * * ?",
-                                                         "REMOTE_TO_LOCAL",
-                                                         TEST_REPO,
-                                                         "/",
-                                                         "git+ssh",
-                                                         "github.com/line/centraldogma-authtest.git",
-                                                         "/",
-                                                         "main",
-                                                         null,
-                                                         PRIVATE_KEY_FILE,
-                                                         null);
+        final MirrorRequest updating = newMirror("/foo/");
 
         final ResponseEntity<PushResultDto> response =
                 client.prepare()
@@ -211,7 +199,7 @@ class MirrorAccessControlTest {
                       .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
 
-        final MirrorRequest newMirror = newMirror();
+        final MirrorRequest newMirror = newMirror("/");
         response = client.prepare()
                          .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                          .pathParam("proj", TEST_PROJ)
@@ -222,20 +210,20 @@ class MirrorAccessControlTest {
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
     }
 
-    private static MirrorRequest newMirror() {
+    private static MirrorRequest newMirror(String localPath) {
         return new MirrorRequest(TEST_MIRROR_ID,
                                  true,
                                  TEST_PROJ,
                                  "0/1 * * * * ?",
                                  "REMOTE_TO_LOCAL",
                                  TEST_REPO,
-                                 "/",
+                                 localPath,
                                  "git+ssh",
                                  "github.com/line/centraldogma-authtest.git",
                                  "/",
                                  "main",
                                  null,
-                                 PRIVATE_KEY_FILE,
+                                 repoMirrorCredentialId(TEST_PROJ, TEST_REPO, PRIVATE_KEY_FILE),
                                  null);
     }
 }

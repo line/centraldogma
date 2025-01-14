@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.mirror;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.projectMirrorCredentialId;
 import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig.DEFAULT_SCHEDULE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -152,7 +153,7 @@ class DefaultMetaRepositoryWithMirrorTest {
                             "  \"localRepo\": \"foo\"," +
                             "  \"localPath\": \"/mirrors/foo\"," +
                             "  \"remoteUri\": \"git+ssh://foo.com/foo.git\"," +
-                            "  \"credentialId\": \"alice\"" +
+                            " \"credentialId\": \"" + projectMirrorCredentialId(project.name(), "alice") + '"' +
                             '}'),
                     Change.ofJsonUpsert(
                             "/repos/repo/mirrors/bar.json",
@@ -163,17 +164,18 @@ class DefaultMetaRepositoryWithMirrorTest {
                             "  \"direction\": \"REMOTE_TO_LOCAL\"," +
                             "  \"localRepo\": \"bar\"," +
                             "  \"remoteUri\": \"git+ssh://bar.com/bar.git/some-path#develop\"," +
-                            " \"credentialId\": \"bob\"" +
+                            "  \"credentialId\": \"" + projectMirrorCredentialId(project.name(), "bob") + '"' +
                             '}'));
             metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", mirrors).join();
             metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", UPSERT_RAW_CREDENTIALS).join();
         } else {
             final List<MirrorRequest> mirrors = ImmutableList.of(
                     new MirrorRequest("foo", true, project.name(), DEFAULT_SCHEDULE, "LOCAL_TO_REMOTE", "foo",
-                                  "/mirrors/foo", "git+ssh", "foo.com/foo.git", "", "", null, "alice", null),
+                                      "/mirrors/foo", "git+ssh", "foo.com/foo.git", "", "", null,
+                                      projectMirrorCredentialId(project.name(), "alice"), null),
                     new MirrorRequest("bar", true, project.name(), "0 */10 * * * ?", "REMOTE_TO_LOCAL", "bar",
-                                  "", "git+ssh", "bar.com/bar.git", "/some-path", "develop", null, "bob",
-                                  null));
+                                      "", "git+ssh", "bar.com/bar.git", "/some-path", "develop", null,
+                                      projectMirrorCredentialId(project.name(), "bob"), null));
             for (Credential credential : CREDENTIALS) {
                 final Command<CommitResult> command =
                         metaRepo.createCredentialPushCommand(credential, Author.SYSTEM, false).join();
@@ -248,7 +250,8 @@ class DefaultMetaRepositoryWithMirrorTest {
                                      "  \"direction\": \"LOCAL_TO_REMOTE\"," +
                                      "  \"localRepo\": \"qux\"," +
                                      "  \"remoteUri\": \"git+ssh://qux.net/qux.git\"," +
-                                     "  \"credentialId\": \"alice\"" +
+                                     "  \"credentialId\": \"" +
+                                     projectMirrorCredentialId(project.name(), "alice") + '"' +
                                      '}'))
                              .addAll(UPSERT_RAW_CREDENTIALS)
                              .build();

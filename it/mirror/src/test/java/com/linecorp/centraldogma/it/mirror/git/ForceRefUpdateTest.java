@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
+import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.projectMirrorCredentialId;
 import static com.linecorp.centraldogma.it.mirror.git.GitTestUtil.getFileContent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -225,7 +226,8 @@ class ForceRefUpdateTest {
                                          "  \"localPath\": \"/\"," +
                                          "  \"remoteUri\": \"" + gitUri + "\"," +
                                          "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
-                                         "  \"credentialId\": \"public-key-id\"" +
+                                         "  \"credentialId\": \"" +
+                                         projectMirrorCredentialId(projName, "public-key-id") + '"' +
                                          '}'))
              .push().join();
     }

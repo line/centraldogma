@@ -24,11 +24,9 @@ import { EditIcon } from '@chakra-ui/icons';
 import React, { ReactNode } from 'react';
 import { IconType } from 'react-icons';
 import { VscMirror, VscRepoClone } from 'react-icons/vsc';
-import { MirrorRequest } from 'dogma/features/project/settings/mirrors/MirrorRequest';
-import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
-import { FiBox } from 'react-icons/fi';
+import { MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
 import cronstrue from 'cronstrue';
-import { RunMirror } from '../../../mirror/RunMirrorButton';
+import { RunMirror } from 'dogma/features/mirror/RunMirrorButton';
 import { FaPlay } from 'react-icons/fa';
 import { CiLocationOn } from 'react-icons/ci';
 
@@ -40,13 +38,22 @@ const HeadRow = ({ children }: { children: ReactNode }) => (
 
 const AlignedIcon = ({ as }: { as: IconType }) => <Icon as={as} marginBottom="-4px" marginRight={2} />;
 
+const PROJECT_CREDENTIAL_PATTERN = /^projects\/[^/]+\/credentials\//;
+
+const isProjectCredential = (credentialId: string) => PROJECT_CREDENTIAL_PATTERN.test(credentialId);
+const removeProjectCredentialPrefix = (credentialId: string) =>
+  credentialId.replace(PROJECT_CREDENTIAL_PATTERN, '');
+
+const removeRepoCredentialPrefix = (credentialId: string) =>
+  credentialId.replace(/^projects\/[^/]+\/repos\/[^/]+\/credentials\//, '');
+
 interface MirrorViewProps {
   projectName: string;
+  repoName: string;
   mirror: MirrorRequest;
-  credential: CredentialDto;
 }
 
-const MirrorView = ({ projectName, mirror, credential }: MirrorViewProps) => {
+const MirrorView = ({ projectName, repoName, mirror }: MirrorViewProps) => {
   return (
     <Center>
       <VStack width="90%" align="left">
@@ -64,9 +71,9 @@ const MirrorView = ({ projectName, mirror, credential }: MirrorViewProps) => {
             <Tbody>
               <Tr>
                 <HeadRow>
-                  <AlignedIcon as={FiBox} /> Project
+                  <AlignedIcon as={GoRepo} /> Repository
                 </HeadRow>
-                <Td fontWeight="semibold">{projectName}</Td>
+                <Td fontWeight="semibold">{repoName}</Td>
               </Tr>
               <Tr>
                 <HeadRow>
@@ -103,11 +110,9 @@ const MirrorView = ({ projectName, mirror, credential }: MirrorViewProps) => {
                   <AlignedIcon as={GoRepo} /> Local path
                 </HeadRow>
                 <Td>
-                  <Link
-                    href={`/app/projects/${projectName}/repos/${mirror.localRepo}/tree/head${mirror.localPath}`}
-                  >
+                  <Link href={`/app/projects/${projectName}/repos/${repoName}/tree/head${mirror.localPath}`}>
                     <Code fontSize="md" padding="2px 10px 2px 10px">
-                      dogma://{projectName}/{mirror.localRepo}
+                      dogma://{projectName}/{repoName}
                       {mirror.localPath}
                     </Code>
                   </Link>
@@ -129,11 +134,20 @@ const MirrorView = ({ projectName, mirror, credential }: MirrorViewProps) => {
                   <AlignedIcon as={GoKey} /> Credential
                 </HeadRow>
                 <Td>
-                  {credential && (
-                    <Link href={`/app/projects/${projectName}/settings/credentials/${credential.id}`}>
-                      {mirror.credentialId}
-                    </Link>
-                  )}
+                  {mirror.credentialId.length !== 0 &&
+                    (isProjectCredential(mirror.credentialId) ? (
+                      <Link
+                        href={`/app/projects/${projectName}/settings/credentials/${removeProjectCredentialPrefix(mirror.credentialId)}`}
+                      >
+                        {removeProjectCredentialPrefix(mirror.credentialId)} (project credential)
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/app/projects/${projectName}/repos/${repoName}/settings/credentials/${removeRepoCredentialPrefix(mirror.credentialId)}`}
+                      >
+                        {removeRepoCredentialPrefix(mirror.credentialId)} (repository credential)
+                      </Link>
+                    ))}
                 </Td>
               </Tr>
               {mirror.zone && (
@@ -169,7 +183,10 @@ const MirrorView = ({ projectName, mirror, credential }: MirrorViewProps) => {
         </TableContainer>
 
         <HStack marginTop={10} marginLeft={10}>
-          <Link href={`/app/projects/${projectName}/settings/mirrors/${mirror.id}/edit`} marginRight="25px">
+          <Link
+            href={`/app/projects/${projectName}/repos/${repoName}/settings/mirrors/${mirror.id}/edit`}
+            marginRight="25px"
+          >
             <Button colorScheme="teal" size={'lg'} leftIcon={<EditIcon />}>
               Edit mirror
             </Button>
