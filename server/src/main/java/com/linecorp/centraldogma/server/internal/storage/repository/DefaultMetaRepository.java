@@ -365,13 +365,13 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
 
     @Override
     public CompletableFuture<Command<CommitResult>> createMirrorPushCommand(
-            MirrorRequest mirrorRequest, Author author, @Nullable ZoneConfig zoneConfig, boolean update) {
-        final String repoName = mirrorRequest.localRepo();
+            String repoName, MirrorRequest mirrorRequest, Author author,
+            @Nullable ZoneConfig zoneConfig, boolean update) {
         validateMirror(mirrorRequest, zoneConfig);
         if (update) {
             final String summary = "Update the mirror '" + mirrorRequest.id() + "' in " + repoName;
             return mirror(repoName, mirrorRequest.id()).thenApply(mirror -> {
-                return newMirrorCommand(mirrorRequest, author, summary);
+                return newMirrorCommand(repoName, mirrorRequest, author, summary);
             });
         } else {
             String summary = "Create a new mirror from " + mirrorRequest.remoteUrl() +
@@ -382,7 +382,8 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             } else {
                 summary = "[Local-to-remote] " + summary;
             }
-            return UnmodifiableFuture.completedFuture(newMirrorCommand(mirrorRequest, author, summary));
+            return UnmodifiableFuture.completedFuture(
+                    newMirrorCommand(repoName, mirrorRequest, author, summary));
         }
     }
 
@@ -429,11 +430,12 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                             change);
     }
 
-    private Command<CommitResult> newMirrorCommand(MirrorRequest mirrorRequest, Author author, String summary) {
+    private Command<CommitResult> newMirrorCommand(String repoName, MirrorRequest mirrorRequest,
+                                                   Author author, String summary) {
         final MirrorConfig mirrorConfig = converterToMirrorConfig(mirrorRequest);
         final JsonNode jsonNode = Jackson.valueToTree(mirrorConfig);
         final Change<JsonNode> change =
-                Change.ofJsonUpsert(mirrorFile(mirrorRequest.localRepo(), mirrorConfig.id()), jsonNode);
+                Change.ofJsonUpsert(mirrorFile(repoName, mirrorConfig.id()), jsonNode);
         return Command.push(author, parent().name(), name(), Revision.HEAD, summary, "", Markup.PLAINTEXT,
                             change);
     }

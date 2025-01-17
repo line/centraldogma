@@ -166,6 +166,7 @@ public class MirrorRequest {
         return direction;
     }
 
+    // TODO(minwoox): Remove this property after migration is done.
     @JsonProperty("localRepo")
     public String localRepo() {
         return localRepo;

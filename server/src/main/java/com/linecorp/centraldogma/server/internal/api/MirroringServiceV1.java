@@ -167,10 +167,10 @@ public class MirroringServiceV1 extends AbstractService {
     @StatusCode(201)
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     public CompletableFuture<PushResultDto> createMirror(@Param String projectName,
-                                                         Repository ignored,
+                                                         Repository repository,
                                                          MirrorRequest newMirror,
                                                          Author author) {
-        return createOrUpdate(projectName, newMirror, author, false);
+        return createOrUpdate(projectName, repository.name(), newMirror, author, false);
     }
 
     /**
@@ -182,11 +182,11 @@ public class MirroringServiceV1 extends AbstractService {
     @Put("/projects/{projectName}/repos/{repoName}/mirrors/{id}")
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     public CompletableFuture<PushResultDto> updateMirror(@Param String projectName,
-                                                         Repository ignored,
+                                                         Repository repository,
                                                          MirrorRequest mirror,
                                                          @Param String id, Author author) {
         checkArgument(id.equals(mirror.id()), "The mirror ID (%s) can't be updated", id);
-        return createOrUpdate(projectName, mirror, author, true);
+        return createOrUpdate(projectName, repository.name(), mirror, author, true);
     }
 
     /**
@@ -211,23 +211,25 @@ public class MirroringServiceV1 extends AbstractService {
         });
     }
 
-    private CompletableFuture<PushResultDto> createOrUpdate(String projectName, MirrorRequest newMirror,
-                                                            Author author, boolean update) {
+    private CompletableFuture<PushResultDto> createOrUpdate(
+            String projectName, String repoName, MirrorRequest newMirror,
+            Author author, boolean update) {
         final MetaRepository metaRepo = metaRepo(projectName);
-        return metaRepo.createMirrorPushCommand(newMirror, author, zoneConfig, update).thenCompose(command -> {
-            return executor().execute(command).thenApply(result -> {
-                metaRepo.mirror(newMirror.localRepo(), newMirror.id(), result.revision())
-                        .handle((mirror, cause) -> {
-                            if (cause != null) {
-                                // This should not happen in normal cases.
-                                logger.warn("Failed to get the mirror: {}", newMirror.id(), cause);
-                                return null;
-                            }
-                            return notifyMirrorEvent(mirror, update);
-                        });
-                return new PushResultDto(result.revision(), command.timestamp());
-            });
-        });
+        return metaRepo.createMirrorPushCommand(repoName, newMirror, author, zoneConfig, update).thenCompose(
+                command -> {
+                    return executor().execute(command).thenApply(result -> {
+                        metaRepo.mirror(repoName, newMirror.id(), result.revision())
+                                .handle((mirror, cause) -> {
+                                    if (cause != null) {
+                                        // This should not happen in normal cases.
+                                        logger.warn("Failed to get the mirror: {}", newMirror.id(), cause);
+                                        return null;
+                                    }
+                                    return notifyMirrorEvent(mirror, update);
+                                });
+                        return new PushResultDto(result.revision(), command.timestamp());
+                    });
+                });
     }
 
     private Void notifyMirrorEvent(Mirror mirror, boolean update) {

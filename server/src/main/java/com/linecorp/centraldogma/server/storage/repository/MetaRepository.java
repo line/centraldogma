@@ -90,9 +90,9 @@ public interface MetaRepository extends Repository {
     /**
      * Create a push {@link Command} for the {@link MirrorDto}.
      */
-    CompletableFuture<Command<CommitResult>> createMirrorPushCommand(MirrorRequest mirrorRequest, Author author,
-                                                                     @Nullable ZoneConfig zoneConfig,
-                                                                     boolean update);
+    CompletableFuture<Command<CommitResult>> createMirrorPushCommand(
+            String repoName, MirrorRequest mirrorRequest, Author author,
+            @Nullable ZoneConfig zoneConfig, boolean update);
 
     /**
      * Create a push {@link Command} for the {@link Credential}.
