@@ -99,7 +99,8 @@ public final class AddOperation extends PathValueOperation {
         try {
             index = Integer.parseInt(rawToken);
         } catch (NumberFormatException ignored) {
-            throw new JsonPatchConflictException("not an index: " + rawToken + " (expected: a non-negative integer)");
+            throw new JsonPatchConflictException(
+                    "not an index: " + rawToken + " (expected: a non-negative integer)");
         }
 
         if (index < 0 || index > size) {

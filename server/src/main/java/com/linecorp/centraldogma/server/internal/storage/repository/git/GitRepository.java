@@ -847,6 +847,16 @@ class GitRepository implements Repository {
         assert oldChange == null;
     }
 
+    private static boolean shouldAllowEmptyCommit(Iterable<Change<?>> changes) {
+        // allMatch returns true if the stream is empty.
+        if (Iterables.isEmpty(changes)) {
+            return false;
+        }
+        // JsonPatch operations its own validation for the changes so we don't need to validate them here.
+        return Streams.stream(changes)
+                      .allMatch(change -> change.type() == ChangeType.APPLY_JSON_PATCH);
+    }
+
     @Override
     public CompletableFuture<CommitResult> commit(
             Revision baseRevision, long commitTimeMillis, Author author, String summary,
@@ -867,16 +877,6 @@ class GitRepository implements Repository {
             }
             return blockingPreviewDiff(normBaseRevision, new DefaultChangesApplier(changes)).values();
         });
-    }
-
-    private boolean shouldAllowEmptyCommit(Iterable<Change<?>> changes) {
-        // allMatch returns true if the stream is empty.
-        if (Iterables.isEmpty(changes)) {
-            return false;
-        }
-        // JsonPatch operations its own validation for the changes so we don't need to validate them here.
-        return Streams.stream(changes)
-                      .allMatch(change -> change.type() == ChangeType.APPLY_JSON_PATCH);
     }
 
     @Override

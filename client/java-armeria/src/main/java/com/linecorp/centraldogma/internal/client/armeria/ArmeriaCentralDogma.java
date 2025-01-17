@@ -157,8 +157,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Void> whenEndpointReady() {
-        return client.endpointGroup().whenReady().thenRun(() -> {
-        });
+        return client.endpointGroup().whenReady().thenRun(() -> {});
     }
 
     @Override

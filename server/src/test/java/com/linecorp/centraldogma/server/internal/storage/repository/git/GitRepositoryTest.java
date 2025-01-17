@@ -269,8 +269,8 @@ class GitRepositoryTest {
                 assertThatThrownBy(
                         () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, patches[finalJ]).join())
                         .isInstanceOf(CompletionException.class)
-                        .hasCauseExactlyInstanceOf(jsonPatch ? JsonPatchConflictException.class :
-                                                   TextPatchConflictException.class);
+                        .hasCauseExactlyInstanceOf(jsonPatch ? JsonPatchConflictException.class
+                                                             : TextPatchConflictException.class);
             }
 
             // Ensure that the failed commit does not change the revision.

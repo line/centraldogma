@@ -268,18 +268,24 @@ class JsonPatchOperationIntegrationTest {
 
     @Test
     void testEquality() throws JsonProcessingException {
-        ensureSerdesEquality(JsonPatchOperation.add(JsonPointer.compile("/a"), new IntNode(1)), AddOperation.class);
+        ensureSerdesEquality(JsonPatchOperation.add(JsonPointer.compile("/a"), new IntNode(1)),
+                             AddOperation.class);
         ensureSerdesEquality(JsonPatchOperation.copy(JsonPointer.compile("/a"), JsonPointer.compile("/b")),
                              CopyOperation.class);
         ensureSerdesEquality(JsonPatchOperation.move(JsonPointer.compile("/a"), JsonPointer.compile("/b")),
                              MoveOperation.class);
         ensureSerdesEquality(JsonPatchOperation.remove(JsonPointer.compile("/a")), RemoveOperation.class);
-        ensureSerdesEquality(JsonPatchOperation.removeIfExists(JsonPointer.compile("/a")), RemoveIfExistsOperation.class);
-        ensureSerdesEquality(JsonPatchOperation.replace(JsonPointer.compile("/a"), new IntNode(1)), ReplaceOperation.class);
-        ensureSerdesEquality(JsonPatchOperation.safeReplace(JsonPointer.compile("/a"), new IntNode(1), new IntNode(2)),
-                             SafeReplaceOperation.class);
-        ensureSerdesEquality(JsonPatchOperation.test(JsonPointer.compile("/a"), new IntNode(1)), TestOperation.class);
-        ensureSerdesEquality(JsonPatchOperation.testAbsence(JsonPointer.compile("/a")), TestAbsenceOperation.class);
+        ensureSerdesEquality(JsonPatchOperation.removeIfExists(JsonPointer.compile("/a")),
+                             RemoveIfExistsOperation.class);
+        ensureSerdesEquality(JsonPatchOperation.replace(JsonPointer.compile("/a"), new IntNode(1)),
+                             ReplaceOperation.class);
+        ensureSerdesEquality(
+                JsonPatchOperation.safeReplace(JsonPointer.compile("/a"), new IntNode(1), new IntNode(2)),
+                SafeReplaceOperation.class);
+        ensureSerdesEquality(JsonPatchOperation.test(JsonPointer.compile("/a"), new IntNode(1)),
+                             TestOperation.class);
+        ensureSerdesEquality(JsonPatchOperation.testAbsence(JsonPointer.compile("/a")),
+                             TestAbsenceOperation.class);
     }
 
     private static <T extends JsonPatchOperation> void ensureSerdesEquality(T operation, Class<T> clazz)
