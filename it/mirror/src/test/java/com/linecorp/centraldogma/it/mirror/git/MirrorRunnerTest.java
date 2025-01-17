@@ -44,7 +44,6 @@ import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlRequest;
-import com.linecorp.centraldogma.server.internal.credential.NoneCredential;
 import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
@@ -102,27 +101,14 @@ class MirrorRunnerTest {
 
     @Test
     void triggerMirroring() throws Exception {
-        // Put an invalid credential to project with ID PRIVATE_KEY_FILE.
-        final NoneCredential noneCredential = new NoneCredential(PRIVATE_KEY_FILE, true);
+        final PublicKeyCredential credential = getCredential();
         ResponseEntity<PushResultDto> response =
                 systemAdminClient.prepare()
                                  .post("/api/v1/projects/{proj}/credentials")
                                  .pathParam("proj", FOO_PROJ)
-                                 .contentJson(noneCredential)
+                                 .contentJson(credential)
                                  .asJson(PushResultDto.class)
                                  .execute();
-        assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
-
-        // Put valid credential to repository with ID PRIVATE_KEY_FILE.
-        // This credential will be used for mirroring because it has higher priority than project credential.
-        final PublicKeyCredential credential = getCredential();
-        response = systemAdminClient.prepare()
-                                    .post("/api/v1/projects/{proj}/repos/{repo}/credentials")
-                                    .pathParam("proj", FOO_PROJ)
-                                    .pathParam("repo", BAR_REPO)
-                                    .contentJson(credential)
-                                    .asJson(PushResultDto.class)
-                                    .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
 
         final MirrorRequest newMirror = newMirror(repoMirrorCredentialId(FOO_PROJ, BAR_REPO, PRIVATE_KEY_FILE));

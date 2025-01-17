@@ -67,7 +67,7 @@ public class CredentialServiceV1 extends AbstractService {
      *
      * <p>Returns the list of the credentials in the project.
      */
-    @RequiresProjectRole(ProjectRole.OWNER)
+    @RequiresProjectRole(ProjectRole.MEMBER)
     @Get("/projects/{projectName}/credentials")
     public CompletableFuture<List<Credential>> listCredentials(User loginUser,
                                                                @Param String projectName) {
@@ -93,7 +93,7 @@ public class CredentialServiceV1 extends AbstractService {
      *
      * <p>Returns the credential for the ID in the project.
      */
-    @RequiresProjectRole(ProjectRole.OWNER)
+    @RequiresProjectRole(ProjectRole.MEMBER)
     @Get("/projects/{projectName}/credentials/{id}")
     public CompletableFuture<Credential> getCredentialById(User loginUser,
                                                            @Param String projectName, @Param String id) {

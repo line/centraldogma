@@ -130,7 +130,10 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
 
     /**
      * Returns whether the migration should be run.
+     *
+     * @deprecated Will be removed after the migration is done.
      */
+    @Deprecated
     public boolean runMigration() {
         return runMigration;
     }
