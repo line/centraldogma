@@ -20,7 +20,6 @@ import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.List;
 import java.util.concurrent.CompletionException;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -30,15 +29,14 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.IntNode;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class JsonPatchOperationIntegrationTest {
@@ -65,7 +63,7 @@ class JsonPatchOperationIntegrationTest {
     }
 
     @Test
-    void testAdd() throws JsonParseException {
+    void add() throws JsonParseException {
         repository.commit("add a", Change.ofJsonUpsert("/a.json", "{ \"a\": 1 }"))
                   .push()
                   .join();
@@ -80,7 +78,7 @@ class JsonPatchOperationIntegrationTest {
     }
 
     @Test
-    void testCopy() throws JsonParseException {
+    void copy() throws JsonParseException {
         repository.commit("add a", Change.ofJsonUpsert("/a.json", "{ \"a\": 1 }"))
                   .push()
                   .join();
@@ -112,7 +110,7 @@ class JsonPatchOperationIntegrationTest {
     }
 
     @Test
-    void testRemove() throws JsonParseException {
+    void remove() throws JsonParseException {
         repository.commit("add ab", Change.ofJsonUpsert("/a.json", "{ \"a\": 1, \"b\": 2 }"))
                   .push()
                   .join();
@@ -130,8 +128,7 @@ class JsonPatchOperationIntegrationTest {
                                            .join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(JsonPatchConflictException.class)
-                .hasMessageContaining("failed to apply JSON patch:")
-                .hasMessageContaining("path=/a.json, content=[{\"op\":\"remove\",\"path\":\"/a\"}]");
+                .hasMessageContaining("non-existent path: /a");
     }
 
     @Test
@@ -195,9 +192,7 @@ class JsonPatchOperationIntegrationTest {
                       .join();
         }).isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(JsonPatchConflictException.class)
-          .hasMessageContaining(
-                  "failed to apply JSON patch: Change{type=APPLY_JSON_PATCH, path=/a.json, " +
-                  "content=[{\"op\":\"safeReplace\",\"path\":\"/a\",\"oldValue\":3,\"value\":4}]}");
+          .hasMessageContaining("mismatching value at '/a': 2 (expected: 3)");
     }
 
     @Test
@@ -219,9 +214,7 @@ class JsonPatchOperationIntegrationTest {
                       .join();
         }).isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(JsonPatchConflictException.class)
-          .hasMessageContaining(
-                  "failed to apply JSON patch: Change{type=APPLY_JSON_PATCH, " +
-                  "path=/a.json, content=[{\"op\":\"test\",\"path\":\"/a\",\"value\":2}]}");
+          .hasMessageContaining("mismatching value at '/a': 1 (expected: 2)");
     }
 
     @Test
@@ -243,9 +236,7 @@ class JsonPatchOperationIntegrationTest {
                       .join();
         }).isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(JsonPatchConflictException.class)
-          .hasMessageContaining(
-                  "failed to apply JSON patch: Change{type=APPLY_JSON_PATCH, " +
-                  "path=/a.json, content=[{\"op\":\"testAbsence\",\"path\":\"/a\"}]}");
+          .hasMessageContaining("existent path: /a");
     }
 
     @Test
@@ -277,11 +268,25 @@ class JsonPatchOperationIntegrationTest {
 
     @Test
     void testEquality() throws JsonProcessingException {
-        final RemoveOperation remove = JsonPatchOperation.remove(JsonPointer.compile("/a"));
-        final JsonNode jsonNode = remove.toJsonNode();
-        final ObjectMapper mapper = new ObjectMapper();
-        final List<JsonPatchOperation> jsonPatchOperations =
-                mapper.treeToValue(jsonNode, new TypeReference<List<JsonPatchOperation>>() {});
-        assertThat(jsonPatchOperations.get(0)).isEqualTo(remove);
+        ensureSerdesEquality(JsonPatchOperation.add(JsonPointer.compile("/a"), new IntNode(1)), AddOperation.class);
+        ensureSerdesEquality(JsonPatchOperation.copy(JsonPointer.compile("/a"), JsonPointer.compile("/b")),
+                             CopyOperation.class);
+        ensureSerdesEquality(JsonPatchOperation.move(JsonPointer.compile("/a"), JsonPointer.compile("/b")),
+                             MoveOperation.class);
+        ensureSerdesEquality(JsonPatchOperation.remove(JsonPointer.compile("/a")), RemoveOperation.class);
+        ensureSerdesEquality(JsonPatchOperation.removeIfExists(JsonPointer.compile("/a")), RemoveIfExistsOperation.class);
+        ensureSerdesEquality(JsonPatchOperation.replace(JsonPointer.compile("/a"), new IntNode(1)), ReplaceOperation.class);
+        ensureSerdesEquality(JsonPatchOperation.safeReplace(JsonPointer.compile("/a"), new IntNode(1), new IntNode(2)),
+                             SafeReplaceOperation.class);
+        ensureSerdesEquality(JsonPatchOperation.test(JsonPointer.compile("/a"), new IntNode(1)), TestOperation.class);
+        ensureSerdesEquality(JsonPatchOperation.testAbsence(JsonPointer.compile("/a")), TestAbsenceOperation.class);
+    }
+
+    private static <T extends JsonPatchOperation> void ensureSerdesEquality(T operation, Class<T> clazz)
+            throws JsonProcessingException {
+        final String json = Jackson.writeValueAsString(operation);
+        final JsonNode jsonNode = Jackson.readTree(json);
+        final T deserialized = Jackson.convertValue(jsonNode, clazz);
+        assertThat(deserialized).isEqualTo(operation);
     }
 }
