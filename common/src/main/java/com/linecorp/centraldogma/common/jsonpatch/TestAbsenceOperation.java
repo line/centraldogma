@@ -51,7 +51,7 @@ public final class TestAbsenceOperation extends JsonPatchOperation {
         final JsonPointer path = path();
         final JsonNode found = node.at(path);
         if (!found.isMissingNode()) {
-            throw new JsonPatchException("existent path: " + path);
+            throw new JsonPatchConflictException("existent path: " + path);
         }
         return node;
     }

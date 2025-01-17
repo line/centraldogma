@@ -17,25 +17,26 @@
 package com.linecorp.centraldogma.common.jsonpatch;
 
 import com.linecorp.centraldogma.common.CentralDogmaException;
+import com.linecorp.centraldogma.common.ChangeConflictException;
 
 /**
- * An exception raised when a JSON Patch operation fails.
+ * A {@link CentralDogmaException} raised when a JSON Patch operation fails.
  */
-public final class JsonPatchException extends CentralDogmaException {
+public final class JsonPatchConflictException extends ChangeConflictException {
 
     private static final long serialVersionUID = 4746173383862473527L;
 
     /**
      * Creates a new instance.
      */
-    public JsonPatchException(final String message) {
+    public JsonPatchConflictException(String message) {
         super(message);
     }
 
     /**
      * Creates a new instance with the specified {@code cause}.
      */
-    public JsonPatchException(final String message, final Throwable cause) {
+    public JsonPatchConflictException(String message, Throwable cause) {
         super(message, cause);
     }
 }

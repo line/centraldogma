@@ -230,7 +230,7 @@ public abstract class JsonPatchOperation implements JsonSerializable {
      *
      * @param node the value to patch
      * @return the patched value
-     * @throws JsonPatchException operation failed to apply to this value
+     * @throws JsonPatchConflictException operation failed to apply to this value
      */
     public abstract JsonNode apply(JsonNode node);
 
@@ -244,7 +244,7 @@ public abstract class JsonPatchOperation implements JsonSerializable {
     JsonNode ensureExistence(JsonNode node) {
         final JsonNode found = node.at(path);
         if (found.isMissingNode()) {
-            throw new JsonPatchException("non-existent path: " + path);
+            throw new JsonPatchConflictException("non-existent path: " + path);
         }
         return found;
     }
@@ -265,11 +265,11 @@ public abstract class JsonPatchOperation implements JsonSerializable {
         final JsonPointer parentPath = path.head();
         final JsonNode parentNode = node.at(parentPath);
         if (parentNode.isMissingNode()) {
-            throw new JsonPatchException("non-existent " + typeName + " parent: " + parentPath);
+            throw new JsonPatchConflictException("non-existent " + typeName + " parent: " + parentPath);
         }
         if (!parentNode.isContainerNode()) {
-            throw new JsonPatchException(typeName + " parent is not a container: " + parentPath +
-                                         " (" + parentNode.getNodeType() + ')');
+            throw new JsonPatchConflictException(typeName + " parent is not a container: " + parentPath +
+                                                 " (" + parentNode.getNodeType() + ')');
         }
         return parentNode;
     }

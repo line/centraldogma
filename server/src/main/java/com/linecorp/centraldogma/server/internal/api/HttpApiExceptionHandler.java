@@ -48,8 +48,9 @@ import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
+import com.linecorp.centraldogma.common.TextPatchConflictException;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
-import com.linecorp.centraldogma.common.jsonpatch.JsonPatchException;
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
 import com.linecorp.centraldogma.server.metadata.MemberNotFoundException;
@@ -90,7 +91,9 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                .put(RepositoryExistsException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
                                                 "Repository '%s' exists already.", cause.getMessage()))
-               .put(JsonPatchException.class,
+               .put(JsonPatchConflictException.class,
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause))
+               .put(TextPatchConflictException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause))
                .put(RepositoryMetadataException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause))

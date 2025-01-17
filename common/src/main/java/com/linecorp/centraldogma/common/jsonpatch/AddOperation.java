@@ -99,12 +99,12 @@ public final class AddOperation extends PathValueOperation {
         try {
             index = Integer.parseInt(rawToken);
         } catch (NumberFormatException ignored) {
-            throw new JsonPatchException("not an index: " + rawToken + " (expected: a non-negative integer)");
+            throw new JsonPatchConflictException("not an index: " + rawToken + " (expected: a non-negative integer)");
         }
 
         if (index < 0 || index > size) {
-            throw new JsonPatchException("index out of bounds: " + index +
-                                         " (expected: >= 0 && <= " + size + ')');
+            throw new JsonPatchConflictException("index out of bounds: " + index +
+                                                 " (expected: >= 0 && <= " + size + ')');
         }
 
         target.insert(index, value);

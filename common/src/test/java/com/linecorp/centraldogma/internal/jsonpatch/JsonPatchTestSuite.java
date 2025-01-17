@@ -49,7 +49,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 
-import com.linecorp.centraldogma.common.jsonpatch.JsonPatchException;
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 
 class JsonPatchTestSuite {
 
@@ -64,7 +64,7 @@ class JsonPatchTestSuite {
             assertThat((Object) actual).isEqualTo(expected);
         } else {
             assertThatThrownBy(() -> patch.apply(source))
-                    .isInstanceOf(JsonPatchException.class);
+                    .isInstanceOf(JsonPatchConflictException.class);
         }
     }
 

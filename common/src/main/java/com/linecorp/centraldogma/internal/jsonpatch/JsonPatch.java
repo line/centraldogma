@@ -62,7 +62,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 
-import com.linecorp.centraldogma.common.jsonpatch.JsonPatchException;
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.Jackson;
 
@@ -141,7 +141,7 @@ public final class JsonPatch implements JsonSerializable {
         try {
             return Jackson.treeToValue(node, JsonPatch.class);
         } catch (JsonMappingException e) {
-            throw new JsonPatchException("invalid JSON patch", e);
+            throw new JsonPatchConflictException("invalid JSON patch", e);
         }
     }
 
@@ -341,7 +341,7 @@ public final class JsonPatch implements JsonSerializable {
      *
      * @param node the value to apply the patch to
      * @return the patched JSON value
-     * @throws JsonPatchException failed to apply patch
+     * @throws JsonPatchConflictException failed to apply patch
      * @throws NullPointerException input is null
      */
     public JsonNode apply(final JsonNode node) {

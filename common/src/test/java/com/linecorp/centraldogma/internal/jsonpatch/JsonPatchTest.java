@@ -52,7 +52,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.collect.ImmutableList;
 
-import com.linecorp.centraldogma.common.jsonpatch.JsonPatchException;
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 
 class JsonPatchTest {
@@ -99,12 +99,12 @@ class JsonPatchTest {
     void whenOneOperationFailsNextOperationIsNotCalled() {
         final String message = "foo";
         when(op1.apply(any(JsonNode.class)))
-                .thenThrow(new JsonPatchException(message));
+                .thenThrow(new JsonPatchConflictException(message));
 
         final JsonPatch patch = new JsonPatch(ImmutableList.of(op1, op2));
 
         assertThatThrownBy(() -> patch.apply(FACTORY.nullNode()))
-                .isInstanceOf(JsonPatchException.class)
+                .isInstanceOf(JsonPatchConflictException.class)
                 .hasMessage(message);
 
         verifyNoMoreInteractions(op2);

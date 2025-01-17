@@ -67,8 +67,8 @@ abstract class PathValueOperation extends JsonPatchOperation {
 
     void ensureEquivalence(JsonNode actual) {
         if (!EQUIVALENCE.equivalent(actual, value)) {
-            throw new JsonPatchException("mismatching value at '" + path() + "': " +
-                                         actual + " (expected: " + value + ')');
+            throw new JsonPatchConflictException("mismatching value at '" + path() + "': " +
+                                                 actual + " (expected: " + value + ')');
         }
     }
 

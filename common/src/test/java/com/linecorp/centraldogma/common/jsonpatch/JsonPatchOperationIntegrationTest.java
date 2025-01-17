@@ -129,7 +129,7 @@ class JsonPatchOperationIntegrationTest {
                                            .push()
                                            .join())
                 .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(JsonPatchException.class)
+                .hasCauseInstanceOf(JsonPatchConflictException.class)
                 .hasMessageContaining("failed to apply JSON patch:")
                 .hasMessageContaining("path=/a.json, content=[{\"op\":\"remove\",\"path\":\"/a\"}]");
     }
@@ -194,7 +194,7 @@ class JsonPatchOperationIntegrationTest {
                       .push()
                       .join();
         }).isInstanceOf(CompletionException.class)
-          .hasCauseInstanceOf(JsonPatchException.class)
+          .hasCauseInstanceOf(JsonPatchConflictException.class)
           .hasMessageContaining(
                   "failed to apply JSON patch: Change{type=APPLY_JSON_PATCH, path=/a.json, " +
                   "content=[{\"op\":\"safeReplace\",\"path\":\"/a\",\"oldValue\":3,\"value\":4}]}");
@@ -218,7 +218,7 @@ class JsonPatchOperationIntegrationTest {
                       .push()
                       .join();
         }).isInstanceOf(CompletionException.class)
-          .hasCauseInstanceOf(JsonPatchException.class)
+          .hasCauseInstanceOf(JsonPatchConflictException.class)
           .hasMessageContaining(
                   "failed to apply JSON patch: Change{type=APPLY_JSON_PATCH, " +
                   "path=/a.json, content=[{\"op\":\"test\",\"path\":\"/a\",\"value\":2}]}");
@@ -242,7 +242,7 @@ class JsonPatchOperationIntegrationTest {
                       .push()
                       .join();
         }).isInstanceOf(CompletionException.class)
-          .hasCauseInstanceOf(JsonPatchException.class)
+          .hasCauseInstanceOf(JsonPatchConflictException.class)
           .hasMessageContaining(
                   "failed to apply JSON patch: Change{type=APPLY_JSON_PATCH, " +
                   "path=/a.json, content=[{\"op\":\"testAbsence\",\"path\":\"/a\"}]}");

@@ -85,8 +85,8 @@ public final class SafeReplaceOperation extends JsonPatchOperation {
 
         final JsonPointer path = path();
         if (!EQUIVALENCE.equivalent(actual, oldValue)) {
-            throw new JsonPatchException("mismatching value at '" + path + "': " +
-                                         actual + " (expected: " + oldValue + ')');
+            throw new JsonPatchConflictException("mismatching value at '" + path + "': " +
+                                                 actual + " (expected: " + oldValue + ')');
         }
         final JsonNode replacement = newValue.deepCopy();
         if (path.toString().isEmpty()) {

@@ -75,7 +75,7 @@ public final class MoveOperation extends DualPathOperation {
             return node;
         }
         if (node.at(from).isMissingNode()) {
-            throw new JsonPatchException("non-existent source path: " + from);
+            throw new JsonPatchConflictException("non-existent source path: " + from);
         }
 
         final JsonNode sourceParent = ensureSourceParent(node, from);

@@ -51,7 +51,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Equivalence;
 import com.google.common.collect.ImmutableList;
 
-import com.linecorp.centraldogma.common.jsonpatch.JsonPatchException;
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 
 class JsonPatchOperationTest {
@@ -79,7 +79,7 @@ class JsonPatchOperationTest {
         final JsonPatchOperation op = READER.readValue(patch);
 
         assertThatThrownBy(() -> op.apply(node))
-                .isInstanceOf(JsonPatchException.class)
+                .isInstanceOf(JsonPatchConflictException.class)
                 .hasMessage(message);
     }
 

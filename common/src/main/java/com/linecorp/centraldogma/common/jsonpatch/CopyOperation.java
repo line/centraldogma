@@ -48,7 +48,7 @@ public final class CopyOperation extends DualPathOperation {
         final JsonPointer from = from();
         JsonNode source = node.at(from);
         if (source.isMissingNode()) {
-            throw new JsonPatchException("non-existent source path: " + from);
+            throw new JsonPatchConflictException("non-existent source path: " + from);
         }
 
         final JsonPointer path = path();

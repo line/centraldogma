@@ -81,6 +81,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Streams;
 
 import com.linecorp.armeria.common.CommonPools;
@@ -857,9 +858,7 @@ class GitRepository implements Repository {
         requireNonNull(markup, "markup");
         requireNonNull(changes, "changes");
 
-        // JsonPatch operations its own validation for the changes so we don't need to validate them here.
-        final boolean allowEmptyCommit = Streams.stream(changes).allMatch(
-                change -> change.type() == ChangeType.APPLY_JSON_PATCH);
+        final boolean allowEmptyCommit = shouldAllowEmptyCommit(changes);
         final CommitExecutor commitExecutor =
                 new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, allowEmptyCommit);
         return commit(baseRevision, commitExecutor, normBaseRevision -> {
@@ -868,6 +867,16 @@ class GitRepository implements Repository {
             }
             return blockingPreviewDiff(normBaseRevision, new DefaultChangesApplier(changes)).values();
         });
+    }
+
+    private boolean shouldAllowEmptyCommit(Iterable<Change<?>> changes) {
+        // allMatch returns true if the stream is empty.
+        if (Iterables.isEmpty(changes)) {
+            return false;
+        }
+        // JsonPatch operations its own validation for the changes so we don't need to validate them here.
+        return Streams.stream(changes)
+                      .allMatch(change -> change.type() == ChangeType.APPLY_JSON_PATCH);
     }
 
     @Override
