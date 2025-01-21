@@ -267,6 +267,32 @@ class JsonPatchOperationIntegrationTest {
     }
 
     @Test
+    void testMultipleOperationsWithStringPath() throws JsonParseException {
+        repository.commit("add a", Change.ofJsonUpsert("/a.json", "{ \"a\": 1, \"b\": 2 }"))
+                  .push()
+                  .join();
+        // { "a": 1, "b": 2 } -> { "a": 1, "b": 2, "c": 3 }
+        final AddOperation add = JsonPatchOperation.add("/c", new IntNode(3));
+        // { "a": 1, "b": 2, "c": 3 } -> { "b": 2, "c": 3, "d": 1 }
+        final MoveOperation move = JsonPatchOperation.move("/a", "/d");
+        // { "b": 2, "c": 3, "d": 1 } -> { "c": 3, "d": 1 }
+        final RemoveOperation remove = JsonPatchOperation.remove("/b");
+        // { "c": 3, "d": 1 } -> { "c": 4, "d": 1 }
+        final SafeReplaceOperation safeReplace =
+                JsonPatchOperation.safeReplace("/c", new IntNode(3), new IntNode(4));
+
+        final Change<JsonNode> change = Change.ofJsonPatch("/a.json",
+                                                           ImmutableList.of(add, move, remove, safeReplace));
+
+        repository.commit("json patch operations", change)
+                  .push()
+                  .join();
+
+        assertThatJson(repository.file("/a.json").get().join().contentAsJson())
+                .isEqualTo("{ \"c\": 4, \"d\": 1 }");
+    }
+
+    @Test
     void testEquality() throws JsonProcessingException {
         ensureSerdesEquality(JsonPatchOperation.add(JsonPointer.compile("/a"), new IntNode(1)),
                              AddOperation.class);

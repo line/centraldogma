@@ -109,23 +109,53 @@ public abstract class JsonPatchOperation implements JsonSerializable {
     }
 
     /**
+     * Creates a new JSON Patch {@code add} operation.
+     *
+     * @param path the JSON Pointer for this operation
+     * @param value the value to add
+     */
+    public static AddOperation add(String path, JsonNode value) {
+        requireNonNull(path, "path");
+        return add(JsonPointer.compile(path), value);
+    }
+
+    /**
      * Creates a new JSON Patch {@code copy} operation.
      *
      * @param from the source JSON Pointer
-     * @param path the destination JSON Pointer
+     * @param to the destination JSON Pointer
      */
-    public static CopyOperation copy(JsonPointer from, JsonPointer path) {
-        return new CopyOperation(from, path);
+    public static CopyOperation copy(JsonPointer from, JsonPointer to) {
+        return new CopyOperation(from, to);
     }
+
+    /**
+     * Creates a new JSON Patch {@code copy} operation.
+     *
+     * @param from the source JSON Pointer
+     * @param to the destination JSON Pointer
+     */
+    public static CopyOperation copy(String from, String to) {
+        requireNonNull(from, "from");
+        requireNonNull(to, "to");
+        return copy(JsonPointer.compile(from), JsonPointer.compile(to));
+    }
+
 
     /**
      * Creates a new JSON Patch {@code move} operation.
      *
      * @param from the source JSON Pointer
-     * @param path the destination JSON Pointer
+     * @param to the destination JSON Pointer
      */
-    public static MoveOperation move(JsonPointer from, JsonPointer path) {
-        return new MoveOperation(from, path);
+    public static MoveOperation move(JsonPointer from, JsonPointer to) {
+        return new MoveOperation(from, to);
+    }
+
+    public static MoveOperation move(String from, String to) {
+        requireNonNull(from, "from");
+        requireNonNull(to, "to");
+        return move(JsonPointer.compile(from), JsonPointer.compile(to));
     }
 
     /**
@@ -140,12 +170,34 @@ public abstract class JsonPatchOperation implements JsonSerializable {
     }
 
     /**
+     * Creates a new JSON Patch {@code remove} operation.
+     *
+     * <p>Note that this operation will throw an exception if the path does not exist.
+     *
+     * @param path the JSON Pointer to remove
+     */
+    public static RemoveOperation remove(String path) {
+        requireNonNull(path, "path");
+        return remove(JsonPointer.compile(path));
+    }
+
+    /**
      * Creates a new JSON Patch {@code removeIfExists} operation.
      *
      * @param path the JSON Pointer to remove if it exists
      */
     public static RemoveIfExistsOperation removeIfExists(JsonPointer path) {
         return new RemoveIfExistsOperation(path);
+    }
+
+    /**
+     * Creates a new JSON Patch {@code removeIfExists} operation.
+     *
+     * @param path the JSON Pointer to remove if it exists
+     */
+    public static RemoveIfExistsOperation removeIfExists(String path) {
+        requireNonNull(path, "path");
+        return removeIfExists(JsonPointer.compile(path));
     }
 
     /**
@@ -159,6 +211,17 @@ public abstract class JsonPatchOperation implements JsonSerializable {
     }
 
     /**
+     * Creates a new JSON Patch {@code replace} operation.
+     *
+     * @param path the JSON Pointer for this operation
+     * @param value the new value to replace the existing value
+     */
+    public static ReplaceOperation replace(String path, JsonNode value) {
+        requireNonNull(path, "path");
+        return replace(JsonPointer.compile(path), value);
+    }
+
+    /**
      * Creates a new JSON Patch {@code safeReplace} operation.
      *
      * @param path the JSON Pointer for this operation
@@ -167,6 +230,18 @@ public abstract class JsonPatchOperation implements JsonSerializable {
      */
     public static SafeReplaceOperation safeReplace(JsonPointer path, JsonNode oldValue, JsonNode newValue) {
         return new SafeReplaceOperation(path, oldValue, newValue);
+    }
+
+    /**
+     * Creates a new JSON Patch {@code safeReplace} operation.
+     *
+     * @param path the JSON Pointer for this operation
+     * @param oldValue the old value to replace
+     * @param newValue the new value to replace the old value
+     */
+    public static SafeReplaceOperation safeReplace(String path, JsonNode oldValue, JsonNode newValue) {
+        requireNonNull(path, "path");
+        return safeReplace(JsonPointer.compile(path), oldValue, newValue);
     }
 
     /**
@@ -182,6 +257,19 @@ public abstract class JsonPatchOperation implements JsonSerializable {
     }
 
     /**
+     * Creates a new JSON Patch {@code test} operation.
+     *
+     * <p>This operation will throw an exception if the value at the path does not match the expected value.
+     *
+     * @param path the JSON Pointer for this operation
+     * @param value the value to test
+     */
+    public static TestOperation test(String path, JsonNode value) {
+        requireNonNull(path, "path");
+        return test(JsonPointer.compile(path), value);
+    }
+
+    /**
      * Creates a new JSON Patch {@code testAbsent} operation.
      *
      * <p>This operation will throw an exception if the value at the path exists.
@@ -190,6 +278,18 @@ public abstract class JsonPatchOperation implements JsonSerializable {
      */
     public static TestAbsenceOperation testAbsence(JsonPointer path) {
         return new TestAbsenceOperation(path);
+    }
+
+    /**
+     * Creates a new JSON Patch {@code testAbsent} operation.
+     *
+     * <p>This operation will throw an exception if the value at the path exists.
+     *
+     * @param path the JSON Pointer for this operation
+     */
+    public static TestAbsenceOperation testAbsence(String path) {
+        requireNonNull(path, "path");
+        return testAbsence(JsonPointer.compile(path));
     }
 
     /**
