@@ -17,7 +17,6 @@
 package com.linecorp.centraldogma.it.mirror.git;
 
 import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.projectMirrorCredentialId;
-import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.repoMirrorCredentialId;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
@@ -111,7 +110,7 @@ class MirrorRunnerTest {
                                  .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
 
-        final MirrorRequest newMirror = newMirror(repoMirrorCredentialId(FOO_PROJ, BAR_REPO, PRIVATE_KEY_FILE));
+        final MirrorRequest newMirror = newMirror(projectMirrorCredentialId(FOO_PROJ, PRIVATE_KEY_FILE));
         response = systemAdminClient.prepare()
                                     .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                                     .pathParam("proj", FOO_PROJ)

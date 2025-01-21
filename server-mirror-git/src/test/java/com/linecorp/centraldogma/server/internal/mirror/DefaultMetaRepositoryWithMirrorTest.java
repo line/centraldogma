@@ -183,7 +183,8 @@ class DefaultMetaRepositoryWithMirrorTest {
             }
             for (MirrorRequest mirror : mirrors) {
                 final Command<CommitResult> command =
-                        metaRepo.createMirrorPushCommand(mirror, Author.SYSTEM, null, false).join();
+                        metaRepo.createMirrorPushCommand(mirror.localRepo(), mirror, Author.SYSTEM,
+                                                         null, false).join();
                 pmExtension.executor().execute(command).join();
             }
         }

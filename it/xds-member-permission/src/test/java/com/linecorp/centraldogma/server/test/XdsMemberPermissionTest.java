@@ -161,10 +161,10 @@ class XdsMemberPermissionTest {
         assertThat(userRepo.file("/text.txt").get().join().contentAsText())
                 .isEqualTo("bar\n");
 
-        // But the user should not be able to access the credentials.
+        // The user can read the credentials.
         assertThat(userWebClient.prepare()
                                 .get("/api/v1/projects/@xds/credentials/test")
                                 .execute().status())
-                .isEqualTo(HttpStatus.FORBIDDEN);
+                .isEqualTo(HttpStatus.OK);
     }
 }

@@ -142,7 +142,6 @@ final class MigratingMirrorToRepositoryService {
         if (entries.isEmpty()) {
             return false;
         }
-        repository.parent().name();
         final List<Change<?>> changes = new ArrayList<>();
         for (Map.Entry<String, Entry<?>> entry : entries.entrySet()) {
             final JsonNode content = (JsonNode) entry.getValue().content();
