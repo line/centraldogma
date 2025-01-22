@@ -117,7 +117,7 @@ public final class MirrorRunner implements SafeCloseable {
                                         throw new MirrorAccessException(
                                                 "The mirroring from " + mirror.remoteRepoUri() +
                                                 " is not allowed: " +
-                                                mirrorKey.projectName + '/' + mirrorKey.mirrorId);
+                                                mirrorKey.repoName + '/' + mirrorKey.mirrorId);
                                     }
 
                                     final String zone = mirror.zone();

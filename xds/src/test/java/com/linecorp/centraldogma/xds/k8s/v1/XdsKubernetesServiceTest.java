@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.xds.k8s.v1;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
 import static com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceTest.checkEndpointsViaDiscoveryRequest;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
@@ -141,9 +142,12 @@ class XdsKubernetesServiceTest {
     }
 
     private static void putCredential() {
-        final ImmutableMap<String, String> credential = ImmutableMap.of("type", "access_token",
-                                                                        "id", "my-credential",
-                                                                        "accessToken", "secret");
+        final ImmutableMap<String, String> credential =
+                ImmutableMap.of("type", "access_token",
+                                "id", "my-credential",
+                                "resourceName", projectCredentialResourceName(XDS_CENTRAL_DOGMA_PROJECT,
+                                                                              "my-credential"),
+                                "accessToken", "secret");
         dogma.httpClient().prepare()
              .post("/api/v1/projects/@xds/credentials")
              .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")

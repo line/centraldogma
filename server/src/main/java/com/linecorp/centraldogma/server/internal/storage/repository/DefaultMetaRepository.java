@@ -18,8 +18,9 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConverter.convertToMirror;
+import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConverter.converterToMirrorConfig;
 
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -58,7 +59,6 @@ import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
-import com.linecorp.centraldogma.server.mirror.MirrorUtil;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -152,11 +152,11 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                 throw new RepositoryMetadataException("failed to load the mirror configuration", e);
             }
 
-            if (Strings.isNullOrEmpty(c.credentialId())) {
+            if (c.credentialResourceName().isEmpty()) {
                 if (!parent().repos().exists(repoName)) {
                     throw mirrorNotFound(revision, mirrorFile);
                 }
-                return CompletableFuture.completedFuture(c.toMirror(parent(), Credential.FALLBACK));
+                return CompletableFuture.completedFuture(convertToMirror(c, parent(), Credential.FALLBACK));
             }
 
             final List<String> credentialRepoNames;
@@ -170,7 +170,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             }
 
             return convert(credentialRepoNames, hasProjectCredential, (repoCredentials, projectCredentials) -> {
-                final Mirror mirror = c.toMirror(parent(), repoCredentials, projectCredentials);
+                final Mirror mirror = convertToMirror(c, parent(), repoCredentials, projectCredentials);
                 if (mirror == null) {
                     throw mirrorNotFound(revision, mirrorFile);
                 }
@@ -212,8 +212,9 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
         return convert(new ArrayList<>(repoNames), hasProjectCredential,
                        (repoCredentials, projectCredentials) -> {
                            return mirrorConfigs.stream()
-                                               .map(mirrorConfig -> mirrorConfig.toMirror(
-                                                       parent(), repoCredentials, projectCredentials))
+                                               .map(mirrorConfig -> convertToMirror(
+                                                       mirrorConfig, parent(),
+                                                       repoCredentials, projectCredentials))
                                                .filter(Objects::nonNull)
                                                .collect(toImmutableList());
                        });
@@ -456,23 +457,5 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             checkArgument(zoneConfig.allZones().contains(zone),
                           "The zone '%s' is not in the zone configuration: %s", zone, zoneConfig);
         }
-    }
-
-    private static MirrorConfig converterToMirrorConfig(MirrorRequest mirrorRequest) {
-        final String remoteUri =
-                mirrorRequest.remoteScheme() + "://" + mirrorRequest.remoteUrl() +
-                MirrorUtil.normalizePath(mirrorRequest.remotePath()) + '#' + mirrorRequest.remoteBranch();
-
-        return new MirrorConfig(
-                mirrorRequest.id(),
-                mirrorRequest.enabled(),
-                mirrorRequest.schedule(),
-                MirrorDirection.valueOf(mirrorRequest.direction()),
-                mirrorRequest.localRepo(),
-                mirrorRequest.localPath(),
-                URI.create(remoteUri),
-                mirrorRequest.gitignore(),
-                mirrorRequest.credentialId(),
-                mirrorRequest.zone());
     }
 }

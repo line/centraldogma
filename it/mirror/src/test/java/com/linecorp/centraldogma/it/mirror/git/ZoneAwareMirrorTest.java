@@ -16,8 +16,8 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
-import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.projectMirrorCredentialId;
-import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.repoMirrorCredentialId;
+import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.repoCredentialResourceName;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.BAR_REPO;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.FOO_PROJ;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.PRIVATE_KEY_FILE;
@@ -180,7 +180,8 @@ class ZoneAwareMirrorTest {
                                  "/",
                                  URI.create("git+ssh://github.com/line/centraldogma-authtest.git/#main"),
                                  null,
-                                 repoMirrorCredentialId("foo", "bar-unknown-zone", "credential-id"),
+                                 null,
+                                 repoCredentialResourceName("foo", "bar-unknown-zone", "credential-id"),
                                  unknownZone);
         final Change<JsonNode> change = Change.ofJsonUpsert(
                 "/repos/bar-unknown-zone/mirrors/" + mirrorId + ".json",
@@ -212,7 +213,7 @@ class ZoneAwareMirrorTest {
                                                   .build()
                                                   .blocking();
 
-        final PublicKeyCredential credential = getCredential();
+        final PublicKeyCredential credential = getCredential(FOO_PROJ, null);
         ResponseEntity<PushResultDto> response =
                 client.prepare()
                       .post("/api/v1/projects/{proj}/credentials")
@@ -246,7 +247,8 @@ class ZoneAwareMirrorTest {
                                  "/",
                                  "main",
                                  null,
-                                 projectMirrorCredentialId(FOO_PROJ, PRIVATE_KEY_FILE),
+                                 null,
+                                 projectCredentialResourceName(FOO_PROJ, PRIVATE_KEY_FILE),
                                  zone);
     }
 }

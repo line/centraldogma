@@ -16,7 +16,8 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
-import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.projectMirrorCredentialId;
+import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.repoCredentialResourceName;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
@@ -24,6 +25,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+
+import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -100,7 +103,7 @@ class MirrorRunnerTest {
 
     @Test
     void triggerMirroring() throws Exception {
-        final PublicKeyCredential credential = getCredential();
+        final PublicKeyCredential credential = getCredential(FOO_PROJ, null);
         ResponseEntity<PushResultDto> response =
                 systemAdminClient.prepare()
                                  .post("/api/v1/projects/{proj}/credentials")
@@ -110,7 +113,7 @@ class MirrorRunnerTest {
                                  .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
 
-        final MirrorRequest newMirror = newMirror(projectMirrorCredentialId(FOO_PROJ, PRIVATE_KEY_FILE));
+        final MirrorRequest newMirror = newMirror(projectCredentialResourceName(FOO_PROJ, PRIVATE_KEY_FILE));
         response = systemAdminClient.prepare()
                                     .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                                     .pathParam("proj", FOO_PROJ)
@@ -168,7 +171,7 @@ class MirrorRunnerTest {
         assertThat(accessResponse.status()).isEqualTo(HttpStatus.CREATED);
         assertThat(accessResponse.content().id()).isEqualTo("default");
 
-        final PublicKeyCredential credential = getCredential();
+        final PublicKeyCredential credential = getCredential(FOO_PROJ, null);
         ResponseEntity<PushResultDto> response =
                 systemAdminClient.prepare()
                                  .post("/api/v1/projects/{proj}/credentials")
@@ -178,7 +181,7 @@ class MirrorRunnerTest {
                                  .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
 
-        final MirrorRequest newMirror = newMirror(projectMirrorCredentialId(FOO_PROJ, PRIVATE_KEY_FILE));
+        final MirrorRequest newMirror = newMirror(projectCredentialResourceName(FOO_PROJ, PRIVATE_KEY_FILE));
         response = systemAdminClient.prepare()
                                     .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                                     .pathParam("proj", FOO_PROJ)
@@ -218,7 +221,7 @@ class MirrorRunnerTest {
         assertThat(mirrorResponse.status()).isEqualTo(HttpStatus.OK);
     }
 
-    private static MirrorRequest newMirror(String credentialId) {
+    private static MirrorRequest newMirror(String credentialResourceName) {
         return new MirrorRequest(TEST_MIRROR_ID,
                                  true,
                                  FOO_PROJ,
@@ -231,11 +234,12 @@ class MirrorRunnerTest {
                                  "/",
                                  "main",
                                  null,
-                                 credentialId,
+                                 null,
+                                 credentialResourceName,
                                  null);
     }
 
-    static PublicKeyCredential getCredential() throws Exception {
+    static PublicKeyCredential getCredential(String projectName, @Nullable String repoName) throws Exception {
         final String publicKeyFile = "ecdsa_256.openssh.pub";
 
         final byte[] privateKeyBytes =
@@ -247,6 +251,8 @@ class MirrorRunnerTest {
 
         return new PublicKeyCredential(
                 PRIVATE_KEY_FILE,
+                repoName != null ? repoCredentialResourceName(projectName, repoName, PRIVATE_KEY_FILE)
+                                 : projectCredentialResourceName(projectName, PRIVATE_KEY_FILE),
                 true,
                 "git",
                 publicKey,

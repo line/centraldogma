@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
-import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.projectMirrorCredentialId;
+import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
 import static com.linecorp.centraldogma.it.mirror.git.GitTestUtil.getFileContent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -205,6 +205,8 @@ class ForceRefUpdateTest {
                      Change.ofJsonUpsert("/credentials/public-key-id.json",
                                          '{' +
                                          "  \"id\": \"public-key-id\"," +
+                                         "  \"resourceName\": \"" +
+                                         projectCredentialResourceName(projName, "public-key-id") + "\"," +
                                          "  \"type\": \"public_key\"," +
                                          "  \"username\": \"" + "git" + "\"," +
                                          "  \"publicKey\": \"" + pubKey + "\"," +
@@ -227,7 +229,7 @@ class ForceRefUpdateTest {
                                          "  \"remoteUri\": \"" + gitUri + "\"," +
                                          "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
                                          "  \"credentialId\": \"" +
-                                         projectMirrorCredentialId(projName, "public-key-id") + '"' +
+                                         projectCredentialResourceName(projName, "public-key-id") + '"' +
                                          '}'))
              .push().join();
     }

@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.credential;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -29,21 +30,26 @@ class PasswordCredentialTest {
     @Test
     void testConstruction() throws Exception {
         // null checks
-        assertThatThrownBy(() -> new PasswordCredential("foo", true, null, "sesame"))
+        assertThatThrownBy(() -> new PasswordCredential("foo", projectCredentialResourceName("foo", "foo"),
+                                                        true, null, "sesame"))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new PasswordCredential("foo", true, "trustin", null))
+        assertThatThrownBy(() -> new PasswordCredential("foo", projectCredentialResourceName("foo", "foo"),
+                                                        true, "trustin", null))
                 .isInstanceOf(NullPointerException.class);
 
         // emptiness checks
-        assertThatThrownBy(() -> new PasswordCredential("foo", true, "", "sesame"))
+        assertThatThrownBy(() -> new PasswordCredential("foo", projectCredentialResourceName("foo", "foo"),
+                                                        true, "", "sesame"))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // An empty password must be allowed because some servers uses password authentication
         // as token-based authentication whose username is the token and password is an empty string.
-        assertThat(new PasswordCredential("foo", true, "trustin", "").password()).isEmpty();
+        assertThat(new PasswordCredential("foo", projectCredentialResourceName("foo", "foo"),
+                                          true, "trustin", "").password()).isEmpty();
 
         // successful construction
-        final PasswordCredential c = new PasswordCredential("foo", true, "trustin", "sesame");
+        final PasswordCredential c = new PasswordCredential("foo", projectCredentialResourceName("foo", "foo"),
+                                                            true, "trustin", "sesame");
         assertThat(c.id()).isEqualTo("foo");
         assertThat(c.username()).isEqualTo("trustin");
         assertThat(c.password()).isEqualTo("sesame");
@@ -54,9 +60,11 @@ class PasswordCredentialTest {
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"password\"," +
                                      "  \"id\": \"foo\"," +
+                                     "  \"resourceName\": \"" + projectCredentialResourceName("foo", "foo") +
+                                     "\"," +
                                      "  \"username\": \"trustin\"," +
                                      "  \"password\": \"sesame\"" +
                                      '}', Credential.class))
-                .isEqualTo(new PasswordCredential("foo", true, "trustin", "sesame"));
+                .isEqualTo(new PasswordCredential("foo", "projects/foo", true, "trustin", "sesame"));
     }
 }

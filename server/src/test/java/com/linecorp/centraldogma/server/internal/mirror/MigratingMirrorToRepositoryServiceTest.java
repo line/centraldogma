@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.projectMirrorCredentialId;
+import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.LEGACY_MIRRORS_PATH;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -54,7 +54,7 @@ class MigratingMirrorToRepositoryServiceTest {
             "  \"localRepo\": \"" + TEST_REPO0 + "\"," +
             "  \"localPath\": \"/\"," +
             "  \"remoteUri\": \"git+ssh://git.foo.com/foo.git/settings#release\"," +
-            "  \"credentialId\": \"%s\"" +
+            "  \"%s\": \"%s\"" +
             '}';
 
     static final String REPO0_MIRROR_1 =
@@ -66,7 +66,7 @@ class MigratingMirrorToRepositoryServiceTest {
             "  \"localRepo\": \"" + TEST_REPO0 + "\"," +
             "  \"localPath\": \"/\"," +
             "  \"remoteUri\": \"git+ssh://git.bar.com/foo.git/settings#release\"," +
-            "  \"credentialId\": \"%s\"" +
+            "  \"%s\": \"%s\"" +
             '}';
 
     static final String REPO1_MIRROR =
@@ -78,7 +78,7 @@ class MigratingMirrorToRepositoryServiceTest {
             "  \"localRepo\": \"" + TEST_REPO1 + "\"," +
             "  \"localPath\": \"/\"," +
             "  \"remoteUri\": \"git+ssh://git.qux.com/foo.git/settings#release\"," +
-            "  \"credentialId\": \"%s\"" +
+            "  \"%s\": \"%s\"" +
             '}';
 
     @RegisterExtension
@@ -109,11 +109,11 @@ class MigratingMirrorToRepositoryServiceTest {
 
         final List<Change<?>> changes = new ArrayList<>();
         changes.add(Change.ofJsonUpsert(LEGACY_MIRRORS_PATH + "mirror-0.json",
-                                        String.format(REPO0_MIRROR_0, "credential-1")));
+                                        String.format(REPO0_MIRROR_0, "credentialId", "credential-1")));
         changes.add(Change.ofJsonUpsert(LEGACY_MIRRORS_PATH + "mirror-1.json",
-                                        String.format(REPO0_MIRROR_1, "credential-1")));
+                                        String.format(REPO0_MIRROR_1, "credentialId", "credential-1")));
         changes.add(Change.ofJsonUpsert(LEGACY_MIRRORS_PATH + "mirror-2.json",
-                                        String.format(REPO1_MIRROR, "credential-1")));
+                                        String.format(REPO1_MIRROR, "credentialId", "credential-1")));
 
         project.metaRepo().commit(Revision.HEAD, System.currentTimeMillis(), Author.SYSTEM,
                                   "Create a legacy mirrors.json", changes).join();
@@ -129,18 +129,18 @@ class MigratingMirrorToRepositoryServiceTest {
                 "/repos/" + TEST_REPO0 + "/mirrors/mirror-0.json",
                 Entry.ofJson(new Revision(3),
                              "/repos/" + TEST_REPO0 + "/mirrors/mirror-0.json",
-                             String.format(REPO0_MIRROR_0,
-                                           projectMirrorCredentialId(TEST_PROJ, "credential-1"))),
+                             String.format(REPO0_MIRROR_0, "credentialResourceName",
+                                           projectCredentialResourceName(TEST_PROJ, "credential-1"))),
                 "/repos/" + TEST_REPO0 + "/mirrors/mirror-1.json",
                 Entry.ofJson(new Revision(3),
                              "/repos/" + TEST_REPO0 + "/mirrors/mirror-1.json",
-                             String.format(REPO0_MIRROR_1,
-                                           projectMirrorCredentialId(TEST_PROJ, "credential-1"))),
+                             String.format(REPO0_MIRROR_1, "credentialResourceName",
+                                           projectCredentialResourceName(TEST_PROJ, "credential-1"))),
                 "/repos/" + TEST_REPO1 + "/mirrors/mirror-2.json",
                 Entry.ofJson(new Revision(3),
                              "/repos/" + TEST_REPO1 + "/mirrors/mirror-2.json",
-                             String.format(REPO1_MIRROR,
-                                           projectMirrorCredentialId(TEST_PROJ, "credential-1")))
+                             String.format(REPO1_MIRROR, "credentialResourceName",
+                                           projectCredentialResourceName(TEST_PROJ, "credential-1")))
         ));
     }
 }

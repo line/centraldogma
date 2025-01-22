@@ -44,11 +44,13 @@ public final class MirrorDto extends MirrorRequest {
                      @JsonProperty("remotePath") String remotePath,
                      @JsonProperty("remoteBranch") String remoteBranch,
                      @JsonProperty("gitignore") @Nullable String gitignore,
-                     @JsonProperty("credentialId") String credentialId,
+                     // TODO(minwoox): Remove this credentialId property after migration is done.
+                     @JsonProperty("credentialId") @Nullable String credentialId,
+                     @JsonProperty("credentialResourceName") @Nullable String credentialResourceName,
                      @JsonProperty("zone") @Nullable String zone,
                      @JsonProperty("allow") boolean allow) {
         super(id, enabled, projectName, schedule, direction, localRepo, localPath, remoteScheme, remoteUrl,
-              remotePath, remoteBranch, gitignore, credentialId, zone);
+              remotePath, remoteBranch, gitignore, credentialId, credentialResourceName, zone);
         this.allow = allow;
     }
 

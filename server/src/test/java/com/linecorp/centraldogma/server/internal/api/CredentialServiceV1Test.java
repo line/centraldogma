@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.repoCredentialResourceName;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
@@ -91,10 +93,14 @@ class CredentialServiceV1Test {
     void createAndReadCredential(boolean projectLevel) {
         final List<Map<String, Object>> credentials = ImmutableList.of(
                 ImmutableMap.of("type", "password", "id", "password-credential",
+                                "resourceName",
+                                resourceName(projectLevel, "password-credential"),
                                 "username", "username-0", "password", "password-0"),
                 ImmutableMap.of("type", "access_token", "id", "access-token-credential",
+                                "resourceName", resourceName(projectLevel, "access-token-credential"),
                                 "accessToken", "secret-token-abc-1"),
                 ImmutableMap.of("type", "public_key", "id", "public-key-credential",
+                                "resourceName", resourceName(projectLevel, "public-key-credential"),
                                 "username", "username-2",
                                 "publicKey", "public-key-2", "privateKey", "private-key-2",
                                 "passphrase", "password-0"),
@@ -146,5 +152,10 @@ class CredentialServiceV1Test {
                 throw new AssertionError("Unexpected credential type: " + credential.getClass().getName());
             }
         }
+    }
+
+    private static String resourceName(boolean projectLevel, String credentialId) {
+        return projectLevel ? projectCredentialResourceName(FOO_PROJ, credentialId)
+                            : repoCredentialResourceName(FOO_PROJ, BAR_REPO, credentialId);
     }
 }

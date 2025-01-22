@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.internal.CredentialUtil.validateProjectCredentialResourceName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.validateRepoCredentialResourceName;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.credentialFile;
 
 import java.util.List;
@@ -44,6 +46,7 @@ import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
+import com.linecorp.centraldogma.server.internal.credential.NoneCredential;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
@@ -154,6 +157,9 @@ public class CredentialServiceV1 extends AbstractService {
 
     private CompletableFuture<PushResultDto> createOrUpdate(String projectName, Credential credential,
                                                             Author author, User user, boolean update) {
+        if (!(credential instanceof NoneCredential)) {
+            validateProjectCredentialResourceName(projectName, credential.resourceName());
+        }
         final CompletableFuture<Command<CommitResult>> future =
                 metaRepo(projectName, user).createCredentialPushCommand(credential, author, update);
         return push(future);
@@ -242,6 +248,9 @@ public class CredentialServiceV1 extends AbstractService {
     private CompletableFuture<PushResultDto> createOrUpdateRepo(
             String projectName, String repoName, Credential credential,
             Author author, User user, boolean update) {
+        if (!(credential instanceof NoneCredential)) {
+            validateRepoCredentialResourceName(projectName, repoName, credential.resourceName());
+        }
         final CompletableFuture<Command<CommitResult>> future =
                 metaRepo(projectName, user).createCredentialPushCommand(repoName, credential, author, update);
         return push(future);

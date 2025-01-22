@@ -17,7 +17,7 @@
 package com.linecorp.centraldogma.server.internal.mirror;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.projectMirrorCredentialId;
+import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
 import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig.DEFAULT_SCHEDULE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -57,30 +57,6 @@ import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 
 class DefaultMetaRepositoryWithMirrorTest {
-
-    private static final List<Change<?>> UPSERT_RAW_CREDENTIALS = ImmutableList.of(
-            Change.ofJsonUpsert(
-                    "/credentials/alice.json",
-                    '{' +
-                    "  \"id\": \"alice\"," +
-                    "  \"type\": \"password\"," +
-                    "  \"username\": \"alice\"," +
-                    "  \"password\": \"secret_a\"" +
-                    '}'),
-            Change.ofJsonUpsert(
-                    "/credentials/bob.json",
-                    '{' +
-                    "  \"id\": \"bob\"," +
-                    "  \"type\": \"password\"," +
-                    "  \"username\": \"bob\"," +
-                    "  \"password\": \"secret_b\"" +
-                    '}'));
-
-    private static final List<Credential> CREDENTIALS = ImmutableList.of(
-            new PasswordCredential(
-                    "alice", true, "alice", "secret_a"),
-            new PasswordCredential(
-                    "bob", true, "bob", "secret_b"));
 
     private static final CronParser cronParser = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
@@ -153,7 +129,8 @@ class DefaultMetaRepositoryWithMirrorTest {
                             "  \"localRepo\": \"foo\"," +
                             "  \"localPath\": \"/mirrors/foo\"," +
                             "  \"remoteUri\": \"git+ssh://foo.com/foo.git\"," +
-                            " \"credentialId\": \"" + projectMirrorCredentialId(project.name(), "alice") + '"' +
+                            " \"credentialId\": \"" + projectCredentialResourceName(project.name(), "alice") +
+                            '"' +
                             '}'),
                     Change.ofJsonUpsert(
                             "/repos/repo/mirrors/bar.json",
@@ -164,19 +141,20 @@ class DefaultMetaRepositoryWithMirrorTest {
                             "  \"direction\": \"REMOTE_TO_LOCAL\"," +
                             "  \"localRepo\": \"bar\"," +
                             "  \"remoteUri\": \"git+ssh://bar.com/bar.git/some-path#develop\"," +
-                            "  \"credentialId\": \"" + projectMirrorCredentialId(project.name(), "bob") + '"' +
+                            "  \"credentialId\": \"" + projectCredentialResourceName(project.name(), "bob") +
+                            '"' +
                             '}'));
             metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", mirrors).join();
-            metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", UPSERT_RAW_CREDENTIALS).join();
+            metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", upsertRawCredentials(project.name())).join();
         } else {
             final List<MirrorRequest> mirrors = ImmutableList.of(
                     new MirrorRequest("foo", true, project.name(), DEFAULT_SCHEDULE, "LOCAL_TO_REMOTE", "foo",
-                                      "/mirrors/foo", "git+ssh", "foo.com/foo.git", "", "", null,
-                                      projectMirrorCredentialId(project.name(), "alice"), null),
+                                      "/mirrors/foo", "git+ssh", "foo.com/foo.git", "", "", null, null,
+                                      projectCredentialResourceName(project.name(), "alice"), null),
                     new MirrorRequest("bar", true, project.name(), "0 */10 * * * ?", "REMOTE_TO_LOCAL", "bar",
-                                      "", "git+ssh", "bar.com/bar.git", "/some-path", "develop", null,
-                                      projectMirrorCredentialId(project.name(), "bob"), null));
-            for (Credential credential : CREDENTIALS) {
+                                      "", "git+ssh", "bar.com/bar.git", "/some-path", "develop", null, null,
+                                      projectCredentialResourceName(project.name(), "bob"), null));
+            for (Credential credential : credentials(project.name())) {
                 final Command<CommitResult> command =
                         metaRepo.createCredentialPushCommand(credential, Author.SYSTEM, false).join();
                 pmExtension.executor().execute(command).join();
@@ -252,9 +230,9 @@ class DefaultMetaRepositoryWithMirrorTest {
                                      "  \"localRepo\": \"qux\"," +
                                      "  \"remoteUri\": \"git+ssh://qux.net/qux.git\"," +
                                      "  \"credentialId\": \"" +
-                                     projectMirrorCredentialId(project.name(), "alice") + '"' +
+                                     projectCredentialResourceName(project.name(), "alice") + '"' +
                                      '}'))
-                             .addAll(UPSERT_RAW_CREDENTIALS)
+                             .addAll(upsertRawCredentials(project.name()))
                              .build();
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", changes).join();
 
@@ -274,5 +252,36 @@ class DefaultMetaRepositoryWithMirrorTest {
         return metaRepo.mirrors().join().stream()
                        .sorted(Comparator.comparing(m -> m.localRepo().name()))
                        .collect(toImmutableList());
+    }
+
+    private static List<Change<?>> upsertRawCredentials(String projectName) {
+        return ImmutableList.of(
+                Change.ofJsonUpsert(
+                        "/credentials/alice.json",
+                        '{' +
+                        "  \"id\": \"alice\"," +
+                        "  \"resourceName\": \"" + projectCredentialResourceName(projectName, "alice") + "\"," +
+                        "  \"type\": \"password\"," +
+                        "  \"username\": \"alice\"," +
+                        "  \"password\": \"secret_a\"" +
+                        '}'),
+                Change.ofJsonUpsert(
+                        "/credentials/bob.json",
+                        '{' +
+                        "  \"id\": \"bob\"," +
+                        "  \"resourceName\": \"" + projectCredentialResourceName(projectName, "bob") + "\"," +
+                        "  \"type\": \"password\"," +
+                        "  \"username\": \"bob\"," +
+                        "  \"password\": \"secret_b\"" +
+                        '}'));
+    }
+
+    private static List<Credential> credentials(String projectName) {
+        return ImmutableList.of(
+                new PasswordCredential(
+                        "alice", projectCredentialResourceName(projectName, "alice"),
+                        true, "alice", "secret_a"),
+                new PasswordCredential(
+                        "bob", projectCredentialResourceName(projectName, "bob"), true, "bob", "secret_b"));
     }
 }

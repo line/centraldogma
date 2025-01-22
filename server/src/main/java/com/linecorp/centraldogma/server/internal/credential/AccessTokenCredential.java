@@ -16,8 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.credential;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.requireNonEmpty;
 import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
-import static com.linecorp.centraldogma.server.internal.credential.CredentialUtil.requireNonEmpty;
 
 import javax.annotation.Nullable;
 
@@ -38,9 +38,10 @@ public final class AccessTokenCredential extends AbstractCredential {
 
     @JsonCreator
     public AccessTokenCredential(@JsonProperty("id") String id,
+                                 @JsonProperty("resourceName") String resourceName,
                                  @JsonProperty("enabled") @Nullable Boolean enabled,
                                  @JsonProperty("accessToken") String accessToken) {
-        super(id, enabled, "access_token");
+        super(id, resourceName, enabled, "access_token");
         this.accessToken = requireNonEmpty(accessToken, "accessToken");
     }
 
@@ -91,6 +92,6 @@ public final class AccessTokenCredential extends AbstractCredential {
 
     @Override
     public Credential withoutSecret() {
-        return new AccessTokenCredential(id(), enabled(), "****");
+        return new AccessTokenCredential(id(), resourceName(), enabled(), "****");
     }
 }

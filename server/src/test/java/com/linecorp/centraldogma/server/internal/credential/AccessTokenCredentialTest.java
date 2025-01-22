@@ -29,15 +29,15 @@ class AccessTokenCredentialTest {
     @Test
     void testConstruction() throws Exception {
         // null checks
-        assertThatThrownBy(() -> new AccessTokenCredential("foo", true, null))
+        assertThatThrownBy(() -> new AccessTokenCredential("foo", "projects/foo", true, null))
                 .isInstanceOf(NullPointerException.class);
 
         // emptiness checks
-        assertThatThrownBy(() -> new AccessTokenCredential("foo", true, ""))
+        assertThatThrownBy(() -> new AccessTokenCredential("foo", "projects/foo", true, ""))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // successful construction
-        final AccessTokenCredential c = new AccessTokenCredential("foo", true, "sesame");
+        final AccessTokenCredential c = new AccessTokenCredential("foo", "projects/foo", true, "sesame");
         assertThat(c.id()).isEqualTo("foo");
         assertThat(c.accessToken()).isEqualTo("sesame");
     }
@@ -46,9 +46,10 @@ class AccessTokenCredentialTest {
     void testDeserialization() throws Exception {
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"access_token\"," +
+                                     "  \"resourceName\": \"projects/foo\"," +
                                      "  \"id\": \"foo\"," +
                                      "  \"accessToken\": \"sesame\"" +
                                      '}', Credential.class))
-                .isEqualTo(new AccessTokenCredential("foo", true, "sesame"));
+                .isEqualTo(new AccessTokenCredential("foo", "projects/foo", true, "sesame"));
     }
 }

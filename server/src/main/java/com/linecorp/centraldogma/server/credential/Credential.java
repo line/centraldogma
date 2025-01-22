@@ -51,6 +51,14 @@ public interface Credential {
     String id();
 
     /**
+     * Returns the resource name of the credential.
+     * It is in the form of {@code "projects/<project>/credentials/<credential>"} or
+     * {@code "projects/<project>/repos/<repo>/credentials/<credential>"}.
+     */
+    @JsonProperty("resourceName")
+    String resourceName();
+
+    /**
      * Returns whether this {@link Credential} is enabled.
      */
     @JsonProperty("enabled")

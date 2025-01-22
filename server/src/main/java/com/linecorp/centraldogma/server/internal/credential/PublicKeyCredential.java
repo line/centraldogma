@@ -16,8 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.credential;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.requireNonEmpty;
 import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
-import static com.linecorp.centraldogma.server.internal.credential.CredentialUtil.requireNonEmpty;
 
 import java.util.List;
 import java.util.Objects;
@@ -54,12 +54,13 @@ public final class PublicKeyCredential extends AbstractCredential {
 
     @JsonCreator
     public PublicKeyCredential(@JsonProperty("id") String id,
+                               @JsonProperty("resourceName") String resourceName,
                                @JsonProperty("enabled") @Nullable Boolean enabled,
                                @JsonProperty("username") String username,
                                @JsonProperty("publicKey") String publicKey,
                                @JsonProperty("privateKey") String privateKey,
                                @JsonProperty("passphrase") @Nullable String passphrase) {
-        super(id, enabled, "public_key");
+        super(id, resourceName, enabled, "public_key");
 
         this.username = requireNonEmpty(username, "username");
         this.publicKey = requireNonEmpty(publicKey, "publicKey");
@@ -158,7 +159,7 @@ public final class PublicKeyCredential extends AbstractCredential {
 
     @Override
     public Credential withoutSecret() {
-        return new PublicKeyCredential(id(), enabled(), username(), publicKey(),
+        return new PublicKeyCredential(id(), resourceName(), enabled(), username(), publicKey(),
                                        "****", "****");
     }
 }

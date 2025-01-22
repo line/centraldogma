@@ -83,10 +83,10 @@ final class SshGitMirror extends AbstractGitMirror {
     private static final BouncyCastleRandom bounceCastleRandom = new BouncyCastleRandom();
 
     SshGitMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
-                 Credential credential, String mirrorCredentialId, Repository localRepo, String localPath,
+                 Credential credential, Repository localRepo, String localPath,
                  URI remoteRepoUri, String remotePath, String remoteBranch,
                  @Nullable String gitignore, @Nullable String zone) {
-        super(id, enabled, schedule, direction, credential, mirrorCredentialId, localRepo, localPath,
+        super(id, enabled, schedule, direction, credential, localRepo, localPath,
               remoteRepoUri, remotePath, remoteBranch, gitignore, zone);
     }
 

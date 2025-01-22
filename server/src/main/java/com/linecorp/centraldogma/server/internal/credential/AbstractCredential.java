@@ -30,12 +30,14 @@ import com.linecorp.centraldogma.server.credential.Credential;
 abstract class AbstractCredential implements Credential {
 
     private final String id;
+    private final String resourceName;
     private final boolean enabled;
     // TODO(ikhoon): Consider changing 'type' to an enum.
     private final String type;
 
-    AbstractCredential(String id, @Nullable Boolean enabled, String type) {
+    AbstractCredential(String id, String resourceName, @Nullable Boolean enabled, String type) {
         this.id = requireNonNull(id, "id");
+        this.resourceName = requireNonNull(resourceName, "resourceName");
         this.enabled = firstNonNull(enabled, true);
         // JsonTypeInfo is ignored when serializing collections.
         // As a workaround, manually set the type hint to serialize.
@@ -45,6 +47,11 @@ abstract class AbstractCredential implements Credential {
     @Override
     public final String id() {
         return id;
+    }
+
+    @Override
+    public final String resourceName() {
+        return resourceName;
     }
 
     @JsonProperty("type")

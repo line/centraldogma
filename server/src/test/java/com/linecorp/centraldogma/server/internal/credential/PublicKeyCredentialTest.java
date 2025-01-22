@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.credential;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -66,37 +67,43 @@ public class PublicKeyCredentialTest {
     void testConstruction() {
         // null checks
         assertThatThrownBy(() -> new PublicKeyCredential(
-                "id", true, null, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE))
+                "id", projectCredentialResourceName("foo", "id"), true, null,
+                PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> new PublicKeyCredential(
-                "id", true, USERNAME, null, PRIVATE_KEY, PASSPHRASE))
+                "id", projectCredentialResourceName("foo", "id"), true, USERNAME,
+                null, PRIVATE_KEY, PASSPHRASE))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> new PublicKeyCredential(
-                "id", true, USERNAME, PUBLIC_KEY, null, PASSPHRASE))
+                "id", projectCredentialResourceName("foo", "id"), true, USERNAME, PUBLIC_KEY, null, PASSPHRASE))
                 .isInstanceOf(NullPointerException.class);
 
         // null passphrase must be accepted.
         assertThat(new PublicKeyCredential(
-                "id", true, USERNAME, PUBLIC_KEY, PRIVATE_KEY, null).passphrase()).isNull();
+                "id", projectCredentialResourceName("foo", "id"), true, USERNAME, PUBLIC_KEY,
+                PRIVATE_KEY, null).passphrase()).isNull();
 
         // emptiness checks
         assertThatThrownBy(() -> new PublicKeyCredential(
-                "id", true, "", PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE))
+                "id", projectCredentialResourceName("foo", "id"), true, "",
+                PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new PublicKeyCredential(
-                "id", true, USERNAME, "", PRIVATE_KEY, PASSPHRASE))
+                "id", projectCredentialResourceName("foo", "id"), true, USERNAME, "", PRIVATE_KEY, PASSPHRASE))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new PublicKeyCredential(
-                "id", true, USERNAME, PUBLIC_KEY, "", PASSPHRASE))
+                "id", projectCredentialResourceName("foo", "id"), true, USERNAME, PUBLIC_KEY, "", PASSPHRASE))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // empty passphrase must be accepted, because an empty password is still a password.
         assertThat(new PublicKeyCredential(
-                "id", true, USERNAME, PUBLIC_KEY, PRIVATE_KEY, "").passphrase()).isEmpty();
+                "id", projectCredentialResourceName("foo", "id"), true, USERNAME,
+                PUBLIC_KEY, PRIVATE_KEY, "").passphrase()).isEmpty();
 
         // successful construction
         final PublicKeyCredential c = new PublicKeyCredential(
-                "id", true, USERNAME, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE);
+                "id", projectCredentialResourceName("foo", "id"), true, USERNAME,
+                PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE);
 
         assertThat(c.username()).isEqualTo(USERNAME);
         assertThat(c.publicKey()).isEqualTo(PUBLIC_KEY);
@@ -107,7 +114,8 @@ public class PublicKeyCredentialTest {
     @Test
     void testBase64Passphrase() {
         final PublicKeyCredential c = new PublicKeyCredential(
-                "id", true, USERNAME, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE_BASE64);
+                "id", projectCredentialResourceName("foo", "id"), true, USERNAME,
+                PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE_BASE64);
         assertThat(c.passphrase()).isEqualTo(PASSPHRASE);
     }
 
@@ -115,22 +123,26 @@ public class PublicKeyCredentialTest {
     void testDeserialization() throws Exception {
         // plaintext passphrase
         assertThat(Jackson.readValue('{' +
-                                     " \"id\": \"foo\"," +
+                                     "  \"id\": \"foo\"," +
+                                     "  \"resourceName\": \"" + projectCredentialResourceName("foo", "foo") +
+                                     "\"," +
                                      "  \"type\": \"public_key\"," +
                                      "  \"username\": \"trustin\"," +
                                      "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
                                      "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
                                      "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE) + '"' +
                                      '}', Credential.class))
-                .isEqualTo(new PublicKeyCredential("foo", true, USERNAME,
+                .isEqualTo(new PublicKeyCredential("foo", "projects/foo", true, USERNAME,
                                                    PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
 
         // base64 passphrase
         final PublicKeyCredential base64Expected =
-                new PublicKeyCredential("bar", null, USERNAME,
+                new PublicKeyCredential("bar", "projects/bar", null, USERNAME,
                                         PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE_BASE64);
         assertThat(Jackson.readValue('{' +
-                                     " \"id\": \"bar\"," +
+                                     "  \"id\": \"bar\"," +
+                                     "  \"resourceName\": \"" + projectCredentialResourceName("foo", "bar") +
+                                     "\"," +
                                      "  \"type\": \"public_key\"," +
                                      "  \"username\": \"trustin\"," +
                                      "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
@@ -143,20 +155,24 @@ public class PublicKeyCredentialTest {
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"public_key\"," +
                                      "  \"id\": \"foo\"," +
+                                     "  \"resourceName\": \"" + projectCredentialResourceName("foo", "foo") +
+                                     "\"," +
                                      "  \"username\": \"trustin\"," +
                                      "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
                                      "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
                                      "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE) + '"' +
                                      '}', Credential.class))
-                .isEqualTo(new PublicKeyCredential("foo", true, USERNAME,
+                .isEqualTo(new PublicKeyCredential("foo", "projects/foo", true, USERNAME,
                                                    PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
 
         final PublicKeyCredential converterExpected =
-                new PublicKeyCredential("foo", true, USERNAME,
+                new PublicKeyCredential("foo", "projects/foo", true, USERNAME,
                                         PUBLIC_KEY, PRIVATE_KEY, "mirror_encryption:foo");
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"public_key\"," +
                                      "  \"id\": \"foo\"," +
+                                     "  \"resourceName\": \"" + projectCredentialResourceName("foo", "foo") +
+                                     "\"," +
                                      "  \"username\": \"trustin\"," +
                                      "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
                                      "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +

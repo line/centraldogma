@@ -64,13 +64,6 @@ public interface Mirror {
     Credential credential();
 
     /**
-     * Returns the ID of the credential which is used to access the Git repositories.
-     * It is in the form of {@code "projects/<project>/credentials/<credential>"} or
-     * {@code "projects/<project>/repos/<repo>/credentials/<credential>"}.
-     */
-    String mirrorCredentialId();
-
-    /**
      * Returns the Central Dogma repository where is supposed to keep the mirrored files.
      */
     Repository localRepo();

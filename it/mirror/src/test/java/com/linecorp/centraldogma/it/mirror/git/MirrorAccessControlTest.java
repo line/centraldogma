@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
-import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.repoMirrorCredentialId;
+import static com.linecorp.centraldogma.internal.CredentialUtil.repoCredentialResourceName;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.PRIVATE_KEY_FILE;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.TEST_MIRROR_ID;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.getCredential;
@@ -188,7 +188,7 @@ class MirrorAccessControlTest {
     }
 
     private void createMirror() throws Exception {
-        final PublicKeyCredential credential = getCredential();
+        final PublicKeyCredential credential = getCredential(TEST_PROJ, TEST_REPO);
         ResponseEntity<PushResultDto> response =
                 client.prepare()
                       .post("/api/v1/projects/{proj}/repos/{repo}/credentials")
@@ -223,7 +223,8 @@ class MirrorAccessControlTest {
                                  "/",
                                  "main",
                                  null,
-                                 repoMirrorCredentialId(TEST_PROJ, TEST_REPO, PRIVATE_KEY_FILE),
+                                 null,
+                                 repoCredentialResourceName(TEST_PROJ, TEST_REPO, PRIVATE_KEY_FILE),
                                  null);
     }
 }

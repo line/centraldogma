@@ -18,11 +18,10 @@
 package com.linecorp.centraldogma.internal.api.v1;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.linecorp.centraldogma.internal.CredentialUtil.validateCredentialResourceName;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
@@ -38,15 +37,6 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class MirrorRequest {
 
-    // TODO(minwoox): remove ._ from the ID which violates Google AIP.
-    public static final Pattern PROJECT_CREDENTIAL_ID_PATTERN =
-            Pattern.compile("^projects/([^/]+)/credentials/([a-z](?:[a-z0-9-_.]{0,61}[a-z0-9])?)$");
-
-    // TODO(minwoox): remove ._ from the ID.
-    public static final Pattern REPO_CREDENTIAL_ID_PATTERN =
-            Pattern.compile(
-                    "^projects/([^/]+)/repos/([^/]+)/credentials/([a-z](?:[a-z0-9-_.]{0,61}[a-z0-9])?)$");
-
     private final String id;
     private final boolean enabled;
     private final String projectName;
@@ -61,7 +51,7 @@ public class MirrorRequest {
     private final String remoteBranch;
     @Nullable
     private final String gitignore;
-    private final String credentialId;
+    private final String credentialResourceName;
     @Nullable
     private final String zone;
 
@@ -78,7 +68,9 @@ public class MirrorRequest {
                          @JsonProperty("remotePath") String remotePath,
                          @JsonProperty("remoteBranch") String remoteBranch,
                          @JsonProperty("gitignore") @Nullable String gitignore,
-                         @JsonProperty("credentialId") String credentialId,
+                         // TODO(minwoox): Remove this credentialId property after migration is done.
+                         @JsonProperty("credentialId") @Nullable String credentialId,
+                         @JsonProperty("credentialResourceName") @Nullable String credentialResourceName,
                          @JsonProperty("zone") @Nullable String zone) {
         this.id = requireNonNull(id, "id");
         this.enabled = firstNonNull(enabled, true);
@@ -92,54 +84,10 @@ public class MirrorRequest {
         this.remotePath = requireNonNull(remotePath, "remotePath");
         this.remoteBranch = requireNonNull(remoteBranch, "remoteBranch");
         this.gitignore = gitignore;
-        this.credentialId = validateCredentialId(projectName, localRepo, credentialId);
+        this.credentialResourceName = requireNonNull(firstNonNull(credentialResourceName, credentialId),
+                                                     "credentialResourceName");
+        validateCredentialResourceName(projectName, localRepo, this.credentialResourceName);
         this.zone = zone;
-    }
-
-    private static String validateCredentialId(String projectName, String localRepo,
-                                              String credentialId) {
-        requireNonNull(credentialId, "credentialId");
-        if (credentialId.isEmpty()) {
-            // Allow an empty credential ID for Credential.FALLBACK.
-            return "";
-        }
-
-        Matcher matcher = PROJECT_CREDENTIAL_ID_PATTERN.matcher(credentialId);
-        if (matcher.matches()) {
-            checkProjectName(projectName, matcher);
-            return credentialId;
-        }
-
-        matcher = REPO_CREDENTIAL_ID_PATTERN.matcher(credentialId);
-        if (!matcher.matches()) {
-            throw new IllegalArgumentException("invalid credentialId: " + credentialId + " (expected: " +
-                                               PROJECT_CREDENTIAL_ID_PATTERN.pattern() + " or " +
-                                               REPO_CREDENTIAL_ID_PATTERN.pattern() + ')');
-        }
-        checkProjectName(projectName, matcher);
-        final String repoNameGroup = matcher.group(2);
-        if (!localRepo.equals(repoNameGroup)) {
-            throw new IllegalArgumentException("localRepo and credentialId do not match: " +
-                                               localRepo + " vs " + repoNameGroup);
-        }
-
-        return credentialId;
-    }
-
-    private static void checkProjectName(String projectName, Matcher matcher) {
-        final String projectNameGroup = matcher.group(1);
-        if (!projectName.equals(projectNameGroup)) {
-            throw new IllegalArgumentException("projectName and credentialId do not match: " +
-                                               projectName + " vs " + projectNameGroup);
-        }
-    }
-
-    public static String projectMirrorCredentialId(String projectName, String credentialId) {
-        return "projects/" + projectName + "/credentials/" + credentialId;
-    }
-
-    public static String repoMirrorCredentialId(String projectName, String repoName, String credentialId) {
-        return "projects/" + projectName + "/repos/" + repoName + "/credentials/" + credentialId;
     }
 
     @JsonProperty("id")
@@ -205,9 +153,9 @@ public class MirrorRequest {
         return gitignore;
     }
 
-    @JsonProperty("credentialId")
-    public String credentialId() {
-        return credentialId;
+    @JsonProperty("credentialResourceName")
+    public String credentialResourceName() {
+        return credentialResourceName;
     }
 
     @Nullable
@@ -237,14 +185,14 @@ public class MirrorRequest {
                remotePath.equals(mirrorRequest.remotePath) &&
                remoteBranch.equals(mirrorRequest.remoteBranch) &&
                Objects.equals(gitignore, mirrorRequest.gitignore) &&
-               credentialId.equals(mirrorRequest.credentialId) &&
+               credentialResourceName.equals(mirrorRequest.credentialResourceName) &&
                Objects.equals(zone, mirrorRequest.zone);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, projectName, schedule, direction, localRepo, localPath, remoteScheme,
-                            remoteUrl, remotePath, remoteBranch, gitignore, credentialId, enabled, zone);
+        return Objects.hash(id, projectName, schedule, direction, localRepo, localPath, remoteScheme, remoteUrl,
+                            remotePath, remoteBranch, gitignore, credentialResourceName, enabled, zone);
     }
 
     protected ToStringHelper toStringHelper() {
@@ -262,7 +210,7 @@ public class MirrorRequest {
                           .add("remotePath", remotePath)
                           .add("remoteBranch", remoteBranch)
                           .add("gitignore", gitignore)
-                          .add("credentialId", credentialId)
+                          .add("credentialResourceName", credentialResourceName)
                           .add("zone", zone);
     }
 

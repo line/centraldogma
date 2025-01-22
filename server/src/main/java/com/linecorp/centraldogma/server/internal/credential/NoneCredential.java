@@ -29,7 +29,7 @@ public final class NoneCredential extends AbstractCredential {
     @JsonCreator
     public NoneCredential(@JsonProperty("id") String id,
                           @JsonProperty("enabled") @Nullable Boolean enabled) {
-        super(id, enabled, "none");
+        super(id, id, enabled, "none");
     }
 
     @Override

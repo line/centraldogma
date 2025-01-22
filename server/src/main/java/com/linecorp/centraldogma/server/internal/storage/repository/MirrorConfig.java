@@ -19,21 +19,15 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.PROJECT_CREDENTIAL_ID_PATTERN;
-import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.REPO_CREDENTIAL_ID_PATTERN;
+import static com.linecorp.centraldogma.internal.CredentialUtil.PROJECT_CREDENTIAL_ID_PATTERN;
+import static com.linecorp.centraldogma.internal.CredentialUtil.REPO_CREDENTIAL_ID_PATTERN;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_DOGMA;
 import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
-import java.util.List;
-import java.util.Map;
-import java.util.ServiceLoader;
 import java.util.regex.Matcher;
 
 import javax.annotation.Nullable;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.cronutils.model.Cron;
 import com.cronutils.model.CronType;
@@ -45,34 +39,19 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 
-import com.linecorp.centraldogma.server.credential.Credential;
-import com.linecorp.centraldogma.server.mirror.Mirror;
-import com.linecorp.centraldogma.server.mirror.MirrorContext;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
-import com.linecorp.centraldogma.server.mirror.MirrorProvider;
-import com.linecorp.centraldogma.server.storage.project.Project;
 
 // ignoreUnknown = true for backward compatibility since `type` field is removed.
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL)
 public final class MirrorConfig {
 
-    private static final Logger logger = LoggerFactory.getLogger(MirrorConfig.class);
-
     public static final String DEFAULT_SCHEDULE = "0 * * * * ?"; // Every minute
 
     public static final CronParser CRON_PARSER = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
-
-    public static final List<MirrorProvider> MIRROR_PROVIDERS;
-
-    static {
-        MIRROR_PROVIDERS = ImmutableList.copyOf(ServiceLoader.load(MirrorProvider.class));
-        logger.debug("Available {}s: {}", MirrorProvider.class.getSimpleName(), MIRROR_PROVIDERS);
-    }
 
     private final String id;
     private final boolean enabled;
@@ -82,9 +61,8 @@ public final class MirrorConfig {
     private final URI remoteUri;
     @Nullable
     private final String gitignore;
-    private final String credentialId;
     private final boolean repoCredential;
-    private final String credentialResourceId;
+    private final String credentialResourceName;
     @Nullable
     private final Cron schedule;
     @Nullable
@@ -99,15 +77,19 @@ public final class MirrorConfig {
                         @JsonProperty("localPath") @Nullable String localPath,
                         @JsonProperty(value = "remoteUri", required = true) URI remoteUri,
                         @JsonProperty("gitignore") @Nullable Object gitignore,
-                        @JsonProperty("credentialId") String credentialId,
+                        // TODO(minwoox): Remove this credentialId property after migration is done.
+                        @JsonProperty("credentialId") @Nullable String credentialId,
+                        @JsonProperty("credentialResourceName") @Nullable String credentialResourceName,
                         @JsonProperty("zone") @Nullable String zone) {
         this(id, enabled, schedule != null ? CRON_PARSER.parse(schedule) : null, direction, localRepo,
-             localPath, remoteUri, gitignore, credentialId, zone);
+             localPath, remoteUri, gitignore,
+             requireNonNull(firstNonNull(credentialResourceName, credentialId), "credentialResourceName"),
+             zone);
     }
 
     private MirrorConfig(String id, @Nullable Boolean enabled, @Nullable Cron schedule,
                          MirrorDirection direction, String localRepo, @Nullable String localPath,
-                         URI remoteUri, @Nullable Object gitignore, String credentialId,
+                         URI remoteUri, @Nullable Object gitignore, String credentialResourceName,
                          @Nullable String zone) {
         this.id = requireNonNull(id, "id");
         this.enabled = firstNonNull(enabled, true);
@@ -134,86 +116,30 @@ public final class MirrorConfig {
         } else {
             this.gitignore = null;
         }
-        this.credentialId = requireNonNull(credentialId, "credentialId");
-        if (isNullOrEmpty(credentialId)) {
+        this.credentialResourceName = requireNonNull(credentialResourceName, "credentialResourceName");
+        if (isNullOrEmpty(credentialResourceName)) {
             // Credential.FALLBACK
             repoCredential = false;
-            credentialResourceId = "";
         } else {
-            Matcher matcher = REPO_CREDENTIAL_ID_PATTERN.matcher(credentialId);
+            Matcher matcher = REPO_CREDENTIAL_ID_PATTERN.matcher(credentialResourceName);
             if (matcher.matches()) {
                 repoCredential = true;
-                credentialResourceId = matcher.group(3);
             } else {
-                matcher = PROJECT_CREDENTIAL_ID_PATTERN.matcher(credentialId);
-                if (matcher.matches()) {
-                    repoCredential = false;
-                    credentialResourceId = matcher.group(2);
-                } else {
+                matcher = PROJECT_CREDENTIAL_ID_PATTERN.matcher(credentialResourceName);
+                if (!matcher.matches()) {
                     // In the middle of migration from legacy credential to project-credential.
-                    assert !credentialId.contains("/") : credentialId;
-                    repoCredential = false;
-                    credentialResourceId = credentialId;
+                    assert !credentialResourceName.contains("/") : credentialResourceName;
                 }
+                repoCredential = false;
             }
         }
 
         this.zone = zone;
     }
 
-    public MirrorConfig withCredentialId(String credentialId) {
+    public MirrorConfig withCredentialResourceName(String credentialResourceName) {
         return new MirrorConfig(id, enabled, schedule, direction, localRepo, localPath, remoteUri,
-                                gitignore, credentialId, zone);
-    }
-
-    @Nullable
-    Mirror toMirror(Project parent, Map<String, List<Credential>> repoCredentials,
-                    List<Credential> projectCredentials) {
-        if (!parent.repos().exists(localRepo)) {
-            return null;
-        }
-
-        final Credential credential = findCredential(repoCredentials, projectCredentials);
-        return toMirror(parent, credential);
-    }
-
-    Mirror toMirror(Project parent, Credential credential) {
-        final MirrorContext mirrorContext = new MirrorContext(
-                id, enabled, schedule, direction,
-                credential, credential == Credential.FALLBACK ? "" : credentialId,
-                parent.repos().get(localRepo), localPath, remoteUri, gitignore, zone);
-        for (MirrorProvider mirrorProvider : MIRROR_PROVIDERS) {
-            final Mirror mirror = mirrorProvider.newMirror(mirrorContext);
-            if (mirror != null) {
-                return mirror;
-            }
-        }
-
-        throw new IllegalArgumentException("could not find a mirror provider for " + mirrorContext);
-    }
-
-    private Credential findCredential(Map<String, List<Credential>> repoCredentials,
-                                      List<Credential> projectCredentials) {
-        if (repoCredential) {
-            final List<Credential> credentials = repoCredentials.get(localRepo);
-            if (credentials != null) {
-                for (Credential c : credentials) {
-                    final String id = c.id();
-                    if (credentialResourceId.equals(id)) {
-                        return c;
-                    }
-                }
-            }
-        } else {
-            for (Credential c : projectCredentials) {
-                final String id = c.id();
-                if (credentialResourceId.equals(id)) {
-                    return c;
-                }
-            }
-        }
-
-        return Credential.FALLBACK;
+                                gitignore, credentialResourceName, zone);
     }
 
     @JsonProperty("id")
@@ -246,15 +172,19 @@ public final class MirrorConfig {
         return remoteUri.toString();
     }
 
+    URI remoteUriAsUri() {
+        return remoteUri;
+    }
+
     @JsonProperty("gitignore")
     @Nullable
     public String gitignore() {
         return gitignore;
     }
 
-    @JsonProperty("credentialId")
-    public String credentialId() {
-        return credentialId;
+    @JsonProperty("credentialResourceName")
+    public String credentialResourceName() {
+        return credentialResourceName;
     }
 
     public boolean repoCredential() {
@@ -272,6 +202,11 @@ public final class MirrorConfig {
     }
 
     @Nullable
+    Cron cronSchedule() {
+        return schedule;
+    }
+
+    @Nullable
     @JsonProperty("zone")
     public String zone() {
         return zone;
@@ -286,7 +221,7 @@ public final class MirrorConfig {
                           .add("localPath", localPath)
                           .add("remoteUri", remoteUri)
                           .add("gitignore", gitignore)
-                          .add("credentialId", credentialId)
+                          .add("credentialResourceName", credentialResourceName)
                           .add("schedule", schedule)
                           .add("zone", zone)
                           .toString();

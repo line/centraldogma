@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.projectMirrorCredentialId;
+import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.LEGACY_MIRRORS_PATH;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.mirrorFile;
 import static com.linecorp.centraldogma.server.storage.project.Project.REPO_META;
@@ -156,8 +156,16 @@ final class MigratingMirrorToRepositoryService {
                     warnInvalidMirrorConfig(entry, content);
                     continue;
                 }
-                final MirrorConfig newMirrorConfig = mirrorConfig.withCredentialId(
-                        projectMirrorCredentialId(repository.parent().name(), mirrorConfig.credentialId()));
+                final String credentialResourceName = mirrorConfig.credentialResourceName();
+                if (credentialResourceName.startsWith("projects/")) {
+                    // Skip the migration if the credentialResourceName is already a project or
+                    // a repository level one.
+                    continue;
+                }
+
+                // Migrate the credentialResourceName to a project level one.
+                final MirrorConfig newMirrorConfig = mirrorConfig.withCredentialResourceName(
+                        projectCredentialResourceName(repository.parent().name(), credentialResourceName));
                 changes.add(Change.ofJsonUpsert(mirrorFile(repoName, mirrorConfig.id()),
                                                 Jackson.valueToTree(newMirrorConfig)));
             } catch (JsonProcessingException e) {

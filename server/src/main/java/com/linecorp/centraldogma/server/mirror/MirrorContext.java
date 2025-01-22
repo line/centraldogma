@@ -39,7 +39,6 @@ public final class MirrorContext {
     private final Cron schedule;
     private final MirrorDirection direction;
     private final Credential credential;
-    private final String mirrorCredentialId;
     private final Repository localRepo;
     private final String localPath;
     private final URI remoteUri;
@@ -52,14 +51,13 @@ public final class MirrorContext {
      * Creates a new instance.
      */
     public MirrorContext(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
-                         Credential credential, String mirrorCredentialId, Repository localRepo,
+                         Credential credential, Repository localRepo,
                          String localPath, URI remoteUri, @Nullable String gitignore, @Nullable String zone) {
         this.id = requireNonNull(id, "id");
         this.enabled = enabled;
         this.schedule = schedule;
         this.direction = requireNonNull(direction, "direction");
         this.credential = requireNonNull(credential, "credential");
-        this.mirrorCredentialId = requireNonNull(mirrorCredentialId, "mirrorCredentialId");
         this.localRepo = requireNonNull(localRepo, "localRepo");
         this.localPath = requireNonNull(localPath, "localPath");
         this.remoteUri = requireNonNull(remoteUri, "remoteUri");
@@ -102,15 +100,6 @@ public final class MirrorContext {
      */
     public Credential credential() {
         return credential;
-    }
-
-    /**
-     * Returns the ID of the credential which is used to access the Git repositories.
-     * It is in the form of {@code "projects/<project>/credentials/<credential>"} or
-     * {@code "projects/<project>/repos/<repo>/credentials/<credential>"}.
-     */
-    public String mirrorCredentialId() {
-        return mirrorCredentialId;
     }
 
     /**

@@ -17,7 +17,7 @@
 package com.linecorp.centraldogma.it.mirror.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.linecorp.centraldogma.internal.api.v1.MirrorRequest.projectMirrorCredentialId;
+import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
 import static com.linecorp.centraldogma.it.mirror.git.GitMirrorIntegrationTest.addToGitIndex;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -392,7 +392,7 @@ class LocalToRemoteGitMirrorTest {
                                           "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
                                           "  \"gitignore\": " + firstNonNull(gitignore, "\"\"") + ',' +
                                           "  \"credentialId\": \"" +
-                                          projectMirrorCredentialId(projName, "none") + '"' +
+                                          projectCredentialResourceName(projName, "none") + '"' +
                                           '}'))
               .push().join();
     }
