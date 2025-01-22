@@ -20,7 +20,7 @@ export interface RolesDto {
 
 export interface ProjectRolesDto {
   member: RepositoryRole | null;
-  guest: 'READ' | 'WRITE' | null;
+  guest: 'READ' | null;
 }
 
 export interface UserOrTokenRepositoryRoleDto {
