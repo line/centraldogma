@@ -28,6 +28,9 @@ import java.util.function.Function;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.Exceptions;
@@ -41,6 +44,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
@@ -176,8 +180,18 @@ public class MetadataApiService extends AbstractService {
     public CompletableFuture<Revision> updateRepositoryProjectRoles(
             @Param String projectName,
             @Param String repoName,
-            ProjectRoles projectRoles,
-            Author author) {
+            JsonNode payload,
+            Author author) throws JsonProcessingException {
+        final JsonNode guest = payload.get("guest");
+        if (guest.isTextual()) {
+            // TODO(ikhoon): Move this validation to the constructor of ProjectRoles once GUEST WRITE role is
+            //               migrated to GUEST READ.
+            final String role = guest.asText();
+            if ("WRITE".equals(role)) {
+                throw new IllegalArgumentException("WRITE is not allowed for GUEST");
+            }
+        }
+        final ProjectRoles projectRoles = Jackson.treeToValue(payload, ProjectRoles.class);
         return mds.updateRepositoryProjectRoles(author, projectName, repoName, projectRoles);
     }
 
@@ -292,9 +306,10 @@ public class MetadataApiService extends AbstractService {
         private final String id;
         private final ProjectRole role;
 
+        @VisibleForTesting
         @JsonCreator
-        IdAndProjectRole(@JsonProperty("id") String id,
-                         @JsonProperty("role") ProjectRole role) {
+        public IdAndProjectRole(@JsonProperty("id") String id,
+                                @JsonProperty("role") ProjectRole role) {
             this.id = requireNonNull(id, "id");
             requireNonNull(role, "role");
             checkArgument(role == ProjectRole.OWNER || role == ProjectRole.MEMBER,
@@ -327,9 +342,10 @@ public class MetadataApiService extends AbstractService {
         private final String id;
         private final RepositoryRole role;
 
+        @VisibleForTesting
         @JsonCreator
-        IdAndRepositoryRole(@JsonProperty("id") String id,
-                            @JsonProperty("role") RepositoryRole role) {
+        public IdAndRepositoryRole(@JsonProperty("id") String id,
+                                   @JsonProperty("role") RepositoryRole role) {
             this.id = requireNonNull(id, "id");
             this.role = requireNonNull(role, "role");
         }
