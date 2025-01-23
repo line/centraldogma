@@ -69,7 +69,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 /**
  * Implementation of JSON Patch.
  *
- * <p><a href="https://tools.ietf.org/html/draft-ietf-appsawg-json-patch-10">JSON
+ * <p><a href="https://datatracker.ietf.org/doc/html/rfc6902">JSON
  * Patch</a>, as its name implies, is an IETF draft describing a mechanism to
  * apply a patch to any JSON value. This implementation covers all operations
  * according to the specification; however, there are some subtle differences

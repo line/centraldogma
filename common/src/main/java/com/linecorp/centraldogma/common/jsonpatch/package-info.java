@@ -15,7 +15,7 @@
  */
 
 /**
- * Implementation of <a href="https://tools.ietf.org/html/draft-ietf-appsawg-json-patch-10">JSON Patch</a>.
+ * Implementation of <a href="https://datatracker.ietf.org/doc/html/rfc6902">JSON Patch</a>.
  *
  * <p>As its name implies, JSON Patch is a mechanism designed to modify JSON
  * documents. It consists of a series of operations to apply in order to the

@@ -159,12 +159,10 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
                     final JsonNode newJsonNode;
                     try {
                         newJsonNode = JsonPatch.fromJson((JsonNode) change.content()).apply(oldJsonNode);
+                    } catch (JsonPatchConflictException e) {
+                        throw e;
                     } catch (Exception e) {
-                        if (e instanceof JsonPatchConflictException) {
-                            throw (JsonPatchConflictException) e;
-                        } else {
-                            throw new JsonPatchConflictException("failed to apply JSON patch: " + change, e);
-                        }
+                        throw new JsonPatchConflictException("failed to apply JSON patch: " + change, e);
                     }
 
                     // Apply only when the contents are really different.

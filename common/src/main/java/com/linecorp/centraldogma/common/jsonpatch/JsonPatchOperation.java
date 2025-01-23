@@ -51,11 +51,11 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.linecorp.centraldogma.internal.Jackson;
 
 /**
- * Base abstract class for one <a href="https://tools.ietf.org/html/draft-ietf-appsawg-json-patch-10">JSON
+ * Base abstract class for one <a href="https://datatracker.ietf.org/doc/html/rfc6902">JSON
  * Patch</a> operation. A {@link JsonPatchOperation} can be converted into a JSON patch by calling
  * {@link #toJsonNode()}.
  *
- * <p><a href="https://tools.ietf.org/html/draft-ietf-appsawg-json-patch-10">JSON
+ * <p><a href="https://datatracker.ietf.org/doc/html/rfc6902">JSON
  * Patch</a>, as its name implies, is an IETF draft describing a mechanism to
  * apply a patch to any JSON value. This implementation covers all operations
  * according to the specification; however, there are some subtle differences
@@ -152,6 +152,12 @@ public abstract class JsonPatchOperation implements JsonSerializable {
         return new MoveOperation(from, to);
     }
 
+    /**
+     * Creates a new JSON Patch {@code move} operation.
+     *
+     * @param from the source JSON Pointer
+     * @param to the destination JSON Pointer
+     */
     public static MoveOperation move(String from, String to) {
         requireNonNull(from, "from");
         requireNonNull(to, "to");
