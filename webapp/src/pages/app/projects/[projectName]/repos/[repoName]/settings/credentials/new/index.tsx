@@ -28,8 +28,8 @@ import CredentialForm from 'dogma/features/project/settings/credentials/Credenti
 
 const EMPTY_CREDENTIAL: CredentialDto = {
   id: '',
-  type: 'public_key',
-  enabled: true,
+  name: '',
+  type: 'SSH_KEY',
 };
 const NewRepoCredentialPage = () => {
   const router = useRouter();
@@ -41,6 +41,7 @@ const NewRepoCredentialPage = () => {
 
   const onSubmit = async (credential: CredentialDto, onSuccess: () => void) => {
     try {
+      credential.name = `projects/${projectName}/repos/${repoName}/credentials/${credential.id}`;
       const response = await addNewCredential({ projectName, credential, repoName }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;

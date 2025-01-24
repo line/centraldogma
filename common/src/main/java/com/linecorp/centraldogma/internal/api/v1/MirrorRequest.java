@@ -26,7 +26,6 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -34,7 +33,6 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 @JsonInclude(Include.NON_NULL)
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class MirrorRequest {
 
     private final String id;
@@ -68,7 +66,7 @@ public class MirrorRequest {
                          @JsonProperty("remotePath") String remotePath,
                          @JsonProperty("remoteBranch") String remoteBranch,
                          @JsonProperty("gitignore") @Nullable String gitignore,
-                         @JsonProperty("credentialName") @Nullable String credentialName,
+                         @JsonProperty("credentialName") String credentialName,
                          @JsonProperty("zone") @Nullable String zone) {
         this.id = requireNonNull(id, "id");
         this.enabled = firstNonNull(enabled, true);
@@ -82,8 +80,8 @@ public class MirrorRequest {
         this.remotePath = requireNonNull(remotePath, "remotePath");
         this.remoteBranch = requireNonNull(remoteBranch, "remoteBranch");
         this.gitignore = gitignore;
-        this.credentialName = requireNonNull(credentialName, "credentialName");
-        validateCredentialName(projectName, localRepo, this.credentialName);
+        requireNonNull(credentialName, "credentialName");
+        this.credentialName = validateCredentialName(projectName, localRepo, credentialName);
         this.zone = zone;
     }
 

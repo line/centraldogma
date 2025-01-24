@@ -150,7 +150,7 @@ public final class MirrorConfig {
         return remoteUri.toString();
     }
 
-    URI remoteUriAsUri() {
+    URI rawRemoteUri() {
         return remoteUri;
     }
 

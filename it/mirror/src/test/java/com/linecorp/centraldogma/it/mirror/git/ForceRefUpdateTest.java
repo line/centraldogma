@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.it.mirror.git;
 
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialFile;
 import static com.linecorp.centraldogma.it.mirror.git.GitTestUtil.getFileContent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -48,7 +49,6 @@ import com.google.common.collect.ImmutableList;
 import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.MirrorException;
-import com.linecorp.centraldogma.internal.CredentialUtil;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
@@ -108,7 +108,7 @@ class ForceRefUpdateTest {
         dogma.client()
              .forRepo(projName, Project.REPO_META)
              .commit("cleanup",
-                     Change.ofRemoval(CredentialUtil.projectCredentialFile("ssh-key-id")),
+                     Change.ofRemoval(projectCredentialFile("ssh-key-id")),
                      Change.ofRemoval("/repos/" + REPO_FOO + "/mirrors/foo.json"))
              .push().join();
     }

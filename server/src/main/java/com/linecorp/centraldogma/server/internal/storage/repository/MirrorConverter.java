@@ -62,7 +62,7 @@ public final class MirrorConverter {
                 mirrorConfig.id(), mirrorConfig.enabled(), mirrorConfig.cronSchedule(),
                 mirrorConfig.direction(),
                 credential, parent.repos().get(mirrorConfig.localRepo()), mirrorConfig.localPath(),
-                mirrorConfig.remoteUriAsUri(), mirrorConfig.gitignore(), mirrorConfig.zone());
+                mirrorConfig.rawRemoteUri(), mirrorConfig.gitignore(), mirrorConfig.zone());
         for (MirrorProvider mirrorProvider : MIRROR_PROVIDERS) {
             final Mirror mirror = mirrorProvider.newMirror(mirrorContext);
             if (mirror != null) {

@@ -29,7 +29,11 @@ import { DeleteUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings
 import { AddUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings/AddUserOrTokenRepositoryRoleDto';
 import { DeleteMemberDto } from 'dogma/features/project/settings/members/DeleteMemberDto';
 import { MirrorDto, MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
-import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
+import {
+  addIdFromCredentialName,
+  addIdFromCredentialNames,
+  CredentialDto,
+} from 'dogma/features/project/settings/credentials/CredentialDto';
 import { MirrorResult } from '../mirror/MirrorResult';
 import {
   MirrorAccessControl,
@@ -424,10 +428,12 @@ export const apiSlice = createApi({
     }),
     getProjectCredentials: builder.query<CredentialDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/credentials`,
+      transformResponse: (response: CredentialDto[]) => addIdFromCredentialNames(response),
       providesTags: ['Metadata'],
     }),
     getCredential: builder.query<CredentialDto, { projectName: string; id: string }>({
       query: ({ projectName, id }) => `/api/v1/projects/${projectName}/credentials/${id}`,
+      transformResponse: (response: CredentialDto) => addIdFromCredentialName(response),
       providesTags: ['Metadata'],
     }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -457,11 +463,13 @@ export const apiSlice = createApi({
     }),
     getRepoCredentials: builder.query<CredentialDto[], { projectName: string; repoName: string }>({
       query: ({ projectName, repoName }) => `/api/v1/projects/${projectName}/repos/${repoName}/credentials`,
+      transformResponse: (response: CredentialDto[]) => addIdFromCredentialNames(response),
       providesTags: ['Metadata'],
     }),
     getRepoCredential: builder.query<CredentialDto, { projectName: string; id: string; repoName: string }>({
       query: ({ projectName, id, repoName }) =>
         `/api/v1/projects/${projectName}/repos/${repoName}/credentials/${id}`,
+      transformResponse: (response: CredentialDto) => addIdFromCredentialName(response),
       providesTags: ['Metadata'],
     }),
     addNewRepoCredential: builder.mutation<

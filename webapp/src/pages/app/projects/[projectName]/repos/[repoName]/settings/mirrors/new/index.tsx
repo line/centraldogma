@@ -43,7 +43,7 @@ const NewMirrorPage = () => {
     remoteUrl: '',
     remoteBranch: 'main',
     remotePath: '/',
-    credentialId: null,
+    credentialName: null,
     gitignore: null,
     enabled: false,
   };

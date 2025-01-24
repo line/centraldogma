@@ -40,12 +40,12 @@ const AlignedIcon = ({ as }: { as: IconType }) => <Icon as={as} marginBottom="-4
 
 const PROJECT_CREDENTIAL_PATTERN = /^projects\/[^/]+\/credentials\//;
 
-const isProjectCredential = (credentialId: string) => PROJECT_CREDENTIAL_PATTERN.test(credentialId);
-const removeProjectCredentialPrefix = (credentialId: string) =>
-  credentialId.replace(PROJECT_CREDENTIAL_PATTERN, '');
+const isProjectCredential = (credentialName: string) => PROJECT_CREDENTIAL_PATTERN.test(credentialName);
+const removeProjectCredentialPrefix = (credentialName: string) =>
+  credentialName.replace(PROJECT_CREDENTIAL_PATTERN, '');
 
-const removeRepoCredentialPrefix = (credentialId: string) =>
-  credentialId.replace(/^projects\/[^/]+\/repos\/[^/]+\/credentials\//, '');
+const removeRepoCredentialPrefix = (credentialName: string) =>
+  credentialName.replace(/^projects\/[^/]+\/repos\/[^/]+\/credentials\//, '');
 
 interface MirrorViewProps {
   projectName: string;
@@ -134,18 +134,18 @@ const MirrorView = ({ projectName, repoName, mirror }: MirrorViewProps) => {
                   <AlignedIcon as={GoKey} /> Credential
                 </HeadRow>
                 <Td>
-                  {mirror.credentialId.length !== 0 &&
-                    (isProjectCredential(mirror.credentialId) ? (
+                  {mirror.credentialName.length !== 0 &&
+                    (isProjectCredential(mirror.credentialName) ? (
                       <Link
-                        href={`/app/projects/${projectName}/settings/credentials/${removeProjectCredentialPrefix(mirror.credentialId)}`}
+                        href={`/app/projects/${projectName}/settings/credentials/${removeProjectCredentialPrefix(mirror.credentialName)}`}
                       >
-                        {removeProjectCredentialPrefix(mirror.credentialId)} (project credential)
+                        {removeProjectCredentialPrefix(mirror.credentialName)} (project credential)
                       </Link>
                     ) : (
                       <Link
-                        href={`/app/projects/${projectName}/repos/${repoName}/settings/credentials/${removeRepoCredentialPrefix(mirror.credentialId)}`}
+                        href={`/app/projects/${projectName}/repos/${repoName}/settings/credentials/${removeRepoCredentialPrefix(mirror.credentialName)}`}
                       >
-                        {removeRepoCredentialPrefix(mirror.credentialId)} (repository credential)
+                        {removeRepoCredentialPrefix(mirror.credentialName)} (repository credential)
                       </Link>
                     ))}
                 </Td>

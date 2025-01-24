@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2025 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -33,7 +33,7 @@ public final class CredentialUtil {
             Pattern.compile(
                     "^projects/([^/]+)/repos/([^/]+)/credentials/([a-z](?:[a-z0-9-_.]{0,61}[a-z0-9])?)$");
 
-    public static String validateCredentialName(String projectName, String localRepo,
+    public static String validateCredentialName(String projectName, String repoName,
                                                 String credentialName) {
         requireNonNull(credentialName, "credentialName");
         if (credentialName.isEmpty()) {
@@ -53,7 +53,7 @@ public final class CredentialUtil {
                                                " (expected: " + PROJECT_CREDENTIAL_ID_PATTERN.pattern() +
                                                " or " + REPO_CREDENTIAL_ID_PATTERN.pattern() + ')');
         }
-        checkProjectAndRepoName(projectName, localRepo, matcher);
+        checkProjectAndRepoName(projectName, repoName, matcher);
         return credentialName;
     }
 

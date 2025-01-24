@@ -28,34 +28,34 @@ export function newRandomCredential(id: string): CredentialDto {
   switch (index % 4) {
     case 0:
       return {
-        id,
-        type: 'password',
+        id: id,
+        name: `projects/foo/credentials/${id}`,
+        type: 'PASSWORD',
         username: `username-${index}`,
         password: `password-${index}`,
-        enabled: true,
       };
     case 1:
       return {
-        id,
-        type: 'public_key',
+        id: id,
+        name: `projects/foo/credentials/${id}`,
+        type: 'SSH_KEY',
         username: `username-${index}`,
         publicKey: `public-key-${index}`,
         privateKey: `private-key-${index}`,
         passphrase: `passphrase-${index}`,
-        enabled: true,
       };
     case 2:
       return {
-        id,
-        type: 'access_token',
+        id: id,
+        name: `projects/foo/credentials/${id}`,
+        type: 'ACCESS_TOKEN',
         accessToken: `access-token-${index}`,
-        enabled: true,
       };
     case 3:
       return {
-        id,
-        type: 'none',
-        enabled: true,
+        id: id,
+        name: `projects/foo/credentials/${id}`,
+        type: 'NONE',
       };
   }
 }

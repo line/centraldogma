@@ -22,7 +22,7 @@ for (let i = 0; i < 10; i++) {
   mirrors.push({
     id: `mirror-${i}`,
     projectName: `project-${i}`,
-    credentialId: `credential-${i}`,
+    credentialName: `projects/project-${i}/credentials/credential-${i}`,
     direction: 'REMOTE_TO_LOCAL',
     enabled: true,
     gitignore: `ignore${i}`,

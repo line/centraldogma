@@ -78,11 +78,11 @@ const MIRROR_SCHEMES: OptionType[] = ['git+ssh', 'git+http', 'git+https'].map((s
   label: scheme,
 }));
 
-function repoMirrorCredentialId(project: string, repo: string, id: string): string {
+function repoMirrorCredentialName(project: string, repo: string, id: string): string {
   return `projects/${project}/repos/${repo}/credentials/${id}`;
 }
 
-function projectMirrorCredentialId(project: string, id: string): string {
+function projectMirrorCredentialName(project: string, id: string): string {
   return `projects/${project}/credentials/${id}`;
 }
 
@@ -114,14 +114,14 @@ const MirrorForm = ({ projectName, repoName, defaultValue, onSubmit, isWaitingRe
     .filter((credential: CredentialDto) => credential.id)
     .map((credential: CredentialDto) => ({
       label: credential.id,
-      value: repoMirrorCredentialId(projectName, repoName, credential.id),
+      value: repoMirrorCredentialName(projectName, repoName, credential.id),
     }));
 
   const projectCredentialOptions: OptionType[] = (projectCredentials || [])
     .filter((credential: CredentialDto) => credential.id)
     .map((credential: CredentialDto) => ({
       label: credential.id,
-      value: projectMirrorCredentialId(projectName, credential.id),
+      value: projectMirrorCredentialName(projectName, credential.id),
     }));
 
   const groupedCredentialOptions: GroupBase<OptionType>[] = [
@@ -148,7 +148,7 @@ const MirrorForm = ({ projectName, repoName, defaultValue, onSubmit, isWaitingRe
     if (!isNew) {
       setValue('localRepo', defaultValue.localRepo);
       setValue('remoteScheme', defaultValue.remoteScheme);
-      setValue('credentialId', defaultValue.credentialId);
+      setValue('credentialName', defaultValue.credentialName);
       setValue('direction', defaultValue.direction);
       setValue('zone', defaultValue.zone);
     }
@@ -157,7 +157,7 @@ const MirrorForm = ({ projectName, repoName, defaultValue, onSubmit, isWaitingRe
     setValue,
     defaultValue.localRepo,
     defaultValue.remoteScheme,
-    defaultValue.credentialId,
+    defaultValue.credentialName,
     defaultValue.direction,
     defaultValue.zone,
   ]);
@@ -165,8 +165,8 @@ const MirrorForm = ({ projectName, repoName, defaultValue, onSubmit, isWaitingRe
   const defaultRemoteScheme: OptionType = defaultValue.remoteScheme
     ? { value: defaultValue.remoteScheme, label: defaultValue.remoteScheme }
     : null;
-  const defaultCredential: OptionType = defaultValue.credentialId
-    ? { value: defaultValue.credentialId, label: defaultValue.credentialId }
+  const defaultCredential: OptionType = defaultValue.credentialName
+    ? { value: defaultValue.credentialName, label: defaultValue.credentialName }
     : null;
   const defaultZone: OptionType = defaultValue.zone
     ? { value: defaultValue.zone, label: defaultValue.zone }
@@ -389,13 +389,13 @@ const MirrorForm = ({ projectName, repoName, defaultValue, onSubmit, isWaitingRe
           </Stack>
           <Spacer />
 
-          <FormControl width="65%" alignItems="left" isInvalid={errors.credentialId != null}>
+          <FormControl width="65%" alignItems="left" isInvalid={errors.credentialName != null}>
             <FormLabel>
               <LabelledIcon icon={GoKey} text={'Credential'} />
             </FormLabel>
             <Controller
               control={control}
-              name="credentialId"
+              name="credentialName"
               rules={{ required: true }}
               render={({ field: { onChange, value, name, ref } }) => (
                 <Select
@@ -424,7 +424,7 @@ const MirrorForm = ({ projectName, repoName, defaultValue, onSubmit, isWaitingRe
                 />
               )}
             />
-            <FieldErrorMessage error={errors.credentialId} fieldName="Credential" />
+            <FieldErrorMessage error={errors.credentialName} fieldName="Credential" />
           </FormControl>
           <Spacer />
           {zoneConfig?.zonePinned && (

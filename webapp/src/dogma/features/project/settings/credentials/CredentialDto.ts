@@ -14,10 +14,12 @@
  * under the License.
  */
 
+export type CredentialType = 'PASSWORD' | 'SSH_KEY' | 'ACCESS_TOKEN' | 'NONE';
+
 export interface CredentialDto {
   id: string;
-  type: 'password' | 'public_key' | 'access_token' | 'none';
-  enabled: boolean;
+  name: string;
+  type: CredentialType;
 
   // Password-based credential
   // - All fields are required.
@@ -34,4 +36,18 @@ export interface CredentialDto {
   // Access token-based credential
   // - `accessToken` is required.
   accessToken?: string;
+}
+
+export function addIdFromCredentialName(credential: CredentialDto): CredentialDto & { id: string } {
+  if (!credential) {
+    return null;
+  }
+  return {
+    ...credential,
+    id: credential.name.split('/').pop() || '',
+  };
+}
+
+export function addIdFromCredentialNames(credentials: CredentialDto[]): (CredentialDto & { id: string })[] {
+  return credentials ? credentials.map(addIdFromCredentialName) : [];
 }

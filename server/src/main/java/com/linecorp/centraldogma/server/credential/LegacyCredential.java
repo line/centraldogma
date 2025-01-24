@@ -30,6 +30,8 @@ import com.linecorp.centraldogma.server.internal.credential.PublicKeyLegacyCrede
 
 /**
  * A credential used to access external resources such as Git repositories or the Kubernetes control plane.
+ *
+ * @deprecated Use {@link Credential} instead.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type")
 @JsonSubTypes({
@@ -40,6 +42,7 @@ import com.linecorp.centraldogma.server.internal.credential.PublicKeyLegacyCrede
 })
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
+@Deprecated
 public interface LegacyCredential {
 
     /**

@@ -48,8 +48,8 @@ final class DefaultGitMirror extends AbstractGitMirror {
                      Credential credential, Repository localRepo, String localPath,
                      URI remoteRepoUri, String remotePath, String remoteBranch,
                      @Nullable String gitignore, @Nullable String zone) {
-        super(id, enabled, schedule, direction, credential, localRepo, localPath,
-              remoteRepoUri, remotePath, remoteBranch, gitignore, zone);
+        super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath,
+              remoteBranch, gitignore, zone);
     }
 
     @Override

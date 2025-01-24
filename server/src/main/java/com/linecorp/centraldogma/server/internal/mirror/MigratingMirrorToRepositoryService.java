@@ -228,13 +228,4 @@ final class MigratingMirrorToRepositoryService {
             throws InterruptedException, ExecutionException, TimeoutException {
         commandExecutor.execute(Command.forcePush(command)).get(1, TimeUnit.MINUTES);
     }
-
-    private static class MirrorMigrationException extends RuntimeException {
-
-        private static final long serialVersionUID = -3924318204193024460L;
-
-        MirrorMigrationException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
 }
