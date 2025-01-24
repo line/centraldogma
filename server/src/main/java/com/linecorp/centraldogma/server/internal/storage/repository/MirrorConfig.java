@@ -18,14 +18,10 @@
 package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.linecorp.centraldogma.internal.CredentialUtil.PROJECT_CREDENTIAL_ID_PATTERN;
-import static com.linecorp.centraldogma.internal.CredentialUtil.REPO_CREDENTIAL_ID_PATTERN;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_DOGMA;
 import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
-import java.util.regex.Matcher;
 
 import javax.annotation.Nullable;
 
@@ -61,8 +57,7 @@ public final class MirrorConfig {
     private final URI remoteUri;
     @Nullable
     private final String gitignore;
-    private final boolean repoCredential;
-    private final String credentialResourceName;
+    private final String credentialName;
     @Nullable
     private final Cron schedule;
     @Nullable
@@ -79,17 +74,17 @@ public final class MirrorConfig {
                         @JsonProperty("gitignore") @Nullable Object gitignore,
                         // TODO(minwoox): Remove this credentialId property after migration is done.
                         @JsonProperty("credentialId") @Nullable String credentialId,
-                        @JsonProperty("credentialResourceName") @Nullable String credentialResourceName,
+                        @JsonProperty("credentialName") @Nullable String credentialName,
                         @JsonProperty("zone") @Nullable String zone) {
         this(id, enabled, schedule != null ? CRON_PARSER.parse(schedule) : null, direction, localRepo,
              localPath, remoteUri, gitignore,
-             requireNonNull(firstNonNull(credentialResourceName, credentialId), "credentialResourceName"),
+             requireNonNull(firstNonNull(credentialName, credentialId), "credentialName"),
              zone);
     }
 
     private MirrorConfig(String id, @Nullable Boolean enabled, @Nullable Cron schedule,
                          MirrorDirection direction, String localRepo, @Nullable String localPath,
-                         URI remoteUri, @Nullable Object gitignore, String credentialResourceName,
+                         URI remoteUri, @Nullable Object gitignore, String credentialName,
                          @Nullable String zone) {
         this.id = requireNonNull(id, "id");
         this.enabled = firstNonNull(enabled, true);
@@ -116,30 +111,13 @@ public final class MirrorConfig {
         } else {
             this.gitignore = null;
         }
-        this.credentialResourceName = requireNonNull(credentialResourceName, "credentialResourceName");
-        if (isNullOrEmpty(credentialResourceName)) {
-            // Credential.FALLBACK
-            repoCredential = false;
-        } else {
-            Matcher matcher = REPO_CREDENTIAL_ID_PATTERN.matcher(credentialResourceName);
-            if (matcher.matches()) {
-                repoCredential = true;
-            } else {
-                matcher = PROJECT_CREDENTIAL_ID_PATTERN.matcher(credentialResourceName);
-                if (!matcher.matches()) {
-                    // In the middle of migration from legacy credential to project-credential.
-                    assert !credentialResourceName.contains("/") : credentialResourceName;
-                }
-                repoCredential = false;
-            }
-        }
-
+        this.credentialName = requireNonNull(credentialName, "credentialName");
         this.zone = zone;
     }
 
-    public MirrorConfig withCredentialResourceName(String credentialResourceName) {
+    public MirrorConfig withCredentialName(String credentialName) {
         return new MirrorConfig(id, enabled, schedule, direction, localRepo, localPath, remoteUri,
-                                gitignore, credentialResourceName, zone);
+                                gitignore, credentialName, zone);
     }
 
     @JsonProperty("id")
@@ -182,13 +160,9 @@ public final class MirrorConfig {
         return gitignore;
     }
 
-    @JsonProperty("credentialResourceName")
-    public String credentialResourceName() {
-        return credentialResourceName;
-    }
-
-    public boolean repoCredential() {
-        return repoCredential;
+    @JsonProperty("credentialName")
+    public String credentialName() {
+        return credentialName;
     }
 
     @Nullable
@@ -221,7 +195,7 @@ public final class MirrorConfig {
                           .add("localPath", localPath)
                           .add("remoteUri", remoteUri)
                           .add("gitignore", gitignore)
-                          .add("credentialResourceName", credentialResourceName)
+                          .add("credentialName", credentialName)
                           .add("schedule", schedule)
                           .add("zone", zone)
                           .toString();

@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.webapp;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD2;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
@@ -93,7 +94,8 @@ final class ShiroCentralDogmaTestServer {
                                                      .blocking();
         final AggregatedHttpResponse res = webClient.prepare()
                                                     .post("/api/v1/projects/foo/credentials")
-                                                    .contentJson(new NoneCredential("none", true))
+                                                    .contentJson(new NoneCredential(
+                                                            credentialName("foo", "none")))
                                                     .execute();
     }
 

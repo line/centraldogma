@@ -20,6 +20,8 @@ import static com.linecorp.centraldogma.internal.CredentialUtil.requireNonEmpty;
 import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 import static java.util.Objects.requireNonNull;
 
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,20 +30,21 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.server.credential.Credential;
-import com.linecorp.centraldogma.server.credential.CredentialType;
+import com.linecorp.centraldogma.server.credential.LegacyCredential;
 
-public final class PasswordCredential extends AbstractCredential {
+public final class PasswordLegacyCredential extends AbstractLegacyCredential {
 
-    private static final Logger logger = LoggerFactory.getLogger(PasswordCredential.class);
+    private static final Logger logger = LoggerFactory.getLogger(PasswordLegacyCredential.class);
 
     private final String username;
     private final String password;
 
     @JsonCreator
-    public PasswordCredential(@JsonProperty("name") String name,
-                              @JsonProperty("username") String username,
-                              @JsonProperty("password") String password) {
-        super(name, CredentialType.PASSWORD);
+    public PasswordLegacyCredential(@JsonProperty("id") String id,
+                                    @JsonProperty("enabled") @Nullable Boolean enabled,
+                                    @JsonProperty("username") String username,
+                                    @JsonProperty("password") String password) {
+        super(id, enabled, "password");
         this.username = requireNonEmpty(username, "username");
         this.password = requireNonNull(password, "password");
     }
@@ -68,6 +71,11 @@ public final class PasswordCredential extends AbstractCredential {
     }
 
     @Override
+    public Credential toNewCredential(String name) {
+        return new PasswordCredential(name, username, password);
+    }
+
+    @Override
     public int hashCode() {
         int result = super.hashCode();
         result = 31 * result + username.hashCode();
@@ -81,7 +89,7 @@ public final class PasswordCredential extends AbstractCredential {
             return true;
         }
 
-        if (!(o instanceof PasswordCredential)) {
+        if (!(o instanceof PasswordLegacyCredential)) {
             return false;
         }
 
@@ -89,7 +97,7 @@ public final class PasswordCredential extends AbstractCredential {
             return false;
         }
 
-        final PasswordCredential that = (PasswordCredential) o;
+        final PasswordLegacyCredential that = (PasswordLegacyCredential) o;
         return username.equals(that.username) && password.equals(that.password);
     }
 
@@ -99,7 +107,7 @@ public final class PasswordCredential extends AbstractCredential {
     }
 
     @Override
-    public Credential withoutSecret() {
-        return new PasswordCredential(name(), username(), "****");
+    public LegacyCredential withoutSecret() {
+        return new PasswordLegacyCredential(id(), enabled(), username(), "****");
     }
 }

@@ -16,7 +16,8 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
-import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.it.mirror.git.GitTestUtil.getFileContent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -47,6 +48,7 @@ import com.google.common.collect.ImmutableList;
 import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.MirrorException;
+import com.linecorp.centraldogma.internal.CredentialUtil;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
@@ -106,7 +108,7 @@ class ForceRefUpdateTest {
         dogma.client()
              .forRepo(projName, Project.REPO_META)
              .commit("cleanup",
-                     Change.ofRemoval("/credentials/public-key-id.json"),
+                     Change.ofRemoval(CredentialUtil.projectCredentialFile("ssh-key-id")),
                      Change.ofRemoval("/repos/" + REPO_FOO + "/mirrors/foo.json"))
              .push().join();
     }
@@ -200,14 +202,13 @@ class ForceRefUpdateTest {
     }
 
     private void pushCredentials(String pubKey, String privKey) {
+        final String name = credentialName(projName, "ssh-key-id");
         dogma.client().forRepo(projName, Project.REPO_META)
              .commit("Add a mirror",
-                     Change.ofJsonUpsert("/credentials/public-key-id.json",
+                     Change.ofJsonUpsert(credentialFile(name),
                                          '{' +
-                                         "  \"id\": \"public-key-id\"," +
-                                         "  \"resourceName\": \"" +
-                                         projectCredentialResourceName(projName, "public-key-id") + "\"," +
-                                         "  \"type\": \"public_key\"," +
+                                         "  \"name\": \"" + name + "\"," +
+                                         "  \"type\": \"SSH_KEY\"," +
                                          "  \"username\": \"" + "git" + "\"," +
                                          "  \"publicKey\": \"" + pubKey + "\"," +
                                          "  \"privateKey\": \"" + privKey + '"' +
@@ -228,8 +229,8 @@ class ForceRefUpdateTest {
                                          "  \"localPath\": \"/\"," +
                                          "  \"remoteUri\": \"" + gitUri + "\"," +
                                          "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
-                                         "  \"credentialId\": \"" +
-                                         projectCredentialResourceName(projName, "public-key-id") + '"' +
+                                         "  \"credentialName\": \"" +
+                                         credentialName(projName, "ssh-key-id") + '"' +
                                          '}'))
              .push().join();
     }

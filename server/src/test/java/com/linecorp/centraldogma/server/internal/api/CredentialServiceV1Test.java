@@ -15,8 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.api;
 
-import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
-import static com.linecorp.centraldogma.internal.CredentialUtil.repoCredentialResourceName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
@@ -43,10 +42,11 @@ import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.credential.Credential;
+import com.linecorp.centraldogma.server.credential.CredentialType;
 import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
 import com.linecorp.centraldogma.server.internal.credential.NoneCredential;
 import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
-import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
+import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -92,24 +92,24 @@ class CredentialServiceV1Test {
     @ParameterizedTest
     void createAndReadCredential(boolean projectLevel) {
         final List<Map<String, Object>> credentials = ImmutableList.of(
-                ImmutableMap.of("type", "password", "id", "password-credential",
-                                "resourceName",
-                                resourceName(projectLevel, "password-credential"),
+                ImmutableMap.of("type", CredentialType.PASSWORD.name(),
+                                "name", name(projectLevel, "password-credential"),
                                 "username", "username-0", "password", "password-0"),
-                ImmutableMap.of("type", "access_token", "id", "access-token-credential",
-                                "resourceName", resourceName(projectLevel, "access-token-credential"),
+                ImmutableMap.of("type", CredentialType.ACCESS_TOKEN.name(),
+                                "name", name(projectLevel, "access-token-credential"),
                                 "accessToken", "secret-token-abc-1"),
-                ImmutableMap.of("type", "public_key", "id", "public-key-credential",
-                                "resourceName", resourceName(projectLevel, "public-key-credential"),
+                ImmutableMap.of("type", CredentialType.SSH_KEY.name(),
+                                "name", name(projectLevel, "ssh-key-credential"),
                                 "username", "username-2",
                                 "publicKey", "public-key-2", "privateKey", "private-key-2",
                                 "passphrase", "password-0"),
-                ImmutableMap.of("type", "none", "id", "non-credential"));
+                ImmutableMap.of("type", CredentialType.NONE.name(),
+                                "name", name(projectLevel, "non-credential")));
 
         final BlockingWebClient client = dogma.blockingHttpClient();
         for (int i = 0; i < credentials.size(); i++) {
             final Map<String, Object> credential = credentials.get(i);
-            final String credentialId = (String) credential.get("id");
+            final String credentialName = (String) credential.get("name");
             final ResponseEntity<PushResultDto> creationResponse =
                     client.prepare()
                           .post(projectLevel ? "/api/v1/projects/{proj}/credentials"
@@ -123,30 +123,27 @@ class CredentialServiceV1Test {
 
             final ResponseEntity<Credential> fetchResponse =
                     client.prepare()
-                          .get(projectLevel ? "/api/v1/projects/{proj}/credentials/{id}"
-                                            : "/api/v1/projects/{proj}/repos/" + BAR_REPO + "/credentials/{id}")
-                          .pathParam("proj", FOO_PROJ)
-                          .pathParam("id", credentialId)
+                          .get("/api/v1/" + credentialName)
                           .responseTimeoutMillis(0)
                           .asJson(Credential.class)
                           .execute();
             final Credential credentialDto = fetchResponse.content();
-            assertThat(credentialDto.id()).isEqualTo(credentialId);
-            final String credentialType = (String) credential.get("type");
-            if ("password".equals(credentialType)) {
+            assertThat(credentialDto.name()).isEqualTo(credentialName);
+            final CredentialType credentialType = CredentialType.valueOf((String) credential.get("type"));
+            if (credentialType == CredentialType.PASSWORD) {
                 final PasswordCredential actual = (PasswordCredential) credentialDto;
                 assertThat(actual.username()).isEqualTo(credential.get("username"));
                 assertThat(actual.password()).isEqualTo(credential.get("password"));
-            } else if ("access_token".equals(credentialType)) {
+            } else if (credentialType == CredentialType.ACCESS_TOKEN) {
                 final AccessTokenCredential actual = (AccessTokenCredential) credentialDto;
                 assertThat(actual.accessToken()).isEqualTo(credential.get("accessToken"));
-            } else if ("public_key".equals(credentialType)) {
-                final PublicKeyCredential actual = (PublicKeyCredential) credentialDto;
+            } else if (credentialType == CredentialType.SSH_KEY) {
+                final SshKeyCredential actual = (SshKeyCredential) credentialDto;
                 assertThat(actual.username()).isEqualTo(credential.get("username"));
                 assertThat(actual.publicKey()).isEqualTo(credential.get("publicKey"));
                 assertThat(actual.rawPrivateKey()).isEqualTo(credential.get("privateKey"));
                 assertThat(actual.rawPassphrase()).isEqualTo(credential.get("passphrase"));
-            } else if ("none".equals(credentialType)) {
+            } else if (credentialType == CredentialType.NONE) {
                 assertThat(credentialDto).isInstanceOf(NoneCredential.class);
             } else {
                 throw new AssertionError("Unexpected credential type: " + credential.getClass().getName());
@@ -154,8 +151,8 @@ class CredentialServiceV1Test {
         }
     }
 
-    private static String resourceName(boolean projectLevel, String credentialId) {
-        return projectLevel ? projectCredentialResourceName(FOO_PROJ, credentialId)
-                            : repoCredentialResourceName(FOO_PROJ, BAR_REPO, credentialId);
+    private static String name(boolean projectLevel, String credentialId) {
+        return projectLevel ? credentialName(FOO_PROJ, credentialId)
+                            : credentialName(FOO_PROJ, BAR_REPO, credentialId);
     }
 }

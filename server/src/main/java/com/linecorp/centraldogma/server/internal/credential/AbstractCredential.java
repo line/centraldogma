@@ -16,32 +16,42 @@
 
 package com.linecorp.centraldogma.server.internal.credential;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.linecorp.centraldogma.internal.CredentialUtil.PROJECT_CREDENTIAL_ID_PATTERN;
+import static com.linecorp.centraldogma.internal.CredentialUtil.REPO_CREDENTIAL_ID_PATTERN;
 import static java.util.Objects.requireNonNull;
 
-import javax.annotation.Nullable;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
+import com.google.common.base.Objects;
 
 import com.linecorp.centraldogma.server.credential.Credential;
+import com.linecorp.centraldogma.server.credential.CredentialType;
 
 abstract class AbstractCredential implements Credential {
 
+    private final String name;
     private final String id;
-    private final String resourceName;
-    private final boolean enabled;
-    // TODO(ikhoon): Consider changing 'type' to an enum.
-    private final String type;
+    private final CredentialType type;
 
-    AbstractCredential(String id, String resourceName, @Nullable Boolean enabled, String type) {
-        this.id = requireNonNull(id, "id");
-        this.resourceName = requireNonNull(resourceName, "resourceName");
-        this.enabled = firstNonNull(enabled, true);
-        // JsonTypeInfo is ignored when serializing collections.
-        // As a workaround, manually set the type hint to serialize.
+    AbstractCredential(String name, CredentialType type) {
+        this.name = requireNonNull(name, "name");
+        id = extractId(name, type);
         this.type = requireNonNull(type, "type");
+    }
+
+    private static String extractId(String name, CredentialType type) {
+        if (type == CredentialType.NONE && name.isEmpty()) {
+            // The name of the NONE credential can be empty.
+            return "";
+        }
+        // Credential name is validated when creating in CredentialService so just extract the id.
+        final int lastIndex = name.lastIndexOf('/');
+        if (lastIndex < 0) {
+            throw new IllegalArgumentException("name: " + name +
+                                               " (expected: " + PROJECT_CREDENTIAL_ID_PATTERN.pattern() +
+                                               " or " + REPO_CREDENTIAL_ID_PATTERN.pattern() + ')');
+        }
+        return name.substring(lastIndex + 1);
     }
 
     @Override
@@ -50,18 +60,13 @@ abstract class AbstractCredential implements Credential {
     }
 
     @Override
-    public final String resourceName() {
-        return resourceName;
-    }
-
-    @JsonProperty("type")
-    public final String type() {
-        return type;
+    public String name() {
+        return name;
     }
 
     @Override
-    public final boolean enabled() {
-        return enabled;
+    public final CredentialType type() {
+        return type;
     }
 
     @Override
@@ -75,21 +80,19 @@ abstract class AbstractCredential implements Credential {
         }
 
         final AbstractCredential that = (AbstractCredential) o;
-        return enabled == that.enabled &&
-               id.equals(that.id);
+        return name.equals(that.name) && type == that.type;
     }
 
     @Override
     public int hashCode() {
-        return id.hashCode() * 31 + Boolean.hashCode(enabled);
+        return Objects.hashCode(name, type);
     }
 
     @Override
     public final String toString() {
         final ToStringHelper helper = MoreObjects.toStringHelper(this);
-        helper.add("id", id);
+        helper.add("name", name);
         helper.add("type", type);
-        helper.add("enabled", enabled);
         addProperties(helper);
         return helper.toString();
     }

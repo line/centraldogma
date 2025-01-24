@@ -15,7 +15,9 @@
  */
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
+import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.CREDENTIALS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.LEGACY_MIRRORS_PATH;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.mirrorFile;
 import static com.linecorp.centraldogma.server.storage.project.Project.REPO_META;
@@ -46,9 +48,9 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
-import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
+import com.linecorp.centraldogma.server.credential.Credential;
+import com.linecorp.centraldogma.server.credential.LegacyCredential;
 import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
-import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -76,47 +78,48 @@ final class MigratingMirrorToRepositoryService {
             return;
         }
 
-        // Enter read-only mode.
-        commandExecutor.execute(Command.updateServerStatus(ServerStatus.REPLICATION_ONLY))
-                       .get(1, TimeUnit.MINUTES);
-        logger.info("Starting Mirrors migration ...");
-        if (commandExecutor instanceof ZooKeeperCommandExecutor) {
-            logger.debug("Waiting for 10 seconds to make sure that all cluster have been notified of the " +
-                         "read-only mode ...");
-            Thread.sleep(10000);
-        }
-
         final Stopwatch stopwatch = Stopwatch.createStarted();
-        int numMigratedProjects = 0;
+        int numCredentialMigratedProjects = 0;
+        int numMirrorMigratedProjects = 0;
+        String projectName = "";
         try {
             for (Project project : projectManager.list().values()) {
-                logger.info("Migrating mirrors in the project: {} ...", project.name());
+                projectName = project.name();
+                logger.info("Migrating credentials in the project: {} ...", projectName);
                 final MetaRepository repository = project.metaRepo();
+                if (migrateCredentials(projectName, repository)) {
+                    numCredentialMigratedProjects++;
+                    logger.info("Credentials in the project '{}' have been migrated.", projectName);
+                } else {
+                    logger.info("No legacy configurations of credentials found in the project: {}.",
+                                projectName);
+                }
+
+                logger.info("Migrating mirrors in the project: {} ...", projectName);
                 if (migrateMirrors(repository)) {
-                    numMigratedProjects++;
-                    logger.info("Mirrors in the project '{}' have been migrated.", project.name());
+                    numMirrorMigratedProjects++;
+                    logger.info("Mirrors in the project '{}' have been migrated.", projectName);
                 } else {
                     logger.info("No legacy configurations of mirrors found in the project: {}.",
-                                project.name());
+                                projectName);
                 }
             }
-            logMigrationJob(numMigratedProjects);
+            logMigrationJob(numCredentialMigratedProjects, numMirrorMigratedProjects);
         } catch (Exception ex) {
-            throw new MirrorMigrationException(
-                    "Failed to migrate mirrors to each repository.", ex);
+            logger.warn("Failed to migrate credentials and mirrors. project: {}", projectName, ex);
+            return;
         }
-
-        // Exit read-only mode.
-        commandExecutor.execute(Command.updateServerStatus(ServerStatus.WRITABLE))
-                       .get(1, TimeUnit.MINUTES);
-        logger.info("Mirrors to each repository migration has been completed. (took: {} ms.)",
-                    stopwatch.elapsed().toMillis());
+        logger.info("Mirrors to each repository migration has been completed. (took: {} ms.) " +
+                    "migrated credentials: {}, migrated mirrors: {}",
+                    stopwatch.elapsed().toMillis(), numCredentialMigratedProjects, numMirrorMigratedProjects);
     }
 
-    private void logMigrationJob(int numMigratedProjects) throws Exception {
+    private void logMigrationJob(int numCredentialMigratedProjects,
+                                 int numMirrorMigratedProjects) throws Exception {
         final Map<String, Object> data =
                 ImmutableMap.of("timestamp", Instant.now(),
-                                "projects", numMigratedProjects);
+                                "credentials", numCredentialMigratedProjects,
+                                "mirrors", numMirrorMigratedProjects);
         final Change<JsonNode> change = Change.ofJsonUpsert(MIRROR_TO_REPOSITORY_MIGRATION_JOB_LOG,
                                                             Jackson.writeValueAsString(data));
         final Command<CommitResult> command =
@@ -136,6 +139,43 @@ final class MigratingMirrorToRepositoryService {
         return entry != null;
     }
 
+    private boolean migrateCredentials(String projectName, MetaRepository repository) throws Exception {
+        final Map<String, Entry<?>> entries = repository.find(Revision.HEAD, CREDENTIALS + "*.json")
+                                                        .join();
+        if (entries.isEmpty()) {
+            return false;
+        }
+
+        final List<Change<?>> changes = new ArrayList<>();
+        for (Map.Entry<String, Entry<?>> entry : entries.entrySet()) {
+            final JsonNode content = (JsonNode) entry.getValue().content();
+            if (!content.isObject()) {
+                warnInvalidConfig(entry, "credential", content);
+                continue;
+            }
+            try {
+                final LegacyCredential legacyCredential = Jackson.treeToValue(content, LegacyCredential.class);
+                // Migrate the credential to a project level one.
+                final String name = credentialName(projectName, legacyCredential.id());
+                final Credential newCredential = legacyCredential.toNewCredential(name);
+                final String file = credentialFile(name);
+                assert entry.getKey().equals(file);
+                changes.add(Change.ofJsonUpsert(file, Jackson.valueToTree(newCredential)));
+            } catch (JsonProcessingException e) {
+                warnInvalidConfig(entry, "credential", content);
+            }
+        }
+        if (changes.isEmpty()) {
+            return false;
+        }
+
+        final Command<CommitResult> command =
+                Command.push(Author.SYSTEM, repository.parent().name(), REPO_META, Revision.HEAD,
+                             "Migrate the credentials", "", Markup.PLAINTEXT, changes);
+        executeCommand(command);
+        return true;
+    }
+
     private boolean migrateMirrors(MetaRepository repository) throws Exception {
         final Map<String, Entry<?>> entries = repository.find(Revision.HEAD, LEGACY_MIRRORS_PATH + "*.json")
                                                         .join();
@@ -146,30 +186,27 @@ final class MigratingMirrorToRepositoryService {
         for (Map.Entry<String, Entry<?>> entry : entries.entrySet()) {
             final JsonNode content = (JsonNode) entry.getValue().content();
             if (!content.isObject()) {
-                warnInvalidMirrorConfig(entry, content);
+                warnInvalidConfig(entry, "mirror", content);
                 continue;
             }
             try {
                 final MirrorConfig mirrorConfig = Jackson.treeToValue(content, MirrorConfig.class);
                 final String repoName = mirrorConfig.localRepo();
                 if (repoName == null) {
-                    warnInvalidMirrorConfig(entry, content);
+                    warnInvalidConfig(entry, "mirror", content);
                     continue;
                 }
-                final String credentialResourceName = mirrorConfig.credentialResourceName();
-                if (credentialResourceName.startsWith("projects/")) {
-                    // Skip the migration if the credentialResourceName is already a project or
-                    // a repository level one.
-                    continue;
-                }
+                final String credentialName = mirrorConfig.credentialName();
+                assert !credentialName.startsWith("projects/")
+                        : "Legacy mirror configuration has invalid credential name: " + credentialName;
 
-                // Migrate the credentialResourceName to a project level one.
-                final MirrorConfig newMirrorConfig = mirrorConfig.withCredentialResourceName(
-                        projectCredentialResourceName(repository.parent().name(), credentialResourceName));
+                // Migrate the credentialName to a project level one.
+                final MirrorConfig newMirrorConfig = mirrorConfig.withCredentialName(
+                        credentialName(repository.parent().name(), credentialName));
                 changes.add(Change.ofJsonUpsert(mirrorFile(repoName, mirrorConfig.id()),
                                                 Jackson.valueToTree(newMirrorConfig)));
             } catch (JsonProcessingException e) {
-                warnInvalidMirrorConfig(entry, content);
+                warnInvalidConfig(entry, "mirror", content);
             }
         }
         if (changes.isEmpty()) {
@@ -183,8 +220,8 @@ final class MigratingMirrorToRepositoryService {
         return true;
     }
 
-    private static void warnInvalidMirrorConfig(Map.Entry<String, Entry<?>> entry, JsonNode content) {
-        logger.warn("Ignoring an invalid mirror configuration: {}, {}", entry.getKey(), content);
+    private static void warnInvalidConfig(Map.Entry<String, Entry<?>> entry, String type, JsonNode content) {
+        logger.warn("Ignoring an invalid {} configuration: {}, {}", type, entry.getKey(), content);
     }
 
     private void executeCommand(Command<CommitResult> command)

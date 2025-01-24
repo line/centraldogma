@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.credential;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -23,33 +24,47 @@ import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.credential.Credential;
+import com.linecorp.centraldogma.server.credential.CredentialType;
+import com.linecorp.centraldogma.server.credential.LegacyCredential;
 
 class AccessTokenCredentialTest {
 
     @Test
     void testConstruction() throws Exception {
+        final String credentialName = credentialName("foo", "foo-credential");
         // null checks
-        assertThatThrownBy(() -> new AccessTokenCredential("foo", "projects/foo", true, null))
+        assertThatThrownBy(() -> new AccessTokenCredential(credentialName, null))
                 .isInstanceOf(NullPointerException.class);
 
         // emptiness checks
-        assertThatThrownBy(() -> new AccessTokenCredential("foo", "projects/foo", true, ""))
+        assertThatThrownBy(() -> new AccessTokenCredential(credentialName, ""))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // successful construction
-        final AccessTokenCredential c = new AccessTokenCredential("foo", "projects/foo", true, "sesame");
-        assertThat(c.id()).isEqualTo("foo");
+        final AccessTokenCredential c = new AccessTokenCredential(credentialName, "sesame");
+        assertThat(c.name()).isEqualTo(credentialName);
+        assertThat(c.id()).isEqualTo("foo-credential");
+        assertThat(c.type()).isSameAs(CredentialType.ACCESS_TOKEN);
         assertThat(c.accessToken()).isEqualTo("sesame");
     }
 
     @Test
     void testDeserialization() throws Exception {
+        // Legacy format
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"access_token\"," +
-                                     "  \"resourceName\": \"projects/foo\"," +
                                      "  \"id\": \"foo\"," +
                                      "  \"accessToken\": \"sesame\"" +
+                                     '}', LegacyCredential.class))
+                .isEqualTo(new AccessTokenLegacyCredential("foo", true, "sesame"));
+
+        // New format
+        final String credentialName = credentialName("foo", "foo-credential");
+        assertThat(Jackson.readValue('{' +
+                                     "  \"type\": \"ACCESS_TOKEN\"," +
+                                     "  \"name\": \"" + credentialName + "\"," +
+                                     "  \"accessToken\": \"sesame\"" +
                                      '}', Credential.class))
-                .isEqualTo(new AccessTokenCredential("foo", "projects/foo", true, "sesame"));
+                .isEqualTo(new AccessTokenCredential(credentialName, "sesame"));
     }
 }

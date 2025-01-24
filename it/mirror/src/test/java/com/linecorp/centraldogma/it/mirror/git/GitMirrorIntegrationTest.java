@@ -17,7 +17,8 @@
 package com.linecorp.centraldogma.it.mirror.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_COMMIT_SECTION;
@@ -482,13 +483,14 @@ class GitMirrorIntegrationTest {
                                     @Nullable String gitignore) {
         final String localPath0 = localPath == null ? "/" : localPath;
         final String remoteUri = gitUri + firstNonNull(remotePath, "");
+        final String credentialName = credentialName(projName, "none");
         try {
             client.forRepo(projName, Project.REPO_META)
                   .commit("Add /credentials/none",
-                          Change.ofJsonUpsert("/credentials/none.json",
+                          Change.ofJsonUpsert(credentialFile(credentialName),
                                               "{ " +
-                                              "\"type\": \"none\", " +
-                                              "\"id\": \"none\", " +
+                                              "\"type\": \"NONE\", " +
+                                              "\"name\": \"" + credentialName + "\", " +
                                               "\"enabled\": true " +
                                               '}'))
                   .push().join();
@@ -511,8 +513,7 @@ class GitMirrorIntegrationTest {
                                           "  \"localPath\": \"" + localPath0 + "\"," +
                                           "  \"remoteUri\": \"" + remoteUri + "\"," +
                                           "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
-                                          "  \"credentialId\": \"" +
-                                          projectCredentialResourceName(projName, "none") + "\"," +
+                                          "  \"credentialName\": \"" + credentialName + "\"," +
                                           "  \"gitignore\": " + firstNonNull(gitignore, "\"\"") +
                                           '}'))
               .push().join();

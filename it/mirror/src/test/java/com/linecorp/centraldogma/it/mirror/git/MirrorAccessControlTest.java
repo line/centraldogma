@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
-import static com.linecorp.centraldogma.internal.CredentialUtil.repoCredentialResourceName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.PRIVATE_KEY_FILE;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.TEST_MIRROR_ID;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.getCredential;
@@ -48,7 +48,7 @@ import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlRequest;
-import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
+import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -188,7 +188,7 @@ class MirrorAccessControlTest {
     }
 
     private void createMirror() throws Exception {
-        final PublicKeyCredential credential = getCredential(TEST_PROJ, TEST_REPO);
+        final SshKeyCredential credential = getCredential(TEST_PROJ, TEST_REPO);
         ResponseEntity<PushResultDto> response =
                 client.prepare()
                       .post("/api/v1/projects/{proj}/repos/{repo}/credentials")
@@ -223,8 +223,7 @@ class MirrorAccessControlTest {
                                  "/",
                                  "main",
                                  null,
-                                 null,
-                                 repoCredentialResourceName(TEST_PROJ, TEST_REPO, PRIVATE_KEY_FILE),
+                                 credentialName(TEST_PROJ, TEST_REPO, PRIVATE_KEY_FILE),
                                  null);
     }
 }

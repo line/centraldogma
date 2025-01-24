@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.test;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD2;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
@@ -111,7 +112,7 @@ class XdsMemberPermissionTest {
         final AggregatedHttpResponse credentialResponse =
                 adminWebClient.prepare()
                               .post("/api/v1/projects/@xds/credentials")
-                              .contentJson(new NoneCredential("test", true))
+                              .contentJson(new NoneCredential(credentialName("@xds", "test")))
                               .execute();
         assertThat(credentialResponse.status()).isEqualTo(HttpStatus.CREATED);
 

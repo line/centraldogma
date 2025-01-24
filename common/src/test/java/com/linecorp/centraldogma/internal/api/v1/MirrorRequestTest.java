@@ -16,12 +16,13 @@
  */
 package com.linecorp.centraldogma.internal.api.v1;
 
-import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
-import static com.linecorp.centraldogma.internal.CredentialUtil.repoCredentialResourceName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
+
+import com.linecorp.centraldogma.internal.CredentialUtil;
 
 class MirrorRequestTest {
 
@@ -29,30 +30,30 @@ class MirrorRequestTest {
     void mirrorRequest() {
         assertThatThrownBy(() -> newMirror("some-id"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("invalid credentialResourceName: some-id (expected: ");
+                .hasMessageContaining("invalid credentialName: some-id (expected: ");
 
         assertThatThrownBy(() -> newMirror("projects/bar/repos/bar/credentials/credential-id"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("projectName and credentialResourceName do not match: ");
+                .hasMessageContaining("projectName and credentialName do not match: ");
 
         assertThatThrownBy(() -> newMirror("projects/foo/repos/foo/credentials/credential-id"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("repoName and credentialResourceName do not match: ");
+                .hasMessageContaining("repoName and credentialName do not match: ");
 
-        String credentialResourceName = repoCredentialResourceName("foo", "bar", "credential-id");
-        assertThat(newMirror(credentialResourceName).credentialResourceName())
-                .isEqualTo(credentialResourceName);
+        String credentialName = CredentialUtil.credentialName("foo", "bar", "credential-id");
+        assertThat(newMirror(credentialName).credentialName())
+                .isEqualTo(credentialName);
 
         assertThatThrownBy(() -> newMirror("projects/bar/credentials/credential-id"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("projectName and credentialResourceName do not match: ");
+                .hasMessageContaining("projectName and credentialName do not match: ");
 
-        credentialResourceName = projectCredentialResourceName("foo", "credential-id");
-        assertThat(newMirror(credentialResourceName).credentialResourceName())
-                .isEqualTo(credentialResourceName);
+        credentialName = credentialName("foo", "credential-id");
+        assertThat(newMirror(credentialName).credentialName())
+                .isEqualTo(credentialName);
     }
 
-    private static MirrorRequest newMirror(String credentialResourceName) {
+    private static MirrorRequest newMirror(String credentialName) {
         return new MirrorRequest("mirror-id",
                                  true,
                                  "foo",
@@ -65,8 +66,7 @@ class MirrorRequestTest {
                                  "/",
                                  "main",
                                  null,
-                                 null,
-                                 credentialResourceName,
+                                 credentialName,
                                  null);
     }
 }

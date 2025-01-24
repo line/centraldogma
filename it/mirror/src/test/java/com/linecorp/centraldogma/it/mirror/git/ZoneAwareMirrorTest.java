@@ -16,8 +16,7 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
-import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
-import static com.linecorp.centraldogma.internal.CredentialUtil.repoCredentialResourceName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.BAR_REPO;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.FOO_PROJ;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.PRIVATE_KEY_FILE;
@@ -55,12 +54,13 @@ import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.MirrorException;
+import com.linecorp.centraldogma.internal.CredentialUtil;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.ZoneConfig;
-import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
+import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
@@ -181,7 +181,7 @@ class ZoneAwareMirrorTest {
                                  URI.create("git+ssh://github.com/line/centraldogma-authtest.git/#main"),
                                  null,
                                  null,
-                                 repoCredentialResourceName("foo", "bar-unknown-zone", "credential-id"),
+                                 CredentialUtil.credentialName("foo", "bar-unknown-zone", "credential-id"),
                                  unknownZone);
         final Change<JsonNode> change = Change.ofJsonUpsert(
                 "/repos/bar-unknown-zone/mirrors/" + mirrorId + ".json",
@@ -213,7 +213,7 @@ class ZoneAwareMirrorTest {
                                                   .build()
                                                   .blocking();
 
-        final PublicKeyCredential credential = getCredential(FOO_PROJ, null);
+        final SshKeyCredential credential = getCredential(FOO_PROJ, null);
         ResponseEntity<PushResultDto> response =
                 client.prepare()
                       .post("/api/v1/projects/{proj}/credentials")
@@ -247,8 +247,7 @@ class ZoneAwareMirrorTest {
                                  "/",
                                  "main",
                                  null,
-                                 null,
-                                 projectCredentialResourceName(FOO_PROJ, PRIVATE_KEY_FILE),
+                                 credentialName(FOO_PROJ, PRIVATE_KEY_FILE),
                                  zone);
     }
 }

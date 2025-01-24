@@ -16,7 +16,7 @@
 package com.linecorp.centraldogma.xds.k8s.v1;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceTest.checkEndpointsViaDiscoveryRequest;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
@@ -39,6 +39,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
@@ -54,6 +56,7 @@ import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.credential.CredentialType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -110,10 +113,10 @@ class XdsKubernetesServiceTest {
     @BeforeAll
     static void setup() {
         setUpK8s();
-        putCredential();
-
         final AggregatedHttpResponse response = createGroup("foo", dogma.httpClient());
         assertThat(response.status()).isSameAs(HttpStatus.OK);
+        putCredential();
+
         final List<Node> nodes = ImmutableList.of(newNode("1.1.1.1"), newNode("2.2.2.2"));
         final Map<String, String> selector = ImmutableMap.of("app", "nginx");
         final Deployment deployment = newDeployment("nginx-deployment", selector);
@@ -142,16 +145,23 @@ class XdsKubernetesServiceTest {
     }
 
     private static void putCredential() {
-        final ImmutableMap<String, String> credential =
-                ImmutableMap.of("type", "access_token",
-                                "id", "my-credential",
-                                "resourceName", projectCredentialResourceName(XDS_CENTRAL_DOGMA_PROJECT,
-                                                                              "my-credential"),
+        final ImmutableMap<String, String> repoCredential =
+                ImmutableMap.of("type", CredentialType.ACCESS_TOKEN.name(),
+                                "name", credentialName(XDS_CENTRAL_DOGMA_PROJECT, "foo", "repo-credential"),
+                                "accessToken", "secret");
+        dogma.httpClient().prepare()
+             .post("/api/v1/projects/@xds/repos/foo/credentials")
+             .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+             .contentJson(repoCredential).execute().aggregate().join();
+        // This is needed for the backward compatibility test.
+        final ImmutableMap<String, String> projectCredential =
+                ImmutableMap.of("type", CredentialType.ACCESS_TOKEN.name(),
+                                "name", credentialName(XDS_CENTRAL_DOGMA_PROJECT, "project-credential"),
                                 "accessToken", "secret");
         dogma.httpClient().prepare()
              .post("/api/v1/projects/@xds/credentials")
              .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-             .contentJson(credential).execute().aggregate().join();
+             .contentJson(projectCredential).execute().aggregate().join();
     }
 
     @AfterAll
@@ -178,26 +188,27 @@ class XdsKubernetesServiceTest {
     void invalidProperty() throws IOException {
         final String aggregatorId = "foo-cluster";
         KubernetesEndpointAggregator aggregator =
-                aggregator(aggregatorId, "invalid-service-name", "my-credential");
+                aggregator(aggregatorId, "invalid-service-name", "repo-credential");
         AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
         assertThat(response.status()).isSameAs(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.contentUtf8()).contains("Failed to retrieve k8s endpoints");
 
-        aggregator = aggregator(aggregatorId, "nginx-service", "invalid-credential-id");
+        aggregator = aggregator(aggregatorId, "nginx-service", "invalid-credential");
         response = createAggregator(aggregator, aggregatorId);
         assertThat(response.status()).isSameAs(HttpStatus.BAD_REQUEST);
         assertThatJson(response.contentUtf8())
                 .node("grpc-code").isEqualTo("INVALID_ARGUMENT")
                 .node("message").isEqualTo(
                         "failed to find credential file " +
-                        "'/credentials/invalid-credential-id.json' in @xds/meta");
+                        "'/credentials/invalid-credential.json' in @xds/meta");
     }
 
-    @Test
-    void createEndpointAggregatorsRequest() throws IOException {
+    @CsvSource({ "repo-credential", "project-credential" })
+    @ParameterizedTest
+    void createEndpointAggregatorsRequest(String credentialId) throws IOException {
         final String aggregatorId = "foo-k8s-cluster/1";
         final String clusterName = "groups/foo/k8s/clusters/" + aggregatorId;
-        final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId);
+        final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId, credentialId);
         final AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
         assertOk(response);
         final String json = response.contentUtf8();
@@ -230,10 +241,12 @@ class XdsKubernetesServiceTest {
                     .describedAs("Request: %s does not contain the credential", req)
                     .isEqualTo("Bearer secret");
         });
+
+        assertOk(deleteAggregator0(aggregator.getName()));
     }
 
-    private static KubernetesEndpointAggregator aggregator(String aggregatorId) {
-        return aggregator(aggregatorId, "nginx-service", "my-credential");
+    private static KubernetesEndpointAggregator aggregator(String aggregatorId, String credentialId) {
+        return aggregator(aggregatorId, "nginx-service", credentialId);
     }
 
     private static KubernetesEndpointAggregator aggregator(
@@ -298,10 +311,11 @@ class XdsKubernetesServiceTest {
                                     .build();
     }
 
-    @Test
-    void updateAggregator() throws IOException {
+    @CsvSource({ "repo-credential", "project-credential" })
+    @ParameterizedTest
+    void updateAggregator(String credentialId) throws IOException {
         final String aggregatorId = "foo-k8s-cluster/2";
-        final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId);
+        final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId, credentialId);
         AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
         assertOk(response);
         final String clusterName = "groups/foo/k8s/clusters/" + aggregatorId;
@@ -323,6 +337,7 @@ class XdsKubernetesServiceTest {
                          updatingAggregator.toBuilder().setClusterName(clusterName).build());
         final ClusterLoadAssignment loadAssignment2 = clusterLoadAssignment(clusterName, 30001);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment2, clusterName);
+        assertOk(deleteAggregator0(aggregator.getName()));
     }
 
     static AggregatedHttpResponse updateAggregator(
@@ -337,22 +352,23 @@ class XdsKubernetesServiceTest {
                         .aggregate().join();
     }
 
-    @Test
-    void deleteAggregator() throws IOException {
+    @CsvSource({ "repo-credential", "project-credential" })
+    @ParameterizedTest
+    void deleteAggregator(String credentialId) throws IOException {
         final String aggregatorId = "foo-k8s-cluster/3";
-        final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId);
+        final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId, credentialId);
         AggregatedHttpResponse response = createAggregator(aggregator, aggregatorId);
         assertOk(response);
         final String clusterName = "groups/foo/k8s/clusters/" + aggregatorId;
         final ClusterLoadAssignment loadAssignment = clusterLoadAssignment(clusterName, 30000);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), loadAssignment, clusterName);
-        response = deleteAggregator(aggregator.getName());
+        response = deleteAggregator0(aggregator.getName());
         assertOk(response);
         assertThat(response.contentUtf8()).isEqualTo("{}");
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), null, clusterName);
     }
 
-    private static AggregatedHttpResponse deleteAggregator(String aggregatorName) {
+    private static AggregatedHttpResponse deleteAggregator0(String aggregatorName) {
         final RequestHeaders headers =
                 RequestHeaders.builder(HttpMethod.DELETE, "/api/v1/xds/" + aggregatorName)
                               .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")

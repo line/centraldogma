@@ -35,10 +35,11 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.server.credential.Credential;
+import com.linecorp.centraldogma.server.credential.LegacyCredential;
 
-public final class PublicKeyCredential extends AbstractCredential {
+public final class PublicKeyLegacyCredential extends AbstractLegacyCredential {
 
-    private static final Logger logger = LoggerFactory.getLogger(PublicKeyCredential.class);
+    private static final Logger logger = LoggerFactory.getLogger(PublicKeyLegacyCredential.class);
 
     private static final Splitter NEWLINE_SPLITTER = Splitter.on(CharMatcher.anyOf("\n\r"))
                                                              .omitEmptyStrings()
@@ -53,14 +54,13 @@ public final class PublicKeyCredential extends AbstractCredential {
     private final String passphrase;
 
     @JsonCreator
-    public PublicKeyCredential(@JsonProperty("id") String id,
-                               @JsonProperty("resourceName") String resourceName,
-                               @JsonProperty("enabled") @Nullable Boolean enabled,
-                               @JsonProperty("username") String username,
-                               @JsonProperty("publicKey") String publicKey,
-                               @JsonProperty("privateKey") String privateKey,
-                               @JsonProperty("passphrase") @Nullable String passphrase) {
-        super(id, resourceName, enabled, "public_key");
+    public PublicKeyLegacyCredential(@JsonProperty("id") String id,
+                                     @JsonProperty("enabled") @Nullable Boolean enabled,
+                                     @JsonProperty("username") String username,
+                                     @JsonProperty("publicKey") String publicKey,
+                                     @JsonProperty("privateKey") String privateKey,
+                                     @JsonProperty("passphrase") @Nullable String passphrase) {
+        super(id, enabled, "public_key");
 
         this.username = requireNonEmpty(username, "username");
         this.publicKey = requireNonEmpty(publicKey, "publicKey");
@@ -118,12 +118,17 @@ public final class PublicKeyCredential extends AbstractCredential {
     }
 
     @Override
+    public Credential toNewCredential(String name) {
+        return new SshKeyCredential(name, username, publicKey, privateKey, passphrase);
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
 
-        if (!(o instanceof PublicKeyCredential)) {
+        if (!(o instanceof PublicKeyLegacyCredential)) {
             return false;
         }
 
@@ -131,7 +136,7 @@ public final class PublicKeyCredential extends AbstractCredential {
             return false;
         }
 
-        final PublicKeyCredential that = (PublicKeyCredential) o;
+        final PublicKeyLegacyCredential that = (PublicKeyLegacyCredential) o;
 
         return username.equals(that.username) &&
                Objects.equals(publicKey, that.publicKey) &&
@@ -158,8 +163,8 @@ public final class PublicKeyCredential extends AbstractCredential {
     }
 
     @Override
-    public Credential withoutSecret() {
-        return new PublicKeyCredential(id(), resourceName(), enabled(), username(), publicKey(),
-                                       "****", "****");
+    public LegacyCredential withoutSecret() {
+        return new PublicKeyLegacyCredential(id(), enabled(), username(), publicKey(),
+                                             "****", "****");
     }
 }

@@ -33,35 +33,54 @@ public final class CredentialUtil {
             Pattern.compile(
                     "^projects/([^/]+)/repos/([^/]+)/credentials/([a-z](?:[a-z0-9-_.]{0,61}[a-z0-9])?)$");
 
-    public static String validateCredentialResourceName(String projectName, String localRepo,
-                                                        String credentialResourceName) {
-        requireNonNull(credentialResourceName, "credentialResourceName");
-        if (credentialResourceName.isEmpty()) {
+    public static String validateCredentialName(String projectName, String localRepo,
+                                                String credentialName) {
+        requireNonNull(credentialName, "credentialName");
+        if (credentialName.isEmpty()) {
             // Allow an empty credential ID for Credential.FALLBACK.
             return "";
         }
 
-        Matcher matcher = PROJECT_CREDENTIAL_ID_PATTERN.matcher(credentialResourceName);
+        Matcher matcher = PROJECT_CREDENTIAL_ID_PATTERN.matcher(credentialName);
         if (matcher.matches()) {
             checkProjectName(projectName, matcher);
-            return credentialResourceName;
+            return credentialName;
         }
 
-        matcher = REPO_CREDENTIAL_ID_PATTERN.matcher(credentialResourceName);
+        matcher = REPO_CREDENTIAL_ID_PATTERN.matcher(credentialName);
         if (!matcher.matches()) {
-            throw new IllegalArgumentException("invalid credentialResourceName: " + credentialResourceName +
+            throw new IllegalArgumentException("invalid credentialName: " + credentialName +
                                                " (expected: " + PROJECT_CREDENTIAL_ID_PATTERN.pattern() +
                                                " or " + REPO_CREDENTIAL_ID_PATTERN.pattern() + ')');
         }
         checkProjectAndRepoName(projectName, localRepo, matcher);
-        return credentialResourceName;
+        return credentialName;
+    }
+
+    public static void validateProjectCredentialName(String projectName,
+                                                     String credentialName) {
+        final Matcher matcher = PROJECT_CREDENTIAL_ID_PATTERN.matcher(credentialName);
+        checkArgument(matcher.matches(),
+                      "invalid project credentialName: %s (expected: %s)",
+                      credentialName, PROJECT_CREDENTIAL_ID_PATTERN.pattern());
+        checkProjectName(projectName, matcher);
+    }
+
+    public static void validateRepoCredentialName(String projectName,
+                                                  String repoName,
+                                                  String credentialName) {
+        final Matcher matcher = REPO_CREDENTIAL_ID_PATTERN.matcher(credentialName);
+        checkArgument(matcher.matches(),
+                      "invalid repository credentialName: %s (expected: %s)",
+                      credentialName, REPO_CREDENTIAL_ID_PATTERN.pattern());
+        checkProjectAndRepoName(projectName, repoName, matcher);
     }
 
     private static void checkProjectAndRepoName(String projectName, String repoName, Matcher matcher) {
         checkProjectName(projectName, matcher);
         final String repoNameGroup = matcher.group(2);
         if (!repoName.equals(repoNameGroup)) {
-            throw new IllegalArgumentException("repoName and credentialResourceName do not match: " +
+            throw new IllegalArgumentException("repoName and credentialName do not match: " +
                                                repoName + " vs " + repoNameGroup);
         }
     }
@@ -69,36 +88,31 @@ public final class CredentialUtil {
     private static void checkProjectName(String projectName, Matcher matcher) {
         final String projectNameGroup = matcher.group(1);
         if (!projectName.equals(projectNameGroup)) {
-            throw new IllegalArgumentException("projectName and credentialResourceName do not match: " +
+            throw new IllegalArgumentException("projectName and credentialName do not match: " +
                                                projectName + " vs " + projectNameGroup);
         }
     }
 
-    public static String projectCredentialResourceName(String projectName, String credentialId) {
+    public static String credentialName(String projectName, String credentialId) {
         return "projects/" + projectName + "/credentials/" + credentialId;
     }
 
-    public static String repoCredentialResourceName(String projectName, String repoName, String credentialId) {
+    public static String credentialName(String projectName, String repoName, String credentialId) {
         return "projects/" + projectName + "/repos/" + repoName + "/credentials/" + credentialId;
     }
 
-    public static void validateProjectCredentialResourceName(String projectName,
-                                                             String credentialResourceName) {
-        final Matcher matcher = PROJECT_CREDENTIAL_ID_PATTERN.matcher(credentialResourceName);
-        checkArgument(matcher.matches(),
-                      "invalid project credentialResourceName: %s (expected: %s)",
-                      credentialResourceName, PROJECT_CREDENTIAL_ID_PATTERN.pattern());
-        checkProjectName(projectName, matcher);
+    public static String credentialFile(String credentialName) {
+        // Strip the project name. e.g. "projects/foo/credentials/bar" -> "/credentials/bar.json"
+        final int index = credentialName.indexOf('/', 9); // The length of "projects/" is 9.
+        return credentialName.substring(index) + ".json";
     }
 
-    public static void validateRepoCredentialResourceName(String projectName,
-                                                          String repoName,
-                                                          String credentialResourceName) {
-        final Matcher matcher = REPO_CREDENTIAL_ID_PATTERN.matcher(credentialResourceName);
-        checkArgument(matcher.matches(),
-                      "invalid repository credentialResourceName: %s (expected: %s)",
-                      credentialResourceName, REPO_CREDENTIAL_ID_PATTERN.pattern());
-        checkProjectAndRepoName(projectName, repoName, matcher);
+    public static String projectCredentialFile(String credentialId) {
+        return "/credentials/" + credentialId + ".json";
+    }
+
+    public static String repoCredentialFile(String repoName, String credentialId) {
+        return "/repos/" + repoName + "/credentials/" + credentialId + ".json";
     }
 
     public static String requireNonEmpty(String value, String name) {

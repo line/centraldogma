@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.credential;
 
-import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialResourceName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -29,8 +29,9 @@ import com.google.common.collect.ImmutableList;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.ConfigValueConverter;
 import com.linecorp.centraldogma.server.credential.Credential;
+import com.linecorp.centraldogma.server.credential.LegacyCredential;
 
-public class PublicKeyCredentialTest {
+public class SshKeyCredentialTest {
 
     private static final String USERNAME = "trustin";
 
@@ -65,46 +66,34 @@ public class PublicKeyCredentialTest {
 
     @Test
     void testConstruction() {
+        final String name = credentialName("foo", "key-credential");
         // null checks
-        assertThatThrownBy(() -> new PublicKeyCredential(
-                "id", projectCredentialResourceName("foo", "id"), true, null,
-                PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE))
+        assertThatThrownBy(() -> new SshKeyCredential(name, null, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new PublicKeyCredential(
-                "id", projectCredentialResourceName("foo", "id"), true, USERNAME,
-                null, PRIVATE_KEY, PASSPHRASE))
+        assertThatThrownBy(() -> new SshKeyCredential(name, USERNAME, null, PRIVATE_KEY, PASSPHRASE))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new PublicKeyCredential(
-                "id", projectCredentialResourceName("foo", "id"), true, USERNAME, PUBLIC_KEY, null, PASSPHRASE))
+        assertThatThrownBy(() -> new SshKeyCredential(name, USERNAME, PUBLIC_KEY, null, PASSPHRASE))
                 .isInstanceOf(NullPointerException.class);
 
         // null passphrase must be accepted.
-        assertThat(new PublicKeyCredential(
-                "id", projectCredentialResourceName("foo", "id"), true, USERNAME, PUBLIC_KEY,
-                PRIVATE_KEY, null).passphrase()).isNull();
+        assertThat(new SshKeyCredential(name, USERNAME, PUBLIC_KEY, PRIVATE_KEY, null).passphrase()).isNull();
 
         // emptiness checks
-        assertThatThrownBy(() -> new PublicKeyCredential(
-                "id", projectCredentialResourceName("foo", "id"), true, "",
-                PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE))
+        assertThatThrownBy(() -> new SshKeyCredential(name, "", PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new PublicKeyCredential(
-                "id", projectCredentialResourceName("foo", "id"), true, USERNAME, "", PRIVATE_KEY, PASSPHRASE))
+        assertThatThrownBy(() -> new SshKeyCredential(name, USERNAME, "", PRIVATE_KEY, PASSPHRASE))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new PublicKeyCredential(
-                "id", projectCredentialResourceName("foo", "id"), true, USERNAME, PUBLIC_KEY, "", PASSPHRASE))
+        assertThatThrownBy(() -> new SshKeyCredential(name, USERNAME, PUBLIC_KEY, "", PASSPHRASE))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // empty passphrase must be accepted, because an empty password is still a password.
-        assertThat(new PublicKeyCredential(
-                "id", projectCredentialResourceName("foo", "id"), true, USERNAME,
-                PUBLIC_KEY, PRIVATE_KEY, "").passphrase()).isEmpty();
+        assertThat(new SshKeyCredential(name, USERNAME, PUBLIC_KEY, PRIVATE_KEY, "").passphrase()).isEmpty();
 
         // successful construction
-        final PublicKeyCredential c = new PublicKeyCredential(
-                "id", projectCredentialResourceName("foo", "id"), true, USERNAME,
-                PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE);
+        final SshKeyCredential c = new SshKeyCredential(name, USERNAME, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE);
 
+        assertThat(c.name()).isEqualTo(name);
+        assertThat(c.id()).isEqualTo("key-credential");
         assertThat(c.username()).isEqualTo(USERNAME);
         assertThat(c.publicKey()).isEqualTo(PUBLIC_KEY);
         assertThat(c.rawPrivateKey()).isEqualTo(PRIVATE_KEY);
@@ -113,73 +102,81 @@ public class PublicKeyCredentialTest {
 
     @Test
     void testBase64Passphrase() {
-        final PublicKeyCredential c = new PublicKeyCredential(
-                "id", projectCredentialResourceName("foo", "id"), true, USERNAME,
-                PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE_BASE64);
+        final SshKeyCredential c = new SshKeyCredential(credentialName("foo", "id"), USERNAME,
+                                                        PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE_BASE64);
         assertThat(c.passphrase()).isEqualTo(PASSPHRASE);
     }
 
     @Test
     void testDeserialization() throws Exception {
-        // plaintext passphrase
+        // Legacy format plaintext passphrase
         assertThat(Jackson.readValue('{' +
                                      "  \"id\": \"foo\"," +
-                                     "  \"resourceName\": \"" + projectCredentialResourceName("foo", "foo") +
-                                     "\"," +
                                      "  \"type\": \"public_key\"," +
                                      "  \"username\": \"trustin\"," +
                                      "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
                                      "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
                                      "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE) + '"' +
-                                     '}', Credential.class))
-                .isEqualTo(new PublicKeyCredential("foo", "projects/foo", true, USERNAME,
-                                                   PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
+                                     '}', LegacyCredential.class))
+                .isEqualTo(new PublicKeyLegacyCredential("foo", true, USERNAME, PUBLIC_KEY,
+                                                         PRIVATE_KEY, PASSPHRASE));
 
-        // base64 passphrase
-        final PublicKeyCredential base64Expected =
-                new PublicKeyCredential("bar", "projects/bar", null, USERNAME,
-                                        PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE_BASE64);
+        final String name = credentialName("foo", "key-credential");
+        // New format plaintext passphrase
         assertThat(Jackson.readValue('{' +
-                                     "  \"id\": \"bar\"," +
-                                     "  \"resourceName\": \"" + projectCredentialResourceName("foo", "bar") +
-                                     "\"," +
-                                     "  \"type\": \"public_key\"," +
+                                     "  \"type\": \"SSH_KEY\"," +
+                                     "  \"name\": \"" + name + "\"," +
                                      "  \"username\": \"trustin\"," +
                                      "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
                                      "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
-                                     "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE_BASE64) + '"' +
+                                     "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE) + '"' +
                                      '}', Credential.class))
+                .isEqualTo(new SshKeyCredential(name, USERNAME, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
+
+        // Legacy format base64 passphrase
+        final PublicKeyLegacyCredential base64Expected =
+                new PublicKeyLegacyCredential("bar", true, USERNAME, PUBLIC_KEY,
+                                              PRIVATE_KEY, PASSPHRASE_BASE64);
+        assertThat(Jackson.readValue(legacyPublicKey("bar"), LegacyCredential.class))
                 .isEqualTo(base64Expected);
         assertThat(base64Expected.passphrase()).isEqualTo(PASSPHRASE);
 
-        assertThat(Jackson.readValue('{' +
-                                     "  \"type\": \"public_key\"," +
-                                     "  \"id\": \"foo\"," +
-                                     "  \"resourceName\": \"" + projectCredentialResourceName("foo", "foo") +
-                                     "\"," +
-                                     "  \"username\": \"trustin\"," +
-                                     "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
-                                     "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
-                                     "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE) + '"' +
-                                     '}', Credential.class))
-                .isEqualTo(new PublicKeyCredential("foo", "projects/foo", true, USERNAME,
-                                                   PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
+        // New format base64 passphrase
+        final SshKeyCredential newBase64Expected =
+                new SshKeyCredential(name, USERNAME, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE_BASE64);
+        assertThat(Jackson.readValue(newSshKey(name), Credential.class))
+                .isEqualTo(newBase64Expected);
+        assertThat(base64Expected.passphrase()).isEqualTo(PASSPHRASE);
+    }
 
-        final PublicKeyCredential converterExpected =
-                new PublicKeyCredential("foo", "projects/foo", true, USERNAME,
-                                        PUBLIC_KEY, PRIVATE_KEY, "mirror_encryption:foo");
-        assertThat(Jackson.readValue('{' +
-                                     "  \"type\": \"public_key\"," +
-                                     "  \"id\": \"foo\"," +
-                                     "  \"resourceName\": \"" + projectCredentialResourceName("foo", "foo") +
-                                     "\"," +
-                                     "  \"username\": \"trustin\"," +
-                                     "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
-                                     "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
-                                     "  \"passphrase\": \"mirror_encryption:foo\"" +
-                                     '}', Credential.class))
-                .isEqualTo(converterExpected);
-        assertThat(converterExpected.passphrase()).isEqualTo("bar");
+    public static String newSshKey(String name) {
+        return '{' +
+               "  \"type\": \"SSH_KEY\"," +
+               "  \"name\": \"" + name + "\"," +
+               "  \"username\": \"trustin\"," +
+               "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
+               "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
+               "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE_BASE64) + '"' +
+               '}';
+    }
+
+    @Test
+    void testPrivateKeyConversion() {
+        final SshKeyCredential credential =
+                new SshKeyCredential(credentialName("foo", "key-credential"), USERNAME,
+                                     PUBLIC_KEY, PRIVATE_KEY, "mirror_encryption:foo");
+        assertThat(credential.passphrase()).isEqualTo("bar");
+    }
+
+    public static String legacyPublicKey(String id) {
+        return '{' +
+               "  \"id\": \"" + id + "\"," +
+               "  \"type\": \"public_key\"," +
+               "  \"username\": \"trustin\"," +
+               "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
+               "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
+               "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE_BASE64) + '"' +
+               '}';
     }
 
     public static class PasswordConfigValueConverter implements ConfigValueConverter {

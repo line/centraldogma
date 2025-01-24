@@ -23,48 +23,44 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
-import com.linecorp.centraldogma.server.internal.credential.NoneCredential;
-import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
-import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
+import com.linecorp.centraldogma.server.internal.credential.AccessTokenLegacyCredential;
+import com.linecorp.centraldogma.server.internal.credential.NoneLegacyCredential;
+import com.linecorp.centraldogma.server.internal.credential.PasswordLegacyCredential;
+import com.linecorp.centraldogma.server.internal.credential.PublicKeyLegacyCredential;
 
 /**
  * A credential used to access external resources such as Git repositories or the Kubernetes control plane.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type")
 @JsonSubTypes({
-        @Type(value = NoneCredential.class, name = "NONE"),
-        @Type(value = PasswordCredential.class, name = "PASSWORD"),
-        @Type(value = SshKeyCredential.class, name = "SSH_KEY"),
-        @Type(value = AccessTokenCredential.class, name = "ACCESS_TOKEN")
+        @Type(value = NoneLegacyCredential.class, name = "none"),
+        @Type(value = PasswordLegacyCredential.class, name = "password"),
+        @Type(value = PublicKeyLegacyCredential.class, name = "public_key"),
+        @Type(value = AccessTokenLegacyCredential.class, name = "access_token")
 })
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
-public interface Credential {
-
-    Credential FALLBACK = new NoneCredential("");
+public interface LegacyCredential {
 
     /**
      * Returns the ID of the credential.
      */
+    @JsonProperty("id")
     String id();
 
     /**
-     * Returns the name of the credential.
-     * It is in the form of {@code "projects/<project>/credentials/<credential>"} or
-     * {@code "projects/<project>/repos/<repo>/credentials/<credential>"}.
+     * Returns whether this {@link LegacyCredential} is enabled.
      */
-    @JsonProperty("name")
-    String name();
+    @JsonProperty("enabled")
+    boolean enabled();
 
     /**
-     * Returns the {@link CredentialType}.
+     * Converts this {@link LegacyCredential} into a new {@link Credential}.
      */
-    @JsonProperty("type")
-    CredentialType type();
+    Credential toNewCredential(String name);
 
     /**
-     * Returns a new {@link Credential} that does not contain any sensitive information.
+     * Returns a new {@link LegacyCredential} that does not contain any sensitive information.
      */
-    Credential withoutSecret();
+    LegacyCredential withoutSecret();
 }

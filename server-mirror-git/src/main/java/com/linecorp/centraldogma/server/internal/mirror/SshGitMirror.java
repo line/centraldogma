@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential.publicKeyPreview;
+import static com.linecorp.centraldogma.server.internal.credential.SshKeyCredential.publicKeyPreview;
 
 import java.io.File;
 import java.io.IOException;
@@ -60,7 +60,7 @@ import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
-import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
+import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.git.SshMirrorException;
@@ -125,8 +125,8 @@ final class SshGitMirror extends AbstractGitMirror {
         final String username;
         if (credential() instanceof PasswordCredential) {
             username = ((PasswordCredential) credential()).username();
-        } else if (credential() instanceof PublicKeyCredential) {
-            username = ((PublicKeyCredential) credential()).username();
+        } else if (credential() instanceof SshKeyCredential) {
+            username = ((SshKeyCredential) credential()).username();
         } else {
             username = null;
         }
@@ -193,8 +193,8 @@ final class SshGitMirror extends AbstractGitMirror {
         final Credential c = credential();
         if (c instanceof PasswordCredential) {
             client.setFilePasswordProvider(passwordProvider(((PasswordCredential) c).password()));
-        } else if (c instanceof PublicKeyCredential) {
-            final PublicKeyCredential cred = (PublicKeyCredential) credential();
+        } else if (c instanceof SshKeyCredential) {
+            final SshKeyCredential cred = (SshKeyCredential) credential();
             final Collection<KeyPair> keyPairs;
             try {
                 keyPairs = keyPairResourceParser.loadKeyPairs(null, NamedResource.ofName(cred.username()),

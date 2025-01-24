@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.ServiceLoader;
 
 import javax.annotation.Nullable;
@@ -49,14 +48,12 @@ public final class MirrorConverter {
     }
 
     @Nullable
-    static Mirror convertToMirror(MirrorConfig mirrorConfig, Project parent,
-                          Map<String, List<Credential>> repoCredentials,
-                          List<Credential> projectCredentials) {
+    static Mirror convertToMirror(MirrorConfig mirrorConfig, Project parent, List<Credential> credentials) {
         if (!parent.repos().exists(mirrorConfig.localRepo())) {
             return null;
         }
 
-        final Credential credential = findCredential(mirrorConfig, repoCredentials, projectCredentials);
+        final Credential credential = findCredential(mirrorConfig, credentials);
         return convertToMirror(mirrorConfig, parent, credential);
     }
 
@@ -76,23 +73,10 @@ public final class MirrorConverter {
         throw new IllegalArgumentException("could not find a mirror provider for " + mirrorContext);
     }
 
-    private static Credential findCredential(MirrorConfig mirrorConfig,
-                                             Map<String, List<Credential>> repoCredentials,
-                                             List<Credential> projectCredentials) {
-        if (mirrorConfig.repoCredential()) {
-            final List<Credential> credentials = repoCredentials.get(mirrorConfig.localRepo());
-            if (credentials != null) {
-                for (Credential c : credentials) {
-                    if (mirrorConfig.credentialResourceName().equals(c.resourceName())) {
-                        return c;
-                    }
-                }
-            }
-        } else {
-            for (Credential c : projectCredentials) {
-                if (mirrorConfig.credentialResourceName().equals(c.resourceName())) {
-                    return c;
-                }
+    private static Credential findCredential(MirrorConfig mirrorConfig, List<Credential> credentials) {
+        for (Credential c : credentials) {
+            if (mirrorConfig.credentialName().equals(c.name())) {
+                return c;
             }
         }
 
@@ -114,7 +98,7 @@ public final class MirrorConverter {
                 URI.create(remoteUri),
                 mirrorRequest.gitignore(),
                 null,
-                mirrorRequest.credentialResourceName(),
+                mirrorRequest.credentialName(),
                 mirrorRequest.zone());
     }
 

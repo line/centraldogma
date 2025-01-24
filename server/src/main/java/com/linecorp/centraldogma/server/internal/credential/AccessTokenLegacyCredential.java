@@ -19,6 +19,8 @@ package com.linecorp.centraldogma.server.internal.credential;
 import static com.linecorp.centraldogma.internal.CredentialUtil.requireNonEmpty;
 import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,18 +29,19 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.server.credential.Credential;
-import com.linecorp.centraldogma.server.credential.CredentialType;
+import com.linecorp.centraldogma.server.credential.LegacyCredential;
 
-public final class AccessTokenCredential extends AbstractCredential {
+public final class AccessTokenLegacyCredential extends AbstractLegacyCredential {
 
-    private static final Logger logger = LoggerFactory.getLogger(AccessTokenCredential.class);
+    private static final Logger logger = LoggerFactory.getLogger(AccessTokenLegacyCredential.class);
 
     private final String accessToken;
 
     @JsonCreator
-    public AccessTokenCredential(@JsonProperty("name") String name,
-                                 @JsonProperty("accessToken") String accessToken) {
-        super(name, CredentialType.ACCESS_TOKEN);
+    public AccessTokenLegacyCredential(@JsonProperty("id") String id,
+                                       @JsonProperty("enabled") @Nullable Boolean enabled,
+                                       @JsonProperty("accessToken") String accessToken) {
+        super(id, enabled, "access_token");
         this.accessToken = requireNonEmpty(accessToken, "accessToken");
     }
 
@@ -58,6 +61,11 @@ public final class AccessTokenCredential extends AbstractCredential {
     }
 
     @Override
+    public Credential toNewCredential(String name) {
+        return new AccessTokenCredential(name, accessToken);
+    }
+
+    @Override
     public int hashCode() {
         int result = super.hashCode();
         result = 31 * result + accessToken.hashCode();
@@ -70,7 +78,7 @@ public final class AccessTokenCredential extends AbstractCredential {
             return true;
         }
 
-        if (!(o instanceof AccessTokenCredential)) {
+        if (!(o instanceof AccessTokenLegacyCredential)) {
             return false;
         }
 
@@ -78,7 +86,7 @@ public final class AccessTokenCredential extends AbstractCredential {
             return false;
         }
 
-        final AccessTokenCredential that = (AccessTokenCredential) o;
+        final AccessTokenLegacyCredential that = (AccessTokenLegacyCredential) o;
         return accessToken.equals(that.accessToken);
     }
 
@@ -88,7 +96,7 @@ public final class AccessTokenCredential extends AbstractCredential {
     }
 
     @Override
-    public Credential withoutSecret() {
-        return new AccessTokenCredential(name(), "****");
+    public LegacyCredential withoutSecret() {
+        return new AccessTokenLegacyCredential(id(), enabled(), "****");
     }
 }

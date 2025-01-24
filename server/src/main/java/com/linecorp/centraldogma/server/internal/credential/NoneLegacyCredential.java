@@ -16,18 +16,21 @@
 
 package com.linecorp.centraldogma.server.internal.credential;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.server.credential.Credential;
-import com.linecorp.centraldogma.server.credential.CredentialType;
+import com.linecorp.centraldogma.server.credential.LegacyCredential;
 
-public final class NoneCredential extends AbstractCredential {
+public final class NoneLegacyCredential extends AbstractLegacyCredential {
 
     @JsonCreator
-    public NoneCredential(@JsonProperty("name") String name) {
-        super(name, CredentialType.NONE);
+    public NoneLegacyCredential(@JsonProperty("id") String id,
+                                @JsonProperty("enabled") @Nullable Boolean enabled) {
+        super(id, enabled, "none");
     }
 
     @Override
@@ -36,7 +39,12 @@ public final class NoneCredential extends AbstractCredential {
     }
 
     @Override
-    public Credential withoutSecret() {
+    public Credential toNewCredential(String name) {
+        return new NoneCredential(name);
+    }
+
+    @Override
+    public LegacyCredential withoutSecret() {
         return this;
     }
 }
