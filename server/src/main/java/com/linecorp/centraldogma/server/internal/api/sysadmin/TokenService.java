@@ -30,6 +30,7 @@ import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -37,7 +38,6 @@ import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.Get;
-import com.linecorp.armeria.server.annotation.HttpResult;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
@@ -106,12 +106,12 @@ public class TokenService extends AbstractService {
     @Post("/tokens")
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
-    public CompletableFuture<HttpResult<Token>> createToken(@Param String appId,
-                                                            // TODO(minwoox): Remove isAdmin field.
-                                                            @Param @Default("false") boolean isAdmin,
-                                                            @Param @Default("false") boolean isSystemAdmin,
-                                                            @Param @Nullable String secret,
-                                                            Author author, User loginUser) {
+    public CompletableFuture<ResponseEntity<Token>> createToken(@Param String appId,
+                                                                // TODO(minwoox): Remove isAdmin field.
+                                                                @Param @Default("false") boolean isAdmin,
+                                                                @Param @Default("false") boolean isSystemAdmin,
+                                                                @Param @Nullable String secret,
+                                                                Author author, User loginUser) {
         final boolean isSystemAdminToken = isSystemAdmin || isAdmin;
         checkArgument(!isSystemAdminToken || loginUser.isSystemAdmin(),
                       "Only system administrators are allowed to create a system admin-level token.");
@@ -132,7 +132,7 @@ public class TokenService extends AbstractService {
                     final ResponseHeaders headers = ResponseHeaders.of(HttpStatus.CREATED,
                                                                        HttpHeaderNames.LOCATION,
                                                                        "/tokens/" + appId);
-                    return HttpResult.of(headers, token);
+                    return ResponseEntity.of(headers, token);
                 });
     }
 
