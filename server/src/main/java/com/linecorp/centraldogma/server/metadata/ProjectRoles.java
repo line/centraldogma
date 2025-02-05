@@ -53,6 +53,11 @@ public final class ProjectRoles {
     public ProjectRoles(@JsonProperty("member") @Nullable RepositoryRole member,
                         @JsonProperty("guest") @Nullable RepositoryRole guest) {
         this.member = member;
+        if (guest != null && guest != RepositoryRole.READ) {
+            // TODO(ikhoon): Add a migration task to fix the invalid role in metadata.json.
+            // Guests can only have READ permission.
+            guest = RepositoryRole.READ;
+        }
         this.guest = guest;
     }
 

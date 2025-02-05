@@ -178,7 +178,8 @@ class MetadataServiceTest {
 
         repositoryMetadata = getRepo1(mds);
         assertThat(repositoryMetadata.roles().projectRoles().member()).isSameAs(RepositoryRole.WRITE);
-        assertThat(repositoryMetadata.roles().projectRoles().guest()).isEqualTo(RepositoryRole.WRITE);
+        // WRITE permission is not allowed for GUEST so it is automatically lowered to READ.
+        assertThat(repositoryMetadata.roles().projectRoles().guest()).isEqualTo(RepositoryRole.READ);
 
         final Revision revision =
                 mds.updateRepositoryProjectRoles(author, project1, repo1, DEFAULT_PROJECT_ROLES).join();
