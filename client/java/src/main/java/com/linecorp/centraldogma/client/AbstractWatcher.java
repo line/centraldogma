@@ -43,18 +43,23 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.CentralDogmaException;
+import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 
+import io.micrometer.core.instrument.Meter.Id;
+import io.micrometer.core.instrument.Meter.Type;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 
 abstract class AbstractWatcher<T> implements Watcher<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractWatcher.class);
+    private static final String LATEST_REVISION_METER_NAME = "centraldogma.watcher.latest.revision";
+    private static final String LATEST_COMMIT_TIME_METER_NAME = "centraldogma.watcher.latest.commit.time";
 
     private enum State {
         INIT,
@@ -89,6 +94,9 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     @Nullable
     private volatile CompletableFuture<?> currentWatchFuture;
 
+    @SuppressWarnings("DataFlowIssue")
+    private final AtomicReference<Commit> latestCommit = new AtomicReference<>(null);
+
     AbstractWatcher(CentralDogma centralDogma, ScheduledExecutorService watchScheduler, String projectName,
                     String repositoryName, String pathPattern, boolean errorOnEntryNotFound,
                     long delayOnSuccessMillis, long initialDelayMillis, long maxDelayMillis, double multiplier,
@@ -109,9 +117,9 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                 "project", projectName,
                 "repository", repositoryName,
                 "pathPattern", pathPattern,
-                // Although it is a rare case, there is a possibility of using the same watcher for the same
-                // project, repo, and pathPattern. Therefore, the watcher’s hash code should be included as a tag.
-                "id", String.valueOf(System.identityHashCode(this))
+                // There is a possibility of using the same watcher for the same project, repo, and pathPattern.
+                // Therefore, the watcher’s hash code should be included as a tag.
+                "watcher_hash", String.valueOf(System.identityHashCode(this))
         );
     }
 
@@ -142,6 +150,13 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         if (state.compareAndSet(State.INIT, State.STARTED)) {
             scheduleWatch(0);
         }
+        if (meterRegistry != null) {
+            // emit metrics once the values are ready
+            initialValueFuture.thenAccept(latest -> {
+                meterRegistry.gauge(LATEST_REVISION_METER_NAME, tags, this,
+                                    watcher -> watcher.latest().revision().major());
+            });
+        }
     }
 
     @Override
@@ -159,6 +174,11 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         final CompletableFuture<?> currentWatchFuture = this.currentWatchFuture;
         if (currentWatchFuture != null && !currentWatchFuture.isDone()) {
             currentWatchFuture.cancel(false);
+        }
+
+        if (meterRegistry != null) {
+            meterRegistry.remove(new Id(LATEST_REVISION_METER_NAME, tags, null, null, Type.GAUGE));
+            meterRegistry.remove(new Id(LATEST_COMMIT_TIME_METER_NAME, tags, null, null, Type.GAUGE));
         }
     }
 
@@ -265,7 +285,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                  logger.debug("watcher noticed updated file {}/{}{}: rev={}",
                               projectName, repositoryName, pathPattern, newLatest.revision());
                  notifyListeners(newLatest);
-                 recordLatestRevision(newLatest.revision());
+                 updateLatestCommit(newLatest.revision());
                  if (!initialValueFuture.isDone()) {
                      initialValueFuture.complete(newLatest);
                  }
@@ -336,18 +356,23 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         }
     }
 
-    private void recordLatestRevision(Revision revision) {
+    private void updateLatestCommit(Revision revision) {
         if (meterRegistry == null) {
             return;
         }
-        meterRegistry.gauge("centraldogma.watcher.latest.revision", tags, revision.major());
+
         centralDogma.forRepo(projectName, repositoryName)
-                    .history(PathPattern.of(pathPattern))
+                    .history()
                     .get(revision, revision)
                     .whenComplete((commits, e) -> {
                         if (e == null) {
                             commits.stream().findFirst().ifPresent(commit -> {
-                                meterRegistry.gauge("centraldogma.watcher.latest.commit.time", commit.when());
+                                // noinspection ConstantValue
+                                if (latestCommit.getAndSet(commit) == null) {
+                                    // emit metrics once the values are ready
+                                    meterRegistry.gauge(LATEST_COMMIT_TIME_METER_NAME, tags, latestCommit,
+                                                        it -> it.get().when());
+                                }
                             });
                         } else {
                             logger.warn(

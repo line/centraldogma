@@ -301,7 +301,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     private List<URL> findProfileResources(ClassLoader classLoader) throws IOException {
         final ImmutableList.Builder<URL> urls = ImmutableList.builder();
         for (String p : profileResourcePaths) {
-            for (final Enumeration<URL> e = classLoader.getResources(p); e.hasMoreElements(); ) {
+            for (final Enumeration<URL> e = classLoader.getResources(p); e.hasMoreElements();) {
                 urls.add(e.nextElement());
             }
         }
@@ -421,9 +421,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     }
 
     /**
-     * TODO
-     * @param meterRegistry
-     * @return
+     * If you want to record metrics using Micrometer, please specify a {@link MeterRegistry}.
      */
     public B meterRegistry(MeterRegistry meterRegistry) {
         requireNonNull(meterRegistry, "meterRegistry");
@@ -432,8 +430,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     }
 
     /**
-     * TODO
-     * @return
+     * Returns the {@link MeterRegistry}.
      */
     protected final MeterRegistry meterRegistry() {
         return meterRegistry;
