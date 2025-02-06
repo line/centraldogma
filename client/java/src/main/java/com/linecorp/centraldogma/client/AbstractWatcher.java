@@ -49,6 +49,9 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
+
 abstract class AbstractWatcher<T> implements Watcher<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractWatcher.class);
@@ -59,6 +62,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         STOPPED
     }
 
+    private final CentralDogma centralDogma;
     private final ScheduledExecutorService watchScheduler;
     private final String projectName;
     private final String repositoryName;
@@ -69,6 +73,9 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private final long maxDelayMillis;
     private final double multiplier;
     private final double jitterRate;
+    @Nullable
+    private final MeterRegistry meterRegistry;
+    private final Tags tags;
 
     private final List<Map.Entry<BiConsumer<? super Revision, ? super T>, Executor>> updateListeners =
             new CopyOnWriteArrayList<>();
@@ -82,9 +89,11 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     @Nullable
     private volatile CompletableFuture<?> currentWatchFuture;
 
-    AbstractWatcher(ScheduledExecutorService watchScheduler, String projectName, String repositoryName,
-                    String pathPattern, boolean errorOnEntryNotFound, long delayOnSuccessMillis,
-                    long initialDelayMillis, long maxDelayMillis, double multiplier, double jitterRate) {
+    AbstractWatcher(CentralDogma centralDogma, ScheduledExecutorService watchScheduler, String projectName,
+                    String repositoryName, String pathPattern, boolean errorOnEntryNotFound,
+                    long delayOnSuccessMillis, long initialDelayMillis, long maxDelayMillis, double multiplier,
+                    double jitterRate, @Nullable MeterRegistry meterRegistry) {
+        this.centralDogma = centralDogma;
         this.watchScheduler = watchScheduler;
         this.projectName = projectName;
         this.repositoryName = repositoryName;
@@ -95,6 +104,15 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         this.maxDelayMillis = maxDelayMillis;
         this.multiplier = multiplier;
         this.jitterRate = jitterRate;
+        this.meterRegistry = meterRegistry;
+        tags = Tags.of(
+                "project", projectName,
+                "repository", repositoryName,
+                "pathPattern", pathPattern,
+                // Although it is a rare case, there is a possibility of using the same watcher for the same
+                // project, repo, and pathPattern. Therefore, the watcher’s hash code should be included as a tag.
+                "id", String.valueOf(System.identityHashCode(this))
+        );
     }
 
     @Override
@@ -247,6 +265,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                  logger.debug("watcher noticed updated file {}/{}{}: rev={}",
                               projectName, repositoryName, pathPattern, newLatest.revision());
                  notifyListeners(newLatest);
+                 recordLatestRevision(newLatest.revision());
                  if (!initialValueFuture.isDone()) {
                      initialValueFuture.complete(newLatest);
                  }
@@ -315,6 +334,27 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                 }
             });
         }
+    }
+
+    private void recordLatestRevision(Revision revision) {
+        if (meterRegistry == null) {
+            return;
+        }
+        meterRegistry.gauge("centraldogma.watcher.latest.revision", tags, revision.major());
+        centralDogma.forRepo(projectName, repositoryName)
+                    .history(PathPattern.of(pathPattern))
+                    .get(revision, revision)
+                    .whenComplete((commits, e) -> {
+                        if (e == null) {
+                            commits.stream().findFirst().ifPresent(commit -> {
+                                meterRegistry.gauge("centraldogma.watcher.latest.commit.time", commit.when());
+                            });
+                        } else {
+                            logger.warn(
+                                    "Failed to retrieve the commit to record metrics. watcher={}/{}{}, rev={}",
+                                    projectName, repositoryName, pathPattern, revision, e);
+                        }
+                    });
     }
 
     @Override

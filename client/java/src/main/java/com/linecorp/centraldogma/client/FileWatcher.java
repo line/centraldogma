@@ -26,6 +26,8 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 final class FileWatcher<T> extends AbstractWatcher<T> {
 
     private final CentralDogma centralDogma;
@@ -39,14 +41,13 @@ final class FileWatcher<T> extends AbstractWatcher<T> {
     @Nullable
     private final Executor mapperExecutor;
 
-    FileWatcher(CentralDogma centralDogma, ScheduledExecutorService watchScheduler,
-                String projectName, String repositoryName, Query<T> query,
-                long timeoutMillis, boolean errorOnEntryNotFound,
+    FileWatcher(CentralDogma centralDogma, ScheduledExecutorService watchScheduler, String projectName,
+                String repositoryName, Query<T> query, long timeoutMillis, boolean errorOnEntryNotFound,
                 @Nullable Function<Object, ? extends T> mapper, Executor mapperExecutor,
-                long delayOnSuccessMillis, long initialDelayMillis, long maxDelayMillis,
-                double multiplier, double jitterRate) {
-        super(watchScheduler, projectName, repositoryName, query.path(), errorOnEntryNotFound,
-              delayOnSuccessMillis, initialDelayMillis, maxDelayMillis, multiplier, jitterRate);
+                long delayOnSuccessMillis, long initialDelayMillis, long maxDelayMillis, double multiplier,
+                double jitterRate, @Nullable MeterRegistry meterRegistry) {
+        super(centralDogma, watchScheduler, projectName, repositoryName, query.path(), errorOnEntryNotFound,
+              delayOnSuccessMillis, initialDelayMillis, maxDelayMillis, multiplier, jitterRate, meterRegistry);
         this.centralDogma = centralDogma;
         this.projectName = projectName;
         this.repositoryName = repositoryName;
@@ -59,8 +60,9 @@ final class FileWatcher<T> extends AbstractWatcher<T> {
 
     @Override
     CompletableFuture<Latest<T>> doWatch(Revision lastKnownRevision) {
-        final CompletableFuture<Entry<T>> future = centralDogma.watchFile(
-                projectName, repositoryName, lastKnownRevision, query, timeoutMillis, errorOnEntryNotFound);
+        final CompletableFuture<Entry<T>> future = centralDogma.watchFile(projectName, repositoryName,
+                                                                          lastKnownRevision, query,
+                                                                          timeoutMillis, errorOnEntryNotFound);
         if (mapper == null) {
             return future.thenApply(entry -> {
                 if (entry == null) {

@@ -27,6 +27,8 @@ import javax.annotation.Nullable;
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Revision;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 final class FilesWatcher<T> extends AbstractWatcher<T> {
 
     private final CentralDogma centralDogma;
@@ -45,9 +47,10 @@ final class FilesWatcher<T> extends AbstractWatcher<T> {
                  long timeoutMillis, boolean errorOnEntryNotFound,
                  @Nullable Function<Object, ? extends T> mapper, Executor mapperExecutor,
                  long delayOnSuccessMillis, long initialDelayMillis, long maxDelayMillis,
-                 double multiplier, double jitterRate) {
-        super(watchScheduler, projectName, repositoryName, pathPattern.patternString(), errorOnEntryNotFound,
-              delayOnSuccessMillis, initialDelayMillis, maxDelayMillis, multiplier, jitterRate);
+                 double multiplier, double jitterRate, @Nullable MeterRegistry meterRegistry) {
+        super(centralDogma, watchScheduler, projectName, repositoryName, pathPattern.patternString(),
+              errorOnEntryNotFound, delayOnSuccessMillis, initialDelayMillis, maxDelayMillis, multiplier,
+              jitterRate, meterRegistry);
         this.centralDogma = centralDogma;
         this.projectName = projectName;
         this.repositoryName = repositoryName;
