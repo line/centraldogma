@@ -94,7 +94,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     @Nullable
     private volatile CompletableFuture<?> currentWatchFuture;
 
-    @SuppressWarnings("DataFlowIssue")
+    @SuppressWarnings("DataFlowIssue") // AtomicReference's value is nullable.
     private final AtomicReference<Commit> latestCommit = new AtomicReference<>(null);
 
     AbstractWatcher(CentralDogma centralDogma, ScheduledExecutorService watchScheduler, String projectName,
