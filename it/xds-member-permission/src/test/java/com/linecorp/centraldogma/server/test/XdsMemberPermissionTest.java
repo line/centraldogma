@@ -39,8 +39,8 @@ import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
-import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.PermissionException;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory;
 import com.linecorp.centraldogma.server.internal.credential.NoneCredential;
@@ -119,8 +119,8 @@ class XdsMemberPermissionTest {
         assertThatThrownBy(() -> {
             userClient.createRepository("@xds", "test2").join();
         }).isInstanceOf(CompletionException.class)
-          .hasCauseInstanceOf(CentralDogmaException.class)
-          .hasMessageContaining(":status=403");
+          .hasCauseInstanceOf(PermissionException.class)
+          .hasMessageContaining("You must have the OWNER project role to access the project '@xds'.");
 
         final CentralDogmaRepository userRepo = userClient.forRepo("@xds", "test");
         assertThatThrownBy(() -> {
@@ -128,16 +128,16 @@ class XdsMemberPermissionTest {
                     .push()
                     .join();
         }).isInstanceOf(CompletionException.class)
-          .hasCauseInstanceOf(CentralDogmaException.class)
-          .hasMessageContaining(":status=403");
+          .hasCauseInstanceOf(PermissionException.class)
+          .hasMessageContaining("You must have the READ repository role to access the '@xds/test'.");
 
         assertThatThrownBy(() -> {
             userRepo.file("/text.txt")
                     .get()
                     .join();
         }).isInstanceOf(CompletionException.class)
-          .hasCauseInstanceOf(CentralDogmaException.class)
-          .hasMessageContaining(":status=403");
+          .hasCauseInstanceOf(PermissionException.class)
+          .hasMessageContaining("You must have the READ repository role to access the '@xds/test'.");
 
         assertThat(userWebClient.prepare()
                                 .get("/api/v1/projects/@xds/credentials/test")
