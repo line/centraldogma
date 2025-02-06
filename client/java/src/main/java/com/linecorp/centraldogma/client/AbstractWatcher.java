@@ -285,7 +285,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                  logger.debug("watcher noticed updated file {}/{}{}: rev={}",
                               projectName, repositoryName, pathPattern, newLatest.revision());
                  notifyListeners(newLatest);
-                 updateLatestCommit(newLatest.revision());
+                 updateLatestCommitAsync(newLatest.revision());
                  if (!initialValueFuture.isDone()) {
                      initialValueFuture.complete(newLatest);
                  }
@@ -356,7 +356,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         }
     }
 
-    private void updateLatestCommit(Revision revision) {
+    private void updateLatestCommitAsync(Revision revision) {
         if (meterRegistry == null) {
             return;
         }

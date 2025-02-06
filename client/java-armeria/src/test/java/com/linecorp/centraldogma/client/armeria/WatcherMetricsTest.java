@@ -57,6 +57,15 @@ public class WatcherMetricsTest {
         }
     };
 
+    @RegisterExtension
+    static final CentralDogmaExtension dogmaWithoutMetrics = new CentralDogmaExtension() {
+        @Override
+        protected void scaffold(CentralDogma client) {
+            client.createProject(project).join();
+            client.createRepository(project, repo).join();
+        }
+    };
+
     @Test
     void before() {
         meterRegistry.clear();
@@ -152,30 +161,33 @@ public class WatcherMetricsTest {
         assertThat(latestCommitTimeGauges.size()).isEqualTo(0);
     }
 
+    @Test
+    void noMetrics() throws Exception {
+        final CentralDogmaRepository dogmaRepo = dogmaWithoutMetrics.client().forRepo(project, repo);
+        dogmaRepo.commit("Add hoge.txt", Change.ofTextUpsert("/hoge.txt", "1")).push().join();
+
+        final Watcher<String> watcher = dogmaRepo.watcher(Query.ofText("/hoge.txt")).start();
+
+        // If `MeterRegistry` is not set, metrics will not be emitted.
+        watcher.awaitInitialValue();
+        Thread.sleep(1000); // wait updateLatestCommitAsync
+        final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags(watcher, "/hoge.txt"));
+        final List<Gauge> latestCommitTimeGauges = latestCommitTimeGauges(tags(watcher, "/hoge.txt"));
+        assertThat(latestRevisionGauges.size()).isEqualTo(0);
+        assertThat(latestCommitTimeGauges.size()).isEqualTo(0);
+    }
+
     private static List<Gauge> latestRevisionGauges(Tags tags) {
-        return new ArrayList<>(
-                meterRegistry
-                        .find("centraldogma.watcher.latest.revision")
-                        .tags(tags)
-                        .gauges()
-        );
+        return new ArrayList<>(meterRegistry.find("centraldogma.watcher.latest.revision").tags(tags).gauges());
     }
 
     private static List<Gauge> latestCommitTimeGauges(Tags tags) {
-        return new ArrayList<>(
-                meterRegistry
-                        .find("centraldogma.watcher.latest.commit.time")
-                        .tags(tags)
-                        .gauges()
-        );
+        return new ArrayList<>(meterRegistry.find("centraldogma.watcher.latest.commit.time").tags(tags)
+                                            .gauges());
     }
 
     private static Tags tags(Watcher<?> watcher, String pathPattern) {
-        return Tags.of(
-                "project", project,
-                "repository", repo,
-                "pathPattern", pathPattern,
-                "watcher_hash", String.valueOf(System.identityHashCode(watcher))
-        );
+        return Tags.of("project", project, "repository", repo, "pathPattern", pathPattern, "watcher_hash",
+                       String.valueOf(System.identityHashCode(watcher)));
     }
 }
