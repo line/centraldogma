@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.credential;
 
 import static com.linecorp.centraldogma.internal.CredentialUtil.requireNonEmpty;
 import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
+import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Objects;
@@ -54,7 +55,7 @@ public final class SshKeyCredential extends AbstractCredential {
     private final String passphrase;
 
     @JsonCreator
-    public SshKeyCredential(@JsonProperty("name") String name,
+    public SshKeyCredential(@JsonProperty("name") @Nullable String name,
                             @JsonProperty("username") String username,
                             @JsonProperty("publicKey") String publicKey,
                             @JsonProperty("privateKey") String privateKey,
@@ -159,5 +160,11 @@ public final class SshKeyCredential extends AbstractCredential {
     @Override
     public Credential withoutSecret() {
         return new SshKeyCredential(name(), username(), publicKey(), "****", "****");
+    }
+
+    @Override
+    public Credential withName(String credentialName) {
+        requireNonNull(credentialName, "credentialName");
+        return new SshKeyCredential(credentialName, username, publicKey, privateKey, passphrase);
     }
 }

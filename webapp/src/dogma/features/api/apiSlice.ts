@@ -32,6 +32,7 @@ import { MirrorDto, MirrorRequest } from 'dogma/features/repo/settings/mirrors/M
 import {
   addIdFromCredentialName,
   addIdFromCredentialNames,
+  CreateCredentialRequestDto,
   CredentialDto,
 } from 'dogma/features/project/settings/credentials/CredentialDto';
 import { MirrorResult } from '../mirror/MirrorResult';
@@ -437,11 +438,14 @@ export const apiSlice = createApi({
       providesTags: ['Metadata'],
     }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    addNewCredential: builder.mutation<any, { projectName: string; credential: CredentialDto }>({
-      query: ({ projectName, credential }) => ({
+    addNewCredential: builder.mutation<
+      any,
+      { projectName: string; credentialRequest: CreateCredentialRequestDto }
+    >({
+      query: ({ projectName, credentialRequest }) => ({
         url: `/api/v1/projects/${projectName}/credentials`,
         method: 'POST',
-        body: credential,
+        body: credentialRequest,
       }),
       invalidatesTags: ['Metadata'],
     }),
@@ -475,12 +479,12 @@ export const apiSlice = createApi({
     addNewRepoCredential: builder.mutation<
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       any,
-      { projectName: string; credential: CredentialDto; repoName: string }
+      { projectName: string; credentialRequest: CreateCredentialRequestDto; repoName: string }
     >({
-      query: ({ projectName, credential, repoName }) => ({
+      query: ({ projectName, credentialRequest, repoName }) => ({
         url: `/api/v1/projects/${projectName}/repos/${repoName}/credentials`,
         method: 'POST',
-        body: credential,
+        body: credentialRequest,
       }),
       invalidatesTags: ['Metadata'],
     }),

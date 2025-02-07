@@ -45,6 +45,7 @@ import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
@@ -119,7 +120,13 @@ public class CredentialServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/credentials")
     @RequiresProjectRole(ProjectRole.OWNER)
     public CompletableFuture<PushResultDto> createCredential(@Param String projectName,
-                                                             Credential credential, Author author, User user) {
+                                                             CreateCredentialRequest request,
+                                                             Author author, User user) {
+        final String credentialId = request.credentialId();
+        final String credentialName = credentialName(projectName, credentialId);
+        // Ignore the credential name in the request and set the name with the format of
+        // "projects/{project}/credentials/{credentialId}".
+        final Credential credential = request.credential().withName(credentialName);
         return createOrUpdate(projectName, credential, author, user, false);
     }
 
@@ -227,11 +234,19 @@ public class CredentialServiceV1 extends AbstractService {
     @StatusCode(201)
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Post("/projects/{projectName}/repos/{repoName}/credentials")
-    public CompletableFuture<PushResultDto> createRepoCredential(@Param String projectName,
-                                                                 Repository repository,
-                                                                 Credential credential, Author author,
-                                                                 User user) {
-        return createOrUpdateRepo(projectName, repository.name(), credential, author, user, false);
+    public CompletableFuture<PushResultDto> createRepoCredential(
+            @Param String projectName,
+            Repository repository,
+            CreateCredentialRequest request, // TODO(minwoox): Introduce CreateRepoCredentialRequest.
+            Author author,
+            User user) {
+        final String credentialId = request.credentialId();
+        final String repoName = repository.name();
+        final String credentialName = credentialName(projectName, repoName, credentialId);
+        // Ignore the credential name in the request and set the name with the format of
+        // "projects/{project}/repos/{repo}/credentials/{credentialId}".
+        final Credential credential = request.credential().withName(credentialName);
+        return createOrUpdateRepo(projectName, repoName, credential, author, user, false);
     }
 
     /**

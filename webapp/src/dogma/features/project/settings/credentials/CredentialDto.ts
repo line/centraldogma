@@ -38,6 +38,11 @@ export interface CredentialDto {
   accessToken?: string;
 }
 
+export interface CreateCredentialRequestDto {
+  credentialId: string;
+  credential: CredentialDto;
+}
+
 export function addIdFromCredentialName(credential: CredentialDto): CredentialDto & { id: string } {
   if (!credential) {
     return null;

@@ -20,6 +20,8 @@ import static com.linecorp.centraldogma.internal.CredentialUtil.requireNonEmpty;
 import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 import static java.util.Objects.requireNonNull;
 
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +40,7 @@ public final class PasswordCredential extends AbstractCredential {
     private final String password;
 
     @JsonCreator
-    public PasswordCredential(@JsonProperty("name") String name,
+    public PasswordCredential(@JsonProperty("name") @Nullable String name,
                               @JsonProperty("username") String username,
                               @JsonProperty("password") String password) {
         super(name, CredentialType.PASSWORD);
@@ -101,5 +103,11 @@ public final class PasswordCredential extends AbstractCredential {
     @Override
     public Credential withoutSecret() {
         return new PasswordCredential(name(), username(), "****");
+    }
+
+    @Override
+    public Credential withName(String credentialName) {
+        requireNonNull(credentialName, "credentialName");
+        return new PasswordCredential(credentialName, username, password);
     }
 }

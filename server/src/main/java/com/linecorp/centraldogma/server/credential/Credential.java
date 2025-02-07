@@ -67,4 +67,9 @@ public interface Credential {
      * Returns a new {@link Credential} that does not contain any sensitive information.
      */
     Credential withoutSecret();
+
+    /**
+     * Returns a new {@link Credential} with the specified {@code credentialName}.
+     */
+    Credential withName(String credentialName);
 }

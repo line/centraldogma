@@ -44,6 +44,7 @@ import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.internal.credential.NoneCredential;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -112,7 +113,8 @@ class XdsMemberPermissionTest {
         final AggregatedHttpResponse credentialResponse =
                 adminWebClient.prepare()
                               .post("/api/v1/projects/@xds/credentials")
-                              .contentJson(new NoneCredential(credentialName("@xds", "test")))
+                              .contentJson(new CreateCredentialRequest(
+                                      "test", new NoneCredential(credentialName("@xds", "test"))))
                               .execute();
         assertThat(credentialResponse.status()).isEqualTo(HttpStatus.CREATED);
 

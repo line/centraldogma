@@ -45,6 +45,7 @@ import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.internal.credential.NoneCredential;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 
@@ -94,8 +95,9 @@ final class ShiroCentralDogmaTestServer {
                                                      .blocking();
         final AggregatedHttpResponse res = webClient.prepare()
                                                     .post("/api/v1/projects/foo/credentials")
-                                                    .contentJson(new NoneCredential(
-                                                            credentialName("foo", "none")))
+                                                    .contentJson(new CreateCredentialRequest(
+                                                            "none",
+                                                            new NoneCredential(credentialName("foo", "none"))))
                                                     .execute();
     }
 

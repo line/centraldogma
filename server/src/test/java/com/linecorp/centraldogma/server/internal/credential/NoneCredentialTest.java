@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.server.internal.credential;
 
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
@@ -31,10 +30,6 @@ class NoneCredentialTest {
 
     @Test
     void testConstruction() throws Exception {
-        // not allowed name
-        assertThatThrownBy(() -> new NoneCredential("foo"))
-                .isInstanceOf(IllegalArgumentException.class);
-
         final String name = credentialName("foo", "none-credential");
 
         final NoneCredential c = new NoneCredential(name);

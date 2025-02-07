@@ -56,7 +56,8 @@ import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.credential.CredentialType;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
+import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -145,23 +146,25 @@ class XdsKubernetesServiceTest {
     }
 
     private static void putCredential() {
-        final ImmutableMap<String, String> repoCredential =
-                ImmutableMap.of("type", CredentialType.ACCESS_TOKEN.name(),
-                                "name", credentialName(XDS_CENTRAL_DOGMA_PROJECT, "foo", "repo-credential"),
-                                "accessToken", "secret");
+        final CreateCredentialRequest repoCredentialRequest = new CreateCredentialRequest(
+                "repo-credential",
+                new AccessTokenCredential(credentialName(XDS_CENTRAL_DOGMA_PROJECT, "foo", "repo-credential"),
+                                          "secret")
+        );
         dogma.httpClient().prepare()
              .post("/api/v1/projects/@xds/repos/foo/credentials")
              .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-             .contentJson(repoCredential).execute().aggregate().join();
+             .contentJson(repoCredentialRequest).execute().aggregate().join();
         // This is needed for the backward compatibility test.
-        final ImmutableMap<String, String> projectCredential =
-                ImmutableMap.of("type", CredentialType.ACCESS_TOKEN.name(),
-                                "name", credentialName(XDS_CENTRAL_DOGMA_PROJECT, "project-credential"),
-                                "accessToken", "secret");
+        final CreateCredentialRequest projectCredentialRequest = new CreateCredentialRequest(
+                "project-credential",
+                new AccessTokenCredential(credentialName(XDS_CENTRAL_DOGMA_PROJECT, "project-credential"),
+                                          "secret")
+        );
         dogma.httpClient().prepare()
              .post("/api/v1/projects/@xds/credentials")
              .header(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-             .contentJson(projectCredential).execute().aggregate().join();
+             .contentJson(projectCredentialRequest).execute().aggregate().join();
     }
 
     @AfterAll

@@ -41,10 +41,10 @@ import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
-import com.linecorp.centraldogma.internal.CredentialUtil;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlRequest;
 import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
@@ -103,7 +103,7 @@ class MirrorRunnerTest {
 
     @Test
     void triggerMirroring() throws Exception {
-        final SshKeyCredential credential = getCredential(FOO_PROJ, null);
+        final CreateCredentialRequest credential = getCreateCredentialRequest(FOO_PROJ, null);
         ResponseEntity<PushResultDto> response =
                 systemAdminClient.prepare()
                                  .post("/api/v1/projects/{proj}/credentials")
@@ -171,7 +171,7 @@ class MirrorRunnerTest {
         assertThat(accessResponse.status()).isEqualTo(HttpStatus.CREATED);
         assertThat(accessResponse.content().id()).isEqualTo("default");
 
-        final SshKeyCredential credential = getCredential(FOO_PROJ, null);
+        final CreateCredentialRequest credential = getCreateCredentialRequest(FOO_PROJ, null);
         ResponseEntity<PushResultDto> response =
                 systemAdminClient.prepare()
                                  .post("/api/v1/projects/{proj}/credentials")
@@ -238,7 +238,8 @@ class MirrorRunnerTest {
                                  null);
     }
 
-    static SshKeyCredential getCredential(String projectName, @Nullable String repoName) throws Exception {
+    static CreateCredentialRequest getCreateCredentialRequest(String projectName, @Nullable String repoName)
+            throws Exception {
         final String publicKeyFile = "ecdsa_256.openssh.pub";
 
         final byte[] privateKeyBytes =
@@ -248,12 +249,12 @@ class MirrorRunnerTest {
         final String privateKey = new String(privateKeyBytes, StandardCharsets.UTF_8).trim();
         final String publicKey = new String(publicKeyBytes, StandardCharsets.UTF_8).trim();
 
-        return new SshKeyCredential(
-                repoName != null ? CredentialUtil.credentialName(projectName, repoName, PRIVATE_KEY_FILE)
+        return new CreateCredentialRequest(PRIVATE_KEY_FILE, new SshKeyCredential(
+                repoName != null ? credentialName(projectName, repoName, PRIVATE_KEY_FILE)
                                  : credentialName(projectName, PRIVATE_KEY_FILE),
                 "git",
                 publicKey,
                 privateKey,
-                null);
+                null));
     }
 }

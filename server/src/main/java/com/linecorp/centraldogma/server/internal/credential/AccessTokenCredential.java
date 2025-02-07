@@ -18,6 +18,9 @@ package com.linecorp.centraldogma.server.internal.credential;
 
 import static com.linecorp.centraldogma.internal.CredentialUtil.requireNonEmpty;
 import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
+import static java.util.Objects.requireNonNull;
+
+import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +39,7 @@ public final class AccessTokenCredential extends AbstractCredential {
     private final String accessToken;
 
     @JsonCreator
-    public AccessTokenCredential(@JsonProperty("name") String name,
+    public AccessTokenCredential(@JsonProperty("name") @Nullable String name,
                                  @JsonProperty("accessToken") String accessToken) {
         super(name, CredentialType.ACCESS_TOKEN);
         this.accessToken = requireNonEmpty(accessToken, "accessToken");
@@ -90,5 +93,11 @@ public final class AccessTokenCredential extends AbstractCredential {
     @Override
     public Credential withoutSecret() {
         return new AccessTokenCredential(name(), "****");
+    }
+
+    @Override
+    public Credential withName(String credentialName) {
+        requireNonNull(credentialName, "credentialName");
+        return new AccessTokenCredential(credentialName, accessToken);
     }
 }

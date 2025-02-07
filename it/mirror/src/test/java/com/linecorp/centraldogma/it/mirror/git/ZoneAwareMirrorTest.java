@@ -21,7 +21,7 @@ import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.BAR_REPO;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.FOO_PROJ;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.PRIVATE_KEY_FILE;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.TEST_MIRROR_ID;
-import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.getCredential;
+import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.getCreateCredentialRequest;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
@@ -60,7 +60,7 @@ import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.ZoneConfig;
-import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
@@ -213,7 +213,7 @@ class ZoneAwareMirrorTest {
                                                   .build()
                                                   .blocking();
 
-        final SshKeyCredential credential = getCredential(FOO_PROJ, null);
+        final CreateCredentialRequest credential = getCreateCredentialRequest(FOO_PROJ, null);
         ResponseEntity<PushResultDto> response =
                 client.prepare()
                       .post("/api/v1/projects/{proj}/credentials")

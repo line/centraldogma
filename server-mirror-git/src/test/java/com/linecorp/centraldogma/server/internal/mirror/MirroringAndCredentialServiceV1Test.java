@@ -48,11 +48,11 @@ import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.CredentialUtil;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.credential.CredentialType;
 import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
@@ -161,29 +161,28 @@ class MirroringAndCredentialServiceV1Test {
                                     .execute();
         assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
 
-        // Create credentials.
-        final Map<String, String> repoCredential =
-                ImmutableMap.of("type", CredentialType.ACCESS_TOKEN.name(),
-                                "name", CredentialUtil.credentialName(FOO_PROJ, BAR_REPO, "repo-credential"),
-                                "accessToken", "secret-repo-token");
+        final CreateCredentialRequest repoCredentialRequest = new CreateCredentialRequest(
+                "repo-credential", new AccessTokenCredential(
+                        credentialName(FOO_PROJ, BAR_REPO, "repo-credential"), "secret-repo-token")
+        );
         final ResponseEntity<PushResultDto> creationResponse =
                 userClient.prepare()
                           .post("/api/v1/projects/{proj}/repos/{repo}/credentials")
                           .pathParam("proj", FOO_PROJ)
                           .pathParam("repo", BAR_REPO)
-                          .contentJson(repoCredential)
+                          .contentJson(repoCredentialRequest)
                           .asJson(PushResultDto.class)
                           .execute();
         assertThat(creationResponse.status()).isEqualTo(HttpStatus.CREATED);
-        final Map<String, String> projectCredential =
-                ImmutableMap.of("type", CredentialType.ACCESS_TOKEN.name(),
-                                "name", credentialName(FOO_PROJ, "project-credential"),
-                                "accessToken", "secret-repo-token");
-        createProjectCredential(projectCredential);
+        final CreateCredentialRequest projectCredentialRequest = new CreateCredentialRequest(
+                "project-credential", new AccessTokenCredential(
+                credentialName(FOO_PROJ, "project-credential"), "secret-repo-token")
+        );
+        createProjectCredential(projectCredentialRequest);
 
         // Create mirrors.
         final MirrorRequest newMirror1 =
-                newMirror(BAR_REPO, "mirror-1", CredentialUtil.credentialName(FOO_PROJ, BAR_REPO,
+                newMirror(BAR_REPO, "mirror-1", credentialName(FOO_PROJ, BAR_REPO,
                                                                               "repo-credential"));
         createMirror(BAR_REPO, newMirror1);
         final MirrorRequest newMirror2 =
@@ -193,7 +192,7 @@ class MirroringAndCredentialServiceV1Test {
         // Read mirrors.
         final MirrorDto mirror1 = getMirror(BAR_REPO, newMirror1.id());
         assertThat(mirror1.credentialName()).isEqualTo(
-                CredentialUtil.credentialName(FOO_PROJ, BAR_REPO, "repo-credential"));
+                credentialName(FOO_PROJ, BAR_REPO, "repo-credential"));
         final MirrorDto mirror2 = getMirror(BAR_REPO, newMirror2.id());
         assertThat(mirror2.credentialName()).isEqualTo(
                 credentialName(FOO_PROJ, "project-credential"));
@@ -239,25 +238,29 @@ class MirroringAndCredentialServiceV1Test {
     }
 
     private static void createAndReadCredential() {
-        final List<Map<String, String>> credentials = ImmutableList.of(
-                ImmutableMap.of("type", CredentialType.PASSWORD.name(),
-                                "name", credentialName(FOO_PROJ, "password-credential"),
-                                "username", "username-0", "password", "password-0"),
-                ImmutableMap.of("type", CredentialType.ACCESS_TOKEN.name(),
-                                "name", credentialName(FOO_PROJ, "access-token-credential"),
-                                "accessToken", "secret-token-abc-1"),
-                ImmutableMap.of("type", CredentialType.SSH_KEY.name(),
-                                "name", credentialName(FOO_PROJ, "ssh-key-credential"),
-                                "username", "username-2",
-                                "publicKey", "public-key-2", "privateKey", "private-key-2",
-                                "passphrase", "password-0"),
-                ImmutableMap.of("type", CredentialType.NONE.name(),
-                                "name", credentialName(FOO_PROJ, "non-credential")));
+        final List<CreateCredentialRequest> requests = ImmutableList.of(
+                new CreateCredentialRequest(
+                        "password-credential",
+                        new PasswordCredential(credentialName(FOO_PROJ, "password-credential"),
+                                               "username-0", "password-0")),
+                new CreateCredentialRequest(
+                        "access-token-credential",
+                        new AccessTokenCredential(credentialName(FOO_PROJ, "access-token-credential"),
+                                                  "secret-token-abc-1")),
+                new CreateCredentialRequest(
+                        "ssh-key-credential",
+                        new SshKeyCredential(credentialName(FOO_PROJ, "ssh-key-credential"),
+                                             "username-2", "public-key-2", "private-key-2", "password-0")),
+                new CreateCredentialRequest(
+                        "non-credential",
+                        new NoneCredential(credentialName(FOO_PROJ, "non-credential")))
+        );
 
-        for (int i = 0; i < credentials.size(); i++) {
-            final Map<String, String> credential = credentials.get(i);
-            createProjectCredential(credential);
-            final String credentialName = credential.get("name");
+        for (int i = 0; i < requests.size(); i++) {
+            final CreateCredentialRequest request = requests.get(i);
+            createProjectCredential(request);
+            final Credential credential = request.credential();
+            final String credentialName = credential.name();
 
             for (BlockingWebClient client : ImmutableList.of(systemAdminClient, userClient)) {
                 final boolean isSystemAdmin = client == systemAdminClient;
@@ -269,29 +272,34 @@ class MirroringAndCredentialServiceV1Test {
                               .execute();
                 final Credential credentialDto = fetchResponse.content();
                 assertThat(credentialDto.name()).isEqualTo(credentialName);
-                final CredentialType credentialType = CredentialType.valueOf(credential.get("type"));
+                final CredentialType credentialType = credential.type();
                 if (credentialType == CredentialType.PASSWORD) {
                     final PasswordCredential actual = (PasswordCredential) credentialDto;
-                    assertThat(actual.username()).isEqualTo(credential.get("username"));
+                    assertThat(credential).isInstanceOf(PasswordCredential.class);
+                    assertThat(actual.username()).isEqualTo(((PasswordCredential) credential).username());
                     if (isSystemAdmin) {
-                        assertThat(actual.password()).isEqualTo(credential.get("password"));
+                        assertThat(actual.password()).isEqualTo(((PasswordCredential) credential).password());
                     } else {
                         assertThat(actual.password()).isEqualTo("****");
                     }
                 } else if (credentialType == CredentialType.ACCESS_TOKEN) {
                     final AccessTokenCredential actual = (AccessTokenCredential) credentialDto;
+                    assertThat(credential).isInstanceOf(AccessTokenCredential.class);
                     if (isSystemAdmin) {
-                        assertThat(actual.accessToken()).isEqualTo(credential.get("accessToken"));
+                        assertThat(actual.accessToken()).isEqualTo(
+                                ((AccessTokenCredential) credential).accessToken());
                     } else {
                         assertThat(actual.accessToken()).isEqualTo("****");
                     }
                 } else if (credentialType == CredentialType.SSH_KEY) {
                     final SshKeyCredential actual = (SshKeyCredential) credentialDto;
-                    assertThat(actual.username()).isEqualTo(credential.get("username"));
-                    assertThat(actual.publicKey()).isEqualTo(credential.get("publicKey"));
+                    assertThat(credential).isInstanceOf(SshKeyCredential.class);
+                    final SshKeyCredential sshKeyCredential = (SshKeyCredential) credential;
+                    assertThat(actual.username()).isEqualTo(sshKeyCredential.username());
+                    assertThat(actual.publicKey()).isEqualTo(sshKeyCredential.publicKey());
                     if (isSystemAdmin) {
-                        assertThat(actual.rawPrivateKey()).isEqualTo(credential.get("privateKey"));
-                        assertThat(actual.rawPassphrase()).isEqualTo(credential.get("passphrase"));
+                        assertThat(actual.rawPrivateKey()).isEqualTo(sshKeyCredential.rawPrivateKey());
+                        assertThat(actual.rawPassphrase()).isEqualTo(sshKeyCredential.rawPassphrase());
                     } else {
                         assertThat(actual.rawPrivateKey()).isEqualTo("****");
                         assertThat(actual.rawPassphrase()).isEqualTo("****");
@@ -305,12 +313,12 @@ class MirroringAndCredentialServiceV1Test {
         }
     }
 
-    private static void createProjectCredential(Map<String, String> credential) {
+    private static void createProjectCredential(CreateCredentialRequest request) {
         final ResponseEntity<PushResultDto> creationResponse =
                 userClient.prepare()
                           .post("/api/v1/projects/{proj}/credentials")
                           .pathParam("proj", FOO_PROJ)
-                          .contentJson(credential)
+                          .contentJson(request)
                           .responseTimeoutMillis(0)
                           .asJson(PushResultDto.class)
                           .execute();

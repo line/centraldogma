@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.it.mirror.git;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.PRIVATE_KEY_FILE;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.TEST_MIRROR_ID;
-import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.getCredential;
+import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.getCreateCredentialRequest;
 import static com.linecorp.centraldogma.it.mirror.git.TestMirrorRunnerListener.creationCount;
 import static com.linecorp.centraldogma.it.mirror.git.TestMirrorRunnerListener.startCount;
 import static com.linecorp.centraldogma.it.mirror.git.TestMirrorRunnerListener.updateCount;
@@ -47,8 +47,8 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlRequest;
-import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -188,7 +188,7 @@ class MirrorAccessControlTest {
     }
 
     private void createMirror() throws Exception {
-        final SshKeyCredential credential = getCredential(TEST_PROJ, TEST_REPO);
+        final CreateCredentialRequest credential = getCreateCredentialRequest(TEST_PROJ, TEST_REPO);
         ResponseEntity<PushResultDto> response =
                 client.prepare()
                       .post("/api/v1/projects/{proj}/repos/{repo}/credentials")

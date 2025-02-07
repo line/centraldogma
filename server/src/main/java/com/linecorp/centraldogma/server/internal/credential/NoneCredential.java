@@ -16,6 +16,10 @@
 
 package com.linecorp.centraldogma.server.internal.credential;
 
+import static java.util.Objects.requireNonNull;
+
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
@@ -26,7 +30,7 @@ import com.linecorp.centraldogma.server.credential.CredentialType;
 public final class NoneCredential extends AbstractCredential {
 
     @JsonCreator
-    public NoneCredential(@JsonProperty("name") String name) {
+    public NoneCredential(@JsonProperty("name") @Nullable String name) {
         super(name, CredentialType.NONE);
     }
 
@@ -38,5 +42,11 @@ public final class NoneCredential extends AbstractCredential {
     @Override
     public Credential withoutSecret() {
         return this;
+    }
+
+    @Override
+    public Credential withName(String credentialName) {
+        requireNonNull(credentialName, "credentialName");
+        return new NoneCredential(credentialName);
     }
 }
