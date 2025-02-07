@@ -42,7 +42,7 @@ import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public interface Credential {
 
-    Credential FALLBACK = new NoneCredential("");
+    Credential NONE = new NoneCredential("");
 
     /**
      * Returns the ID of the credential.

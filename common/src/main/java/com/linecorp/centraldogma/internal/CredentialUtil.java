@@ -37,7 +37,7 @@ public final class CredentialUtil {
                                                 String credentialName) {
         requireNonNull(credentialName, "credentialName");
         if (credentialName.isEmpty()) {
-            // Allow an empty credential ID for Credential.FALLBACK.
+            // Allow an empty credential ID for Credential.NONE.
             return "";
         }
 

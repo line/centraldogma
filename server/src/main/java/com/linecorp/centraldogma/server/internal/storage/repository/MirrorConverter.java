@@ -80,7 +80,7 @@ public final class MirrorConverter {
             }
         }
 
-        return Credential.FALLBACK;
+        return Credential.NONE;
     }
 
     public static MirrorConfig converterToMirrorConfig(MirrorRequest mirrorRequest) {

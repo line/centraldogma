@@ -147,7 +147,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                 if (!parent().repos().exists(repoName)) {
                     throw mirrorNotFound(revision, mirrorFile);
                 }
-                return CompletableFuture.completedFuture(convertToMirror(c, parent(), Credential.FALLBACK));
+                return CompletableFuture.completedFuture(convertToMirror(c, parent(), Credential.NONE));
             }
 
             final CompletableFuture<Credential> future = credential(c.credentialName());
