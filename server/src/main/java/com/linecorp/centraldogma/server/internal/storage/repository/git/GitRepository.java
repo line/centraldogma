@@ -560,7 +560,8 @@ class GitRepository implements Repository {
         }, repositoryWorker);
     }
 
-    private List<Commit> blockingHistory(Revision from, Revision to, String pathPattern, int maxCommits) {
+    @VisibleForTesting
+    List<Commit> blockingHistory(Revision from, Revision to, String pathPattern, int maxCommits) {
         requireNonNull(pathPattern, "pathPattern");
         requireNonNull(from, "from");
         requireNonNull(to, "to");
@@ -575,7 +576,12 @@ class GitRepository implements Repository {
 
         // At this point, we are sure: from.major >= to.major
         readLock();
-        try (RevWalk revWalk = newRevWalk()) {
+        final RepositoryCache cache =
+                // Do not cache too old data.
+                (descendingRange.from().major() < headRevision.major() - MAX_MAX_COMMITS * 3) ? null
+                                                                                              : this.cache;
+        try (ObjectReader objectReader = jGitRepository.newObjectReader();
+             RevWalk revWalk = newRevWalk(new CachingTreeObjectReader(this, objectReader, cache))) {
             final ObjectIdOwnerMap<?> revWalkInternalMap =
                     (ObjectIdOwnerMap<?>) revWalkObjectsField.get(revWalk);
 
