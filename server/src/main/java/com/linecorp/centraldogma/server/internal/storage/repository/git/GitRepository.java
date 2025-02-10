@@ -31,10 +31,13 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
@@ -47,6 +50,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -72,6 +76,7 @@ import org.eclipse.jgit.storage.file.FileBasedConfig;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.AndTreeFilter;
+import org.eclipse.jgit.treewalk.filter.PathFilterGroup;
 import org.eclipse.jgit.treewalk.filter.TreeFilter;
 import org.eclipse.jgit.util.SystemReader;
 import org.slf4j.Logger;
@@ -462,6 +467,7 @@ class GitRepository implements Repository {
         final Revision normRevision = normalizeNow(revision);
         final boolean fetchContent = FindOption.FETCH_CONTENT.get(options);
         final int maxEntries = FindOption.MAX_ENTRIES.get(options);
+        final int maxCommitsForFileRevision = FindOption.FETCH_LAST_FILE_REVISION.get(options);
 
         readLock();
         try (ObjectReader reader = jGitRepository.newObjectReader();
@@ -537,6 +543,28 @@ class GitRepository implements Repository {
                 result.put(path, entry);
             }
 
+            if (maxCommitsForFileRevision > 1 && !result.isEmpty()) {
+                // Fetch the last revisions of the files if the FETCH_LAST_FILE_REVISION option is enabled.
+                final List<String> files = result.values().stream()
+                                                 .filter(entry -> entry.type().type() != Void.class)
+                                                 // Remove the heading `/`
+                                                 .map(entry -> entry.path().substring(1))
+                                                 .collect(Collectors.toList());
+
+                final Map<String, Revision> lastRevisions =
+                        blockingFindLastFileRevisions(normRevision,
+                                                      normRevision.backward(maxCommitsForFileRevision - 1),
+                                                      files);
+
+                for (Map.Entry<String, Revision> fileAndRevision : lastRevisions.entrySet()) {
+                    final String filePath = '/' + fileAndRevision.getKey();
+                    final Revision fileRevision = fileAndRevision.getValue();
+                    if (fileRevision.equals(normRevision)) {
+                        continue;
+                    }
+                    result.computeIfPresent(filePath, (path, entry) -> entry.withRevision(fileRevision));
+                }
+            }
             return Util.unsafeCast(result);
         } catch (CentralDogmaException | IllegalArgumentException e) {
             throw e;
@@ -546,6 +574,85 @@ class GitRepository implements Repository {
                     " for " + revision, e);
         } finally {
             readUnlock();
+        }
+    }
+
+    // TODO(ikhoon): Design a storage format to store the revision information of each file and read them
+    //               without retrieving the history.
+    private Map<String, Revision> blockingFindLastFileRevisions(Revision from, Revision to,
+                                                                List<String> paths) {
+        final RevisionRange range = normalizeNow(from, to);
+        final RevisionRange descendingRange = range.toDescending();
+        final Set<String> remainingFiles = new HashSet<>(paths);
+        final Map<String, Revision> lastRevisionMap = new HashMap<>();
+
+        // At this point, we are sure: from.major >= to.major and read lock is acquired.
+        try (ObjectReader reader = jGitRepository.newObjectReader();
+             TreeWalk treeWalk = new TreeWalk(reader);
+             RevWalk revWalk = newRevWalk(reader)) {
+            final ObjectIdOwnerMap<?> revWalkInternalMap =
+                    (ObjectIdOwnerMap<?>) revWalkObjectsField.get(revWalk);
+
+            final ObjectId fromCommitId = commitIdDatabase.get(descendingRange.from());
+            final ObjectId toCommitId = commitIdDatabase.get(descendingRange.to());
+
+            revWalk.markStart(revWalk.parseCommit(fromCommitId));
+            revWalk.setRetainBody(false);
+            // Ensure subdirectories are traversed.
+            treeWalk.setRecursive(true);
+
+            int numProcessedCommits = 0;
+            boolean needsToUpdateFilter = true;
+            for (RevCommit revCommit : revWalk) {
+                if (revCommit.getParentCount() == 0) {
+                    break; // Reached the root commit
+                }
+
+                numProcessedCommits++;
+
+                treeWalk.reset();
+                treeWalk.addTree(revCommit.getTree());
+                treeWalk.addTree(revCommit.getParent(0).getTree());
+                treeWalk.setRecursive(true);
+                if (needsToUpdateFilter) {
+                    // Dynamically update the filter to exclude already found files
+                    treeWalk.setFilter(PathFilterGroup.createFromStrings(remainingFiles));
+                    needsToUpdateFilter = false;
+                }
+
+                while (treeWalk.next()) {
+                    final String filePath = treeWalk.getPathString();
+
+                    // `treeWalk.idEqual(0, 1)` compares the Object IDs of the current entry in the
+                    // first tree (nthA = 0) and the second tree (nthB = 1).
+                    // - If the IDs are different, it indicates that the file’s content has changed between
+                    //   the two commits.
+                    // - If the IDs are the same, the file’s content has not changed.
+                    if (!treeWalk.idEqual(0, 1)) {
+                        lastRevisionMap.put(filePath, from.backward(numProcessedCommits - 1));
+                        // Remove to avoid redundant checks
+                        remainingFiles.remove(filePath);
+                        needsToUpdateFilter = true;
+                    }
+                }
+
+                if (revCommit.getId().equals(toCommitId)) {
+                    break;
+                }
+
+                // Clear the internal lookup table of RevWalk to reduce the memory usage.
+                // This is safe because we have linear history and traverse in one direction.
+                if (numProcessedCommits % 16 == 0) {
+                    revWalkInternalMap.clear();
+                }
+            }
+            return lastRevisionMap;
+        } catch (CentralDogmaException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new StorageException(
+                    "failed to retrieve the last revisions: " + parent.name() + '/' + name +
+                    " (" + paths + ", " + from + ".." + to + ')', e);
         }
     }
 
@@ -1293,7 +1400,7 @@ class GitRepository implements Repository {
         try {
             // Replay all commits.
             Revision previousNonEmptyRevision = null;
-            for (int i = 2; i <= endRevision.major();) {
+            for (int i = 2; i <= endRevision.major(); ) {
                 // Fetch up to 16 commits at once.
                 final int batch = 16;
                 final List<Commit> commits = blockingHistory(
@@ -1323,7 +1430,7 @@ class GitRepository implements Repository {
                         // NB: We allow an empty commit here because an old version of Central Dogma had a bug
                         //     which allowed the creation of an empty commit.
                         new CommitExecutor(newRepo, c.when(), c.author(), c.summary(),
-                                                  c.detail(), c.markup(), true)
+                                           c.detail(), c.markup(), true)
                                 .execute(baseRevision, normBaseRevision -> blockingPreviewDiff(
                                         normBaseRevision, new DefaultChangesApplier(changes)).values());
                     }

@@ -236,6 +236,27 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     }
 
     @Override
+    public CompletableFuture<Map<String, Entry<?>>> listFiles(
+            String projectName, String repositoryName, Revision revision, PathPattern pathPattern,
+            int includeLastFileRevision) {
+        return normalizeRevisionAndExecuteWithRetries(
+                projectName, repositoryName, revision,
+                new Function<Revision, CompletableFuture<Map<String, Entry<?>>>>() {
+                    @Override
+                    public CompletableFuture<Map<String, Entry<?>>> apply(Revision normRev) {
+                        return delegate.listFiles(projectName, repositoryName, normRev, pathPattern,
+                                                  includeLastFileRevision);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "listFiles(" + projectName + ", " + repositoryName + ", " +
+                               revision + ", " + pathPattern + ", " + includeLastFileRevision + ')';
+                    }
+                });
+    }
+
+    @Override
     public <T> CompletableFuture<Entry<T>> getFile(
             String projectName, String repositoryName, Revision revision, Query<T> query) {
         return normalizeRevisionAndExecuteWithRetries(
@@ -269,6 +290,27 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
                     public String toString() {
                         return "getFiles(" + projectName + ", " + repositoryName + ", " +
                                revision + ", " + pathPattern + ')';
+                    }
+                });
+    }
+
+    @Override
+    public CompletableFuture<Map<String, Entry<?>>> getFiles(
+            String projectName, String repositoryName, Revision revision, PathPattern pathPattern,
+            int includeLastFileRevision) {
+        return normalizeRevisionAndExecuteWithRetries(
+                projectName, repositoryName, revision,
+                new Function<Revision, CompletableFuture<Map<String, Entry<?>>>>() {
+                    @Override
+                    public CompletableFuture<Map<String, Entry<?>>> apply(Revision normRev) {
+                        return delegate.getFiles(projectName, repositoryName, normRev, pathPattern,
+                                                 includeLastFileRevision);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "getFiles(" + projectName + ", " + repositoryName + ", " +
+                               revision + ", " + pathPattern + ", " + includeLastFileRevision + ')';
                     }
                 });
     }
