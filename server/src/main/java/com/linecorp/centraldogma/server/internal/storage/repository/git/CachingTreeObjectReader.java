@@ -19,8 +19,6 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 import static org.eclipse.jgit.lib.Constants.OBJ_TREE;
 
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.locks.Lock;
 
 import javax.annotation.Nullable;
 
@@ -59,40 +57,21 @@ final class CachingTreeObjectReader extends Filter {
     @Override
     public ObjectLoader open(AnyObjectId objectId, int typeHint)
             throws IOException {
+        // Only cache tree objects.
         if (OBJ_TREE != typeHint || cache == null) {
-            return super.open(objectId, typeHint);
+            return delegate.open(objectId, typeHint);
         }
 
         // Need to convert to objectId from MutableObjectId
-        objectId = objectId.toObjectId();
+        final AnyObjectId objectId0 = objectId.toObjectId();
 
-        final CacheableObjectLoaderCall key = new CacheableObjectLoaderCall(repository, this, objectId);
-        CompletableFuture<ObjectLoader> existingFuture = cache.getIfPresent(key);
-        if (existingFuture != null) {
-            final ObjectLoader existingDiffEntries = existingFuture.getNow(null);
-            if (existingDiffEntries != null) {
-                // Cached already.
-                return existingDiffEntries;
+        final CacheableObjectLoaderCall key = new CacheableObjectLoaderCall(repository, objectId0);
+        return cache.load(key, () -> {
+            try {
+                return delegate.open(objectId0, typeHint);
+            } catch (IOException e) {
+                throw new RuntimeException("failed to open an object: " + objectId0, e);
             }
-        }
-
-        // Not cached yet. Acquire a lock so that we do not compare the same tree pairs simultaneously.
-        final ObjectLoader newDiffEntries;
-        final Lock lock = key.coarseGrainedLock();
-        lock.lock();
-        try {
-            existingFuture = cache.getIfPresent(key);
-            if (existingFuture != null) {
-                return existingFuture.join();
-            }
-
-            newDiffEntries = delegate.open(objectId, typeHint);
-            cache.put(key, newDiffEntries);
-            logger.debug("Cached tree: {}", objectId);
-        } finally {
-            lock.unlock();
-        }
-
-        return newDiffEntries;
+        }, false);
     }
 }

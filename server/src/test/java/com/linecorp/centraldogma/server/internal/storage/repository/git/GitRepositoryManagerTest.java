@@ -35,7 +35,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -55,7 +54,6 @@ class GitRepositoryManagerTest {
         final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
         final Repository repository = gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
         assertThat(repository).isInstanceOf(GitRepository.class);
-        assertThat(((GitRepository) repository).cache).isNotNull();
 
         // Must disallow creating a duplicate.
         assertThatThrownBy(() -> gitRepositoryManager.create(TEST_REPO, Author.SYSTEM))
@@ -76,7 +74,6 @@ class GitRepositoryManagerTest {
         gitRepositoryManager = newRepositoryManager();
         final Repository repository = gitRepositoryManager.get(TEST_REPO);
         assertThat(repository).isInstanceOf(GitRepository.class);
-        assertThat(((GitRepository) repository).cache).isNotNull();
 
         gitRepositoryManager.remove(TEST_REPO);
         gitRepositoryManager.purgeMarked();
@@ -163,6 +160,6 @@ class GitRepositoryManagerTest {
     private GitRepositoryManager newRepositoryManager() {
         return new GitRepositoryManager(mock(Project.class), tempDir.toFile(),
                                         ForkJoinPool.commonPool(), MoreExecutors.directExecutor(),
-                                        mock(RepositoryCache.class));
+                                        null);
     }
 }

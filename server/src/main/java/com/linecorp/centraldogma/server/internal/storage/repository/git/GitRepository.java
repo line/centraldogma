@@ -40,7 +40,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiConsumer;
@@ -1035,37 +1034,7 @@ class GitRepository implements Repository {
         }
 
         final CacheableCompareTreesCall key = new CacheableCompareTreesCall(this, treeA, treeB);
-        CompletableFuture<List<DiffEntry>> existingFuture = cache.getIfPresent(key);
-        if (existingFuture != null) {
-            final List<DiffEntry> existingDiffEntries = existingFuture.getNow(null);
-            if (existingDiffEntries != null) {
-                // Cached already.
-                return existingDiffEntries;
-            }
-        }
-
-        // Not cached yet. Acquire a lock so that we do not compare the same tree pairs simultaneously.
-        final List<DiffEntry> newDiffEntries;
-        final Lock lock = key.coarseGrainedLock();
-        lock.lock();
-        try {
-            existingFuture = cache.getIfPresent(key);
-            if (existingFuture != null) {
-                final List<DiffEntry> existingDiffEntries = existingFuture.getNow(null);
-                if (existingDiffEntries != null) {
-                    // Other thread already put the entries to the cache before we acquire the lock.
-                    return existingDiffEntries;
-                }
-            }
-
-            newDiffEntries = blockingCompareTreesUncached(treeA, treeB, TreeFilter.ALL);
-            cache.put(key, newDiffEntries);
-        } finally {
-            lock.unlock();
-        }
-
-        logger.debug("Cache miss: {}", key);
-        return newDiffEntries;
+        return cache.load(key, () -> blockingCompareTreesUncached(treeA, treeB, TreeFilter.ALL), true);
     }
 
     private List<DiffEntry> blockingCompareTreesUncached(@Nullable RevTree treeA,

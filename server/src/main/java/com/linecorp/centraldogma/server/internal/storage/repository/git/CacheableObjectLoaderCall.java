@@ -15,9 +15,6 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
-import static org.eclipse.jgit.lib.Constants.OBJ_TREE;
-
-import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 import org.eclipse.jgit.lib.AnyObjectId;
@@ -26,19 +23,16 @@ import org.eclipse.jgit.lib.ObjectLoader;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.primitives.Ints;
 
-import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class CacheableObjectLoaderCall extends CacheableCall<ObjectLoader> {
 
-    private final CachingTreeObjectReader objectReader;
     private final AnyObjectId objectId;
     private final int hashCode;
 
-    CacheableObjectLoaderCall(Repository repo, CachingTreeObjectReader objectReader, AnyObjectId objectId) {
+    CacheableObjectLoaderCall(Repository repo, AnyObjectId objectId) {
         super(repo);
-        this.objectReader = objectReader;
         this.objectId = objectId;
         hashCode = objectId.hashCode() * 31 + System.identityHashCode(repo);
     }
@@ -53,11 +47,7 @@ final class CacheableObjectLoaderCall extends CacheableCall<ObjectLoader> {
      */
     @Override
     public CompletableFuture<ObjectLoader> execute() {
-        try {
-            return UnmodifiableFuture.completedFuture(objectReader.delegate().open(objectId, OBJ_TREE));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        throw new IllegalStateException();
     }
 
     @Override
