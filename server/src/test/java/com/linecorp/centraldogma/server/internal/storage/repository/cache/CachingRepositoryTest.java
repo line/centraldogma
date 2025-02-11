@@ -186,9 +186,9 @@ class CachingRepositoryTest {
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        when(delegateRepo.getOrNull(any(), any(Query.class))).thenReturn(completedFuture(null));
+        when(delegateRepo.getOrNull(any(), any(Query.class), eq(-1))).thenReturn(completedFuture(null));
         assertThat(repo.getOrNull(HEAD, query).join()).isNull();
-        verify(delegateRepo).getOrNull(new Revision(10), query);
+        verify(delegateRepo).getOrNull(new Revision(10), query, -1);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
