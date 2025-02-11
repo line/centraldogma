@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 import static org.eclipse.jgit.lib.Constants.OBJ_TREE;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 
 import javax.annotation.Nullable;
 
@@ -26,15 +27,11 @@ import org.eclipse.jgit.lib.AnyObjectId;
 import org.eclipse.jgit.lib.ObjectLoader;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.ObjectReader.Filter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class CachingTreeObjectReader extends Filter {
-
-    private static final Logger logger = LoggerFactory.getLogger(CachingTreeObjectReader.class);
 
     private final Repository repository;
 
@@ -70,7 +67,7 @@ final class CachingTreeObjectReader extends Filter {
             try {
                 return delegate.open(objectId0, typeHint);
             } catch (IOException e) {
-                throw new RuntimeException("failed to open an object: " + objectId0, e);
+                throw new UncheckedIOException("failed to open an object: " + objectId0, e);
             }
         }, false);
     }
