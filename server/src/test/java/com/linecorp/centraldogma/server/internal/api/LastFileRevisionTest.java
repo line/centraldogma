@@ -25,19 +25,17 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.CentralDogmaRepository;
-import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class LastFileRevisionTest {
 
     @RegisterExtension
-    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
+    final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void scaffold(CentralDogma client) {
             client.createProject("foo").join();
@@ -45,13 +43,8 @@ class LastFileRevisionTest {
         }
 
         @Override
-        protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-            builder.clientConfigurator(cb -> cb.responseTimeoutMillis(0));
-        }
-
-        @Override
-        protected void configure(CentralDogmaBuilder builder) {
-            builder.requestTimeoutMillis(0);
+        protected boolean runForEachTest() {
+            return true;
         }
     };
 
