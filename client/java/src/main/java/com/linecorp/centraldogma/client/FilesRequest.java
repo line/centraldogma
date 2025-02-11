@@ -43,9 +43,11 @@ public final class FilesRequest {
 
     /**
      * Includes the last revision of the file in the result. This option is disabled by default.
+     * If the last file revision is not found from the specified range of revisions, {@link Revision#INIT} is
+     * returned.
      *
-     * <p>Note that this operation may be slow because it needs to search for the last revision of the file.
-     * So please use it carefully.
+     * <p>Note that this operation may be slow because it needs to search for the last file revisions from the
+     * revision history. So please use it carefully.
      *
      * @param includeLastFileRevision the maximum number of revisions to search for the last file revision.
      *                                If the value is equal to 1, the head revision is

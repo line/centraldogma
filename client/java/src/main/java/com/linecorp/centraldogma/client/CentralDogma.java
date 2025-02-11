@@ -250,6 +250,7 @@ public interface CentralDogma extends AutoCloseable {
      * <pre>{@code
      * CentralDogma dogma = ...
      * // Find the last file revision from the last 100 revisions.
+     * // If the last file revision is not found, the `Revision.INIT` revision is returned instead.
      * int includeLastFileRevision = 100;
      * dogma.forRepo(projectName, repositoryName)
      *      .file(pathPattern)

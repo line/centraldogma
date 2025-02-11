@@ -30,6 +30,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.PushResult;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -55,29 +56,109 @@ class LastFileRevisionTest {
     };
 
     @Test
-    void test() {
+    void shouldFillFileRevisions() {
         final CentralDogmaRepository repo = dogma.client().forRepo("foo", "bar");
         final PushResult resultA = repo.commit("add a file", Change.ofTextUpsert("/a.txt", "aaa"))
                                        .push().join();
         final PushResult resultB = repo.commit("add a file", Change.ofTextUpsert("/b.txt", "bbb"))
                                        .push().join();
-        // add /a/c.txt
+        assertThat(resultB.revision().major()).isEqualTo(3);
         final PushResult resultC = repo.commit("add a file", Change.ofTextUpsert("/a/c.txt", "ccc")).push()
                                        .join();
-        // add /a/c/d.txt
         final PushResult resultD = repo.commit("add a file", Change.ofTextUpsert("/a/c/d.txt", "ddd")).push()
                                        .join();
-        // add /a/c/d/e.txt
+        assertThat(resultD.revision().major()).isEqualTo(5);
         final PushResult resultE = repo.commit("add a file", Change.ofTextUpsert("/a/c/d/e.txt", "eee")).push()
                                        .join();
+        final PushResult resultB1 = repo.commit("update a file", Change.ofTextUpsert("/b.txt", "bbbb"))
+                                        .push().join();
+        final PushResult resultD1 = repo.commit("update a file", Change.ofTextUpsert("/a/c/d.txt", "dddd"))
+                                        .push().join();
 
-        final Map<String, Entry<?>> filesWithLastRevision = repo.file(PathPattern.all())
-                                                                .includeLastFileRevision(10)
-                                                                .list().join();
-        assertThat(filesWithLastRevision.get("/a.txt").revision().major()).isEqualTo(2);
+        final Map<String, Entry<?>> listFilesWithLastRevision = repo.file(PathPattern.all())
+                                                                    .includeLastFileRevision(10)
+                                                                    .list().join();
+        Entry<?> entryA = listFilesWithLastRevision.get("/a.txt");
+        assertThat(entryA.revision()).isEqualTo(resultA.revision());
+        assertThat(entryA.hasContent()).isFalse();
+
+        Entry<?> entryB = listFilesWithLastRevision.get("/b.txt");
+        assertThat(entryB.revision()).isEqualTo(resultB1.revision());
+        assertThat(entryB.hasContent()).isFalse();
+
+        Entry<?> entryC = listFilesWithLastRevision.get("/a/c.txt");
+        assertThat(entryC.revision()).isEqualTo(resultC.revision());
+        assertThat(entryC.hasContent()).isFalse();
+
+        Entry<?> entryD = listFilesWithLastRevision.get("/a/c/d.txt");
+        assertThat(entryD.revision()).isEqualTo(resultD1.revision());
+        assertThat(entryD.hasContent()).isFalse();
+
+        Entry<?> entryE = listFilesWithLastRevision.get("/a/c/d/e.txt");
+        assertThat(entryE.revision()).isEqualTo(resultE.revision());
+        assertThat(entryE.hasContent()).isFalse();
+
+        final Map<String, Entry<?>> getFilesWithLastRevision = repo.file(PathPattern.all())
+                                                                   .includeLastFileRevision(10)
+                                                                   .get().join();
+
+        entryA = getFilesWithLastRevision.get("/a.txt");
+        assertThat(entryA.revision()).isEqualTo(resultA.revision());
+        assertThat(entryA.contentAsText().trim()).isEqualTo("aaa");
+
+        entryB = getFilesWithLastRevision.get("/b.txt");
+        assertThat(entryB.revision()).isEqualTo(resultB1.revision());
+        assertThat(entryB.contentAsText().trim()).isEqualTo("bbbb");
+
+        entryC = getFilesWithLastRevision.get("/a/c.txt");
+        assertThat(entryC.revision()).isEqualTo(resultC.revision());
+        assertThat(entryC.contentAsText().trim()).isEqualTo("ccc");
+
+        entryD = getFilesWithLastRevision.get("/a/c/d.txt");
+        assertThat(entryD.revision()).isEqualTo(resultD1.revision());
+        assertThat(entryD.contentAsText().trim()).isEqualTo("dddd");
+
+        entryE = getFilesWithLastRevision.get("/a/c/d/e.txt");
+        assertThat(entryE.revision()).isEqualTo(resultE.revision());
+        assertThat(entryE.contentAsText().trim()).isEqualTo("eee");
+
         final Map<String, Entry<?>> content = repo.file(PathPattern.all()).get().join();
-        final Map<String, Entry<?>> contentWithLastRevision = repo.file(PathPattern.all())
-                                                                  .includeLastFileRevision(10)
-                                                                  .get().join();
+        content.forEach((path, entry) -> {
+            assertThat(entry.revision()).isEqualTo(resultD1.revision());
+        });
+    }
+
+    @Test
+    void shouldFillInitRevisionOnMissing() {
+        final CentralDogmaRepository repo = dogma.client().forRepo("foo", "bar");
+        final PushResult resultA = repo.commit("add a file", Change.ofTextUpsert("/a.txt", "aaa"))
+                                       .push().join();
+        final PushResult resultB = repo.commit("add a file", Change.ofTextUpsert("/b.txt", "bbb"))
+                                       .push().join();
+        final PushResult resultB1 = repo.commit("update a file", Change.ofTextUpsert("/b.txt", "bbbb"))
+                                        .push().join();
+
+        final Map<String, Entry<?>> getFilesWithLastRevision = repo.file(PathPattern.all())
+                                                                   .includeLastFileRevision(2)
+                                                                   .get().join();
+        Entry<?> entryA = getFilesWithLastRevision.get("/a.txt");
+        assertThat(entryA.revision()).isEqualTo(Revision.INIT);
+        assertThat(entryA.contentAsText().trim()).isEqualTo("aaa");
+
+        Entry<?> entryB = getFilesWithLastRevision.get("/b.txt");
+        assertThat(entryB.revision()).isEqualTo(resultB1.revision());
+        assertThat(entryB.contentAsText().trim()).isEqualTo("bbbb");
+
+        final Map<String, Entry<?>> listFilesWithLastRevision = repo.file(PathPattern.all())
+                                                                    .includeLastFileRevision(2)
+                                                                    .list().join();
+
+        entryA = listFilesWithLastRevision.get("/a.txt");
+        assertThat(entryA.revision()).isEqualTo(Revision.INIT);
+        assertThat(entryA.hasContent()).isFalse();
+
+        entryB = listFilesWithLastRevision.get("/b.txt");
+        assertThat(entryB.revision()).isEqualTo(resultB1.revision());
+        assertThat(entryB.hasContent()).isFalse();
     }
 }

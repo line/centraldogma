@@ -36,14 +36,16 @@ final class CacheableQueryCall extends CacheableCall<Entry<?>> {
 
     final Revision revision;
     final Query<?> query;
+    final int includeLastFileRevision;
     final int hashCode;
 
-    CacheableQueryCall(Repository repo, Revision revision, Query<?> query) {
+    CacheableQueryCall(Repository repo, Revision revision, Query<?> query, int includeLastFileRevision) {
         super(repo);
         this.revision = requireNonNull(revision, "revision");
         this.query = requireNonNull(query, "query");
+        this.includeLastFileRevision = includeLastFileRevision <= 1 ? -1 : includeLastFileRevision;
 
-        hashCode = Objects.hash(revision, query) * 31 + System.identityHashCode(repo);
+        hashCode = Objects.hash(revision, query, includeLastFileRevision) * 31 + System.identityHashCode(repo);
 
         assert !revision.isRelative();
     }
@@ -63,7 +65,8 @@ final class CacheableQueryCall extends CacheableCall<Entry<?>> {
 
     @Override
     public CompletableFuture<Entry<?>> execute() {
-        return repo().getOrNull(revision, query).thenApply(e -> firstNonNull(e, EMPTY));
+        return repo().getOrNull(revision, query, includeLastFileRevision)
+                     .thenApply(e -> firstNonNull(e, EMPTY));
     }
 
     @Override

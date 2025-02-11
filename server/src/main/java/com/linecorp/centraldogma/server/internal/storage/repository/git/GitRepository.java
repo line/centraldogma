@@ -646,6 +646,11 @@ class GitRepository implements Repository {
                     revWalkInternalMap.clear();
                 }
             }
+            if (!remainingFiles.isEmpty()) {
+                // If there are remaining files, it means that the files have not been changed
+                // in the range. So we set the initial revision to them to indicate that they are unchanged.
+                remainingFiles.forEach(file -> lastRevisionMap.put(file, Revision.INIT));
+            }
             return lastRevisionMap;
         } catch (CentralDogmaException e) {
             throw e;
@@ -1400,7 +1405,7 @@ class GitRepository implements Repository {
         try {
             // Replay all commits.
             Revision previousNonEmptyRevision = null;
-            for (int i = 2; i <= endRevision.major(); ) {
+            for (int i = 2; i <= endRevision.major();) {
                 // Fetch up to 16 commits at once.
                 final int batch = 16;
                 final List<Commit> commits = blockingHistory(

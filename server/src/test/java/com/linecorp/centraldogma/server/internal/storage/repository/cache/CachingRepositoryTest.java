@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -62,6 +63,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
+import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -107,9 +109,9 @@ class CachingRepositoryTest {
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        when(delegateRepo.getOrNull(any(), any(Query.class))).thenReturn(completedFuture(queryResult));
+        when(delegateRepo.getOrNull(any(), any(Query.class), eq(-1))).thenReturn(completedFuture(queryResult));
         assertThat(repo.get(HEAD, query).join()).isEqualTo(queryResult);
-        verify(delegateRepo).getOrNull(new Revision(10), query);
+        verify(delegateRepo).getOrNull(new Revision(10), query, -1);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
@@ -403,6 +405,45 @@ class CachingRepositoryTest {
 
         // Do something with 'repo' so that it is not garbage-collected even before the meters are measured.
         assertThat(repo.normalizeNow(HEAD)).isNotEqualTo("");
+    }
+
+    @Test
+    void getWithIncludeLastFileRevision() {
+        final Repository repo = setMockNames(newCachingRepo());
+        final Query<String> query = Query.ofText("/baz.txt");
+
+        final Entry<?> result = Entry.ofText(new Revision(10), "/baz.txt", "qux");
+        final Entry<?> resultWithFileRevision = Entry.ofText(new Revision(8), "/baz.txt", "qux");
+
+        final Map<String, Entry<?>> entries = ImmutableMap.of("/baz.txt", result);
+        final Map<String, Entry<?>> entriesWithFileRevision =
+                ImmutableMap.of("/baz.txt", resultWithFileRevision);
+
+        doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
+        doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
+
+        // Uncached
+        when(delegateRepo.find(any(), any(), eq(FIND_ONE_WITH_CONTENT))).thenReturn(completedFuture(entries));
+        when(delegateRepo.find(any(), any(),
+                               eq(ImmutableMap.of(FindOption.MAX_ENTRIES, 1,
+                                                  FindOption.FETCH_LAST_FILE_REVISION, 3))))
+                .thenReturn(completedFuture(entriesWithFileRevision));
+        assertThat(repo.get(HEAD, query).join()).isEqualTo(result);
+        assertThat(repo.get(HEAD, query, 3).join()).isEqualTo(resultWithFileRevision);
+        verify(delegateRepo).find(new Revision(10), "/baz.txt", FIND_ONE_WITH_CONTENT);
+        verify(delegateRepo).find(new Revision(10), "/baz.txt",
+                                  ImmutableMap.of(FindOption.MAX_ENTRIES, 1,
+                                                  FindOption.FETCH_LAST_FILE_REVISION, 3));
+        verifyNoMoreInteractions(delegateRepo);
+
+        // Cached
+        clearInvocations(delegateRepo);
+        assertThat(repo.get(HEAD, query).join()).isEqualTo(result);
+        assertThat(repo.get(new Revision(10), query).join()).isEqualTo(result);
+        assertThat(repo.get(HEAD, query, 3).join()).isEqualTo(resultWithFileRevision);
+        assertThat(repo.get(new Revision(10), query, 3).join()).isEqualTo(resultWithFileRevision);
+        verify(delegateRepo, never()).find(any(), any(), any());
+        verifyNoMoreInteractions(delegateRepo);
     }
 
     private Repository newCachingRepo() {
