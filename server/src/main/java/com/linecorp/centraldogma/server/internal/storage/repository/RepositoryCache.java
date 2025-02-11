@@ -127,9 +127,6 @@ public class RepositoryCache {
                 logger.debug("Cache miss: {}", key);
             }
             return value;
-        } catch (Throwable t) {
-            System.err.println(t);
-            throw t;
         } finally {
             lock.unlock();
         }
