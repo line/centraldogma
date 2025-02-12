@@ -145,7 +145,7 @@ class JsonPatchOperationIntegrationTest {
                                             .push()
                                             .join();
 
-        JsonNode jsonNode = repository.file("/a.json").get().join().contentAsJson();
+        final JsonNode jsonNode = repository.file("/a.json").get().join().contentAsJson();
         assertThatJson(jsonNode).isEqualTo("{ \"b\": 2 }");
 
         final PushResult result1 = repository.commit("remove a again", change)

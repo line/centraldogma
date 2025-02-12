@@ -141,7 +141,6 @@ public abstract class JsonPatchOperation implements JsonSerializable {
         return copy(JsonPointer.compile(from), JsonPointer.compile(to));
     }
 
-
     /**
      * Creates a new JSON Patch {@code move} operation.
      *
