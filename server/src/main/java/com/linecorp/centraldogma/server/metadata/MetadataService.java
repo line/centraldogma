@@ -446,11 +446,6 @@ public class MetadataService {
                 "Update the project roles of the '" + repoName + "' in the project '" + projectName + '\'';
         final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                 repoName, (headRevision, repositoryMetadata) -> {
-            if (repositoryMetadata.roles().projectRoles().equals(projectRoles)) {
-                throw new RedundantChangeException(
-                        headRevision,
-                        "the project roles of '" + projectName + '/' + repoName + "' isn't changed.");
-            }
             final Roles newRoles = new Roles(projectRoles, repositoryMetadata.roles().users(),
                                              repositoryMetadata.roles().tokens());
             return new RepositoryMetadata(repositoryMetadata.name(),

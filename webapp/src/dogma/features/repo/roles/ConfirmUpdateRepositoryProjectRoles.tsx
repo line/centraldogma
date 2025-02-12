@@ -17,28 +17,44 @@ import { newNotification } from 'dogma/features/notification/notificationSlice';
 import { ProjectRolesDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
+import { UseFormHandleSubmit, UseFormReset } from 'react-hook-form';
 
 export const ConfirmUpdateRepositoryProjectRoles = ({
   projectName,
   repoName,
-  data,
+  handleSubmit,
+  isDirty,
+  reset,
 }: {
   projectName: string;
   repoName: string;
-  data: ProjectRolesDto;
+  handleSubmit: UseFormHandleSubmit<ProjectRolesDto>;
+  isDirty: boolean;
+  reset: UseFormReset<ProjectRolesDto>;
 }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
   const [updateRepositoryProjectRoles, { isLoading }] = useUpdateRepositoryProjectRolesMutation();
-  const handleUpdate = async () => {
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onSubmit = async (data: any) => {
     try {
-      const response = await updateRepositoryProjectRoles({ projectName, repoName, data }).unwrap();
+      const normalizedData = {
+        member: data.member === 'NONE' ? null : data.member,
+        guest: data.guest === 'NONE' ? null : data.guest,
+      };
+      const response = await updateRepositoryProjectRoles({
+        projectName,
+        repoName,
+        data: normalizedData,
+      }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
       dispatch(
         newNotification('Repository project roles updated', `Successfully updated ${repoName}`, 'success'),
       );
+      reset(data);
     } catch (error) {
       dispatch(newNotification(`Failed to update ${repoName}`, ErrorMessageParser.parse(error), 'error'));
     }
@@ -46,7 +62,7 @@ export const ConfirmUpdateRepositoryProjectRoles = ({
   };
   return (
     <>
-      <Button type="submit" colorScheme="teal" onClick={onOpen}>
+      <Button colorScheme="teal" onClick={onOpen} isDisabled={!isDirty}>
         Save changes
       </Button>
       <Modal isOpen={isOpen} onClose={onClose}>
@@ -60,7 +76,13 @@ export const ConfirmUpdateRepositoryProjectRoles = ({
               <Button colorScheme="teal" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button colorScheme="teal" onClick={handleUpdate} isLoading={isLoading} loadingText="Updating">
+              <Button
+                type="submit"
+                colorScheme="teal"
+                isLoading={isLoading}
+                loadingText="Updating"
+                onClick={() => handleSubmit(onSubmit)()}
+              >
                 Update
               </Button>
             </HStack>
