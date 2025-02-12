@@ -62,6 +62,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private static final String LATEST_REVISION_METER_NAME = "centraldogma.client.watcher.latest.revision";
     private static final String LATEST_RECEIVED_TIME_METER_NAME =
             "centraldogma.client.watcher.latest.received.time";
+    private static final AtomicLong WATCHER_ID = new AtomicLong();
 
     private enum State {
         INIT,
@@ -121,8 +122,9 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                 "repository", repositoryName,
                 "pathPattern", pathPattern,
                 // There is a possibility of using the same watcher for the same project, repo, and pathPattern.
-                // Therefore, the watcher’s hash code should be included as a tag.
-                "watcher_hash", String.valueOf(System.identityHashCode(this))
+                // Therefore, an auto-incremental name will be assigned automatically.
+                // In the future, if there is a need, we could allow this name to be explicitly specified.
+                "name", String.valueOf(WATCHER_ID.incrementAndGet())
         );
     }
 
