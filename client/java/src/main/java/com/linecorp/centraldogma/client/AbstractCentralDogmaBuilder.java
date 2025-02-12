@@ -432,6 +432,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     /**
      * Returns the {@link MeterRegistry}.
      */
+    @Nullable
     protected final MeterRegistry meterRegistry() {
         return meterRegistry;
     }
