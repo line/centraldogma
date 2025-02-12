@@ -46,7 +46,7 @@ final class FileWatcher<T> extends AbstractWatcher<T> {
                 @Nullable Function<Object, ? extends T> mapper, Executor mapperExecutor,
                 long delayOnSuccessMillis, long initialDelayMillis, long maxDelayMillis, double multiplier,
                 double jitterRate, @Nullable MeterRegistry meterRegistry) {
-        super(centralDogma, watchScheduler, projectName, repositoryName, query.path(), errorOnEntryNotFound,
+        super(watchScheduler, projectName, repositoryName, query.path(), errorOnEntryNotFound,
               delayOnSuccessMillis, initialDelayMillis, maxDelayMillis, multiplier, jitterRate, meterRegistry);
         this.centralDogma = centralDogma;
         this.projectName = projectName;

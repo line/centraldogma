@@ -81,17 +81,18 @@ public class WatcherMetricsTest {
 
         // Metrics will not be emitted until the values are ready.
         assertThat(latestRevisionGauges(tags(watcher, "/hoge.txt")).size()).isEqualTo(0);
-        assertThat(latestCommitTimeGauges(tags(watcher, "/hoge.txt")).size()).isEqualTo(0);
+        assertThat(latestReceivedTimeGauges(tags(watcher, "/hoge.txt")).size()).isEqualTo(0);
 
         // Metrics will be emitted once the values are ready.
         watcher.awaitInitialValue();
         await().untilAsserted(() -> {
             final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags(watcher, "/hoge.txt"));
-            final List<Gauge> latestCommitTimeGauges = latestCommitTimeGauges(tags(watcher, "/hoge.txt"));
+            final List<Gauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags(watcher, "/hoge.txt"));
             assertThat(latestRevisionGauges.size()).isEqualTo(1);
             assertThat(latestRevisionGauges.get(0).value()).isEqualTo(hoge1stResult.revision().major());
-            assertThat(latestCommitTimeGauges.size()).isEqualTo(1);
-            assertThat(latestCommitTimeGauges.get(0).value()).isEqualTo(hoge1stResult.when());
+            assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
+            assertThat(latestReceivedTimeGauges.get(0).value())
+                    .isGreaterThanOrEqualTo(hoge1stResult.when() / 1000.0);
         });
 
         // When a commit is added, the metrics will also be updated.
@@ -99,11 +100,12 @@ public class WatcherMetricsTest {
                                                   .push().join();
         await().untilAsserted(() -> {
             final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags(watcher, "/hoge.txt"));
-            final List<Gauge> latestCommitTimeGauges = latestCommitTimeGauges(tags(watcher, "/hoge.txt"));
+            final List<Gauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags(watcher, "/hoge.txt"));
             assertThat(latestRevisionGauges.size()).isEqualTo(1);
             assertThat(latestRevisionGauges.get(0).value()).isEqualTo(hoge2ndResult.revision().major());
-            assertThat(latestCommitTimeGauges.size()).isEqualTo(1);
-            assertThat(latestCommitTimeGauges.get(0).value()).isEqualTo(hoge2ndResult.when());
+            assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
+            assertThat(latestReceivedTimeGauges.get(0).value())
+                    .isGreaterThanOrEqualTo(hoge2ndResult.when() / 1000.0);
             assertThat(hoge2ndResult.revision().major()).isGreaterThan(hoge1stResult.revision().major());
             assertThat(hoge2ndResult.when()).isGreaterThanOrEqualTo(hoge1stResult.when());
         });
@@ -111,9 +113,9 @@ public class WatcherMetricsTest {
         // When a commit is added, the metrics will also be updated.
         watcher.close();
         final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags(watcher, "/hoge.txt"));
-        final List<Gauge> latestCommitTimeGauges = latestCommitTimeGauges(tags(watcher, "/hoge.txt"));
+        final List<Gauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags(watcher, "/hoge.txt"));
         assertThat(latestRevisionGauges.size()).isEqualTo(0);
-        assertThat(latestCommitTimeGauges.size()).isEqualTo(0);
+        assertThat(latestReceivedTimeGauges.size()).isEqualTo(0);
     }
 
     @Test
@@ -126,17 +128,18 @@ public class WatcherMetricsTest {
 
         // Metrics will not be emitted until the values are ready.
         assertThat(latestRevisionGauges(tags(watcher, "/**")).size()).isEqualTo(0);
-        assertThat(latestCommitTimeGauges(tags(watcher, "/**")).size()).isEqualTo(0);
+        assertThat(latestReceivedTimeGauges(tags(watcher, "/**")).size()).isEqualTo(0);
 
         // Metrics will be emitted once the values are ready.
         watcher.awaitInitialValue();
         await().untilAsserted(() -> {
             final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags(watcher, "/**"));
-            final List<Gauge> latestCommitTimeGauges = latestCommitTimeGauges(tags(watcher, "/**"));
+            final List<Gauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags(watcher, "/**"));
             assertThat(latestRevisionGauges.size()).isEqualTo(1);
             assertThat(latestRevisionGauges.get(0).value()).isEqualTo(fooResult.revision().major());
-            assertThat(latestCommitTimeGauges.size()).isEqualTo(1);
-            assertThat(latestCommitTimeGauges.get(0).value()).isEqualTo(fooResult.when());
+            assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
+            assertThat(latestReceivedTimeGauges.get(0).value())
+                    .isGreaterThanOrEqualTo(fooResult.when() / 1000.0);
         });
 
         // When a commit is added, the metrics will also be updated.
@@ -144,11 +147,12 @@ public class WatcherMetricsTest {
                                               .push().join();
         await().untilAsserted(() -> {
             final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags(watcher, "/**"));
-            final List<Gauge> latestCommitTimeGauges = latestCommitTimeGauges(tags(watcher, "/**"));
+            final List<Gauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags(watcher, "/**"));
             assertThat(latestRevisionGauges.size()).isEqualTo(1);
             assertThat(latestRevisionGauges.get(0).value()).isEqualTo(barResult.revision().major());
-            assertThat(latestCommitTimeGauges.size()).isEqualTo(1);
-            assertThat(latestCommitTimeGauges.get(0).value()).isEqualTo(barResult.when());
+            assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
+            assertThat(latestReceivedTimeGauges.get(0).value())
+                    .isGreaterThanOrEqualTo(barResult.when() / 1000.0);
             assertThat(barResult.revision().major()).isGreaterThan(fooResult.revision().major());
             assertThat(barResult.when()).isGreaterThanOrEqualTo(fooResult.when());
         });
@@ -156,9 +160,9 @@ public class WatcherMetricsTest {
         // When a commit is added, the metrics will also be updated.
         watcher.close();
         final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags(watcher, "/**"));
-        final List<Gauge> latestCommitTimeGauges = latestCommitTimeGauges(tags(watcher, "/**"));
+        final List<Gauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags(watcher, "/**"));
         assertThat(latestRevisionGauges.size()).isEqualTo(0);
-        assertThat(latestCommitTimeGauges.size()).isEqualTo(0);
+        assertThat(latestReceivedTimeGauges.size()).isEqualTo(0);
     }
 
     @Test
@@ -172,17 +176,18 @@ public class WatcherMetricsTest {
         watcher.awaitInitialValue();
         Thread.sleep(1000); // wait updateLatestCommitAsync
         final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags(watcher, "/hoge.txt"));
-        final List<Gauge> latestCommitTimeGauges = latestCommitTimeGauges(tags(watcher, "/hoge.txt"));
+        final List<Gauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags(watcher, "/hoge.txt"));
         assertThat(latestRevisionGauges.size()).isEqualTo(0);
-        assertThat(latestCommitTimeGauges.size()).isEqualTo(0);
+        assertThat(latestReceivedTimeGauges.size()).isEqualTo(0);
     }
 
     private static List<Gauge> latestRevisionGauges(Tags tags) {
-        return new ArrayList<>(meterRegistry.find("centraldogma.watcher.latest.revision").tags(tags).gauges());
+        return new ArrayList<>(meterRegistry.find("centraldogma.client.watcher.latest.revision").tags(tags)
+                                            .gauges());
     }
 
-    private static List<Gauge> latestCommitTimeGauges(Tags tags) {
-        return new ArrayList<>(meterRegistry.find("centraldogma.watcher.latest.commit.time").tags(tags)
+    private static List<Gauge> latestReceivedTimeGauges(Tags tags) {
+        return new ArrayList<>(meterRegistry.find("centraldogma.client.watcher.latest.received.time").tags(tags)
                                             .gauges());
     }
 

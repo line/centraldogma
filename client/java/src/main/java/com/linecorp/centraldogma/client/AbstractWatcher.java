@@ -19,6 +19,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.math.LongMath.saturatedAdd;
 import static java.util.Objects.requireNonNull;
 
+import java.time.Instant;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
@@ -43,7 +45,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.CentralDogmaException;
-import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
@@ -58,8 +59,9 @@ import io.micrometer.core.instrument.Tags;
 abstract class AbstractWatcher<T> implements Watcher<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractWatcher.class);
-    private static final String LATEST_REVISION_METER_NAME = "centraldogma.watcher.latest.revision";
-    private static final String LATEST_COMMIT_TIME_METER_NAME = "centraldogma.watcher.latest.commit.time";
+    private static final String LATEST_REVISION_METER_NAME = "centraldogma.client.watcher.latest.revision";
+    private static final String LATEST_RECEIVED_TIME_METER_NAME =
+            "centraldogma.client.watcher.latest.received.time";
 
     private enum State {
         INIT,
@@ -67,7 +69,6 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         STOPPED
     }
 
-    private final CentralDogma centralDogma;
     private final ScheduledExecutorService watchScheduler;
     private final String projectName;
     private final String repositoryName;
@@ -94,14 +95,15 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     @Nullable
     private volatile CompletableFuture<?> currentWatchFuture;
 
-    @SuppressWarnings("DataFlowIssue") // AtomicReference's value is nullable.
-    private final AtomicReference<Commit> latestCommit = new AtomicReference<>(null);
+    // unix epoch seconds
+    // In Prometheus, it is common to handle data with second precision, so we intentionally use second precision.
+    // ref: https://prometheus.io/docs/prometheus/latest/querying/functions/#time
+    private final AtomicLong latestReceivedTime = new AtomicLong();
 
-    AbstractWatcher(CentralDogma centralDogma, ScheduledExecutorService watchScheduler, String projectName,
-                    String repositoryName, String pathPattern, boolean errorOnEntryNotFound,
-                    long delayOnSuccessMillis, long initialDelayMillis, long maxDelayMillis, double multiplier,
-                    double jitterRate, @Nullable MeterRegistry meterRegistry) {
-        this.centralDogma = centralDogma;
+    AbstractWatcher(ScheduledExecutorService watchScheduler, String projectName, String repositoryName,
+                    String pathPattern, boolean errorOnEntryNotFound, long delayOnSuccessMillis,
+                    long initialDelayMillis, long maxDelayMillis, double multiplier, double jitterRate,
+                    @Nullable MeterRegistry meterRegistry) {
         this.watchScheduler = watchScheduler;
         this.projectName = projectName;
         this.repositoryName = repositoryName;
@@ -178,7 +180,8 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
 
         if (meterRegistry != null) {
             meterRegistry.remove(new Id(LATEST_REVISION_METER_NAME, tags, null, null, Type.GAUGE));
-            meterRegistry.remove(new Id(LATEST_COMMIT_TIME_METER_NAME, tags, null, null, Type.GAUGE));
+            meterRegistry.remove(
+                    new Id(LATEST_RECEIVED_TIME_METER_NAME, tags, null, null, Type.GAUGE));
         }
     }
 
@@ -285,7 +288,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                  logger.debug("watcher noticed updated file {}/{}{}: rev={}",
                               projectName, repositoryName, pathPattern, newLatest.revision());
                  notifyListeners(newLatest);
-                 updateLatestCommitAsync(newLatest.revision());
+                 updateLatestReceivedTime();
                  if (!initialValueFuture.isDone()) {
                      initialValueFuture.complete(newLatest);
                  }
@@ -356,30 +359,15 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         }
     }
 
-    private void updateLatestCommitAsync(Revision revision) {
+    private void updateLatestReceivedTime() {
         if (meterRegistry == null) {
             return;
         }
 
-        centralDogma.forRepo(projectName, repositoryName)
-                    .history()
-                    .get(revision, revision)
-                    .whenComplete((commits, e) -> {
-                        if (e == null) {
-                            commits.stream().findFirst().ifPresent(commit -> {
-                                // noinspection ConstantValue
-                                if (latestCommit.getAndSet(commit) == null) {
-                                    // emit metrics once the values are ready
-                                    meterRegistry.gauge(LATEST_COMMIT_TIME_METER_NAME, tags, latestCommit,
-                                                        it -> it.get().when());
-                                }
-                            });
-                        } else {
-                            logger.warn(
-                                    "Failed to retrieve the commit to record metrics. watcher={}/{}{}, rev={}",
-                                    projectName, repositoryName, pathPattern, revision, e);
-                        }
-                    });
+        if (latestReceivedTime.getAndSet(Instant.now().getEpochSecond()) == 0) {
+            // emit metrics once the values are ready
+            meterRegistry.gauge(LATEST_RECEIVED_TIME_METER_NAME, tags, latestReceivedTime, AtomicLong::get);
+        }
     }
 
     @Override
