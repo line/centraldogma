@@ -96,7 +96,8 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private volatile CompletableFuture<?> currentWatchFuture;
 
     // unix epoch seconds
-    // In Prometheus, it is common to handle data with second precision, so we intentionally use second precision.
+    // In Prometheus, it is common to handle data with second precision,
+    // so we intentionally use second precision.
     // ref: https://prometheus.io/docs/prometheus/latest/querying/functions/#time
     private final AtomicLong latestReceivedTime = new AtomicLong();
 
