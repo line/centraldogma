@@ -899,7 +899,8 @@ class GitRepository implements Repository {
         requireNonNull(markup, "markup");
         requireNonNull(transformer, "transformer");
         final CommitExecutor commitExecutor =
-                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, EmptyCommitPolicy.DISALLOW);
+                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup,
+                                   EmptyCommitPolicy.DISALLOW);
         return commit(baseRevision, commitExecutor,
                       normBaseRevision -> blockingPreviewDiff(
                               normBaseRevision, new TransformingChangesApplier(transformer)).values());

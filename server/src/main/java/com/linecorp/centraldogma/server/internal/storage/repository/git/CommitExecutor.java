@@ -160,8 +160,9 @@ final class CommitExecutor {
                         case DISALLOW:
                             throw new RedundantChangeException(
                                     headRevision,
-                                    "changes did not change anything in " + gitRepository.parent().name() + '/' +
-                                    gitRepository.name() + " at revision " + headRevision.major() + ": " + changes);
+                                    "changes did not change anything in " + gitRepository.parent().name() +
+                                    '/' + gitRepository.name() + " at revision " + headRevision.major() +
+                                    ": " + changes);
                         case IGNORE:
                             return new RevisionAndEntries(headRevision, diffEntries);
                     }
