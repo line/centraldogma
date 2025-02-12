@@ -76,7 +76,7 @@ public final class CentralDogmaBuilder {
     static final long DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS = 604_800_000;  // 7 days
 
     static final String DEFAULT_REPOSITORY_CACHE_SPEC =
-            "maximumWeight=134217728," + // Cache up to apx. 128-megachars.
+            "maximumWeight=268435456," + // Cache up to apx. 256-megachars.
             "expireAfterAccess=5m";      // Expire on 5 minutes of inactivity.
 
     // Armeria properties
