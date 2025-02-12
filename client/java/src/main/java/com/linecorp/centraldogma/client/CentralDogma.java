@@ -241,7 +241,7 @@ public interface CentralDogma extends AutoCloseable {
      */
     default CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
                                                               Revision revision, PathPattern pathPattern) {
-        return getFiles(projectName, repositoryName, revision, pathPattern, -1);
+        return getFiles(projectName, repositoryName, revision, pathPattern, 1);
     }
 
     /**

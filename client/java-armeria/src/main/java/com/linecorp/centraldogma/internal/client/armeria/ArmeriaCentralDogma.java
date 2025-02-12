@@ -408,7 +408,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public CompletableFuture<Map<String, EntryType>> listFiles(String projectName, String repositoryName,
                                                                Revision revision, PathPattern pathPattern) {
-        return listFiles0(projectName, repositoryName, revision, pathPattern, -1,
+        return listFiles0(projectName, repositoryName, revision, pathPattern, 1,
                           ArmeriaCentralDogma::listFiles);
     }
 
@@ -446,7 +446,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         try {
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/list").append(pathPattern.encoded()).append("?revision=").append(revision.major());
-            if (includeLastFileRevision >= 1) {
+            if (includeLastFileRevision > 1) {
                 path.append("&includeLastFileRevision=").append(includeLastFileRevision);
             }
 
@@ -525,7 +525,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                     .append(pathPattern.encoded())
                     .append("?revision=")
                     .append(normRev.major());
-                if (includeLastFileRevision >= 1) {
+                if (includeLastFileRevision > 1) {
                     path.append("&includeLastFileRevision=").append(includeLastFileRevision);
                 }
 

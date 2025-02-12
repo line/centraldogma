@@ -124,7 +124,7 @@ public class ContentServiceV1 extends AbstractService {
     public CompletableFuture<List<EntryDto<?>>> listFiles(ServiceRequestContext ctx,
                                                           @Param String path,
                                                           @Param @Default("-1") String revision,
-                                                          @Param @Default("-1") int includeLastFileRevision,
+                                                          @Param @Default("1") int includeLastFileRevision,
                                                           Repository repository) {
         final String normalizedPath = normalizePath(path);
         final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
@@ -271,7 +271,7 @@ public class ContentServiceV1 extends AbstractService {
     public CompletableFuture<?> getFiles(
             ServiceRequestContext ctx,
             @Param String path, @Param @Default("-1") String revision,
-            @Param @Default("-1") int includeLastFileRevision,
+            @Param @Default("1") int includeLastFileRevision,
             Repository repository,
             @RequestConverter(WatchRequestConverter.class) @Nullable WatchRequest watchRequest,
             @RequestConverter(QueryRequestConverter.class) @Nullable Query<?> query) {
