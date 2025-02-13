@@ -32,7 +32,9 @@
  * - ASL 2.0: https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 
-package com.linecorp.centraldogma.internal.jsonpatch;
+package com.linecorp.centraldogma.common.jsonpatch;
+
+import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -73,6 +75,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  */
 public final class MoveOperation extends DualPathOperation {
 
+    /**
+     * Creates a new instance.
+     */
     @JsonCreator
     MoveOperation(@JsonProperty("from") final JsonPointer from,
                   @JsonProperty("path") final JsonPointer path) {
@@ -80,12 +85,15 @@ public final class MoveOperation extends DualPathOperation {
     }
 
     @Override
-    JsonNode apply(final JsonNode node) {
+    public JsonNode apply(final JsonNode node) {
+        requireNonNull(node, "node");
+        final JsonPointer from = from();
+        final JsonPointer path = path();
         if (from.equals(path)) {
             return node;
         }
         if (node.at(from).isMissingNode()) {
-            throw new JsonPatchException("non-existent source path: " + from);
+            throw new JsonPatchConflictException("non-existent source path: " + from);
         }
 
         final JsonNode sourceParent = ensureSourceParent(node, from);

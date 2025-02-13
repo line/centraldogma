@@ -80,6 +80,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Streams;
 
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.util.Exceptions;
@@ -87,6 +89,7 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
@@ -107,6 +110,7 @@ import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.internal.IsolatedSystemReader;
 import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
+import com.linecorp.centraldogma.server.internal.storage.repository.git.CommitExecutor.EmptyCommitPolicy;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
@@ -247,7 +251,7 @@ class GitRepository implements Repository {
             commitIdDatabase = new CommitIdDatabase(jGitRepository);
 
             new CommitExecutor(this, creationTimeMillis, author, "Create a new repository", "",
-                               Markup.PLAINTEXT, true)
+                               Markup.PLAINTEXT, EmptyCommitPolicy.ALLOW)
                     .executeInitialCommit();
 
             headRevision = Revision.INIT;
@@ -849,6 +853,24 @@ class GitRepository implements Repository {
         assert oldChange == null;
     }
 
+    private static EmptyCommitPolicy getEmptyCommitPolicy(Iterable<Change<?>> changes) {
+        // allMatch returns true if the stream is empty.
+        if (Iterables.isEmpty(changes)) {
+            // Disallowed by default
+            return EmptyCommitPolicy.DISALLOW;
+        }
+        final boolean allJsonPatches =
+                Streams.stream(changes)
+                       .allMatch(change -> change.type() == ChangeType.APPLY_JSON_PATCH);
+        if (allJsonPatches) {
+            // JsonPatch operations may have an empty change that should be ignored.
+            // For example, the removeIfExists operation does nothing if the target path is absent.
+            return EmptyCommitPolicy.IGNORE;
+        } else {
+            return EmptyCommitPolicy.DISALLOW;
+        }
+    }
+
     @Override
     public CompletableFuture<CommitResult> commit(
             Revision baseRevision, long commitTimeMillis, Author author, String summary,
@@ -859,8 +881,10 @@ class GitRepository implements Repository {
         requireNonNull(detail, "detail");
         requireNonNull(markup, "markup");
         requireNonNull(changes, "changes");
+
+        final EmptyCommitPolicy emptyCommitPolicy = getEmptyCommitPolicy(changes);
         final CommitExecutor commitExecutor =
-                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, false);
+                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, emptyCommitPolicy);
         return commit(baseRevision, commitExecutor, normBaseRevision -> {
             if (!directExecution) {
                 return changes;
@@ -880,7 +904,8 @@ class GitRepository implements Repository {
         requireNonNull(markup, "markup");
         requireNonNull(transformer, "transformer");
         final CommitExecutor commitExecutor =
-                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, false);
+                new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup,
+                                   EmptyCommitPolicy.DISALLOW);
         return commit(baseRevision, commitExecutor,
                       normBaseRevision -> blockingPreviewDiff(
                               normBaseRevision, new TransformingChangesApplier(transformer)).values());
@@ -1290,7 +1315,7 @@ class GitRepository implements Repository {
 
                     try {
                         new CommitExecutor(newRepo, c.when(), c.author(), c.summary(),
-                                           c.detail(), c.markup(), false)
+                                           c.detail(), c.markup(), EmptyCommitPolicy.DISALLOW)
                                 .execute(baseRevision, normBaseRevision -> blockingPreviewDiff(
                                         normBaseRevision, new DefaultChangesApplier(changes)).values());
                         previousNonEmptyRevision = revision;
@@ -1298,7 +1323,7 @@ class GitRepository implements Repository {
                         // NB: We allow an empty commit here because an old version of Central Dogma had a bug
                         //     which allowed the creation of an empty commit.
                         new CommitExecutor(newRepo, c.when(), c.author(), c.summary(),
-                                                  c.detail(), c.markup(), true)
+                                           c.detail(), c.markup(), EmptyCommitPolicy.ALLOW)
                                 .execute(baseRevision, normBaseRevision -> blockingPreviewDiff(
                                         normBaseRevision, new DefaultChangesApplier(changes)).values());
                     }
