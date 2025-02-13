@@ -30,6 +30,7 @@ import com.linecorp.centraldogma.common.Revision;
 @JsonInclude(Include.NON_EMPTY)
 public class WatchResultDto {
 
+    // TODO(ikhoon): Remove the revision field because it is already included in the entry field.
     private final Revision revision;
     private final EntryDto<?> entry;
 

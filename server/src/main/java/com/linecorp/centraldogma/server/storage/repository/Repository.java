@@ -157,7 +157,21 @@ public interface Repository {
      * @see #getOrNull(Revision, Query)
      */
     default <T> CompletableFuture<Entry<T>> get(Revision revision, Query<T> query) {
-        return getOrNull(revision, query).thenApply(res -> {
+        return get(revision, query, -1);
+    }
+
+    /**
+     * Performs the specified {@link Query}. If {@code includeLastFileRevision} is greater than 1, it attempts
+     * to find the last file revision from the last {@code includeLastFileRevision} commits.
+     *
+     *
+     * @throws EntryNotFoundException if there's no entry at the path specified in the {@link Query}
+     *
+     * @see #getOrNull(Revision, Query)
+     */
+    default <T> CompletableFuture<Entry<T>> get(Revision revision, Query<T> query,
+                                                int includeLastFileRevision) {
+        return getOrNull(revision, query, includeLastFileRevision).thenApply(res -> {
             if (res == null) {
                 throw new EntryNotFoundException(revision, query.path());
             }
@@ -177,7 +191,29 @@ public interface Repository {
     default CompletableFuture<Entry<?>> getOrNull(Revision revision, String path) {
         validateFilePath(path, "path");
 
-        return find(revision, path, FIND_ONE_WITH_CONTENT).thenApply(findResult -> findResult.get(path));
+        return getOrNull(revision, path, -1);
+    }
+
+    /**
+     * Retrieves an {@link Entry} at the specified {@code path}. If {@code includeLastFileRevision} is greater
+     * than 1, it attempts to find the last file revision from the last {@code includeLastFileRevision}
+     * commits.
+     *
+     * @return the {@link Entry} at the specified {@code path} if exists.
+     *         The specified {@code other} if there's no such {@link Entry}.
+     *
+     * @see #get(Revision, String)
+     */
+    default CompletableFuture<Entry<?>> getOrNull(Revision revision, String path, int includeLastFileRevision) {
+        validateFilePath(path, "path");
+        final Map<FindOption<?>, ?> options;
+        if (includeLastFileRevision > 1) {
+            options = ImmutableMap.of(FindOption.FETCH_LAST_FILE_REVISION, includeLastFileRevision,
+                                      FindOption.FETCH_CONTENT, true);
+        } else {
+            options = FIND_ONE_WITH_CONTENT;
+        }
+        return find(revision, path, options).thenApply(findResult -> findResult.get(path));
     }
 
     /**
@@ -189,10 +225,24 @@ public interface Repository {
      * @see #get(Revision, Query)
      */
     default <T> CompletableFuture<Entry<T>> getOrNull(Revision revision, Query<T> query) {
+        return getOrNull(revision, query, -1);
+    }
+
+    /**
+     * Performs the specified {@link Query}. If {@code includeLastFileRevision} is greater than 1, it attempts
+     * to find the last file revision from the last {@code includeLastFileRevision} commits.
+     *
+     * @return the {@link Entry} on a successful query.
+     *         The specified {@code other} on a failure due to missing entry.
+     *
+     * @see #get(Revision, Query)
+     */
+    default <T> CompletableFuture<Entry<T>> getOrNull(Revision revision, Query<T> query,
+                                                      int includeLastFileRevision) {
         requireNonNull(query, "query");
         requireNonNull(revision, "revision");
 
-        return getOrNull(revision, query.path()).thenApply(result -> {
+        return getOrNull(revision, query.path(), includeLastFileRevision).thenApply(result -> {
             if (result == null) {
                 return null;
             }

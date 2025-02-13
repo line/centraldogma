@@ -20,8 +20,6 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
-import com.linecorp.centraldogma.internal.Util;
-
 /**
  * An option which is specified when retrieving one or more files.
  *
@@ -45,14 +43,24 @@ public class FindOption<T> {
                 }
             };
 
+    /**
+     * The maximum number of revisions to search for the last modified file revision. The default value is
+     * {@code 1} which means the latest revision is returned instead retrieving the old revisions.
+     */
+    public static final FindOption<Integer> FETCH_LAST_FILE_REVISION =
+            new FindOption<Integer>("FETCH_LAST_REVISION", 1) {
+                @Override
+                boolean isValid(Integer value) {
+                    return value >= 1;
+                }
+            };
+
     private final String name;
     private final T defaultValue;
-    private final String fullName;
 
     FindOption(String name, T defaultValue) {
         this.name = name;
         this.defaultValue = defaultValue;
-        fullName = Util.simpleTypeName(FindOption.class) + '.' + name;
     }
 
     /**
