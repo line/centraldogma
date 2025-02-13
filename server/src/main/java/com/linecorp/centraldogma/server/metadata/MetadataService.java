@@ -519,30 +519,30 @@ public class MetadataService {
         final String commitSummary = "Remove the token '" + appId + "' from the project '" + projectName + '\'';
         final ProjectMetadataTransformer transformer =
                 new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
-            final Map<String, TokenRegistration> tokens = projectMetadata.tokens();
-            final Map<String, TokenRegistration> newTokens;
-            if (tokens.get(appId) == null) {
-                if (!quiet) {
-                    throw new TokenNotFoundException(
-                            "failed to find the token " + appId + " in project " + projectName);
-                }
-                newTokens = tokens;
-            } else {
-                newTokens = tokens.entrySet()
-                                  .stream()
-                                  .filter(entry -> !entry.getKey().equals(appId))
-                                  .collect(toImmutableMap(Entry::getKey, Entry::getValue));
-            }
+                    final Map<String, TokenRegistration> tokens = projectMetadata.tokens();
+                    final Map<String, TokenRegistration> newTokens;
+                    if (tokens.get(appId) == null) {
+                        if (!quiet) {
+                            throw new TokenNotFoundException(
+                                    "failed to find the token " + appId + " in project " + projectName);
+                        }
+                        newTokens = tokens;
+                    } else {
+                        newTokens = tokens.entrySet()
+                                          .stream()
+                                          .filter(entry -> !entry.getKey().equals(appId))
+                                          .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+                    }
 
-            final ImmutableMap<String, RepositoryMetadata> newRepos =
-                    removeTokenFromRepositories(appId, projectMetadata);
-            return new ProjectMetadata(projectMetadata.name(),
-                                       newRepos,
-                                       projectMetadata.members(),
-                                       newTokens,
-                                       projectMetadata.creation(),
-                                       projectMetadata.removal());
-        });
+                    final ImmutableMap<String, RepositoryMetadata> newRepos =
+                            removeTokenFromRepositories(appId, projectMetadata);
+                    return new ProjectMetadata(projectMetadata.name(),
+                                               newRepos,
+                                               projectMetadata.members(),
+                                               newTokens,
+                                               projectMetadata.creation(),
+                                               projectMetadata.removal());
+                });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
@@ -850,30 +850,42 @@ public class MetadataService {
             return CompletableFuture.completedFuture(RepositoryRole.ADMIN);
         }
         if (user instanceof UserWithToken) {
-            return findRepositoryRole(projectName, repoName, ((UserWithToken) user).token().appId());
+            return findRepositoryRole(projectName, repoName, ((UserWithToken) user).token());
         }
         return findRepositoryRole0(projectName, repoName, user);
     }
 
     /**
-     * Finds {@link RepositoryRole} of the specified {@code appId} from the specified
+     * Finds {@link RepositoryRole} of the specified {@link Token} from the specified
      * {@code repoName} in the specified {@code projectName}. If the {@code appId} is not found,
      * it will return {@code null}.
      */
     public CompletableFuture<RepositoryRole> findRepositoryRole(String projectName, String repoName,
-                                                                String appId) {
+                                                                Token token) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
-        requireNonNull(appId, "appId");
+        requireNonNull(token, "token");
 
         return getProject(projectName).thenApply(metadata -> {
             final RepositoryMetadata repositoryMetadata = metadata.repo(repoName);
             final Roles roles = repositoryMetadata.roles();
+            final String appId = token.appId();
             final RepositoryRole tokenRepositoryRole = roles.tokens().get(appId);
 
             final TokenRegistration projectTokenRegistration = metadata.tokens().get(appId);
-            final ProjectRole projectRole = projectTokenRegistration != null ? projectTokenRegistration.role()
-                                                                             : ProjectRole.GUEST;
+            final ProjectRole projectRole;
+            if (projectTokenRegistration != null) {
+                projectRole = projectTokenRegistration.role();
+            } else {
+                // System admin tokens were checked before this method.
+                assert !token.isSystemAdmin();
+                if (token.allowGuestAccess()) {
+                    projectRole = ProjectRole.GUEST;
+                } else {
+                    // The token is not allowed with the GUEST permission.
+                    return null;
+                }
+            }
             return repositoryRole(roles, tokenRepositoryRole, projectRole);
         });
     }
@@ -989,7 +1001,10 @@ public class MetadataService {
 
         checkArgument(secret.startsWith(SECRET_PREFIX), "secret must start with: " + SECRET_PREFIX);
 
-        final Token newToken = new Token(appId, secret, isSystemAdmin, UserAndTimestamp.of(author));
+        // Does not allow guest access for normal tokens.
+        final boolean allowGuestAccess = isSystemAdmin;
+        final Token newToken = new Token(appId, secret, isSystemAdmin, allowGuestAccess,
+                                         UserAndTimestamp.of(author));
         final JsonPointer appIdPath = JsonPointer.compile("/appIds" + encodeSegment(newToken.id()));
         final String newTokenSecret = newToken.secret();
         assert newTokenSecret != null;
@@ -1024,8 +1039,8 @@ public class MetadataService {
             final String secret = token.secret();
             assert secret != null;
             final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(),
-                                             token.isSystemAdmin(), token.creation(),
-                                             token.deactivation(), userAndTimestamp);
+                                             token.isSystemAdmin(), token.allowGuestAccess(),
+                                             token.creation(), token.deactivation(), userAndTimestamp);
             return new Tokens(updateMap(tokens.appIds(), appId, newToken), tokens.secrets());
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
@@ -1087,7 +1102,8 @@ public class MetadataService {
             assert secret != null;
             final Map<String, String> newSecrets =
                     addToMap(tokens.secrets(), secret, appId); // Note that the key is secret not appId.
-            final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(), token.creation());
+            final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(),
+                                             token.allowGuestAccess(), token.creation());
             return new Tokens(updateMap(tokens.appIds(), appId, newToken), newSecrets);
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
@@ -1111,7 +1127,8 @@ public class MetadataService {
             final String secret = token.secret();
             assert secret != null;
             final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(),
-                                             token.isSystemAdmin(), token.creation(), userAndTimestamp, null);
+                                             token.isSystemAdmin(), token.allowGuestAccess(), token.creation(),
+                                             userAndTimestamp, null);
             final Map<String, Token> newAppIds = updateMap(tokens.appIds(), appId, newToken);
             final Map<String, String> newSecrets =
                     removeFromMap(tokens.secrets(), secret); // Note that the key is secret not appId.

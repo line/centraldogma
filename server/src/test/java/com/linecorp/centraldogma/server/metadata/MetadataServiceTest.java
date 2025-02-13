@@ -63,13 +63,15 @@ class MetadataServiceTest {
     private static final String project1 = "foo";
     private static final String repo1 = "apple";
     private static final String repo2 = "facebook";
-    private static final String app1 = "app-1";
-    private static final String app2 = "app-2";
     private static final Author author = Author.DEFAULT;
     private static final User owner = new User(Author.DEFAULT.email());
     private static final User guest = new User("guest@localhost.com");
     private static final User user1 = new User("user1@localhost.com");
     private static final User user2 = new User("user2@localhost.com");
+    private static final String app1 = "app-1";
+    private static final String app2 = "app-2";
+    private static final Token appToken1 = new Token(app1, "secret", false, true, UserAndTimestamp.of(author));
+    private static final Token appToken2 = new Token(app2, "secret", false, true, UserAndTimestamp.of(author));
 
     @Test
     void project() {
@@ -291,13 +293,13 @@ class MetadataServiceTest {
                                     .join())
                 .hasCauseInstanceOf(TokenNotFoundException.class);
 
-        assertThat(mds.findRepositoryRole(project1, repo1, app1).join()).isNull();
+        assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join()).isNull();
 
         // Be a token of the project.
         mds.addToken(author, project1, app1, ProjectRole.MEMBER).join();
         mds.addTokenRepositoryRole(author, project1, repo1, app1, RepositoryRole.READ).join();
 
-        assertThat(mds.findRepositoryRole(project1, repo1, app1).join()).isSameAs(RepositoryRole.READ);
+        assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join()).isSameAs(RepositoryRole.READ);
 
         // Try once more
         assertThatThrownBy(() -> mds.addToken(author, project1, app1, ProjectRole.MEMBER).join())
@@ -308,7 +310,7 @@ class MetadataServiceTest {
 
         final Revision revision =
                 mds.updateTokenRepositoryRole(author, project1, repo1, app1, RepositoryRole.WRITE).join();
-        assertThat(mds.findRepositoryRole(project1, repo1, app1).join()).isSameAs(RepositoryRole.WRITE);
+        assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join()).isSameAs(RepositoryRole.WRITE);
 
         // Update invalid token
         assertThatThrownBy(() -> mds.updateTokenRepositoryRole(author, project1, repo1, app2,
@@ -323,7 +325,7 @@ class MetadataServiceTest {
         assertThatThrownBy(() -> mds.removeTokenRepositoryRole(author, project1, repo1, app1).join())
                 .hasCauseInstanceOf(ChangeConflictException.class);
 
-        assertThat(mds.findRepositoryRole(project1, repo1, app1).join()).isNull();
+        assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join()).isNull();
     }
 
     @Test
@@ -367,14 +369,14 @@ class MetadataServiceTest {
         mds.addTokenRepositoryRole(author, project1, repo1, app1, RepositoryRole.READ).join();
         mds.addTokenRepositoryRole(author, project1, repo1, app2, RepositoryRole.READ).join();
 
-        assertThat(mds.findRepositoryRole(project1, repo1, app1).join()).isSameAs(RepositoryRole.READ);
+        assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join()).isSameAs(RepositoryRole.READ);
 
         // Remove 'app1' from the project.
         mds.removeToken(author, project1, app1).join();
         // Remove token repository role of 'app1', too.
-        assertThat(mds.findRepositoryRole(project1, repo1, app1).join()).isNull();
+        assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join()).isNull();
 
-        assertThat(mds.findRepositoryRole(project1, repo1, app2).join()).isSameAs(RepositoryRole.READ);
+        assertThat(mds.findRepositoryRole(project1, repo1, appToken2).join()).isSameAs(RepositoryRole.READ);
 
         // Remove 'app1' again.
         assertThatThrownBy(() -> mds.removeToken(author, project1, app1).join())
@@ -395,15 +397,15 @@ class MetadataServiceTest {
         mds.addTokenRepositoryRole(author, project1, repo1, app1, RepositoryRole.READ).join();
         mds.addTokenRepositoryRole(author, project1, repo1, app2, RepositoryRole.READ).join();
 
-        assertThat(mds.findRepositoryRole(project1, repo1, app1).join()).isSameAs(RepositoryRole.READ);
+        assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join()).isSameAs(RepositoryRole.READ);
 
         // Remove 'app1' from the system completely.
         mds.destroyToken(author, app1).join();
         mds.purgeToken(author, app1);
 
-        assertThat(mds.findRepositoryRole(project1, repo1, app1).join()).isNull();
+        assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join()).isNull();
 
-        assertThat(mds.findRepositoryRole(project1, repo1, app2).join()).isSameAs(RepositoryRole.READ);
+        assertThat(mds.findRepositoryRole(project1, repo1, appToken2).join()).isSameAs(RepositoryRole.READ);
 
         // Remove 'app1' again.
         assertThatThrownBy(() -> mds.destroyToken(author, app1).join())

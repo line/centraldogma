@@ -51,6 +51,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -1130,6 +1131,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             final JsonNode node = toJson(res, JsonNodeType.OBJECT);
             final JsonNode exceptionNode = node.get("exception");
             final JsonNode messageNode = node.get("message");
+            String message = messageNode.textValue();
 
             if (exceptionNode != null) {
                 final String typeName = exceptionNode.textValue();
@@ -1137,9 +1139,15 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                     final Function<String, CentralDogmaException> exceptionFactory =
                             EXCEPTION_FACTORIES.get(typeName);
                     if (exceptionFactory != null) {
-                        throw exceptionFactory.apply(messageNode.textValue());
+                        throw exceptionFactory.apply(message);
                     }
                 }
+            }
+            if (status == HttpStatus.FORBIDDEN) {
+                if (Strings.isNullOrEmpty(message)) {
+                    message = "Access denied";
+                }
+                throw new PermissionException(message);
             }
         }
 

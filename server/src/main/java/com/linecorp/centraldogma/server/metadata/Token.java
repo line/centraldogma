@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;
@@ -28,6 +29,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.Util;
 
 /**
@@ -53,6 +55,8 @@ public final class Token implements Identifiable {
      */
     private final boolean isSystemAdmin;
 
+    private final boolean allowGuestAccess;
+
     /**
      * Specifies when this token is created by whom.
      */
@@ -67,8 +71,9 @@ public final class Token implements Identifiable {
     @Nullable
     private final UserAndTimestamp deletion;
 
-    Token(String appId, String secret, boolean isSystemAdmin, UserAndTimestamp creation) {
-        this(appId, secret, null, isSystemAdmin, creation, null, null);
+    Token(String appId, String secret, boolean isSystemAdmin, boolean allowGuestAccess,
+          UserAndTimestamp creation) {
+        this(appId, secret, null, isSystemAdmin, allowGuestAccess, creation, null, null);
     }
 
     /**
@@ -80,6 +85,7 @@ public final class Token implements Identifiable {
                  // TODO(minwoox): Remove admin field after all tokens are migrated.
                  @JsonProperty("admin") @Nullable Boolean isAdmin,
                  @JsonProperty("systemAdmin") @Nullable Boolean isSystemAdmin,
+                 @JsonProperty("allowGuestAccess") @Nullable Boolean allowGuestAccess,
                  @JsonProperty("creation") UserAndTimestamp creation,
                  @JsonProperty("deactivation") @Nullable UserAndTimestamp deactivation,
                  @JsonProperty("deletion") @Nullable UserAndTimestamp deletion) {
@@ -87,15 +93,18 @@ public final class Token implements Identifiable {
         this.appId = Util.validateFileName(appId, "appId");
         this.secret = Util.validateFileName(secret, "secret");
         this.isSystemAdmin = isSystemAdmin != null ? isSystemAdmin : isAdmin;
+        // Allow guest access by default for backward compatibility.
+        this.allowGuestAccess = firstNonNull(allowGuestAccess, true);
         this.creation = requireNonNull(creation, "creation");
         this.deactivation = deactivation;
         this.deletion = deletion;
     }
 
-    private Token(String appId, boolean isSystemAdmin, UserAndTimestamp creation,
+    private Token(String appId, boolean isSystemAdmin, boolean allowGuestAccess, UserAndTimestamp creation,
                   @Nullable UserAndTimestamp deactivation, @Nullable UserAndTimestamp deletion) {
         this.appId = Util.validateFileName(appId, "appId");
         this.isSystemAdmin = isSystemAdmin;
+        this.allowGuestAccess = allowGuestAccess;
         this.creation = requireNonNull(creation, "creation");
         this.deactivation = deactivation;
         this.deletion = deletion;
@@ -130,6 +139,14 @@ public final class Token implements Identifiable {
     @JsonProperty
     public boolean isSystemAdmin() {
         return isSystemAdmin;
+    }
+
+    /**
+     * Returns whether this token allows {@link ProjectRole#GUEST} access.
+     */
+    @JsonProperty
+    public boolean allowGuestAccess() {
+        return allowGuestAccess;
     }
 
     /**
@@ -180,6 +197,7 @@ public final class Token implements Identifiable {
         return MoreObjects.toStringHelper(this).omitNullValues()
                           .add("appId", appId())
                           .add("isSystemAdmin", isSystemAdmin())
+                          .add("allowGuestAccess", allowGuestAccess())
                           .add("creation", creation())
                           .add("deactivation", deactivation())
                           .add("deletion", deletion())
@@ -190,7 +208,7 @@ public final class Token implements Identifiable {
      * Returns a new {@link Token} instance without its secret.
      */
     public Token withoutSecret() {
-        return new Token(appId(), isSystemAdmin(), creation(), deactivation(), deletion());
+        return new Token(appId(), isSystemAdmin(), allowGuestAccess(), creation(), deactivation(), deletion());
     }
 
     /**
@@ -203,6 +221,7 @@ public final class Token implements Identifiable {
         }
         final String secret = secret();
         assert secret != null;
-        return new Token(appId(), secret, null, isSystemAdmin, creation(), deactivation(), deletion());
+        return new Token(appId(), secret, null, isSystemAdmin, allowGuestAccess(), creation(),
+                         deactivation(), deletion());
     }
 }
