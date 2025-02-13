@@ -17,17 +17,21 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.throwUnsafelyIfNonNull;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITH_CONTENT;
 import static java.util.Objects.requireNonNull;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.RequestContext;
@@ -102,17 +106,40 @@ final class CachingRepository implements Repository {
         requireNonNull(options, "options");
 
         final Revision normalizedRevision = normalizeNow(revision);
-        return cache.get(new CacheableFindCall(repo, normalizedRevision, ALL_PATH, options))
+
+        Map<FindOption<?>, ?> cacheableOptions = options;
+        final Integer maxEntries = (Integer) options.get(FindOption.MAX_ENTRIES);
+        if (maxEntries != null) {
+            final ImmutableMap.Builder<FindOption<?>, Object> newOptions = ImmutableMap.builder();
+            options.forEach((key, value) -> {
+                if (key != FindOption.MAX_ENTRIES) {
+                    newOptions.put(key, value);
+                }
+            });
+            cacheableOptions = newOptions.build();
+        }
+
+        return cache.get(new CacheableFindCall(repo, normalizedRevision, ALL_PATH, cacheableOptions))
                     .handleAsync((all, cause) -> {
                         throwUnsafelyIfNonNull(cause);
 
-                        if (pathPattern.equals(ALL_PATH)) {
+                        if (all.isEmpty()) {
                             return all;
                         }
-                        final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
-                        return all.entrySet().stream()
-                                  .filter(entry -> filter.matches(entry.getKey()))
-                                  .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+
+                        Stream<Map.Entry<String, Entry<?>>> stream = all.entrySet().stream();
+                        if (!pathPattern.equals(ALL_PATH)) {
+                            final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
+                            stream = stream.filter(entry -> filter.matches(entry.getKey()));
+                        }
+                        if (maxEntries != null) {
+                            stream = stream.limit(maxEntries);
+                        }
+
+                        // Use LinkedHashMap to 1) keep the order and 2) allow callers to mutate it.
+                        return stream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                                                               (oldV, newV) -> oldV,
+                                                               LinkedHashMap::new));
                     }, executor());
     }
 

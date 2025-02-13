@@ -53,12 +53,12 @@ public final class QueryConverter extends Converter<com.linecorp.centraldogma.co
     protected com.linecorp.centraldogma.common.Query<?> doBackward(Query query) {
         switch (query.getType()) {
             case IDENTITY:
+            case IDENTITY_TEXT:
+            case IDENTITY_JSON:
+                // Apply the same approach used in QueryRequestConverter.
+                // This workaround is needed to let users read a JSON data as a text.
                 return com.linecorp.centraldogma.common.Query.of(
                         com.linecorp.centraldogma.common.QueryType.IDENTITY, query.getPath());
-            case IDENTITY_TEXT:
-                return com.linecorp.centraldogma.common.Query.ofText(query.getPath());
-            case IDENTITY_JSON:
-                return com.linecorp.centraldogma.common.Query.ofJson(query.getPath());
             case JSON_PATH:
                 return com.linecorp.centraldogma.common.Query.ofJsonPath(query.getPath(),
                                                                          query.getExpressions());
