@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2025 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -16,12 +16,12 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC;
 import static org.mockito.Mockito.mock;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ThreadLocalRandom;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Param;
@@ -31,34 +31,43 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.infra.Blackhole;
 
+import com.linecorp.armeria.common.metric.NoopMeterRegistry;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
 @State(Scope.Benchmark)
-public class GitRepositoryBenchmark {
+public class GitRepositoryHistoryBenchmark {
 
     private static final Author AUTHOR = Author.ofEmail("user@example.com");
 
-    @Param({ "0", "2000", "4000", "6000", "8000" })
-    private int previousCommits;
+    @Param({ "100", "1000"})
+    private int noCommits;
+
+    @Param({ "1", "3", "5", "10", "30" })
+    private int noFiles;
 
     private File repoDir;
     private GitRepository repo;
     private int currentRevision;
+    private RepositoryCache cache;
 
     @Setup
     public void init() throws Exception {
         repoDir = Files.createTempDirectory("jmh-gitrepository.").toFile();
+        cache = new RepositoryCache(DEFAULT_REPOSITORY_CACHE_SPEC, NoopMeterRegistry.get());
         repo = new GitRepository(mock(Project.class), repoDir, ForkJoinPool.commonPool(),
-                                 System.currentTimeMillis(), AUTHOR, null);
+                                 System.currentTimeMillis(), AUTHOR,
+                                 cache);
         currentRevision = 1;
 
-        for (int i = 0; i < previousCommits; i++) {
-            addCommit();
+        // 1000 is the maximum number of allowed commits for a single history query.
+        for (int i = 0; i < noCommits; i++) {
+            addCommit(i);
         }
     }
 
@@ -69,21 +78,19 @@ public class GitRepositoryBenchmark {
     }
 
     @Benchmark
-    public void commit(Blackhole bh) throws Exception {
-        bh.consume(addCommit());
+    public void history(Blackhole bh) throws Exception {
+        cache.clear();
+        for (int i = 0; i < noFiles; i++) {
+            bh.consume(repo.blockingHistory(new Revision(noCommits), Revision.INIT,
+                                            "/dir/file_" + i + ".txt", 1));
+        }
     }
 
-    private Revision addCommit() {
-        final Revision revision =
-                repo.commit(new Revision(currentRevision), currentRevision * 1000L, AUTHOR,
-                            "Summary", "Detail", Markup.PLAINTEXT,
-                            Change.ofTextUpsert("/file_" + rnd() + ".txt",
-                                                String.valueOf(currentRevision))).join().revision();
+    private void addCommit(int index) {
+        repo.commit(new Revision(currentRevision), currentRevision * 1000L, AUTHOR,
+                    "Summary", "Detail", Markup.PLAINTEXT,
+                    Change.ofTextUpsert("/dir/file_" + index + ".txt",
+                                        String.valueOf(currentRevision))).join();
         currentRevision++;
-        return revision;
-    }
-
-    private static int rnd() {
-        return ThreadLocalRandom.current().nextInt(10);
     }
 }

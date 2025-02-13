@@ -67,9 +67,12 @@ class CacheTest {
         final Map<String, Double> meters2 = metersSupplier.get();
         // Metadata needs to access to check a write quota (one cache miss).
         if (clientType == ClientType.LEGACY) {
-            // NB: A push operation involves a history() operation to retrieve the last commit.
-            //     Therefore we should observe one cache miss. (Thrift only)
-            assertThat(missCount(meters2)).isEqualTo(missCount(meters1) + 2);
+            // NB: A push operation involves a history() operation to retrieve the last commit when pushing.
+            //     Therefore we should observe five cache miss. (Thrift only)
+            assertThat(missCount(meters2)).isEqualTo(
+                    missCount(meters1) + 1 +
+                    1 + // (CacheableHistoryCall)
+                    4); // (CacheableObjectLoaderCall: 2 for revision2 and 2 for revision1)
         } else {
             assertThat(missCount(meters2)).isEqualTo(missCount(meters1) + 1);
         }
@@ -108,16 +111,40 @@ class CacheTest {
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
+        double prevMissCount = missCount(metersSupplier.get());
         final PushResult res1 = client.forRepo(project, REPO_FOO)
                                       .commit("Add a file", Change.ofTextUpsert("/foo.txt", "bar"))
                                       .push()
                                       .join();
-
-        final Map<String, Double> meters1 = metersSupplier.get();
+        double currentMissCount = missCount(metersSupplier.get());
+        // Metadata needs to access to check a write quota (one cache miss).
+        if (clientType == ClientType.LEGACY) {
+            // NB: A push operation involves a history() operation to retrieve the last commit when pushing.
+            //     Therefore we should observe five cache miss. (Thrift only)
+            assertThat(currentMissCount).isEqualTo(
+                    prevMissCount + 1 +
+                    1 + // (CacheableHistoryCall)
+                    4); // (CacheableObjectLoaderCall: 2 for revision2 and 2 for revision1)
+        } else {
+            assertThat(currentMissCount).isEqualTo(prevMissCount + 1);
+        }
+        prevMissCount = currentMissCount;
 
         // Get the history in various combination of from/to revisions.
         final List<Commit> history1 =
                 client.getHistory(project, REPO_FOO, HEAD, new Revision(-2), PathPattern.all(), 0).join();
+
+        currentMissCount = missCount(metersSupplier.get());
+        if (clientType == ClientType.LEGACY) {
+            assertThat(currentMissCount).isEqualTo(prevMissCount + 1); // (CacheableHistoryCall)
+        } else {
+            assertThat(currentMissCount).isEqualTo(
+                    prevMissCount +
+                    1 + // (CacheableHistoryCall)
+                    4); // (CacheableObjectLoaderCall: 2 for revision2 and 2 for revision1)
+        }
+        prevMissCount = currentMissCount;
+
         final List<Commit> history2 =
                 client.getHistory(project, REPO_FOO, HEAD, INIT, PathPattern.all(), 0).join();
         final List<Commit> history3 =
@@ -130,12 +157,9 @@ class CacheTest {
         assertThat(history1).isEqualTo(history2);
         assertThat(history1).isEqualTo(history3);
         assertThat(history1).isEqualTo(history4);
-
-        final Map<String, Double> meters2 = metersSupplier.get();
-
-        // Should miss once and hit 3 times.
-        assertThat(missCount(meters2)).isEqualTo(missCount(meters1) + 1);
-        assertThat(hitCount(meters2)).isEqualTo(hitCount(meters1) + 3);
+        currentMissCount = missCount(metersSupplier.get());
+        // All cached.
+        assertThat(currentMissCount).isEqualTo(prevMissCount);
     }
 
     @ParameterizedTest(name = "getDiffs [{index}: {0}]")
