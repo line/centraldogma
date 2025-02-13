@@ -7,20 +7,22 @@ import { DeleteConfirmationModal } from 'dogma/common/components/DeleteConfirmat
 
 export const DeleteMirror = ({
   projectName,
+  repoName,
   id,
   deleteMirror,
   isLoading,
 }: {
   projectName: string;
+  repoName: string;
   id: string;
-  deleteMirror: (projectName: string, id: string) => Promise<void>;
+  deleteMirror: (projectName: string, repoName: string, id: string) => Promise<void>;
   isLoading: boolean;
 }): JSX.Element => {
   const { isOpen, onToggle, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
   const handleDelete = async () => {
     try {
-      await deleteMirror(projectName, id);
+      await deleteMirror(projectName, repoName, id);
       dispatch(newNotification('Mirror deleted.', `Successfully deleted ${id}`, 'success'));
       onClose();
     } catch (error) {
@@ -38,6 +40,7 @@ export const DeleteMirror = ({
         id={id}
         type={'mirror'}
         projectName={projectName}
+        repoName={repoName}
         handleDelete={handleDelete}
         isLoading={isLoading}
       />

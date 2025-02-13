@@ -158,7 +158,7 @@ const CredentialView = ({ projectName, repoName, credential }: CredentialViewPro
                   <Badge colorScheme="purple">{credential.type}</Badge>
                 </Td>
               </Tr>
-              {credential.type === 'public_key' && (
+              {credential.type === 'SSH_KEY' && (
                 <>
                   <Tr>
                     <HeadRow>
@@ -196,7 +196,7 @@ const CredentialView = ({ projectName, repoName, credential }: CredentialViewPro
                   </Tr>
                 </>
               )}
-              {credential.type === 'password' && (
+              {credential.type === 'PASSWORD' && (
                 <>
                   <Tr>
                     <HeadRow>
@@ -215,7 +215,7 @@ const CredentialView = ({ projectName, repoName, credential }: CredentialViewPro
                 </>
               )}
 
-              {credential.type === 'access_token' && (
+              {credential.type === 'ACCESS_TOKEN' && (
                 <Tr>
                   <HeadRow>
                     <AlignedIcon as={GoKey} /> Access Token

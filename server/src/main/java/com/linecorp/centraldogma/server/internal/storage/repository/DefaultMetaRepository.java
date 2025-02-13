@@ -18,12 +18,15 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
+import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConverter.convertToMirror;
+import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConverter.converterToMirrorConfig;
 
-import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
@@ -52,35 +55,40 @@ import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
-import com.linecorp.centraldogma.server.mirror.MirrorUtil;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public final class DefaultMetaRepository extends RepositoryWrapper implements MetaRepository {
 
-    private static final String PATH_CREDENTIALS = "/credentials/";
+    private static final Pattern MIRROR_PATH_PATTERN = Pattern.compile("/repos/[^/]+/mirrors/[^/]+\\.json");
 
-    private static final String PATH_MIRRORS = "/mirrors/";
+    private static final Pattern REPO_CREDENTIAL_PATH_PATTERN =
+            Pattern.compile("/repos/[^/]+/credentials/[^/]+\\.json");
+
+    private static final Pattern PROJECT_CREDENTIAL_PATH_PATTERN =
+            Pattern.compile("/credentials/[^/]+\\.json");
+
+    public static final String CREDENTIALS = "/credentials/";
+
+    public static final String LEGACY_MIRRORS_PATH = "/mirrors/";
+
+    public static final String ALL_MIRRORS = "/repos/*/mirrors/*.json";
 
     public static boolean isMetaFile(String path) {
         return "/mirrors.json".equals(path) || "/credentials.json".equals(path) ||
-               (path.endsWith(".json") && (path.startsWith(PATH_CREDENTIALS) || path.startsWith(PATH_MIRRORS)));
+               (path.endsWith(".json") &&
+                (path.startsWith(CREDENTIALS) || path.startsWith(LEGACY_MIRRORS_PATH))) ||
+               isMirrorOrCredentialFile(path);
     }
 
-    public static boolean isMirrorFile(String path) {
-        return path.endsWith(".json") && (path.startsWith(PATH_CREDENTIALS) || path.startsWith(PATH_MIRRORS));
+    public static boolean isMirrorOrCredentialFile(String path) {
+        return MIRROR_PATH_PATTERN.matcher(path).matches() ||
+               REPO_CREDENTIAL_PATH_PATTERN.matcher(path).matches() ||
+               PROJECT_CREDENTIAL_PATH_PATTERN.matcher(path).matches();
     }
 
-    public static String credentialFile(String credentialId) {
-        return PATH_CREDENTIALS + credentialId + ".json";
-    }
-
-    public static String credentialFile(String repoName, String credentialId) {
-        return "/repos/" + repoName + credentialFile(credentialId);
-    }
-
-    public static String mirrorFile(String mirrorId) {
-        return PATH_MIRRORS + mirrorId + ".json";
+    public static String mirrorFile(String repoName, String mirrorId) {
+        return "/repos/" + repoName + "/mirrors/" + mirrorId + ".json";
     }
 
     public DefaultMetaRepository(Repository repo) {
@@ -94,17 +102,27 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
 
     @Override
     public CompletableFuture<List<Mirror>> mirrors(boolean includeDisabled) {
-        if (includeDisabled) {
-            return allMirrors();
-        }
-        return allMirrors().thenApply(mirrors -> {
-            return mirrors.stream().filter(Mirror::enabled).collect(toImmutableList());
-        });
+        final CompletableFuture<List<Mirror>> future = allMirrors();
+        return maybeFilter(future, includeDisabled);
     }
 
     @Override
-    public CompletableFuture<Mirror> mirror(String id, Revision revision) {
-        final String mirrorFile = mirrorFile(id);
+    public CompletableFuture<List<Mirror>> mirrors(String repoName, boolean includeDisabled) {
+        final CompletableFuture<List<Mirror>> future = allMirrors(repoName);
+        return maybeFilter(future, includeDisabled);
+    }
+
+    private static CompletableFuture<List<Mirror>> maybeFilter(CompletableFuture<List<Mirror>> future,
+                                                               boolean includeDisabled) {
+        if (includeDisabled) {
+            return future;
+        }
+        return future.thenApply(mirrors -> mirrors.stream().filter(Mirror::enabled).collect(toImmutableList()));
+    }
+
+    @Override
+    public CompletableFuture<Mirror> mirror(String repoName, String id, Revision revision) {
+        final String mirrorFile = mirrorFile(repoName, id);
         return find(revision, mirrorFile).thenCompose(entries -> {
             @SuppressWarnings("unchecked")
             final Entry<JsonNode> entry = (Entry<JsonNode>) entries.get(mirrorFile);
@@ -125,69 +143,79 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                 throw new RepositoryMetadataException("failed to load the mirror configuration", e);
             }
 
-            final CompletableFuture<List<Credential>> credentials;
-            if (Strings.isNullOrEmpty(c.credentialId())) {
-                credentials = projectCredentials();
-            } else {
-                credentials = projectCredential(c.credentialId()).thenApply(ImmutableList::of);
-            }
-            return credentials.thenApply(credentials0 -> {
-                final Mirror mirror = c.toMirror(parent(), credentials0);
-                if (mirror == null) {
-                    throw new EntryNotFoundException(
-                            "failed to find a mirror config for '" + mirrorFile + "' in " +
-                            parent().name() + '/' + name() + " (revision: " + revision + ')');
+            if (c.credentialName().isEmpty()) {
+                if (!parent().repos().exists(repoName)) {
+                    throw mirrorNotFound(revision, mirrorFile);
                 }
-                return mirror;
-            });
+                return CompletableFuture.completedFuture(convertToMirror(c, parent(), Credential.NONE));
+            }
+
+            final CompletableFuture<Credential> future = credential(c.credentialName());
+            return future.thenApply(credential -> convertToMirror(c, parent(), credential));
         });
+    }
+
+    private EntryNotFoundException mirrorNotFound(Revision revision, String mirrorFile) {
+        return new EntryNotFoundException(
+                "failed to find a mirror config for '" + mirrorFile + "' in " +
+                parent().name() + '/' + name() + " (revision: " + revision + ')');
     }
 
     private CompletableFuture<List<Mirror>> allMirrors() {
-        return find(PATH_MIRRORS + "*.json").thenCompose(entries -> {
-            if (entries.isEmpty()) {
-                return UnmodifiableFuture.completedFuture(ImmutableList.of());
-            }
+        return find(ALL_MIRRORS).thenCompose(this::handleAllMirrors);
+    }
 
-            return projectCredentials().thenApply(credentials -> {
-                try {
-                    return parseMirrors(entries, credentials);
-                } catch (JsonProcessingException e) {
-                    return Exceptions.throwUnsafely(e);
-                }
-            });
+    private CompletableFuture<List<Mirror>> allMirrors(String repoName) {
+        return find("/repos/" + repoName + "/mirrors/*.json").thenCompose(this::handleAllMirrors);
+    }
+
+    private CompletableFuture<List<Mirror>> handleAllMirrors(Map<String, Entry<?>> entries) {
+        if (entries.isEmpty()) {
+            return UnmodifiableFuture.completedFuture(ImmutableList.of());
+        }
+
+        final CompletableFuture<List<Credential>> future = allCredentials();
+        return future.thenApply(credentials -> {
+            final List<MirrorConfig> mirrorConfigs = toMirrorConfigs(entries);
+            return mirrorConfigs.stream()
+                                .map(mirrorConfig -> convertToMirror(
+                                        mirrorConfig, parent(), credentials))
+                                .filter(Objects::nonNull)
+                                .collect(toImmutableList());
         });
     }
 
-    private List<Mirror> parseMirrors(Map<String, Entry<?>> entries, List<Credential> credentials)
-            throws JsonProcessingException {
+    private CompletableFuture<List<Credential>> allCredentials() {
+        // TODO(minwoox): Optimize to read only the necessary files.
+        return find("/credentials/*.json,/repos/*/credentials/*.json").thenApply(
+                entries -> credentials(entries, null));
+    }
 
+    private List<MirrorConfig> toMirrorConfigs(Map<String, Entry<?>> entries) {
         return entries.entrySet().stream().map(entry -> {
                           final JsonNode mirrorJson = (JsonNode) entry.getValue().content();
                           if (!mirrorJson.isObject()) {
                               throw newInvalidJsonTypeException(entry.getKey(), mirrorJson);
                           }
-                          final MirrorConfig c;
                           try {
-                              c = Jackson.treeToValue(mirrorJson, MirrorConfig.class);
+                              return Jackson.treeToValue(mirrorJson, MirrorConfig.class);
                           } catch (JsonProcessingException e) {
                               return Exceptions.throwUnsafely(e);
                           }
-                          return c.toMirror(parent(), credentials);
                       })
-                      .filter(Objects::nonNull)
                       .collect(toImmutableList());
     }
 
     @Override
     public CompletableFuture<List<Credential>> projectCredentials() {
-        return find(PATH_CREDENTIALS + "*.json").thenApply(entries -> credentials(entries, null));
+        return find(CREDENTIALS + "*.json").thenApply(
+                entries -> credentials(entries, null));
     }
 
     @Override
     public CompletableFuture<List<Credential>> repoCredentials(String repoName) {
-        return find("/repos/" + repoName + PATH_CREDENTIALS + "*.json").thenApply(
-                entries -> credentials(entries, repoName));
+        return find("/repos/" + repoName + CREDENTIALS + "*.json")
+                .thenApply(entries -> credentials(entries, repoName));
     }
 
     private List<Credential> credentials(Map<String, Entry<?>> entries, @Nullable String repoName) {
@@ -206,14 +234,8 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     @Override
-    public CompletableFuture<Credential> projectCredential(String credentialId) {
-        final String credentialFile = credentialFile(credentialId);
-        return credential0(credentialFile);
-    }
-
-    @Override
-    public CompletableFuture<Credential> repoCredential(String repoName, String id) {
-        final String credentialFile = credentialFile(repoName, id);
+    public CompletableFuture<Credential> credential(String credentialName) {
+        final String credentialFile = credentialFile(credentialName);
         return credential0(credentialFile);
     }
 
@@ -271,61 +293,59 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
 
     @Override
     public CompletableFuture<Command<CommitResult>> createMirrorPushCommand(
-            MirrorRequest mirrorRequest, Author author,
+            String repoName, MirrorRequest mirrorRequest, Author author,
             @Nullable ZoneConfig zoneConfig, boolean update) {
         validateMirror(mirrorRequest, zoneConfig);
         if (update) {
-            final String summary = "Update the mirror '" + mirrorRequest.id() + '\'';
-            return mirror(mirrorRequest.id()).thenApply(mirror -> {
-                // Perform the update operation only if the mirror exists.
-                return newMirrorCommand(mirrorRequest, author, summary);
+            final String summary = "Update the mirror '" + mirrorRequest.id() + "' in " + repoName;
+            return mirror(repoName, mirrorRequest.id()).thenApply(mirror -> {
+                return newMirrorCommand(repoName, mirrorRequest, author, summary);
             });
         } else {
             String summary = "Create a new mirror from " + mirrorRequest.remoteUrl() +
                              mirrorRequest.remotePath() + '#' + mirrorRequest.remoteBranch() + " into " +
-                             mirrorRequest.localRepo() + mirrorRequest.localPath();
+                             repoName + mirrorRequest.localPath();
             if (MirrorDirection.valueOf(mirrorRequest.direction()) == MirrorDirection.REMOTE_TO_LOCAL) {
                 summary = "[Remote-to-local] " + summary;
             } else {
                 summary = "[Local-to-remote] " + summary;
             }
-            return UnmodifiableFuture.completedFuture(newMirrorCommand(mirrorRequest, author, summary));
+            return UnmodifiableFuture.completedFuture(
+                    newMirrorCommand(repoName, mirrorRequest, author, summary));
         }
     }
 
     @Override
     public CompletableFuture<Command<CommitResult>> createCredentialPushCommand(Credential credential,
                                                                                 Author author, boolean update) {
-        checkArgument(!credential.id().isEmpty(), "Credential ID should not be empty");
-
+        final String credentialName = credential.name();
         if (update) {
-            return projectCredential(credential.id()).thenApply(c -> {
-                final String summary = "Update the mirror credential '" + credential.id() + '\'';
-                return newCredentialCommand(credentialFile(credential.id()), credential, author, summary);
+            return credential(credentialName).thenApply(c -> {
+                final String summary = "Update the mirror credential '" + credentialName + '\'';
+                return newCredentialCommand(credentialFile(credentialName), credential, author, summary);
             });
         }
-        final String summary = "Create a new mirror credential for " + credential.id();
-        return UnmodifiableFuture.completedFuture(
-                newCredentialCommand(credentialFile(credential.id()), credential, author, summary));
+        final String summary = "Create a new mirror credential for " + credential.name();
+        return UnmodifiableFuture.completedFuture(newCredentialCommand(
+                credentialFile(credentialName), credential, author, summary));
     }
 
     @Override
     public CompletableFuture<Command<CommitResult>> createCredentialPushCommand(String repoName,
                                                                                 Credential credential,
                                                                                 Author author, boolean update) {
-        checkArgument(!credential.id().isEmpty(), "Credential ID should not be empty");
-
+        final String credentialName = credential.name();
         if (update) {
-            return repoCredential(repoName, credential.id()).thenApply(c -> {
+            return credential(credentialName).thenApply(c -> {
                 final String summary =
-                        "Update the mirror credential '" + repoName + '/' + credential.id() + '\'';
+                        "Update the mirror credential '" + credentialName + '\'';
                 return newCredentialCommand(
-                        credentialFile(repoName, credential.id()), credential, author, summary);
+                        credentialFile(credentialName), credential, author, summary);
             });
         }
-        final String summary = "Create a new mirror credential for " + repoName + '/' + credential.id();
+        final String summary = "Create a new mirror credential '" + credentialName + '\'';
         return UnmodifiableFuture.completedFuture(
-                newCredentialCommand(credentialFile(repoName, credential.id()), credential, author, summary));
+                newCredentialCommand(credentialFile(credentialName), credential, author, summary));
     }
 
     private Command<CommitResult> newCredentialCommand(String credentialFile, Credential credential,
@@ -336,10 +356,12 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                             change);
     }
 
-    private Command<CommitResult> newMirrorCommand(MirrorRequest mirrorRequest, Author author, String summary) {
+    private Command<CommitResult> newMirrorCommand(String repoName, MirrorRequest mirrorRequest,
+                                                   Author author, String summary) {
         final MirrorConfig mirrorConfig = converterToMirrorConfig(mirrorRequest);
         final JsonNode jsonNode = Jackson.valueToTree(mirrorConfig);
-        final Change<JsonNode> change = Change.ofJsonUpsert(mirrorFile(mirrorConfig.id()), jsonNode);
+        final Change<JsonNode> change =
+                Change.ofJsonUpsert(mirrorFile(repoName, mirrorConfig.id()), jsonNode);
         return Command.push(author, parent().name(), name(), Revision.HEAD, summary, "", Markup.PLAINTEXT,
                             change);
     }
@@ -360,23 +382,5 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
             checkArgument(zoneConfig.allZones().contains(zone),
                           "The zone '%s' is not in the zone configuration: %s", zone, zoneConfig);
         }
-    }
-
-    private static MirrorConfig converterToMirrorConfig(MirrorRequest mirrorDto) {
-        final String remoteUri =
-                mirrorDto.remoteScheme() + "://" + mirrorDto.remoteUrl() +
-                MirrorUtil.normalizePath(mirrorDto.remotePath()) + '#' + mirrorDto.remoteBranch();
-
-        return new MirrorConfig(
-                mirrorDto.id(),
-                mirrorDto.enabled(),
-                mirrorDto.schedule(),
-                MirrorDirection.valueOf(mirrorDto.direction()),
-                mirrorDto.localRepo(),
-                mirrorDto.localPath(),
-                URI.create(remoteUri),
-                mirrorDto.gitignore(),
-                mirrorDto.credentialId(),
-                mirrorDto.zone());
     }
 }

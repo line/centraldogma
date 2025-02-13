@@ -186,7 +186,7 @@ public final class XdsResourceManager {
                        });
     }
 
-    private static String fileName(String group, String resourceName) {
+    public static String fileName(String group, String resourceName) {
         // Remove groups/{group}
         return resourceName.substring(7 + group.length()) + ".json";
     }

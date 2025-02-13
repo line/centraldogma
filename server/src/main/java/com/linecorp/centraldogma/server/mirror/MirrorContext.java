@@ -51,8 +51,8 @@ public final class MirrorContext {
      * Creates a new instance.
      */
     public MirrorContext(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
-                         Credential credential, Repository localRepo, String localPath, URI remoteUri,
-                         @Nullable String gitignore, @Nullable String zone) {
+                         Credential credential, Repository localRepo,
+                         String localPath, URI remoteUri, @Nullable String gitignore, @Nullable String zone) {
         this.id = requireNonNull(id, "id");
         this.enabled = enabled;
         this.schedule = schedule;

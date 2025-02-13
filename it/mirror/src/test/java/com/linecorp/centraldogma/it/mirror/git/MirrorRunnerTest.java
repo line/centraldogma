@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
@@ -23,6 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+
+import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,8 +44,9 @@ import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlRequest;
-import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
+import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorStatus;
@@ -99,7 +103,7 @@ class MirrorRunnerTest {
 
     @Test
     void triggerMirroring() throws Exception {
-        final PublicKeyCredential credential = getCredential();
+        final CreateCredentialRequest credential = getCreateCredentialRequest(FOO_PROJ, null);
         ResponseEntity<PushResultDto> response =
                 systemAdminClient.prepare()
                                  .post("/api/v1/projects/{proj}/credentials")
@@ -109,10 +113,11 @@ class MirrorRunnerTest {
                                  .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
 
-        final MirrorRequest newMirror = newMirror();
+        final MirrorRequest newMirror = newMirror(credentialName(FOO_PROJ, PRIVATE_KEY_FILE));
         response = systemAdminClient.prepare()
-                                    .post("/api/v1/projects/{proj}/mirrors")
+                                    .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                                     .pathParam("proj", FOO_PROJ)
+                                    .pathParam("repo", BAR_REPO)
                                     .contentJson(newMirror)
                                     .asJson(PushResultDto.class)
                                     .execute();
@@ -121,8 +126,9 @@ class MirrorRunnerTest {
         for (int i = 0; i < 3; i++) {
             final ResponseEntity<MirrorResult> mirrorResponse =
                     systemAdminClient.prepare()
-                                     .post("/api/v1/projects/{proj}/mirrors/{mirrorId}/run")
+                                     .post("/api/v1/projects/{proj}/repos/{repo}/mirrors/{mirrorId}/run")
                                      .pathParam("proj", FOO_PROJ)
+                                     .pathParam("repo", BAR_REPO)
                                      .pathParam("mirrorId", TEST_MIRROR_ID)
                                      .asJson(MirrorResult.class)
                                      .execute();
@@ -165,7 +171,7 @@ class MirrorRunnerTest {
         assertThat(accessResponse.status()).isEqualTo(HttpStatus.CREATED);
         assertThat(accessResponse.content().id()).isEqualTo("default");
 
-        final PublicKeyCredential credential = getCredential();
+        final CreateCredentialRequest credential = getCreateCredentialRequest(FOO_PROJ, null);
         ResponseEntity<PushResultDto> response =
                 systemAdminClient.prepare()
                                  .post("/api/v1/projects/{proj}/credentials")
@@ -175,10 +181,11 @@ class MirrorRunnerTest {
                                  .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
 
-        final MirrorRequest newMirror = newMirror();
+        final MirrorRequest newMirror = newMirror(credentialName(FOO_PROJ, PRIVATE_KEY_FILE));
         response = systemAdminClient.prepare()
-                                    .post("/api/v1/projects/{proj}/mirrors")
+                                    .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                                     .pathParam("proj", FOO_PROJ)
+                                    .pathParam("repo", BAR_REPO)
                                     .contentJson(newMirror)
                                     .asJson(PushResultDto.class)
                                     .execute();
@@ -186,8 +193,9 @@ class MirrorRunnerTest {
 
         AggregatedHttpResponse mirrorResponse =
                 systemAdminClient.prepare()
-                                 .post("/api/v1/projects/{proj}/mirrors/{mirrorId}/run")
+                                 .post("/api/v1/projects/{proj}/repos/{repo}/mirrors/{mirrorId}/run")
                                  .pathParam("proj", FOO_PROJ)
+                                 .pathParam("repo", BAR_REPO)
                                  .pathParam("mirrorId", TEST_MIRROR_ID)
                                  .execute();
         // Mirror execution should be forbidden.
@@ -205,14 +213,15 @@ class MirrorRunnerTest {
                                           .execute();
         assertThat(accessResponse.status()).isEqualTo(HttpStatus.CREATED);
         mirrorResponse = systemAdminClient.prepare()
-                                          .post("/api/v1/projects/{proj}/mirrors/{mirrorId}/run")
+                                          .post("/api/v1/projects/{proj}/repos/{repo}/mirrors/{mirrorId}/run")
                                           .pathParam("proj", FOO_PROJ)
+                                          .pathParam("repo", BAR_REPO)
                                           .pathParam("mirrorId", TEST_MIRROR_ID)
                                           .execute();
         assertThat(mirrorResponse.status()).isEqualTo(HttpStatus.OK);
     }
 
-    private static MirrorRequest newMirror() {
+    private static MirrorRequest newMirror(String credentialName) {
         return new MirrorRequest(TEST_MIRROR_ID,
                                  true,
                                  FOO_PROJ,
@@ -225,11 +234,12 @@ class MirrorRunnerTest {
                                  "/",
                                  "main",
                                  null,
-                                 PRIVATE_KEY_FILE,
+                                 credentialName,
                                  null);
     }
 
-    static PublicKeyCredential getCredential() throws Exception {
+    static CreateCredentialRequest getCreateCredentialRequest(String projectName, @Nullable String repoName)
+            throws Exception {
         final String publicKeyFile = "ecdsa_256.openssh.pub";
 
         final byte[] privateKeyBytes =
@@ -239,12 +249,12 @@ class MirrorRunnerTest {
         final String privateKey = new String(privateKeyBytes, StandardCharsets.UTF_8).trim();
         final String publicKey = new String(publicKeyBytes, StandardCharsets.UTF_8).trim();
 
-        return new PublicKeyCredential(
-                PRIVATE_KEY_FILE,
-                true,
+        return new CreateCredentialRequest(PRIVATE_KEY_FILE, new SshKeyCredential(
+                repoName != null ? credentialName(projectName, repoName, PRIVATE_KEY_FILE)
+                                 : credentialName(projectName, PRIVATE_KEY_FILE),
                 "git",
                 publicKey,
                 privateKey,
-                null);
+                null));
     }
 }

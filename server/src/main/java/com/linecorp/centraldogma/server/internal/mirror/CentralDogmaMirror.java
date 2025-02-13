@@ -42,8 +42,8 @@ public final class CentralDogmaMirror extends AbstractMirror {
                               URI remoteRepoUri, String remoteProject, String remoteRepo, String remotePath,
                               @Nullable String gitignore, @Nullable String zone) {
         // Central Dogma has no notion of 'branch', so we just pass an empty string as a placeholder.
-        super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath,
-              "", gitignore, zone);
+        super(id, enabled, schedule, direction, credential, localRepo, localPath,
+              remoteRepoUri, remotePath, "", gitignore, zone);
 
         this.remoteProject = requireNonNull(remoteProject, "remoteProject");
         this.remoteRepo = requireNonNull(remoteRepo, "remoteRepo");

@@ -50,16 +50,22 @@ public interface MetaRepository extends Repository {
     CompletableFuture<List<Mirror>> mirrors(boolean includeDisabled);
 
     /**
+     * Returns a set of mirroring tasks of the specified repository. If {@code includeDisabled} is {@code true},
+     * disabled mirroring tasks are also included in the returned {@link Mirror}s.
+     */
+    CompletableFuture<List<Mirror>> mirrors(String repoName, boolean includeDisabled);
+
+    /**
      * Returns a mirroring task of the specified {@code id}.
      */
-    default CompletableFuture<Mirror> mirror(String id) {
-        return mirror(id, Revision.HEAD);
+    default CompletableFuture<Mirror> mirror(String repoName, String id) {
+        return mirror(repoName, id, Revision.HEAD);
     }
 
     /**
      * Returns a mirroring task of the specified {@code id} at the specified {@link Revision}.
      */
-    CompletableFuture<Mirror> mirror(String id, Revision revision);
+    CompletableFuture<Mirror> mirror(String repoName, String id, Revision revision);
 
     /**
      * Returns a list of project credentials.
@@ -67,26 +73,21 @@ public interface MetaRepository extends Repository {
     CompletableFuture<List<Credential>> projectCredentials();
 
     /**
-     * Returns a project credential of the specified {@code id}.
-     */
-    CompletableFuture<Credential> projectCredential(String id);
-
-    /**
      * Returns a list of credentials of the specified repository.
      */
     CompletableFuture<List<Credential>> repoCredentials(String repoName);
 
     /**
-     * Returns a credential of the specified {@code id} in the specified repository.
+     * Returns a credential of the specified {@code name}.
      */
-    CompletableFuture<Credential> repoCredential(String repoName, String id);
+    CompletableFuture<Credential> credential(String name);
 
     /**
      * Create a push {@link Command} for the {@link MirrorDto}.
      */
-    CompletableFuture<Command<CommitResult>> createMirrorPushCommand(MirrorRequest mirrorRequest, Author author,
-                                                                     @Nullable ZoneConfig zoneConfig,
-                                                                     boolean update);
+    CompletableFuture<Command<CommitResult>> createMirrorPushCommand(
+            String repoName, MirrorRequest mirrorRequest, Author author,
+            @Nullable ZoneConfig zoneConfig, boolean update);
 
     /**
      * Create a push {@link Command} for the {@link Credential}.

@@ -51,7 +51,6 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
-import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
@@ -69,7 +68,6 @@ class MirrorSchedulingServiceTest {
         final ProjectManager pm = mock(ProjectManager.class);
         final Project p = mock(Project.class);
         final MetaRepository mr = mock(MetaRepository.class);
-        final RepositoryManager rm = mock(RepositoryManager.class);
         final Repository r = mock(Repository.class);
         when(pm.list()).thenReturn(ImmutableMap.of("foo", p));
         when(p.name()).thenReturn("foo");
@@ -79,7 +77,7 @@ class MirrorSchedulingServiceTest {
 
         final Mirror mirror = new AbstractMirror("my-mirror-1", true, EVERY_SECOND,
                                                  MirrorDirection.REMOTE_TO_LOCAL,
-                                                 Credential.FALLBACK, r, "/",
+                                                 Credential.NONE, r, "/",
                                                  URI.create("unused://uri"), "/", "", null, null) {
             @Override
             protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes,
@@ -101,7 +99,7 @@ class MirrorSchedulingServiceTest {
         when(mr.mirrors()).thenReturn(CompletableFuture.completedFuture(ImmutableList.of(mirror)));
 
         final MirrorSchedulingService service = new MirrorSchedulingService(
-                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null,
+                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null, false,
                 AlwaysAllowedMirrorAccessController.INSTANCE);
         final CommandExecutor executor = mock(CommandExecutor.class);
         service.start(executor);

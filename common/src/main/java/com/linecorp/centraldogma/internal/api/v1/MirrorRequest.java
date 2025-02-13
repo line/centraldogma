@@ -18,6 +18,7 @@
 package com.linecorp.centraldogma.internal.api.v1;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.linecorp.centraldogma.internal.CredentialUtil.validateCredentialName;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -48,7 +49,7 @@ public class MirrorRequest {
     private final String remoteBranch;
     @Nullable
     private final String gitignore;
-    private final String credentialId;
+    private final String credentialName;
     @Nullable
     private final String zone;
 
@@ -65,7 +66,7 @@ public class MirrorRequest {
                          @JsonProperty("remotePath") String remotePath,
                          @JsonProperty("remoteBranch") String remoteBranch,
                          @JsonProperty("gitignore") @Nullable String gitignore,
-                         @JsonProperty("credentialId") String credentialId,
+                         @JsonProperty("credentialName") String credentialName,
                          @JsonProperty("zone") @Nullable String zone) {
         this.id = requireNonNull(id, "id");
         this.enabled = firstNonNull(enabled, true);
@@ -79,7 +80,8 @@ public class MirrorRequest {
         this.remotePath = requireNonNull(remotePath, "remotePath");
         this.remoteBranch = requireNonNull(remoteBranch, "remoteBranch");
         this.gitignore = gitignore;
-        this.credentialId = requireNonNull(credentialId, "credentialId");
+        requireNonNull(credentialName, "credentialName");
+        this.credentialName = validateCredentialName(projectName, localRepo, credentialName);
         this.zone = zone;
     }
 
@@ -109,6 +111,7 @@ public class MirrorRequest {
         return direction;
     }
 
+    // TODO(minwoox): Remove this property after migration is done.
     @JsonProperty("localRepo")
     public String localRepo() {
         return localRepo;
@@ -145,9 +148,9 @@ public class MirrorRequest {
         return gitignore;
     }
 
-    @JsonProperty("credentialId")
-    public String credentialId() {
-        return credentialId;
+    @JsonProperty("credentialName")
+    public String credentialName() {
+        return credentialName;
     }
 
     @Nullable
@@ -164,27 +167,27 @@ public class MirrorRequest {
         if (!(o instanceof MirrorRequest)) {
             return false;
         }
-        final MirrorRequest mirrorDto = (MirrorRequest) o;
-        return id.equals(mirrorDto.id) &&
-               enabled == mirrorDto.enabled &&
-               projectName.equals(mirrorDto.projectName) &&
-               Objects.equals(schedule, mirrorDto.schedule) &&
-               direction.equals(mirrorDto.direction) &&
-               localRepo.equals(mirrorDto.localRepo) &&
-               localPath.equals(mirrorDto.localPath) &&
-               remoteScheme.equals(mirrorDto.remoteScheme) &&
-               remoteUrl.equals(mirrorDto.remoteUrl) &&
-               remotePath.equals(mirrorDto.remotePath) &&
-               remoteBranch.equals(mirrorDto.remoteBranch) &&
-               Objects.equals(gitignore, mirrorDto.gitignore) &&
-               credentialId.equals(mirrorDto.credentialId) &&
-               Objects.equals(zone, mirrorDto.zone);
+        final MirrorRequest mirrorRequest = (MirrorRequest) o;
+        return id.equals(mirrorRequest.id) &&
+               enabled == mirrorRequest.enabled &&
+               projectName.equals(mirrorRequest.projectName) &&
+               Objects.equals(schedule, mirrorRequest.schedule) &&
+               direction.equals(mirrorRequest.direction) &&
+               localRepo.equals(mirrorRequest.localRepo) &&
+               localPath.equals(mirrorRequest.localPath) &&
+               remoteScheme.equals(mirrorRequest.remoteScheme) &&
+               remoteUrl.equals(mirrorRequest.remoteUrl) &&
+               remotePath.equals(mirrorRequest.remotePath) &&
+               remoteBranch.equals(mirrorRequest.remoteBranch) &&
+               Objects.equals(gitignore, mirrorRequest.gitignore) &&
+               credentialName.equals(mirrorRequest.credentialName) &&
+               Objects.equals(zone, mirrorRequest.zone);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, projectName, schedule, direction, localRepo, localPath, remoteScheme,
-                            remoteUrl, remotePath, remoteBranch, gitignore, credentialId, enabled, zone);
+        return Objects.hash(id, projectName, schedule, direction, localRepo, localPath, remoteScheme, remoteUrl,
+                            remotePath, remoteBranch, gitignore, credentialName, enabled, zone);
     }
 
     protected ToStringHelper toStringHelper() {
@@ -202,7 +205,7 @@ public class MirrorRequest {
                           .add("remotePath", remotePath)
                           .add("remoteBranch", remoteBranch)
                           .add("gitignore", gitignore)
-                          .add("credentialId", credentialId)
+                          .add("credentialName", credentialName)
                           .add("zone", zone);
     }
 

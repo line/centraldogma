@@ -16,39 +16,31 @@
 
 import { useRouter } from 'next/router';
 import { Spacer } from '@chakra-ui/react';
-import { useGetCredentialsQuery, useGetMirrorQuery } from 'dogma/features/api/apiSlice';
+import { useGetMirrorQuery } from 'dogma/features/api/apiSlice';
 import { Deferred } from 'dogma/common/components/Deferred';
 import React from 'react';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
-import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
-import MirrorView from 'dogma/features/project/settings/mirrors/MirrorView';
+import MirrorView from 'dogma/features/repo/settings/mirrors/MirrorView';
 
 const MirrorViewPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName as string;
+  const repoName = router.query.repoName as string;
   const id = router.query.id as string;
   const {
     data: mirror,
     isLoading: isMirrorLoading,
     error: mirrorError,
-  } = useGetMirrorQuery({ projectName, id });
-  const {
-    data: credentials,
-    isLoading: isCredentialLoading,
-    error: credentialError,
-  } = useGetCredentialsQuery(projectName);
-  const credential = (credentials || []).find((credential: CredentialDto) => {
-    return credential.id === mirror?.credentialId;
-  });
+  } = useGetMirrorQuery({ projectName, repoName, id });
 
   return (
-    <Deferred isLoading={isMirrorLoading || isCredentialLoading} error={mirrorError || credentialError}>
+    <Deferred isLoading={isMirrorLoading} error={mirrorError}>
       {() => {
         return (
           <>
             <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
             <Spacer />
-            <MirrorView projectName={projectName} mirror={mirror} credential={credential} />
+            <MirrorView projectName={projectName} repoName={repoName} mirror={mirror} />
           </>
         );
       }}

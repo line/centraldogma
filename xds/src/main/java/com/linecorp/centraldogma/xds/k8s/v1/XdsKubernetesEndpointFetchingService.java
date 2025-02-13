@@ -139,7 +139,8 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 : aggregator.getLocalityLbEndpointsList()) {
             final ServiceEndpointWatcher watcher = kubernetesLocalityLbEndpoints.getWatcher();
             final CompletableFuture<KubernetesEndpointGroup> future =
-                    createKubernetesEndpointGroup(watcher, xdsProject().metaRepo(), executorService);
+                    createKubernetesEndpointGroup(watcher, xdsProject().metaRepo(), groupName,
+                                                  path, executorService);
             futures.add(future);
         }
 

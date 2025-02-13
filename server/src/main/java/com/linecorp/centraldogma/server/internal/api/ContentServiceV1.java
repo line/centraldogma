@@ -26,7 +26,7 @@ import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1.increaseCounterIfOldRevisionUsed;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMetaFile;
-import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMirrorFile;
+import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMirrorOrCredentialFile;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -482,7 +482,7 @@ public class ContentServiceV1 extends AbstractService {
             //               to validate the input.
             final Optional<String> notAllowedLocalRepo =
                     Streams.stream(changes)
-                           .filter(change -> isMirrorFile(change.path()))
+                           .filter(change -> isMirrorOrCredentialFile(change.path()))
                            .filter(change -> change.content() != null)
                            .map(change -> {
                                final Object content = change.content();

@@ -21,7 +21,7 @@ import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { MirrorResult } from './MirrorResult';
-import { MirrorRequest } from 'dogma/features/project/settings/mirrors/MirrorRequest';
+import { MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
 import {
   Button,
   ButtonGroup,
@@ -50,7 +50,11 @@ export const RunMirror = ({ mirror, children }: RunMirrorProps) => {
   const onClick = async () => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response: any = await runMirror({ projectName: mirror.projectName, id: mirror.id }).unwrap();
+      const response: any = await runMirror({
+        projectName: mirror.projectName,
+        repoName: mirror.localRepo,
+        id: mirror.id,
+      }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }

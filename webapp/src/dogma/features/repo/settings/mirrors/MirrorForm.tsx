@@ -42,20 +42,23 @@ import { GiMirrorMirror, GiPowerButton } from 'react-icons/gi';
 import { BiTimer } from 'react-icons/bi';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { GoArrowBoth, GoArrowDown, GoArrowUp, GoKey, GoRepo } from 'react-icons/go';
-import { Select } from 'chakra-react-select';
+import { GroupBase, Select } from 'chakra-react-select';
 import { IoBanSharp } from 'react-icons/io5';
-import { useGetCredentialsQuery, useGetMirrorConfigQuery, useGetReposQuery } from 'dogma/features/api/apiSlice';
+import {
+  useGetMirrorConfigQuery,
+  useGetProjectCredentialsQuery,
+  useGetRepoCredentialsQuery,
+} from 'dogma/features/api/apiSlice';
 import React, { useMemo, useState } from 'react';
 import FieldErrorMessage from 'dogma/common/components/form/FieldErrorMessage';
-import { RepoDto } from 'dogma/features/repo/RepoDto';
-import { MirrorRequest } from 'dogma/features/project/settings/mirrors/MirrorRequest';
+import { MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
 import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
-import { FiBox } from 'react-icons/fi';
 import cronstrue from 'cronstrue';
 import { CiLocationOn } from 'react-icons/ci';
 
 interface MirrorFormProps {
   projectName: string;
+  repoName: string;
   defaultValue: MirrorRequest;
   onSubmit: (
     mirror: MirrorRequest,
@@ -75,9 +78,15 @@ const MIRROR_SCHEMES: OptionType[] = ['git+ssh', 'git+http', 'git+https'].map((s
   label: scheme,
 }));
 
-const INTERNAL_REPOS = new Set<string>(['dogma', 'meta']);
+function repoMirrorCredentialName(project: string, repo: string, id: string): string {
+  return `projects/${project}/repos/${repo}/credentials/${id}`;
+}
 
-const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: MirrorFormProps) => {
+function projectMirrorCredentialName(project: string, id: string): string {
+  return `projects/${project}/credentials/${id}`;
+}
+
+const MirrorForm = ({ projectName, repoName, defaultValue, onSubmit, isWaitingResponse }: MirrorFormProps) => {
   const {
     register,
     handleSubmit,
@@ -91,26 +100,40 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
   });
 
   const isNew = defaultValue.id === '';
-  const { data: repos } = useGetReposQuery(projectName);
-  const { data: credentials } = useGetCredentialsQuery(projectName);
+  const { data: projectCredentials } = useGetProjectCredentialsQuery(projectName);
+  const { data: repoCredentials } = useGetRepoCredentialsQuery({
+    projectName: projectName as string,
+    repoName,
+  });
   const { data: zoneConfig } = useGetMirrorConfigQuery();
 
   const [isScheduleEnabled, setScheduleEnabled] = useState<boolean>(defaultValue.schedule != null);
   const schedule = watch('schedule');
 
-  const repoOptions: OptionType[] = (repos || [])
-    .filter((repo: RepoDto) => !INTERNAL_REPOS.has(repo.name))
-    .map((repo: RepoDto) => ({
-      value: repo.name,
-      label: repo.name,
-    }));
-
-  const credentialOptions: OptionType[] = (credentials || [])
+  const repoCredentialOptions: OptionType[] = (repoCredentials || [])
     .filter((credential: CredentialDto) => credential.id)
     .map((credential: CredentialDto) => ({
-      value: credential.id,
       label: credential.id,
+      value: repoMirrorCredentialName(projectName, repoName, credential.id),
     }));
+
+  const projectCredentialOptions: OptionType[] = (projectCredentials || [])
+    .filter((credential: CredentialDto) => credential.id)
+    .map((credential: CredentialDto) => ({
+      label: credential.id,
+      value: projectMirrorCredentialName(projectName, credential.id),
+    }));
+
+  const groupedCredentialOptions: GroupBase<OptionType>[] = [
+    {
+      label: 'Repository Credentials',
+      options: repoCredentialOptions,
+    },
+    {
+      label: 'Project Credentials',
+      options: projectCredentialOptions,
+    },
+  ];
 
   const zoneOptions: OptionType[] = (zoneConfig?.zonePinned ? zoneConfig.zone.allZones : []).map(
     (zone: string) => ({
@@ -125,7 +148,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
     if (!isNew) {
       setValue('localRepo', defaultValue.localRepo);
       setValue('remoteScheme', defaultValue.remoteScheme);
-      setValue('credentialId', defaultValue.credentialId);
+      setValue('credentialName', defaultValue.credentialName);
       setValue('direction', defaultValue.direction);
       setValue('zone', defaultValue.zone);
     }
@@ -134,7 +157,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
     setValue,
     defaultValue.localRepo,
     defaultValue.remoteScheme,
-    defaultValue.credentialId,
+    defaultValue.credentialName,
     defaultValue.direction,
     defaultValue.zone,
   ]);
@@ -142,8 +165,8 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
   const defaultRemoteScheme: OptionType = defaultValue.remoteScheme
     ? { value: defaultValue.remoteScheme, label: defaultValue.remoteScheme }
     : null;
-  const defaultCredential: OptionType = defaultValue.credentialId
-    ? { value: defaultValue.credentialId, label: defaultValue.credentialId }
+  const defaultCredential: OptionType = defaultValue.credentialName
+    ? { value: defaultValue.credentialName, label: defaultValue.credentialName }
     : null;
   const defaultZone: OptionType = defaultValue.zone
     ? { value: defaultValue.zone, label: defaultValue.zone }
@@ -161,8 +184,8 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
             {isNew ? 'New Mirror' : 'Edit Mirror'}
           </Heading>
           <HStack paddingBottom={2}>
-            <LabelledIcon icon={FiBox} text="Project" />
-            <Tag fontWeight={'bold'}>{projectName}</Tag>
+            <LabelledIcon icon={GoRepo} text="Repository" />
+            <Tag fontWeight={'bold'}>{repoName}</Tag>
           </HStack>
           <Divider />
           <FormControl isRequired isInvalid={errors.id != null}>
@@ -279,40 +302,8 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
           <Spacer />
 
           <Stack direction="row" width="100%">
-            <FormControl isRequired isInvalid={errors.localRepo != null}>
-              <FormLabel>
-                <LabelledIcon icon={GoRepo} text={'Local repository'} />
-              </FormLabel>
-              <Controller
-                control={control}
-                name="localRepo"
-                rules={{ required: true }}
-                render={({ field: { onChange, value, name, ref } }) => (
-                  <Select
-                    ref={ref}
-                    id="localRepo"
-                    name={name}
-                    isDisabled={repoOptions.length === 0}
-                    options={repoOptions}
-                    // The default value of React Select must be null (and not undefined)
-                    value={repoOptions.find((option) => option.value === value) || null}
-                    onChange={(option) => onChange(option?.value || '')}
-                    placeholder={
-                      repoOptions.length === 0
-                        ? 'No local repository is found. You need to create a local repository first.'
-                        : 'Enter repo name...'
-                    }
-                    closeMenuOnSelect={true}
-                    openMenuOnFocus={true}
-                    isSearchable={true}
-                    isClearable={true}
-                  />
-                )}
-              />
-              <FieldErrorMessage error={errors.localRepo} fieldName="Local repository" />
-            </FormControl>
             <FormControl width="50%" isRequired isInvalid={errors.localPath != null}>
-              <FormLabel>path</FormLabel>
+              <FormLabel>Local path</FormLabel>
               <Input
                 id="localPath"
                 name="localPath"
@@ -398,27 +389,31 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
           </Stack>
           <Spacer />
 
-          <FormControl width="65%" alignItems="left" isInvalid={errors.credentialId != null}>
+          <FormControl width="65%" alignItems="left" isInvalid={errors.credentialName != null}>
             <FormLabel>
               <LabelledIcon icon={GoKey} text={'Credential'} />
             </FormLabel>
             <Controller
               control={control}
-              name="credentialId"
+              name="credentialName"
               rules={{ required: true }}
               render={({ field: { onChange, value, name, ref } }) => (
                 <Select
                   ref={ref}
                   id="credentialId"
                   name={name}
-                  isDisabled={credentialOptions.length === 0}
-                  options={credentialOptions}
+                  isDisabled={repoCredentialOptions.length === 0 && projectCredentialOptions.length === 0}
+                  options={groupedCredentialOptions}
                   defaultValue={defaultCredential}
                   // The default value of React Select must be null (and not undefined)
-                  value={credentialOptions.find((option) => option.value === value) || null}
+                  value={
+                    groupedCredentialOptions
+                      .flatMap((group) => group.options)
+                      .find((option) => option.value === value) || null
+                  }
                   onChange={(option) => onChange(option?.value || '')}
                   placeholder={
-                    credentialOptions.length === 0
+                    repoCredentialOptions.length === 0 && projectCredentialOptions.length === 0
                       ? 'No credential is found. You need to create credentials first.'
                       : 'Enter credential ID ...'
                   }
@@ -429,7 +424,7 @@ const MirrorForm = ({ projectName, defaultValue, onSubmit, isWaitingResponse }: 
                 />
               )}
             />
-            <FieldErrorMessage error={errors.credentialId} fieldName="Credential" />
+            <FieldErrorMessage error={errors.credentialName} fieldName="Credential" />
           </FormControl>
           <Spacer />
           {zoneConfig?.zonePinned && (

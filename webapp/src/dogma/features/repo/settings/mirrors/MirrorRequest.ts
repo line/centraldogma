@@ -10,7 +10,7 @@ export interface MirrorRequest {
   remoteBranch: string;
   remotePath: string;
   gitignore?: string;
-  credentialId: string;
+  credentialName: string;
   enabled: boolean;
   zone?: string;
 }

@@ -16,9 +16,10 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.PRIVATE_KEY_FILE;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.TEST_MIRROR_ID;
-import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.getCredential;
+import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.getCreateCredentialRequest;
 import static com.linecorp.centraldogma.it.mirror.git.TestMirrorRunnerListener.creationCount;
 import static com.linecorp.centraldogma.it.mirror.git.TestMirrorRunnerListener.startCount;
 import static com.linecorp.centraldogma.it.mirror.git.TestMirrorRunnerListener.updateCount;
@@ -46,8 +47,8 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlRequest;
-import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorAccessControl;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -167,28 +168,17 @@ class MirrorAccessControlTest {
                     .isOne();
         });
 
-        final MirrorRequest updating = new MirrorRequest(TEST_MIRROR_ID,
-                                                         true,
-                                                         TEST_PROJ,
-                                                         "0/2 * * * * ?",
-                                                         "REMOTE_TO_LOCAL",
-                                                         TEST_REPO,
-                                                         "/",
-                                                         "git+ssh",
-                                                         "github.com/line/centraldogma-authtest.git",
-                                                         "/",
-                                                         "main",
-                                                         null,
-                                                         PRIVATE_KEY_FILE,
-                                                         null);
+        final MirrorRequest updating = newMirror("/foo/");
 
-        final ResponseEntity<PushResultDto> response = client.prepare()
-                                                             .put("/api/v1/projects/{proj}/mirrors/{mirrorId}")
-                                                             .pathParam("proj", TEST_PROJ)
-                                                             .pathParam("mirrorId", TEST_MIRROR_ID)
-                                                             .contentJson(updating)
-                                                             .asJson(PushResultDto.class)
-                                                             .execute();
+        final ResponseEntity<PushResultDto> response =
+                client.prepare()
+                      .put("/api/v1/projects/{proj}/repos/{repo}/mirrors/{mirrorId}")
+                      .pathParam("proj", TEST_PROJ)
+                      .pathParam("repo", TEST_REPO)
+                      .pathParam("mirrorId", TEST_MIRROR_ID)
+                      .contentJson(updating)
+                      .asJson(PushResultDto.class)
+                      .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
 
         await().untilAsserted(() -> {
@@ -198,40 +188,42 @@ class MirrorAccessControlTest {
     }
 
     private void createMirror() throws Exception {
-        final PublicKeyCredential credential = getCredential();
+        final CreateCredentialRequest credential = getCreateCredentialRequest(TEST_PROJ, TEST_REPO);
         ResponseEntity<PushResultDto> response =
                 client.prepare()
-                      .post("/api/v1/projects/{proj}/credentials")
+                      .post("/api/v1/projects/{proj}/repos/{repo}/credentials")
                       .pathParam("proj", TEST_PROJ)
+                      .pathParam("repo", TEST_REPO)
                       .contentJson(credential)
                       .asJson(PushResultDto.class)
                       .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
 
-        final MirrorRequest newMirror = newMirror();
+        final MirrorRequest newMirror = newMirror("/");
         response = client.prepare()
-                         .post("/api/v1/projects/{proj}/mirrors")
+                         .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                          .pathParam("proj", TEST_PROJ)
+                         .pathParam("repo", TEST_REPO)
                          .contentJson(newMirror)
                          .asJson(PushResultDto.class)
                          .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
     }
 
-    private static MirrorRequest newMirror() {
+    private static MirrorRequest newMirror(String localPath) {
         return new MirrorRequest(TEST_MIRROR_ID,
                                  true,
                                  TEST_PROJ,
                                  "0/1 * * * * ?",
                                  "REMOTE_TO_LOCAL",
                                  TEST_REPO,
-                                 "/",
+                                 localPath,
                                  "git+ssh",
                                  "github.com/line/centraldogma-authtest.git",
                                  "/",
                                  "main",
                                  null,
-                                 PRIVATE_KEY_FILE,
+                                 credentialName(TEST_PROJ, TEST_REPO, PRIVATE_KEY_FILE),
                                  null);
     }
 }

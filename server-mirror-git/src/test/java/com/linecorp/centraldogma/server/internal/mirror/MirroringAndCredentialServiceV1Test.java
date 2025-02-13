@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD2;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
@@ -25,14 +27,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
@@ -47,11 +52,13 @@ import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.credential.Credential;
+import com.linecorp.centraldogma.server.credential.CredentialType;
 import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
 import com.linecorp.centraldogma.server.internal.credential.NoneCredential;
 import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
-import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
+import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -59,6 +66,7 @@ class MirroringAndCredentialServiceV1Test {
 
     private static final String FOO_PROJ = "foo-proj";
     private static final String BAR_REPO = "bar-repo";
+    private static final String BAR2_REPO = "bar2-repo";
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
@@ -81,14 +89,15 @@ class MirroringAndCredentialServiceV1Test {
         protected void scaffold(CentralDogma client) {
             client.createProject(FOO_PROJ).join();
             client.createRepository(FOO_PROJ, BAR_REPO).join();
+            client.createRepository(FOO_PROJ, BAR2_REPO).join();
         }
     };
 
-    private BlockingWebClient systemAdminClient;
-    private BlockingWebClient userClient;
+    private static BlockingWebClient systemAdminClient;
+    private static BlockingWebClient userClient;
 
-    @BeforeEach
-    void setUp() throws JsonProcessingException {
+    @BeforeAll
+    static void setUp() throws JsonProcessingException {
         final String systemAdminToken = getAccessToken(dogma.httpClient(), USERNAME, PASSWORD);
         systemAdminClient = WebClient.builder(dogma.httpClient().uri())
                                      .auth(AuthToken.ofOAuth2(systemAdminToken))
@@ -100,21 +109,96 @@ class MirroringAndCredentialServiceV1Test {
                               .auth(AuthToken.ofOAuth2(userToken))
                               .build()
                               .blocking();
+        setUpRole();
     }
 
     @Test
-    void cruTest() {
-        setUpRole();
+    void crudTest() {
         createAndReadCredential();
         updateCredential();
-        createAndReadMirror();
+        createAndReadMirror(BAR_REPO);
+        createAndReadMirror(BAR2_REPO);
+        ResponseEntity<List<MirrorDto>> response =
+                userClient.prepare()
+                          .get("/api/v1/projects/{proj}/repos/{repo}/mirrors")
+                          .pathParam("proj", FOO_PROJ)
+                          .pathParam("repo", BAR_REPO)
+                          .asJson(new TypeReference<List<MirrorDto>>() {})
+                          .execute();
+        assertThat(response.content().size()).isEqualTo(4); // mirror-0, mirror-1, mirror-2, mirror-with-port-3
+        assertThat(response.content().stream().map(MirrorRequest::localRepo)
+                           .distinct()
+                           .collect(toImmutableList())).containsExactly(BAR_REPO);
+        response = userClient.prepare()
+                             .get("/api/v1/projects/{proj}/mirrors")
+                             .pathParam("proj", FOO_PROJ)
+                             .asJson(new TypeReference<List<MirrorDto>>() {})
+                             .execute();
+        assertThat(response.content().size()).isEqualTo(8);
+        assertThat(response.content().stream().map(MirrorRequest::localRepo)
+                           .distinct()
+                           .collect(toImmutableList())).containsExactlyInAnyOrder(BAR_REPO, BAR2_REPO);
         updateMirror();
         rejectInvalidRepositoryUri();
-        deleteMirror();
+        deleteMirror(BAR_REPO);
+        deleteMirror(BAR2_REPO);
         deleteCredential();
     }
 
-    private void rejectInvalidRepositoryUri() {
+    @Test
+    void repoAndProjectCredentialsUsed() {
+        // Make sure there are no project and repo credentials.
+        AggregatedHttpResponse response =
+                systemAdminClient.prepare()
+                                 .get("/api/v1/projects/{proj}/credentials")
+                                 .pathParam("proj", FOO_PROJ)
+                                 .execute();
+        assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
+        response = systemAdminClient.prepare()
+                                    .get("/api/v1/projects/{proj}/repos/{repo}/credentials")
+                                    .pathParam("proj", FOO_PROJ)
+                                    .pathParam("repo", BAR_REPO)
+                                    .execute();
+        assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
+
+        final CreateCredentialRequest repoCredentialRequest = new CreateCredentialRequest(
+                "repo-credential", new AccessTokenCredential(
+                        credentialName(FOO_PROJ, BAR_REPO, "repo-credential"), "secret-repo-token")
+        );
+        final ResponseEntity<PushResultDto> creationResponse =
+                userClient.prepare()
+                          .post("/api/v1/projects/{proj}/repos/{repo}/credentials")
+                          .pathParam("proj", FOO_PROJ)
+                          .pathParam("repo", BAR_REPO)
+                          .contentJson(repoCredentialRequest)
+                          .asJson(PushResultDto.class)
+                          .execute();
+        assertThat(creationResponse.status()).isEqualTo(HttpStatus.CREATED);
+        final CreateCredentialRequest projectCredentialRequest = new CreateCredentialRequest(
+                "project-credential", new AccessTokenCredential(
+                credentialName(FOO_PROJ, "project-credential"), "secret-repo-token")
+        );
+        createProjectCredential(projectCredentialRequest);
+
+        // Create mirrors.
+        final MirrorRequest newMirror1 =
+                newMirror(BAR_REPO, "mirror-1", credentialName(FOO_PROJ, BAR_REPO,
+                                                                              "repo-credential"));
+        createMirror(BAR_REPO, newMirror1);
+        final MirrorRequest newMirror2 =
+                newMirror(BAR_REPO, "mirror-2", credentialName(FOO_PROJ, "project-credential"));
+        createMirror(BAR_REPO, newMirror2);
+
+        // Read mirrors.
+        final MirrorDto mirror1 = getMirror(BAR_REPO, newMirror1.id());
+        assertThat(mirror1.credentialName()).isEqualTo(
+                credentialName(FOO_PROJ, BAR_REPO, "repo-credential"));
+        final MirrorDto mirror2 = getMirror(BAR_REPO, newMirror2.id());
+        assertThat(mirror2.credentialName()).isEqualTo(
+                credentialName(FOO_PROJ, "project-credential"));
+    }
+
+    private static void rejectInvalidRepositoryUri() {
         final MirrorRequest newMirror =
                 new MirrorRequest("invalid-mirror",
                                   true,
@@ -129,19 +213,20 @@ class MirroringAndCredentialServiceV1Test {
                                   "/remote-path/1",
                                   "mirror-branch",
                                   ".my-env0\n.my-env1",
-                                  "public-key-credential",
+                                  credentialName(FOO_PROJ, "ssh-key-credential"),
                                   null);
         final AggregatedHttpResponse response =
                 userClient.prepare()
-                          .post("/api/v1/projects/{proj}/mirrors")
+                          .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                           .pathParam("proj", FOO_PROJ)
+                          .pathParam("repo", BAR_REPO)
                           .contentJson(newMirror)
                           .execute();
         assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.contentUtf8()).contains("no host in remoteUri");
     }
 
-    private void setUpRole() {
+    private static void setUpRole() {
         final ResponseEntity<Revision> res =
                 systemAdminClient.prepare()
                                  .post("/api/v1/metadata/{proj}/members")
@@ -152,72 +237,74 @@ class MirroringAndCredentialServiceV1Test {
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
     }
 
-    private void createAndReadCredential() {
-        final List<Map<String, Object>> credentials = ImmutableList.of(
-                ImmutableMap.of("type", "password", "id", "password-credential",
-                                "username", "username-0", "password", "password-0"),
-                ImmutableMap.of("type", "access_token", "id", "access-token-credential",
-                                "accessToken", "secret-token-abc-1"),
-                ImmutableMap.of("type", "public_key", "id", "public-key-credential",
-                                "username", "username-2",
-                                "publicKey", "public-key-2", "privateKey", "private-key-2",
-                                "passphrase", "password-0"),
-                ImmutableMap.of("type", "none", "id", "non-credential"));
+    private static void createAndReadCredential() {
+        final List<CreateCredentialRequest> requests = ImmutableList.of(
+                new CreateCredentialRequest(
+                        "password-credential",
+                        new PasswordCredential(credentialName(FOO_PROJ, "password-credential"),
+                                               "username-0", "password-0")),
+                new CreateCredentialRequest(
+                        "access-token-credential",
+                        new AccessTokenCredential(credentialName(FOO_PROJ, "access-token-credential"),
+                                                  "secret-token-abc-1")),
+                new CreateCredentialRequest(
+                        "ssh-key-credential",
+                        new SshKeyCredential(credentialName(FOO_PROJ, "ssh-key-credential"),
+                                             "username-2", "public-key-2", "private-key-2", "password-0")),
+                new CreateCredentialRequest(
+                        "non-credential",
+                        new NoneCredential(credentialName(FOO_PROJ, "non-credential")))
+        );
 
-        for (int i = 0; i < credentials.size(); i++) {
-            final Map<String, Object> credential = credentials.get(i);
-            final String credentialId = (String) credential.get("id");
-            final ResponseEntity<PushResultDto> creationResponse =
-                    userClient.prepare()
-                              .post("/api/v1/projects/{proj}/credentials")
-                              .pathParam("proj", FOO_PROJ)
-                              .contentJson(credential)
-                              .responseTimeoutMillis(0)
-                              .asJson(PushResultDto.class)
-                              .execute();
-            assertThat(creationResponse.status()).isEqualTo(HttpStatus.CREATED);
-            assertThat(creationResponse.content().revision().major()).isEqualTo(i + 2);
+        for (int i = 0; i < requests.size(); i++) {
+            final CreateCredentialRequest request = requests.get(i);
+            createProjectCredential(request);
+            final Credential credential = request.credential();
+            final String credentialName = credential.name();
 
             for (BlockingWebClient client : ImmutableList.of(systemAdminClient, userClient)) {
                 final boolean isSystemAdmin = client == systemAdminClient;
                 final ResponseEntity<Credential> fetchResponse =
                         client.prepare()
-                              .get("/api/v1/projects/{proj}/credentials/{id}")
-                              .pathParam("proj", FOO_PROJ)
-                              .pathParam("id", credentialId)
+                              .get("/api/v1/" + credentialName)
                               .responseTimeoutMillis(0)
                               .asJson(Credential.class)
                               .execute();
                 final Credential credentialDto = fetchResponse.content();
-                assertThat(credentialDto.id()).isEqualTo(credentialId);
-                final String credentialType = (String) credential.get("type");
-                if ("password".equals(credentialType)) {
+                assertThat(credentialDto.name()).isEqualTo(credentialName);
+                final CredentialType credentialType = credential.type();
+                if (credentialType == CredentialType.PASSWORD) {
                     final PasswordCredential actual = (PasswordCredential) credentialDto;
-                    assertThat(actual.username()).isEqualTo(credential.get("username"));
+                    assertThat(credential).isInstanceOf(PasswordCredential.class);
+                    assertThat(actual.username()).isEqualTo(((PasswordCredential) credential).username());
                     if (isSystemAdmin) {
-                        assertThat(actual.password()).isEqualTo(credential.get("password"));
+                        assertThat(actual.password()).isEqualTo(((PasswordCredential) credential).password());
                     } else {
                         assertThat(actual.password()).isEqualTo("****");
                     }
-                } else if ("access_token".equals(credentialType)) {
+                } else if (credentialType == CredentialType.ACCESS_TOKEN) {
                     final AccessTokenCredential actual = (AccessTokenCredential) credentialDto;
+                    assertThat(credential).isInstanceOf(AccessTokenCredential.class);
                     if (isSystemAdmin) {
-                        assertThat(actual.accessToken()).isEqualTo(credential.get("accessToken"));
+                        assertThat(actual.accessToken()).isEqualTo(
+                                ((AccessTokenCredential) credential).accessToken());
                     } else {
                         assertThat(actual.accessToken()).isEqualTo("****");
                     }
-                } else if ("public_key".equals(credentialType)) {
-                    final PublicKeyCredential actual = (PublicKeyCredential) credentialDto;
-                    assertThat(actual.username()).isEqualTo(credential.get("username"));
-                    assertThat(actual.publicKey()).isEqualTo(credential.get("publicKey"));
+                } else if (credentialType == CredentialType.SSH_KEY) {
+                    final SshKeyCredential actual = (SshKeyCredential) credentialDto;
+                    assertThat(credential).isInstanceOf(SshKeyCredential.class);
+                    final SshKeyCredential sshKeyCredential = (SshKeyCredential) credential;
+                    assertThat(actual.username()).isEqualTo(sshKeyCredential.username());
+                    assertThat(actual.publicKey()).isEqualTo(sshKeyCredential.publicKey());
                     if (isSystemAdmin) {
-                        assertThat(actual.rawPrivateKey()).isEqualTo(credential.get("privateKey"));
-                        assertThat(actual.rawPassphrase()).isEqualTo(credential.get("passphrase"));
+                        assertThat(actual.rawPrivateKey()).isEqualTo(sshKeyCredential.rawPrivateKey());
+                        assertThat(actual.rawPassphrase()).isEqualTo(sshKeyCredential.rawPassphrase());
                     } else {
                         assertThat(actual.rawPrivateKey()).isEqualTo("****");
                         assertThat(actual.rawPassphrase()).isEqualTo("****");
                     }
-                } else if ("none".equals(credentialType)) {
+                } else if (credentialType == CredentialType.NONE) {
                     assertThat(credentialDto).isInstanceOf(NoneCredential.class);
                 } else {
                     throw new AssertionError("Unexpected credential type: " + credential.getClass().getName());
@@ -226,11 +313,23 @@ class MirroringAndCredentialServiceV1Test {
         }
     }
 
-    private void updateCredential() {
-        final String credentialId = "public-key-credential";
-        final Map<String, Object> credential =
-                ImmutableMap.of("type", "public_key",
-                                "id", credentialId,
+    private static void createProjectCredential(CreateCredentialRequest request) {
+        final ResponseEntity<PushResultDto> creationResponse =
+                userClient.prepare()
+                          .post("/api/v1/projects/{proj}/credentials")
+                          .pathParam("proj", FOO_PROJ)
+                          .contentJson(request)
+                          .responseTimeoutMillis(0)
+                          .asJson(PushResultDto.class)
+                          .execute();
+        assertThat(creationResponse.status()).isEqualTo(HttpStatus.CREATED);
+    }
+
+    private static void updateCredential() {
+        final String credentialId = "ssh-key-credential";
+        final Map<String, String> credential =
+                ImmutableMap.of("type", CredentialType.SSH_KEY.name(),
+                                "name", credentialName(FOO_PROJ, credentialId),
                                 "username", "updated-username-2",
                                 "publicKey", "updated-public-key-2",
                                 "privateKey", "updated-private-key-2",
@@ -254,8 +353,8 @@ class MirroringAndCredentialServiceV1Test {
                           .pathParam("id", credentialId)
                           .asJson(Credential.class)
                           .execute();
-            final PublicKeyCredential actual = (PublicKeyCredential) fetchResponse.content();
-            assertThat(actual.id()).isEqualTo((String) credential.get("id"));
+            final SshKeyCredential actual = (SshKeyCredential) fetchResponse.content();
+            assertThat(actual.name()).isEqualTo(credential.get("name"));
             assertThat(actual.username()).isEqualTo(credential.get("username"));
             assertThat(actual.publicKey()).isEqualTo(credential.get("publicKey"));
             if (isSystemAdmin) {
@@ -268,25 +367,11 @@ class MirroringAndCredentialServiceV1Test {
         }
     }
 
-    private void createAndReadMirror() {
+    private static void createAndReadMirror(String repoName) {
         for (int i = 0; i < 3; i++) {
-            final MirrorRequest newMirror = newMirror("mirror-" + i);
-            final ResponseEntity<PushResultDto> response0 =
-                    userClient.prepare()
-                              .post("/api/v1/projects/{proj}/mirrors")
-                              .pathParam("proj", FOO_PROJ)
-                              .contentJson(newMirror)
-                              .asJson(PushResultDto.class)
-                              .execute();
-            assertThat(response0.status()).isEqualTo(HttpStatus.CREATED);
-            final ResponseEntity<MirrorDto> response1 =
-                    userClient.prepare()
-                              .get("/api/v1/projects/{proj}/mirrors/{id}")
-                              .pathParam("proj", FOO_PROJ)
-                              .pathParam("id", newMirror.id())
-                              .asJson(MirrorDto.class)
-                              .execute();
-            final MirrorDto savedMirror = response1.content();
+            final MirrorRequest newMirror = newMirror(repoName, "mirror-" + i);
+            createMirror(repoName, newMirror);
+            final MirrorDto savedMirror = getMirror(repoName, newMirror.id());
             assertThat(savedMirror)
                     .usingRecursiveComparison()
                     .ignoringFields("allow")
@@ -294,131 +379,150 @@ class MirroringAndCredentialServiceV1Test {
         }
 
         // Make sure that the mirror with a port number in the remote URL can be created and read.
-        final MirrorRequest mirrorWithPort = new MirrorRequest("mirror-with-port-3",
-                                                               true,
-                                                               FOO_PROJ,
-                                                               "5 * * * * ?",
-                                                               "REMOTE_TO_LOCAL",
-                                                               BAR_REPO,
-                                                               "/updated/local-path/",
-                                                               "git+https",
-                                                               "git.com:922/line/centraldogma-test.git",
-                                                               "/updated/remote-path/",
-                                                               "updated-mirror-branch",
-                                                               ".updated-env",
-                                                               "public-key-credential",
-                                                               null);
-
-        final ResponseEntity<PushResultDto> response0 =
-                userClient.prepare()
-                          .post("/api/v1/projects/{proj}/mirrors")
-                          .pathParam("proj", FOO_PROJ)
-                          .contentJson(mirrorWithPort)
-                          .asJson(PushResultDto.class)
-                          .execute();
-        assertThat(response0.status()).isEqualTo(HttpStatus.CREATED);
-        final ResponseEntity<MirrorDto> response1 =
-                userClient.prepare()
-                          .get("/api/v1/projects/{proj}/mirrors/{id}")
-                          .pathParam("proj", FOO_PROJ)
-                          .pathParam("id", mirrorWithPort.id())
-                          .asJson(MirrorDto.class)
-                          .execute();
-        final MirrorDto savedMirror = response1.content();
+        final MirrorRequest mirrorWithPort = new MirrorRequest(
+                "mirror-with-port-3",
+                true,
+                FOO_PROJ,
+                "5 * * * * ?",
+                "REMOTE_TO_LOCAL",
+                repoName,
+                "/updated/local-path/",
+                "git+https",
+                "git.com:922/line/centraldogma-test.git",
+                "/updated/remote-path/",
+                "updated-mirror-branch",
+                ".updated-env",
+                credentialName(FOO_PROJ, "ssh-key-credential"),
+                null);
+        createMirror(repoName, mirrorWithPort);
+        final MirrorDto savedMirror = getMirror(repoName, mirrorWithPort.id());
         assertThat(savedMirror)
                 .usingRecursiveComparison()
                 .ignoringFields("allow")
                 .isEqualTo(mirrorWithPort);
     }
 
-    private void updateMirror() {
-        final MirrorRequest mirror = new MirrorRequest("mirror-2",
-                                                       true,
-                                                       FOO_PROJ,
-                                                       "5 * * * * ?",
-                                                       "REMOTE_TO_LOCAL",
-                                                       BAR_REPO,
-                                                       "/updated/local-path/",
-                                                       "git+https",
-                                                       "github.com/line/centraldogma-updated.git",
-                                                       "/updated/remote-path/",
-                                                       "updated-mirror-branch",
-                                                       ".updated-env",
-                                                       "access-token-credential",
-                                                       null);
+    private static void createMirror(String repoName, MirrorRequest newMirror) {
+        final ResponseEntity<PushResultDto> response =
+                userClient.prepare()
+                          .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
+                          .pathParam("proj", FOO_PROJ)
+                          .pathParam("repo", repoName)
+                          .contentJson(newMirror)
+                          .asJson(PushResultDto.class)
+                          .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
+    }
+
+    private static MirrorDto getMirror(String repoName, String mirrorId) {
+        final ResponseEntity<MirrorDto> response1 =
+                userClient.prepare()
+                          .get("/api/v1/projects/{proj}/repos/{repo}/mirrors/{id}")
+                          .pathParam("proj", FOO_PROJ)
+                          .pathParam("repo", repoName)
+                          .pathParam("id", mirrorId)
+                          .asJson(MirrorDto.class)
+                          .execute();
+        assertThat(response1.status()).isEqualTo(HttpStatus.OK);
+        return response1.content();
+    }
+
+    private static void updateMirror() {
+        final MirrorRequest mirror = new MirrorRequest(
+                "mirror-2",
+                true,
+                FOO_PROJ,
+                "5 * * * * ?",
+                "REMOTE_TO_LOCAL",
+                BAR_REPO,
+                "/updated/local-path/",
+                "git+https",
+                "github.com/line/centraldogma-updated.git",
+                "/updated/remote-path/",
+                "updated-mirror-branch",
+                ".updated-env",
+                credentialName(FOO_PROJ, "access-token-credential"),
+                null);
         final ResponseEntity<PushResultDto> updateResponse =
                 userClient.prepare()
-                          .put("/api/v1/projects/{proj}/mirrors/{id}")
+                          .put("/api/v1/projects/{proj}/repos/{repo}/mirrors/{id}")
                           .pathParam("proj", FOO_PROJ)
+                          .pathParam("repo", BAR_REPO)
                           .pathParam("id", mirror.id())
                           .contentJson(mirror)
                           .asJson(PushResultDto.class)
                           .execute();
         assertThat(updateResponse.status()).isEqualTo(HttpStatus.OK);
-        final ResponseEntity<MirrorDto> fetchResponse =
-                userClient.prepare()
-                          .get("/api/v1/projects/{proj}/mirrors/{id}")
-                          .pathParam("proj", FOO_PROJ)
-                          .pathParam("id", mirror.id())
-                          .asJson(MirrorDto.class)
-                          .execute();
-        final MirrorDto savedMirror = fetchResponse.content();
+        final MirrorDto savedMirror = getMirror(BAR_REPO, mirror.id());
         assertThat(savedMirror)
                 .usingRecursiveComparison()
                 .ignoringFields("allow")
                 .isEqualTo(mirror);
     }
 
-    private void deleteMirror() {
-        final String mirrorId = "mirror-2";
-        assertThat(userClient.prepare()
-                             .delete("/api/v1/projects/{proj}/mirrors/{id}")
-                             .pathParam("proj", FOO_PROJ)
-                             .pathParam("id", mirrorId)
-                             .execute()
-                             .status())
-                .isEqualTo(HttpStatus.NO_CONTENT);
-        assertThat(userClient.prepare()
-                             .get("/api/v1/projects/{proj}/mirrors/{id}")
-                             .pathParam("proj", FOO_PROJ)
-                             .pathParam("id", mirrorId)
-                             .execute()
-                             .status())
-                .isEqualTo(HttpStatus.NOT_FOUND);
+    private static void deleteMirror(String repoName) {
+        for (int i = 0; i < 3; i++) {
+            final String mirrorId = "mirror-" + i;
+            assertThat(userClient.prepare()
+                                 .delete("/api/v1/projects/{proj}/repos/{repo}/mirrors/{id}")
+                                 .pathParam("proj", FOO_PROJ)
+                                 .pathParam("repo", repoName)
+                                 .pathParam("id", mirrorId)
+                                 .execute()
+                                 .status())
+                    .isEqualTo(HttpStatus.NO_CONTENT);
+            assertThat(userClient.prepare()
+                                 .get("/api/v1/projects/{proj}/repos/{repo}/mirrors/{id}")
+                                 .pathParam("proj", FOO_PROJ)
+                                 .pathParam("repo", repoName)
+                                 .pathParam("id", mirrorId)
+                                 .execute()
+                                 .status())
+                    .isEqualTo(HttpStatus.NOT_FOUND);
+        }
     }
 
-    private void deleteCredential() {
-        final String credentialId = "public-key-credential";
-        assertThat(userClient.prepare()
-                             .delete("/api/v1/projects/{proj}/credentials/{id}")
-                             .pathParam("proj", FOO_PROJ)
-                             .pathParam("id", credentialId)
-                             .execute()
-                             .status())
-                .isEqualTo(HttpStatus.NO_CONTENT);
-        assertThat(userClient.prepare()
-                             .get("/api/v1/projects/{proj}/credentials/{id}")
-                             .pathParam("proj", FOO_PROJ)
-                             .pathParam("id", credentialId)
-                             .execute()
-                             .status())
-                .isEqualTo(HttpStatus.NOT_FOUND);
+    private static void deleteCredential() {
+        final Set<String> credentialIds = ImmutableSet.of("password-credential",
+                                                          "access-token-credential",
+                                                          "ssh-key-credential",
+                                                          "non-credential");
+        for (String credentialId : credentialIds) {
+            assertThat(userClient.prepare()
+                                 .delete("/api/v1/projects/{proj}/credentials/{id}")
+                                 .pathParam("proj", FOO_PROJ)
+                                 .pathParam("id", credentialId)
+                                 .execute()
+                                 .status())
+                    .isEqualTo(HttpStatus.NO_CONTENT);
+            assertThat(userClient.prepare()
+                                 .get("/api/v1/projects/{proj}/credentials/{id}")
+                                 .pathParam("proj", FOO_PROJ)
+                                 .pathParam("id", credentialId)
+                                 .execute()
+                                 .status())
+                    .isEqualTo(HttpStatus.NOT_FOUND);
+        }
     }
 
-    private static MirrorRequest newMirror(String id) {
+    private static MirrorRequest newMirror(String repoName, String id) {
+        return newMirror(repoName, id, credentialName(FOO_PROJ, "ssh-key-credential"));
+    }
+
+    private static MirrorRequest newMirror(String repoName, String id, String credentialName) {
         return new MirrorRequest(id,
                                  true,
                                  FOO_PROJ,
                                  "5 * * * * ?",
                                  "REMOTE_TO_LOCAL",
-                                 BAR_REPO,
+                                 repoName,
                                  "/local-path/" + id + '/',
                                  "git+https",
                                  "github.com/line/centraldogma-authtest.git",
                                  "/remote-path/" + id + '/',
                                  "mirror-branch",
                                  ".my-env0\n.my-env1",
-                                 "public-key-credential",
+                                 credentialName,
                                  null);
     }
 }

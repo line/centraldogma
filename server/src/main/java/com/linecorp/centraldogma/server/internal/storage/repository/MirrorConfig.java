@@ -22,13 +22,8 @@ import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_DOGMA
 import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
-import java.util.List;
-import java.util.ServiceLoader;
 
 import javax.annotation.Nullable;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.cronutils.model.Cron;
 import com.cronutils.model.CronType;
@@ -40,45 +35,29 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 
-import com.linecorp.centraldogma.server.credential.Credential;
-import com.linecorp.centraldogma.server.mirror.Mirror;
-import com.linecorp.centraldogma.server.mirror.MirrorContext;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
-import com.linecorp.centraldogma.server.mirror.MirrorProvider;
-import com.linecorp.centraldogma.server.storage.project.Project;
 
 // ignoreUnknown = true for backward compatibility since `type` field is removed.
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL)
 public final class MirrorConfig {
 
-    private static final Logger logger = LoggerFactory.getLogger(MirrorConfig.class);
-
     public static final String DEFAULT_SCHEDULE = "0 * * * * ?"; // Every minute
 
     public static final CronParser CRON_PARSER = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
 
-    public static final List<MirrorProvider> MIRROR_PROVIDERS;
-
-    static {
-        MIRROR_PROVIDERS = ImmutableList.copyOf(ServiceLoader.load(MirrorProvider.class));
-        logger.debug("Available {}s: {}", MirrorProvider.class.getSimpleName(), MIRROR_PROVIDERS);
-    }
-
     private final String id;
     private final boolean enabled;
     private final MirrorDirection direction;
-    @Nullable
     private final String localRepo;
     private final String localPath;
     private final URI remoteUri;
     @Nullable
     private final String gitignore;
-    private final String credentialId;
+    private final String credentialName;
     @Nullable
     private final Cron schedule;
     @Nullable
@@ -93,15 +72,23 @@ public final class MirrorConfig {
                         @JsonProperty("localPath") @Nullable String localPath,
                         @JsonProperty(value = "remoteUri", required = true) URI remoteUri,
                         @JsonProperty("gitignore") @Nullable Object gitignore,
-                        @JsonProperty("credentialId") String credentialId,
+                        // TODO(minwoox): Remove this credentialId property after migration is done.
+                        @JsonProperty("credentialId") @Nullable String credentialId,
+                        @JsonProperty("credentialName") @Nullable String credentialName,
                         @JsonProperty("zone") @Nullable String zone) {
+        this(id, enabled, schedule != null ? CRON_PARSER.parse(schedule) : null, direction, localRepo,
+             localPath, remoteUri, gitignore,
+             requireNonNull(firstNonNull(credentialName, credentialId), "credentialName"),
+             zone);
+    }
+
+    private MirrorConfig(String id, @Nullable Boolean enabled, @Nullable Cron schedule,
+                         MirrorDirection direction, String localRepo, @Nullable String localPath,
+                         URI remoteUri, @Nullable Object gitignore, String credentialName,
+                         @Nullable String zone) {
         this.id = requireNonNull(id, "id");
         this.enabled = firstNonNull(enabled, true);
-        if (schedule != null) {
-            this.schedule = CRON_PARSER.parse(schedule);
-        } else {
-            this.schedule = null;
-        }
+        this.schedule = schedule;
         this.direction = requireNonNull(direction, "direction");
         this.localRepo = requireNonNull(localRepo, "localRepo");
         this.localPath = firstNonNull(localPath, "/");
@@ -124,41 +111,13 @@ public final class MirrorConfig {
         } else {
             this.gitignore = null;
         }
-        this.credentialId = requireNonNull(credentialId, "credentialId");
+        this.credentialName = requireNonNull(credentialName, "credentialName");
         this.zone = zone;
     }
 
-    @Nullable
-    Mirror toMirror(Project parent, Iterable<Credential> credentials) {
-        if (localRepo == null || !parent.repos().exists(localRepo)) {
-            return null;
-        }
-
-        final MirrorContext mirrorContext = new MirrorContext(
-                id, enabled, schedule, direction, findCredential(credentials, credentialId),
-                parent.repos().get(localRepo), localPath, remoteUri, gitignore, zone);
-        for (MirrorProvider mirrorProvider : MIRROR_PROVIDERS) {
-            final Mirror mirror = mirrorProvider.newMirror(mirrorContext);
-            if (mirror != null) {
-                return mirror;
-            }
-        }
-
-        throw new IllegalArgumentException("could not find a mirror provider for " + mirrorContext);
-    }
-
-    public static Credential findCredential(Iterable<Credential> credentials,
-                                            @Nullable String credentialId) {
-        if (credentialId != null) {
-            for (Credential c : credentials) {
-                final String id = c.id();
-                if (credentialId.equals(id)) {
-                    return c;
-                }
-            }
-        }
-
-        return Credential.FALLBACK;
+    public MirrorConfig withCredentialName(String credentialName) {
+        return new MirrorConfig(id, enabled, schedule, direction, localRepo, localPath, remoteUri,
+                                gitignore, credentialName, zone);
     }
 
     @JsonProperty("id")
@@ -176,7 +135,6 @@ public final class MirrorConfig {
         return direction;
     }
 
-    @Nullable
     @JsonProperty("localRepo")
     public String localRepo() {
         return localRepo;
@@ -192,15 +150,19 @@ public final class MirrorConfig {
         return remoteUri.toString();
     }
 
+    URI rawRemoteUri() {
+        return remoteUri;
+    }
+
     @JsonProperty("gitignore")
     @Nullable
     public String gitignore() {
         return gitignore;
     }
 
-    @JsonProperty("credentialId")
-    public String credentialId() {
-        return credentialId;
+    @JsonProperty("credentialName")
+    public String credentialName() {
+        return credentialName;
     }
 
     @Nullable
@@ -211,6 +173,11 @@ public final class MirrorConfig {
         } else {
             return null;
         }
+    }
+
+    @Nullable
+    Cron cronSchedule() {
+        return schedule;
     }
 
     @Nullable
@@ -228,7 +195,7 @@ public final class MirrorConfig {
                           .add("localPath", localPath)
                           .add("remoteUri", remoteUri)
                           .add("gitignore", gitignore)
-                          .add("credentialId", credentialId)
+                          .add("credentialName", credentialName)
                           .add("schedule", schedule)
                           .add("zone", zone)
                           .toString();

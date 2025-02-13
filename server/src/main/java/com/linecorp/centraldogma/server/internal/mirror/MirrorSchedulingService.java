@@ -109,16 +109,19 @@ public final class MirrorSchedulingService implements MirroringService {
 
     private ZonedDateTime lastExecutionTime;
     private final MeterRegistry meterRegistry;
+    // Used to disable in the tests.
+    private final boolean runMigration;
 
     @VisibleForTesting
     public MirrorSchedulingService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
                                    int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror,
-                                   @Nullable ZoneConfig zoneConfig,
+                                   @Nullable ZoneConfig zoneConfig, boolean runMigration,
                                    MirrorAccessController mirrorAccessController) {
 
         this.workDir = requireNonNull(workDir, "workDir");
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
+        this.runMigration = runMigration;
 
         checkArgument(numThreads > 0, "numThreads: %s (expected: > 0)", numThreads);
         checkArgument(maxNumFilesPerMirror > 0,
@@ -170,6 +173,15 @@ public final class MirrorSchedulingService implements MirroringService {
                         Thread.currentThread().interrupt();
                     }
                 }));
+
+        if (runMigration) {
+            try {
+                new MigratingMirrorToRepositoryService(projectManager, commandExecutor).migrate();
+            } catch (Exception e) {
+                logger.error("Failed to migrate mirrors to each repository:", e);
+                return;
+            }
+        }
 
         final ListenableScheduledFuture<?> future = scheduler.scheduleWithFixedDelay(
                 this::scheduleMirrors,

@@ -44,11 +44,11 @@ public final class MirrorDto extends MirrorRequest {
                      @JsonProperty("remotePath") String remotePath,
                      @JsonProperty("remoteBranch") String remoteBranch,
                      @JsonProperty("gitignore") @Nullable String gitignore,
-                     @JsonProperty("credentialId") String credentialId,
+                     @JsonProperty("credentialName") @Nullable String credentialName,
                      @JsonProperty("zone") @Nullable String zone,
                      @JsonProperty("allow") boolean allow) {
         super(id, enabled, projectName, schedule, direction, localRepo, localPath, remoteScheme, remoteUrl,
-              remotePath, remoteBranch, gitignore, credentialId, zone);
+              remotePath, remoteBranch, gitignore, credentialName, zone);
         this.allow = allow;
     }
 

@@ -16,6 +16,9 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.projectCredentialFile;
 import static com.linecorp.centraldogma.it.mirror.git.GitTestUtil.getFileContent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -105,8 +108,8 @@ class ForceRefUpdateTest {
         dogma.client()
              .forRepo(projName, Project.REPO_META)
              .commit("cleanup",
-                     Change.ofRemoval("/credentials/public-key-id.json"),
-                     Change.ofRemoval("/mirrors/foo.json"))
+                     Change.ofRemoval(projectCredentialFile("ssh-key-id")),
+                     Change.ofRemoval("/repos/" + REPO_FOO + "/mirrors/foo.json"))
              .push().join();
     }
 
@@ -199,12 +202,13 @@ class ForceRefUpdateTest {
     }
 
     private void pushCredentials(String pubKey, String privKey) {
+        final String name = credentialName(projName, "ssh-key-id");
         dogma.client().forRepo(projName, Project.REPO_META)
              .commit("Add a mirror",
-                     Change.ofJsonUpsert("/credentials/public-key-id.json",
+                     Change.ofJsonUpsert(credentialFile(name),
                                          '{' +
-                                         "  \"id\": \"public-key-id\"," +
-                                         "  \"type\": \"public_key\"," +
+                                         "  \"name\": \"" + name + "\"," +
+                                         "  \"type\": \"SSH_KEY\"," +
                                          "  \"username\": \"" + "git" + "\"," +
                                          "  \"publicKey\": \"" + pubKey + "\"," +
                                          "  \"privateKey\": \"" + privKey + '"' +
@@ -215,7 +219,7 @@ class ForceRefUpdateTest {
     private void pushMirror(String gitUri, MirrorDirection mirrorDirection) {
         dogma.client().forRepo(projName, Project.REPO_META)
              .commit("Add a mirror",
-                     Change.ofJsonUpsert("/mirrors/foo.json",
+                     Change.ofJsonUpsert("/repos/" + REPO_FOO + "/mirrors/foo.json",
                                          '{' +
                                          "  \"id\": \"foo\"," +
                                          "  \"enabled\": true," +
@@ -225,7 +229,8 @@ class ForceRefUpdateTest {
                                          "  \"localPath\": \"/\"," +
                                          "  \"remoteUri\": \"" + gitUri + "\"," +
                                          "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
-                                         "  \"credentialId\": \"public-key-id\"" +
+                                         "  \"credentialName\": \"" +
+                                         credentialName(projName, "ssh-key-id") + '"' +
                                          '}'))
              .push().join();
     }
