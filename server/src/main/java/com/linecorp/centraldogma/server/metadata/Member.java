@@ -26,11 +26,12 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 
 /**
  * Specifies details of a member who belongs to the {@link Project}.
  */
-public class Member implements Identifiable {
+public class Member implements Identifiable, HasWeight {
 
     /**
      * A login name of a member.
@@ -92,6 +93,11 @@ public class Member implements Identifiable {
     @JsonProperty
     public ProjectRole role() {
         return role;
+    }
+
+    @Override
+    public int weight() {
+        return login.length() + role.name().length();
     }
 
     /**

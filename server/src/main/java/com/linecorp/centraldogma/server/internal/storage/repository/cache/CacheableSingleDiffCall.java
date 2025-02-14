@@ -26,10 +26,10 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
+import com.linecorp.centraldogma.server.internal.storage.repository.git.AbstractCacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-final class CacheableSingleDiffCall extends CacheableCall<Change<?>> {
+final class CacheableSingleDiffCall extends AbstractCacheableCall<Change<?>> {
 
     final Revision from;
     final Revision to;
@@ -50,7 +50,7 @@ final class CacheableSingleDiffCall extends CacheableCall<Change<?>> {
     }
 
     @Override
-    protected int weigh(Change<?> value) {
+    public int weigh(Change<?> value) {
         int weight = 0;
         weight += query.path().length();
         for (String e : query.expressions()) {

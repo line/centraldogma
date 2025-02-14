@@ -27,6 +27,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 
 import com.linecorp.armeria.common.metric.NoopMeterRegistry;
 import com.linecorp.centraldogma.common.ShuttingDownException;
+import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
@@ -134,7 +135,8 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
     protected ProjectManager newProjectManager(Executor repositoryWorker, Executor purgeWorker) {
         try {
             return new DefaultProjectManager(dataDir, repositoryWorker,
-                                             purgeWorker, NoopMeterRegistry.get(), null);
+                                             purgeWorker, NoopMeterRegistry.get(),
+                                             CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC);
         } catch (Exception e) {
             // Should not reach here.
             throw new Error(e);

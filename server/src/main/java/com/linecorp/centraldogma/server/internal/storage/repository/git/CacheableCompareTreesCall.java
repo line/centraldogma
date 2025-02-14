@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import javax.annotation.Nullable;
 
@@ -27,12 +29,22 @@ import org.eclipse.jgit.revwalk.RevTree;
 
 import com.google.common.base.MoreObjects.ToStringHelper;
 
-import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-final class CacheableCompareTreesCall extends CacheableCall<List<DiffEntry>> {
+final class CacheableCompareTreesCall extends AbstractCacheableCall<List<DiffEntry>> {
 
     private static final int SHA1_LEN = 20;
+
+    // Use its own lock instead of the locks in AbstractCacheableCall because the caller might already have
+    // the lock in AbstractCacheableCall which can cause a deadlock.
+    private static final Lock[] locks;
+
+    static {
+        locks = new Lock[64];
+        for (int i = 0; i < locks.length; i++) {
+            locks[i] = new ReentrantLock();
+        }
+    }
 
     @Nullable
     private final RevTree treeA;
@@ -49,7 +61,12 @@ final class CacheableCompareTreesCall extends CacheableCall<List<DiffEntry>> {
     }
 
     @Override
-    protected int weigh(List<DiffEntry> value) {
+    public Lock coarseGrainedLock() {
+        return locks[Math.abs(hashCode() % locks.length)];
+    }
+
+    @Override
+    public int weigh(List<DiffEntry> value) {
         int weight = SHA1_LEN * 2;
         for (DiffEntry e : value) {
             if (e.getOldId() != null) {

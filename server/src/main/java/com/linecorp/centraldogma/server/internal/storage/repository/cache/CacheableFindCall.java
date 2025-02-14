@@ -26,11 +26,11 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
+import com.linecorp.centraldogma.server.internal.storage.repository.git.AbstractCacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-final class CacheableFindCall extends CacheableCall<Map<String, Entry<?>>> {
+final class CacheableFindCall extends AbstractCacheableCall<Map<String, Entry<?>>> {
 
     final Revision revision;
     final String pathPattern;
@@ -50,7 +50,7 @@ final class CacheableFindCall extends CacheableCall<Map<String, Entry<?>>> {
     }
 
     @Override
-    protected int weigh(Map<String, Entry<?>> value) {
+    public int weigh(Map<String, Entry<?>> value) {
         int weight = 0;
         weight += pathPattern.length();
         weight += options.size();

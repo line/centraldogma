@@ -16,6 +16,8 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.eclipse.jgit.lib.AnyObjectId;
 import org.eclipse.jgit.lib.ObjectLoader;
@@ -23,10 +25,20 @@ import org.eclipse.jgit.lib.ObjectLoader;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.primitives.Ints;
 
-import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-final class CacheableObjectLoaderCall extends CacheableCall<ObjectLoader> {
+final class CacheableObjectLoaderCall extends AbstractCacheableCall<ObjectLoader> {
+
+    // Use its own lock instead of the locks in AbstractCacheableCall because the caller might already have
+    // the lock in AbstractCacheableCall which can cause a deadlock.
+    private static final Lock[] locks;
+
+    static {
+        locks = new Lock[64];
+        for (int i = 0; i < locks.length; i++) {
+            locks[i] = new ReentrantLock();
+        }
+    }
 
     private final AnyObjectId objectId;
     private final int hashCode;
@@ -38,7 +50,12 @@ final class CacheableObjectLoaderCall extends CacheableCall<ObjectLoader> {
     }
 
     @Override
-    protected int weigh(ObjectLoader value) {
+    public Lock coarseGrainedLock() {
+        return locks[Math.abs(hashCode() % locks.length)];
+    }
+
+    @Override
+    public int weigh(ObjectLoader value) {
         return Ints.saturatedCast(value.getSize());
     }
 

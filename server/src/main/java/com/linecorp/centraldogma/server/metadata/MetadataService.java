@@ -22,7 +22,6 @@ import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.as
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager.listProjectsWithoutInternal;
 import static com.linecorp.centraldogma.server.metadata.RepositoryMetadata.DEFAULT_PROJECT_ROLES;
-import static com.linecorp.centraldogma.server.metadata.RepositorySupport.convertWithJackson;
 import static com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
 import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
@@ -100,10 +99,8 @@ public class MetadataService {
     public MetadataService(ProjectManager projectManager, CommandExecutor executor) {
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.executor = requireNonNull(executor, "executor");
-        metadataRepo = new RepositorySupport<>(projectManager, executor,
-                                               entry -> convertWithJackson(entry, ProjectMetadata.class));
-        tokenRepo = new RepositorySupport<>(projectManager, executor,
-                                            entry -> convertWithJackson(entry, Tokens.class));
+        metadataRepo = new RepositorySupport<>(projectManager, executor, ProjectMetadata.class);
+        tokenRepo = new RepositorySupport<>(projectManager, executor, Tokens.class);
     }
 
     /**

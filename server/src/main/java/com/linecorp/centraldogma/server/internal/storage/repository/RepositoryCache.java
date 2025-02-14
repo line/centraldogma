@@ -34,6 +34,9 @@ import com.github.benmanes.caffeine.cache.Weigher;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.centraldogma.server.internal.storage.repository.git.AbstractCacheableCall;
+import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
+
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics;
 
@@ -98,7 +101,7 @@ public class RepositoryCache {
         cache.put(call, CompletableFuture.completedFuture(value));
     }
 
-    public <T> T load(CacheableCall<T> key, Supplier<T> supplier, boolean logIfMiss) {
+    public <T> T load(AbstractCacheableCall<T> key, Supplier<T> supplier, boolean logIfMiss) {
         CompletableFuture<T> existingFuture = getIfPresent(key);
         if (existingFuture != null) {
             final T existingValue = existingFuture.getNow(null);

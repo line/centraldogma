@@ -27,10 +27,10 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
+import com.linecorp.centraldogma.server.internal.storage.repository.git.AbstractCacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-final class CacheableFindLatestRevCall extends CacheableCall<Revision> {
+final class CacheableFindLatestRevCall extends AbstractCacheableCall<Revision> {
 
     static final Revision EMPTY = new Revision(Integer.MIN_VALUE);
     static final Revision ENTRY_NOT_FOUND = new Revision(Integer.MIN_VALUE);
@@ -57,7 +57,7 @@ final class CacheableFindLatestRevCall extends CacheableCall<Revision> {
     }
 
     @Override
-    protected int weigh(Revision value) {
+    public int weigh(Revision value) {
         return pathPattern.length();
     }
 

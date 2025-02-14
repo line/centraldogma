@@ -71,10 +71,13 @@ class CacheTest {
             //     Therefore we should observe five cache miss. (Thrift only)
             assertThat(missCount(meters2)).isEqualTo(
                     missCount(meters1) + 1 +
+                    1 + // (CacheableFetchCall in RepositorySupport for metadata.json)
                     1 + // (CacheableHistoryCall)
                     4); // (CacheableObjectLoaderCall: 2 for revision2 and 2 for revision1)
         } else {
-            assertThat(missCount(meters2)).isEqualTo(missCount(meters1) + 1);
+            assertThat(missCount(meters2)).isEqualTo(
+                    missCount(meters1) + 1 +
+                    1); // (CacheableFetchCall in RepositorySupport for metadata.json)
         }
 
         // First getFile() should miss.
@@ -123,10 +126,13 @@ class CacheTest {
             //     Therefore we should observe five cache miss. (Thrift only)
             assertThat(currentMissCount).isEqualTo(
                     prevMissCount + 1 +
+                    1 + // (CacheableFetchCall in RepositorySupport for metadata.json)
                     1 + // (CacheableHistoryCall)
                     4); // (CacheableObjectLoaderCall: 2 for revision2 and 2 for revision1)
         } else {
-            assertThat(currentMissCount).isEqualTo(prevMissCount + 1);
+            assertThat(currentMissCount).isEqualTo(
+                    prevMissCount + 1 +
+                    1); // (CacheableFetchCall in RepositorySupport for metadata.json)
         }
         prevMissCount = currentMissCount;
 

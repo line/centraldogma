@@ -18,10 +18,11 @@ package com.linecorp.centraldogma.server.metadata;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.util.Exceptions;
@@ -37,19 +38,21 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
+import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class RepositorySupport<T> {
 
     private final ProjectManager projectManager;
     private final CommandExecutor executor;
-    private final Function<Entry<?>, T> entryConverter;
+    private final Class<T> entryClass;
 
     RepositorySupport(ProjectManager projectManager, CommandExecutor executor,
-                      Function<Entry<?>, T> entryConverter) {
+                      Class<T> entryClass) {
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.executor = requireNonNull(executor, "executor");
-        this.entryConverter = requireNonNull(entryConverter, "entryConverter");
+        this.entryClass = requireNonNull(entryClass, "entryClass");
     }
 
     public ProjectManager projectManager() {
@@ -60,14 +63,6 @@ final class RepositorySupport<T> {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         return fetch(projectManager().get(projectName).repos().get(repoName), path);
-    }
-
-    CompletableFuture<HolderWithRevision<T>> fetch(String projectName, String repoName, String path,
-                                                   Revision revision) {
-        requireNonNull(projectName, "projectName");
-        requireNonNull(repoName, "repoName");
-        requireNonNull(revision, "revision");
-        return fetch(projectManager().get(projectName).repos().get(repoName), path, revision);
     }
 
     private CompletableFuture<HolderWithRevision<T>> fetch(Repository repository, String path) {
@@ -81,9 +76,9 @@ final class RepositorySupport<T> {
         requireNonNull(repository, "repository");
         requireNonNull(path, "path");
         requireNonNull(revision, "revision");
-        return repository.get(revision, path)
-                         .thenApply(entryConverter)
-                         .thenApply((T obj) -> HolderWithRevision.of(obj, revision));
+        final CacheableFetchCall<T> cacheableFetchCall = new CacheableFetchCall<>(repository, revision, path,
+                                                                                  entryClass);
+        return repository.execute(cacheableFetchCall);
     }
 
     CompletableFuture<Revision> push(String projectName, String repoName,
@@ -134,7 +129,7 @@ final class RepositorySupport<T> {
                        });
     }
 
-    Revision normalize(Repository repository) {
+    static Revision normalize(Repository repository) {
         requireNonNull(repository, "repository");
         try {
             return repository.normalizeNow(Revision.HEAD);
@@ -143,14 +138,77 @@ final class RepositorySupport<T> {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    static <T> T convertWithJackson(Entry<?> entry, Class<T> clazz) {
-        requireNonNull(entry, "entry");
-        requireNonNull(clazz, "clazz");
-        try {
-            return Jackson.treeToValue(((Entry<JsonNode>) entry).content(), clazz);
-        } catch (Throwable cause) {
-            return Exceptions.throwUnsafely(cause);
+    // TODO(minwoox): Consider generalizing this class.
+    private static class CacheableFetchCall<U> implements CacheableCall<HolderWithRevision<U>> {
+
+        private final Repository repo;
+        private final Revision revision;
+        private final String path;
+        private final Class<U> entryClass;
+        private final int hashCode;
+
+        CacheableFetchCall(Repository repo, Revision revision, String path, Class<U> entryClass) {
+            this.repo = repo;
+            this.revision = revision;
+            this.path = path;
+            this.entryClass = entryClass;
+
+            hashCode = Objects.hash(revision, path, entryClass) * 31 + System.identityHashCode(repo);
+            assert !revision.isRelative();
+        }
+
+        @Override
+        public int weigh(HolderWithRevision<U> value) {
+            int weight = path.length();
+            final U object = value.object();
+            if (object instanceof HasWeight) {
+                weight += ((HasWeight) object).weight();
+            }
+            return weight;
+        }
+
+        @Override
+        public CompletableFuture<HolderWithRevision<U>> execute() {
+            return repo.get(revision, path)
+                       .thenApply(this::convertWithJackson)
+                       .thenApply((U obj) -> HolderWithRevision.of(obj, revision));
+        }
+
+        @SuppressWarnings("unchecked")
+        U convertWithJackson(Entry<?> entry) {
+            requireNonNull(entry, "entry");
+            try {
+                return Jackson.treeToValue(((Entry<JsonNode>) entry).content(), entryClass);
+            } catch (Throwable cause) {
+                return Exceptions.throwUnsafely(cause);
+            }
+        }
+
+        @Override
+        public int hashCode() {
+            return hashCode;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!super.equals(o)) {
+                return false;
+            }
+
+            final CacheableFetchCall<?> that = (CacheableFetchCall<?>) o;
+            return revision.equals(that.revision) &&
+                   path.equals(that.path) &&
+                   entryClass == that.entryClass;
+        }
+
+        @Override
+        public String toString() {
+            return MoreObjects.toStringHelper(this)
+                              .add("repo", repo)
+                              .add("revision", revision)
+                              .add("path", path)
+                              .add("entryClass", entryClass)
+                              .toString();
         }
     }
 }

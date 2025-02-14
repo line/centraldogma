@@ -461,9 +461,13 @@ class MetadataServiceTest {
 
         Token token;
         mds.createToken(author, app1).join();
-        token = mds.getTokens().join().get(app1);
+        final Tokens tokens = mds.getTokens().join();
+        token = tokens.get(app1);
         assertThat(token).isNotNull();
         assertThat(token.isSystemAdmin()).isFalse();
+
+        // tokens are cached by the RepositorySupport so the same instance is returned.
+        assertThat(mds.getTokens().join()).isSameAs(tokens);
 
         final Revision revision = mds.updateTokenLevel(author, app1, true).join();
         token = mds.getTokens().join().get(app1);

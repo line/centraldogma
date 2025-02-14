@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.RequestContext;
@@ -47,6 +49,7 @@ import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -56,6 +59,15 @@ final class CachingRepository implements Repository {
 
     private static final CancellationException CANCELLATION_EXCEPTION =
             Exceptions.clearTrace(new CancellationException("watch cancelled by caller"));
+
+    private static final Lock[] locks;
+
+    static {
+        locks = new Lock[8192];
+        for (int i = 0; i < locks.length; i++) {
+            locks[i] = new ReentrantLock();
+        }
+    }
 
     private final Repository repo;
     private final RepositoryCache cache;
@@ -269,11 +281,35 @@ final class CachingRepository implements Repository {
             }, executor()));
         }
 
+        // Do not call key.execute() because it may block the current thread.
         return Repository.super.mergeFiles(normalizedRevision, query).thenApply(mergedEntry -> {
             key.computedValue(mergedEntry);
             cache.get(key);
             return mergedEntry;
         });
+    }
+
+    @Override
+    public <T> CompletableFuture<T> execute(CacheableCall<T> cacheableCall) {
+        final CompletableFuture<T> value = cache.getIfPresent(cacheableCall);
+        if (value != null) {
+            return unsafeCast(value.handleAsync((unused, cause) -> {
+                throwUnsafelyIfNonNull(cause);
+                return unused;
+            }, executor()));
+        }
+
+        final Lock lock = locks[Math.abs(cacheableCall.hashCode() % locks.length)];
+        lock.lock();
+        try {
+            return cacheableCall.execute().handleAsync((result, cause) -> {
+                throwUnsafelyIfNonNull(cause);
+                cache.put(cacheableCall, result);
+                return result;
+            }, executor());
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
