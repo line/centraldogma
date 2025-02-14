@@ -34,7 +34,6 @@ import com.github.benmanes.caffeine.cache.Weigher;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.server.internal.storage.repository.git.AbstractCacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
 
 import io.micrometer.core.instrument.MeterRegistry;

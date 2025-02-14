@@ -281,7 +281,6 @@ final class CachingRepository implements Repository {
             }, executor()));
         }
 
-        // Do not call key.execute() because it may block the current thread.
         return Repository.super.mergeFiles(normalizedRevision, query).thenApply(mergedEntry -> {
             key.computedValue(mergedEntry);
             cache.get(key);

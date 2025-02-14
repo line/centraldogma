@@ -25,6 +25,7 @@ import org.eclipse.jgit.lib.ObjectLoader;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.primitives.Ints;
 
+import com.linecorp.centraldogma.server.internal.storage.repository.AbstractCacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class CacheableObjectLoaderCall extends AbstractCacheableCall<ObjectLoader> {

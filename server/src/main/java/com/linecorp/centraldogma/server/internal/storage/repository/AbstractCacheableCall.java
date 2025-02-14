@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.storage.repository.git;
+package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import static java.util.Objects.requireNonNull;
 
@@ -26,9 +26,7 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-/**
- * A cacheable call which is used to retrieve a value from a repository.
- */
+// XXX(trustin): Consider using reflection or AOP so that it takes less effort to add more call types.
 public abstract class AbstractCacheableCall<T> implements CacheableCall<T> {
 
     private static final Lock[] locks;
@@ -42,16 +40,10 @@ public abstract class AbstractCacheableCall<T> implements CacheableCall<T> {
 
     final Repository repo;
 
-    /**
-     * Creates a new instance.
-     */
     protected AbstractCacheableCall(Repository repo) {
         this.repo = requireNonNull(repo, "repo");
     }
 
-    /**
-     * Returns the repository which this call is associated with.
-     */
     public final Repository repo() {
         return repo;
     }
