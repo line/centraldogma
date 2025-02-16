@@ -1035,12 +1035,12 @@ class GitRepository implements Repository {
         }
 
         final CacheableCompareTreesCall key = new CacheableCompareTreesCall(this, treeA, treeB);
-        return cache.load(key, () -> blockingCompareTreesUncached(treeA, treeB, TreeFilter.ALL), true);
+        return cache.get(key).join();
     }
 
-    private List<DiffEntry> blockingCompareTreesUncached(@Nullable RevTree treeA,
-                                                         @Nullable RevTree treeB,
-                                                         TreeFilter filter) {
+    List<DiffEntry> blockingCompareTreesUncached(@Nullable RevTree treeA,
+                                                 @Nullable RevTree treeB,
+                                                 TreeFilter filter) {
         readLock();
         try (DiffFormatter diffFormatter = new DiffFormatter(null)) {
             diffFormatter.setRepository(jGitRepository);

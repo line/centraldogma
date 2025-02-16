@@ -125,11 +125,7 @@ final class CachingRepository implements Repository {
         requireNonNull(options, "options");
 
         final Revision normalizedRevision = normalizeNow(revision);
-        return cache.get(new CacheableFindCall(repo, normalizedRevision, pathPattern, options))
-                    .handleAsync((unused, cause) -> {
-                        throwUnsafelyIfNonNull(cause);
-                        return unused;
-                    }, executor());
+        return execute(new CacheableFindCall(repo, normalizedRevision, pathPattern, options));
     }
 
     @Override
@@ -148,12 +144,7 @@ final class CachingRepository implements Repository {
         // e.g. when from = 2 and to = 4, the same result should be yielded when maxCommits >= 3.
         final int actualMaxCommits = Math.min(
                 maxCommits, Math.abs(range.from().major() - range.to().major()) + 1);
-        return cache.get(new CacheableHistoryCall(repo, range.from(), range.to(),
-                                                  pathPattern, actualMaxCommits))
-                    .handleAsync((unused, cause) -> {
-                        throwUnsafelyIfNonNull(cause);
-                        return unused;
-                    }, executor());
+        return execute(new CacheableHistoryCall(repo, range.from(), range.to(), pathPattern, actualMaxCommits));
     }
 
     @Override
@@ -163,11 +154,7 @@ final class CachingRepository implements Repository {
         requireNonNull(query, "query");
 
         final RevisionRange range = normalizeNow(from, to).toAscending();
-        return cache.get(new CacheableSingleDiffCall(repo, range.from(), range.to(), query))
-                    .handleAsync((unused, cause) -> {
-                        throwUnsafelyIfNonNull(cause);
-                        return unused;
-                    }, executor());
+        return execute(new CacheableSingleDiffCall(repo, range.from(), range.to(), query));
     }
 
     @Override
@@ -179,12 +166,7 @@ final class CachingRepository implements Repository {
         requireNonNull(diffResultType, "diffResultType");
 
         final RevisionRange range = normalizeNow(from, to).toAscending();
-        return cache.get(new CacheableMultiDiffCall(repo, range.from(), range.to(),
-                                                    pathPattern, diffResultType))
-                    .handleAsync((unused, cause) -> {
-                        throwUnsafelyIfNonNull(cause);
-                        return unused;
-                    }, executor());
+        return execute(new CacheableMultiDiffCall(repo, range.from(), range.to(), pathPattern, diffResultType));
     }
 
     @Override
@@ -272,43 +254,15 @@ final class CachingRepository implements Repository {
         requireNonNull(query, "query");
 
         final Revision normalizedRevision = normalizeNow(revision);
-        final CacheableMergeQueryCall key = new CacheableMergeQueryCall(repo, normalizedRevision, query);
-        final CompletableFuture<MergedEntry<?>> value = cache.getIfPresent(key);
-        if (value != null) {
-            return unsafeCast(value.handleAsync((unused, cause) -> {
-                throwUnsafelyIfNonNull(cause);
-                return unused;
-            }, executor()));
-        }
-
-        return Repository.super.mergeFiles(normalizedRevision, query).thenApply(mergedEntry -> {
-            key.computedValue(mergedEntry);
-            cache.get(key);
-            return mergedEntry;
-        });
+        return execute(new CacheableMergeQueryCall<>(repo, normalizedRevision, query));
     }
 
     @Override
     public <T> CompletableFuture<T> execute(CacheableCall<T> cacheableCall) {
-        final CompletableFuture<T> value = cache.getIfPresent(cacheableCall);
-        if (value != null) {
-            return unsafeCast(value.handleAsync((unused, cause) -> {
-                throwUnsafelyIfNonNull(cause);
-                return unused;
-            }, executor()));
-        }
-
-        final Lock lock = locks[Math.abs(cacheableCall.hashCode() % locks.length)];
-        lock.lock();
-        try {
-            return cacheableCall.execute().handleAsync((result, cause) -> {
-                throwUnsafelyIfNonNull(cause);
-                cache.put(cacheableCall, result);
-                return result;
-            }, executor());
-        } finally {
-            lock.unlock();
-        }
+        return unsafeCast(cache.get(cacheableCall).handleAsync((unused, cause) -> {
+            throwUnsafelyIfNonNull(cause);
+            return unused;
+        }, executor()));
     }
 
     @Override

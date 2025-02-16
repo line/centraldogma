@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.logger;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
@@ -26,7 +27,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.internal.storage.repository.AbstractCacheableCall;
+import com.linecorp.centraldogma.server.storage.repository.AbstractCacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -65,6 +66,7 @@ final class CacheableFindCall extends AbstractCacheableCall<Map<String, Entry<?>
 
     @Override
     public CompletableFuture<Map<String, Entry<?>>> execute() {
+        logger.debug("Cache miss: {}", this);
         return repo().find(revision, pathPattern, options);
     }
 

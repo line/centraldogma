@@ -14,45 +14,31 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.storage.repository;
+package com.linecorp.centraldogma.server.storage.repository;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
-import com.linecorp.centraldogma.server.storage.repository.Repository;
-
-// XXX(trustin): Consider using reflection or AOP so that it takes less effort to add more call types.
+/**
+ * A skeletal implementation of {@link CacheableCall}.
+ */
 public abstract class AbstractCacheableCall<T> implements CacheableCall<T> {
 
-    private static final Lock[] locks;
+    private final Repository repo;
 
-    static {
-        locks = new Lock[8192];
-        for (int i = 0; i < locks.length; i++) {
-            locks[i] = new ReentrantLock();
-        }
-    }
-
-    final Repository repo;
-
+    /**
+     * Creates a new instance.
+     */
     protected AbstractCacheableCall(Repository repo) {
         this.repo = requireNonNull(repo, "repo");
     }
 
-    public final Repository repo() {
-        return repo;
-    }
-
     /**
-     * Returns the lock which is associated with this call.
+     * Returns the {@link Repository} which this call is associated with.
      */
-    public Lock coarseGrainedLock() {
-        return locks[Math.abs(hashCode() % locks.length)];
+    protected final Repository repo() {
+        return repo;
     }
 
     @Override

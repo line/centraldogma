@@ -15,44 +15,33 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static org.eclipse.jgit.lib.Constants.OBJ_TREE;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import org.eclipse.jgit.lib.AnyObjectId;
 import org.eclipse.jgit.lib.ObjectLoader;
+import org.eclipse.jgit.lib.ObjectReader;
 
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.primitives.Ints;
 
-import com.linecorp.centraldogma.server.internal.storage.repository.AbstractCacheableCall;
+import com.linecorp.centraldogma.server.storage.repository.AbstractCacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class CacheableObjectLoaderCall extends AbstractCacheableCall<ObjectLoader> {
 
-    // Use its own lock instead of the locks in AbstractCacheableCall because the caller might already have
-    // the lock in AbstractCacheableCall which can cause a deadlock.
-    private static final Lock[] locks;
-
-    static {
-        locks = new Lock[64];
-        for (int i = 0; i < locks.length; i++) {
-            locks[i] = new ReentrantLock();
-        }
-    }
-
+    private final ObjectReader delegate;
     private final AnyObjectId objectId;
     private final int hashCode;
 
-    CacheableObjectLoaderCall(Repository repo, AnyObjectId objectId) {
+    CacheableObjectLoaderCall(Repository repo, ObjectReader delegate, AnyObjectId objectId) {
         super(repo);
+        this.delegate = delegate;
         this.objectId = objectId;
         hashCode = objectId.hashCode() * 31 + System.identityHashCode(repo);
-    }
-
-    @Override
-    public Lock coarseGrainedLock() {
-        return locks[Math.abs(hashCode() % locks.length)];
     }
 
     @Override
@@ -60,12 +49,14 @@ final class CacheableObjectLoaderCall extends AbstractCacheableCall<ObjectLoader
         return Ints.saturatedCast(value.getSize());
     }
 
-    /**
-     * Never invoked because {@link GitRepository} produces the value of this call.
-     */
     @Override
     public CompletableFuture<ObjectLoader> execute() {
-        throw new IllegalStateException();
+        try {
+            // Do not leave a dubug log here because it will be called very frequently.
+            return CompletableFuture.completedFuture(delegate.open(objectId, OBJ_TREE));
+        } catch (IOException e) {
+            throw new UncheckedIOException("failed to open an object: " + objectId, e);
+        }
     }
 
     @Override

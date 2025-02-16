@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.logger;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
@@ -26,7 +27,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.internal.storage.repository.AbstractCacheableCall;
+import com.linecorp.centraldogma.server.storage.repository.AbstractCacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -69,6 +70,7 @@ final class CacheableMultiDiffCall extends AbstractCacheableCall<Map<String, Cha
 
     @Override
     public CompletableFuture<Map<String, Change<?>>> execute() {
+        logger.debug("Cache miss: {}", this);
         return repo().diff(from, to, pathPattern, diffResultType);
     }
 

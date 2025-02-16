@@ -15,55 +15,41 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.logger;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import javax.annotation.Nullable;
 
 import org.eclipse.jgit.attributes.Attribute;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.revwalk.RevTree;
+import org.eclipse.jgit.treewalk.filter.TreeFilter;
 
 import com.google.common.base.MoreObjects.ToStringHelper;
 
-import com.linecorp.centraldogma.server.internal.storage.repository.AbstractCacheableCall;
-import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.AbstractCacheableCall;
 
 final class CacheableCompareTreesCall extends AbstractCacheableCall<List<DiffEntry>> {
 
     private static final int SHA1_LEN = 20;
 
-    // Use its own lock instead of the locks in AbstractCacheableCall because the caller might already have
-    // the lock in AbstractCacheableCall which can cause a deadlock.
-    private static final Lock[] locks;
-
-    static {
-        locks = new Lock[64];
-        for (int i = 0; i < locks.length; i++) {
-            locks[i] = new ReentrantLock();
-        }
-    }
-
+    private final GitRepository repo;
     @Nullable
     private final RevTree treeA;
     @Nullable
     private final RevTree treeB;
     private final int hashCode;
 
-    CacheableCompareTreesCall(Repository repo, @Nullable RevTree treeA, @Nullable RevTree treeB) {
+    CacheableCompareTreesCall(GitRepository repo, @Nullable RevTree treeA, @Nullable RevTree treeB) {
         super(repo);
+        this.repo = repo;
 
         this.treeA = treeA;
         this.treeB = treeB;
         hashCode = Objects.hash(treeA, treeB) * 31 + System.identityHashCode(repo);
-    }
-
-    @Override
-    public Lock coarseGrainedLock() {
-        return locks[Math.abs(hashCode() % locks.length)];
     }
 
     @Override
@@ -100,7 +86,9 @@ final class CacheableCompareTreesCall extends AbstractCacheableCall<List<DiffEnt
      */
     @Override
     public CompletableFuture<List<DiffEntry>> execute() {
-        throw new IllegalStateException();
+        logger.debug("Cache miss: {}", this);
+        final List<DiffEntry> diffEntries = repo.blockingCompareTreesUncached(treeA, treeB, TreeFilter.ALL);
+        return CompletableFuture.completedFuture(diffEntries);
     }
 
     @Override

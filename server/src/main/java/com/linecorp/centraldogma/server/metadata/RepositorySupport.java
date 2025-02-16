@@ -16,13 +16,14 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.logger;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.base.MoreObjects;
+import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.util.Exceptions;
@@ -38,7 +39,7 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
-import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
+import com.linecorp.centraldogma.server.storage.repository.AbstractCacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -139,7 +140,7 @@ final class RepositorySupport<T> {
     }
 
     // TODO(minwoox): Consider generalizing this class.
-    private static class CacheableFetchCall<U> implements CacheableCall<HolderWithRevision<U>> {
+    private static class CacheableFetchCall<U> extends AbstractCacheableCall<HolderWithRevision<U>> {
 
         private final Repository repo;
         private final Revision revision;
@@ -148,6 +149,7 @@ final class RepositorySupport<T> {
         private final int hashCode;
 
         CacheableFetchCall(Repository repo, Revision revision, String path, Class<U> entryClass) {
+            super(repo);
             this.repo = repo;
             this.revision = revision;
             this.path = path;
@@ -169,6 +171,7 @@ final class RepositorySupport<T> {
 
         @Override
         public CompletableFuture<HolderWithRevision<U>> execute() {
+            logger.debug("Cache miss: {}", this);
             return repo.get(revision, path)
                        .thenApply(this::convertWithJackson)
                        .thenApply((U obj) -> HolderWithRevision.of(obj, revision));
@@ -202,13 +205,10 @@ final class RepositorySupport<T> {
         }
 
         @Override
-        public String toString() {
-            return MoreObjects.toStringHelper(this)
-                              .add("repo", repo)
-                              .add("revision", revision)
-                              .add("path", path)
-                              .add("entryClass", entryClass)
-                              .toString();
+        protected void toString(ToStringHelper helper) {
+            helper.add("revision", revision)
+                  .add("path", path)
+                  .add("entryClass", entryClass);
         }
     }
 }

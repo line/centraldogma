@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.logger;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -27,7 +28,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.internal.storage.repository.AbstractCacheableCall;
+import com.linecorp.centraldogma.server.storage.repository.AbstractCacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class CacheableFindLatestRevCall extends AbstractCacheableCall<Revision> {
@@ -63,6 +64,7 @@ final class CacheableFindLatestRevCall extends AbstractCacheableCall<Revision> {
 
     @Override
     public CompletableFuture<Revision> execute() {
+        logger.debug("Cache miss: {}", this);
         return repo().findLatestRevision(lastKnownRevision, pathPattern, errorOnEntryNotFound)
                      .handle((revision, cause) -> {
                          if (cause != null) {

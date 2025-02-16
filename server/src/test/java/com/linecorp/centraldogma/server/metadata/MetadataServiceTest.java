@@ -470,7 +470,9 @@ class MetadataServiceTest {
         assertThat(mds.getTokens().join()).isSameAs(tokens);
 
         final Revision revision = mds.updateTokenLevel(author, app1, true).join();
-        token = mds.getTokens().join().get(app1);
+        final Tokens newTokens = mds.getTokens().join();
+        assertThat(newTokens).isNotSameAs(tokens);
+        token = newTokens.get(app1);
         assertThat(token.isSystemAdmin()).isTrue();
         assertThat(mds.updateTokenLevel(author, app1, true).join()).isEqualTo(revision);
 
