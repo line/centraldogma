@@ -27,8 +27,6 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.RequestContext;
@@ -59,15 +57,6 @@ final class CachingRepository implements Repository {
 
     private static final CancellationException CANCELLATION_EXCEPTION =
             Exceptions.clearTrace(new CancellationException("watch cancelled by caller"));
-
-    private static final Lock[] locks;
-
-    static {
-        locks = new Lock[8192];
-        for (int i = 0; i < locks.length; i++) {
-            locks[i] = new ReentrantLock();
-        }
-    }
 
     private final Repository repo;
     private final RepositoryCache cache;

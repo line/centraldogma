@@ -142,7 +142,6 @@ final class RepositorySupport<T> {
     // TODO(minwoox): Consider generalizing this class.
     private static class CacheableFetchCall<U> extends AbstractCacheableCall<HolderWithRevision<U>> {
 
-        private final Repository repo;
         private final Revision revision;
         private final String path;
         private final Class<U> entryClass;
@@ -150,7 +149,6 @@ final class RepositorySupport<T> {
 
         CacheableFetchCall(Repository repo, Revision revision, String path, Class<U> entryClass) {
             super(repo);
-            this.repo = repo;
             this.revision = revision;
             this.path = path;
             this.entryClass = entryClass;
@@ -172,9 +170,9 @@ final class RepositorySupport<T> {
         @Override
         public CompletableFuture<HolderWithRevision<U>> execute() {
             logger.debug("Cache miss: {}", this);
-            return repo.get(revision, path)
-                       .thenApply(this::convertWithJackson)
-                       .thenApply((U obj) -> HolderWithRevision.of(obj, revision));
+            return repo().get(revision, path)
+                         .thenApply(this::convertWithJackson)
+                         .thenApply((U obj) -> HolderWithRevision.of(obj, revision));
         }
 
         @SuppressWarnings("unchecked")
