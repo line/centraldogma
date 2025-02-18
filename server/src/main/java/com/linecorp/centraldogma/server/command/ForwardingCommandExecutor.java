@@ -19,9 +19,11 @@ package com.linecorp.centraldogma.server.command;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.QuotaConfig;
+import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 
 /**
  * A {@link CommandExecutor} which forwards all its method calls to another {@link CommandExecutor}.
@@ -71,6 +73,12 @@ public class ForwardingCommandExecutor implements CommandExecutor {
     @Override
     public void setWriteQuota(String projectName, String repoName, QuotaConfig writeQuota) {
         delegate().setWriteQuota(projectName, repoName, writeQuota);
+    }
+
+    @Override
+    public void setRepositoryMetadataSupplier(
+            BiFunction<String, String, CompletableFuture<RepositoryMetadata>> supplier) {
+        delegate().setRepositoryMetadataSupplier(supplier);
     }
 
     @Override

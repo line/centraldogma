@@ -32,6 +32,7 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.testing.junit.AbstractAllOrEachExtension;
@@ -81,6 +82,8 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
         executor.start().get();
         internalProjectInitializer = new InternalProjectInitializer(executor, projectManager);
         internalProjectInitializer.initialize();
+        final MetadataService mds = new MetadataService(projectManager, executor, internalProjectInitializer);
+        executor.setRepositoryMetadataSupplier(mds::getRepo);
 
         afterExecutorStarted();
     }
@@ -115,6 +118,13 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
      */
     public ScheduledExecutorService purgeWorker() {
         return purgeWorker;
+    }
+
+    /**
+     * Returns an {@link InternalProjectInitializer}.
+     */
+    public InternalProjectInitializer internalProjectInitializer() {
+        return internalProjectInitializer;
     }
 
     /**

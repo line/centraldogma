@@ -62,6 +62,7 @@ import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.TestAbsenceOperation;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -91,15 +92,18 @@ public class MetadataService {
     private final RepositorySupport<ProjectMetadata> metadataRepo;
     private final RepositorySupport<Tokens> tokenRepo;
     private final CommandExecutor executor;
+    private final InternalProjectInitializer projectInitializer;
 
     private final Map<String, CompletableFuture<Revision>> reposInAddingMetadata = new ConcurrentHashMap<>();
 
     /**
      * Creates a new instance.
      */
-    public MetadataService(ProjectManager projectManager, CommandExecutor executor) {
+    public MetadataService(ProjectManager projectManager, CommandExecutor executor,
+                           InternalProjectInitializer projectInitializer) {
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.executor = requireNonNull(executor, "executor");
+        this.projectInitializer = requireNonNull(projectInitializer, "projectInitializer");
         metadataRepo = new RepositorySupport<>(projectManager, executor, ProjectMetadata.class);
         tokenRepo = new RepositorySupport<>(projectManager, executor, Tokens.class);
     }
@@ -109,10 +113,10 @@ public class MetadataService {
      */
     public CompletableFuture<ProjectMetadata> getProject(String projectName) {
         requireNonNull(projectName, "projectName");
-        return fetchMetadata(projectName);
+        return getOrFetchMetadata(projectName);
     }
 
-    private CompletableFuture<ProjectMetadata> fetchMetadata(String projectName) {
+    private CompletableFuture<ProjectMetadata> getOrFetchMetadata(String projectName) {
         final ProjectMetadata metadata = getMetadata(projectName);
         final Set<String> reposWithMetadata = metadata.repos().keySet();
         final Set<String> repos = projectManager.get(projectName).repos().list().keySet();
@@ -168,7 +172,7 @@ public class MetadataService {
         }).thenCompose(unused -> {
             logger.info("Fetching {}/{}{} again",
                         projectName, Project.REPO_DOGMA, METADATA_JSON);
-            return fetchMetadata0(projectName);
+            return fetchMetadata(projectName);
         });
     }
 
@@ -181,7 +185,7 @@ public class MetadataService {
         return metadata;
     }
 
-    private CompletableFuture<ProjectMetadata> fetchMetadata0(String projectName) {
+    private CompletableFuture<ProjectMetadata> fetchMetadata(String projectName) {
         return metadataRepo.fetch(projectName, Project.REPO_DOGMA, METADATA_JSON)
                            .thenApply(HolderWithRevision::object);
     }
@@ -484,20 +488,17 @@ public class MetadataService {
         requireNonNull(appId, "appId");
         requireNonNull(role, "role");
 
-        return getTokens().thenCompose(tokens -> {
-            tokens.get(appId); // Will raise an exception if not found.
-
-            final TokenRegistration registration = new TokenRegistration(appId, role,
-                                                                         UserAndTimestamp.of(author));
-            final JsonPointer path = JsonPointer.compile("/tokens" + encodeSegment(registration.id()));
-            final Change<JsonNode> change =
-                    Change.ofJsonPatch(METADATA_JSON,
-                                       asJsonArray(new TestAbsenceOperation(path),
-                                                   new AddOperation(path, Jackson.valueToTree(registration))));
-            final String commitSummary = "Add a token '" + registration.id() +
-                                         "' to the project '" + projectName + "' with a role '" + role + '\'';
-            return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
-        });
+        getTokens().get(appId); // Will raise an exception if not found.
+        final TokenRegistration registration = new TokenRegistration(appId, role,
+                                                                     UserAndTimestamp.of(author));
+        final JsonPointer path = JsonPointer.compile("/tokens" + encodeSegment(registration.id()));
+        final Change<JsonNode> change =
+                Change.ofJsonPatch(METADATA_JSON,
+                                   asJsonArray(new TestAbsenceOperation(path),
+                                               new AddOperation(path, Jackson.valueToTree(registration))));
+        final String commitSummary = "Add a token '" + registration.id() +
+                                     "' to the project '" + projectName + "' with a role '" + role + '\'';
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**
@@ -610,6 +611,7 @@ public class MetadataService {
         requireNonNull(role, "role");
 
         return getProject(projectName).thenCompose(project -> {
+            project.repo(repoName); // Raises an exception if the repository does not exist.
             ensureProjectMember(project, member);
             final String commitSummary = "Add repository role of '" + member.id() +
                                          "' as '" + role + "' to '" + projectName + '/' + repoName + '\n';
@@ -723,6 +725,7 @@ public class MetadataService {
         requireNonNull(role, "role");
 
         return getProject(projectName).thenCompose(project -> {
+            project.repo(repoName); // Raises an exception if the repository does not exist.
             ensureProjectToken(project, appId);
             final String commitSummary = "Add repository role of the token '" + appId + "' as '" + role +
                                          "' to '" + projectName + '/' + repoName + "'\n";
@@ -955,14 +958,18 @@ public class MetadataService {
     }
 
     /**
-     * Returns a {@link Tokens}.
+     * Fetches the {@link Tokens} from the repository.
      */
-    public CompletableFuture<Tokens> getTokens() {
-        return getTokens0().thenApply(HolderWithRevision::object);
+    public CompletableFuture<Tokens> fetchTokens() {
+        return tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
+                        .thenApply(HolderWithRevision::object);
     }
 
-    private CompletableFuture<HolderWithRevision<Tokens>> getTokens0() {
-        return tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON);
+    /**
+     * Returns a {@link Tokens}.
+     */
+    public Tokens getTokens() {
+        return projectInitializer.tokens();
     }
 
     /**
@@ -1054,6 +1061,7 @@ public class MetadataService {
                                                                          User.SYSTEM_ADMIN).values();
         // Remove the token from projects that only have the token.
         for (Project project : projects) {
+            // Fetch the metadata to get the latest information.
             final ProjectMetadata projectMetadata = fetchMetadata(project.name()).join();
             final boolean containsTargetTokenInTheProject =
                     projectMetadata.tokens().values()
@@ -1155,18 +1163,18 @@ public class MetadataService {
     /**
      * Returns a {@link Token} which has the specified {@code appId}.
      */
-    public CompletableFuture<Token> findTokenByAppId(String appId) {
+    public Token findTokenByAppId(String appId) {
         requireNonNull(appId, "appId");
-        return getTokens0().thenApply(tokens -> tokens.object().get(appId));
+        return getTokens().get(appId);
     }
 
     /**
      * Returns a {@link Token} which has the specified {@code secret}.
      */
-    public CompletableFuture<Token> findTokenBySecret(String secret) {
+    public Token findTokenBySecret(String secret) {
         requireNonNull(secret, "secret");
         validateSecret(secret);
-        return getTokens0().thenApply(tokens -> tokens.object().findBySecret(secret));
+        return getTokens().findBySecret(secret);
     }
 
     /**
