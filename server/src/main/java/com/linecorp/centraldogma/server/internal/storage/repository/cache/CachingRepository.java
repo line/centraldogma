@@ -248,9 +248,9 @@ final class CachingRepository implements Repository {
 
     @Override
     public <T> CompletableFuture<T> execute(CacheableCall<T> cacheableCall) {
-        return unsafeCast(cache.get(cacheableCall).handleAsync((unused, cause) -> {
+        return unsafeCast(cache.get(cacheableCall).handleAsync((result, cause) -> {
             throwUnsafelyIfNonNull(cause);
-            return unused;
+            return result;
         }, executor()));
     }
 
