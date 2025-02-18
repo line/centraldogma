@@ -158,7 +158,6 @@ public class TokenService extends AbstractService {
                                                Author author, User loginUser) {
         return getTokenOrRespondForbidden(ctx, appId, loginUser).thenApplyAsync(
                 token -> {
-                    System.err.println("Purging token: " + token);
                     mds.purgeToken(author, appId);
                     return token.withoutSecret();
                 }, ctx.blockingTaskExecutor());

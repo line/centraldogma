@@ -225,10 +225,7 @@ class TokenServiceTest {
 
         final ServiceRequestContext ctx = ServiceRequestContext.of(
                 HttpRequest.of(HttpMethod.DELETE, "/tokens/{appId}/removed"));
-        System.err.println(tokenService.listTokens(systemAdmin));
-        final Token forAdmin1 = tokenService.deleteToken(ctx, "forAdmin1", systemAdminAuthor, systemAdmin)
-                                            .join();
-        System.err.println(forAdmin1);
+        tokenService.deleteToken(ctx, "forAdmin1", systemAdminAuthor, systemAdmin).join();
         tokenService.purgeToken(ctx, "forAdmin1", systemAdminAuthor, systemAdmin).join();
     }
 
