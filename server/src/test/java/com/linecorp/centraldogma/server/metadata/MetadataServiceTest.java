@@ -438,7 +438,7 @@ class MetadataServiceTest {
         assertThat(mds.deactivateToken(author, app1).join()).isEqualTo(revision);
 
         assertThat(mds.activateToken(author, app1).join().major()).isEqualTo(revision.major() + 1);
-        assertThat(mds.getTokens().get(app1).isActive()).isTrue();
+        await().untilAsserted(() -> assertThat(mds.getTokens().get(app1).isActive()).isTrue());
 
         // Executing the same operation will return the same revision.
         assertThat(mds.activateToken(author, app1).join().major()).isEqualTo(revision.major() + 1);
