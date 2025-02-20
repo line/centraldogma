@@ -28,7 +28,7 @@ import org.eclipse.jgit.treewalk.filter.TreeFilter;
 
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-final class PathPatternFilter extends TreeFilter {
+public final class PathPatternFilter extends TreeFilter {
 
     private static final Pattern SPLIT = Pattern.compile("\\s*,\\s*");
 
@@ -37,7 +37,7 @@ final class PathPatternFilter extends TreeFilter {
 
     private static final ThreadLocal<LruMap<String, Pattern>> regexCache = LruMap.newThreadLocal(1024);
 
-    static PathPatternFilter of(String pathPattern) {
+    public static PathPatternFilter of(String pathPattern) {
         final LruMap<String, PathPatternFilter> map = filterCache.get();
         PathPatternFilter f = map.get(pathPattern);
         if (f == null) {
@@ -224,6 +224,11 @@ final class PathPatternFilter extends TreeFilter {
     public boolean matches(String path) {
         if (pathPatterns == null) {
             return true;
+        }
+
+        if (path.charAt(0) == '/') {
+            // Strip the leading '/' since pathPatterns was compiled without it.
+            path = path.substring(1);
         }
 
         for (Pattern p: pathPatterns) {

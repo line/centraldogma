@@ -61,11 +61,13 @@ class QueryConverterTest {
 
         assertThat(TO_DATA.convert(IDENTITY_TEXT_MODEL)).isEqualTo(IDENTITY_TEXT_DATA);
         assertThat(TO_MODEL.convert(IDENTITY_TEXT_DATA)).isEqualTo(IDENTITY_TEXT_MODEL);
-        assertThat(TO_DATA.convert(TO_MODEL.convert(IDENTITY_TEXT_DATA))).isEqualTo(IDENTITY_TEXT_DATA);
+        assertThat(TO_MODEL.convert(IDENTITY_TEXT_DATA).type())
+                .isEqualTo(com.linecorp.centraldogma.common.QueryType.IDENTITY);
 
         assertThat(TO_DATA.convert(IDENTITY_JSON_MODEL)).isEqualTo(IDENTITY_JSON_DATA);
         assertThat(TO_MODEL.convert(IDENTITY_JSON_DATA)).isEqualTo(IDENTITY_JSON_MODEL);
-        assertThat(TO_DATA.convert(TO_MODEL.convert(IDENTITY_JSON_DATA))).isEqualTo(IDENTITY_JSON_DATA);
+        assertThat(TO_MODEL.convert(IDENTITY_JSON_DATA).type())
+                .isEqualTo(com.linecorp.centraldogma.common.QueryType.IDENTITY);
 
         assertThat(TO_DATA.convert(JSON_PATH_MODEL)).isEqualTo(JSON_PATH_DATA);
         assertThat(TO_MODEL.convert(JSON_PATH_DATA)).isEqualTo(JSON_PATH_MODEL);

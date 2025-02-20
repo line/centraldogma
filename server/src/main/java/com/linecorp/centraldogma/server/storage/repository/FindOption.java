@@ -20,8 +20,6 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
-import com.linecorp.centraldogma.internal.Util;
-
 /**
  * An option which is specified when retrieving one or more files.
  *
@@ -47,12 +45,10 @@ public class FindOption<T> {
 
     private final String name;
     private final T defaultValue;
-    private final String fullName;
 
     FindOption(String name, T defaultValue) {
         this.name = name;
         this.defaultValue = defaultValue;
-        fullName = Util.simpleTypeName(FindOption.class) + '.' + name;
     }
 
     /**
