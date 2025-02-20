@@ -32,6 +32,7 @@ import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.server.QuotaConfig;
+import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -40,7 +41,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL) // These are used when serializing.
 @JsonDeserialize(using = RepositoryMetadataDeserializer.class)
-public final class RepositoryMetadata implements Identifiable {
+public final class RepositoryMetadata implements Identifiable, HasWeight {
 
     public static final ProjectRoles DEFAULT_PROJECT_ROLES = ProjectRoles.of(RepositoryRole.WRITE, null);
 
@@ -157,6 +158,14 @@ public final class RepositoryMetadata implements Identifiable {
     @JsonProperty("writeQuota")
     public QuotaConfig writeQuota() {
         return writeQuota;
+    }
+
+    @Override
+    public int weight() {
+        int weight = 0;
+        weight += name.length();
+        weight += roles.weight();
+        return weight;
     }
 
     @Override

@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.command;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 
 import javax.annotation.Nullable;
 
@@ -31,6 +32,7 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommandExecutorStatusManager;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 
 class CommandExecutorStatusManagerTest {
 
@@ -113,6 +115,10 @@ class CommandExecutorStatusManagerTest {
         @Override
         public void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfig writeQuota) {
         }
+
+        @Override
+        public void setRepositoryMetadataSupplier(
+                BiFunction<String, String, CompletableFuture<RepositoryMetadata>> supplier) {}
 
         @Override
         public <T> CompletableFuture<T> execute(Command<T> command) {

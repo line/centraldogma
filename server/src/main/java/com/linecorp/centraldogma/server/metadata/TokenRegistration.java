@@ -25,12 +25,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.ProjectRole;
+import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 
 /**
  * Specifies a registration of a {@link Token}.
  */
 @JsonInclude(Include.NON_NULL)
-public class TokenRegistration implements Identifiable {
+public class TokenRegistration implements Identifiable, HasWeight {
 
     /**
      * An application identifier which belongs to a {@link Token}.
@@ -86,6 +87,11 @@ public class TokenRegistration implements Identifiable {
     @JsonProperty
     public UserAndTimestamp creation() {
         return creation;
+    }
+
+    @Override
+    public int weight() {
+        return appId.length() + role.name().length();
     }
 
     @Override

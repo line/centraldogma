@@ -33,12 +33,13 @@ import com.cronutils.utils.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import com.spotify.futures.CompletableFutures;
 
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
-import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -58,7 +59,6 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private final SessionManager sessionManager;
     // if permitsPerSecond is -1, a quota is checked by ZooKeeperCommandExecutor.
     private final double permitsPerSecond;
-    private final MetadataService metadataService;
     private final ServerStatusManager serverStatusManager;
 
     @VisibleForTesting
@@ -130,7 +130,6 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         this.sessionManager = sessionManager;
         this.permitsPerSecond = permitsPerSecond;
         writeRateLimiters = new ConcurrentHashMap<>();
-        metadataService = new MetadataService(projectManager, this);
     }
 
     @Override
@@ -334,7 +333,12 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     private CompletableFuture<RateLimiter> getRateLimiter(String projectName, String repoName) {
-        return metadataService.getRepo(projectName, repoName).thenApply(meta -> {
+        final CompletableFuture<RepositoryMetadata> future = repositoryMetadata(projectName, repoName);
+        if (future == null) {
+            // metadata is not available yet.
+            return UnmodifiableFuture.completedFuture(RateLimiter.create(permitsPerSecond));
+        }
+        return future.thenApply(meta -> {
             setWriteQuota(projectName, repoName, meta.writeQuota());
             return writeRateLimiters.get(rateLimiterKey(projectName, repoName));
         });

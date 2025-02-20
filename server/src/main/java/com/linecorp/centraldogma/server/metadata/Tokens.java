@@ -20,6 +20,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -33,12 +34,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.centraldogma.server.storage.repository.HasWeight;
+
 /**
  * Holds a token map and a secret map for fast lookup.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL)
-public final class Tokens {
+public final class Tokens implements HasWeight {
 
     static final String SECRET_PREFIX = "appToken-";
 
@@ -147,6 +150,17 @@ public final class Tokens {
                         .map(Token::withoutSecret)
                         .collect(Collectors.toMap(Token::id, Function.identity()));
         return new Tokens(appIds, ImmutableMap.of());
+    }
+
+    @Override
+    public int weight() {
+        int weight = 0;
+        weight += secrets.size();
+        for (Entry<String, String> entry : secrets.entrySet()) {
+            weight += entry.getKey().length();
+            weight += entry.getValue().length();
+        }
+        return weight;
     }
 
     @Override

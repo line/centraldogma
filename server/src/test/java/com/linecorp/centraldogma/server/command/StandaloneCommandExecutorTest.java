@@ -63,7 +63,8 @@ class StandaloneCommandExecutorTest {
         executor.execute(Command.createRepository(Author.SYSTEM, TEST_PRJ, TEST_REPO2)).join();
         executor.execute(Command.createRepository(Author.SYSTEM, TEST_PRJ, TEST_REPO3)).join();
 
-        final MetadataService mds = new MetadataService(extension.projectManager(), executor);
+        final MetadataService mds = new MetadataService(extension.projectManager(), executor,
+                                                        extension.internalProjectInitializer());
         // Metadata should be created before entering read-only mode.
         mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO).join();
         mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO2).join();
@@ -73,7 +74,8 @@ class StandaloneCommandExecutorTest {
     @Test
     void setWriteQuota() {
         final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) extension.executor();
-        final MetadataService mds = new MetadataService(extension.projectManager(), executor);
+        final MetadataService mds = new MetadataService(extension.projectManager(), executor,
+                                                        extension.internalProjectInitializer());
 
         final RateLimiter rateLimiter1 = executor.writeRateLimiters.get("test_prj/test_repo");
         assertThat(rateLimiter1).isNull();
@@ -160,7 +162,8 @@ class StandaloneCommandExecutorTest {
         final CommandExecutor executor = extension.executor();
         final String internalProjectName = "@project";
         executor.execute(Command.createProject(Author.SYSTEM, internalProjectName)).join();
-        final MetadataService mds = new MetadataService(extension.projectManager(), executor);
+        final MetadataService mds = new MetadataService(extension.projectManager(), executor,
+                                                        extension.internalProjectInitializer());
         mds.addRepo(Author.SYSTEM, internalProjectName, TEST_REPO).join();
         // Can create an internal project that starts with an underscore.
         executor.execute(Command.createRepository(Author.SYSTEM, internalProjectName, TEST_REPO))

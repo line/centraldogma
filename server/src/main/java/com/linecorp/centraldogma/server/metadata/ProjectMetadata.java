@@ -31,13 +31,14 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 
 /**
  * Specifies details of a {@link Project}.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL)
-public class ProjectMetadata implements Identifiable {
+public class ProjectMetadata implements Identifiable, HasWeight {
 
     /**
      * A project name.
@@ -176,6 +177,22 @@ public class ProjectMetadata implements Identifiable {
             return member;
         }
         return defaultMember;
+    }
+
+    @Override
+    public int weight() {
+        int weight = name().length();
+        for (RepositoryMetadata repo : repos.values()) {
+            weight += repo.weight();
+        }
+        for (Member member : members.values()) {
+            weight += member.weight();
+        }
+        for (TokenRegistration token : tokens.values()) {
+            weight += token.weight();
+        }
+
+        return weight;
     }
 
     @Override

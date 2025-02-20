@@ -129,8 +129,8 @@ public class MetadataApiService extends AbstractService {
     public CompletableFuture<Revision> addToken(@Param String projectName,
                                                 IdAndProjectRole request,
                                                 Author author) {
-        return mds.findTokenByAppId(request.id())
-                  .thenCompose(token -> mds.addToken(author, projectName, token.appId(), request.role()));
+        final Token token = mds.findTokenByAppId(request.id());
+        return mds.addToken(author, projectName, token.appId(), request.role());
     }
 
     /**
@@ -147,8 +147,8 @@ public class MetadataApiService extends AbstractService {
                                                        Author author) {
         final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/role");
         final ProjectRole role = ProjectRole.of(operation.value());
-        return mds.findTokenByAppId(appId)
-                  .thenCompose(token -> mds.updateTokenRole(author, projectName, token, role));
+        final Token token = mds.findTokenByAppId(appId);
+        return mds.updateTokenRole(author, projectName, token, role);
     }
 
     /**
@@ -160,8 +160,8 @@ public class MetadataApiService extends AbstractService {
     public CompletableFuture<Revision> removeToken(@Param String projectName,
                                                    @Param String appId,
                                                    Author author) {
-        return mds.findTokenByAppId(appId)
-                  .thenCompose(token -> mds.removeToken(author, projectName, token.appId()));
+        final Token token = mds.findTokenByAppId(appId);
+        return mds.removeToken(author, projectName, token.appId());
     }
 
     /**
@@ -256,9 +256,8 @@ public class MetadataApiService extends AbstractService {
                                                                  @Param String repoName,
                                                                  @Param String appId,
                                                                  Author author) {
-        return mds.findTokenByAppId(appId)
-                  .thenCompose(token -> mds.removeTokenRepositoryRole(author,
-                                                                      projectName, repoName, appId));
+        final Token token = mds.findTokenByAppId(appId);
+        return mds.removeTokenRepositoryRole(author, projectName, repoName, appId);
     }
 
     /**

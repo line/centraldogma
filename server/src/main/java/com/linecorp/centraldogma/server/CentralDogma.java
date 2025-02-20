@@ -668,7 +668,8 @@ public class CentralDogma implements AutoCloseable {
         cfg.gracefulShutdownTimeout().ifPresent(
                 t -> sb.gracefulShutdownTimeoutMillis(t.quietPeriodMillis(), t.timeoutMillis()));
 
-        final MetadataService mds = new MetadataService(pm, executor);
+        final MetadataService mds = new MetadataService(pm, executor, projectInitializer);
+        executor.setRepositoryMetadataSupplier(mds::getRepo);
         final WatchService watchService = new WatchService(meterRegistry);
         final AuthProvider authProvider = createAuthProvider(executor, sessionManager, mds);
         final ProjectApiManager projectApiManager = new ProjectApiManager(pm, executor, mds);
@@ -796,7 +797,7 @@ public class CentralDogma implements AutoCloseable {
                 new StandaloneCommandExecutor(pm, repositoryWorker, serverStatusManager, sessionManager,
                         /* onTakeLeadership */ null, /* onReleaseLeadership */ null,
                         /* onTakeZoneLeadership */ null, /* onReleaseZoneLeadership */ null),
-                meterRegistry, pm, config().writeQuotaPerRepository(), zone,
+                meterRegistry, config().writeQuotaPerRepository(), zone,
                 onTakeLeadership, onReleaseLeadership,
                 onTakeZoneLeadership, onReleaseZoneLeadership);
     }

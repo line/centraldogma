@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.metadata;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
+import java.util.Map.Entry;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -25,11 +26,12 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 
 import com.linecorp.centraldogma.common.RepositoryRole;
+import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 
 /**
  * Role metadata for a repository.
  */
-public final class Roles {
+public final class Roles implements HasWeight {
 
     private final ProjectRoles projectRoles;
 
@@ -71,6 +73,24 @@ public final class Roles {
     @JsonProperty("tokens")
     public Map<String, RepositoryRole> tokens() {
         return tokens;
+    }
+
+    @Override
+    public int weight() {
+        int weight = 0;
+        final RepositoryRole member = projectRoles.member();
+        if (member != null) {
+            weight += member.name().length();
+        }
+        for (Entry<String, RepositoryRole> entry : users.entrySet()) {
+            weight += entry.getKey().length();
+            weight += entry.getValue().name().length();
+        }
+        for (Entry<String, RepositoryRole> entry : tokens.entrySet()) {
+            weight += entry.getKey().length();
+            weight += entry.getValue().name().length();
+        }
+        return weight;
     }
 
     @Override

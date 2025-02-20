@@ -17,14 +17,23 @@
 package com.linecorp.centraldogma.server.storage.project;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static com.linecorp.centraldogma.server.command.Command.createProject;
 import static com.linecorp.centraldogma.server.command.Command.createRepository;
 import static com.linecorp.centraldogma.server.command.Command.push;
+import static com.linecorp.centraldogma.server.metadata.MetadataService.TOKEN_JSON;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.Nullable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 
@@ -42,19 +51,27 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.Tokens;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
 /**
  * Initializes the internal project and repositories.
  */
 public final class InternalProjectInitializer {
 
+    private static final Logger logger = LoggerFactory.getLogger(InternalProjectInitializer.class);
+
     public static final String INTERNAL_PROJECT_DOGMA = "dogma";
 
     private final CommandExecutor executor;
     private final ProjectManager projectManager;
     private final CompletableFuture<Void> initialFuture = new CompletableFuture<>();
+
+    @Nullable
+    private volatile Revision lastTokensRevision;
+    @Nullable
+    private volatile Tokens tokens;
 
     /**
      * Creates a new instance.
@@ -111,22 +128,24 @@ public final class InternalProjectInitializer {
     }
 
     private void initializeTokens() {
-        final Entry<JsonNode> entry =
-                projectManager.get(INTERNAL_PROJECT_DOGMA).repos().get(Project.REPO_DOGMA)
-                              .getOrNull(Revision.HEAD,
-                                         Query.ofJson(MetadataService.TOKEN_JSON)).join();
+        final Repository dogmaRepo = projectManager.get(INTERNAL_PROJECT_DOGMA).repos().get(Project.REPO_DOGMA);
+        final Entry<JsonNode> entry = dogmaRepo.getOrNull(Revision.HEAD, Query.ofJson(TOKEN_JSON)).join();
         if (entry != null && entry.hasContent()) {
+            setTokens(entry, dogmaRepo);
             return;
         }
         try {
-            final Change<?> change = Change.ofJsonPatch(MetadataService.TOKEN_JSON,
+            final Change<?> change = Change.ofJsonPatch(TOKEN_JSON,
                                                         null, Jackson.valueToTree(new Tokens()));
             final String commitSummary = "Initialize the token list file: /" + INTERNAL_PROJECT_DOGMA + '/' +
-                                         Project.REPO_DOGMA + MetadataService.TOKEN_JSON;
+                                         Project.REPO_DOGMA + TOKEN_JSON;
             executor.execute(Command.forcePush(push(Author.SYSTEM, INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
                                                     Revision.HEAD, commitSummary, "", Markup.PLAINTEXT,
                                                     ImmutableList.of(change))))
                     .get();
+            final Entry<JsonNode> entry1 = dogmaRepo.getOrNull(Revision.HEAD, Query.ofJson(TOKEN_JSON)).join();
+            assert entry1 != null;
+            setTokens(entry1, dogmaRepo);
         } catch (Throwable cause) {
             final Throwable peeled = Exceptions.peel(cause);
             if (peeled instanceof ChangeConflictException) {
@@ -136,12 +155,59 @@ public final class InternalProjectInitializer {
         }
     }
 
+    private void setTokens(Entry<JsonNode> entry, Repository dogmaRepo) {
+        try {
+            final Tokens tokens = Jackson.treeToValue(entry.content(), Tokens.class);
+            lastTokensRevision = entry.revision();
+            this.tokens = tokens;
+            attachTokensListener(dogmaRepo);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw new RuntimeException(String.format("failed to parse %s/%s/%s", INTERNAL_PROJECT_DOGMA,
+                                                     Project.REPO_DOGMA, TOKEN_JSON), e);
+        }
+    }
+
+    private void attachTokensListener(Repository dogmaRepo) {
+        dogmaRepo.addListener(RepositoryListener.of(Query.ofJson(TOKEN_JSON), entry -> {
+            if (entry == null) {
+                logger.warn("{} file is missing in {}/{}", TOKEN_JSON, INTERNAL_PROJECT_DOGMA,
+                            Project.REPO_DOGMA);
+                return;
+            }
+
+            final Revision lastRevision = entry.revision();
+            final Revision lastTokensRevision = this.lastTokensRevision;
+            if (lastTokensRevision != null && lastRevision.compareTo(lastTokensRevision) <= 0) {
+                // An old data.
+                return;
+            }
+
+            try {
+                final Tokens tokens = Jackson.treeToValue(entry.content(), Tokens.class);
+                this.lastTokensRevision = lastRevision;
+                this.tokens = tokens;
+            } catch (JsonParseException | JsonMappingException e) {
+                logger.warn("Invalid {} file in {}/{}", TOKEN_JSON, INTERNAL_PROJECT_DOGMA,
+                            Project.REPO_DOGMA, e);
+            }
+        }));
+    }
+
     /**
      * Returns a {@link CompletableFuture} which is completed when the internal project and repositories are
      * ready.
      */
     public CompletableFuture<Void> whenInitialized() {
         return initialFuture;
+    }
+
+    /**
+     * Returns the {@link Tokens}.
+     */
+    public Tokens tokens() {
+        final Tokens tokens = this.tokens;
+        checkState(tokens != null, "tokens have not been loaded yet");
+        return tokens;
     }
 
     /**

@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.api.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.io.File;
 import java.util.concurrent.ForkJoinPool;
@@ -90,11 +91,13 @@ class RequiresRoleTest {
             final CommandExecutor executor = new StandaloneCommandExecutor(
                     pm, ForkJoinPool.commonPool(), statusManager, null, null, null, null, null);
             executor.start().join();
-            new InternalProjectInitializer(executor, pm).initialize();
+            final InternalProjectInitializer projectInitializer = new InternalProjectInitializer(
+                    executor, pm);
+            projectInitializer.initialize();
 
             executor.execute(Command.createProject(AUTHOR, "project1")).join();
 
-            final MetadataService mds = new MetadataService(pm, executor);
+            final MetadataService mds = new MetadataService(pm, executor, projectInitializer);
 
             mds.createToken(AUTHOR, APP_ID_1, SECRET_1).toCompletableFuture().join();
             mds.createToken(AUTHOR, APP_ID_2, SECRET_2).toCompletableFuture().join();
@@ -106,12 +109,14 @@ class RequiresRoleTest {
             // app-1 is an owner and it has read/write permission.
             mds.addToken(AUTHOR, "project1", APP_ID_1, ProjectRole.OWNER)
                .toCompletableFuture().join();
+            await().until(() -> mds.findTokenByAppId(APP_ID_1) != null);
             mds.addTokenRepositoryRole(AUTHOR, "project1", "repo1", APP_ID_1, RepositoryRole.WRITE)
                .toCompletableFuture().join();
 
             // app-2 is a member and it has read-only permission.
             mds.addToken(AUTHOR, "project1", APP_ID_2, ProjectRole.MEMBER)
                .toCompletableFuture().join();
+            await().until(() -> mds.findTokenByAppId(APP_ID_2) != null);
             sb.dependencyInjector(
                     DependencyInjector.ofSingletons(new RequiresRepositoryRoleDecoratorFactory(mds),
                                                     new RequiresProjectRoleDecoratorFactory(mds)),

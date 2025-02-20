@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.metadata;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.server.metadata.MetadataService.TOKEN_JSON;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.util.Collection;
 
@@ -66,7 +67,8 @@ class TokenTest {
 
     @BeforeAll
     static void setUp() throws JsonParseException {
-        metadataService = new MetadataService(manager.projectManager(), manager.executor());
+        metadataService = new MetadataService(manager.projectManager(), manager.executor(),
+                                              manager.internalProjectInitializer());
         tokenService = new TokenService(manager.executor(), metadataService);
 
         // Put the legacy token.
@@ -111,7 +113,7 @@ class TokenTest {
 
     @Test
     void updateToken() throws JsonParseException {
-        final Collection<Token> tokens = tokenService.listTokens(USER).join();
+        final Collection<Token> tokens = tokenService.listTokens(USER);
         assertThat(tokens.size()).isOne();
         final Token token = Iterables.getFirst(tokens, null);
         assertThat(token.appId()).isEqualTo(APP_ID);
@@ -125,10 +127,10 @@ class TokenTest {
                                         "value", "inactive")));
 
         tokenService.updateToken(CTX, APP_ID, deactivation, AUTHOR, USER).join();
-        Token updated = metadataService.findTokenByAppId(APP_ID).join();
+        await().untilAsserted(() -> assertThat(metadataService.findTokenByAppId(APP_ID).isActive()).isFalse());
+        Token updated = metadataService.findTokenByAppId(APP_ID);
         assertThat(updated.appId()).isEqualTo(APP_ID);
         assertThat(updated.isSystemAdmin()).isTrue();
-        assertThat(updated.isActive()).isFalse();
 
         final JsonNode activation = Jackson.valueToTree(
                 ImmutableList.of(
@@ -137,10 +139,10 @@ class TokenTest {
                                         "value", "active")));
 
         tokenService.updateToken(CTX, APP_ID, activation, AUTHOR, USER).join();
-        updated = metadataService.findTokenByAppId(APP_ID).join();
+        await().untilAsserted(() -> assertThat(metadataService.findTokenByAppId(APP_ID).isActive()).isTrue());
+        updated = metadataService.findTokenByAppId(APP_ID);
         assertThat(updated.appId()).isEqualTo(APP_ID);
         assertThat(updated.isSystemAdmin()).isTrue();
-        assertThat(updated.isActive()).isTrue();
     }
 
     @Test

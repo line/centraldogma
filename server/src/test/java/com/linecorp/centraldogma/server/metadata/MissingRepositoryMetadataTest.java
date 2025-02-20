@@ -27,6 +27,7 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
@@ -59,13 +60,14 @@ class MissingRepositoryMetadataTest {
         final ProjectManager pm = manager.projectManager();
         final RepositoryManager rm = pm.get(PROJ).repos();
         final CommandExecutor executor = manager.executor();
+        final InternalProjectInitializer projectInitializer = new InternalProjectInitializer(executor, pm);
 
         // Create a new repository without adding metadata.
         rm.create("repo", AUTHOR);
         assertThat(rm.get("repo")).isNotNull();
 
         // Try to access the repository metadata, which will trigger its auto-generation.
-        final MetadataService mds = new MetadataService(pm, executor);
+        final MetadataService mds = new MetadataService(pm, executor, projectInitializer);
         final RepositoryMetadata metadata = mds.getRepo(PROJ, "repo").join();
         assertThat(metadata.id()).isEqualTo("repo");
         assertThat(metadata.name()).isEqualTo("repo");

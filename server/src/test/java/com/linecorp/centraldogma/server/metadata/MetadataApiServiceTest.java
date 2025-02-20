@@ -19,6 +19,7 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJE
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -266,8 +267,9 @@ class MetadataApiServiceTest {
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.OK);
 
         // Now the member cannot access the meta repository.
-        res = memberClient.get("/api/v1/projects/" + PROJECT_NAME + "/repos/meta/list");
-        assertThat(res.status()).isSameAs(HttpStatus.FORBIDDEN);
+        await().untilAsserted(() -> assertThat(memberClient.get(
+                "/api/v1/projects/" + PROJECT_NAME + "/repos/meta/list").status())
+                .isSameAs(HttpStatus.FORBIDDEN));
     }
 
     @Test

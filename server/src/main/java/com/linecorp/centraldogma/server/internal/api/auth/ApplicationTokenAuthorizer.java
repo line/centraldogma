@@ -16,13 +16,11 @@
 
 package com.linecorp.centraldogma.server.internal.api.auth;
 
-import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
@@ -33,6 +31,7 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.auth.OAuth2Token;
 import com.linecorp.armeria.common.logging.LogLevel;
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.Authorizer;
@@ -51,9 +50,9 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
     private static final Logger logger = LoggerFactory.getLogger(
             ApplicationTokenAuthorizer.class);
 
-    private final Function<String, CompletionStage<Token>> tokenLookupFunc;
+    private final Function<String, Token> tokenLookupFunc;
 
-    public ApplicationTokenAuthorizer(Function<String, CompletionStage<Token>> tokenLookupFunc) {
+    public ApplicationTokenAuthorizer(Function<String, Token> tokenLookupFunc) {
         this.tokenLookupFunc = requireNonNull(tokenLookupFunc, "tokenLookupFunc");
     }
 
@@ -64,40 +63,34 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
             return completedFuture(false);
         }
 
-        final CompletableFuture<Boolean> res = new CompletableFuture<>();
-        tokenLookupFunc.apply(token.accessToken())
-                       .thenAccept(appToken -> {
-                           if (appToken != null && appToken.isActive()) {
-                               final String appId = appToken.appId();
-                               final StringBuilder login = new StringBuilder(appId);
-                               final SocketAddress ra = ctx.remoteAddress();
-                               if (ra instanceof InetSocketAddress) {
-                                   login.append('@').append(((InetSocketAddress) ra).getHostString());
-                               }
-                               ctx.logBuilder().authenticatedUser("app/" + appId);
-                               final UserWithToken user = new UserWithToken(login.toString(), appToken);
-                               AuthUtil.setCurrentUser(ctx, user);
-                               HttpApiUtil.setVerboseResponses(ctx, user);
-                               res.complete(true);
-                           } else {
-                               res.complete(false);
-                           }
-                       })
-                       // Should be authorized by the next authorizer.
-                       .exceptionally(voidFunction(cause -> {
-                           cause = Exceptions.peel(cause);
-                           final LogLevel level;
-                           if (cause instanceof IllegalArgumentException ||
-                               cause instanceof TokenNotFoundException) {
-                               level = LogLevel.DEBUG;
-                           } else {
-                               level = LogLevel.WARN;
-                           }
-                           level.log(logger, "Failed to authorize an application token: token={}, addr={}",
-                                     token.accessToken(), ctx.clientAddress(), cause);
-                           res.complete(false);
-                       }));
-
-        return res;
+        try {
+            final Token appToken = tokenLookupFunc.apply(token.accessToken());
+            if (appToken != null && appToken.isActive()) {
+                final String appId = appToken.appId();
+                final StringBuilder login = new StringBuilder(appId);
+                final SocketAddress ra = ctx.remoteAddress();
+                if (ra instanceof InetSocketAddress) {
+                    login.append('@').append(((InetSocketAddress) ra).getHostString());
+                }
+                ctx.logBuilder().authenticatedUser("app/" + appId);
+                final UserWithToken user = new UserWithToken(login.toString(), appToken);
+                AuthUtil.setCurrentUser(ctx, user);
+                HttpApiUtil.setVerboseResponses(ctx, user);
+                return UnmodifiableFuture.completedFuture(true);
+            }
+            return UnmodifiableFuture.completedFuture(false);
+        } catch (Throwable cause) {
+            cause = Exceptions.peel(cause);
+            final LogLevel level;
+            if (cause instanceof IllegalArgumentException ||
+                cause instanceof TokenNotFoundException) {
+                level = LogLevel.DEBUG;
+            } else {
+                level = LogLevel.WARN;
+            }
+            level.log(logger, "Failed to authorize an application token: token={}, addr={}",
+                      token.accessToken(), ctx.clientAddress(), cause);
+            return UnmodifiableFuture.completedFuture(false);
+        }
     }
 }

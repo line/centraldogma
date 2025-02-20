@@ -29,6 +29,7 @@ import java.nio.file.Files;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
@@ -42,10 +43,8 @@ import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -93,8 +92,8 @@ final class Replica {
             protected <T> CompletableFuture<T> doExecute(Command<T> command) {
                 return (CompletableFuture<T>) delegate.apply(command);
             }
-        }, meterRegistry, mock(ProjectManager.class), writeQuota, null, null, null, null, null);
-        commandExecutor.setMetadataService(mockMetaService());
+        }, meterRegistry, writeQuota, null, null, null, null, null);
+        commandExecutor.setRepositoryMetadataSupplier(mockMetaService());
         commandExecutor.setLockTimeoutMillis(10000);
 
         startFuture = start ? commandExecutor.start() : null;
@@ -114,12 +113,13 @@ final class Replica {
         }, Objects::nonNull);
     }
 
-    private static MetadataService mockMetaService() {
-        final MetadataService mds = mock(MetadataService.class);
+    private static BiFunction<String, String, CompletableFuture<RepositoryMetadata>> mockMetaService() {
+        //noinspection unchecked
+        final BiFunction<String, String, CompletableFuture<RepositoryMetadata>> mock = mock(BiFunction.class);
         final RepositoryMetadata repoMeta = RepositoryMetadata.of("", UserAndTimestamp.of(Author.SYSTEM));
-        lenient().when(mds.getRepo(anyString(), anyString()))
+        lenient().when(mock.apply(anyString(), anyString()))
                  .thenReturn(CompletableFuture.completedFuture(repoMeta));
-        return mds;
+        return mock;
     }
 
     boolean existsLocalRevision() {

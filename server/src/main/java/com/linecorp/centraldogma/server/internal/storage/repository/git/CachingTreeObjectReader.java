@@ -19,7 +19,6 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 import static org.eclipse.jgit.lib.Constants.OBJ_TREE;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 
 import javax.annotation.Nullable;
 
@@ -58,17 +57,9 @@ final class CachingTreeObjectReader extends Filter {
         if (OBJ_TREE != typeHint || cache == null) {
             return delegate.open(objectId, typeHint);
         }
-
-        // Need to convert to objectId from MutableObjectId
-        final AnyObjectId objectId0 = objectId.toObjectId();
-
-        final CacheableObjectLoaderCall key = new CacheableObjectLoaderCall(repository, objectId0);
-        return cache.load(key, () -> {
-            try {
-                return delegate.open(objectId0, typeHint);
-            } catch (IOException e) {
-                throw new UncheckedIOException("failed to open an object: " + objectId0, e);
-            }
-        }, false);
+        final CacheableObjectLoaderCall key = new CacheableObjectLoaderCall(
+                // Need to convert to objectId from MutableObjectId
+                repository, delegate, objectId.toObjectId());
+        return cache.get(key).join();
     }
 }

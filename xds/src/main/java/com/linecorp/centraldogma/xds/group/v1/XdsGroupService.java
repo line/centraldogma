@@ -28,6 +28,7 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.xds.group.v1.XdsGroupServiceGrpc.XdsGroupServiceImplBase;
@@ -47,10 +48,11 @@ public final class XdsGroupService extends XdsGroupServiceImplBase {
     /**
      * Creates a new instance.
      */
-    public XdsGroupService(ProjectManager projectManager, CommandExecutor commandExecutor) {
+    public XdsGroupService(ProjectManager projectManager, CommandExecutor commandExecutor,
+                           InternalProjectInitializer internalProjectInitializer) {
         this.projectManager = projectManager;
         this.commandExecutor = commandExecutor;
-        mds = new MetadataService(projectManager, commandExecutor);
+        mds = new MetadataService(projectManager, commandExecutor, internalProjectInitializer);
     }
 
     @Override

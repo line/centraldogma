@@ -150,7 +150,7 @@ public class PurgeSchedulingService {
     }
 
     private static void purgeToken(MetadataService metadataService) {
-        final Tokens tokens = metadataService.getTokens().join();
+        final Tokens tokens = metadataService.getTokens();
         final List<String> purging = tokens.appIds().values()
                                            .stream()
                                            .filter(Token::isDeleted)

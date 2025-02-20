@@ -62,7 +62,8 @@ class PurgeSchedulingServiceTest {
 
         @Override
         protected void afterExecutorStarted() {
-            metadataService = new MetadataService(projectManager(), executor());
+            metadataService = new MetadataService(projectManager(), executor(),
+                                                  manager.internalProjectInitializer());
 
             executor().execute(Command.createProject(AUTHOR, PROJA_ACTIVE)).join();
             executor().execute(Command.createRepository(AUTHOR, PROJA_ACTIVE, REPOA_REMOVED)).join();

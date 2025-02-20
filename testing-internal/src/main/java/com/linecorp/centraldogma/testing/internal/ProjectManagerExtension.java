@@ -27,10 +27,12 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 
 import com.linecorp.armeria.common.metric.NoopMeterRegistry;
 import com.linecorp.centraldogma.common.ShuttingDownException;
+import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.testing.junit.AbstractAllOrEachExtension;
@@ -80,6 +82,8 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
         executor.start().get();
         internalProjectInitializer = new InternalProjectInitializer(executor, projectManager);
         internalProjectInitializer.initialize();
+        final MetadataService mds = new MetadataService(projectManager, executor, internalProjectInitializer);
+        executor.setRepositoryMetadataSupplier(mds::getRepo);
 
         afterExecutorStarted();
     }
@@ -117,6 +121,13 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
     }
 
     /**
+     * Returns an {@link InternalProjectInitializer}.
+     */
+    public InternalProjectInitializer internalProjectInitializer() {
+        return internalProjectInitializer;
+    }
+
+    /**
      * Override this method to configure a project after the executor started.
      */
     protected void afterExecutorStarted() {}
@@ -134,7 +145,8 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
     protected ProjectManager newProjectManager(Executor repositoryWorker, Executor purgeWorker) {
         try {
             return new DefaultProjectManager(dataDir, repositoryWorker,
-                                             purgeWorker, NoopMeterRegistry.get(), null);
+                                             purgeWorker, NoopMeterRegistry.get(),
+                                             CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC);
         } catch (Exception e) {
             // Should not reach here.
             throw new Error(e);
