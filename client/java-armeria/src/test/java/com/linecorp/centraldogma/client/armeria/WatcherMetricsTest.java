@@ -81,24 +81,22 @@ public class WatcherMetricsTest {
         final Watcher<String> watcher = dogmaRepo.watcher(Query.ofText("/hoge.txt")).start();
 
         // The initial value of the metrics is -1
-        {
-            final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/hoge.txt"));
-            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/hoge.txt"));
-            assertThat(latestRevisionGauges.size()).isEqualTo(1);
-            assertThat(latestRevisionGauges.get(0).value()).isEqualTo(-1);
-            assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
-            assertThat(latestReceivedTimeGauges.get(0).value()).isEqualTo(-1);
-        }
+        final List<Gauge> latestRevisionGauges1 = latestRevisionGauges(tags("/hoge.txt"));
+        final List<TimeGauge> latestReceivedTimeGauges1 = latestReceivedTimeGauges(tags("/hoge.txt"));
+        assertThat(latestRevisionGauges1.size()).isEqualTo(1);
+        assertThat(latestRevisionGauges1.get(0).value()).isEqualTo(-1);
+        assertThat(latestReceivedTimeGauges1.size()).isEqualTo(1);
+        assertThat(latestReceivedTimeGauges1.get(0).value()).isEqualTo(-1);
 
         // Metrics will be emitted once the values are ready.
         watcher.awaitInitialValue();
         await().untilAsserted(() -> {
-            final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/hoge.txt"));
-            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/hoge.txt"));
-            assertThat(latestRevisionGauges.size()).isEqualTo(1);
-            assertThat(latestRevisionGauges.get(0).value()).isEqualTo(hoge1stResult.revision().major());
-            assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
-            assertThat(latestReceivedTimeGauges.get(0).value())
+            final List<Gauge> latestRevisionGauges2 = latestRevisionGauges(tags("/hoge.txt"));
+            final List<TimeGauge> latestReceivedTimeGauges2 = latestReceivedTimeGauges(tags("/hoge.txt"));
+            assertThat(latestRevisionGauges2.size()).isEqualTo(1);
+            assertThat(latestRevisionGauges2.get(0).value()).isEqualTo(hoge1stResult.revision().major());
+            assertThat(latestReceivedTimeGauges2.size()).isEqualTo(1);
+            assertThat(latestReceivedTimeGauges2.get(0).value())
                     .isGreaterThanOrEqualTo(hoge1stResult.when() / 1000.0);
         });
 
@@ -106,12 +104,12 @@ public class WatcherMetricsTest {
         final PushResult hoge2ndResult = dogmaRepo.commit("Add hoge.txt", Change.ofTextUpsert("/hoge.txt", "2"))
                                                   .push().join();
         await().untilAsserted(() -> {
-            final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/hoge.txt"));
-            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/hoge.txt"));
-            assertThat(latestRevisionGauges.size()).isEqualTo(1);
-            assertThat(latestRevisionGauges.get(0).value()).isEqualTo(hoge2ndResult.revision().major());
-            assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
-            assertThat(latestReceivedTimeGauges.get(0).value())
+            final List<Gauge> latestRevisionGauges3 = latestRevisionGauges(tags("/hoge.txt"));
+            final List<TimeGauge> latestReceivedTimeGauges3 = latestReceivedTimeGauges(tags("/hoge.txt"));
+            assertThat(latestRevisionGauges3.size()).isEqualTo(1);
+            assertThat(latestRevisionGauges3.get(0).value()).isEqualTo(hoge2ndResult.revision().major());
+            assertThat(latestReceivedTimeGauges3.size()).isEqualTo(1);
+            assertThat(latestReceivedTimeGauges3.get(0).value())
                     .isGreaterThanOrEqualTo(hoge2ndResult.when() / 1000.0);
             assertThat(hoge2ndResult.revision().major()).isGreaterThan(hoge1stResult.revision().major());
             assertThat(hoge2ndResult.when()).isGreaterThanOrEqualTo(hoge1stResult.when());
@@ -119,12 +117,10 @@ public class WatcherMetricsTest {
 
         // When a commit is added, the metrics will also be updated.
         watcher.close();
-        {
-            final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/hoge.txt"));
-            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/hoge.txt"));
-            assertThat(latestRevisionGauges.size()).isEqualTo(0);
-            assertThat(latestReceivedTimeGauges.size()).isEqualTo(0);
-        }
+        final List<Gauge> latestRevisionGauges4 = latestRevisionGauges(tags("/hoge.txt"));
+        final List<TimeGauge> latestReceivedTimeGauges4 = latestReceivedTimeGauges(tags("/hoge.txt"));
+        assertThat(latestRevisionGauges4.size()).isEqualTo(0);
+        assertThat(latestReceivedTimeGauges4.size()).isEqualTo(0);
     }
 
     @Test
@@ -136,24 +132,22 @@ public class WatcherMetricsTest {
         final Watcher<Revision> watcher = dogmaRepo.watcher(PathPattern.all()).start();
 
         // The initial value of the metrics is -1
-        {
-            final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/**"));
-            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/**"));
-            assertThat(latestRevisionGauges.size()).isEqualTo(1);
-            assertThat(latestRevisionGauges.get(0).value()).isEqualTo(-1);
-            assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
-            assertThat(latestReceivedTimeGauges.get(0).value()).isEqualTo(-1);
-        }
+        final List<Gauge> latestRevisionGauges1 = latestRevisionGauges(tags("/**"));
+        final List<TimeGauge> latestReceivedTimeGauges1 = latestReceivedTimeGauges(tags("/**"));
+        assertThat(latestRevisionGauges1.size()).isEqualTo(1);
+        assertThat(latestRevisionGauges1.get(0).value()).isEqualTo(-1);
+        assertThat(latestReceivedTimeGauges1.size()).isEqualTo(1);
+        assertThat(latestReceivedTimeGauges1.get(0).value()).isEqualTo(-1);
 
         // Metrics will be emitted once the values are ready.
         watcher.awaitInitialValue();
         await().untilAsserted(() -> {
-            final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/**"));
-            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/**"));
-            assertThat(latestRevisionGauges.size()).isEqualTo(1);
-            assertThat(latestRevisionGauges.get(0).value()).isEqualTo(fooResult.revision().major());
-            assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
-            assertThat(latestReceivedTimeGauges.get(0).value())
+            final List<Gauge> latestRevisionGauges2 = latestRevisionGauges(tags("/**"));
+            final List<TimeGauge> latestReceivedTimeGauges2 = latestReceivedTimeGauges(tags("/**"));
+            assertThat(latestRevisionGauges2.size()).isEqualTo(1);
+            assertThat(latestRevisionGauges2.get(0).value()).isEqualTo(fooResult.revision().major());
+            assertThat(latestReceivedTimeGauges2.size()).isEqualTo(1);
+            assertThat(latestReceivedTimeGauges2.get(0).value())
                     .isGreaterThanOrEqualTo(fooResult.when() / 1000.0);
         });
 
@@ -161,12 +155,12 @@ public class WatcherMetricsTest {
         final PushResult barResult = dogmaRepo.commit("Add bar.txt", Change.ofTextUpsert("/bar.txt", "1"))
                                               .push().join();
         await().untilAsserted(() -> {
-            final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/**"));
-            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/**"));
-            assertThat(latestRevisionGauges.size()).isEqualTo(1);
-            assertThat(latestRevisionGauges.get(0).value()).isEqualTo(barResult.revision().major());
-            assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
-            assertThat(latestReceivedTimeGauges.get(0).value())
+            final List<Gauge> latestRevisionGauges3 = latestRevisionGauges(tags("/**"));
+            final List<TimeGauge> latestReceivedTimeGauges3 = latestReceivedTimeGauges(tags("/**"));
+            assertThat(latestRevisionGauges3.size()).isEqualTo(1);
+            assertThat(latestRevisionGauges3.get(0).value()).isEqualTo(barResult.revision().major());
+            assertThat(latestReceivedTimeGauges3.size()).isEqualTo(1);
+            assertThat(latestReceivedTimeGauges3.get(0).value())
                     .isGreaterThanOrEqualTo(barResult.when() / 1000.0);
             assertThat(barResult.revision().major()).isGreaterThan(fooResult.revision().major());
             assertThat(barResult.when()).isGreaterThanOrEqualTo(fooResult.when());
@@ -174,12 +168,10 @@ public class WatcherMetricsTest {
 
         // When a commit is added, the metrics will also be updated.
         watcher.close();
-        {
-            final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/**"));
-            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/**"));
-            assertThat(latestRevisionGauges.size()).isEqualTo(0);
-            assertThat(latestReceivedTimeGauges.size()).isEqualTo(0);
-        }
+        final List<Gauge> latestRevisionGauges4 = latestRevisionGauges(tags("/**"));
+        final List<TimeGauge> latestReceivedTimeGauges4 = latestReceivedTimeGauges(tags("/**"));
+        assertThat(latestRevisionGauges4.size()).isEqualTo(0);
+        assertThat(latestReceivedTimeGauges4.size()).isEqualTo(0);
     }
 
     @Test
