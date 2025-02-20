@@ -129,10 +129,9 @@ public final class InternalProjectInitializer {
 
     private void initializeTokens() {
         final Repository dogmaRepo = projectManager.get(INTERNAL_PROJECT_DOGMA).repos().get(Project.REPO_DOGMA);
-        final Entry<JsonNode> entry =
-                dogmaRepo.getOrNull(Revision.HEAD, Query.ofJson(TOKEN_JSON)).join();
+        final Entry<JsonNode> entry = dogmaRepo.getOrNull(Revision.HEAD, Query.ofJson(TOKEN_JSON)).join();
         if (entry != null && entry.hasContent()) {
-            attachTokensListener(dogmaRepo);
+            setTokens(entry, dogmaRepo);
             return;
         }
         try {
@@ -144,13 +143,27 @@ public final class InternalProjectInitializer {
                                                     Revision.HEAD, commitSummary, "", Markup.PLAINTEXT,
                                                     ImmutableList.of(change))))
                     .get();
-            attachTokensListener(dogmaRepo);
+            final Entry<JsonNode> entry1 = dogmaRepo.getOrNull(Revision.HEAD, Query.ofJson(TOKEN_JSON)).join();
+            assert entry1 != null;
+            setTokens(entry1, dogmaRepo);
         } catch (Throwable cause) {
             final Throwable peeled = Exceptions.peel(cause);
             if (peeled instanceof ChangeConflictException) {
                 return;
             }
             throw new Error("failed to initialize the token list file", peeled);
+        }
+    }
+
+    private void setTokens(Entry<JsonNode> entry, Repository dogmaRepo) {
+        try {
+            final Tokens tokens = Jackson.treeToValue(entry.content(), Tokens.class);
+            lastTokensRevision = entry.revision();
+            this.tokens = tokens;
+            attachTokensListener(dogmaRepo);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw new RuntimeException(String.format("failed to parse %s/%s/%s", INTERNAL_PROJECT_DOGMA,
+                                                     Project.REPO_DOGMA, TOKEN_JSON), e);
         }
     }
 
