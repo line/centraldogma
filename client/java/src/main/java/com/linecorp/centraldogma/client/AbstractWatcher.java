@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -55,6 +56,7 @@ import io.micrometer.core.instrument.Meter.Id;
 import io.micrometer.core.instrument.Meter.Type;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.TimeGauge;
 
 abstract class AbstractWatcher<T> implements Watcher<T> {
 
@@ -100,7 +102,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     // In Prometheus, it is common to handle data with second precision,
     // so we intentionally use second precision.
     // ref: https://prometheus.io/docs/prometheus/latest/querying/functions/#time
-    private final AtomicLong latestReceivedTime = new AtomicLong();
+    private final AtomicLong latestReceivedTimeSeconds = new AtomicLong(-1);
 
     AbstractWatcher(ScheduledExecutorService watchScheduler, String projectName, String repositoryName,
                     String pathPattern, boolean errorOnEntryNotFound, long delayOnSuccessMillis,
@@ -120,7 +122,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         tags = Tags.of(
                 "project", projectName,
                 "repository", repositoryName,
-                "pathPattern", pathPattern,
+                "path", pathPattern,
                 // There is a possibility of using the same watcher for the same project, repo, and pathPattern.
                 // Therefore, an auto-incremental name will be assigned automatically.
                 // In the future, if there is a need, we could allow this name to be explicitly specified.
@@ -156,11 +158,14 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
             scheduleWatch(0);
         }
         if (meterRegistry != null) {
-            // emit metrics once the values are ready
-            initialValueFuture.thenAccept(latest -> {
-                meterRegistry.gauge(LATEST_REVISION_METER_NAME, tags, this,
-                                    watcher -> watcher.latest().revision().major());
-            });
+            meterRegistry.gauge(LATEST_REVISION_METER_NAME, tags, this,
+                                watcher -> Optional.ofNullable(watcher.latest)
+                                                   .map(it -> it.revision().major())
+                                                   .orElse(-1));
+            TimeGauge.builder(LATEST_RECEIVED_TIME_METER_NAME, latestReceivedTimeSeconds, TimeUnit.SECONDS,
+                              AtomicLong::get)
+                     .tags(tags)
+                     .register(meterRegistry);
         }
     }
 
@@ -291,7 +296,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                  logger.debug("watcher noticed updated file {}/{}{}: rev={}",
                               projectName, repositoryName, pathPattern, newLatest.revision());
                  notifyListeners(newLatest);
-                 updateLatestReceivedTime();
+                 latestReceivedTimeSeconds.set(Instant.now().getEpochSecond());
                  if (!initialValueFuture.isDone()) {
                      initialValueFuture.complete(newLatest);
                  }
@@ -359,17 +364,6 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                                 projectName, repositoryName, pathPattern, latest.revision(), e);
                 }
             });
-        }
-    }
-
-    private void updateLatestReceivedTime() {
-        if (meterRegistry == null) {
-            return;
-        }
-
-        if (latestReceivedTime.getAndSet(Instant.now().getEpochSecond()) == 0) {
-            // emit metrics once the values are ready
-            meterRegistry.gauge(LATEST_RECEIVED_TIME_METER_NAME, tags, latestReceivedTime, AtomicLong::get);
         }
     }
 

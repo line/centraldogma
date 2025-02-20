@@ -36,6 +36,7 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.TimeGauge;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 public class WatcherMetricsTest {
@@ -79,15 +80,21 @@ public class WatcherMetricsTest {
 
         final Watcher<String> watcher = dogmaRepo.watcher(Query.ofText("/hoge.txt")).start();
 
-        // Metrics will not be emitted until the values are ready.
-        assertThat(latestRevisionGauges(tags("/hoge.txt")).size()).isEqualTo(0);
-        assertThat(latestReceivedTimeGauges(tags("/hoge.txt")).size()).isEqualTo(0);
+        // The initial value of the metrics is -1
+        {
+            final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/hoge.txt"));
+            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/hoge.txt"));
+            assertThat(latestRevisionGauges.size()).isEqualTo(1);
+            assertThat(latestRevisionGauges.get(0).value()).isEqualTo(-1);
+            assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
+            assertThat(latestReceivedTimeGauges.get(0).value()).isEqualTo(-1);
+        }
 
         // Metrics will be emitted once the values are ready.
         watcher.awaitInitialValue();
         await().untilAsserted(() -> {
             final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/hoge.txt"));
-            final List<Gauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/hoge.txt"));
+            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/hoge.txt"));
             assertThat(latestRevisionGauges.size()).isEqualTo(1);
             assertThat(latestRevisionGauges.get(0).value()).isEqualTo(hoge1stResult.revision().major());
             assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
@@ -100,7 +107,7 @@ public class WatcherMetricsTest {
                                                   .push().join();
         await().untilAsserted(() -> {
             final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/hoge.txt"));
-            final List<Gauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/hoge.txt"));
+            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/hoge.txt"));
             assertThat(latestRevisionGauges.size()).isEqualTo(1);
             assertThat(latestRevisionGauges.get(0).value()).isEqualTo(hoge2ndResult.revision().major());
             assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
@@ -112,10 +119,12 @@ public class WatcherMetricsTest {
 
         // When a commit is added, the metrics will also be updated.
         watcher.close();
-        final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/hoge.txt"));
-        final List<Gauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/hoge.txt"));
-        assertThat(latestRevisionGauges.size()).isEqualTo(0);
-        assertThat(latestReceivedTimeGauges.size()).isEqualTo(0);
+        {
+            final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/hoge.txt"));
+            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/hoge.txt"));
+            assertThat(latestRevisionGauges.size()).isEqualTo(0);
+            assertThat(latestReceivedTimeGauges.size()).isEqualTo(0);
+        }
     }
 
     @Test
@@ -126,15 +135,21 @@ public class WatcherMetricsTest {
 
         final Watcher<Revision> watcher = dogmaRepo.watcher(PathPattern.all()).start();
 
-        // Metrics will not be emitted until the values are ready.
-        assertThat(latestRevisionGauges(tags("/**")).size()).isEqualTo(0);
-        assertThat(latestReceivedTimeGauges(tags("/**")).size()).isEqualTo(0);
+        // The initial value of the metrics is -1
+        {
+            final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/**"));
+            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/**"));
+            assertThat(latestRevisionGauges.size()).isEqualTo(1);
+            assertThat(latestRevisionGauges.get(0).value()).isEqualTo(-1);
+            assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
+            assertThat(latestReceivedTimeGauges.get(0).value()).isEqualTo(-1);
+        }
 
         // Metrics will be emitted once the values are ready.
         watcher.awaitInitialValue();
         await().untilAsserted(() -> {
             final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/**"));
-            final List<Gauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/**"));
+            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/**"));
             assertThat(latestRevisionGauges.size()).isEqualTo(1);
             assertThat(latestRevisionGauges.get(0).value()).isEqualTo(fooResult.revision().major());
             assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
@@ -147,7 +162,7 @@ public class WatcherMetricsTest {
                                               .push().join();
         await().untilAsserted(() -> {
             final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/**"));
-            final List<Gauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/**"));
+            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/**"));
             assertThat(latestRevisionGauges.size()).isEqualTo(1);
             assertThat(latestRevisionGauges.get(0).value()).isEqualTo(barResult.revision().major());
             assertThat(latestReceivedTimeGauges.size()).isEqualTo(1);
@@ -159,10 +174,12 @@ public class WatcherMetricsTest {
 
         // When a commit is added, the metrics will also be updated.
         watcher.close();
-        final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/**"));
-        final List<Gauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/**"));
-        assertThat(latestRevisionGauges.size()).isEqualTo(0);
-        assertThat(latestReceivedTimeGauges.size()).isEqualTo(0);
+        {
+            final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/**"));
+            final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/**"));
+            assertThat(latestRevisionGauges.size()).isEqualTo(0);
+            assertThat(latestReceivedTimeGauges.size()).isEqualTo(0);
+        }
     }
 
     @Test
@@ -176,7 +193,7 @@ public class WatcherMetricsTest {
         watcher.awaitInitialValue();
         Thread.sleep(1000); // wait updateLatestCommitAsync
         final List<Gauge> latestRevisionGauges = latestRevisionGauges(tags("/hoge.txt"));
-        final List<Gauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/hoge.txt"));
+        final List<TimeGauge> latestReceivedTimeGauges = latestReceivedTimeGauges(tags("/hoge.txt"));
         assertThat(latestRevisionGauges.size()).isEqualTo(0);
         assertThat(latestReceivedTimeGauges.size()).isEqualTo(0);
     }
@@ -186,16 +203,17 @@ public class WatcherMetricsTest {
                                             .gauges());
     }
 
-    private static List<Gauge> latestReceivedTimeGauges(Tags tags) {
-        return new ArrayList<>(meterRegistry.find("centraldogma.client.watcher.latest.received.time").tags(tags)
-                                            .gauges());
+    private static List<TimeGauge> latestReceivedTimeGauges(Tags tags) {
+        return new ArrayList<>(meterRegistry.find("centraldogma.client.watcher.latest.received.time")
+                                            .tags(tags)
+                                            .timeGauges());
     }
 
     private static Tags tags(String pathPattern) {
         return Tags.of(
                 "project", project,
                 "repository", repo,
-                "pathPattern", pathPattern
+                "path", pathPattern
         );
     }
 }
