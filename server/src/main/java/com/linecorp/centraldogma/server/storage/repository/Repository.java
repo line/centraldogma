@@ -198,7 +198,6 @@ public interface Repository {
             }
 
             @SuppressWarnings("unchecked")
-
             final Entry<T> entry = (Entry<T>) result;
 
             try {
