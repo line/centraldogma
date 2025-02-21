@@ -19,6 +19,8 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.Lock;
+import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
@@ -94,6 +96,40 @@ public class RepositoryCache {
         requireNonNull(call, "call");
         requireNonNull(value, "value");
         cache.put(call, CompletableFuture.completedFuture(value));
+    }
+
+    public <T> T load(CacheableCall<T> key, Supplier<T> supplier, boolean logIfMiss) {
+        CompletableFuture<T> existingFuture = getIfPresent(key);
+        if (existingFuture != null) {
+            final T existingValue = existingFuture.getNow(null);
+            if (existingValue != null) {
+                // Cached already.
+                return existingValue;
+            }
+        }
+
+        // Not cached yet.
+        final Lock lock = key.coarseGrainedLock();
+        lock.lock();
+        try {
+            existingFuture = getIfPresent(key);
+            if (existingFuture != null) {
+                final T existingValue = existingFuture.getNow(null);
+                if (existingValue != null) {
+                    // Other thread already put the entries to the cache before we acquire the lock.
+                    return existingValue;
+                }
+            }
+
+            final T value = supplier.get();
+            put(key, value);
+            if (logIfMiss) {
+                logger.debug("Cache miss: {}", key);
+            }
+            return value;
+        } finally {
+            lock.unlock();
+        }
     }
 
     public CacheStats stats() {
