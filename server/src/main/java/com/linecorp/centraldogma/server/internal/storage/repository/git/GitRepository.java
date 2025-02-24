@@ -1094,6 +1094,7 @@ class GitRepository implements Repository {
                     // Notify the latest revision immediately.
                     listener.onUpdate(latestRevision, null);
                 }
+                // Attach the listener to continuously listen for the changes.
                 commitWatchers.add(normLastKnownRevision, pathPattern, null, listener);
             } finally {
                 readUnlock();
