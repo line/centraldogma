@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 
 import java.io.File;
@@ -95,14 +94,12 @@ class GitRepositoryListenerTest {
         assertThat(listener.latestEntries).hasSize(1);
     }
 
-    private void assertListenerEntries(String path, String expected) {
-        await().untilAsserted(() -> {
-            assertThat(listener.latestEntries.get(path).contentAsText().trim())
-                    .isEqualTo(expected);
-        });
+    private static void assertListenerEntries(String path, String expected) {
+        assertThat(listener.latestEntries.get(path).contentAsText().trim())
+                .isEqualTo(expected);
     }
 
-    private void commit(Change<?>... changes) {
+    private static void commit(Change<?>... changes) {
         repo.commit(Revision.HEAD, Instant.now().toEpochMilli(), Author.SYSTEM, "summary", changes).join();
     }
 
