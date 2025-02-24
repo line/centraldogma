@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 
@@ -37,14 +36,7 @@ class ProjectManagementTest {
     private static final Logger logger = LoggerFactory.getLogger(ProjectManagementTest.class);
 
     @RegisterExtension
-    static final CentralDogmaExtensionWithScaffolding dogma = new CentralDogmaExtensionWithScaffolding() {
-        @Override
-        protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-            builder.clientConfigurator(cb -> {
-                cb.responseTimeoutMillis(0);
-            });
-        }
-    };
+    static final CentralDogmaExtensionWithScaffolding dogma = new CentralDogmaExtensionWithScaffolding();
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
@@ -52,12 +44,8 @@ class ProjectManagementTest {
         final CentralDogma client = clientType.client(dogma);
 
         try {
-            final Set<String> oldProjects = client.listProjects().join();
-            logger.info("Old project: {}", oldProjects);
-            logger.info("Removed a project: {}", dogma.removedProject());
             client.unremoveProject(dogma.removedProject()).join();
             final Set<String> projects = client.listProjects().join();
-            logger.info("Project: {}", projects);
             assertThat(projects).contains(dogma.removedProject());
         } finally {
             try {
