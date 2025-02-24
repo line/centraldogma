@@ -23,6 +23,8 @@ import static org.mockito.Mockito.mock;
 import java.io.File;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nullable;
 
@@ -30,6 +32,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import com.google.common.collect.Iterables;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -65,6 +69,13 @@ class GitRepositoryListenerTest {
     void shouldUpdateLatestEntries() {
         commit(Change.ofTextUpsert("/foo.txt", "bar"));
         assertThat(listener.latestEntries).isNull();
+        assertThat(listener.updateCount).hasValue(0);
+
+        final CommitWatchers commitWatchers = repo.commitWatchers;
+        assertThat(commitWatchers.watchesMap.size()).isOne();
+        final Set<Watch> watches = commitWatchers.watchesMap.values().stream().findFirst().get();
+        assertThat(watches).hasSize(1);
+        final Watch watch = Iterables.getFirst(watches, null);
 
         // Add
         final String pathA = "/listenable/a.txt";
@@ -73,6 +84,7 @@ class GitRepositoryListenerTest {
             commit(Change.ofTextUpsert(pathA, text));
             assertListenerEntries(pathA, text);
         }
+        assertThat(listener.updateCount).hasValue(5);
 
         final String pathB = "/listenable/b.txt";
         for (int i = 0; i < 5; i++) {
@@ -81,17 +93,34 @@ class GitRepositoryListenerTest {
             assertListenerEntries(pathB, text);
             assertListenerEntries(pathA, "a4");
         }
+        assertThat(listener.updateCount).hasValue(10);
 
         // Rename
         final String pathC = "/listenable/c.txt";
         commit(Change.ofRename(pathA, pathC));
         assertListenerEntries(pathC, "a4");
         assertListenerEntries(pathB, "b4");
+        assertThat(listener.updateCount).hasValue(12);
 
         // Remove
         commit(Change.ofRemoval(pathB));
         assertListenerEntries(pathC, "a4");
         assertThat(listener.latestEntries).hasSize(1);
+        assertThat(listener.updateCount).hasValue(13);
+
+        final Set<Watch> watches0 = commitWatchers.watchesMap.values().stream().findFirst().get();
+        assertThat(watches0).hasSize(1);
+        final Watch watch0 = Iterables.getFirst(watches0, null);
+        assertThat(watch).isSameAs(watch0);
+
+        // Remove listener
+        repo.removeListener(listener);
+        commit(Change.ofTextUpsert(pathA, "a6"));
+        assertThat(listener.updateCount).hasValue(13);
+
+        // Trigger a commit to remove the watch.
+        commit(Change.ofTextUpsert(pathA, "a7"));
+        assertThat(commitWatchers.watchesMap).isEmpty();
     }
 
     private static void assertListenerEntries(String path, String expected) {
@@ -105,6 +134,7 @@ class GitRepositoryListenerTest {
 
     private static final class TestRepositoryListener implements RepositoryListener {
 
+        AtomicInteger updateCount = new AtomicInteger();
         @Nullable
         private volatile Map<String, Entry<?>> latestEntries;
 
@@ -116,6 +146,7 @@ class GitRepositoryListenerTest {
         @Override
         public void onUpdate(Map<String, Entry<?>> entries) {
             latestEntries = entries;
+            updateCount.incrementAndGet();
         }
     }
 }
