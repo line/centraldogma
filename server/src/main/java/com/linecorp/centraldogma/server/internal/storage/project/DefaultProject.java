@@ -236,6 +236,7 @@ public class DefaultProject implements Project {
 
         final Repository dogmaRepo = repos.get(REPO_DOGMA);
         dogmaRepo.addListener(RepositoryListener.of(Query.ofJson(METADATA_JSON), entry -> {
+            logger.info("## Metadata changed: {}", entry);
             if (entry == null) {
                 logger.warn("{} file is missing in {}/{}", METADATA_JSON, name, REPO_DOGMA);
                 return;

@@ -1088,15 +1088,13 @@ class GitRepository implements Repository {
         CompletableFuture.runAsync(() -> {
             readLock();
             try {
-                // If lastKnownRevision is outdated already and the recent changes match,
-                // there's no need to watch.
                 final Revision latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern,
                                                                            false);
                 if (latestRevision != null) {
+                    // Notify the latest revision immediately.
                     listener.onUpdate(latestRevision, null);
-                } else {
-                    commitWatchers.add(normLastKnownRevision, pathPattern, null, listener);
                 }
+                commitWatchers.add(normLastKnownRevision, pathPattern, null, listener);
             } finally {
                 readUnlock();
             }

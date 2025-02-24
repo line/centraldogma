@@ -32,6 +32,8 @@ import java.util.function.Function;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.javacrumbs.jsonunit.core.Option;
 
@@ -59,6 +61,7 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class ProjectServiceV1ListProjectTest {
 
+    private static final Logger log = LoggerFactory.getLogger(ProjectServiceV1ListProjectTest.class);
     private static ObjectMapper mapper = new ObjectMapper();
 
     @RegisterExtension
@@ -293,6 +296,8 @@ class ProjectServiceV1ListProjectTest {
         });
     }
 
+    private static final Logger logger = LoggerFactory.getLogger(ProjectServiceV1ListProjectTest.class);
+
     @Test
     void userRoleWithToken() {
         createProject(normalClient, "trustin");
@@ -317,6 +322,7 @@ class ProjectServiceV1ListProjectTest {
         assertThat(projects.values().stream().map(ProjectDto::userRole))
                 .containsExactlyInAnyOrder(ProjectRole.GUEST, ProjectRole.GUEST);
 
+        logger.info("## Adding {} as a member of the trustin project", appId);
         AggregatedHttpResponse aRes =
                 normalClient.prepare()
                             .post("/api/v1/metadata/trustin/tokens")
