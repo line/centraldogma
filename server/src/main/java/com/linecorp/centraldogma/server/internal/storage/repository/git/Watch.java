@@ -47,7 +47,7 @@ final class Watch {
             future.complete(revision);
         } else {
             assert listener != null;
-            // The watch will be removed in the next notification.
+            // The watch will be removed in the next notification if shouldRemove is set to true.
             shouldRemove = listener.onUpdate(revision, null);
         }
     }

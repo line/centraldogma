@@ -129,7 +129,12 @@ final class CommitWatchers {
             for (final Set<Watch> watches : watchesMap.values()) {
                 for (final Iterator<Watch> i = watches.iterator(); i.hasNext();) {
                     final Watch w = i.next();
-                    eligibleWatches = move(eligibleWatches, i, w);
+                    if (w.future() == null) {
+                        // ResponseListener does not require error propagation when the repo is closed.
+                        i.remove();
+                    } else {
+                        eligibleWatches = move(eligibleWatches, i, w);
+                    }
                 }
             }
         }
