@@ -79,6 +79,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -1128,7 +1129,8 @@ class GitRepository implements Repository {
 
             try {
                 assert newRevision != null;
-                final Map<String, Entry<?>> entries = find(newRevision, pathPattern).join();
+                // repositoryWorker thread will call this method.
+                final Map<String, Entry<?>> entries = blockingFind(newRevision, pathPattern, ImmutableMap.of());
                 listener.onUpdate(entries);
                 return false;
             } catch (Exception ex) {
