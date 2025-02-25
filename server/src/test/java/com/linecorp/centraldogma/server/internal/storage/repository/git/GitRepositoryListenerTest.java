@@ -112,15 +112,6 @@ class GitRepositoryListenerTest {
         assertThat(watches0).hasSize(1);
         final Watch watch0 = Iterables.getFirst(watches0, null);
         assertThat(watch).isSameAs(watch0);
-
-        // Remove listener
-        repo.removeListener(listener);
-        commit(Change.ofTextUpsert(pathA, "a6"));
-        assertThat(listener.updateCount).hasValue(13);
-
-        // Trigger a commit to remove the watch.
-        commit(Change.ofTextUpsert(pathA, "a7"));
-        assertThat(commitWatchers.watchesMap).isEmpty();
     }
 
     private static void assertListenerEntries(String path, String expected) {

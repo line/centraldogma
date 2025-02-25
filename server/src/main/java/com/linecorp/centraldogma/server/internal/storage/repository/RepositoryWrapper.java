@@ -221,11 +221,6 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
-    public void removeListener(RepositoryListener listener) {
-        unwrap().removeListener(listener);
-    }
-
-    @Override
     public String toString() {
         return Util.simpleTypeName(this) + '(' + unwrap() + ')';
     }
