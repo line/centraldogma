@@ -1060,21 +1060,19 @@ class GitRepository implements Repository {
         final CompletableFuture<Revision> future = new CompletableFuture<>();
         CompletableFuture.runAsync(() -> {
             failFastIfTimedOut(this, logger, ctx, "watch", lastKnownRevision, pathPattern);
-            final Revision latestRevision;
             readLock();
             try {
                 // If lastKnownRevision is outdated already and the recent changes match,
                 // there's no need to watch.
-                latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern,
-                                                            errorOnEntryNotFound);
-            } finally {
-                readUnlock();
-            }
-
+                final Revision latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern,
+                                                                           errorOnEntryNotFound);
             if (latestRevision != null) {
                 future.complete(latestRevision);
             } else {
-                commitWatchers.add(normLastKnownRevision, pathPattern, future, null);
+                    commitWatchers.add(normLastKnownRevision, pathPattern, future, null);
+                }
+            } finally {
+                readUnlock();
             }
         }, repositoryWorker).exceptionally(cause -> {
             future.completeExceptionally(cause);
@@ -1088,9 +1086,9 @@ class GitRepository implements Repository {
         requireNonNull(pathPattern, "pathPattern");
         CompletableFuture.runAsync(() -> {
             final Revision headRevision = this.headRevision;
-            listener.onUpdate(headRevision, null);
             // Attach the listener to continuously listen for the changes.
             commitWatchers.add(headRevision, pathPattern, null, listener);
+            listener.onUpdate(headRevision, null);
         }, repositoryWorker);
     }
 
