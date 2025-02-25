@@ -1101,28 +1101,26 @@ class GitRepository implements Repository {
         final String pathPattern = listener.pathPattern();
         recursiveWatch(pathPattern, (newRevision, cause) -> {
             if (shouldStopListening()) {
-                return true;
+                return;
             }
 
             if (cause != null) {
                 cause = Exceptions.peel(cause);
                 if (cause instanceof ShuttingDownException) {
-                    return true;
+                    return;
                 }
 
                 logger.warn("Failed to watch {} file in {}/{}.", pathPattern, parent.name(), name, cause);
-                return false;
+                return;
             }
 
             try {
                 assert newRevision != null;
                 // repositoryWorker thread will call this method.
                 listener.onUpdate(blockingFind(headRevision, pathPattern, ImmutableMap.of()));
-                return false;
             } catch (Exception ex) {
                 logger.warn("Unexpected exception while invoking {}.onUpdate(). listener: {}",
                             RepositoryListener.class.getSimpleName(), listener, ex);
-                return false;
             }
         });
     }
