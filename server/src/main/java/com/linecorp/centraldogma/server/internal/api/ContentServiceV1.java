@@ -88,6 +88,7 @@ import com.linecorp.centraldogma.server.internal.api.converter.QueryRequestConve
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
 import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
@@ -198,7 +199,7 @@ public class ContentServiceV1 extends AbstractService {
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
         final User user = AuthUtil.currentUser(ctx);
-        checkPush(repository.name(), changes, user.isSystemAdmin());
+        checkPush(repository.parent().name(), repository.name(), changes, user.isSystemAdmin());
         meterRegistry.counter("commits.push",
                               "project", repository.parent().name(),
                               "repository", repository.name())
@@ -444,7 +445,18 @@ public class ContentServiceV1 extends AbstractService {
      * Checks if the commit is for creating a file and raises a {@link InvalidPushException} if the
      * given {@code repoName} field is one of {@code meta} and {@code dogma} which are internal repositories.
      */
-    public static void checkPush(String repoName, Iterable<Change<?>> changes, boolean isSystemAdmin) {
+    public static void checkPush(String projectName, String repoName,
+                                 Iterable<Change<?>> changes, boolean isSystemAdmin) {
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(projectName)) {
+            throw new InvalidPushException("The " + InternalProjectInitializer.INTERNAL_PROJECT_DOGMA +
+                                           " project is reserved for internal usage.");
+        }
+
+        if (Project.REPO_DOGMA.equals(repoName)) {
+            throw new InvalidPushException("The " + Project.REPO_DOGMA +
+                                           " repository is reserved for internal usage.");
+        }
+
         if (Project.REPO_META.equals(repoName)) {
             final boolean hasChangesOtherThanMetaRepoFiles =
                     Streams.stream(changes).anyMatch(change -> !isMetaFile(change.path()));
