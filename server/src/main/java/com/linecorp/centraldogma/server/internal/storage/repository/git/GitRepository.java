@@ -1059,19 +1059,21 @@ class GitRepository implements Repository {
         final CompletableFuture<Revision> future = new CompletableFuture<>();
         CompletableFuture.runAsync(() -> {
             failFastIfTimedOut(this, logger, ctx, "watch", lastKnownRevision, pathPattern);
+            final Revision latestRevision;
             readLock();
             try {
                 // If lastKnownRevision is outdated already and the recent changes match,
                 // there's no need to watch.
-                final Revision latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern,
+                latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern,
                                                                            errorOnEntryNotFound);
-                if (latestRevision != null) {
-                    future.complete(latestRevision);
-                } else {
-                    commitWatchers.add(normLastKnownRevision, pathPattern, future, null);
-                }
             } finally {
                 readUnlock();
+            }
+
+            if (latestRevision != null) {
+                future.complete(latestRevision);
+            } else {
+                commitWatchers.add(normLastKnownRevision, pathPattern, future, null);
             }
         }, repositoryWorker).exceptionally(cause -> {
             future.completeExceptionally(cause);
@@ -1086,19 +1088,21 @@ class GitRepository implements Repository {
         requireNonNull(pathPattern, "pathPattern");
         final Revision normLastKnownRevision = normalizeNow(lastKnownRevision);
         CompletableFuture.runAsync(() -> {
+            final Revision latestRevision;
             readLock();
             try {
-                final Revision latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern,
+                latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern,
                                                                            false);
-                if (latestRevision != null) {
-                    // Notify the latest revision immediately.
-                    listener.onUpdate(latestRevision, null);
-                }
-                // Attach the listener to continuously listen for the changes.
-                commitWatchers.add(normLastKnownRevision, pathPattern, null, listener);
             } finally {
+                // Release the read lock first because `listener.onUpdate()` may perform a read operation.
                 readUnlock();
             }
+
+            if (latestRevision != null) {
+                listener.onUpdate(latestRevision, null);
+            }
+            // Attach the listener to continuously listen for the changes.
+            commitWatchers.add(normLastKnownRevision, pathPattern, null, listener);
         }, repositoryWorker);
     }
 
