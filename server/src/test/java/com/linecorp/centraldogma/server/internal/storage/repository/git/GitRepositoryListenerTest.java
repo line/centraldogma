@@ -68,8 +68,8 @@ class GitRepositoryListenerTest {
     @Test
     void shouldUpdateLatestEntries() {
         commit(Change.ofTextUpsert("/foo.txt", "bar"));
-        assertThat(listener.latestEntries).isNull();
-        assertThat(listener.updateCount).hasValue(0);
+        assertThat(listener.latestEntries).isEmpty();
+        assertThat(listener.updateCount).hasValue(1);
 
         final CommitWatchers commitWatchers = repo.commitWatchers;
         assertThat(commitWatchers.watchesMap.size()).isOne();
@@ -84,7 +84,7 @@ class GitRepositoryListenerTest {
             commit(Change.ofTextUpsert(pathA, text));
             assertListenerEntries(pathA, text);
         }
-        assertThat(listener.updateCount).hasValue(5);
+        assertThat(listener.updateCount).hasValue(6);
 
         final String pathB = "/listenable/b.txt";
         for (int i = 0; i < 5; i++) {
@@ -93,20 +93,20 @@ class GitRepositoryListenerTest {
             assertListenerEntries(pathB, text);
             assertListenerEntries(pathA, "a4");
         }
-        assertThat(listener.updateCount).hasValue(10);
+        assertThat(listener.updateCount).hasValue(11);
 
         // Rename
         final String pathC = "/listenable/c.txt";
         commit(Change.ofRename(pathA, pathC));
         assertListenerEntries(pathC, "a4");
         assertListenerEntries(pathB, "b4");
-        assertThat(listener.updateCount).hasValue(12);
+        assertThat(listener.updateCount).hasValue(13);
 
         // Remove
         commit(Change.ofRemoval(pathB));
         assertListenerEntries(pathC, "a4");
         assertThat(listener.latestEntries).hasSize(1);
-        assertThat(listener.updateCount).hasValue(13);
+        assertThat(listener.updateCount).hasValue(14);
 
         final Set<Watch> watches0 = commitWatchers.watchesMap.values().stream().findFirst().get();
         assertThat(watches0).hasSize(1);
