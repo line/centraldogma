@@ -1066,9 +1066,9 @@ class GitRepository implements Repository {
                 // there's no need to watch.
                 final Revision latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern,
                                                                            errorOnEntryNotFound);
-            if (latestRevision != null) {
-                future.complete(latestRevision);
-            } else {
+                if (latestRevision != null) {
+                    future.complete(latestRevision);
+                } else {
                     commitWatchers.add(normLastKnownRevision, pathPattern, future, null);
                 }
             } finally {
