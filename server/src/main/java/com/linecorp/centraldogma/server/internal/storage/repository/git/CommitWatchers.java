@@ -98,7 +98,7 @@ final class CommitWatchers {
                 final Set<Watch> watches = entry.getValue();
                 for (final Iterator<Watch> i = watches.iterator(); i.hasNext();) {
                     final Watch w = i.next();
-                    final Revision lastKnownRevision = w.lastKnownRevision;
+                    final Revision lastKnownRevision = w.lastKnownRevision();
                     if (lastKnownRevision.compareTo(revision) < 0) {
                         eligibleWatches = move(eligibleWatches, i, w);
                     } else {
@@ -130,7 +130,7 @@ final class CommitWatchers {
                 for (final Iterator<Watch> i = watches.iterator(); i.hasNext();) {
                     final Watch w = i.next();
                     if (w.future() == null) {
-                        // ResponseListener does not require error propagation when the repo is closed.
+                        // ResponseListener does not need to propagate errors when closing.
                         i.remove();
                     } else {
                         eligibleWatches = move(eligibleWatches, i, w);
@@ -152,7 +152,7 @@ final class CommitWatchers {
     }
 
     private static List<Watch> move(@Nullable List<Watch> watches, Iterator<Watch> i, Watch w) {
-        if (w.shouldRemove()) {
+        if (w.canRemove()) {
             i.remove();
             w.remove();
         }

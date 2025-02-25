@@ -24,22 +24,22 @@ import com.linecorp.centraldogma.common.Revision;
 
 final class Watch {
 
-    final Revision lastKnownRevision;
+    private final Revision lastKnownRevision;
     @Nullable
     private final CompletableFuture<Revision> future;
     @Nullable
     private final WatchListener listener;
-    private boolean shouldRemove;
+
+    private final boolean canRemove;
     private volatile boolean removed;
 
     Watch(Revision lastKnownRevision,
-          @Nullable CompletableFuture<Revision> future,
-          @Nullable WatchListener listener) {
+          @Nullable CompletableFuture<Revision> future, @Nullable WatchListener listener) {
         this.lastKnownRevision = lastKnownRevision;
         assert (future != null && listener == null) || (future == null && listener != null);
         this.future = future;
         this.listener = listener;
-        shouldRemove = future != null;
+        canRemove = future != null;
     }
 
     void notify(Revision revision) {
@@ -47,8 +47,7 @@ final class Watch {
             future.complete(revision);
         } else {
             assert listener != null;
-            // The watch will be removed in the next notification if shouldRemove is set to true.
-            shouldRemove = listener.onUpdate(revision, null);
+            listener.onUpdate(revision, null);
         }
     }
 
@@ -57,8 +56,12 @@ final class Watch {
             future.completeExceptionally(cause);
         } else {
             assert listener != null;
-            shouldRemove = listener.onUpdate(null, cause);
+            listener.onUpdate(null, cause);
         }
+    }
+
+    public Revision lastKnownRevision() {
+        return lastKnownRevision;
     }
 
     @Nullable
@@ -66,8 +69,8 @@ final class Watch {
         return future;
     }
 
-    boolean shouldRemove() {
-        return shouldRemove;
+    boolean canRemove() {
+        return canRemove;
     }
 
     void remove() {
@@ -82,8 +85,7 @@ final class Watch {
     interface WatchListener {
         /**
          * Invoked when the {@link Watch} is notified of an update.
-         * Returns {@code true} if the {@link Watch} should be removed from the watch list.
          */
-        boolean onUpdate(@Nullable Revision revision, @Nullable Throwable cause);
+        void onUpdate(@Nullable Revision revision, @Nullable Throwable cause);
     }
 }

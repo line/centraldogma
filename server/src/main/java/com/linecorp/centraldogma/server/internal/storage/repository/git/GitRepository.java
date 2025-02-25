@@ -1066,7 +1066,7 @@ class GitRepository implements Repository {
                 // If lastKnownRevision is outdated already and the recent changes match,
                 // there's no need to watch.
                 latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern,
-                                                                           errorOnEntryNotFound);
+                                                            errorOnEntryNotFound);
             } finally {
                 readUnlock();
             }
@@ -1084,26 +1084,13 @@ class GitRepository implements Repository {
         return future;
     }
 
-    private void recursiveWatch(Revision lastKnownRevision, String pathPattern, WatchListener listener) {
-        requireNonNull(lastKnownRevision, "lastKnownRevision");
+    private void recursiveWatch(String pathPattern, WatchListener listener) {
         requireNonNull(pathPattern, "pathPattern");
-        final Revision normLastKnownRevision = normalizeNow(lastKnownRevision);
         CompletableFuture.runAsync(() -> {
-            final Revision latestRevision;
-            readLock();
-            try {
-                latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern,
-                                                                           false);
-            } finally {
-                // Release the read lock first because `listener.onUpdate()` may perform a read operation.
-                readUnlock();
-            }
-
-            if (latestRevision != null) {
-                listener.onUpdate(latestRevision, null);
-            }
+            final Revision headRevision = this.headRevision;
+            listener.onUpdate(headRevision, null);
             // Attach the listener to continuously listen for the changes.
-            commitWatchers.add(normLastKnownRevision, pathPattern, null, listener);
+            commitWatchers.add(headRevision, pathPattern, null, listener);
         }, repositoryWorker);
     }
 
@@ -1112,8 +1099,8 @@ class GitRepository implements Repository {
         listeners.add(listener);
 
         final String pathPattern = listener.pathPattern();
-        recursiveWatch(Revision.INIT, pathPattern, (newRevision, cause) -> {
-            if (shouldStopListening(listener)) {
+        recursiveWatch(pathPattern, (newRevision, cause) -> {
+            if (shouldStopListening()) {
                 return true;
             }
 
@@ -1130,8 +1117,7 @@ class GitRepository implements Repository {
             try {
                 assert newRevision != null;
                 // repositoryWorker thread will call this method.
-                final Map<String, Entry<?>> entries = blockingFind(newRevision, pathPattern, ImmutableMap.of());
-                listener.onUpdate(entries);
+                listener.onUpdate(blockingFind(headRevision, pathPattern, ImmutableMap.of()));
                 return false;
             } catch (Exception ex) {
                 logger.warn("Unexpected exception while invoking {}.onUpdate(). listener: {}",
@@ -1141,13 +1127,8 @@ class GitRepository implements Repository {
         });
     }
 
-    private boolean shouldStopListening(RepositoryListener listener) {
-        return !listeners.contains(listener) || closePending.get() != null;
-    }
-
-    @Override
-    public void removeListener(RepositoryListener listener) {
-        listeners.remove(listener);
+    private boolean shouldStopListening() {
+        return closePending.get() != null;
     }
 
     void notifyWatchers(Revision newRevision, List<DiffEntry> diffEntries) {
