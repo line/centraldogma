@@ -266,11 +266,16 @@ export const apiSlice = createApi({
       providesTags: ['File'],
     }),
     pushFileChanges: builder.mutation({
-      query: ({ projectName, repoName, data }) => ({
-        url: `/api/v1/projects/${projectName}/repos/${repoName}/contents`,
-        method: 'POST',
-        body: data,
-      }),
+      query: ({ projectName, repoName, data }) => {
+        if (projectName === 'dogma' || repoName === 'dogma') {
+          throw new Error('Cannot push changes to the dogma project or repository');
+        }
+        return {
+          url: `/api/v1/projects/${projectName}/repos/${repoName}/contents`,
+          method: 'POST',
+          body: data,
+        };
+      },
       invalidatesTags: ['File'],
     }),
     getHistory: builder.query<HistoryDto[], GetHistory>({
