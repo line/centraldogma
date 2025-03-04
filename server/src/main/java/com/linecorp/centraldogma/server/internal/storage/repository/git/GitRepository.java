@@ -109,6 +109,7 @@ import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
@@ -1034,12 +1035,12 @@ class GitRepository implements Repository {
         }
 
         final CacheableCompareTreesCall key = new CacheableCompareTreesCall(this, treeA, treeB);
-        return cache.load(key, () -> blockingCompareTreesUncached(treeA, treeB, TreeFilter.ALL), true);
+        return cache.get(key).join();
     }
 
-    private List<DiffEntry> blockingCompareTreesUncached(@Nullable RevTree treeA,
-                                                         @Nullable RevTree treeB,
-                                                         TreeFilter filter) {
+    List<DiffEntry> blockingCompareTreesUncached(@Nullable RevTree treeA,
+                                                 @Nullable RevTree treeB,
+                                                 TreeFilter filter) {
         readLock();
         try (DiffFormatter diffFormatter = new DiffFormatter(null)) {
             diffFormatter.setRepository(jGitRepository);
@@ -1083,6 +1084,18 @@ class GitRepository implements Repository {
         });
 
         return future;
+    }
+
+    @Override
+    public <T> CompletableFuture<T> execute(CacheableCall<T> cacheableCall) {
+        // This is executed only when the CachingRepository is not enabled.
+        requireNonNull(cacheableCall, "cacheableCall");
+        final ServiceRequestContext ctx = context();
+
+        return CompletableFuture.supplyAsync(() -> {
+            failFastIfTimedOut(this, logger, ctx, "execute", cacheableCall);
+            return cacheableCall.execute();
+        }, repositoryWorker).thenCompose(Function.identity());
     }
 
     @Override

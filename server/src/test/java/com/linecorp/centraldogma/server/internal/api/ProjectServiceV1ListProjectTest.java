@@ -341,14 +341,12 @@ class ProjectServiceV1ListProjectTest {
         });
     }
 
-    private Map<String, ProjectDto> getProjects(BlockingWebClient client) {
-        final ResponseEntity<List<ProjectDto>> response =
-                client.prepare()
-                      .get(PROJECTS_PREFIX)
-                      .asJson(new TypeReference<List<ProjectDto>>() {})
-                      .execute();
-        assertThat(response.headers().status()).isEqualTo(HttpStatus.OK);
-        return response.content().stream()
-                       .collect(toImmutableMap(ProjectDto::name, Function.identity()));
+    private static Map<String, ProjectDto> getProjects(BlockingWebClient client) {
+        await().until(() -> client.get(PROJECTS_PREFIX).status() == HttpStatus.OK);
+        return client.prepare()
+                     .get(PROJECTS_PREFIX)
+                     .asJson(new TypeReference<List<ProjectDto>>() {})
+                     .execute().content().stream()
+                     .collect(toImmutableMap(ProjectDto::name, Function.identity()));
     }
 }
