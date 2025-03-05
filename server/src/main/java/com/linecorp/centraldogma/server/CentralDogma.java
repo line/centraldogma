@@ -16,20 +16,21 @@
 
 package com.linecorp.centraldogma.server;
 
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics;
-import io.micrometer.core.instrument.binder.jvm.DiskSpaceMetrics;
-import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
-import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics;
-import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics;
-import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
-import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics;
-import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
-import io.micrometer.core.instrument.binder.system.UptimeMetrics;
-import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
-import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
-import io.netty.util.concurrent.DefaultThreadFactory;
-import io.netty.util.concurrent.GlobalEventExecutor;
+import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V0_PATH_PREFIX;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.HEALTH_CHECK_PATH;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.METRICS_PATH;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_API_ROUTES;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_PATH;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_API_ROUTES;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_PATH;
+import static com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlService.MIRROR_ACCESS_CONTROL_PATH;
+import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConverter.MIRROR_PROVIDERS;
+import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
+import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -176,21 +177,20 @@ import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializ
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V0_PATH_PREFIX;
-import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
-import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.HEALTH_CHECK_PATH;
-import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.METRICS_PATH;
-import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_API_ROUTES;
-import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_PATH;
-import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_API_ROUTES;
-import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_PATH;
-import static com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlService.MIRROR_ACCESS_CONTROL_PATH;
-import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConverter.MIRROR_PROVIDERS;
-import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
-import static java.util.Objects.requireNonNull;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics;
+import io.micrometer.core.instrument.binder.jvm.DiskSpaceMetrics;
+import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
+import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics;
+import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
+import io.micrometer.core.instrument.binder.system.UptimeMetrics;
+import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.GlobalEventExecutor;
 
 /**
  * Central Dogma server.
@@ -485,19 +485,18 @@ public class CentralDogma implements AutoCloseable {
         final Consumer<CommandExecutor> onReleaseLeadership = exec -> {
             if (pluginsForLeaderOnly != null) {
                 logger.info("Stopping plugins on the leader replica ..");
-                CompletableFuture<?> future =
-                        pluginsForLeaderOnly.stop(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer,
-                                                  mirrorAccessController)
-                                            .handle((unused, cause) -> {
-                                                if (cause == null) {
-                                                    logger.info("Stopped plugins on the leader replica.");
-                                                } else {
-                                                    logger.error(
-                                                            "Failed to stop plugins on the leader replica.",
-                                                            cause);
-                                                }
-                                                return null;
-                                            });
+                final CompletableFuture<?> future =
+                        pluginsForLeaderOnly
+                                .stop(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer,
+                                      mirrorAccessController)
+                                .handle((unused, cause) -> {
+                                    if (cause == null) {
+                                        logger.info("Stopped plugins on the leader replica.");
+                                    } else {
+                                        logger.error("Failed to stop plugins on the leader replica.", cause);
+                                    }
+                                    return null;
+                                });
                 try {
                     future.get(10, TimeUnit.SECONDS);
                 } catch (Exception e) {
@@ -529,21 +528,19 @@ public class CentralDogma implements AutoCloseable {
             };
             onReleaseZoneLeadership = exec -> {
                 logger.info("Stopping plugins on the {} zone leader replica ..", zone);
-                CompletableFuture<?> future =
-                        pluginsForZoneLeaderOnly.stop(cfg, pm, exec, meterRegistry, purgeWorker,
-                                                      projectInitializer,
-                                                      mirrorAccessController)
-                                                .handle((unused, cause) -> {
-                                                    if (cause == null) {
-                                                        logger.info("Stopped plugins on the {} zone leader " +
-                                                                    "replica.", zone);
-                                                    } else {
-                                                        logger.error(
-                                                                "Failed to stop plugins on the {} zone leader " +
-                                                                "replica.", zone, cause);
-                                                    }
-                                                    return null;
-                                                });
+                final CompletableFuture<?> future =
+                        pluginsForZoneLeaderOnly
+                                .stop(cfg, pm, exec, meterRegistry, purgeWorker,
+                                      projectInitializer, mirrorAccessController)
+                                .handle((unused, cause) -> {
+                                    if (cause == null) {
+                                        logger.info("Stopped plugins on the {} zone leader replica.", zone);
+                                    } else {
+                                        logger.error("Failed to stop plugins on the {} zone leader replica.",
+                                                     zone, cause);
+                                    }
+                                    return null;
+                                });
                 try {
                     future.get(10, TimeUnit.SECONDS);
                 } catch (Exception e) {
