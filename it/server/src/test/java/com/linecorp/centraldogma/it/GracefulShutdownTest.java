@@ -23,16 +23,17 @@ import static org.awaitility.Awaitility.await;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
+import org.apache.thrift.transport.TTransportException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import com.linecorp.armeria.client.InvalidResponseHeadersException;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 
@@ -78,9 +79,12 @@ class GracefulShutdownTest {
 
         await().untilAsserted(() -> assertThat(future).isDone());
         if (clientType == ClientType.LEGACY) {
+            // The Legacy Thrift client no longer propagates ShutdownException.
             assertThatThrownBy(future::join)
                     .isInstanceOf(CompletionException.class)
-                    .hasCauseInstanceOf(ShuttingDownException.class);
+                    .hasCauseInstanceOf(TTransportException.class)
+                    .hasRootCauseInstanceOf(InvalidResponseHeadersException.class)
+                    .hasMessageContaining("[:status=500,");
         } else {
             // the future is completed without an exception
             assertThat(future).isCompleted();

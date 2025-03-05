@@ -92,6 +92,7 @@ import com.linecorp.armeria.internal.common.ReflectiveDependencyInjector;
 import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.ContextPathServicesBuilder;
 import com.linecorp.armeria.server.DecoratingServiceBindingBuilder;
+import com.linecorp.armeria.server.GracefulShutdown;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.Route;
 import com.linecorp.armeria.server.Server;
@@ -666,7 +667,17 @@ public class CentralDogma implements AutoCloseable {
         cfg.requestTimeoutMillis().ifPresent(sb::requestTimeoutMillis);
         cfg.maxFrameLength().ifPresent(sb::maxRequestLength);
         cfg.gracefulShutdownTimeout().ifPresent(
-                t -> sb.gracefulShutdownTimeoutMillis(t.quietPeriodMillis(), t.timeoutMillis()));
+                t -> {
+                    final GracefulShutdown gracefulShutdown =
+                            GracefulShutdown.builder()
+                                            .quietPeriodMillis(t.quietPeriodMillis())
+                                            .timeoutMillis(t.timeoutMillis())
+                                            .toExceptionFunction((ctx, req) -> {
+                                                return new ShuttingDownException();
+                                            })
+                                            .build();
+                    sb.gracefulShutdown(gracefulShutdown);
+                });
 
         final MetadataService mds = new MetadataService(pm, executor, projectInitializer);
         executor.setRepositoryMetadataSupplier(mds::getRepo);
@@ -1126,6 +1137,19 @@ public class CentralDogma implements AutoCloseable {
             @Nullable SessionManager sessionManager, @Nullable MirrorRunner mirrorRunner) {
 
         boolean success = true;
+
+        // Stop the server first to reject new requests before stopping other resources.
+        try {
+            if (server != null) {
+                logger.info("Stopping the RPC server ..");
+                server.stop().join();
+                logger.info("Stopped the RPC server.");
+            }
+        } catch (Throwable t) {
+            success = false;
+            logger.warn("Failed to stop the RPC server:", t);
+        }
+
         try {
             if (sessionManager != null) {
                 logger.info("Stopping the session manager ..");
@@ -1201,17 +1225,6 @@ public class CentralDogma implements AutoCloseable {
         } catch (Throwable t) {
             success = false;
             logger.warn("Failed to stop the mirror runner:", t);
-        }
-
-        try {
-            if (server != null) {
-                logger.info("Stopping the RPC server ..");
-                server.stop().join();
-                logger.info("Stopped the RPC server.");
-            }
-        } catch (Throwable t) {
-            success = false;
-            logger.warn("Failed to stop the RPC server:", t);
         }
 
         return success;
