@@ -103,11 +103,11 @@ public class TokenService extends AbstractService {
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
     public CompletableFuture<ResponseEntity<Token>> createToken(@Param String appId,
-                                                            // TODO(minwoox): Remove isAdmin field.
-                                                            @Param @Default("false") boolean isAdmin,
-                                                            @Param @Default("false") boolean isSystemAdmin,
-                                                            @Param @Nullable String secret,
-                                                            Author author, User loginUser) {
+                                                                // TODO(minwoox): Remove isAdmin field.
+                                                                @Param @Default("false") boolean isAdmin,
+                                                                @Param @Default("false") boolean isSystemAdmin,
+                                                                @Param @Nullable String secret,
+                                                                Author author, User loginUser) {
         final boolean isSystemAdminToken = isSystemAdmin || isAdmin;
         checkArgument(!isSystemAdminToken || loginUser.isSystemAdmin(),
                       "Only system administrators are allowed to create a system admin-level token.");

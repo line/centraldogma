@@ -142,8 +142,9 @@ class TokenServiceTest {
                                                      systemAdminAuthor, systemAdmin).join()
                                         .content();
         assertThat(token.isActive()).isTrue();
-        assertThatThrownBy(() -> tokenService.createToken("forAdmin2", true, true, null, guestAuthor, guest)
-                                             .join())
+        assertThatThrownBy(
+                () -> tokenService.createToken("forAdmin2", true, true, null, guestAuthor, guest)
+                                  .join())
                 .isInstanceOf(IllegalArgumentException.class);
 
         final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) manager.executor();
@@ -173,10 +174,12 @@ class TokenServiceTest {
 
     @Test
     void userToken() {
-        final Token userToken1 = tokenService.createToken("forUser1", false, false, null, systemAdminAuthor,
+        final Token userToken1 = tokenService.createToken("forUser1", false, false, null,
+                                                          systemAdminAuthor,
                                                           systemAdmin)
                                              .join().content();
-        final Token userToken2 = tokenService.createToken("forUser2", false, false, null, guestAuthor, guest)
+        final Token userToken2 = tokenService.createToken("forUser2", false, false, null, guestAuthor,
+                                                          guest)
                                              .join().content();
         assertThat(userToken1.isActive()).isTrue();
         assertThat(userToken2.isActive()).isTrue();

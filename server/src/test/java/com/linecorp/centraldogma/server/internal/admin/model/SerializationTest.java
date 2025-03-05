@@ -65,7 +65,8 @@ class SerializationTest {
         final String userLogin = "armeria@dogma.org";
         final Member member = new Member(userLogin, ProjectRole.MEMBER, newCreationTag());
         final RepositoryMetadata repositoryMetadata = RepositoryMetadata.of("sample", newCreationTag());
-        final Token token = new Token("testApp", "testSecret", false, false, newCreationTag(), null, null);
+        final Token token = new Token("testApp", "testSecret", false, false, true, newCreationTag(), null,
+                                      null);
         final ProjectMetadata metadata =
                 new ProjectMetadata("test",
                                     ImmutableMap.of(repositoryMetadata.name(), repositoryMetadata),
@@ -139,7 +140,8 @@ class SerializationTest {
         final Member member = new Member("armeria@dogma.org", ProjectRole.MEMBER,
                                          newCreationTag());
         final RepositoryMetadata repositoryMetadata = RepositoryMetadata.of("sample", newCreationTag());
-        final Token token = new Token("testApp", "testSecret", false, false, newCreationTag(), null, null);
+        final Token token = new Token("testApp", "testSecret", false, false, true, newCreationTag(), null,
+                                      null);
         final ProjectMetadata metadata =
                 new ProjectMetadata("test",
                                     ImmutableMap.of(repositoryMetadata.name(), repositoryMetadata),
