@@ -32,63 +32,55 @@
  * - ASL 2.0: https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 
-package com.linecorp.centraldogma.internal.jsonpatch;
+package com.linecorp.centraldogma.common.jsonpatch;
+
+import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
+import java.util.Objects;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonPointer;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
-import com.google.common.base.Equivalence;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 
 /**
- * Base class for patch operations taking a value in addition to a path.
+ * Base class for JSON Patch operations taking two JSON Pointers as arguments.
  */
-abstract class PathValueOperation extends JsonPatchOperation {
+abstract class DualPathOperation extends JsonPatchOperation {
 
-    private static final Equivalence<JsonNode> EQUIVALENCE = JsonNumEquals.getInstance();
-
-    @JsonSerialize
-    private final JsonNode value;
+    @JsonSerialize(using = ToStringSerializer.class)
+    private final JsonPointer from;
 
     /**
      * Creates a new instance.
      *
      * @param op operation name
-     * @param path affected path
-     * @param value JSON value
+     * @param from source path
+     * @param path destination path
      */
-    PathValueOperation(final String op, final JsonPointer path, final JsonNode value) {
+    DualPathOperation(final String op, final JsonPointer from, final JsonPointer path) {
         super(op, path);
-        this.value = value.deepCopy();
+        this.from = requireNonNull(from, "from");
     }
 
-    public JsonNode value() {
-        return value;
-    }
-
-    JsonNode valueCopy() {
-        return value.deepCopy();
-    }
-
-    void ensureEquivalence(JsonNode actual) {
-        if (!EQUIVALENCE.equivalent(actual, value)) {
-            throw new JsonPatchException("mismatching value at '" + path + "': " +
-                                         actual + " (expected: " + value + ')');
-        }
+    /**
+     * Returns the source path.
+     */
+    public JsonPointer from() {
+        return from;
     }
 
     @Override
     public final void serialize(final JsonGenerator jgen,
                                 final SerializerProvider provider) throws IOException {
+        requireNonNull(jgen, "jgen");
         jgen.writeStartObject();
-        jgen.writeStringField("op", op);
-        jgen.writeStringField("path", path.toString());
-        jgen.writeFieldName("value");
-        jgen.writeTree(value);
+        jgen.writeStringField("op", op());
+        jgen.writeStringField("path", path().toString());
+        jgen.writeStringField("from", from.toString());
         jgen.writeEndObject();
     }
 
@@ -100,7 +92,24 @@ abstract class PathValueOperation extends JsonPatchOperation {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof DualPathOperation)) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        final DualPathOperation that = (DualPathOperation) o;
+        return from.equals(that.from);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), from);
+    }
+
+    @Override
     public final String toString() {
-        return "op: " + op + "; path: \"" + path + "\"; value: " + value;
+        return "op: " + op() + "; from: \"" + from + "\"; path: \"" + path() + '"';
     }
 }

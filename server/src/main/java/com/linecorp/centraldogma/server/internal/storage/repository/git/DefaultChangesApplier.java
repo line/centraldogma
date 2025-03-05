@@ -43,6 +43,8 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.TextPatchConflictException;
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
@@ -157,8 +159,10 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
                     final JsonNode newJsonNode;
                     try {
                         newJsonNode = JsonPatch.fromJson((JsonNode) change.content()).apply(oldJsonNode);
+                    } catch (JsonPatchConflictException e) {
+                        throw e;
                     } catch (Exception e) {
-                        throw new ChangeConflictException("failed to apply JSON patch: " + change, e);
+                        throw new JsonPatchConflictException("failed to apply JSON patch: " + change, e);
                     }
 
                     // Apply only when the contents are really different.
@@ -195,7 +199,11 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
                             newText = joiner.toString();
                         }
                     } catch (Exception e) {
-                        throw new ChangeConflictException("failed to apply text patch: " + change, e);
+                        String message = "failed to apply text patch: " + change;
+                        if (e.getMessage() != null) {
+                            message += " (reason: " + e.getMessage() + ')';
+                        }
+                        throw new TextPatchConflictException(message, e);
                     }
 
                     // Apply only when the contents are really different.

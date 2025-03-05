@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2017 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,7 +14,9 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.internal.jsonpatch;
+package com.linecorp.centraldogma.common.jsonpatch;
+
+import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
 
@@ -26,17 +28,30 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 
+/**
+ * JSON Patch {@code testAbsence} operation.
+ *
+ * <p>For this operation, {@code path} points to the value to test absence.</p>
+ *
+ * <p>It is an error condition if {@code path} points to an actual JSON value.</p>
+ */
 public final class TestAbsenceOperation extends JsonPatchOperation {
+
+    /**
+     * Creates a new instance.
+     */
     @JsonCreator
-    public TestAbsenceOperation(@JsonProperty("path") final JsonPointer path) {
+    TestAbsenceOperation(@JsonProperty("path") final JsonPointer path) {
         super("testAbsence", path);
     }
 
     @Override
-    JsonNode apply(JsonNode node) {
+    public JsonNode apply(JsonNode node) {
+        requireNonNull(node, "node");
+        final JsonPointer path = path();
         final JsonNode found = node.at(path);
         if (!found.isMissingNode()) {
-            throw new JsonPatchException("existent path: " + path);
+            throw new JsonPatchConflictException("existent path: " + path);
         }
         return node;
     }
@@ -44,8 +59,8 @@ public final class TestAbsenceOperation extends JsonPatchOperation {
     @Override
     public void serialize(JsonGenerator gen, SerializerProvider serializers) throws IOException {
         gen.writeStartObject();
-        gen.writeStringField("op", op);
-        gen.writeStringField("path", path.toString());
+        gen.writeStringField("op", op());
+        gen.writeStringField("path", path().toString());
         gen.writeEndObject();
     }
 
@@ -57,6 +72,6 @@ public final class TestAbsenceOperation extends JsonPatchOperation {
 
     @Override
     public String toString() {
-        return "op: " + op + "; path: \"" + path + '"';
+        return "op: " + op() + "; path: \"" + path() + '"';
     }
 }

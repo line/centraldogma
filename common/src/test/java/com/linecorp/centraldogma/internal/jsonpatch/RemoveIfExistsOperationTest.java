@@ -42,6 +42,8 @@ import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
+
 class RemoveIfExistsOperationTest {
 
     private static final JsonPointer EMPTY_JSON_POINTER = JsonPointer.compile("");
@@ -49,7 +51,7 @@ class RemoveIfExistsOperationTest {
     @Test
     void removingRootReturnsMissingNode() {
         final JsonNode node = JsonNodeFactory.instance.nullNode();
-        final JsonPatchOperation op = new RemoveIfExistsOperation(EMPTY_JSON_POINTER);
+        final JsonPatchOperation op = JsonPatchOperation.removeIfExists(EMPTY_JSON_POINTER);
         final JsonNode ret = op.apply(node);
 
         assertThat(ret.isMissingNode()).isTrue();
