@@ -16,8 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.credential;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.requireNonEmpty;
 import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
-import static com.linecorp.centraldogma.server.internal.credential.CredentialUtil.requireNonEmpty;
 import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;
@@ -30,6 +30,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.server.credential.Credential;
+import com.linecorp.centraldogma.server.credential.CredentialType;
 
 public final class PasswordCredential extends AbstractCredential {
 
@@ -39,11 +40,10 @@ public final class PasswordCredential extends AbstractCredential {
     private final String password;
 
     @JsonCreator
-    public PasswordCredential(@JsonProperty("id") String id,
-                              @JsonProperty("enabled") @Nullable Boolean enabled,
+    public PasswordCredential(@JsonProperty("name") @Nullable String name,
                               @JsonProperty("username") String username,
                               @JsonProperty("password") String password) {
-        super(id, enabled, "password");
+        super(name, CredentialType.PASSWORD);
         this.username = requireNonEmpty(username, "username");
         this.password = requireNonNull(password, "password");
     }
@@ -59,7 +59,7 @@ public final class PasswordCredential extends AbstractCredential {
         } catch (Throwable t) {
             // The password probably has `:` without prefix. Just return it as is for backward compatibility.
             logger.debug("Failed to convert the password of the credential. username: {}, id: {}",
-                    username, id(), t);
+                         username, id(), t);
             return password;
         }
     }
@@ -102,6 +102,12 @@ public final class PasswordCredential extends AbstractCredential {
 
     @Override
     public Credential withoutSecret() {
-        return new PasswordCredential(id(), enabled(), username(), "****");
+        return new PasswordCredential(name(), username(), "****");
+    }
+
+    @Override
+    public Credential withName(String credentialName) {
+        requireNonNull(credentialName, "credentialName");
+        return new PasswordCredential(credentialName, username, password);
     }
 }

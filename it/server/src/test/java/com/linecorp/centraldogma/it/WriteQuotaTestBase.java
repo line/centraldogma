@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -64,8 +65,8 @@ abstract class WriteQuotaTestBase {
         CompletableFutures.allAsList(futures).join();
 
         /// update write quota to 2qps
-        QuotaConfig writeQuota = new QuotaConfig(2, 1);
-        QuotaConfig updated = updateWriteQuota(webClient(), repositoryName, writeQuota);
+        final QuotaConfig writeQuota = new QuotaConfig(2, 1);
+        final QuotaConfig updated = updateWriteQuota(webClient(), repositoryName, writeQuota);
         assertThat(updated).isEqualTo(writeQuota);
 
         // Wait for releasing previously acquired locks
@@ -86,9 +87,9 @@ abstract class WriteQuotaTestBase {
         Thread.sleep(1000);
 
         // Increase write quota
-        writeQuota = new QuotaConfig(5, 1);
-        updated = updateWriteQuota(webClient(), repositoryName, writeQuota);
-        assertThat(updated).isEqualTo(writeQuota);
+        final QuotaConfig writeQuota1 = new QuotaConfig(5, 1);
+        await().untilAsserted(() -> assertThat(updateWriteQuota(webClient(), repositoryName, writeQuota1))
+                .isEqualTo(writeQuota1));
 
         final List<CompletableFuture<PushResult>> futures4 = parallelPush(dogmaClient(), repositoryName, 4);
         assertThat(CompletableFutures.allAsList(futures4).join()).hasSize(8);

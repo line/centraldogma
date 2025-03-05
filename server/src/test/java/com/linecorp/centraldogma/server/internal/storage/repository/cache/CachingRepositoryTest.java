@@ -47,9 +47,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
-import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.armeria.common.metric.NoopMeterRegistry;
-import com.linecorp.armeria.common.prometheus.PrometheusMeterRegistries;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
@@ -66,8 +64,6 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-import io.micrometer.core.instrument.MeterRegistry;
-
 class CachingRepositoryTest {
 
     @Mock
@@ -75,7 +71,7 @@ class CachingRepositoryTest {
 
     @Test
     void identityQuery() {
-        final Repository repo = setMockNames(newCachingRepo());
+        final CachingRepository repo = setMockNames(newCachingRepo());
         final Query<String> query = Query.ofText("/baz.txt");
 
         final Entry<String> result = Entry.ofText(new Revision(10), "/baz.txt", "qux");
@@ -104,7 +100,7 @@ class CachingRepositoryTest {
     @Test
     @SuppressWarnings("unchecked")
     void jsonPathQuery() throws JsonParseException {
-        final Repository repo = setMockNames(newCachingRepo());
+        final CachingRepository repo = setMockNames(newCachingRepo());
         final Query<JsonNode> query = Query.ofJsonPath("/baz.json", "$.a");
         final Entry<JsonNode> result = Entry.ofJson(new Revision(10), query.path(), "{\"a\": \"b\"}");
         final Entry<JsonNode> unexpected = Entry.ofJson(new Revision(10), "/foo.json", "{\"bar\": 1}");
@@ -132,7 +128,7 @@ class CachingRepositoryTest {
 
     @Test
     void mergeQuery() throws JsonParseException {
-        final Repository repo = setMockNames(newCachingRepo());
+        final CachingRepository repo = setMockNames(newCachingRepo());
         final MergeQuery<JsonNode> query = MergeQuery.ofJson(MergeSource.ofRequired("/foo.json"),
                                                              MergeSource.ofRequired("/bar.json"));
         final MergedEntry<JsonNode> queryResult = MergedEntry.of(new Revision(10), JSON,
@@ -143,14 +139,9 @@ class CachingRepositoryTest {
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        final Map<String, Entry<?>> entries = ImmutableMap.of(
-                "/foo.json", Entry.ofJson(new Revision(10), "/foo.json", "{\"a\": \"foo\"}"),
-                "/bar.json", Entry.ofJson(new Revision(10), "/bar.json", "{\"a\": \"bar\"}"));
-        when(delegateRepo.find(any(), eq(ALL_PATH), eq(FIND_ALL_WITH_CONTENT)))
-                .thenReturn(completedFuture(entries));
-
+        when(delegateRepo.mergeFiles(new Revision(10), query)).thenReturn(completedFuture(queryResult));
         assertThat(repo.mergeFiles(HEAD, query).join()).isEqualTo(queryResult);
-        verify(delegateRepo).find(new Revision(10), ALL_PATH, FIND_ALL_WITH_CONTENT);
+        verify(delegateRepo).mergeFiles(new Revision(10), query);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
@@ -163,7 +154,7 @@ class CachingRepositoryTest {
 
     @Test
     void identityQueryMissingEntry() {
-        final Repository repo = setMockNames(newCachingRepo());
+        final CachingRepository repo = setMockNames(newCachingRepo());
         final Query<String> query = Query.ofText("/baz.txt");
 
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
@@ -187,7 +178,7 @@ class CachingRepositoryTest {
     @Test
     @SuppressWarnings("unchecked")
     void jsonPathQueryMissingEntry() {
-        final Repository repo = setMockNames(newCachingRepo());
+        final CachingRepository repo = setMockNames(newCachingRepo());
         final Query<JsonNode> query = Query.ofJsonPath("/baz.json", "$.a");
 
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
@@ -210,7 +201,7 @@ class CachingRepositoryTest {
 
     @Test
     void find() {
-        final Repository repo = setMockNames(newCachingRepo());
+        final CachingRepository repo = setMockNames(newCachingRepo());
         final Map<String, Entry<?>> entries =
                 ImmutableMap.of("/baz.txt", Entry.ofText(new Revision(10), "/baz.txt", "qux"));
 
@@ -233,7 +224,7 @@ class CachingRepositoryTest {
 
     @Test
     void history() {
-        final Repository repo = setMockNames(newCachingRepo());
+        final CachingRepository repo = setMockNames(newCachingRepo());
         final List<Commit> commits = ImmutableList.of(
                 new Commit(new Revision(3), SYSTEM, "third", "", Markup.MARKDOWN),
                 new Commit(new Revision(3), SYSTEM, "second", "", Markup.MARKDOWN),
@@ -262,7 +253,7 @@ class CachingRepositoryTest {
 
     @Test
     void singleDiff() {
-        final Repository repo = setMockNames(newCachingRepo());
+        final CachingRepository repo = setMockNames(newCachingRepo());
         final Query<String> query = Query.ofText("/foo.txt");
         final Change<String> change = Change.ofTextUpsert(query.path(), "bar");
 
@@ -289,7 +280,7 @@ class CachingRepositoryTest {
 
     @Test
     void multiDiff() {
-        final Repository repo = setMockNames(newCachingRepo());
+        final CachingRepository repo = setMockNames(newCachingRepo());
         final Map<String, Change<?>> changes = ImmutableMap.of(
                 "/foo.txt", Change.ofTextUpsert("/foo.txt", "bar"));
 
@@ -316,7 +307,7 @@ class CachingRepositoryTest {
 
     @Test
     void findLatestRevision() {
-        final Repository repo = setMockNames(newCachingRepo());
+        final CachingRepository repo = setMockNames(newCachingRepo());
         doReturn(new RevisionRange(INIT, new Revision(2))).when(delegateRepo).normalizeNow(INIT, HEAD);
 
         // Uncached
@@ -335,7 +326,7 @@ class CachingRepositoryTest {
 
     @Test
     void findLatestRevisionNull() {
-        final Repository repo = setMockNames(newCachingRepo());
+        final CachingRepository repo = setMockNames(newCachingRepo());
         doReturn(new RevisionRange(INIT, new Revision(2))).when(delegateRepo).normalizeNow(INIT, HEAD);
 
         // Uncached
@@ -365,7 +356,7 @@ class CachingRepositoryTest {
 
     @Test
     void watchFastPath() {
-        final Repository repo = setMockNames(newCachingRepo());
+        final CachingRepository repo = setMockNames(newCachingRepo());
         doReturn(new RevisionRange(INIT, new Revision(2))).when(delegateRepo).normalizeNow(INIT, HEAD);
 
         // Uncached
@@ -386,7 +377,7 @@ class CachingRepositoryTest {
 
     @Test
     void watchSlowPath() {
-        final Repository repo = setMockNames(newCachingRepo());
+        final CachingRepository repo = setMockNames(newCachingRepo());
         doReturn(new RevisionRange(INIT, new Revision(2))).when(delegateRepo).normalizeNow(INIT, HEAD);
 
         final CompletableFuture<Revision> delegateWatchFuture = new CompletableFuture<>();
@@ -405,24 +396,9 @@ class CachingRepositoryTest {
         verifyNoMoreInteractions(delegateRepo);
     }
 
-    @Test
-    void metrics() {
-        final MeterRegistry meterRegistry = PrometheusMeterRegistries.newRegistry();
-        final Repository repo = newCachingRepo(meterRegistry);
-        final Map<String, Double> meters = MoreMeters.measureAll(meterRegistry);
-        assertThat(meters).containsKeys("cache.load#count{cache=repository,result=success}");
-
-        // Do something with 'repo' so that it is not garbage-collected even before the meters are measured.
-        assertThat(repo.normalizeNow(HEAD)).isNotEqualTo("");
-    }
-
-    private Repository newCachingRepo() {
-        return newCachingRepo(NoopMeterRegistry.get());
-    }
-
-    private Repository newCachingRepo(MeterRegistry meterRegistry) {
-        final Repository cachingRepo = new CachingRepository(
-                delegateRepo, new RepositoryCache("maximumSize=1000", meterRegistry));
+    private CachingRepository newCachingRepo() {
+        final CachingRepository cachingRepo = new CachingRepository(
+                delegateRepo, new RepositoryCache("maximumSize=1000", NoopMeterRegistry.get()));
 
         verifyNoMoreInteractions(delegateRepo);
         clearInvocations(delegateRepo);
@@ -430,7 +406,7 @@ class CachingRepositoryTest {
         return cachingRepo;
     }
 
-    private static Repository setMockNames(Repository mockRepo) {
+    private static CachingRepository setMockNames(CachingRepository mockRepo) {
         final Project project = mock(Project.class);
         when(mockRepo.parent()).thenReturn(project);
         when(project.name()).thenReturn("mock_proj");

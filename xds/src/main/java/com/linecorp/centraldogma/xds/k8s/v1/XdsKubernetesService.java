@@ -16,9 +16,12 @@
 package com.linecorp.centraldogma.xds.k8s.v1;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil.currentAuthor;
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN_STRING;
+import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.fileName;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 
 import java.util.ArrayList;
@@ -108,16 +111,19 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
                                          .asRuntimeException();
         }
         final Author author = currentAuthor();
+        final String fileName = K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json";
         validateKubernetesEndpointAndPush(
-                responseObserver, kubernetesLocalityLbEndpointsList, () -> xdsResourceManager.push(
+                responseObserver, kubernetesLocalityLbEndpointsList, group, fileName,
+                () -> xdsResourceManager.push(
                         responseObserver, group, kubernetesEndpointName,
-                        K8S_ENDPOINT_AGGREGATORS_DIRECTORY + aggregatorId + ".json",
+                        fileName,
                         "Create kubernetes endpoint: " + kubernetesEndpointName, aggregator, author, true));
     }
 
     private void validateKubernetesEndpointAndPush(
             StreamObserver<KubernetesEndpointAggregator> responseObserver,
-            List<KubernetesLocalityLbEndpoints> kubernetesLocalityLbEndpointsList, Runnable onSuccess) {
+            List<KubernetesLocalityLbEndpoints> kubernetesLocalityLbEndpointsList,
+            String group, String fileName, Runnable onSuccess) {
         // Create a KubernetesEndpointGroup to check if the watcher is valid.
         // We use KubernetesEndpointGroup for simplicity, but we will implement a custom implementation
         // for better debugging and error handling in the future.
@@ -132,7 +138,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
             final ServiceEndpointWatcher watcher = kubernetesLocalityLbEndpoints.getWatcher();
             final CompletableFuture<KubernetesEndpointGroup> endpointGroupFuture =
                     createKubernetesEndpointGroup(watcher, xdsResourceManager.xdsProject().metaRepo(),
-                                                  taskExecutor);
+                                                  group, fileName, taskExecutor);
             endpointGroupFuture.handle((kubernetesEndpointGroup, cause) -> {
                 if (cause != null) {
                     cause = Exceptions.peel(cause);
@@ -196,11 +202,12 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
      * {@link KubernetesEndpointGroupBuilder#build()} blocks the execution thread.
      */
     public static CompletableFuture<KubernetesEndpointGroup> createKubernetesEndpointGroup(
-            ServiceEndpointWatcher watcher, MetaRepository metaRepository, Executor executor) {
+            ServiceEndpointWatcher watcher, MetaRepository metaRepository, String group,
+            String fileName, Executor executor) {
         final Kubeconfig kubeconfig = watcher.getKubeconfig();
         final String serviceName = watcher.getServiceName();
 
-        return toConfig(kubeconfig, metaRepository).thenApplyAsync(config -> {
+        return toConfig(kubeconfig, metaRepository, group, fileName).thenApplyAsync(config -> {
             final KubernetesEndpointGroupBuilder kubernetesEndpointGroupBuilder =
                     KubernetesEndpointGroup.builder(config).serviceName(serviceName);
             if (!isNullOrEmpty(kubeconfig.getNamespace())) {
@@ -215,7 +222,8 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         }, executor);
     }
 
-    private static CompletableFuture<Config> toConfig(Kubeconfig kubeconfig, MetaRepository metaRepository) {
+    private static CompletableFuture<Config> toConfig(Kubeconfig kubeconfig, MetaRepository metaRepository,
+                                                      String group, String fileName) {
         final ConfigBuilder configBuilder = new ConfigBuilder()
                 .withMasterUrl(kubeconfig.getControlPlaneUrl())
                 .withTrustCerts(kubeconfig.getTrustCerts());
@@ -224,17 +232,49 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
         if (isNullOrEmpty(credentialId)) {
             return CompletableFuture.completedFuture(configBuilder.build());
         }
-
-        return metaRepository.projectCredential(credentialId)
-                             .thenApply(credential -> {
-                                 if (!(credential instanceof AccessTokenCredential)) {
-                                     throw new IllegalArgumentException(
-                                             "credential must be an access token: " + credential);
-                                 }
-
-                                 return configBuilder.withOauthToken(
-                                         ((AccessTokenCredential) credential).accessToken()).build();
-                             });
+        final CompletableFuture<Config> future = new CompletableFuture<>();
+        // xDS only support repository credential so try using it first.
+        metaRepository.credential(credentialName(XDS_CENTRAL_DOGMA_PROJECT, group, credentialId))
+                      .thenAccept(credential -> {
+                          if (!(credential instanceof AccessTokenCredential)) {
+                              future.completeExceptionally(new IllegalArgumentException(
+                                      "credential must be an access token: " + credential.withoutSecret()));
+                          } else {
+                              future.complete(configBuilder.withOauthToken(
+                                      ((AccessTokenCredential) credential).accessToken()).build());
+                          }
+                      })
+                      .exceptionally(cause -> {
+                          final Throwable peeled = Exceptions.peel(cause);
+                          if (peeled instanceof EntryNotFoundException) {
+                              // Try to use the legacy project credential for backward compatibility.
+                              metaRepository.credential(credentialName(XDS_CENTRAL_DOGMA_PROJECT, credentialId))
+                                            .handle((credential, cause1) -> {
+                                                if (cause1 != null) {
+                                                    future.completeExceptionally(cause1);
+                                                    return null;
+                                                }
+                                                if (!(credential instanceof AccessTokenCredential)) {
+                                                    future.completeExceptionally(new IllegalArgumentException(
+                                                            "credential must be an access token: " +
+                                                            credential.withoutSecret()));
+                                                } else {
+                                                    logger.warn("Project credential is used in {}. " +
+                                                                "Please migrate to group {}. credential ID: {}",
+                                                                fileName, group, credentialId);
+                                                    final String token =
+                                                            ((AccessTokenCredential) credential).accessToken();
+                                                    future.complete(
+                                                            configBuilder.withOauthToken(token).build());
+                                                }
+                                                return null;
+                                            });
+                          } else {
+                              future.completeExceptionally(peeled);
+                          }
+                          return null;
+                      });
+        return future;
     }
 
     @Blocking
@@ -258,9 +298,10 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
                 AGGREGATORS_REPLCACE_PATTERN.matcher(aggregatorName).replaceFirst("/clusters/")).build();
         final Author author = currentAuthor();
         validateKubernetesEndpointAndPush(
-                responseObserver, kubernetesLocalityLbEndpointsList, () -> xdsResourceManager.update(
-                responseObserver, group, aggregatorName,
-                "Update kubernetes endpoint aggregator: " + aggregatorName, aggregator0, author));
+                responseObserver, kubernetesLocalityLbEndpointsList, group, fileName(group, aggregatorName),
+                () -> xdsResourceManager.update(
+                        responseObserver, group, aggregatorName,
+                        "Update kubernetes endpoint aggregator: " + aggregatorName, aggregator0, author));
     }
 
     private static Matcher checkAggregatorName(String aggregatorName) {

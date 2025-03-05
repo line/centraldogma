@@ -28,6 +28,7 @@ import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_PATH;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_API_ROUTES;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_PATH;
 import static com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlService.MIRROR_ACCESS_CONTROL_PATH;
+import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConverter.MIRROR_PROVIDERS;
 import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static java.util.Objects.requireNonNull;
 
@@ -158,7 +159,6 @@ import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExe
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.CrudRepository;
-import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitCrudRepository;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTranslator;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
@@ -206,7 +206,7 @@ public class CentralDogma implements AutoCloseable {
         Jackson.registerModules(new SimpleModule().addSerializer(CacheStats.class, new CacheStatsSerializer()));
 
         boolean gitMirrorEnabled = false;
-        for (MirrorProvider mirrorProvider : MirrorConfig.MIRROR_PROVIDERS) {
+        for (MirrorProvider mirrorProvider : MIRROR_PROVIDERS) {
             if ("com.linecorp.centraldogma.server.internal.mirror.GitMirrorProvider"
                     .equals(mirrorProvider.getClass().getName())) {
                 gitMirrorEnabled = true;
@@ -668,7 +668,8 @@ public class CentralDogma implements AutoCloseable {
         cfg.gracefulShutdownTimeout().ifPresent(
                 t -> sb.gracefulShutdownTimeoutMillis(t.quietPeriodMillis(), t.timeoutMillis()));
 
-        final MetadataService mds = new MetadataService(pm, executor);
+        final MetadataService mds = new MetadataService(pm, executor, projectInitializer);
+        executor.setRepositoryMetadataSupplier(mds::getRepo);
         final WatchService watchService = new WatchService(meterRegistry);
         final AuthProvider authProvider = createAuthProvider(executor, sessionManager, mds);
         final ProjectApiManager projectApiManager = new ProjectApiManager(pm, executor, mds);
@@ -796,7 +797,7 @@ public class CentralDogma implements AutoCloseable {
                 new StandaloneCommandExecutor(pm, repositoryWorker, serverStatusManager, sessionManager,
                         /* onTakeLeadership */ null, /* onReleaseLeadership */ null,
                         /* onTakeZoneLeadership */ null, /* onReleaseZoneLeadership */ null),
-                meterRegistry, pm, config().writeQuotaPerRepository(), zone,
+                meterRegistry, config().writeQuotaPerRepository(), zone,
                 onTakeLeadership, onReleaseLeadership,
                 onTakeZoneLeadership, onReleaseZoneLeadership);
     }

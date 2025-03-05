@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.logger;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
@@ -26,11 +27,11 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
+import com.linecorp.centraldogma.server.storage.repository.AbstractCacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-final class CacheableMultiDiffCall extends CacheableCall<Map<String, Change<?>>> {
+final class CacheableMultiDiffCall extends AbstractCacheableCall<Map<String, Change<?>>> {
 
     private final Revision from;
     private final Revision to;
@@ -54,7 +55,7 @@ final class CacheableMultiDiffCall extends CacheableCall<Map<String, Change<?>>>
     }
 
     @Override
-    protected int weigh(Map<String, Change<?>> value) {
+    public int weigh(Map<String, Change<?>> value) {
         int weight = 0;
         weight += pathPattern.length();
         for (Change<?> e : value.values()) {
@@ -69,6 +70,7 @@ final class CacheableMultiDiffCall extends CacheableCall<Map<String, Change<?>>>
 
     @Override
     public CompletableFuture<Map<String, Change<?>>> execute() {
+        logger.debug("Cache miss: {}", this);
         return repo().diff(from, to, pathPattern, diffResultType);
     }
 
