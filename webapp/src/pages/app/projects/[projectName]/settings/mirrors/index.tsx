@@ -15,11 +15,8 @@
  */
 
 import { useRouter } from 'next/router';
-import { Button, Flex, Spacer } from '@chakra-ui/react';
-import Link from 'next/link';
-import { AiOutlinePlus } from 'react-icons/ai';
 import ProjectSettingsView from 'dogma/features/project/settings/ProjectSettingsView';
-import MirrorList from 'dogma/features/project/settings/mirrors/MirrorList';
+import MirrorList from 'dogma/features/repo/settings/mirrors/MirrorList';
 
 const ProjectMirrorPage = () => {
   const router = useRouter();
@@ -28,18 +25,6 @@ const ProjectMirrorPage = () => {
     <ProjectSettingsView projectName={projectName} currentTab={'mirrors'}>
       {() => (
         <>
-          <Flex>
-            <Spacer />
-            <Button
-              as={Link}
-              href={`/app/projects/${projectName}/settings/mirrors/new`}
-              size="sm"
-              rightIcon={<AiOutlinePlus />}
-              colorScheme="teal"
-            >
-              New Mirror
-            </Button>
-          </Flex>
           <MirrorList projectName={projectName} />
         </>
       )}

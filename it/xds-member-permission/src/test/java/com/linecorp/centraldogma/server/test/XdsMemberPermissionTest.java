@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.test;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD2;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
@@ -44,6 +45,7 @@ import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.internal.credential.NoneCredential;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -112,7 +114,8 @@ class XdsMemberPermissionTest {
         final AggregatedHttpResponse credentialResponse =
                 adminWebClient.prepare()
                               .post("/api/v1/projects/@xds/credentials")
-                              .contentJson(new NoneCredential("test", true))
+                              .contentJson(new CreateCredentialRequest(
+                                      "test", new NoneCredential(credentialName("@xds", "test"))))
                               .execute();
         assertThat(credentialResponse.status()).isEqualTo(HttpStatus.CREATED);
 
@@ -164,10 +167,10 @@ class XdsMemberPermissionTest {
         assertThat(userRepo.file("/text.txt").get().join().contentAsText())
                 .isEqualTo("bar\n");
 
-        // But the user should not be able to access the credentials.
+        // The user can read the credentials.
         assertThat(userWebClient.prepare()
                                 .get("/api/v1/projects/@xds/credentials/test")
                                 .execute().status())
-                .isEqualTo(HttpStatus.FORBIDDEN);
+                .isEqualTo(HttpStatus.OK);
     }
 }
