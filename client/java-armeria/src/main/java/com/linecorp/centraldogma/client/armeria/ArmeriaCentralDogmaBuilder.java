@@ -52,7 +52,8 @@ public final class ArmeriaCentralDogmaBuilder
         final CentralDogma dogma = new ArmeriaCentralDogma(blockingTaskExecutor,
                                                            builder.build(WebClient.class),
                                                            accessToken(),
-                                                           endpointGroup::close);
+                                                           endpointGroup::close,
+                                                           meterRegistry());
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;
         } else {
@@ -64,7 +65,8 @@ public final class ArmeriaCentralDogmaBuilder
                         //                 in Armeria: https://github.com/line/armeria/issues/760
                         final ClientRequestContext ctx = ClientRequestContext.currentOrNull();
                         return ctx != null ? ctx.remoteAddress() : null;
-                    });
+                    },
+                    meterRegistry());
         }
     }
 }
