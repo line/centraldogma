@@ -129,7 +129,7 @@ final class CommitWatchers {
             for (final Set<Watch> watches : watchesMap.values()) {
                 for (final Iterator<Watch> i = watches.iterator(); i.hasNext();) {
                     final Watch w = i.next();
-                    if (w.future() == null) {
+                    if (!w.canRemove()) {
                         // ResponseListener does not need to propagate errors when closing.
                         i.remove();
                     } else {
