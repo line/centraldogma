@@ -17,6 +17,8 @@
 package com.linecorp.centraldogma.server.internal.mirror;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig.DEFAULT_SCHEDULE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -24,7 +26,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletionException;
-import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,30 +58,6 @@ import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 
 class DefaultMetaRepositoryWithMirrorTest {
-
-    private static final List<Change<?>> UPSERT_RAW_CREDENTIALS = ImmutableList.of(
-            Change.ofJsonUpsert(
-                    "/credentials/alice.json",
-                    '{' +
-                    "  \"id\": \"alice\"," +
-                    "  \"type\": \"password\"," +
-                    "  \"username\": \"alice\"," +
-                    "  \"password\": \"secret_a\"" +
-                    '}'),
-            Change.ofJsonUpsert(
-                    "/credentials/bob.json",
-                    '{' +
-                    "  \"id\": \"bob\"," +
-                    "  \"type\": \"password\"," +
-                    "  \"username\": \"bob\"," +
-                    "  \"password\": \"secret_b\"" +
-                    '}'));
-
-    private static final List<Credential> CREDENTIALS = ImmutableList.of(
-            new PasswordCredential(
-                    "alice", true, "alice", "secret_a"),
-            new PasswordCredential(
-                    "bob", true, "bob", "secret_b"));
 
     private static final CronParser cronParser = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
@@ -118,22 +95,22 @@ class DefaultMetaRepositoryWithMirrorTest {
     void testInvalidMirrors() {
         // not an object but an array
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
-                        Change.ofJsonUpsert("/mirrors/foo.json", "[]")).join();
-        assertThatThrownBy(() -> metaRepo.mirror("foo").join())
+                        Change.ofJsonUpsert("/repos/repo/mirrors/foo.json", "[]")).join();
+        assertThatThrownBy(() -> metaRepo.mirror("repo", "foo").join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RepositoryMetadataException.class);
 
         // not an object but a value
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
-                        Change.ofJsonUpsert("/mirrors/bar.json", "\"oops\"")).join();
-        assertThatThrownBy(() -> metaRepo.mirror("bar").join())
+                        Change.ofJsonUpsert("/repos/repo/mirrors/bar.json", "\"oops\"")).join();
+        assertThatThrownBy(() -> metaRepo.mirror("repo", "bar").join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RepositoryMetadataException.class);
 
         // an empty object
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
-                        Change.ofJsonUpsert("/mirrors/qux.json", "{}")).join();
-        assertThatThrownBy(() -> metaRepo.mirror("qux").join())
+                        Change.ofJsonUpsert("/repos/repo/mirrors/qux.json", "{}")).join();
+        assertThatThrownBy(() -> metaRepo.mirror("repo", "qux").join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RepositoryMetadataException.class);
     }
@@ -144,7 +121,7 @@ class DefaultMetaRepositoryWithMirrorTest {
         if (useRawApi) {
             final List<Change<?>> mirrors = ImmutableList.of(
                     Change.ofJsonUpsert(
-                            "/mirrors/foo.json",
+                            "/repos/repo/mirrors/foo.json",
                             '{' +
                             "  \"id\": \"foo\"," +
                             "  \"enabled\": true," +
@@ -153,10 +130,11 @@ class DefaultMetaRepositoryWithMirrorTest {
                             "  \"localRepo\": \"foo\"," +
                             "  \"localPath\": \"/mirrors/foo\"," +
                             "  \"remoteUri\": \"git+ssh://foo.com/foo.git\"," +
-                            "  \"credentialId\": \"alice\"" +
+                            "  \"credentialName\": \"" + credentialName(project.name(), "alice") +
+                            '"' +
                             '}'),
                     Change.ofJsonUpsert(
-                            "/mirrors/bar.json",
+                            "/repos/repo/mirrors/bar.json",
                             '{' +
                             "  \"id\": \"bar\"," +
                             "  \"enabled\": true," +
@@ -164,25 +142,28 @@ class DefaultMetaRepositoryWithMirrorTest {
                             "  \"direction\": \"REMOTE_TO_LOCAL\"," +
                             "  \"localRepo\": \"bar\"," +
                             "  \"remoteUri\": \"git+ssh://bar.com/bar.git/some-path#develop\"," +
-                            " \"credentialId\": \"bob\"" +
+                            "  \"credentialName\": \"" + credentialName(project.name(), "bob") +
+                            '"' +
                             '}'));
             metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", mirrors).join();
-            metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", UPSERT_RAW_CREDENTIALS).join();
+            metaRepo.commit(Revision.HEAD, 0L, Author.SYSTEM, "", upsertRawCredentials(project.name())).join();
         } else {
             final List<MirrorRequest> mirrors = ImmutableList.of(
                     new MirrorRequest("foo", true, project.name(), DEFAULT_SCHEDULE, "LOCAL_TO_REMOTE", "foo",
-                                  "/mirrors/foo", "git+ssh", "foo.com/foo.git", "", "", null, "alice", null),
+                                      "/mirrors/foo", "git+ssh", "foo.com/foo.git", "", "", null,
+                                      credentialName(project.name(), "alice"), null),
                     new MirrorRequest("bar", true, project.name(), "0 */10 * * * ?", "REMOTE_TO_LOCAL", "bar",
-                                  "", "git+ssh", "bar.com/bar.git", "/some-path", "develop", null, "bob",
-                                  null));
-            for (Credential credential : CREDENTIALS) {
+                                      "", "git+ssh", "bar.com/bar.git", "/some-path", "develop", null,
+                                      credentialName(project.name(), "bob"), null));
+            for (Credential credential : credentials(project.name())) {
                 final Command<CommitResult> command =
                         metaRepo.createCredentialPushCommand(credential, Author.SYSTEM, false).join();
                 pmExtension.executor().execute(command).join();
             }
             for (MirrorRequest mirror : mirrors) {
                 final Command<CommitResult> command =
-                        metaRepo.createMirrorPushCommand(mirror, Author.SYSTEM, null, false).join();
+                        metaRepo.createMirrorPushCommand(mirror.localRepo(), mirror, Author.SYSTEM,
+                                                         null, false).join();
                 pmExtension.executor().execute(command).join();
             }
         }
@@ -196,7 +177,7 @@ class DefaultMetaRepositoryWithMirrorTest {
         final List<Mirror> mirrors = findMirrors();
         assertThat(mirrors.stream()
                           .map(m -> m.localRepo().name())
-                          .collect(Collectors.toList())).containsExactly("bar", "foo");
+                          .collect(toImmutableList())).containsExactly("bar", "foo");
 
         final Mirror foo = mirrors.get(1);
         final Mirror bar = mirrors.get(0);
@@ -240,7 +221,7 @@ class DefaultMetaRepositoryWithMirrorTest {
         final List<Change<?>> changes =
                 ImmutableList.<Change<?>>builder()
                              .add(Change.ofJsonUpsert(
-                                     "/mirrors/foo.json",
+                                     "/repos/repo/mirrors/foo.json",
                                      '{' +
                                      "  \"id\": \"foo\"," +
                                      // type isn't used from https://github.com/line/centraldogma/pull/836 but
@@ -249,9 +230,10 @@ class DefaultMetaRepositoryWithMirrorTest {
                                      "  \"direction\": \"LOCAL_TO_REMOTE\"," +
                                      "  \"localRepo\": \"qux\"," +
                                      "  \"remoteUri\": \"git+ssh://qux.net/qux.git\"," +
-                                     "  \"credentialId\": \"alice\"" +
+                                     "  \"credentialName\": \"" +
+                                     credentialName(project.name(), "alice") + '"' +
                                      '}'))
-                             .addAll(UPSERT_RAW_CREDENTIALS)
+                             .addAll(upsertRawCredentials(project.name()))
                              .build();
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", changes).join();
 
@@ -271,5 +253,33 @@ class DefaultMetaRepositoryWithMirrorTest {
         return metaRepo.mirrors().join().stream()
                        .sorted(Comparator.comparing(m -> m.localRepo().name()))
                        .collect(toImmutableList());
+    }
+
+    private static List<Change<?>> upsertRawCredentials(String projectName) {
+        final String aliceCredential = credentialName(projectName, "alice");
+        final String bobCredential = credentialName(projectName, "bob");
+        return ImmutableList.of(
+                Change.ofJsonUpsert(
+                        credentialFile(aliceCredential),
+                        '{' +
+                        "  \"name\": \"" + aliceCredential + "\"," +
+                        "  \"type\": \"PASSWORD\"," +
+                        "  \"username\": \"alice\"," +
+                        "  \"password\": \"secret_a\"" +
+                        '}'),
+                Change.ofJsonUpsert(
+                        credentialFile(bobCredential),
+                        '{' +
+                        "  \"name\": \"" + bobCredential + "\"," +
+                        "  \"type\": \"PASSWORD\"," +
+                        "  \"username\": \"bob\"," +
+                        "  \"password\": \"secret_b\"" +
+                        '}'));
+    }
+
+    private static List<Credential> credentials(String projectName) {
+        return ImmutableList.of(
+                new PasswordCredential(credentialName(projectName, "alice"), "alice", "secret_a"),
+                new PasswordCredential(credentialName(projectName, "bob"), "bob", "secret_b"));
     }
 }

@@ -4,6 +4,7 @@ import {
   Flex,
   FormControl,
   FormErrorMessage,
+  FormHelperText,
   FormLabel,
   Input,
   Popover,
@@ -101,6 +102,7 @@ export const NewToken = () => {
                   placeholder="my-app-id"
                   {...register('appId', { pattern: APP_ID_PATTERN })}
                 />
+                <FormHelperText pl={1}>Register the token with a project before accessing it.</FormHelperText>
                 {errors.appId && (
                   <FormErrorMessage>The first/last character must be alphanumeric</FormErrorMessage>
                 )}

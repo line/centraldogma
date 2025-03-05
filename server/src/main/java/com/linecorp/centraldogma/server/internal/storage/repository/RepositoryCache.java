@@ -25,19 +25,22 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.AsyncCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.CaffeineSpec;
 import com.github.benmanes.caffeine.cache.Weigher;
-import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.base.MoreObjects;
+
+import com.linecorp.armeria.common.util.SafeCloseable;
+import com.linecorp.armeria.internal.common.RequestContextUtil;
+import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics;
 
-public class RepositoryCache {
+public final class RepositoryCache {
 
-    private static final Logger logger = LoggerFactory.getLogger(RepositoryCache.class);
+    public static final Logger logger = LoggerFactory.getLogger(RepositoryCache.class);
 
     @Nullable
     public static String validateCacheSpec(@Nullable String cacheSpec) {
@@ -54,7 +57,7 @@ public class RepositoryCache {
     }
 
     @SuppressWarnings("rawtypes")
-    private final AsyncLoadingCache<CacheableCall, Object> cache;
+    private final AsyncCache<CacheableCall, Object> cache;
     private final String cacheSpec;
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -67,37 +70,32 @@ public class RepositoryCache {
             builder.weigher((Weigher<CacheableCall, Object>) CacheableCall::weigh);
         }
         cache = builder.recordStats()
-                       .buildAsync((key, executor) -> {
-                           logger.debug("Cache miss: {}", key);
-                           return key.execute();
-                       });
+                       .buildAsync();
 
         CaffeineCacheMetrics.monitor(meterRegistry, cache, "repository");
     }
 
     public <T> CompletableFuture<T> get(CacheableCall<T> call) {
         requireNonNull(call, "call");
-        @SuppressWarnings("unchecked")
-        final CompletableFuture<T> f = (CompletableFuture<T>) cache.get(call);
-        return f;
-    }
+        final CompletableFuture<T> future = new CompletableFuture<>();
+        //noinspection unchecked
+        final CompletableFuture<T> prior =
+                (CompletableFuture<T>) cache.asMap().putIfAbsent(call, (CompletableFuture<Object>) future);
+        if (prior != null) {
+            return prior;
+        }
 
-    @Nullable
-    public <T> CompletableFuture<T> getIfPresent(CacheableCall<T> call) {
-        requireNonNull(call, "call");
-        @SuppressWarnings("unchecked")
-        final CompletableFuture<T> f = (CompletableFuture<T>) cache.getIfPresent(call);
-        return f;
-    }
-
-    public <T> void put(CacheableCall<T> call, T value) {
-        requireNonNull(call, "call");
-        requireNonNull(value, "value");
-        cache.put(call, CompletableFuture.completedFuture(value));
-    }
-
-    public CacheStats stats() {
-        return cache.synchronous().stats();
+        call.execute().handle((result, cause) -> {
+            try (SafeCloseable ignored = RequestContextUtil.pop()) {
+                if (cause != null) {
+                    future.completeExceptionally(cause);
+                } else {
+                    future.complete(result);
+                }
+            }
+            return null;
+        });
+        return future;
     }
 
     public void clear() {
@@ -108,7 +106,7 @@ public class RepositoryCache {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("spec", cacheSpec)
-                          .add("stats", stats())
+                          .add("stats", cache.synchronous().stats())
                           .toString();
     }
 }

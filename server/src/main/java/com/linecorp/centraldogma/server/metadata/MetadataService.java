@@ -22,7 +22,6 @@ import static com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation.asJs
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager.listProjectsWithoutInternal;
 import static com.linecorp.centraldogma.server.metadata.RepositoryMetadata.DEFAULT_PROJECT_ROLES;
-import static com.linecorp.centraldogma.server.metadata.RepositorySupport.convertWithJackson;
 import static com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
 import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
@@ -50,6 +49,7 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
@@ -59,6 +59,7 @@ import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -88,19 +89,20 @@ public class MetadataService {
     private final RepositorySupport<ProjectMetadata> metadataRepo;
     private final RepositorySupport<Tokens> tokenRepo;
     private final CommandExecutor executor;
+    private final InternalProjectInitializer projectInitializer;
 
     private final Map<String, CompletableFuture<Revision>> reposInAddingMetadata = new ConcurrentHashMap<>();
 
     /**
      * Creates a new instance.
      */
-    public MetadataService(ProjectManager projectManager, CommandExecutor executor) {
+    public MetadataService(ProjectManager projectManager, CommandExecutor executor,
+                           InternalProjectInitializer projectInitializer) {
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.executor = requireNonNull(executor, "executor");
-        metadataRepo = new RepositorySupport<>(projectManager, executor,
-                                               entry -> convertWithJackson(entry, ProjectMetadata.class));
-        tokenRepo = new RepositorySupport<>(projectManager, executor,
-                                            entry -> convertWithJackson(entry, Tokens.class));
+        this.projectInitializer = requireNonNull(projectInitializer, "projectInitializer");
+        metadataRepo = new RepositorySupport<>(projectManager, executor, ProjectMetadata.class);
+        tokenRepo = new RepositorySupport<>(projectManager, executor, Tokens.class);
     }
 
     /**
@@ -108,72 +110,81 @@ public class MetadataService {
      */
     public CompletableFuture<ProjectMetadata> getProject(String projectName) {
         requireNonNull(projectName, "projectName");
-        return fetchMetadata(projectName).thenApply(HolderWithRevision::object);
+        return getOrFetchMetadata(projectName);
     }
 
-    private CompletableFuture<HolderWithRevision<ProjectMetadata>> fetchMetadata(String projectName) {
-        return fetchMetadata0(projectName).thenCompose(holder -> {
-            final Set<String> repos = projectManager.get(projectName).repos().list().keySet();
-            final Set<String> reposWithMetadata = holder.object().repos().keySet();
+    private CompletableFuture<ProjectMetadata> getOrFetchMetadata(String projectName) {
+        final ProjectMetadata metadata = getMetadata(projectName);
+        final Set<String> reposWithMetadata = metadata.repos().keySet();
+        final Set<String> repos = projectManager.get(projectName).repos().list().keySet();
 
-            // Make sure all repositories have metadata. If not, create missing metadata.
-            // A repository can have missing metadata when a dev forgot to call `addRepo()`
-            // after creating a new repository.
-            final ImmutableList.Builder<CompletableFuture<Revision>> builder = ImmutableList.builder();
-            for (String repo : repos) {
-                if (reposWithMetadata.contains(repo) ||
-                    repo.equals(Project.REPO_DOGMA)) {
-                    continue;
-                }
-
-                final String projectAndRepositoryName = projectName + '/' + repo;
-                final CompletableFuture<Revision> future = new CompletableFuture<>();
-                final CompletableFuture<Revision> futureInMap =
-                        reposInAddingMetadata.computeIfAbsent(projectAndRepositoryName, key -> future);
-                if (futureInMap != future) { // The metadata is already in adding.
-                    builder.add(futureInMap);
-                    continue;
-                }
-
-                logger.warn("Adding missing repository metadata: {}/{}", projectName, repo);
-                final Author author = projectManager.get(projectName).repos().get(repo).author();
-                final CompletableFuture<Revision> addRepoFuture = addRepo(author, projectName, repo);
-                addRepoFuture.handle((revision, cause) -> {
-                    if (cause != null) {
-                        future.completeExceptionally(cause);
-                    } else {
-                        future.complete(revision);
-                    }
-                    reposInAddingMetadata.remove(projectAndRepositoryName);
-                    return null;
-                });
-                builder.add(future);
+        // Make sure all repositories have metadata. If not, create missing metadata.
+        // A repository can have missing metadata when a dev forgot to call `addRepo()`
+        // after creating a new repository.
+        final ImmutableList.Builder<CompletableFuture<Revision>> builder = ImmutableList.builder();
+        for (String repo : repos) {
+            if (reposWithMetadata.contains(repo) ||
+                repo.equals(Project.REPO_DOGMA)) {
+                continue;
             }
 
-            final ImmutableList<CompletableFuture<Revision>> futures = builder.build();
-            if (futures.isEmpty()) {
-                // All repositories have metadata.
-                return CompletableFuture.completedFuture(holder);
+            final String projectAndRepositoryName = projectName + '/' + repo;
+            final CompletableFuture<Revision> future = new CompletableFuture<>();
+            final CompletableFuture<Revision> futureInMap =
+                    reposInAddingMetadata.computeIfAbsent(projectAndRepositoryName, key -> future);
+            if (futureInMap != future) { // The metadata is already in adding.
+                builder.add(futureInMap);
+                continue;
             }
 
-            // Some repository did not have metadata and thus will add the missing ones.
-            return CompletableFutures.successfulAsList(futures, cause -> {
-                final Throwable peeled = Exceptions.peel(cause);
-                // The metadata of the repository is added by another worker, so we can ignore the exception.
-                if (peeled instanceof RepositoryExistsException) {
-                    return null;
+            logger.warn("Adding missing repository metadata: {}/{}", projectName, repo);
+            final Author author = projectManager.get(projectName).repos().get(repo).author();
+            final CompletableFuture<Revision> addRepoFuture = addRepo(author, projectName, repo);
+            addRepoFuture.handle((revision, cause) -> {
+                if (cause != null) {
+                    future.completeExceptionally(cause);
+                } else {
+                    future.complete(revision);
                 }
-                return Exceptions.throwUnsafely(cause);
-            }).thenCompose(unused -> {
-                logger.info("Fetching {}/{}{} again",
-                            projectName, Project.REPO_DOGMA, METADATA_JSON);
-                return fetchMetadata0(projectName);
+                reposInAddingMetadata.remove(projectAndRepositoryName);
+                return null;
             });
+            builder.add(future);
+        }
+
+        final ImmutableList<CompletableFuture<Revision>> futures = builder.build();
+        if (futures.isEmpty()) {
+            // All repositories have metadata.
+            return CompletableFuture.completedFuture(metadata);
+        }
+
+        // Some repository did not have metadata and thus will add the missing ones.
+        return CompletableFutures.successfulAsList(futures, cause -> {
+            final Throwable peeled = Exceptions.peel(cause);
+            // The metadata of the repository is added by another worker, so we can ignore the exception.
+            if (peeled instanceof RepositoryExistsException) {
+                return null;
+            }
+            return Exceptions.throwUnsafely(cause);
+        }).thenCompose(unused -> {
+            logger.info("Fetching {}/{}{} again",
+                        projectName, Project.REPO_DOGMA, METADATA_JSON);
+            return fetchMetadata(projectName);
         });
     }
 
-    private CompletableFuture<HolderWithRevision<ProjectMetadata>> fetchMetadata0(String projectName) {
-        return metadataRepo.fetch(projectName, Project.REPO_DOGMA, METADATA_JSON);
+    private ProjectMetadata getMetadata(String projectName) {
+        final Project project = projectManager.get(projectName);
+        final ProjectMetadata metadata = project.metadata();
+        if (metadata == null) {
+            throw new EntryNotFoundException("project metadata not found: " + projectName);
+        }
+        return metadata;
+    }
+
+    private CompletableFuture<ProjectMetadata> fetchMetadata(String projectName) {
+        return metadataRepo.fetch(projectName, Project.REPO_DOGMA, METADATA_JSON)
+                           .thenApply(HolderWithRevision::object);
     }
 
     /**
@@ -475,21 +486,18 @@ public class MetadataService {
         requireNonNull(appId, "appId");
         requireNonNull(role, "role");
 
-        return getTokens().thenCompose(tokens -> {
-            tokens.get(appId); // Will raise an exception if not found.
-
-            final TokenRegistration registration = new TokenRegistration(appId, role,
-                                                                         UserAndTimestamp.of(author));
-            final JsonPointer path = JsonPointer.compile("/tokens" + encodeSegment(registration.id()));
-            final Change<JsonNode> change =
-                    Change.ofJsonPatch(METADATA_JSON,
+        getTokens().get(appId); // Will raise an exception if not found.
+        final TokenRegistration registration = new TokenRegistration(appId, role,
+                                                                     UserAndTimestamp.of(author));
+        final JsonPointer path = JsonPointer.compile("/tokens" + encodeSegment(registration.id()));
+        final Change<JsonNode> change =
+                Change.ofJsonPatch(METADATA_JSON,
                                        asJsonArray(JsonPatchOperation.testAbsence(path),
                                                    JsonPatchOperation.add(path,
                                                                           Jackson.valueToTree(registration))));
-            final String commitSummary = "Add a token '" + registration.id() +
-                                         "' to the project '" + projectName + "' with a role '" + role + '\'';
-            return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
-        });
+        final String commitSummary = "Add a token '" + registration.id() +
+                                     "' to the project '" + projectName + "' with a role '" + role + '\'';
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**
@@ -602,6 +610,7 @@ public class MetadataService {
         requireNonNull(role, "role");
 
         return getProject(projectName).thenCompose(project -> {
+            project.repo(repoName); // Raises an exception if the repository does not exist.
             ensureProjectMember(project, member);
             final String commitSummary = "Add repository role of '" + member.id() +
                                          "' as '" + role + "' to '" + projectName + '/' + repoName + '\n';
@@ -715,6 +724,7 @@ public class MetadataService {
         requireNonNull(role, "role");
 
         return getProject(projectName).thenCompose(project -> {
+            project.repo(repoName); // Raises an exception if the repository does not exist.
             ensureProjectToken(project, appId);
             final String commitSummary = "Add repository role of the token '" + appId + "' as '" + role +
                                          "' to '" + projectName + '/' + repoName + "'\n";
@@ -849,30 +859,42 @@ public class MetadataService {
             return CompletableFuture.completedFuture(RepositoryRole.ADMIN);
         }
         if (user instanceof UserWithToken) {
-            return findRepositoryRole(projectName, repoName, ((UserWithToken) user).token().appId());
+            return findRepositoryRole(projectName, repoName, ((UserWithToken) user).token());
         }
         return findRepositoryRole0(projectName, repoName, user);
     }
 
     /**
-     * Finds {@link RepositoryRole} of the specified {@code appId} from the specified
+     * Finds {@link RepositoryRole} of the specified {@link Token} from the specified
      * {@code repoName} in the specified {@code projectName}. If the {@code appId} is not found,
      * it will return {@code null}.
      */
     public CompletableFuture<RepositoryRole> findRepositoryRole(String projectName, String repoName,
-                                                                String appId) {
+                                                                Token token) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
-        requireNonNull(appId, "appId");
+        requireNonNull(token, "token");
 
         return getProject(projectName).thenApply(metadata -> {
             final RepositoryMetadata repositoryMetadata = metadata.repo(repoName);
             final Roles roles = repositoryMetadata.roles();
+            final String appId = token.appId();
             final RepositoryRole tokenRepositoryRole = roles.tokens().get(appId);
 
             final TokenRegistration projectTokenRegistration = metadata.tokens().get(appId);
-            final ProjectRole projectRole = projectTokenRegistration != null ? projectTokenRegistration.role()
-                                                                             : ProjectRole.GUEST;
+            final ProjectRole projectRole;
+            if (projectTokenRegistration != null) {
+                projectRole = projectTokenRegistration.role();
+            } else {
+                // System admin tokens were checked before this method.
+                assert !token.isSystemAdmin();
+                if (token.allowGuestAccess()) {
+                    projectRole = ProjectRole.GUEST;
+                } else {
+                    // The token is not allowed with the GUEST permission.
+                    return null;
+                }
+            }
             return repositoryRole(roles, tokenRepositoryRole, projectRole);
         });
     }
@@ -947,11 +969,18 @@ public class MetadataService {
     }
 
     /**
-     * Returns a {@link Tokens}.
+     * Fetches the {@link Tokens} from the repository.
      */
-    public CompletableFuture<Tokens> getTokens() {
+    public CompletableFuture<Tokens> fetchTokens() {
         return tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
                         .thenApply(HolderWithRevision::object);
+    }
+
+    /**
+     * Returns a {@link Tokens}.
+     */
+    public Tokens getTokens() {
+        return projectInitializer.tokens();
     }
 
     /**
@@ -988,7 +1017,10 @@ public class MetadataService {
 
         checkArgument(secret.startsWith(SECRET_PREFIX), "secret must start with: " + SECRET_PREFIX);
 
-        final Token newToken = new Token(appId, secret, isSystemAdmin, UserAndTimestamp.of(author));
+        // Does not allow guest access for normal tokens.
+        final boolean allowGuestAccess = isSystemAdmin;
+        final Token newToken = new Token(appId, secret, isSystemAdmin, allowGuestAccess,
+                                         UserAndTimestamp.of(author));
         final JsonPointer appIdPath = JsonPointer.compile("/appIds" + encodeSegment(newToken.id()));
         final String newTokenSecret = newToken.secret();
         assert newTokenSecret != null;
@@ -1023,8 +1055,8 @@ public class MetadataService {
             final String secret = token.secret();
             assert secret != null;
             final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(),
-                                             token.isSystemAdmin(), token.creation(),
-                                             token.deactivation(), userAndTimestamp);
+                                             token.isSystemAdmin(), token.allowGuestAccess(),
+                                             token.creation(), token.deactivation(), userAndTimestamp);
             return new Tokens(updateMap(tokens.appIds(), appId, newToken), tokens.secrets());
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
@@ -1043,7 +1075,8 @@ public class MetadataService {
                                                                          User.SYSTEM_ADMIN).values();
         // Remove the token from projects that only have the token.
         for (Project project : projects) {
-            final ProjectMetadata projectMetadata = fetchMetadata(project.name()).join().object();
+            // Fetch the metadata to get the latest information.
+            final ProjectMetadata projectMetadata = fetchMetadata(project.name()).join();
             final boolean containsTargetTokenInTheProject =
                     projectMetadata.tokens().values()
                                    .stream()
@@ -1086,7 +1119,8 @@ public class MetadataService {
             assert secret != null;
             final Map<String, String> newSecrets =
                     addToMap(tokens.secrets(), secret, appId); // Note that the key is secret not appId.
-            final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(), token.creation());
+            final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(),
+                                             token.allowGuestAccess(), token.creation());
             return new Tokens(updateMap(tokens.appIds(), appId, newToken), newSecrets);
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
@@ -1110,7 +1144,8 @@ public class MetadataService {
             final String secret = token.secret();
             assert secret != null;
             final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(),
-                                             token.isSystemAdmin(), token.creation(), userAndTimestamp, null);
+                                             token.isSystemAdmin(), token.allowGuestAccess(), token.creation(),
+                                             userAndTimestamp, null);
             final Map<String, Token> newAppIds = updateMap(tokens.appIds(), appId, newToken);
             final Map<String, String> newSecrets =
                     removeFromMap(tokens.secrets(), secret); // Note that the key is secret not appId.
@@ -1144,20 +1179,18 @@ public class MetadataService {
     /**
      * Returns a {@link Token} which has the specified {@code appId}.
      */
-    public CompletableFuture<Token> findTokenByAppId(String appId) {
+    public Token findTokenByAppId(String appId) {
         requireNonNull(appId, "appId");
-        return tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
-                        .thenApply(tokens -> tokens.object().get(appId));
+        return getTokens().get(appId);
     }
 
     /**
      * Returns a {@link Token} which has the specified {@code secret}.
      */
-    public CompletableFuture<Token> findTokenBySecret(String secret) {
+    public Token findTokenBySecret(String secret) {
         requireNonNull(secret, "secret");
         validateSecret(secret);
-        return tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
-                        .thenApply(tokens -> tokens.object().findBySecret(secret));
+        return getTokens().findBySecret(secret);
     }
 
     /**

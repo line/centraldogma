@@ -42,7 +42,6 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
@@ -92,7 +91,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.linecorp.armeria.common.util.SafeCloseable;
-import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -109,10 +107,8 @@ import com.linecorp.centraldogma.server.command.NormalizableCommit;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.RemoveRepositoryCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
-import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -173,8 +169,6 @@ public final class ZooKeeperCommandExecutor
     private final QuotaConfig writeQuota;
     @Nullable
     private final String zone;
-
-    private MetadataService metadataService;
 
     // Failing to acquire a lock is a critical problem, so we wait as much as we can.
     private long lockTimeoutNanos = TimeUnit.MINUTES.toNanos(1);
@@ -408,7 +402,6 @@ public final class ZooKeeperCommandExecutor
     public ZooKeeperCommandExecutor(ZooKeeperReplicationConfig cfg,
                                     File dataDir, CommandExecutor delegate,
                                     MeterRegistry meterRegistry,
-                                    ProjectManager projectManager,
                                     @Nullable QuotaConfig writeQuota,
                                     @Nullable String zone,
                                     @Nullable Consumer<CommandExecutor> onTakeLeadership,
@@ -430,7 +423,6 @@ public final class ZooKeeperCommandExecutor
         this.delegate = requireNonNull(delegate, "delegate");
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
         this.writeQuota = writeQuota;
-        metadataService = new MetadataService(projectManager, this);
         this.zone = zone;
 
         // Register the metrics which are accessible even before started.
@@ -1066,15 +1058,13 @@ public final class ZooKeeperCommandExecutor
 
         if (writeQuota == null) {
             // Cache miss, load a write quota
-            final RepositoryMetadata meta;
-            try {
-                meta = metadataService.getRepo(command.projectName(), command.repositoryName()).get();
-            } catch (InterruptedException | ExecutionException e) {
-                throw new CentralDogmaException("Unexpected exception caught while retrieving " +
-                                                RepositoryMetadata.class.getSimpleName(), e);
+            final CompletableFuture<RepositoryMetadata> future = repositoryMetadata(command.projectName(),
+                                                                                    command.repositoryName());
+            if (future == null) {
+                // MetadataService is not available yet.
+                return null;
             }
-
-            writeQuota = meta.writeQuota();
+            writeQuota = future.join().writeQuota();
         }
 
         if (writeQuota == null) {
@@ -1393,13 +1383,8 @@ public final class ZooKeeperCommandExecutor
     }
 
     @VisibleForTesting
-    void setMetadataService(MetadataService metadataService) {
-        this.metadataService = metadataService;
-    }
-
-    @VisibleForTesting
     void setLockTimeoutMillis(long lockTimeoutMillis) {
-        this.lockTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(lockTimeoutMillis);
+        lockTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(lockTimeoutMillis);
     }
 
     private static final class WriteLock {

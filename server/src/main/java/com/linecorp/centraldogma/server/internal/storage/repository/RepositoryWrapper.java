@@ -36,6 +36,7 @@ import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -216,13 +217,13 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
-    public void addListener(RepositoryListener listener) {
-        unwrap().addListener(listener);
+    public <T> CompletableFuture<T> execute(CacheableCall<T> cacheableCall) {
+        return unwrap().execute(cacheableCall);
     }
 
     @Override
-    public void removeListener(RepositoryListener listener) {
-        unwrap().removeListener(listener);
+    public void addListener(RepositoryListener listener) {
+        unwrap().addListener(listener);
     }
 
     @Override

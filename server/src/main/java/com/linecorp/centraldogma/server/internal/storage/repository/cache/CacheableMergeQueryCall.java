@@ -16,15 +16,13 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
-import static com.google.common.base.Preconditions.checkState;
 import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.logger;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-
-import javax.annotation.Nullable;
 
 import com.google.common.base.MoreObjects.ToStringHelper;
 
@@ -32,19 +30,16 @@ import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
+import com.linecorp.centraldogma.server.storage.repository.AbstractCacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-final class CacheableMergeQueryCall extends CacheableCall<MergedEntry<?>> {
+final class CacheableMergeQueryCall<T> extends AbstractCacheableCall<MergedEntry<T>> {
 
     private final Revision revision;
-    private final MergeQuery<?> query;
+    private final MergeQuery<T> query;
     private final int hashCode;
 
-    @Nullable
-    MergedEntry<?> computedValue;
-
-    CacheableMergeQueryCall(Repository repo, Revision revision, MergeQuery<?> query) {
+    CacheableMergeQueryCall(Repository repo, Revision revision, MergeQuery<T> query) {
         super(repo);
         this.revision = requireNonNull(revision, "revision");
         this.query = requireNonNull(query, "query");
@@ -57,7 +52,7 @@ final class CacheableMergeQueryCall extends CacheableCall<MergedEntry<?>> {
     }
 
     @Override
-    protected int weigh(MergedEntry<?> value) {
+    public int weigh(MergedEntry<T> value) {
         int weight = 0;
         final List<MergeSource> mergeSources = query.mergeSources();
         weight += mergeSources.size();
@@ -76,14 +71,9 @@ final class CacheableMergeQueryCall extends CacheableCall<MergedEntry<?>> {
     }
 
     @Override
-    public CompletableFuture<MergedEntry<?>> execute() {
-        checkState(computedValue != null, "computedValue is not set yet.");
-        return CompletableFuture.completedFuture(computedValue);
-    }
-
-    void computedValue(MergedEntry<?> computedValue) {
-        checkState(this.computedValue == null, "computedValue is already set.");
-        this.computedValue = requireNonNull(computedValue, "computedValue");
+    public CompletableFuture<MergedEntry<T>> execute() {
+        logger.debug("Cache miss: {}", this);
+        return repo().mergeFiles(revision, query);
     }
 
     @Override
@@ -97,7 +87,7 @@ final class CacheableMergeQueryCall extends CacheableCall<MergedEntry<?>> {
             return false;
         }
 
-        final CacheableMergeQueryCall that = (CacheableMergeQueryCall) o;
+        final CacheableMergeQueryCall<?> that = (CacheableMergeQueryCall<?>) o;
         return revision.equals(that.revision) &&
                query.equals(that.query);
     }
