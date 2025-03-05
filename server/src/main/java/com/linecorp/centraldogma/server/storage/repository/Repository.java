@@ -573,9 +573,4 @@ public interface Repository {
      * {@link RepositoryListener#pathPattern()} are pushed to this {@link Repository}.
      */
     void addListener(RepositoryListener listener);
-
-    /**
-     * Removes the {@link RepositoryListener} from this {@link Repository}.
-     */
-    void removeListener(RepositoryListener listener);
 }

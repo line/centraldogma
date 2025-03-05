@@ -101,7 +101,9 @@ class MigratingMirrorToRepositoryServiceTest {
             repoManager.create(TEST_REPO0, Author.SYSTEM);
             repoManager.create(TEST_REPO1, Author.SYSTEM);
 
-            final MetadataService mds = new MetadataService(projectManager, projectManagerExtension.executor());
+            final MetadataService mds =
+                    new MetadataService(projectManager, projectManagerExtension.executor(),
+                                        projectManagerExtension.internalProjectInitializer());
             mds.addRepo(Author.SYSTEM, TEST_PROJ, TEST_REPO0).join();
             mds.addRepo(Author.SYSTEM, TEST_PROJ, TEST_REPO1).join();
         }
