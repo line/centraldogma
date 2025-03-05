@@ -60,7 +60,7 @@ final class Watch {
         }
     }
 
-    public Revision lastKnownRevision() {
+    Revision lastKnownRevision() {
         return lastKnownRevision;
     }
 
