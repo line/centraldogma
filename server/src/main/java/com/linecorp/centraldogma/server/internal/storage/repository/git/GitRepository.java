@@ -40,7 +40,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiConsumer;
@@ -110,6 +109,7 @@ import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
@@ -560,7 +560,8 @@ class GitRepository implements Repository {
         }, repositoryWorker);
     }
 
-    private List<Commit> blockingHistory(Revision from, Revision to, String pathPattern, int maxCommits) {
+    @VisibleForTesting
+    List<Commit> blockingHistory(Revision from, Revision to, String pathPattern, int maxCommits) {
         requireNonNull(pathPattern, "pathPattern");
         requireNonNull(from, "from");
         requireNonNull(to, "to");
@@ -575,7 +576,12 @@ class GitRepository implements Repository {
 
         // At this point, we are sure: from.major >= to.major
         readLock();
-        try (RevWalk revWalk = newRevWalk()) {
+        final RepositoryCache cache =
+                // Do not cache too old data.
+                (descendingRange.from().major() < headRevision.major() - MAX_MAX_COMMITS * 3) ? null
+                                                                                              : this.cache;
+        try (ObjectReader objectReader = jGitRepository.newObjectReader();
+             RevWalk revWalk = newRevWalk(new CachingTreeObjectReader(this, objectReader, cache))) {
             final ObjectIdOwnerMap<?> revWalkInternalMap =
                     (ObjectIdOwnerMap<?>) revWalkObjectsField.get(revWalk);
 
@@ -1029,42 +1035,12 @@ class GitRepository implements Repository {
         }
 
         final CacheableCompareTreesCall key = new CacheableCompareTreesCall(this, treeA, treeB);
-        CompletableFuture<List<DiffEntry>> existingFuture = cache.getIfPresent(key);
-        if (existingFuture != null) {
-            final List<DiffEntry> existingDiffEntries = existingFuture.getNow(null);
-            if (existingDiffEntries != null) {
-                // Cached already.
-                return existingDiffEntries;
-            }
-        }
-
-        // Not cached yet. Acquire a lock so that we do not compare the same tree pairs simultaneously.
-        final List<DiffEntry> newDiffEntries;
-        final Lock lock = key.coarseGrainedLock();
-        lock.lock();
-        try {
-            existingFuture = cache.getIfPresent(key);
-            if (existingFuture != null) {
-                final List<DiffEntry> existingDiffEntries = existingFuture.getNow(null);
-                if (existingDiffEntries != null) {
-                    // Other thread already put the entries to the cache before we acquire the lock.
-                    return existingDiffEntries;
-                }
-            }
-
-            newDiffEntries = blockingCompareTreesUncached(treeA, treeB, TreeFilter.ALL);
-            cache.put(key, newDiffEntries);
-        } finally {
-            lock.unlock();
-        }
-
-        logger.debug("Cache miss: {}", key);
-        return newDiffEntries;
+        return cache.get(key).join();
     }
 
-    private List<DiffEntry> blockingCompareTreesUncached(@Nullable RevTree treeA,
-                                                         @Nullable RevTree treeB,
-                                                         TreeFilter filter) {
+    List<DiffEntry> blockingCompareTreesUncached(@Nullable RevTree treeA,
+                                                 @Nullable RevTree treeB,
+                                                 TreeFilter filter) {
         readLock();
         try (DiffFormatter diffFormatter = new DiffFormatter(null)) {
             diffFormatter.setRepository(jGitRepository);
@@ -1108,6 +1084,18 @@ class GitRepository implements Repository {
         });
 
         return future;
+    }
+
+    @Override
+    public <T> CompletableFuture<T> execute(CacheableCall<T> cacheableCall) {
+        // This is executed only when the CachingRepository is not enabled.
+        requireNonNull(cacheableCall, "cacheableCall");
+        final ServiceRequestContext ctx = context();
+
+        return CompletableFuture.supplyAsync(() -> {
+            failFastIfTimedOut(this, logger, ctx, "execute", cacheableCall);
+            return cacheableCall.execute();
+        }, repositoryWorker).thenCompose(Function.identity());
     }
 
     @Override

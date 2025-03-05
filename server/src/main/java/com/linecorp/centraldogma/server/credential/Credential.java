@@ -26,38 +26,50 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
 import com.linecorp.centraldogma.server.internal.credential.NoneCredential;
 import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
-import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
+import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 
 /**
  * A credential used to access external resources such as Git repositories or the Kubernetes control plane.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type")
 @JsonSubTypes({
-        @Type(value = NoneCredential.class, name = "none"),
-        @Type(value = PasswordCredential.class, name = "password"),
-        @Type(value = PublicKeyCredential.class, name = "public_key"),
-        @Type(value = AccessTokenCredential.class, name = "access_token")
+        @Type(value = NoneCredential.class, name = "NONE"),
+        @Type(value = PasswordCredential.class, name = "PASSWORD"),
+        @Type(value = SshKeyCredential.class, name = "SSH_KEY"),
+        @Type(value = AccessTokenCredential.class, name = "ACCESS_TOKEN")
 })
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public interface Credential {
 
-    Credential FALLBACK = new NoneCredential("", true);
+    Credential NONE = new NoneCredential("");
 
     /**
      * Returns the ID of the credential.
      */
-    @JsonProperty("id")
     String id();
 
     /**
-     * Returns whether this {@link Credential} is enabled.
+     * Returns the name of the credential.
+     * It is in the form of {@code "projects/<project>/credentials/<credential>"} or
+     * {@code "projects/<project>/repos/<repo>/credentials/<credential>"}.
      */
-    @JsonProperty("enabled")
-    boolean enabled();
+    @JsonProperty("name")
+    String name();
+
+    /**
+     * Returns the {@link CredentialType}.
+     */
+    @JsonProperty("type")
+    CredentialType type();
 
     /**
      * Returns a new {@link Credential} that does not contain any sensitive information.
      */
     Credential withoutSecret();
+
+    /**
+     * Returns a new {@link Credential} with the specified {@code credentialName}.
+     */
+    Credential withName(String credentialName);
 }

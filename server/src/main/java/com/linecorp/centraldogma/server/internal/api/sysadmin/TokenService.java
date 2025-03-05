@@ -54,7 +54,6 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdminist
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.Token;
-import com.linecorp.centraldogma.server.metadata.Tokens;
 import com.linecorp.centraldogma.server.metadata.User;
 
 /**
@@ -87,14 +86,11 @@ public class TokenService extends AbstractService {
      * <p>Returns the list of the tokens generated before.
      */
     @Get("/tokens")
-    public CompletableFuture<Collection<Token>> listTokens(User loginUser) {
+    public Collection<Token> listTokens(User loginUser) {
         if (loginUser.isSystemAdmin()) {
-            return mds.getTokens()
-                      .thenApply(tokens -> tokens.appIds().values());
+            return mds.getTokens().appIds().values();
         } else {
-            return mds.getTokens()
-                      .thenApply(Tokens::withoutSecret)
-                      .thenApply(tokens -> tokens.appIds().values());
+            return mds.getTokens().withoutSecret().appIds().values();
         }
     }
 
@@ -127,7 +123,7 @@ public class TokenService extends AbstractService {
             tokenFuture = mds.createToken(author, appId, isSystemAdminToken);
         }
         return tokenFuture
-                .thenCompose(unused -> mds.findTokenByAppId(appId))
+                .thenCompose(unused -> fetchTokensByAppId(appId))
                 .thenApply(token -> {
                     final ResponseHeaders headers = ResponseHeaders.of(HttpStatus.CREATED,
                                                                        HttpHeaderNames.LOCATION,
@@ -234,13 +230,17 @@ public class TokenService extends AbstractService {
                             break;
                     }
                     return mds.updateTokenLevel(author, appId, toBeSystemAdmin).thenCompose(
-                            unused -> mds.findTokenByAppId(appId).thenApply(Token::withoutSecret));
+                            unused -> fetchTokensByAppId(appId).thenApply(Token::withoutSecret));
                 });
+    }
+
+    private CompletableFuture<Token> fetchTokensByAppId(String appId) {
+        return mds.fetchTokens().thenApply(tokens -> tokens.get(appId));
     }
 
     private CompletableFuture<Token> getTokenOrRespondForbidden(ServiceRequestContext ctx,
                                                                 String appId, User loginUser) {
-        return mds.findTokenByAppId(appId).thenApply(token -> {
+        return fetchTokensByAppId(appId).thenApply(token -> {
             // Give permission to the system administrators.
             if (!loginUser.isSystemAdmin() &&
                 !token.creation().user().equals(loginUser.id())) {

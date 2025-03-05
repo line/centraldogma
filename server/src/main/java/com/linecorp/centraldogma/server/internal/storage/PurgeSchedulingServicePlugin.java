@@ -53,7 +53,8 @@ public final class PurgeSchedulingServicePlugin implements Plugin {
             this.purgeSchedulingService = purgeSchedulingService;
         }
         final MetadataService metadataService = new MetadataService(context.projectManager(),
-                                                                    context.commandExecutor());
+                                                                    context.commandExecutor(),
+                                                                    context.internalProjectInitializer());
         purgeSchedulingService.start(context.commandExecutor(), metadataService);
         return CompletableFuture.completedFuture(null);
     }

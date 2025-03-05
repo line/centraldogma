@@ -24,12 +24,13 @@ import Router, { useRouter } from 'next/router';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import React from 'react';
-import { MirrorRequest } from 'dogma/features/project/settings/mirrors/MirrorRequest';
-import MirrorForm from 'dogma/features/project/settings/mirrors/MirrorForm';
+import { MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
+import MirrorForm from 'dogma/features/repo/settings/mirrors/MirrorForm';
 
 const NewMirrorPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
+  const repoName = router.query.repoName ? (router.query.repoName as string) : '';
 
   const emptyMirror: MirrorRequest = {
     id: '',
@@ -42,7 +43,7 @@ const NewMirrorPage = () => {
     remoteUrl: '',
     remoteBranch: 'main',
     remotePath: '/',
-    credentialId: null,
+    credentialName: null,
     gitignore: null,
     enabled: false,
   };
@@ -57,6 +58,7 @@ const NewMirrorPage = () => {
   ) => {
     try {
       formData.projectName = projectName;
+      formData.localRepo = repoName;
       if (formData.remoteScheme.startsWith('git') && !formData.remoteUrl.endsWith('.git')) {
         setError('remoteUrl', { type: 'manual', message: "The remote path must end with '.git'" });
         return;
@@ -68,7 +70,7 @@ const NewMirrorPage = () => {
       }
       dispatch(newNotification('New mirror is created', `Successfully created`, 'success'));
       onSuccess();
-      Router.push(`/app/projects/${projectName}/settings/mirrors`);
+      Router.push(`/app/projects/${projectName}/repos/${repoName}/settings/mirrors`);
     } catch (error) {
       dispatch(newNotification(`Failed to create a new mirror`, ErrorMessageParser.parse(error), 'error'));
     }
@@ -77,9 +79,9 @@ const NewMirrorPage = () => {
   return (
     <>
       <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
-
       <MirrorForm
         projectName={projectName}
+        repoName={repoName}
         defaultValue={emptyMirror}
         onSubmit={onSubmit}
         isWaitingResponse={isLoading}

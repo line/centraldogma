@@ -14,47 +14,32 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.storage.repository;
+package com.linecorp.centraldogma.server.storage.repository;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.server.storage.repository.Repository;
+/**
+ * A skeletal implementation of {@link CacheableCall}.
+ */
+public abstract class AbstractCacheableCall<T> implements CacheableCall<T> {
 
-// XXX(trustin): Consider using reflection or AOP so that it takes less effort to add more call types.
-public abstract class CacheableCall<T> {
+    private final Repository repo;
 
-    private static final Lock[] locks;
-
-    static {
-        locks = new Lock[8192];
-        for (int i = 0; i < locks.length; i++) {
-            locks[i] = new ReentrantLock();
-        }
-    }
-
-    final Repository repo;
-
-    protected CacheableCall(Repository repo) {
+    /**
+     * Creates a new instance.
+     */
+    protected AbstractCacheableCall(Repository repo) {
         this.repo = requireNonNull(repo, "repo");
     }
 
-    public final Repository repo() {
+    /**
+     * Returns the {@link Repository} which this call is associated with.
+     */
+    protected final Repository repo() {
         return repo;
     }
-
-    public final Lock coarseGrainedLock() {
-        return locks[Math.abs(hashCode() % locks.length)];
-    }
-
-    protected abstract int weigh(T value);
-
-    public abstract CompletableFuture<T> execute();
 
     @Override
     public int hashCode() {
@@ -75,7 +60,7 @@ public abstract class CacheableCall<T> {
             return false;
         }
 
-        final CacheableCall<?> that = (CacheableCall<?>) obj;
+        final AbstractCacheableCall<?> that = (AbstractCacheableCall<?>) obj;
         return repo == that.repo;
     }
 
@@ -88,5 +73,8 @@ public abstract class CacheableCall<T> {
         return helper.toString();
     }
 
+    /**
+     * Overrides this method to add more information to the {@link #toString()} result.
+     */
     protected abstract void toString(MoreObjects.ToStringHelper helper);
 }

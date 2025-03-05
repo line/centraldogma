@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.api;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import java.net.URI;
 import java.util.Collection;
@@ -119,13 +120,14 @@ class TokenServiceTest {
                                                                         TestAuthMessageUtil.USERNAME,
                                                                         TestAuthMessageUtil.PASSWORD)))
                                      .build();
-        metadataService = new MetadataService(manager.projectManager(), manager.executor());
+        metadataService = new MetadataService(manager.projectManager(), manager.executor(),
+                                              manager.internalProjectInitializer());
         tokenService = new TokenService(manager.executor(), metadataService);
     }
 
     @AfterEach
     public void tearDown() {
-        final Tokens tokens = metadataService.getTokens().join();
+        final Tokens tokens = metadataService.fetchTokens().join();
         tokens.appIds().forEach((appId, token) -> {
             if (!token.isDeleted()) {
                 metadataService.destroyToken(systemAdminAuthor, appId);
@@ -148,25 +150,25 @@ class TokenServiceTest {
         final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) manager.executor();
         executor.execute(Command.createProject(Author.SYSTEM, "myPro")).join();
         metadataService.addToken(Author.SYSTEM, "myPro", "forAdmin1", ProjectRole.OWNER).join();
-        assertThat(metadataService.getProject("myPro").join().tokens().containsKey("forAdmin1")).isTrue();
+        await().untilAsserted(() -> assertThat(metadataService.getProject("myPro").join().tokens()
+                                                              .containsKey("forAdmin1")).isTrue());
 
-        final Collection<Token> tokens = tokenService.listTokens(systemAdmin).join();
+        final Collection<Token> tokens = tokenService.listTokens(systemAdmin);
         assertThat(tokens.stream().filter(t -> !StringUtil.isNullOrEmpty(t.secret()))).hasSize(1);
 
         assertThatThrownBy(() -> tokenService.deleteToken(ctx, "forAdmin1", guestAuthor, guest)
                                              .join())
                 .hasCauseInstanceOf(HttpResponseException.class);
 
-        assertThat(tokenService.deleteToken(ctx, "forAdmin1", systemAdminAuthor, systemAdmin)
-                               .thenCompose(unused -> tokenService.purgeToken(
-                                       ctx, "forAdmin1", systemAdminAuthor, systemAdmin)).join())
+        tokenService.deleteToken(ctx, "forAdmin1", systemAdminAuthor, systemAdmin).join();
+        assertThat(tokenService.purgeToken(ctx, "forAdmin1", systemAdminAuthor, systemAdmin).join())
                 .satisfies(t -> {
                     assertThat(t.appId()).isEqualTo(token.appId());
                     assertThat(t.isSystemAdmin()).isEqualTo(token.isSystemAdmin());
                     assertThat(t.creation()).isEqualTo(token.creation());
                     assertThat(t.isDeleted()).isTrue();
                 });
-        assertThat(tokenService.listTokens(systemAdmin).join().size()).isEqualTo(0);
+        await().untilAsserted(() -> assertThat(tokenService.listTokens(systemAdmin).size()).isEqualTo(0));
         assertThat(metadataService.getProject("myPro").join().tokens().size()).isEqualTo(0);
     }
 
@@ -182,7 +184,7 @@ class TokenServiceTest {
         assertThat(userToken1.isActive()).isTrue();
         assertThat(userToken2.isActive()).isTrue();
 
-        final Collection<Token> tokens = tokenService.listTokens(guest).join();
+        final Collection<Token> tokens = tokenService.listTokens(guest);
         assertThat(tokens.stream().filter(token -> !StringUtil.isNullOrEmpty(token.secret())).count())
                 .isEqualTo(0);
 
@@ -208,13 +210,15 @@ class TokenServiceTest {
 
     @Test
     void nonRandomToken() {
+        final Collection<Token> tokens1 = tokenService.listTokens(systemAdmin);
+        assertThat(tokens1.stream().filter(t -> !StringUtil.isNullOrEmpty(t.secret()))).hasSize(0);
         final Token token = tokenService.createToken("forAdmin1", true, true, "appToken-secret",
                                                      systemAdminAuthor,
                                                      systemAdmin)
                                         .join().content();
         assertThat(token.isActive()).isTrue();
 
-        final Collection<Token> tokens = tokenService.listTokens(systemAdmin).join();
+        final Collection<Token> tokens = tokenService.listTokens(systemAdmin);
         assertThat(tokens.stream().filter(t -> !StringUtil.isNullOrEmpty(t.secret()))).hasSize(1);
 
         assertThatThrownBy(() -> tokenService.createToken("forUser1", true, true,
@@ -224,9 +228,8 @@ class TokenServiceTest {
 
         final ServiceRequestContext ctx = ServiceRequestContext.of(
                 HttpRequest.of(HttpMethod.DELETE, "/tokens/{appId}/removed"));
-
-        tokenService.deleteToken(this.ctx, "forAdmin1", systemAdminAuthor, systemAdmin).thenCompose(
-                unused -> tokenService.purgeToken(ctx, "forAdmin1", systemAdminAuthor, systemAdmin)).join();
+        tokenService.deleteToken(ctx, "forAdmin1", systemAdminAuthor, systemAdmin).join();
+        tokenService.purgeToken(ctx, "forAdmin1", systemAdminAuthor, systemAdmin).join();
     }
 
     @Test
@@ -237,12 +240,12 @@ class TokenServiceTest {
         assertThat(token.isActive()).isTrue();
 
         tokenService.updateToken(ctx, "forUpdate", deactivation, systemAdminAuthor, systemAdmin).join();
-        final Token deactivatedToken = metadataService.findTokenByAppId("forUpdate").join();
-        assertThat(deactivatedToken.isActive()).isFalse();
+        await().untilAsserted(() -> assertThat(metadataService.findTokenByAppId("forUpdate").isActive())
+                .isFalse());
 
         tokenService.updateToken(ctx, "forUpdate", activation, systemAdminAuthor, systemAdmin).join();
-        final Token activatedToken = metadataService.findTokenByAppId("forUpdate").join();
-        assertThat(activatedToken.isActive()).isTrue();
+        await().untilAsserted(() -> assertThat(metadataService.findTokenByAppId("forUpdate").isActive())
+                .isTrue());
 
         assertThatThrownBy(
                 () -> tokenService.updateToken(ctx, "forUpdate", Jackson.valueToTree(
@@ -251,8 +254,8 @@ class TokenServiceTest {
                 .hasCauseInstanceOf(IllegalArgumentException.class);
 
         tokenService.deleteToken(ctx, "forUpdate", systemAdminAuthor, systemAdmin).join();
-        final Token deletedToken = metadataService.findTokenByAppId("forUpdate").join();
-        assertThat(deletedToken.isDeleted()).isTrue();
+        await().untilAsserted(() -> assertThat(metadataService.findTokenByAppId("forUpdate").isDeleted())
+                .isTrue());
         assertThatThrownBy(
                 () -> tokenService.updateToken(ctx, "forUpdate", activation,
                                                systemAdminAuthor, systemAdmin).join())
