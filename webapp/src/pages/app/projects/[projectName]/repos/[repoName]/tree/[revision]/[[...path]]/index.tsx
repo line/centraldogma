@@ -153,15 +153,17 @@ cat ${project}/${repo}${path}`;
                   )}
                 </WithProjectRole>
               )}
-              <Button
-                as={Link}
-                href={`/app/projects/${projectName}/repos/${repoName}/files/new${filePath}`}
-                size="sm"
-                rightIcon={<AiOutlinePlus />}
-                colorScheme="teal"
-              >
-                New File
-              </Button>
+              {projectName === 'dogma' || repoName === 'dogma' ? null : (
+                <Button
+                  as={Link}
+                  href={`/app/projects/${projectName}/repos/${repoName}/files/new${filePath}`}
+                  size="sm"
+                  rightIcon={<AiOutlinePlus />}
+                  colorScheme="teal"
+                >
+                  New File
+                </Button>
+              )}
             </Flex>
             <FileList
               data={files}
