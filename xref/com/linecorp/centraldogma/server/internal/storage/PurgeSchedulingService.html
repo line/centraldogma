@@ -158,7 +158,7 @@
 <a class="jxr_linenumber" name="L150" href="#L150">150</a>     }
 <a class="jxr_linenumber" name="L151" href="#L151">151</a> 
 <a class="jxr_linenumber" name="L152" href="#L152">152</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> purgeToken(<a href="../../../../../../com/linecorp/centraldogma/server/metadata/MetadataService.html">MetadataService</a> metadataService) {
-<a class="jxr_linenumber" name="L153" href="#L153">153</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/metadata/Tokens.html">Tokens</a> tokens = metadataService.getTokens().join();
+<a class="jxr_linenumber" name="L153" href="#L153">153</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/metadata/Tokens.html">Tokens</a> tokens = metadataService.getTokens();
 <a class="jxr_linenumber" name="L154" href="#L154">154</a>         <strong class="jxr_keyword">final</strong> List&lt;String&gt; purging = tokens.appIds().values()
 <a class="jxr_linenumber" name="L155" href="#L155">155</a>                                            .stream()
 <a class="jxr_linenumber" name="L156" href="#L156">156</a>                                            .filter(Token::isDeleted)

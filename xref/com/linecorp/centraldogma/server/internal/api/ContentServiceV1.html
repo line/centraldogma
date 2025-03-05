@@ -34,7 +34,7 @@
 <a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
 <a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1.increaseCounterIfOldRevisionUsed;
 <a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMetaFile;
-<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMirrorFile;
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMirrorOrCredentialFile;
 <a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> java.util.Objects.requireNonNull;
 <a class="jxr_linenumber" name="L31" href="#L31">31</a>  
 <a class="jxr_linenumber" name="L32" href="#L32">32</a>  <strong class="jxr_keyword">import</strong> java.util.Collection;
@@ -490,7 +490,7 @@
 <a class="jxr_linenumber" name="L482" href="#L482">482</a>             <em class="jxr_comment">//               to validate the input.</em>
 <a class="jxr_linenumber" name="L483" href="#L483">483</a>             <strong class="jxr_keyword">final</strong> Optional&lt;String&gt; notAllowedLocalRepo =
 <a class="jxr_linenumber" name="L484" href="#L484">484</a>                     Streams.stream(changes)
-<a class="jxr_linenumber" name="L485" href="#L485">485</a>                            .filter(change -&gt; isMirrorFile(change.path()))
+<a class="jxr_linenumber" name="L485" href="#L485">485</a>                            .filter(change -&gt; isMirrorOrCredentialFile(change.path()))
 <a class="jxr_linenumber" name="L486" href="#L486">486</a>                            .filter(change -&gt; change.content() != <strong class="jxr_keyword">null</strong>)
 <a class="jxr_linenumber" name="L487" href="#L487">487</a>                            .map(change -&gt; {
 <a class="jxr_linenumber" name="L488" href="#L488">488</a>                                <strong class="jxr_keyword">final</strong> Object content = change.content();

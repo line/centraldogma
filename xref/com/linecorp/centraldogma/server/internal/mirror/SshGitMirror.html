@@ -24,7 +24,7 @@
 <a class="jxr_linenumber" name="L16" href="#L16">16</a>  
 <a class="jxr_linenumber" name="L17" href="#L17">17</a>  <strong class="jxr_keyword">package</strong> com.linecorp.centraldogma.server.internal.mirror;
 <a class="jxr_linenumber" name="L18" href="#L18">18</a>  
-<a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential.publicKeyPreview;
+<a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.internal.credential.SshKeyCredential.publicKeyPreview;
 <a class="jxr_linenumber" name="L20" href="#L20">20</a>  
 <a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> java.io.File;
 <a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> java.io.IOException;
@@ -68,7 +68,7 @@
 <a class="jxr_linenumber" name="L60" href="#L60">60</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.CommandExecutor;
 <a class="jxr_linenumber" name="L61" href="#L61">61</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.credential.Credential;
 <a class="jxr_linenumber" name="L62" href="#L62">62</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
-<a class="jxr_linenumber" name="L63" href="#L63">63</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 <a class="jxr_linenumber" name="L64" href="#L64">64</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.mirror.MirrorDirection;
 <a class="jxr_linenumber" name="L65" href="#L65">65</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.mirror.MirrorResult;
 <a class="jxr_linenumber" name="L66" href="#L66">66</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.mirror.git.SshMirrorException;
@@ -94,8 +94,8 @@
 <a class="jxr_linenumber" name="L86" href="#L86">86</a>                   <a href="../../../../../../com/linecorp/centraldogma/server/credential/Credential.html">Credential</a> credential, <a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> localRepo, String localPath,
 <a class="jxr_linenumber" name="L87" href="#L87">87</a>                   URI remoteRepoUri, String remotePath, String remoteBranch,
 <a class="jxr_linenumber" name="L88" href="#L88">88</a>                   @Nullable String gitignore, @Nullable String zone) {
-<a class="jxr_linenumber" name="L89" href="#L89">89</a>          <strong class="jxr_keyword">super</strong>(id, enabled, schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath,
-<a class="jxr_linenumber" name="L90" href="#L90">90</a>                remoteBranch, gitignore, zone);
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>          <strong class="jxr_keyword">super</strong>(id, enabled, schedule, direction, credential, localRepo, localPath,
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>                remoteRepoUri, remotePath, remoteBranch, gitignore, zone);
 <a class="jxr_linenumber" name="L91" href="#L91">91</a>      }
 <a class="jxr_linenumber" name="L92" href="#L92">92</a>  
 <a class="jxr_linenumber" name="L93" href="#L93">93</a>      @Override
@@ -133,8 +133,8 @@
 <a class="jxr_linenumber" name="L125" href="#L125">125</a>         <strong class="jxr_keyword">final</strong> String username;
 <a class="jxr_linenumber" name="L126" href="#L126">126</a>         <strong class="jxr_keyword">if</strong> (credential() instanceof PasswordCredential) {
 <a class="jxr_linenumber" name="L127" href="#L127">127</a>             username = ((PasswordCredential) credential()).username();
-<a class="jxr_linenumber" name="L128" href="#L128">128</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (credential() instanceof PublicKeyCredential) {
-<a class="jxr_linenumber" name="L129" href="#L129">129</a>             username = ((PublicKeyCredential) credential()).username();
+<a class="jxr_linenumber" name="L128" href="#L128">128</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (credential() instanceof SshKeyCredential) {
+<a class="jxr_linenumber" name="L129" href="#L129">129</a>             username = ((SshKeyCredential) credential()).username();
 <a class="jxr_linenumber" name="L130" href="#L130">130</a>         } <strong class="jxr_keyword">else</strong> {
 <a class="jxr_linenumber" name="L131" href="#L131">131</a>             username = <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="L132" href="#L132">132</a>         }
@@ -201,8 +201,8 @@
 <a class="jxr_linenumber" name="L193" href="#L193">193</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/credential/Credential.html">Credential</a> c = credential();
 <a class="jxr_linenumber" name="L194" href="#L194">194</a>         <strong class="jxr_keyword">if</strong> (c instanceof PasswordCredential) {
 <a class="jxr_linenumber" name="L195" href="#L195">195</a>             client.setFilePasswordProvider(passwordProvider(((PasswordCredential) c).password()));
-<a class="jxr_linenumber" name="L196" href="#L196">196</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (c instanceof PublicKeyCredential) {
-<a class="jxr_linenumber" name="L197" href="#L197">197</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/internal/credential/PublicKeyCredential.html">PublicKeyCredential</a> cred = (PublicKeyCredential) credential();
+<a class="jxr_linenumber" name="L196" href="#L196">196</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (c instanceof SshKeyCredential) {
+<a class="jxr_linenumber" name="L197" href="#L197">197</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/internal/credential/SshKeyCredential.html">SshKeyCredential</a> cred = (SshKeyCredential) credential();
 <a class="jxr_linenumber" name="L198" href="#L198">198</a>             <strong class="jxr_keyword">final</strong> Collection&lt;KeyPair&gt; keyPairs;
 <a class="jxr_linenumber" name="L199" href="#L199">199</a>             <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="L200" href="#L200">200</a>                 keyPairs = keyPairResourceParser.loadKeyPairs(<strong class="jxr_keyword">null</strong>, NamedResource.ofName(cred.username()),

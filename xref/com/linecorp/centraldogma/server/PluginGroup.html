@@ -52,168 +52,172 @@
 <a class="jxr_linenumber" name="L44" href="#L44">44</a>  
 <a class="jxr_linenumber" name="L45" href="#L45">45</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.common.util.StartStopSupport;
 <a class="jxr_linenumber" name="L46" href="#L46">46</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.CommandExecutor;
-<a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.plugin.Plugin;
-<a class="jxr_linenumber" name="L48" href="#L48">48</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.plugin.PluginContext;
-<a class="jxr_linenumber" name="L49" href="#L49">49</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.plugin.PluginTarget;
-<a class="jxr_linenumber" name="L50" href="#L50">50</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
-<a class="jxr_linenumber" name="L51" href="#L51">51</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.storage.project.ProjectManager;
-<a class="jxr_linenumber" name="L52" href="#L52">52</a>  
-<a class="jxr_linenumber" name="L53" href="#L53">53</a>  <strong class="jxr_keyword">import</strong> io.micrometer.core.instrument.MeterRegistry;
-<a class="jxr_linenumber" name="L54" href="#L54">54</a>  <strong class="jxr_keyword">import</strong> io.netty.util.concurrent.DefaultThreadFactory;
-<a class="jxr_linenumber" name="L55" href="#L55">55</a>  
-<a class="jxr_linenumber" name="L56" href="#L56">56</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>  <em class="jxr_javadoccomment"> * Provides asynchronous start-stop life cycle support for the {@link Plugin}s.</em>
-<a class="jxr_linenumber" name="L58" href="#L58">58</a>  <em class="jxr_javadoccomment"> */</em>
-<a class="jxr_linenumber" name="L59" href="#L59">59</a>  <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroup</a> {
-<a class="jxr_linenumber" name="L60" href="#L60">60</a>  
-<a class="jxr_linenumber" name="L61" href="#L61">61</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(PluginGroup.<strong class="jxr_keyword">class</strong>);
-<a class="jxr_linenumber" name="L62" href="#L62">62</a>  
-<a class="jxr_linenumber" name="L63" href="#L63">63</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L64" href="#L64">64</a>  <em class="jxr_javadoccomment">     * Returns a new {@link PluginGroup} which holds the {@link Plugin}s loaded from the classpath.</em>
-<a class="jxr_linenumber" name="L65" href="#L65">65</a>  <em class="jxr_javadoccomment">     * {@code null} is returned if there is no {@link Plugin} whose target equals to the specified</em>
-<a class="jxr_linenumber" name="L66" href="#L66">66</a>  <em class="jxr_javadoccomment">     * {@code target}.</em>
-<a class="jxr_linenumber" name="L67" href="#L67">67</a>  <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L68" href="#L68">68</a>  <em class="jxr_javadoccomment">     * @param target the {@link PluginTarget} which would be loaded</em>
-<a class="jxr_linenumber" name="L69" href="#L69">69</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L70" href="#L70">70</a>      @VisibleForTesting
-<a class="jxr_linenumber" name="L71" href="#L71">71</a>      @Nullable
-<a class="jxr_linenumber" name="L72" href="#L72">72</a>      <strong class="jxr_keyword">static</strong> <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroup</a> loadPlugins(<a href="../../../../com/linecorp/centraldogma/server/plugin/PluginTarget.html">PluginTarget</a> target, <a href="../../../../com/linecorp/centraldogma/server/CentralDogmaConfig.html">CentralDogmaConfig</a> config) {
-<a class="jxr_linenumber" name="L73" href="#L73">73</a>          <strong class="jxr_keyword">return</strong> loadPlugins(PluginGroup.<strong class="jxr_keyword">class</strong>.getClassLoader(), config, ImmutableList.of()).get(target);
-<a class="jxr_linenumber" name="L74" href="#L74">74</a>      }
-<a class="jxr_linenumber" name="L75" href="#L75">75</a>  
-<a class="jxr_linenumber" name="L76" href="#L76">76</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L77" href="#L77">77</a>  <em class="jxr_javadoccomment">     * Returns a new {@link PluginGroup} which holds the {@link Plugin}s loaded from the classpath.</em>
-<a class="jxr_linenumber" name="L78" href="#L78">78</a>  <em class="jxr_javadoccomment">     * An empty map is returned if there is no {@link Plugin} whose target equals to the specified</em>
-<a class="jxr_linenumber" name="L79" href="#L79">79</a>  <em class="jxr_javadoccomment">     * {@code target}.</em>
-<a class="jxr_linenumber" name="L80" href="#L80">80</a>  <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L81" href="#L81">81</a>  <em class="jxr_javadoccomment">     * @param classLoader which is used to load the {@link Plugin}s</em>
-<a class="jxr_linenumber" name="L82" href="#L82">82</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L83" href="#L83">83</a>      <strong class="jxr_keyword">static</strong> Map&lt;PluginTarget, PluginGroup&gt; loadPlugins(ClassLoader classLoader, <a href="../../../../com/linecorp/centraldogma/server/CentralDogmaConfig.html">CentralDogmaConfig</a> config,
-<a class="jxr_linenumber" name="L84" href="#L84">84</a>                                                        List&lt;Plugin&gt; plugins) {
-<a class="jxr_linenumber" name="L85" href="#L85">85</a>          requireNonNull(classLoader, <span class="jxr_string">"classLoader"</span>);
-<a class="jxr_linenumber" name="L86" href="#L86">86</a>          requireNonNull(config, <span class="jxr_string">"config"</span>);
-<a class="jxr_linenumber" name="L87" href="#L87">87</a>  
-<a class="jxr_linenumber" name="L88" href="#L88">88</a>          <strong class="jxr_keyword">final</strong> ServiceLoader&lt;Plugin&gt; loader = ServiceLoader.load(Plugin.<strong class="jxr_keyword">class</strong>, classLoader);
-<a class="jxr_linenumber" name="L89" href="#L89">89</a>          <strong class="jxr_keyword">final</strong> ImmutableMap.Builder&lt;Class&lt;?&gt;, Plugin&gt; allPlugins = <strong class="jxr_keyword">new</strong> ImmutableMap.Builder&lt;&gt;();
-<a class="jxr_linenumber" name="L90" href="#L90">90</a>          <strong class="jxr_keyword">for</strong> (Plugin plugin : Iterables.concat(plugins, loader)) {
-<a class="jxr_linenumber" name="L91" href="#L91">91</a>              <strong class="jxr_keyword">if</strong> (plugin.isEnabled(config)) {
-<a class="jxr_linenumber" name="L92" href="#L92">92</a>                  allPlugins.put(plugin.configType(), plugin);
-<a class="jxr_linenumber" name="L93" href="#L93">93</a>              }
-<a class="jxr_linenumber" name="L94" href="#L94">94</a>          }
-<a class="jxr_linenumber" name="L95" href="#L95">95</a>  
-<a class="jxr_linenumber" name="L96" href="#L96">96</a>          <em class="jxr_comment">// IllegalArgumentException is thrown if there are duplicate keys.</em>
-<a class="jxr_linenumber" name="L97" href="#L97">97</a>          <strong class="jxr_keyword">final</strong> Map&lt;Class&lt;?&gt;, Plugin&gt; pluginMap = allPlugins.build();
-<a class="jxr_linenumber" name="L98" href="#L98">98</a>          <strong class="jxr_keyword">if</strong> (pluginMap.isEmpty()) {
-<a class="jxr_linenumber" name="L99" href="#L99">99</a>              <strong class="jxr_keyword">return</strong> ImmutableMap.of();
-<a class="jxr_linenumber" name="L100" href="#L100">100</a>         }
-<a class="jxr_linenumber" name="L101" href="#L101">101</a> 
-<a class="jxr_linenumber" name="L102" href="#L102">102</a>         <strong class="jxr_keyword">final</strong> Map&lt;PluginTarget, PluginGroup&gt; pluginGroups =
-<a class="jxr_linenumber" name="L103" href="#L103">103</a>                 pluginMap.values()
-<a class="jxr_linenumber" name="L104" href="#L104">104</a>                          .stream()
-<a class="jxr_linenumber" name="L105" href="#L105">105</a>                          .collect(Collectors.groupingBy(plugin -&gt; plugin.target(config)))
-<a class="jxr_linenumber" name="L106" href="#L106">106</a>                          .entrySet()
-<a class="jxr_linenumber" name="L107" href="#L107">107</a>                          .stream()
-<a class="jxr_linenumber" name="L108" href="#L108">108</a>                          .collect(toImmutableMap(Entry::getKey, e -&gt; {
-<a class="jxr_linenumber" name="L109" href="#L109">109</a>                              <strong class="jxr_keyword">final</strong> <a href="../../../../com/linecorp/centraldogma/server/plugin/PluginTarget.html">PluginTarget</a> target = e.getKey();
-<a class="jxr_linenumber" name="L110" href="#L110">110</a>                              <strong class="jxr_keyword">final</strong> List&lt;Plugin&gt; targetPlugins = e.getValue();
-<a class="jxr_linenumber" name="L111" href="#L111">111</a>                              <strong class="jxr_keyword">final</strong> String poolName =
-<a class="jxr_linenumber" name="L112" href="#L112">112</a>                                      <span class="jxr_string">"plugins-for-"</span> + target.name().toLowerCase().replace(<span class="jxr_string">"_"</span>, <span class="jxr_string">"-"</span>);
-<a class="jxr_linenumber" name="L113" href="#L113">113</a>                              <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroup</a>(targetPlugins,
-<a class="jxr_linenumber" name="L114" href="#L114">114</a>                                                     Executors.newSingleThreadExecutor(
-<a class="jxr_linenumber" name="L115" href="#L115">115</a>                                                             <strong class="jxr_keyword">new</strong> DefaultThreadFactory(poolName, <strong class="jxr_keyword">true</strong>)));
-<a class="jxr_linenumber" name="L116" href="#L116">116</a>                          }));
-<a class="jxr_linenumber" name="L117" href="#L117">117</a> 
-<a class="jxr_linenumber" name="L118" href="#L118">118</a>         pluginGroups.forEach((target, group) -&gt; {
-<a class="jxr_linenumber" name="L119" href="#L119">119</a>             logger.debug(<span class="jxr_string">"Loaded plugins for target {}: {}"</span>, target,
-<a class="jxr_linenumber" name="L120" href="#L120">120</a>                          group.plugins().stream().map(plugin -&gt; plugin.getClass().getName())
-<a class="jxr_linenumber" name="L121" href="#L121">121</a>                               .collect(toImmutableList()));
-<a class="jxr_linenumber" name="L122" href="#L122">122</a>         });
-<a class="jxr_linenumber" name="L123" href="#L123">123</a>         <strong class="jxr_keyword">return</strong> pluginGroups;
-<a class="jxr_linenumber" name="L124" href="#L124">124</a>     }
-<a class="jxr_linenumber" name="L125" href="#L125">125</a> 
-<a class="jxr_linenumber" name="L126" href="#L126">126</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> List&lt;Plugin&gt; plugins;
-<a class="jxr_linenumber" name="L127" href="#L127">127</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroupStartStop</a> startStop;
-<a class="jxr_linenumber" name="L128" href="#L128">128</a> 
-<a class="jxr_linenumber" name="L129" href="#L129">129</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroup</a>(Iterable&lt;Plugin&gt; plugins, Executor executor) {
-<a class="jxr_linenumber" name="L130" href="#L130">130</a>         <strong class="jxr_keyword">this</strong>.plugins = ImmutableList.copyOf(requireNonNull(plugins, <span class="jxr_string">"plugins"</span>));
-<a class="jxr_linenumber" name="L131" href="#L131">131</a>         startStop = <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroupStartStop</a>(requireNonNull(executor, <span class="jxr_string">"executor"</span>));
-<a class="jxr_linenumber" name="L132" href="#L132">132</a>     }
-<a class="jxr_linenumber" name="L133" href="#L133">133</a> 
-<a class="jxr_linenumber" name="L134" href="#L134">134</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L135" href="#L135">135</a> <em class="jxr_javadoccomment">     * Returns the {@link Plugin}s managed by this {@link PluginGroup}.</em>
-<a class="jxr_linenumber" name="L136" href="#L136">136</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L137" href="#L137">137</a>     List&lt;Plugin&gt; plugins() {
-<a class="jxr_linenumber" name="L138" href="#L138">138</a>         <strong class="jxr_keyword">return</strong> plugins;
-<a class="jxr_linenumber" name="L139" href="#L139">139</a>     }
-<a class="jxr_linenumber" name="L140" href="#L140">140</a> 
-<a class="jxr_linenumber" name="L141" href="#L141">141</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L142" href="#L142">142</a> <em class="jxr_javadoccomment">     * Returns the first {@link Plugin} of the specified {@code clazz} as wrapped by an {@link Optional}.</em>
-<a class="jxr_linenumber" name="L143" href="#L143">143</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L144" href="#L144">144</a>     @Nullable
-<a class="jxr_linenumber" name="L145" href="#L145">145</a>     &lt;T <strong class="jxr_keyword">extends</strong> Plugin&gt; T findFirstPlugin(Class&lt;T&gt; clazz) {
-<a class="jxr_linenumber" name="L146" href="#L146">146</a>         requireNonNull(clazz, <span class="jxr_string">"clazz"</span>);
-<a class="jxr_linenumber" name="L147" href="#L147">147</a>         <strong class="jxr_keyword">return</strong> plugins.stream().filter(clazz::isInstance).map(clazz::<strong class="jxr_keyword">cast</strong>).findFirst().orElse(<strong class="jxr_keyword">null</strong>);
-<a class="jxr_linenumber" name="L148" href="#L148">148</a>     }
-<a class="jxr_linenumber" name="L149" href="#L149">149</a> 
-<a class="jxr_linenumber" name="L150" href="#L150">150</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L151" href="#L151">151</a> <em class="jxr_javadoccomment">     * Starts the {@link Plugin}s managed by this {@link PluginGroup}.</em>
-<a class="jxr_linenumber" name="L152" href="#L152">152</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L153" href="#L153">153</a>     CompletableFuture&lt;Void&gt; start(<a href="../../../../com/linecorp/centraldogma/server/CentralDogmaConfig.html">CentralDogmaConfig</a> config, <a href="../../../../com/linecorp/centraldogma/server/storage/project/ProjectManager.html">ProjectManager</a> projectManager,
-<a class="jxr_linenumber" name="L154" href="#L154">154</a>                                   <a href="../../../../com/linecorp/centraldogma/server/command/CommandExecutor.html">CommandExecutor</a> commandExecutor, MeterRegistry meterRegistry,
-<a class="jxr_linenumber" name="L155" href="#L155">155</a>                                   ScheduledExecutorService purgeWorker,
-<a class="jxr_linenumber" name="L156" href="#L156">156</a>                                   <a href="../../../../com/linecorp/centraldogma/server/storage/project/InternalProjectInitializer.html">InternalProjectInitializer</a> internalProjectInitializer) {
-<a class="jxr_linenumber" name="L157" href="#L157">157</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../com/linecorp/centraldogma/server/plugin/PluginContext.html">PluginContext</a> context = <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/plugin/PluginContext.html">PluginContext</a>(config, projectManager, commandExecutor, meterRegistry,
-<a class="jxr_linenumber" name="L158" href="#L158">158</a>                                                         purgeWorker, internalProjectInitializer);
-<a class="jxr_linenumber" name="L159" href="#L159">159</a>         <strong class="jxr_keyword">return</strong> startStop.start(context, context, <strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="L160" href="#L160">160</a>     }
-<a class="jxr_linenumber" name="L161" href="#L161">161</a> 
-<a class="jxr_linenumber" name="L162" href="#L162">162</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L163" href="#L163">163</a> <em class="jxr_javadoccomment">     * Stops the {@link Plugin}s managed by this {@link PluginGroup}.</em>
-<a class="jxr_linenumber" name="L164" href="#L164">164</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L165" href="#L165">165</a>     CompletableFuture&lt;Void&gt; stop(<a href="../../../../com/linecorp/centraldogma/server/CentralDogmaConfig.html">CentralDogmaConfig</a> config, <a href="../../../../com/linecorp/centraldogma/server/storage/project/ProjectManager.html">ProjectManager</a> projectManager,
-<a class="jxr_linenumber" name="L166" href="#L166">166</a>                                  <a href="../../../../com/linecorp/centraldogma/server/command/CommandExecutor.html">CommandExecutor</a> commandExecutor, MeterRegistry meterRegistry,
-<a class="jxr_linenumber" name="L167" href="#L167">167</a>                                  ScheduledExecutorService purgeWorker,
-<a class="jxr_linenumber" name="L168" href="#L168">168</a>                                  <a href="../../../../com/linecorp/centraldogma/server/storage/project/InternalProjectInitializer.html">InternalProjectInitializer</a> internalProjectInitializer) {
-<a class="jxr_linenumber" name="L169" href="#L169">169</a>         <strong class="jxr_keyword">return</strong> startStop.stop(
-<a class="jxr_linenumber" name="L170" href="#L170">170</a>                 <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/plugin/PluginContext.html">PluginContext</a>(config, projectManager, commandExecutor, meterRegistry, purgeWorker,
-<a class="jxr_linenumber" name="L171" href="#L171">171</a>                                   internalProjectInitializer));
-<a class="jxr_linenumber" name="L172" href="#L172">172</a>     }
-<a class="jxr_linenumber" name="L173" href="#L173">173</a> 
-<a class="jxr_linenumber" name="L174" href="#L174">174</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroupStartStop</a> <strong class="jxr_keyword">extends</strong> StartStopSupport&lt;PluginContext, PluginContext, Void, Void&gt; {
-<a class="jxr_linenumber" name="L175" href="#L175">175</a> 
-<a class="jxr_linenumber" name="L176" href="#L176">176</a>         <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroupStartStop</a>(Executor executor) {
-<a class="jxr_linenumber" name="L177" href="#L177">177</a>             <strong class="jxr_keyword">super</strong>(executor);
-<a class="jxr_linenumber" name="L178" href="#L178">178</a>         }
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.mirror.MirrorAccessController;
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.plugin.Plugin;
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.plugin.PluginContext;
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.plugin.PluginTarget;
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.storage.project.ProjectManager;
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>  
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>  <strong class="jxr_keyword">import</strong> io.micrometer.core.instrument.MeterRegistry;
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>  <strong class="jxr_keyword">import</strong> io.netty.util.concurrent.DefaultThreadFactory;
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>  
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>  <em class="jxr_javadoccomment"> * Provides asynchronous start-stop life cycle support for the {@link Plugin}s.</em>
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>  <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroup</a> {
+<a class="jxr_linenumber" name="L61" href="#L61">61</a>  
+<a class="jxr_linenumber" name="L62" href="#L62">62</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(PluginGroup.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>  
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L65" href="#L65">65</a>  <em class="jxr_javadoccomment">     * Returns a new {@link PluginGroup} which holds the {@link Plugin}s loaded from the classpath.</em>
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>  <em class="jxr_javadoccomment">     * {@code null} is returned if there is no {@link Plugin} whose target equals to the specified</em>
+<a class="jxr_linenumber" name="L67" href="#L67">67</a>  <em class="jxr_javadoccomment">     * {@code target}.</em>
+<a class="jxr_linenumber" name="L68" href="#L68">68</a>  <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L69" href="#L69">69</a>  <em class="jxr_javadoccomment">     * @param target the {@link PluginTarget} which would be loaded</em>
+<a class="jxr_linenumber" name="L70" href="#L70">70</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L71" href="#L71">71</a>      @VisibleForTesting
+<a class="jxr_linenumber" name="L72" href="#L72">72</a>      @Nullable
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>      <strong class="jxr_keyword">static</strong> <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroup</a> loadPlugins(<a href="../../../../com/linecorp/centraldogma/server/plugin/PluginTarget.html">PluginTarget</a> target, <a href="../../../../com/linecorp/centraldogma/server/CentralDogmaConfig.html">CentralDogmaConfig</a> config) {
+<a class="jxr_linenumber" name="L74" href="#L74">74</a>          <strong class="jxr_keyword">return</strong> loadPlugins(PluginGroup.<strong class="jxr_keyword">class</strong>.getClassLoader(), config, ImmutableList.of()).get(target);
+<a class="jxr_linenumber" name="L75" href="#L75">75</a>      }
+<a class="jxr_linenumber" name="L76" href="#L76">76</a>  
+<a class="jxr_linenumber" name="L77" href="#L77">77</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L78" href="#L78">78</a>  <em class="jxr_javadoccomment">     * Returns a new {@link PluginGroup} which holds the {@link Plugin}s loaded from the classpath.</em>
+<a class="jxr_linenumber" name="L79" href="#L79">79</a>  <em class="jxr_javadoccomment">     * An empty map is returned if there is no {@link Plugin} whose target equals to the specified</em>
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>  <em class="jxr_javadoccomment">     * {@code target}.</em>
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>  <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>  <em class="jxr_javadoccomment">     * @param classLoader which is used to load the {@link Plugin}s</em>
+<a class="jxr_linenumber" name="L83" href="#L83">83</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L84" href="#L84">84</a>      <strong class="jxr_keyword">static</strong> Map&lt;PluginTarget, PluginGroup&gt; loadPlugins(ClassLoader classLoader, <a href="../../../../com/linecorp/centraldogma/server/CentralDogmaConfig.html">CentralDogmaConfig</a> config,
+<a class="jxr_linenumber" name="L85" href="#L85">85</a>                                                        List&lt;Plugin&gt; plugins) {
+<a class="jxr_linenumber" name="L86" href="#L86">86</a>          requireNonNull(classLoader, <span class="jxr_string">"classLoader"</span>);
+<a class="jxr_linenumber" name="L87" href="#L87">87</a>          requireNonNull(config, <span class="jxr_string">"config"</span>);
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>  
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>          <strong class="jxr_keyword">final</strong> ServiceLoader&lt;Plugin&gt; loader = ServiceLoader.load(Plugin.<strong class="jxr_keyword">class</strong>, classLoader);
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>          <strong class="jxr_keyword">final</strong> ImmutableMap.Builder&lt;Class&lt;?&gt;, Plugin&gt; allPlugins = <strong class="jxr_keyword">new</strong> ImmutableMap.Builder&lt;&gt;();
+<a class="jxr_linenumber" name="L91" href="#L91">91</a>          <strong class="jxr_keyword">for</strong> (Plugin plugin : Iterables.concat(plugins, loader)) {
+<a class="jxr_linenumber" name="L92" href="#L92">92</a>              <strong class="jxr_keyword">if</strong> (plugin.isEnabled(config)) {
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>                  allPlugins.put(plugin.configType(), plugin);
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>              }
+<a class="jxr_linenumber" name="L95" href="#L95">95</a>          }
+<a class="jxr_linenumber" name="L96" href="#L96">96</a>  
+<a class="jxr_linenumber" name="L97" href="#L97">97</a>          <em class="jxr_comment">// IllegalArgumentException is thrown if there are duplicate keys.</em>
+<a class="jxr_linenumber" name="L98" href="#L98">98</a>          <strong class="jxr_keyword">final</strong> Map&lt;Class&lt;?&gt;, Plugin&gt; pluginMap = allPlugins.build();
+<a class="jxr_linenumber" name="L99" href="#L99">99</a>          <strong class="jxr_keyword">if</strong> (pluginMap.isEmpty()) {
+<a class="jxr_linenumber" name="L100" href="#L100">100</a>             <strong class="jxr_keyword">return</strong> ImmutableMap.of();
+<a class="jxr_linenumber" name="L101" href="#L101">101</a>         }
+<a class="jxr_linenumber" name="L102" href="#L102">102</a> 
+<a class="jxr_linenumber" name="L103" href="#L103">103</a>         <strong class="jxr_keyword">final</strong> Map&lt;PluginTarget, PluginGroup&gt; pluginGroups =
+<a class="jxr_linenumber" name="L104" href="#L104">104</a>                 pluginMap.values()
+<a class="jxr_linenumber" name="L105" href="#L105">105</a>                          .stream()
+<a class="jxr_linenumber" name="L106" href="#L106">106</a>                          .collect(Collectors.groupingBy(plugin -&gt; plugin.target(config)))
+<a class="jxr_linenumber" name="L107" href="#L107">107</a>                          .entrySet()
+<a class="jxr_linenumber" name="L108" href="#L108">108</a>                          .stream()
+<a class="jxr_linenumber" name="L109" href="#L109">109</a>                          .collect(toImmutableMap(Entry::getKey, e -&gt; {
+<a class="jxr_linenumber" name="L110" href="#L110">110</a>                              <strong class="jxr_keyword">final</strong> <a href="../../../../com/linecorp/centraldogma/server/plugin/PluginTarget.html">PluginTarget</a> target = e.getKey();
+<a class="jxr_linenumber" name="L111" href="#L111">111</a>                              <strong class="jxr_keyword">final</strong> List&lt;Plugin&gt; targetPlugins = e.getValue();
+<a class="jxr_linenumber" name="L112" href="#L112">112</a>                              <strong class="jxr_keyword">final</strong> String poolName =
+<a class="jxr_linenumber" name="L113" href="#L113">113</a>                                      <span class="jxr_string">"plugins-for-"</span> + target.name().toLowerCase().replace(<span class="jxr_string">"_"</span>, <span class="jxr_string">"-"</span>);
+<a class="jxr_linenumber" name="L114" href="#L114">114</a>                              <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroup</a>(targetPlugins,
+<a class="jxr_linenumber" name="L115" href="#L115">115</a>                                                     Executors.newSingleThreadExecutor(
+<a class="jxr_linenumber" name="L116" href="#L116">116</a>                                                             <strong class="jxr_keyword">new</strong> DefaultThreadFactory(poolName, <strong class="jxr_keyword">true</strong>)));
+<a class="jxr_linenumber" name="L117" href="#L117">117</a>                          }));
+<a class="jxr_linenumber" name="L118" href="#L118">118</a> 
+<a class="jxr_linenumber" name="L119" href="#L119">119</a>         pluginGroups.forEach((target, group) -&gt; {
+<a class="jxr_linenumber" name="L120" href="#L120">120</a>             logger.debug(<span class="jxr_string">"Loaded plugins for target {}: {}"</span>, target,
+<a class="jxr_linenumber" name="L121" href="#L121">121</a>                          group.plugins().stream().map(plugin -&gt; plugin.getClass().getName())
+<a class="jxr_linenumber" name="L122" href="#L122">122</a>                               .collect(toImmutableList()));
+<a class="jxr_linenumber" name="L123" href="#L123">123</a>         });
+<a class="jxr_linenumber" name="L124" href="#L124">124</a>         <strong class="jxr_keyword">return</strong> pluginGroups;
+<a class="jxr_linenumber" name="L125" href="#L125">125</a>     }
+<a class="jxr_linenumber" name="L126" href="#L126">126</a> 
+<a class="jxr_linenumber" name="L127" href="#L127">127</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> List&lt;Plugin&gt; plugins;
+<a class="jxr_linenumber" name="L128" href="#L128">128</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroupStartStop</a> startStop;
+<a class="jxr_linenumber" name="L129" href="#L129">129</a> 
+<a class="jxr_linenumber" name="L130" href="#L130">130</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroup</a>(Iterable&lt;Plugin&gt; plugins, Executor executor) {
+<a class="jxr_linenumber" name="L131" href="#L131">131</a>         <strong class="jxr_keyword">this</strong>.plugins = ImmutableList.copyOf(requireNonNull(plugins, <span class="jxr_string">"plugins"</span>));
+<a class="jxr_linenumber" name="L132" href="#L132">132</a>         startStop = <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroupStartStop</a>(requireNonNull(executor, <span class="jxr_string">"executor"</span>));
+<a class="jxr_linenumber" name="L133" href="#L133">133</a>     }
+<a class="jxr_linenumber" name="L134" href="#L134">134</a> 
+<a class="jxr_linenumber" name="L135" href="#L135">135</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L136" href="#L136">136</a> <em class="jxr_javadoccomment">     * Returns the {@link Plugin}s managed by this {@link PluginGroup}.</em>
+<a class="jxr_linenumber" name="L137" href="#L137">137</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L138" href="#L138">138</a>     List&lt;Plugin&gt; plugins() {
+<a class="jxr_linenumber" name="L139" href="#L139">139</a>         <strong class="jxr_keyword">return</strong> plugins;
+<a class="jxr_linenumber" name="L140" href="#L140">140</a>     }
+<a class="jxr_linenumber" name="L141" href="#L141">141</a> 
+<a class="jxr_linenumber" name="L142" href="#L142">142</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L143" href="#L143">143</a> <em class="jxr_javadoccomment">     * Returns the first {@link Plugin} of the specified {@code clazz} as wrapped by an {@link Optional}.</em>
+<a class="jxr_linenumber" name="L144" href="#L144">144</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L145" href="#L145">145</a>     @Nullable
+<a class="jxr_linenumber" name="L146" href="#L146">146</a>     &lt;T <strong class="jxr_keyword">extends</strong> Plugin&gt; T findFirstPlugin(Class&lt;T&gt; clazz) {
+<a class="jxr_linenumber" name="L147" href="#L147">147</a>         requireNonNull(clazz, <span class="jxr_string">"clazz"</span>);
+<a class="jxr_linenumber" name="L148" href="#L148">148</a>         <strong class="jxr_keyword">return</strong> plugins.stream().filter(clazz::isInstance).map(clazz::<strong class="jxr_keyword">cast</strong>).findFirst().orElse(<strong class="jxr_keyword">null</strong>);
+<a class="jxr_linenumber" name="L149" href="#L149">149</a>     }
+<a class="jxr_linenumber" name="L150" href="#L150">150</a> 
+<a class="jxr_linenumber" name="L151" href="#L151">151</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L152" href="#L152">152</a> <em class="jxr_javadoccomment">     * Starts the {@link Plugin}s managed by this {@link PluginGroup}.</em>
+<a class="jxr_linenumber" name="L153" href="#L153">153</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L154" href="#L154">154</a>     CompletableFuture&lt;Void&gt; start(<a href="../../../../com/linecorp/centraldogma/server/CentralDogmaConfig.html">CentralDogmaConfig</a> config, <a href="../../../../com/linecorp/centraldogma/server/storage/project/ProjectManager.html">ProjectManager</a> projectManager,
+<a class="jxr_linenumber" name="L155" href="#L155">155</a>                                   <a href="../../../../com/linecorp/centraldogma/server/command/CommandExecutor.html">CommandExecutor</a> commandExecutor, MeterRegistry meterRegistry,
+<a class="jxr_linenumber" name="L156" href="#L156">156</a>                                   ScheduledExecutorService purgeWorker,
+<a class="jxr_linenumber" name="L157" href="#L157">157</a>                                   <a href="../../../../com/linecorp/centraldogma/server/storage/project/InternalProjectInitializer.html">InternalProjectInitializer</a> internalProjectInitializer,
+<a class="jxr_linenumber" name="L158" href="#L158">158</a>                                   <a href="../../../../com/linecorp/centraldogma/server/mirror/MirrorAccessController.html">MirrorAccessController</a> mirrorAccessController) {
+<a class="jxr_linenumber" name="L159" href="#L159">159</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../com/linecorp/centraldogma/server/plugin/PluginContext.html">PluginContext</a> context = <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/plugin/PluginContext.html">PluginContext</a>(config, projectManager, commandExecutor, meterRegistry,
+<a class="jxr_linenumber" name="L160" href="#L160">160</a>                                                         purgeWorker, internalProjectInitializer,
+<a class="jxr_linenumber" name="L161" href="#L161">161</a>                                                         mirrorAccessController);
+<a class="jxr_linenumber" name="L162" href="#L162">162</a>         <strong class="jxr_keyword">return</strong> startStop.start(context, context, <strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L163" href="#L163">163</a>     }
+<a class="jxr_linenumber" name="L164" href="#L164">164</a> 
+<a class="jxr_linenumber" name="L165" href="#L165">165</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L166" href="#L166">166</a> <em class="jxr_javadoccomment">     * Stops the {@link Plugin}s managed by this {@link PluginGroup}.</em>
+<a class="jxr_linenumber" name="L167" href="#L167">167</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L168" href="#L168">168</a>     CompletableFuture&lt;Void&gt; stop(<a href="../../../../com/linecorp/centraldogma/server/CentralDogmaConfig.html">CentralDogmaConfig</a> config, <a href="../../../../com/linecorp/centraldogma/server/storage/project/ProjectManager.html">ProjectManager</a> projectManager,
+<a class="jxr_linenumber" name="L169" href="#L169">169</a>                                  <a href="../../../../com/linecorp/centraldogma/server/command/CommandExecutor.html">CommandExecutor</a> commandExecutor, MeterRegistry meterRegistry,
+<a class="jxr_linenumber" name="L170" href="#L170">170</a>                                  ScheduledExecutorService purgeWorker,
+<a class="jxr_linenumber" name="L171" href="#L171">171</a>                                  <a href="../../../../com/linecorp/centraldogma/server/storage/project/InternalProjectInitializer.html">InternalProjectInitializer</a> internalProjectInitializer,
+<a class="jxr_linenumber" name="L172" href="#L172">172</a>                                  <a href="../../../../com/linecorp/centraldogma/server/mirror/MirrorAccessController.html">MirrorAccessController</a> mirrorAccessController) {
+<a class="jxr_linenumber" name="L173" href="#L173">173</a>         <strong class="jxr_keyword">return</strong> startStop.stop(
+<a class="jxr_linenumber" name="L174" href="#L174">174</a>                 <strong class="jxr_keyword">new</strong> <a href="../../../../com/linecorp/centraldogma/server/plugin/PluginContext.html">PluginContext</a>(config, projectManager, commandExecutor, meterRegistry, purgeWorker,
+<a class="jxr_linenumber" name="L175" href="#L175">175</a>                                   internalProjectInitializer, mirrorAccessController));
+<a class="jxr_linenumber" name="L176" href="#L176">176</a>     }
+<a class="jxr_linenumber" name="L177" href="#L177">177</a> 
+<a class="jxr_linenumber" name="L178" href="#L178">178</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroupStartStop</a> <strong class="jxr_keyword">extends</strong> StartStopSupport&lt;PluginContext, PluginContext, Void, Void&gt; {
 <a class="jxr_linenumber" name="L179" href="#L179">179</a> 
-<a class="jxr_linenumber" name="L180" href="#L180">180</a>         @Override
-<a class="jxr_linenumber" name="L181" href="#L181">181</a>         <strong class="jxr_keyword">protected</strong> CompletionStage&lt;Void&gt; doStart(@Nullable <a href="../../../../com/linecorp/centraldogma/server/plugin/PluginContext.html">PluginContext</a> arg) <strong class="jxr_keyword">throws</strong> Exception {
-<a class="jxr_linenumber" name="L182" href="#L182">182</a>             assert arg != <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L183" href="#L183">183</a>             <em class="jxr_comment">// Wait until the internal project is initialized.</em>
-<a class="jxr_linenumber" name="L184" href="#L184">184</a>             arg.internalProjectInitializer().whenInitialized().get();
-<a class="jxr_linenumber" name="L185" href="#L185">185</a>             <strong class="jxr_keyword">final</strong> List&lt;CompletionStage&lt;Void&gt;&gt; futures = plugins.stream().map(
-<a class="jxr_linenumber" name="L186" href="#L186">186</a>                     plugin -&gt; plugin.start(arg)
-<a class="jxr_linenumber" name="L187" href="#L187">187</a>                                     .thenAccept(unused -&gt; logger.info(<span class="jxr_string">"Plugin started: {}"</span>, plugin))
-<a class="jxr_linenumber" name="L188" href="#L188">188</a>                                     .exceptionally(cause -&gt; {
-<a class="jxr_linenumber" name="L189" href="#L189">189</a>                                         logger.info(<span class="jxr_string">"Failed to start plugin: {}"</span>, plugin, cause);
-<a class="jxr_linenumber" name="L190" href="#L190">190</a>                                         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L191" href="#L191">191</a>                                     })).collect(toImmutableList());
-<a class="jxr_linenumber" name="L192" href="#L192">192</a>             <strong class="jxr_keyword">return</strong> CompletableFutures.allAsList(futures).thenApply(unused -&gt; <strong class="jxr_keyword">null</strong>);
-<a class="jxr_linenumber" name="L193" href="#L193">193</a>         }
-<a class="jxr_linenumber" name="L194" href="#L194">194</a> 
-<a class="jxr_linenumber" name="L195" href="#L195">195</a>         @Override
-<a class="jxr_linenumber" name="L196" href="#L196">196</a>         <strong class="jxr_keyword">protected</strong> CompletionStage&lt;Void&gt; doStop(@Nullable <a href="../../../../com/linecorp/centraldogma/server/plugin/PluginContext.html">PluginContext</a> arg) <strong class="jxr_keyword">throws</strong> Exception {
-<a class="jxr_linenumber" name="L197" href="#L197">197</a>             assert arg != <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L198" href="#L198">198</a>             <strong class="jxr_keyword">final</strong> List&lt;CompletionStage&lt;Void&gt;&gt; futures = plugins.stream().map(
-<a class="jxr_linenumber" name="L199" href="#L199">199</a>                     plugin -&gt; plugin.stop(arg)
-<a class="jxr_linenumber" name="L200" href="#L200">200</a>                                     .thenAccept(unused -&gt; logger.info(<span class="jxr_string">"Plugin stopped: {}"</span>, plugin))
-<a class="jxr_linenumber" name="L201" href="#L201">201</a>                                     .exceptionally(cause -&gt; {
-<a class="jxr_linenumber" name="L202" href="#L202">202</a>                                         logger.info(<span class="jxr_string">"Failed to stop plugin: {}"</span>, plugin, cause);
-<a class="jxr_linenumber" name="L203" href="#L203">203</a>                                         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L204" href="#L204">204</a>                                     })).collect(toImmutableList());
-<a class="jxr_linenumber" name="L205" href="#L205">205</a>             <strong class="jxr_keyword">return</strong> CompletableFutures.allAsList(futures).thenApply(unused -&gt; <strong class="jxr_keyword">null</strong>);
-<a class="jxr_linenumber" name="L206" href="#L206">206</a>         }
-<a class="jxr_linenumber" name="L207" href="#L207">207</a>     }
-<a class="jxr_linenumber" name="L208" href="#L208">208</a> }
+<a class="jxr_linenumber" name="L180" href="#L180">180</a>         <a href="../../../../com/linecorp/centraldogma/server/PluginGroup.html">PluginGroupStartStop</a>(Executor executor) {
+<a class="jxr_linenumber" name="L181" href="#L181">181</a>             <strong class="jxr_keyword">super</strong>(executor);
+<a class="jxr_linenumber" name="L182" href="#L182">182</a>         }
+<a class="jxr_linenumber" name="L183" href="#L183">183</a> 
+<a class="jxr_linenumber" name="L184" href="#L184">184</a>         @Override
+<a class="jxr_linenumber" name="L185" href="#L185">185</a>         <strong class="jxr_keyword">protected</strong> CompletionStage&lt;Void&gt; doStart(@Nullable <a href="../../../../com/linecorp/centraldogma/server/plugin/PluginContext.html">PluginContext</a> arg) <strong class="jxr_keyword">throws</strong> Exception {
+<a class="jxr_linenumber" name="L186" href="#L186">186</a>             assert arg != <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L187" href="#L187">187</a>             <em class="jxr_comment">// Wait until the internal project is initialized.</em>
+<a class="jxr_linenumber" name="L188" href="#L188">188</a>             arg.internalProjectInitializer().whenInitialized().get();
+<a class="jxr_linenumber" name="L189" href="#L189">189</a>             <strong class="jxr_keyword">final</strong> List&lt;CompletionStage&lt;Void&gt;&gt; futures = plugins.stream().map(
+<a class="jxr_linenumber" name="L190" href="#L190">190</a>                     plugin -&gt; plugin.start(arg)
+<a class="jxr_linenumber" name="L191" href="#L191">191</a>                                     .thenAccept(unused -&gt; logger.info(<span class="jxr_string">"Plugin started: {}"</span>, plugin))
+<a class="jxr_linenumber" name="L192" href="#L192">192</a>                                     .exceptionally(cause -&gt; {
+<a class="jxr_linenumber" name="L193" href="#L193">193</a>                                         logger.info(<span class="jxr_string">"Failed to start plugin: {}"</span>, plugin, cause);
+<a class="jxr_linenumber" name="L194" href="#L194">194</a>                                         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L195" href="#L195">195</a>                                     })).collect(toImmutableList());
+<a class="jxr_linenumber" name="L196" href="#L196">196</a>             <strong class="jxr_keyword">return</strong> CompletableFutures.allAsList(futures).thenApply(unused -&gt; <strong class="jxr_keyword">null</strong>);
+<a class="jxr_linenumber" name="L197" href="#L197">197</a>         }
+<a class="jxr_linenumber" name="L198" href="#L198">198</a> 
+<a class="jxr_linenumber" name="L199" href="#L199">199</a>         @Override
+<a class="jxr_linenumber" name="L200" href="#L200">200</a>         <strong class="jxr_keyword">protected</strong> CompletionStage&lt;Void&gt; doStop(@Nullable <a href="../../../../com/linecorp/centraldogma/server/plugin/PluginContext.html">PluginContext</a> arg) <strong class="jxr_keyword">throws</strong> Exception {
+<a class="jxr_linenumber" name="L201" href="#L201">201</a>             assert arg != <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L202" href="#L202">202</a>             <strong class="jxr_keyword">final</strong> List&lt;CompletionStage&lt;Void&gt;&gt; futures = plugins.stream().map(
+<a class="jxr_linenumber" name="L203" href="#L203">203</a>                     plugin -&gt; plugin.stop(arg)
+<a class="jxr_linenumber" name="L204" href="#L204">204</a>                                     .thenAccept(unused -&gt; logger.info(<span class="jxr_string">"Plugin stopped: {}"</span>, plugin))
+<a class="jxr_linenumber" name="L205" href="#L205">205</a>                                     .exceptionally(cause -&gt; {
+<a class="jxr_linenumber" name="L206" href="#L206">206</a>                                         logger.info(<span class="jxr_string">"Failed to stop plugin: {}"</span>, plugin, cause);
+<a class="jxr_linenumber" name="L207" href="#L207">207</a>                                         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L208" href="#L208">208</a>                                     })).collect(toImmutableList());
+<a class="jxr_linenumber" name="L209" href="#L209">209</a>             <strong class="jxr_keyword">return</strong> CompletableFutures.allAsList(futures).thenApply(unused -&gt; <strong class="jxr_keyword">null</strong>);
+<a class="jxr_linenumber" name="L210" href="#L210">210</a>         }
+<a class="jxr_linenumber" name="L211" href="#L211">211</a>     }
+<a class="jxr_linenumber" name="L212" href="#L212">212</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2025 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

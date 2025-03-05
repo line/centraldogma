@@ -572,15 +572,15 @@
 <a class="jxr_linenumber" name="L564" href="#L564">564</a>     }
 <a class="jxr_linenumber" name="L565" href="#L565">565</a> 
 <a class="jxr_linenumber" name="L566" href="#L566">566</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L567" href="#L567">567</a> <em class="jxr_javadoccomment">     * Adds the {@link RepositoryListener} that gets notified whenever changes matching with</em>
-<a class="jxr_linenumber" name="L568" href="#L568">568</a> <em class="jxr_javadoccomment">     * {@link RepositoryListener#pathPattern()} are pushed to this {@link Repository}.</em>
-<a class="jxr_linenumber" name="L569" href="#L569">569</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L570" href="#L570">570</a>     <strong class="jxr_keyword">void</strong> addListener(<a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/RepositoryListener.html">RepositoryListener</a> listener);
-<a class="jxr_linenumber" name="L571" href="#L571">571</a> 
-<a class="jxr_linenumber" name="L572" href="#L572">572</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L573" href="#L573">573</a> <em class="jxr_javadoccomment">     * Removes the {@link RepositoryListener} from this {@link Repository}.</em>
+<a class="jxr_linenumber" name="L567" href="#L567">567</a> <em class="jxr_javadoccomment">     * Executes the specified {@link CacheableCall} in this {@link Repository}.</em>
+<a class="jxr_linenumber" name="L568" href="#L568">568</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L569" href="#L569">569</a>     &lt;T&gt; CompletableFuture&lt;T&gt; execute(CacheableCall&lt;T&gt; cacheableCall);
+<a class="jxr_linenumber" name="L570" href="#L570">570</a> 
+<a class="jxr_linenumber" name="L571" href="#L571">571</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L572" href="#L572">572</a> <em class="jxr_javadoccomment">     * Adds the {@link RepositoryListener} that gets notified whenever changes matching with</em>
+<a class="jxr_linenumber" name="L573" href="#L573">573</a> <em class="jxr_javadoccomment">     * {@link RepositoryListener#pathPattern()} are pushed to this {@link Repository}.</em>
 <a class="jxr_linenumber" name="L574" href="#L574">574</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L575" href="#L575">575</a>     <strong class="jxr_keyword">void</strong> removeListener(<a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/RepositoryListener.html">RepositoryListener</a> listener);
+<a class="jxr_linenumber" name="L575" href="#L575">575</a>     <strong class="jxr_keyword">void</strong> addListener(<a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/RepositoryListener.html">RepositoryListener</a> listener);
 <a class="jxr_linenumber" name="L576" href="#L576">576</a> }
 </pre>
 <hr/>

@@ -43,20 +43,35 @@
 <a class="jxr_linenumber" name="L35" href="#L35">35</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">interface</strong> <a href="../../../../../com/linecorp/centraldogma/server/mirror/MirrorListener.html">MirrorListener</a> {
 <a class="jxr_linenumber" name="L36" href="#L36">36</a>  
 <a class="jxr_linenumber" name="L37" href="#L37">37</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L38" href="#L38">38</a>  <em class="jxr_javadoccomment">     * Invoked when the {@link Mirror} operation is started.</em>
+<a class="jxr_linenumber" name="L38" href="#L38">38</a>  <em class="jxr_javadoccomment">     * Invoked when a new {@link Mirror} is created.</em>
 <a class="jxr_linenumber" name="L39" href="#L39">39</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L40" href="#L40">40</a>      <strong class="jxr_keyword">void</strong> onStart(<a href="../../../../../com/linecorp/centraldogma/server/mirror/MirrorTask.html">MirrorTask</a> mirror);
+<a class="jxr_linenumber" name="L40" href="#L40">40</a>      <strong class="jxr_keyword">void</strong> onCreate(<a href="../../../../../com/linecorp/centraldogma/server/mirror/Mirror.html">Mirror</a> mirror, <a href="../../../../../com/linecorp/centraldogma/server/mirror/MirrorAccessController.html">MirrorAccessController</a> accessController);
 <a class="jxr_linenumber" name="L41" href="#L41">41</a>  
 <a class="jxr_linenumber" name="L42" href="#L42">42</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L43" href="#L43">43</a>  <em class="jxr_javadoccomment">     * Invoked when the {@link Mirror} operation is completed.</em>
+<a class="jxr_linenumber" name="L43" href="#L43">43</a>  <em class="jxr_javadoccomment">     * Invoked when the {@link Mirror} is updated.</em>
 <a class="jxr_linenumber" name="L44" href="#L44">44</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L45" href="#L45">45</a>      <strong class="jxr_keyword">void</strong> onComplete(<a href="../../../../../com/linecorp/centraldogma/server/mirror/MirrorTask.html">MirrorTask</a> mirror, <a href="../../../../../com/linecorp/centraldogma/server/mirror/MirrorResult.html">MirrorResult</a> result);
+<a class="jxr_linenumber" name="L45" href="#L45">45</a>      <strong class="jxr_keyword">void</strong> onUpdate(<a href="../../../../../com/linecorp/centraldogma/server/mirror/Mirror.html">Mirror</a> mirror, <a href="../../../../../com/linecorp/centraldogma/server/mirror/MirrorAccessController.html">MirrorAccessController</a> accessController);
 <a class="jxr_linenumber" name="L46" href="#L46">46</a>  
 <a class="jxr_linenumber" name="L47" href="#L47">47</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L48" href="#L48">48</a>  <em class="jxr_javadoccomment">     * Invoked when the {@link Mirror} operation is failed.</em>
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>  <em class="jxr_javadoccomment">     * Invoked when the {@link Mirror} operation is disallowed.</em>
 <a class="jxr_linenumber" name="L49" href="#L49">49</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L50" href="#L50">50</a>      <strong class="jxr_keyword">void</strong> onError(<a href="../../../../../com/linecorp/centraldogma/server/mirror/MirrorTask.html">MirrorTask</a> mirror, Throwable cause);
-<a class="jxr_linenumber" name="L51" href="#L51">51</a>  }
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>      <strong class="jxr_keyword">void</strong> onDisallowed(<a href="../../../../../com/linecorp/centraldogma/server/mirror/Mirror.html">Mirror</a> mirror);
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>  
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>  <em class="jxr_javadoccomment">     * Invoked when the {@link Mirror} operation is started.</em>
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>      <strong class="jxr_keyword">void</strong> onStart(<a href="../../../../../com/linecorp/centraldogma/server/mirror/MirrorTask.html">MirrorTask</a> mirror);
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>  
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>  <em class="jxr_javadoccomment">     * Invoked when the {@link Mirror} operation is completed.</em>
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>      <strong class="jxr_keyword">void</strong> onComplete(<a href="../../../../../com/linecorp/centraldogma/server/mirror/MirrorTask.html">MirrorTask</a> mirror, <a href="../../../../../com/linecorp/centraldogma/server/mirror/MirrorResult.html">MirrorResult</a> result);
+<a class="jxr_linenumber" name="L61" href="#L61">61</a>  
+<a class="jxr_linenumber" name="L62" href="#L62">62</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>  <em class="jxr_javadoccomment">     * Invoked when the {@link Mirror} operation is failed.</em>
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L65" href="#L65">65</a>      <strong class="jxr_keyword">void</strong> onError(<a href="../../../../../com/linecorp/centraldogma/server/mirror/MirrorTask.html">MirrorTask</a> mirror, Throwable cause);
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>  }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2025 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

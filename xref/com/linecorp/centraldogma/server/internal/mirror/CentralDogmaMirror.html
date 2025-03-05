@@ -50,8 +50,8 @@
 <a class="jxr_linenumber" name="L42" href="#L42">42</a>                                URI remoteRepoUri, String remoteProject, String remoteRepo, String remotePath,
 <a class="jxr_linenumber" name="L43" href="#L43">43</a>                                @Nullable String gitignore, @Nullable String zone) {
 <a class="jxr_linenumber" name="L44" href="#L44">44</a>          <em class="jxr_comment">// Central Dogma has no notion of 'branch', so we just pass an empty string as a placeholder.</em>
-<a class="jxr_linenumber" name="L45" href="#L45">45</a>          <strong class="jxr_keyword">super</strong>(id, enabled, schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath,
-<a class="jxr_linenumber" name="L46" href="#L46">46</a>                <span class="jxr_string">""</span>, gitignore, zone);
+<a class="jxr_linenumber" name="L45" href="#L45">45</a>          <strong class="jxr_keyword">super</strong>(id, enabled, schedule, direction, credential, localRepo, localPath,
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>                remoteRepoUri, remotePath, <span class="jxr_string">""</span>, gitignore, zone);
 <a class="jxr_linenumber" name="L47" href="#L47">47</a>  
 <a class="jxr_linenumber" name="L48" href="#L48">48</a>          <strong class="jxr_keyword">this</strong>.remoteProject = requireNonNull(remoteProject, <span class="jxr_string">"remoteProject"</span>);
 <a class="jxr_linenumber" name="L49" href="#L49">49</a>          <strong class="jxr_keyword">this</strong>.remoteRepo = requireNonNull(remoteRepo, <span class="jxr_string">"remoteRepo"</span>);
