@@ -259,11 +259,6 @@ final class CachingRepository implements Repository {
         repo.addListener(listener);
     }
 
-    @Override
-    public void removeListener(RepositoryListener listener) {
-        repo.removeListener(listener);
-    }
-
     private static Executor executor() {
         return RequestContext.mapCurrent(RequestContext::eventLoop, CommonPools.workerGroup()::next);
     }
