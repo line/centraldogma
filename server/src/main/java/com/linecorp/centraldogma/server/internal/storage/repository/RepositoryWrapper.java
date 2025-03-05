@@ -36,6 +36,7 @@ import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -213,6 +214,11 @@ public class RepositoryWrapper implements Repository {
     @Override
     public <T> CompletableFuture<MergedEntry<T>> mergeFiles(Revision revision, MergeQuery<T> query) {
         return unwrap().mergeFiles(revision, query);
+    }
+
+    @Override
+    public <T> CompletableFuture<T> execute(CacheableCall<T> cacheableCall) {
+        return unwrap().execute(cacheableCall);
     }
 
     @Override

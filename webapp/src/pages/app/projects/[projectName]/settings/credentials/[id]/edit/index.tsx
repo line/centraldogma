@@ -38,6 +38,7 @@ const CredentialEditPage = () => {
 
   const onSubmit = async (credential: CredentialDto, onSuccess: () => void) => {
     try {
+      credential.name = `projects/${projectName}/credentials/${credential.id}`;
       const response = await updateCredential({ projectName, id, credential }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
