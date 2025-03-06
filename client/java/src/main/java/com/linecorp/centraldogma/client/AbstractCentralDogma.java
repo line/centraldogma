@@ -25,6 +25,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
+import javax.annotation.Nullable;
+
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
@@ -36,12 +38,16 @@ import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * A skeletal {@link CentralDogma} implementation.
  */
 public abstract class AbstractCentralDogma implements CentralDogma {
 
     private final ScheduledExecutorService blockingTaskExecutor;
+    @Nullable
+    private final MeterRegistry meterRegistry;
 
     /**
      * Creates a new instance.
@@ -50,8 +56,10 @@ public abstract class AbstractCentralDogma implements CentralDogma {
      *                             tasks related with automatic retries and invoking the callbacks for
      *                             watched changes.
      */
-    protected AbstractCentralDogma(ScheduledExecutorService blockingTaskExecutor) {
+    protected AbstractCentralDogma(ScheduledExecutorService blockingTaskExecutor,
+                                   @Nullable MeterRegistry meterRegistry) {
         this.blockingTaskExecutor = requireNonNull(blockingTaskExecutor, "blockingTaskExecutor");
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -66,7 +74,8 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     public CentralDogmaRepository forRepo(String projectName, String repositoryName) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repositoryName, "repositoryName");
-        return new CentralDogmaRepository(this, projectName, repositoryName, blockingTaskExecutor);
+        return new CentralDogmaRepository(this, projectName, repositoryName, blockingTaskExecutor,
+                                          meterRegistry);
     }
 
     @Override
