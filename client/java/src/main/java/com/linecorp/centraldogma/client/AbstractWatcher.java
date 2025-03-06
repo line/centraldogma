@@ -159,10 +159,11 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         if (meterRegistry != null) {
             meterRegistry.gauge(LATEST_REVISION_METER_NAME, tags, this,
                                 watcher -> {
-                                    if (watcher.latest == null) {
+                                    final Latest<T> latest = watcher.latest;
+                                    if (latest == null) {
                                         return -1;
                                     } else {
-                                        return watcher.latest.revision().major();
+                                        return latest.revision().major();
                                     }
                                 });
             TimeGauge.builder(LATEST_RECEIVED_TIME_METER_NAME, this, TimeUnit.SECONDS,
