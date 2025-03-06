@@ -42,6 +42,7 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
     private final int maxNumFilesPerMirror;
     private final long maxNumBytesPerMirror;
     private final boolean zonePinned;
+    private final boolean runMigration;
 
     /**
      * Creates a new instance.
@@ -71,6 +72,28 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
         checkArgument(this.maxNumBytesPerMirror > 0,
                       "maxNumBytesPerMirror: %s (expected: > 0)", this.maxNumBytesPerMirror);
         this.zonePinned = zonePinned;
+        runMigration = true;
+    }
+
+    /**
+     * Creates a new instance.
+     *
+     * @deprecated Use {@link #MirroringServicePluginConfig(Boolean, Integer, Integer, Long, boolean)} instead.
+     */
+    @Deprecated
+    public MirroringServicePluginConfig(
+            @Nullable boolean enabled,
+            @Nullable Integer numMirroringThreads,
+            @Nullable Integer maxNumFilesPerMirror,
+            @Nullable Long maxNumBytesPerMirror,
+            boolean zonePinned,
+            boolean runMigration) {
+        super(enabled);
+        this.numMirroringThreads = firstNonNull(numMirroringThreads, DEFAULT_NUM_MIRRORING_THREADS);
+        this.maxNumFilesPerMirror = firstNonNull(maxNumFilesPerMirror, DEFAULT_MAX_NUM_FILES_PER_MIRROR);
+        this.maxNumBytesPerMirror = firstNonNull(maxNumBytesPerMirror, DEFAULT_MAX_NUM_BYTES_PER_MIRROR);
+        this.zonePinned = zonePinned;
+        this.runMigration = runMigration;
     }
 
     /**
@@ -103,6 +126,16 @@ public final class MirroringServicePluginConfig extends AbstractPluginConfig {
     @JsonProperty("zonePinned")
     public boolean zonePinned() {
         return zonePinned;
+    }
+
+    /**
+     * Returns whether the migration should be run.
+     *
+     * @deprecated Will be removed after the migration is done.
+     */
+    @Deprecated
+    public boolean runMigration() {
+        return runMigration;
     }
 
     @Override

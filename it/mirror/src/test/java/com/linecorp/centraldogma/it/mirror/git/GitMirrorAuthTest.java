@@ -17,6 +17,8 @@
 package com.linecorp.centraldogma.it.mirror.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -40,7 +42,6 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
-import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -106,10 +107,10 @@ class GitMirrorAuthTest {
         client.createRepository(projName, "main").join();
 
         // Add /credentials/{id}.json and /mirrors/{id}.json
-        final String credentialId = credential.get("id").asText();
+        final String credentialName = credential.get("name").asText();
         client.forRepo(projName, Project.REPO_META)
               .commit("Add a mirror",
-                      Change.ofJsonUpsert(DefaultMetaRepository.credentialFile(credentialId), credential),
+                      Change.ofJsonUpsert(credentialFile(credentialName), credential),
                       Change.ofJsonUpsert("/mirrors/main.json",
                                           '{' +
                                           "  \"id\": \"main\"," +
@@ -119,7 +120,7 @@ class GitMirrorAuthTest {
                                           "  \"localRepo\": \"main\"," +
                                           "  \"localPath\": \"/\"," +
                                           "  \"remoteUri\": \"" + gitUri + "\"," +
-                                          "  \"credentialId\": \"" + credentialId + '"' +
+                                          "  \"credentialName\": \"" + credentialName + '"' +
                                           '}'))
               .push().join();
 
@@ -136,9 +137,8 @@ class GitMirrorAuthTest {
                     "git+https://github.com/line/centraldogma-authtest.git",
                     Jackson.readTree(
                             '{' +
-                            "  \"id\": \"password-id\"," +
-                            "  \"enabled\": true," +
-                            "  \"type\": \"password\"," +
+                            "  \"name\": \"" + credentialName("https", "password-id") + "\"," +
+                            "  \"type\": \"PASSWORD\"," +
                             "  \"username\": \"" + GITHUB_USERNAME + "\"," +
                             "  \"password\": \"" + Jackson.escapeText(GITHUB_PASSWORD) + '"' +
                             '}')));
@@ -150,9 +150,8 @@ class GitMirrorAuthTest {
                     "git+https://github.com/line/centraldogma-authtest.git",
                     Jackson.readTree(
                             '{' +
-                            "  \"id\": \"access-token-id\"," +
-                            "  \"enabled\": true," +
-                            "  \"type\": \"access_token\"," +
+                            "  \"name\": \"" + credentialName("https", "access-token-id") + "\"," +
+                            "  \"type\": \"ACCESS_TOKEN\"," +
                             "  \"accessToken\": \"" + Jackson.escapeText(GITHUB_ACCESS_TOKEN) + '"' +
                             '}')));
         }
@@ -208,9 +207,8 @@ class GitMirrorAuthTest {
                 "git+ssh://github.com/line/centraldogma-authtest.git",
                 Jackson.readTree(
                         '{' +
-                        "  \"id\": \"" + privateKeyFile + "\"," +
-                        "  \"enabled\": true," +
-                        "  \"type\": \"public_key\"," +
+                        "  \"name\": \"" + credentialName(privateKeyFile, privateKeyFile) + "\"," +
+                        "  \"type\": \"SSH_KEY\"," +
                         "  \"username\": \"git\"," +
                         "  \"publicKey\": \"" + Jackson.escapeText(publicKey) + "\"," +
                         "  \"privateKey\": \"" + Jackson.escapeText(privateKey) + "\"," +

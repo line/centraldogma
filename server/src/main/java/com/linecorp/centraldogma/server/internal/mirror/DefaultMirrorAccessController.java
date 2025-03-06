@@ -114,8 +114,7 @@ public final class DefaultMirrorAccessController implements MirrorAccessControll
                        .collect(toImmutableList());
             for (HasRevision<MirrorAccessControl> entity : sorted) {
                 try {
-                    if (repoUri.equals(entity.object().targetPattern()) ||
-                        repoUri.matches(entity.object().targetPattern())) {
+                    if (matchesRepoUri(repoUri, entity)) {
                         return entity.object().allow();
                     }
                 } catch (Exception e) {
@@ -142,9 +141,9 @@ public final class DefaultMirrorAccessController implements MirrorAccessControll
                     acl.stream()
                        .sorted(AccessControlComparator.INSTANCE)
                        .collect(toImmutableList());
-            return Streams.stream(repoUris).collect(toImmutableMap(uri -> uri, uri -> {
+            return Streams.stream(repoUris).distinct().collect(toImmutableMap(uri -> uri, uri -> {
                 for (HasRevision<MirrorAccessControl> entity : sorted) {
-                    if (uri.matches(entity.object().targetPattern())) {
+                    if (matchesRepoUri(uri, entity)) {
                         return entity.object().allow();
                     }
                 }
@@ -152,6 +151,16 @@ public final class DefaultMirrorAccessController implements MirrorAccessControll
                 return true;
             }));
         });
+    }
+
+    private static boolean matchesRepoUri(String repoUri, HasRevision<MirrorAccessControl> entity) {
+        final String targetPattern = entity.object().targetPattern();
+        try {
+            return repoUri.equals(targetPattern) || repoUri.matches(targetPattern);
+        } catch (Exception e) {
+            logger.warn("Failed to match the target pattern: {}", targetPattern, e);
+            return false;
+        }
     }
 
     public CompletableFuture<Void> delete(String id, Author author) {

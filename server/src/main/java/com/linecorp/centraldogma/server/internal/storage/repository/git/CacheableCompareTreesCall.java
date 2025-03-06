@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.logger;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -24,24 +26,26 @@ import javax.annotation.Nullable;
 import org.eclipse.jgit.attributes.Attribute;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.revwalk.RevTree;
+import org.eclipse.jgit.treewalk.filter.TreeFilter;
 
 import com.google.common.base.MoreObjects.ToStringHelper;
 
-import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
-import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.AbstractCacheableCall;
 
-final class CacheableCompareTreesCall extends CacheableCall<List<DiffEntry>> {
+final class CacheableCompareTreesCall extends AbstractCacheableCall<List<DiffEntry>> {
 
     private static final int SHA1_LEN = 20;
 
+    private final GitRepository repo;
     @Nullable
     private final RevTree treeA;
     @Nullable
     private final RevTree treeB;
     private final int hashCode;
 
-    CacheableCompareTreesCall(Repository repo, @Nullable RevTree treeA, @Nullable RevTree treeB) {
+    CacheableCompareTreesCall(GitRepository repo, @Nullable RevTree treeA, @Nullable RevTree treeB) {
         super(repo);
+        this.repo = repo;
 
         this.treeA = treeA;
         this.treeB = treeB;
@@ -49,7 +53,7 @@ final class CacheableCompareTreesCall extends CacheableCall<List<DiffEntry>> {
     }
 
     @Override
-    protected int weigh(List<DiffEntry> value) {
+    public int weigh(List<DiffEntry> value) {
         int weight = SHA1_LEN * 2;
         for (DiffEntry e : value) {
             if (e.getOldId() != null) {
@@ -82,7 +86,9 @@ final class CacheableCompareTreesCall extends CacheableCall<List<DiffEntry>> {
      */
     @Override
     public CompletableFuture<List<DiffEntry>> execute() {
-        throw new IllegalStateException();
+        logger.debug("Cache miss: {}", this);
+        final List<DiffEntry> diffEntries = repo.blockingCompareTreesUncached(treeA, treeB, TreeFilter.ALL);
+        return CompletableFuture.completedFuture(diffEntries);
     }
 
     @Override

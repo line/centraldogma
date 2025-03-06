@@ -40,7 +40,7 @@ import { useForm } from 'react-hook-form';
 import React, { useState } from 'react';
 import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
 import FieldErrorMessage from 'dogma/common/components/form/FieldErrorMessage';
-import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
+import { CredentialDto, CredentialType } from 'dogma/features/project/settings/credentials/CredentialDto';
 import { FiBox } from 'react-icons/fi';
 import { GoRepo } from 'react-icons/go';
 
@@ -52,16 +52,16 @@ interface CredentialFormProps {
   isWaitingResponse: boolean;
 }
 
-interface CredentialType {
-  type: string;
+interface CredentialTypeWithDescription {
+  type: CredentialType;
   description: string;
 }
 
-const CREDENTIAL_TYPES: CredentialType[] = [
-  { type: 'public_key', description: 'SSH public key' },
-  { type: 'password', description: 'Password-based' },
-  { type: 'access_token', description: 'Access token-based' },
-  { type: 'none', description: 'No authentication' },
+const CREDENTIAL_TYPES: CredentialTypeWithDescription[] = [
+  { type: 'SSH_KEY', description: 'SSH key' },
+  { type: 'PASSWORD', description: 'Password-based' },
+  { type: 'ACCESS_TOKEN', description: 'Access token-based' },
+  { type: 'NONE', description: 'No authentication' },
 ];
 
 const CredentialForm = ({
@@ -88,18 +88,18 @@ const CredentialForm = ({
    */
   function filterCredential(credential: CredentialDto): CredentialDto {
     const type = credential.type;
-    if (type !== 'public_key') {
+    if (type !== 'SSH_KEY') {
       credential.publicKey = undefined;
       credential.privateKey = undefined;
       credential.passphrase = undefined;
     }
-    if (type != 'password') {
+    if (type !== 'PASSWORD') {
       credential.password = undefined;
     }
-    if (type != 'access_token') {
+    if (type != 'ACCESS_TOKEN') {
       credential.accessToken = undefined;
     }
-    if (type !== 'public_key' && type !== 'password') {
+    if (type !== 'SSH_KEY' && type !== 'PASSWORD') {
       credential.username = undefined;
     }
     return credential;
@@ -173,7 +173,7 @@ const CredentialForm = ({
           <Divider />
           <Spacer />
 
-          {credentialType === 'public_key' && (
+          {credentialType === 'SSH_KEY' && (
             <>
               <FormControl isRequired isInvalid={errors.username != null}>
                 <FormLabel>
@@ -242,7 +242,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
             </>
           )}
 
-          {credentialType === 'password' && (
+          {credentialType === 'PASSWORD' && (
             <>
               <FormControl isRequired isInvalid={errors.username != null}>
                 <FormLabel>
@@ -272,7 +272,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
             </>
           )}
 
-          {credentialType === 'access_token' && (
+          {credentialType === 'ACCESS_TOKEN' && (
             <FormControl isRequired isInvalid={errors.accessToken != null}>
               <FormLabel>
                 <LabelledIcon icon={GoKey} text="Access Token" />

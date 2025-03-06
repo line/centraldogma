@@ -45,16 +45,6 @@ const CredentialList = <Data extends object>({
         },
         header: 'Authentication Type',
       }),
-      columnHelper.accessor((row: CredentialDto) => row.enabled, {
-        cell: (info) => {
-          if (info.getValue()) {
-            return 'Active';
-          } else {
-            return 'Inactive';
-          }
-        },
-        header: 'Status',
-      }),
       columnHelper.accessor((row: CredentialDto) => row.id, {
         cell: (info) => (
           <DeleteCredential

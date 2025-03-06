@@ -37,6 +37,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.internal.storage.repository.git.Watch.WatchListener;
 
 final class CommitWatchers {
 
@@ -45,8 +46,9 @@ final class CommitWatchers {
     @VisibleForTesting
     final Map<PathPatternFilter, Set<Watch>> watchesMap = new WatcherMap(8192);
 
-    void add(Revision lastKnownRev, String pathPattern, CompletableFuture<Revision> future) {
-        add0(PathPatternFilter.of(pathPattern), new Watch(lastKnownRev, future));
+    void add(Revision lastKnownRev, String pathPattern,
+             @Nullable CompletableFuture<Revision> future, @Nullable WatchListener listener) {
+        add0(PathPatternFilter.of(pathPattern), new Watch(lastKnownRev, future, listener));
     }
 
     private void add0(final PathPatternFilter pathPattern, Watch watch) {
@@ -57,8 +59,12 @@ final class CommitWatchers {
             watches.add(watch);
         }
 
-        watch.future.whenComplete((revision, cause) -> {
-            if (watch.removed) {
+        final CompletableFuture<Revision> future = watch.future();
+        if (future == null) {
+            return;
+        }
+        future.whenComplete((revision, cause) -> {
+            if (watch.wasRemoved()) {
                 return;
             }
 
@@ -92,7 +98,7 @@ final class CommitWatchers {
                 final Set<Watch> watches = entry.getValue();
                 for (final Iterator<Watch> i = watches.iterator(); i.hasNext();) {
                     final Watch w = i.next();
-                    final Revision lastKnownRevision = w.lastKnownRevision;
+                    final Revision lastKnownRevision = w.lastKnownRevision();
                     if (lastKnownRevision.compareTo(revision) < 0) {
                         eligibleWatches = move(eligibleWatches, i, w);
                     } else {
@@ -113,7 +119,7 @@ final class CommitWatchers {
         // Notify the matching promises found above.
         final int numEligiblePromises = eligibleWatches.size();
         for (int i = 0; i < numEligiblePromises; i++) {
-            eligibleWatches.get(i).future.complete(revision);
+            eligibleWatches.get(i).notify(revision);
         }
     }
 
@@ -123,7 +129,12 @@ final class CommitWatchers {
             for (final Set<Watch> watches : watchesMap.values()) {
                 for (final Iterator<Watch> i = watches.iterator(); i.hasNext();) {
                     final Watch w = i.next();
-                    eligibleWatches = move(eligibleWatches, i, w);
+                    if (!w.canRemove()) {
+                        // ResponseListener does not need to propagate errors when closing.
+                        i.remove();
+                    } else {
+                        eligibleWatches = move(eligibleWatches, i, w);
+                    }
                 }
             }
         }
@@ -136,13 +147,15 @@ final class CommitWatchers {
         final CentralDogmaException cause = causeSupplier.get();
         final int numEligiblePromises = eligibleWatches.size();
         for (int i = 0; i < numEligiblePromises; i++) {
-            eligibleWatches.get(i).future.completeExceptionally(cause);
+            eligibleWatches.get(i).notifyFailure(cause);
         }
     }
 
     private static List<Watch> move(@Nullable List<Watch> watches, Iterator<Watch> i, Watch w) {
-        i.remove();
-        w.removed = true;
+        if (w.canRemove()) {
+            i.remove();
+            w.remove();
+        }
 
         if (watches == null) {
             watches = new ArrayList<>();
@@ -173,18 +186,6 @@ final class CommitWatchers {
         protected boolean removeEldestEntry(Entry<PathPatternFilter, Set<Watch>> eldest) {
             // Remove only the entries with empty watchers.
             return size() > maxEntries && eldest.getValue().isEmpty();
-        }
-    }
-
-    private static final class Watch {
-
-        final Revision lastKnownRevision;
-        final CompletableFuture<Revision> future;
-        volatile boolean removed;
-
-        Watch(Revision lastKnownRevision, CompletableFuture<Revision> future) {
-            this.lastKnownRevision = lastKnownRevision;
-            this.future = future;
         }
     }
 }
