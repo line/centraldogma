@@ -26,6 +26,8 @@ import java.util.concurrent.CompletionStage;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 
@@ -39,6 +41,8 @@ import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaReplicationExtension;
 
 class ZoneLeaderPluginTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(ZoneLeaderPluginTest.class);
 
     private static final List<ZoneLeaderTestPlugin> plugins = new ArrayList<>();
     private static final int NUM_REPLICAS = 9;
@@ -135,6 +139,7 @@ class ZoneLeaderPluginTest {
 
         @Override
         public CompletionStage<Void> stop(PluginContext context) {
+            logger.debug("Stopping test plugin on server {}", serverId);
             started = false;
             return UnmodifiableFuture.completedFuture(null);
         }
