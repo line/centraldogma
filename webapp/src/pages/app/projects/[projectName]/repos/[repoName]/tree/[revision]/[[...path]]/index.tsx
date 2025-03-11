@@ -16,9 +16,9 @@ import { Deferred } from 'dogma/common/components/Deferred';
 import { FcOpenedFolder } from 'react-icons/fc';
 import { GoRepo } from 'react-icons/go';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
-import { WithProjectRole } from 'dogma/features/auth/ProjectRole';
 import { FaHistory } from 'react-icons/fa';
 import { makeTraversalFileLinks, toFilePath } from 'dogma/util/path-util';
+import { WithRepositoryRole } from 'dogma/features/auth/RepositoryRole';
 
 const RepositoryDetailPage = () => {
   const router = useRouter();
@@ -143,7 +143,7 @@ cat ${project}/${repo}${path}`;
                 History
               </Button>
               {projectName === 'dogma' ? null : (
-                <WithProjectRole projectName={projectName} roles={['OWNER']}>
+                <WithRepositoryRole projectName={projectName} repoName={repoName} roles={['ADMIN']}>
                   {() => (
                     <MetadataButton
                       href={`/app/projects/${projectName}/repos/${repoName}/settings`}
@@ -151,7 +151,7 @@ cat ${project}/${repo}${path}`;
                       text={'Repository Settings'}
                     />
                   )}
-                </WithProjectRole>
+                </WithRepositoryRole>
               )}
               <Button
                 as={Link}
