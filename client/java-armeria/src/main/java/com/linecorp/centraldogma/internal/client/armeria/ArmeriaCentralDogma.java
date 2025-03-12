@@ -111,6 +111,8 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private static final MediaType JSON_PATCH_UTF8 = MediaType.JSON_PATCH.withCharset(StandardCharsets.UTF_8);
@@ -145,8 +147,9 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     private final SafeCloseable safeCloseable;
 
     public ArmeriaCentralDogma(ScheduledExecutorService blockingTaskExecutor,
-                               WebClient client, String accessToken, SafeCloseable safeCloseable) {
-        super(blockingTaskExecutor);
+                               WebClient client, String accessToken, SafeCloseable safeCloseable,
+                               @Nullable MeterRegistry meterRegistry) {
+        super(blockingTaskExecutor, meterRegistry);
         this.client = requireNonNull(client, "client");
         authorization = "Bearer " + requireNonNull(accessToken, "accessToken");
         this.safeCloseable = safeCloseable;
