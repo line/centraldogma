@@ -32,6 +32,7 @@ import com.google.common.collect.ImmutableList;
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.WebClientBuilder;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.auth.AuthToken;
@@ -109,9 +110,9 @@ class CredentialServiceV1Test {
             final CreateCredentialRequest request = requests.get(i);
             final ResponseEntity<PushResultDto> creationResponse =
                     client.prepare()
-                          .post(projectLevel ? "/api/v1/projects/{proj}/credentials"
-                                             : "/api/v1/projects/{proj}/repos/" + BAR_REPO + "/credentials")
-                          .pathParam("proj", FOO_PROJ)
+                          .post(projectLevel ? "/api/v1/projects/" + FOO_PROJ + "/credentials"
+                                             : "/api/v1/projects/" + FOO_PROJ + "/repos/" +
+                                               BAR_REPO + "/credentials")
                           .contentJson(request)
                           .responseTimeoutMillis(0)
                           .asJson(PushResultDto.class)
@@ -153,6 +154,18 @@ class CredentialServiceV1Test {
             } else {
                 throw new AssertionError("Unexpected credential type: " + credential.getClass().getName());
             }
+        }
+
+        for (int i = 0; i < requests.size(); i++) {
+            final CreateCredentialRequest request = requests.get(i);
+            final AggregatedHttpResponse deletionResponse =
+                    client.prepare()
+                          .delete(projectLevel ? "/api/v1/projects/" + FOO_PROJ +
+                                                 "/credentials/" + request.credentialId()
+                                               : "/api/v1/projects/" + FOO_PROJ + "/repos/" +
+                                                 BAR_REPO + "/credentials/" + request.credentialId())
+                          .execute();
+            assertThat(deletionResponse.status()).isEqualTo(HttpStatus.NO_CONTENT);
         }
     }
 

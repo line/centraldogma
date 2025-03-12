@@ -134,7 +134,7 @@ const MirrorList = <Data extends object>({ projectName, repoName }: MirrorListPr
               projectName={projectName}
               repoName={info.row.original.localRepo}
               id={info.getValue()}
-              deleteMirror={(projectName, id) => deleteMirror({ projectName, id }).unwrap()}
+              deleteMirror={(projectName, repoName, id) => deleteMirror({ projectName, repoName, id }).unwrap()}
               isLoading={isLoading}
             />
           </HStack>

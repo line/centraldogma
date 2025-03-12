@@ -61,7 +61,6 @@ const SettingView = ({ currentTab, children }: SettingsViewProps) => {
       <Tabs variant="enclosed-colored" size="lg" index={tabIndex}>
         <TabList>
           {TABS.map((tab) => {
-            console.log('tab', tab);
             if (tab.admin && !user?.systemAdmin) {
               return null;
             }

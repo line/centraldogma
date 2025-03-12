@@ -40,7 +40,6 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.CredentialUtil;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -286,7 +285,7 @@ public class CredentialServiceV1 extends AbstractService {
                                                         Repository repository,
                                                         @Param String id, Author author, User user) {
         final MetaRepository metaRepository = metaRepo(projectName, user);
-        final String credentialFile = CredentialUtil.repoCredentialFile(repository.name(), id);
-        return deleteCredential(projectName, author, metaRepository, credentialFile);
+        return deleteCredential(projectName, author, metaRepository,
+                                credentialName(projectName, repository.name(), id));
     }
 }
