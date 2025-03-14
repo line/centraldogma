@@ -31,11 +31,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
-
-import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -221,8 +218,6 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
         private final ScheduledExecutorService executorService;
         private final String groupName;
         private final KubernetesEndpointAggregator aggregator;
-        @Nullable
-        private ScheduledFuture<?> scheduledFuture;
         private boolean closing;
 
         KubernetesEndpointsUpdater(
@@ -241,27 +236,45 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                     if (endpoints.isEmpty()) {
                         return;
                     }
-                    executorService.execute(this::maybeSchedule);
+                    maybePushK8sEndpoints();
                 }, true);
             }));
         }
 
-        void maybeSchedule() {
-            if (closing || scheduledFuture != null) {
-                return;
-            }
-            // Commit after 3 seconds so that it pushes with all the fetched endpoints in the duration
-            // instead of pushing one by one.
-            scheduledFuture = executorService.schedule(() -> {
-                scheduledFuture = null;
-                if (closing) {
-                    return;
-                }
+        private void maybePushK8sEndpoints() {
+            if (allEndpointGroupsReady()) {
+                // Push only when all the endpoint groups are ready.
                 pushK8sEndpoints();
-            }, 3, TimeUnit.SECONDS);
+            } else {
+                // Schedule it again to prevent the situation where the last endpoint group
+                // is completed exceptionally.
+                executorService.schedule(this::maybePushK8sEndpoints, 3, TimeUnit.SECONDS);
+            }
+        }
+
+        private boolean allEndpointGroupsReady() {
+            for (CompletableFuture<KubernetesEndpointGroup> kubernetesEndpointGroupFuture
+                    : kubernetesEndpointGroupFutures) {
+                if (!kubernetesEndpointGroupFuture.isDone()) {
+                    return false;
+                }
+                if (kubernetesEndpointGroupFuture.isCompletedExceptionally()) {
+                    // Ignore the failed KubernetesEndpointGroup.
+                    continue;
+                }
+                final KubernetesEndpointGroup kubernetesEndpointGroup = kubernetesEndpointGroupFuture.join();
+                if (!kubernetesEndpointGroup.whenReady().isDone()) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private void pushK8sEndpoints() {
+            if (closing) {
+                return;
+            }
+
             logger.debug("Pushing k8s endpoints: {}, group: {}", aggregator.getClusterName(), groupName);
             final ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder =
                     ClusterLoadAssignment.newBuilder().setClusterName(aggregator.getClusterName());
@@ -342,9 +355,6 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
 
         void close() {
             closing = true;
-            if (scheduledFuture != null) {
-                scheduledFuture.cancel(true);
-            }
             kubernetesEndpointGroupFutures.forEach(
                     future -> future.thenAccept(KubernetesEndpointGroup::closeAsync));
         }
