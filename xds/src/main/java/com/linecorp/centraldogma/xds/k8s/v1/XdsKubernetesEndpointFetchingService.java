@@ -285,6 +285,10 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 final KubernetesLocalityLbEndpoints localityLbEndpoints = aggregator.getLocalityLbEndpoints(i);
                 addLocalityLbEndpoints(clusterLoadAssignmentBuilder, future, localityLbEndpoints);
             }
+            if (clusterLoadAssignmentBuilder.getEndpointsCount() == 0) {
+                logger.warn("No endpoints found for {}. group: {}", aggregator.getClusterName(), groupName);
+                return;
+            }
 
             final String json;
             try {
@@ -319,11 +323,13 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder,
                 CompletableFuture<KubernetesEndpointGroup> future,
                 KubernetesLocalityLbEndpoints kubernetesLocalityLbEndpoints) {
-            if (!future.isDone()) {
+            if (!future.isDone() || future.isCompletedExceptionally()) {
                 return;
             }
             final KubernetesEndpointGroup kubernetesEndpointGroup = future.join();
-            if (!kubernetesEndpointGroup.whenReady().isDone()) {
+            final CompletableFuture<List<com.linecorp.armeria.client.Endpoint>> whenReady =
+                    kubernetesEndpointGroup.whenReady();
+            if (!whenReady.isDone() || whenReady.isCompletedExceptionally()) {
                 return;
             }
 
