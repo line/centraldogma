@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.linecorp.centraldogma.server.internal.api.ContentServiceV1.IS_WATCH_REQUEST;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newResponse;
 
 import java.util.Map;
@@ -48,6 +49,7 @@ import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
@@ -143,6 +145,14 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
         if (func != null) {
             ctx.setShouldReportUnloggedExceptions(false);
             return func.apply(ctx, peeledCause);
+        }
+
+        if (peeledCause instanceof ShuttingDownException) {
+            if (Boolean.TRUE.equals(ctx.attr(IS_WATCH_REQUEST))) {
+                ctx.setShouldReportUnloggedExceptions(false);
+                // Use the same status code as handleWatchFailure() in ContentServiceV1.
+                return HttpResponse.of(HttpStatus.NOT_MODIFIED);
+            }
         }
 
         if (peeledCause instanceof IllegalArgumentException) {
