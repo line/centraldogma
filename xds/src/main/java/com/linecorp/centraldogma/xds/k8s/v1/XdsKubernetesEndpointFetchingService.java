@@ -307,13 +307,11 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder,
                 CompletableFuture<KubernetesEndpointGroup> future,
                 KubernetesLocalityLbEndpoints kubernetesLocalityLbEndpoints) {
-            if (!future.isDone() || future.isCompletedExceptionally()) {
+            if (future.isCompletedExceptionally()) {
                 return;
             }
             final KubernetesEndpointGroup kubernetesEndpointGroup = future.join();
-            final CompletableFuture<List<com.linecorp.armeria.client.Endpoint>> whenReady =
-                    kubernetesEndpointGroup.whenReady();
-            if (!whenReady.isDone() || whenReady.isCompletedExceptionally()) {
+            if (kubernetesEndpointGroup.whenReady().isCompletedExceptionally()) {
                 return;
             }
 
