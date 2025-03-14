@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.k8s.v1;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
@@ -28,10 +29,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
 import org.slf4j.Logger;
@@ -39,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.client.kubernetes.endpoints.KubernetesEndpointGroup;
 import com.linecorp.armeria.common.util.Exceptions;
@@ -230,49 +232,33 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             this.groupName = groupName;
             this.aggregator = aggregator;
 
+            CompletableFutures.successfulAsList(kubernetesEndpointGroupFutures, t -> null)
+                              .thenAccept(endpointGroups -> {
+                                  final List<CompletableFuture<List<com.linecorp.armeria.client.Endpoint>>>
+                                          whenReadys = endpointGroups.stream()
+                                                                     .filter(Objects::nonNull)
+                                                                     .map(KubernetesEndpointGroup::whenReady)
+                                                                     .collect(toImmutableList());
+                                  CompletableFutures.successfulAsList(whenReadys, t -> null)
+                                                    .thenAccept(unused -> addListenerToEndpointGroups());
+                              });
+        }
+
+        private void addListenerToEndpointGroups() {
             kubernetesEndpointGroupFutures.forEach(future -> future.thenAccept(kubernetesEndpointGroup -> {
                 kubernetesEndpointGroup.addListener(endpoints -> {
                     if (endpoints.isEmpty()) {
                         return;
                     }
-                    executorService.execute(this::maybePushK8sEndpoints);
+                    executorService.execute(this::pushK8sEndpoints);
                 }, true);
             }));
         }
 
-        private void maybePushK8sEndpoints() {
+        private void pushK8sEndpoints() {
             if (closing) {
                 return;
             }
-            if (allEndpointGroupsReady()) {
-                // Push only when all the endpoint groups are ready.
-                pushK8sEndpoints();
-            } else {
-                // Schedule it again to prevent the situation where the last endpoint group
-                // is completed exceptionally.
-                executorService.schedule(this::maybePushK8sEndpoints, 3, TimeUnit.SECONDS);
-            }
-        }
-
-        private boolean allEndpointGroupsReady() {
-            for (CompletableFuture<KubernetesEndpointGroup> kubernetesEndpointGroupFuture
-                    : kubernetesEndpointGroupFutures) {
-                if (!kubernetesEndpointGroupFuture.isDone()) {
-                    return false;
-                }
-                if (kubernetesEndpointGroupFuture.isCompletedExceptionally()) {
-                    // Ignore the failed KubernetesEndpointGroup.
-                    continue;
-                }
-                final KubernetesEndpointGroup kubernetesEndpointGroup = kubernetesEndpointGroupFuture.join();
-                if (!kubernetesEndpointGroup.whenReady().isDone()) {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        private void pushK8sEndpoints() {
             logger.debug("Pushing k8s endpoints: {}, group: {}", aggregator.getClusterName(), groupName);
             final ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder =
                     ClusterLoadAssignment.newBuilder().setClusterName(aggregator.getClusterName());

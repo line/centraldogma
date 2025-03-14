@@ -197,7 +197,7 @@ class AggregatingMultipleKubernetesTest {
                 endpointEntry.revision().forward(1)));
         final Entry<JsonNode> endpointEntry1 = fooGroup.getOrNull(Revision.HEAD, Query.ofJson(
                 K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json")).join();
-        await().untilAsserted(() -> assertThatJson(endpointEntry1.content()).isEqualTo(
+        assertThatJson(endpointEntry1.content()).isEqualTo(
                 '{' +
                 "  \"clusterName\": \"groups/foo/k8s/clusters/foo-k8s-cluster/1\"," +
                 "  \"endpoints\": [ {" +
@@ -250,7 +250,7 @@ class AggregatingMultipleKubernetesTest {
                 "    \"priority\": 1" +
                 "  } ]" +
                 '}'
-        ));
+        );
 
         // Remove service2
         final KubernetesEndpointAggregator aggregator1 =
