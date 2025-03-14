@@ -29,6 +29,8 @@ import javax.annotation.Nullable;
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * Prepares to create a {@link Watcher}.
  */
@@ -50,6 +52,9 @@ public final class WatcherRequest<T> extends WatchOptions {
     private Function<Object, ? extends T> mapper;
     private Executor executor;
 
+    @Nullable
+    private final MeterRegistry meterRegistry;
+
     private long delayOnSuccessMillis = DEFAULT_DELAY_ON_SUCCESS_MILLIS;
     private long initialDelayMillis = DEFAULT_DELAY_ON_SUCCESS_MILLIS * 2;
     private long maxDelayMillis = DEFAULT_MAX_DELAY_MILLIS;
@@ -57,23 +62,24 @@ public final class WatcherRequest<T> extends WatchOptions {
     private double jitterRate = DEFAULT_JITTER_RATE;
 
     WatcherRequest(CentralDogmaRepository centralDogmaRepo, Query<T> query,
-                   ScheduledExecutorService blockingTaskExecutor) {
-        this(centralDogmaRepo, query, null, blockingTaskExecutor);
+                   ScheduledExecutorService blockingTaskExecutor, @Nullable MeterRegistry meterRegistry) {
+        this(centralDogmaRepo, query, null, blockingTaskExecutor, meterRegistry);
     }
 
     WatcherRequest(CentralDogmaRepository centralDogmaRepo, PathPattern pathPattern,
-                   ScheduledExecutorService blockingTaskExecutor) {
-        this(centralDogmaRepo, null, pathPattern, blockingTaskExecutor);
+                   ScheduledExecutorService blockingTaskExecutor, @Nullable MeterRegistry meterRegistry) {
+        this(centralDogmaRepo, null, pathPattern, blockingTaskExecutor, meterRegistry);
     }
 
-    private WatcherRequest(CentralDogmaRepository centralDogmaRepo,
-                           @Nullable Query<T> query, @Nullable PathPattern pathPattern,
-                           ScheduledExecutorService blockingTaskExecutor) {
+    private WatcherRequest(CentralDogmaRepository centralDogmaRepo, @Nullable Query<T> query,
+                           @Nullable PathPattern pathPattern, ScheduledExecutorService blockingTaskExecutor,
+                           @Nullable MeterRegistry meterRegistry) {
         this.centralDogmaRepo = centralDogmaRepo;
         this.query = query;
         this.pathPattern = pathPattern;
         this.blockingTaskExecutor = blockingTaskExecutor;
         executor = blockingTaskExecutor;
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -174,13 +180,13 @@ public final class WatcherRequest<T> extends WatchOptions {
             watcher = new FileWatcher<>(
                     centralDogmaRepo.centralDogma(), blockingTaskExecutor, proName, repoName, query,
                     timeoutMillis(), errorOnEntryNotFound(), mapper, executor, delayOnSuccessMillis,
-                    initialDelayMillis, maxDelayMillis, multiplier, jitterRate);
+                    initialDelayMillis, maxDelayMillis, multiplier, jitterRate, meterRegistry);
         } else {
             assert pathPattern != null;
             watcher = new FilesWatcher<>(
                     centralDogmaRepo.centralDogma(), blockingTaskExecutor, proName, repoName, pathPattern,
                     timeoutMillis(), errorOnEntryNotFound(), mapper, executor, delayOnSuccessMillis,
-                    initialDelayMillis, maxDelayMillis, multiplier, jitterRate);
+                    initialDelayMillis, maxDelayMillis, multiplier, jitterRate, meterRegistry);
         }
         watcher.start();
         return watcher;

@@ -97,7 +97,7 @@ class CustomMirrorListenerTest {
 
         final Mirror mirror = new AbstractMirror("my-mirror-1", true, EVERY_SECOND,
                                                  MirrorDirection.REMOTE_TO_LOCAL,
-                                                 Credential.FALLBACK, r, "/",
+                                                 Credential.NONE, r, "/",
                                                  URI.create("unused://uri"), "/", "", null, null) {
             @Override
             protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes,
@@ -125,7 +125,7 @@ class CustomMirrorListenerTest {
         final DefaultMirrorAccessController ac = new DefaultMirrorAccessController();
         ac.setRepository(repositoryExtension.crudRepository());
         final MirrorSchedulingService service = new MirrorSchedulingService(
-                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null,
+                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1, null, false,
                 ac);
         final CommandExecutor executor = mock(CommandExecutor.class);
         service.start(executor);

@@ -92,14 +92,16 @@ import com.linecorp.centraldogma.internal.thrift.RevisionConverter;
 import com.linecorp.centraldogma.internal.thrift.WatchFileResult;
 import com.linecorp.centraldogma.internal.thrift.WatchRepositoryResult;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 final class LegacyCentralDogma extends AbstractCentralDogma {
 
     private final CentralDogmaService.AsyncIface client;
     private final EndpointGroup endpointGroup;
 
     LegacyCentralDogma(ScheduledExecutorService blockingTaskExecutor, CentralDogmaService.AsyncIface client,
-                       EndpointGroup endpointGroup) {
-        super(blockingTaskExecutor);
+                       EndpointGroup endpointGroup, @Nullable MeterRegistry meterRegistry) {
+        super(blockingTaskExecutor, meterRegistry);
         this.client = requireNonNull(client, "client");
         this.endpointGroup = endpointGroup;
     }
@@ -523,7 +525,8 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Void> whenEndpointReady() {
-        return endpointGroup.whenReady().thenRun(() -> {});
+        return endpointGroup.whenReady().thenRun(() -> {
+        });
     }
 
     private static void validateProjectName(String projectName) {

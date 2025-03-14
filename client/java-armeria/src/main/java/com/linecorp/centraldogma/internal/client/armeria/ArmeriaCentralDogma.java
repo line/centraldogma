@@ -51,6 +51,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -110,6 +111,8 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private static final MediaType JSON_PATCH_UTF8 = MediaType.JSON_PATCH.withCharset(StandardCharsets.UTF_8);
@@ -144,8 +147,9 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     private final SafeCloseable safeCloseable;
 
     public ArmeriaCentralDogma(ScheduledExecutorService blockingTaskExecutor,
-                               WebClient client, String accessToken, SafeCloseable safeCloseable) {
-        super(blockingTaskExecutor);
+                               WebClient client, String accessToken, SafeCloseable safeCloseable,
+                               @Nullable MeterRegistry meterRegistry) {
+        super(blockingTaskExecutor, meterRegistry);
         this.client = requireNonNull(client, "client");
         authorization = "Bearer " + requireNonNull(accessToken, "accessToken");
         this.safeCloseable = safeCloseable;
@@ -1174,6 +1178,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             final JsonNode node = toJson(res, JsonNodeType.OBJECT);
             final JsonNode exceptionNode = node.get("exception");
             final JsonNode messageNode = node.get("message");
+            String message = messageNode.textValue();
 
             if (exceptionNode != null) {
                 final String typeName = exceptionNode.textValue();
@@ -1181,9 +1186,15 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                     final Function<String, CentralDogmaException> exceptionFactory =
                             EXCEPTION_FACTORIES.get(typeName);
                     if (exceptionFactory != null) {
-                        throw exceptionFactory.apply(messageNode.textValue());
+                        throw exceptionFactory.apply(message);
                     }
                 }
+            }
+            if (status == HttpStatus.FORBIDDEN) {
+                if (Strings.isNullOrEmpty(message)) {
+                    message = "Access denied";
+                }
+                throw new PermissionException(message);
             }
         }
 

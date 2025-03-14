@@ -51,6 +51,7 @@ import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -125,11 +126,7 @@ final class CachingRepository implements Repository {
         requireNonNull(options, "options");
 
         final Revision normalizedRevision = normalizeNow(revision);
-        return cache.get(new CacheableFindCall(repo, normalizedRevision, pathPattern, options))
-                    .handleAsync((unused, cause) -> {
-                        throwUnsafelyIfNonNull(cause);
-                        return unused;
-                    }, executor());
+        return execute(new CacheableFindCall(repo, normalizedRevision, pathPattern, options));
     }
 
     @Override
@@ -148,12 +145,7 @@ final class CachingRepository implements Repository {
         // e.g. when from = 2 and to = 4, the same result should be yielded when maxCommits >= 3.
         final int actualMaxCommits = Math.min(
                 maxCommits, Math.abs(range.from().major() - range.to().major()) + 1);
-        return cache.get(new CacheableHistoryCall(repo, range.from(), range.to(),
-                                                  pathPattern, actualMaxCommits))
-                    .handleAsync((unused, cause) -> {
-                        throwUnsafelyIfNonNull(cause);
-                        return unused;
-                    }, executor());
+        return execute(new CacheableHistoryCall(repo, range.from(), range.to(), pathPattern, actualMaxCommits));
     }
 
     @Override
@@ -163,11 +155,7 @@ final class CachingRepository implements Repository {
         requireNonNull(query, "query");
 
         final RevisionRange range = normalizeNow(from, to).toAscending();
-        return cache.get(new CacheableSingleDiffCall(repo, range.from(), range.to(), query))
-                    .handleAsync((unused, cause) -> {
-                        throwUnsafelyIfNonNull(cause);
-                        return unused;
-                    }, executor());
+        return execute(new CacheableSingleDiffCall(repo, range.from(), range.to(), query));
     }
 
     @Override
@@ -179,12 +167,7 @@ final class CachingRepository implements Repository {
         requireNonNull(diffResultType, "diffResultType");
 
         final RevisionRange range = normalizeNow(from, to).toAscending();
-        return cache.get(new CacheableMultiDiffCall(repo, range.from(), range.to(),
-                                                    pathPattern, diffResultType))
-                    .handleAsync((unused, cause) -> {
-                        throwUnsafelyIfNonNull(cause);
-                        return unused;
-                    }, executor());
+        return execute(new CacheableMultiDiffCall(repo, range.from(), range.to(), pathPattern, diffResultType));
     }
 
     @Override
@@ -272,30 +255,20 @@ final class CachingRepository implements Repository {
         requireNonNull(query, "query");
 
         final Revision normalizedRevision = normalizeNow(revision);
-        final CacheableMergeQueryCall key = new CacheableMergeQueryCall(repo, normalizedRevision, query);
-        final CompletableFuture<MergedEntry<?>> value = cache.getIfPresent(key);
-        if (value != null) {
-            return unsafeCast(value.handleAsync((unused, cause) -> {
-                throwUnsafelyIfNonNull(cause);
-                return unused;
-            }, executor()));
-        }
+        return execute(new CacheableMergeQueryCall<>(repo, normalizedRevision, query));
+    }
 
-        return Repository.super.mergeFiles(normalizedRevision, query).thenApply(mergedEntry -> {
-            key.computedValue(mergedEntry);
-            cache.get(key);
-            return mergedEntry;
-        });
+    @Override
+    public <T> CompletableFuture<T> execute(CacheableCall<T> cacheableCall) {
+        return unsafeCast(cache.get(cacheableCall).handleAsync((result, cause) -> {
+            throwUnsafelyIfNonNull(cause);
+            return result;
+        }, executor()));
     }
 
     @Override
     public void addListener(RepositoryListener listener) {
         repo.addListener(listener);
-    }
-
-    @Override
-    public void removeListener(RepositoryListener listener) {
-        repo.removeListener(listener);
     }
 
     private static Executor executor() {

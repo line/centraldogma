@@ -18,7 +18,10 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.credentialFile;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.validateProjectCredentialName;
+import static com.linecorp.centraldogma.internal.CredentialUtil.validateRepoCredentialName;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -34,17 +37,19 @@ import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.credential.Credential;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.metadata.User;
-import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -66,7 +71,7 @@ public class CredentialServiceV1 extends AbstractService {
      *
      * <p>Returns the list of the credentials in the project.
      */
-    @RequiresRepositoryRole(value = RepositoryRole.READ, repository = Project.REPO_META)
+    @RequiresProjectRole(ProjectRole.MEMBER)
     @Get("/projects/{projectName}/credentials")
     public CompletableFuture<List<Credential>> listCredentials(User loginUser,
                                                                @Param String projectName) {
@@ -92,11 +97,12 @@ public class CredentialServiceV1 extends AbstractService {
      *
      * <p>Returns the credential for the ID in the project.
      */
-    @RequiresRepositoryRole(value = RepositoryRole.READ, repository = Project.REPO_META)
+    @RequiresProjectRole(ProjectRole.MEMBER)
     @Get("/projects/{projectName}/credentials/{id}")
-    public CompletableFuture<Credential> getCredentialById(User loginUser,
-                                                           @Param String projectName, @Param String id) {
-        final CompletableFuture<Credential> future = metaRepo(projectName, loginUser).projectCredential(id);
+    public CompletableFuture<Credential> getCredential(User loginUser,
+                                                       @Param String projectName, @Param String id) {
+        final CompletableFuture<Credential> future =
+                metaRepo(projectName, loginUser).credential(credentialName(projectName, id));
         if (loginUser.isSystemAdmin()) {
             return future;
         }
@@ -111,9 +117,15 @@ public class CredentialServiceV1 extends AbstractService {
     @ConsumesJson
     @StatusCode(201)
     @Post("/projects/{projectName}/credentials")
-    @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
+    @RequiresProjectRole(ProjectRole.OWNER)
     public CompletableFuture<PushResultDto> createCredential(@Param String projectName,
-                                                             Credential credential, Author author, User user) {
+                                                             CreateCredentialRequest request,
+                                                             Author author, User user) {
+        final String credentialId = request.credentialId();
+        final String credentialName = credentialName(projectName, credentialId);
+        // Ignore the credential name in the request and set the name with the format of
+        // "projects/{project}/credentials/{credentialId}".
+        final Credential credential = request.credential().withName(credentialName);
         return createOrUpdate(projectName, credential, author, user, false);
     }
 
@@ -124,7 +136,7 @@ public class CredentialServiceV1 extends AbstractService {
      */
     @ConsumesJson
     @Put("/projects/{projectName}/credentials/{id}")
-    @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
+    @RequiresProjectRole(ProjectRole.OWNER)
     public CompletableFuture<PushResultDto> updateCredential(@Param String projectName, @Param String id,
                                                              Credential credential, Author author, User user) {
         checkArgument(id.equals(credential.id()), "The credential ID (%s) can't be updated", id);
@@ -137,22 +149,29 @@ public class CredentialServiceV1 extends AbstractService {
      * <p>Delete the existing credential.
      */
     @Delete("/projects/{projectName}/credentials/{id}")
-    @RequiresRepositoryRole(value = RepositoryRole.WRITE, repository = Project.REPO_META)
+    @RequiresProjectRole(ProjectRole.OWNER)
     public CompletableFuture<Void> deleteCredential(@Param String projectName,
                                                     @Param String id, Author author, User user) {
         final MetaRepository metaRepository = metaRepo(projectName, user);
-        return metaRepository.projectCredential(id).thenCompose(credential -> {
+        return deleteCredential(projectName, author, metaRepository, credentialName(projectName, id));
+    }
+
+    private CompletableFuture<Void> deleteCredential(String projectName, Author author,
+                                                     MetaRepository metaRepository,
+                                                     String credentialName) {
+        return metaRepository.credential(credentialName).thenCompose(credential -> {
             // credential exists.
             final Command<CommitResult> command =
                     Command.push(author, projectName, metaRepository.name(),
-                                 Revision.HEAD, "Delete credential: " + id, "",
-                                 Markup.PLAINTEXT, Change.ofRemoval(credentialFile(id)));
+                                 Revision.HEAD, "Delete credential: " + credentialName, "",
+                                 Markup.PLAINTEXT, Change.ofRemoval(credentialFile(credentialName)));
             return executor().execute(command).thenApply(result -> null);
         });
     }
 
     private CompletableFuture<PushResultDto> createOrUpdate(String projectName, Credential credential,
                                                             Author author, User user, boolean update) {
+        validateProjectCredentialName(projectName, credential.name());
         final CompletableFuture<Command<CommitResult>> future =
                 metaRepo(projectName, user).createCredentialPushCommand(credential, author, update);
         return push(future);
@@ -193,12 +212,12 @@ public class CredentialServiceV1 extends AbstractService {
      */
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Get("/projects/{projectName}/repos/{repoName}/credentials/{id}")
-    public CompletableFuture<Credential> getRepoCredentialById(User loginUser,
-                                                               @Param String projectName,
-                                                               Repository repository,
-                                                               @Param String id) {
+    public CompletableFuture<Credential> getRepoCredential(User loginUser,
+                                                           @Param String projectName,
+                                                           Repository repository,
+                                                           @Param String id) {
         final CompletableFuture<Credential> future =
-                metaRepo(projectName, loginUser).repoCredential(repository.name(), id);
+                metaRepo(projectName, loginUser).credential(credentialName(projectName, repository.name(), id));
         if (loginUser.isSystemAdmin()) {
             return future;
         }
@@ -214,11 +233,19 @@ public class CredentialServiceV1 extends AbstractService {
     @StatusCode(201)
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Post("/projects/{projectName}/repos/{repoName}/credentials")
-    public CompletableFuture<PushResultDto> createRepoCredential(@Param String projectName,
-                                                                 Repository repository,
-                                                                 Credential credential, Author author,
-                                                                 User user) {
-        return createOrUpdateRepo(projectName, repository.name(), credential, author, user, false);
+    public CompletableFuture<PushResultDto> createRepoCredential(
+            @Param String projectName,
+            Repository repository,
+            CreateCredentialRequest request, // TODO(minwoox): Introduce CreateRepoCredentialRequest.
+            Author author,
+            User user) {
+        final String credentialId = request.credentialId();
+        final String repoName = repository.name();
+        final String credentialName = credentialName(projectName, repoName, credentialId);
+        // Ignore the credential name in the request and set the name with the format of
+        // "projects/{project}/repos/{repo}/credentials/{credentialId}".
+        final Credential credential = request.credential().withName(credentialName);
+        return createOrUpdateRepo(projectName, repoName, credential, author, user, false);
     }
 
     /**
@@ -241,6 +268,7 @@ public class CredentialServiceV1 extends AbstractService {
     private CompletableFuture<PushResultDto> createOrUpdateRepo(
             String projectName, String repoName, Credential credential,
             Author author, User user, boolean update) {
+        validateRepoCredentialName(projectName, repoName, credential.name());
         final CompletableFuture<Command<CommitResult>> future =
                 metaRepo(projectName, user).createCredentialPushCommand(repoName, credential, author, update);
         return push(future);
@@ -257,13 +285,7 @@ public class CredentialServiceV1 extends AbstractService {
                                                         Repository repository,
                                                         @Param String id, Author author, User user) {
         final MetaRepository metaRepository = metaRepo(projectName, user);
-        return metaRepository.repoCredential(repository.name(), id).thenCompose(credential -> {
-            // credential exists.
-            final Command<CommitResult> command =
-                    Command.push(author, projectName, metaRepository.name(),
-                                 Revision.HEAD, "Delete credential: " + id, "",
-                                 Markup.PLAINTEXT, Change.ofRemoval(credentialFile(repository.name(), id)));
-            return executor().execute(command).thenApply(result -> null);
-        });
+        return deleteCredential(projectName, author, metaRepository,
+                                credentialName(projectName, repository.name(), id));
     }
 }

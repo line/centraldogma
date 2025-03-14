@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.logger;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -26,10 +27,10 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
+import com.linecorp.centraldogma.server.storage.repository.AbstractCacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-final class CacheableSingleDiffCall extends CacheableCall<Change<?>> {
+final class CacheableSingleDiffCall extends AbstractCacheableCall<Change<?>> {
 
     final Revision from;
     final Revision to;
@@ -50,7 +51,7 @@ final class CacheableSingleDiffCall extends CacheableCall<Change<?>> {
     }
 
     @Override
-    protected int weigh(Change<?> value) {
+    public int weigh(Change<?> value) {
         int weight = 0;
         weight += query.path().length();
         for (String e : query.expressions()) {
@@ -66,6 +67,7 @@ final class CacheableSingleDiffCall extends CacheableCall<Change<?>> {
 
     @Override
     public CompletableFuture<Change<?>> execute() {
+        logger.debug("Cache miss: {}", this);
         return repo().diff(from, to, query);
     }
 

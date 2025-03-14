@@ -16,22 +16,49 @@
 
 package com.linecorp.centraldogma.server.internal.credential;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.credential.Credential;
+import com.linecorp.centraldogma.server.credential.CredentialType;
+import com.linecorp.centraldogma.server.credential.LegacyCredential;
 
 class NoneCredentialTest {
 
     @Test
+    void testConstruction() throws Exception {
+        final String name = credentialName("foo", "none-credential");
+
+        final NoneCredential c = new NoneCredential(name);
+        assertThat(c.name()).isEqualTo(name);
+        assertThat(c.id()).isEqualTo("none-credential");
+        assertThat(c.type()).isSameAs(CredentialType.NONE);
+
+        final NoneCredential emptyName = new NoneCredential("");
+        assertThat(emptyName.name()).isEmpty();
+        assertThat(emptyName.id()).isEmpty();
+        assertThat(emptyName.type()).isSameAs(CredentialType.NONE);
+    }
+
+    @Test
     void testDeserialization() throws Exception {
+        // Legacy format
         assertThat(Jackson.readValue('{' +
                                      "  \"id\": \"none\"," +
                                      "  \"type\": \"none\"," +
                                      "  \"enabled\": true" +
+                                     '}', LegacyCredential.class))
+                .isEqualTo(new NoneLegacyCredential("none", true));
+
+        final String name = credentialName("foo", "none-credential");
+        // new format
+        assertThat(Jackson.readValue('{' +
+                                     "  \"name\": \"" + name + "\"," +
+                                     "  \"type\": \"NONE\"" +
                                      '}', Credential.class))
-                .isEqualTo(new NoneCredential("none", true));
+                .isEqualTo(new NoneCredential(name));
     }
 }

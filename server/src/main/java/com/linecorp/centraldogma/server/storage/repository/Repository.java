@@ -614,13 +614,13 @@ public interface Repository {
     }
 
     /**
+     * Executes the specified {@link CacheableCall} in this {@link Repository}.
+     */
+    <T> CompletableFuture<T> execute(CacheableCall<T> cacheableCall);
+
+    /**
      * Adds the {@link RepositoryListener} that gets notified whenever changes matching with
      * {@link RepositoryListener#pathPattern()} are pushed to this {@link Repository}.
      */
     void addListener(RepositoryListener listener);
-
-    /**
-     * Removes the {@link RepositoryListener} from this {@link Repository}.
-     */
-    void removeListener(RepositoryListener listener);
 }

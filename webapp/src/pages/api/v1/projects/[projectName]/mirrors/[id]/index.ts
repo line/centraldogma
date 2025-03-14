@@ -15,7 +15,7 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { MirrorRequest } from 'dogma/features/project/settings/mirrors/MirrorRequest';
+import { MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
 
 const mirrors: Map<number, MirrorRequest> = new Map();
 
@@ -23,7 +23,7 @@ function newMirror(index: number, projectName: string): MirrorRequest {
   return {
     id: `mirror-${index}`,
     projectName: projectName,
-    credentialId: `credential-${index}`,
+    credentialName: `projects/${projectName}/credentials/credential-${index}`,
     direction: 'REMOTE_TO_LOCAL',
     enabled: true,
     gitignore: `ignore${index}`,

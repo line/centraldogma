@@ -23,13 +23,16 @@ import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAddNewCredentialMutation } from 'dogma/features/api/apiSlice';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import React from 'react';
-import { CredentialDto } from 'dogma/features/project/settings/credentials/CredentialDto';
+import {
+  CreateCredentialRequestDto,
+  CredentialDto,
+} from 'dogma/features/project/settings/credentials/CredentialDto';
 import CredentialForm from 'dogma/features/project/settings/credentials/CredentialForm';
 
 const EMPTY_CREDENTIAL: CredentialDto = {
   id: '',
-  type: 'public_key',
-  enabled: true,
+  name: '',
+  type: 'SSH_KEY',
 };
 const NewCredentialPage = () => {
   const router = useRouter();
@@ -40,7 +43,11 @@ const NewCredentialPage = () => {
 
   const onSubmit = async (credential: CredentialDto, onSuccess: () => void) => {
     try {
-      const response = await addNewCredential({ projectName, credential }).unwrap();
+      const credentialRequest: CreateCredentialRequestDto = {
+        credentialId: credential.id,
+        credential: credential,
+      };
+      const response = await addNewCredential({ projectName, credentialRequest }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }

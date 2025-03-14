@@ -16,11 +16,12 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
+import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.BAR_REPO;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.FOO_PROJ;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.PRIVATE_KEY_FILE;
 import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.TEST_MIRROR_ID;
-import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.getCredential;
+import static com.linecorp.centraldogma.it.mirror.git.MirrorRunnerTest.getCreateCredentialRequest;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
@@ -53,12 +54,13 @@ import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.MirrorException;
+import com.linecorp.centraldogma.internal.CredentialUtil;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.ZoneConfig;
-import com.linecorp.centraldogma.server.internal.credential.PublicKeyCredential;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
@@ -78,7 +80,7 @@ class ZoneAwareMirrorTest {
             builder.authProviderFactory(new TestAuthProviderFactory());
             builder.systemAdministrators(USERNAME);
             builder.zone(new ZoneConfig(ZONES.get(serverId - 1), ZONES));
-            builder.pluginConfigs(new MirroringServicePluginConfig(true, null, null, null, true));
+            builder.pluginConfigs(new MirroringServicePluginConfig(true, null, null, null, true, false));
         }
 
         @Override
@@ -176,13 +178,14 @@ class ZoneAwareMirrorTest {
                                  MirrorDirection.REMOTE_TO_LOCAL,
                                  "bar-unknown-zone",
                                  "/",
-                                 URI.create(
-                                         "git+ssh://github.com/line/centraldogma-authtest.git/#main"),
+                                 URI.create("git+ssh://github.com/line/centraldogma-authtest.git/#main"),
                                  null,
-                                 "foo",
+                                 null,
+                                 CredentialUtil.credentialName("foo", "bar-unknown-zone", "credential-id"),
                                  unknownZone);
-        final Change<JsonNode> change =
-                Change.ofJsonUpsert("/mirrors/" + mirrorId + ".json", Jackson.writeValueAsString(mirrorConfig));
+        final Change<JsonNode> change = Change.ofJsonUpsert(
+                "/repos/bar-unknown-zone/mirrors/" + mirrorId + ".json",
+                Jackson.writeValueAsString(mirrorConfig));
         repo.commit("Add a mirror having an invalid zone", change)
             .push().join();
 
@@ -204,13 +207,13 @@ class ZoneAwareMirrorTest {
         });
     }
 
-    private static void createMirror(String zone) throws Exception {
+    private static void createMirror(@Nullable String zone) throws Exception {
         final BlockingWebClient client = WebClient.builder("http://127.0.0.1:" + serverPort)
                                                   .auth(AuthToken.ofOAuth2(accessToken))
                                                   .build()
                                                   .blocking();
 
-        final PublicKeyCredential credential = getCredential();
+        final CreateCredentialRequest credential = getCreateCredentialRequest(FOO_PROJ, null);
         ResponseEntity<PushResultDto> response =
                 client.prepare()
                       .post("/api/v1/projects/{proj}/credentials")
@@ -222,8 +225,9 @@ class ZoneAwareMirrorTest {
 
         final MirrorRequest newMirror = newMirror(zone);
         response = client.prepare()
-                         .post("/api/v1/projects/{proj}/mirrors")
+                         .post("/api/v1/projects/{proj}/repos/{repo}/mirrors")
                          .pathParam("proj", FOO_PROJ)
+                         .pathParam("repo", BAR_REPO + '-' + (zone == null ? "default" : zone))
                          .contentJson(newMirror)
                          .asJson(PushResultDto.class)
                          .execute();
@@ -243,7 +247,7 @@ class ZoneAwareMirrorTest {
                                  "/",
                                  "main",
                                  null,
-                                 PRIVATE_KEY_FILE,
+                                 credentialName(FOO_PROJ, PRIVATE_KEY_FILE),
                                  zone);
     }
 }

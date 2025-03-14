@@ -1,22 +1,43 @@
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import React, { useMemo } from 'react';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
-import { useDeleteMirrorMutation, useGetMirrorsQuery } from 'dogma/features/api/apiSlice';
+import {
+  useDeleteMirrorMutation,
+  useGetProjectMirrorsQuery,
+  useGetMirrorsQuery,
+} from 'dogma/features/api/apiSlice';
 import { Badge, Button, Code, HStack, Link, Tooltip, Wrap, WrapItem } from '@chakra-ui/react';
 import { GoRepo } from 'react-icons/go';
 import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
-import { MirrorDto } from 'dogma/features/project/settings/mirrors/MirrorRequest';
-import { RunMirror } from '../../../mirror/RunMirrorButton';
+import { MirrorDto } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
+import { RunMirror } from 'dogma/features/mirror/RunMirrorButton';
 import { FaPlay } from 'react-icons/fa';
-import { DeleteMirror } from 'dogma/features/project/settings/mirrors/DeleteMirror';
+import { DeleteMirror } from 'dogma/features/repo/settings/mirrors/DeleteMirror';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type MirrorListProps<Data extends object> = {
   projectName: string;
+  repoName?: string;
 };
 
-const MirrorList = <Data extends object>({ projectName }: MirrorListProps<Data>) => {
-  const { data } = useGetMirrorsQuery(projectName);
+const useGetMirrors = (projectName: string, repoName?: string): { data: MirrorDto[]; isLoading: boolean } => {
+  const { data: projectMirrors = [], isLoading: isProjectLoading } = useGetProjectMirrorsQuery(projectName, {
+    skip: !!repoName, // Skip if repoName is provided
+  });
+
+  const { data: repoMirrors = [], isLoading: isRepoLoading } = useGetMirrorsQuery(
+    { projectName, repoName: repoName! },
+    { skip: !repoName }, // Skip if repoName is not provided
+  );
+
+  return {
+    data: repoName ? repoMirrors : projectMirrors,
+    isLoading: repoName ? isRepoLoading : isProjectLoading,
+  };
+};
+
+const MirrorList = <Data extends object>({ projectName, repoName }: MirrorListProps<Data>) => {
+  const { data } = useGetMirrors(projectName, repoName);
   const [deleteMirror, { isLoading }] = useDeleteMirrorMutation();
   const columnHelper = createColumnHelper<MirrorDto>();
   const columns = useMemo(
@@ -26,7 +47,7 @@ const MirrorList = <Data extends object>({ projectName }: MirrorListProps<Data>)
           const id = info.getValue();
           return (
             <Link
-              href={`/app/projects/${projectName}/settings/mirrors/${info.row.original.id}`}
+              href={`/app/projects/${projectName}/repos/${info.row.original.localRepo}/settings/mirrors/${id}`}
               fontWeight="semibold"
             >
               {id ?? 'unknown'}
@@ -111,8 +132,9 @@ const MirrorList = <Data extends object>({ projectName }: MirrorListProps<Data>)
             </Wrap>
             <DeleteMirror
               projectName={projectName}
+              repoName={info.row.original.localRepo}
               id={info.getValue()}
-              deleteMirror={(projectName, id) => deleteMirror({ projectName, id }).unwrap()}
+              deleteMirror={(projectName, repoName, id) => deleteMirror({ projectName, repoName, id }).unwrap()}
               isLoading={isLoading}
             />
           </HStack>
