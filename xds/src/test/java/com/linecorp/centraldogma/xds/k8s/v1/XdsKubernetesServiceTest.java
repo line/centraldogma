@@ -479,7 +479,7 @@ class XdsKubernetesServiceTest {
 
     private static class CapturingKubernetesMixedDispatcher extends KubernetesMixedDispatcher {
 
-        private final BlockingQueue<RecordedRequest> queue = new ArrayBlockingQueue<>(16);
+        private final BlockingQueue<RecordedRequest> queue = new ArrayBlockingQueue<>(32);
 
         CapturingKubernetesMixedDispatcher(Map<ServerRequest, Queue<ServerResponse>> responses) {
             super(responses);
@@ -491,6 +491,10 @@ class XdsKubernetesServiceTest {
 
         @Override
         public MockResponse dispatch(RecordedRequest request) throws InterruptedException {
+            if ("OPTIONS".equals(request.getMethod())) {
+                // Mock server does not support OPTIONS.
+                return new MockResponse().setResponseCode(200);
+            }
             queue.add(request);
             return super.dispatch(request);
         }

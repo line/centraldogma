@@ -173,7 +173,9 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
                     kubernetesEndpointGroup.closeAsync();
                     if (cause1 != null) {
                         // Specific types.
-                        responseObserver.onError(Status.INTERNAL.withCause(cause1).asRuntimeException());
+                        responseObserver.onError(
+                                Status.INTERNAL.withDescription("Failed to retrieve k8s endpoints")
+                                               .withCause(cause1).asRuntimeException());
                         return null;
                     }
                     logger.debug("Successfully retrieved k8s endpoints: {}, watcher: {}", endpoints, watcher);
