@@ -236,12 +236,15 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                     if (endpoints.isEmpty()) {
                         return;
                     }
-                    maybePushK8sEndpoints();
+                    executorService.execute(this::maybePushK8sEndpoints);
                 }, true);
             }));
         }
 
         private void maybePushK8sEndpoints() {
+            if (closing) {
+                return;
+            }
             if (allEndpointGroupsReady()) {
                 // Push only when all the endpoint groups are ready.
                 pushK8sEndpoints();
@@ -271,10 +274,6 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
         }
 
         private void pushK8sEndpoints() {
-            if (closing) {
-                return;
-            }
-
             logger.debug("Pushing k8s endpoints: {}, group: {}", aggregator.getClusterName(), groupName);
             final ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder =
                     ClusterLoadAssignment.newBuilder().setClusterName(aggregator.getClusterName());
