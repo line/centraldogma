@@ -27,7 +27,6 @@ import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePr
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -138,7 +137,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
             final ServiceEndpointWatcher watcher = kubernetesLocalityLbEndpoints.getWatcher();
             final CompletableFuture<KubernetesEndpointGroup> endpointGroupFuture =
                     createKubernetesEndpointGroup(watcher, xdsResourceManager.xdsProject().metaRepo(),
-                                                  group, fileName, taskExecutor);
+                                                  group, fileName);
             endpointGroupFuture.handle((kubernetesEndpointGroup, cause) -> {
                 if (cause != null) {
                     cause = Exceptions.peel(cause);
@@ -204,12 +203,11 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
      * {@link KubernetesEndpointGroupBuilder#build()} blocks the execution thread.
      */
     public static CompletableFuture<KubernetesEndpointGroup> createKubernetesEndpointGroup(
-            ServiceEndpointWatcher watcher, MetaRepository metaRepository, String group,
-            String fileName, Executor executor) {
+            ServiceEndpointWatcher watcher, MetaRepository metaRepository, String group, String fileName) {
         final Kubeconfig kubeconfig = watcher.getKubeconfig();
         final String serviceName = watcher.getServiceName();
 
-        return toConfig(kubeconfig, metaRepository, group, fileName).thenApplyAsync(config -> {
+        return toConfig(kubeconfig, metaRepository, group, fileName).thenApply(config -> {
             final KubernetesEndpointGroupBuilder kubernetesEndpointGroupBuilder =
                     KubernetesEndpointGroup.builder(config).serviceName(serviceName);
             if (!isNullOrEmpty(kubeconfig.getNamespace())) {
@@ -218,10 +216,8 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
             if (!isNullOrEmpty(watcher.getPortName())) {
                 kubernetesEndpointGroupBuilder.portName(watcher.getPortName());
             }
-            // This callback can be executed by an event loop from CachingRepository, so we should use the
-            // specified executor to avoid blocking the event loop below.
             return kubernetesEndpointGroupBuilder.build();
-        }, executor);
+        });
     }
 
     private static CompletableFuture<Config> toConfig(Kubeconfig kubeconfig, MetaRepository metaRepository,
