@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.mirror.MirrorListener;
@@ -51,10 +52,10 @@ public class TestZoneAwareMirrorListener implements MirrorListener {
     }
 
     @Override
-    public void onCreate(Mirror mirror, MirrorAccessController accessController) {}
+    public void onCreate(Mirror mirror, User creator, MirrorAccessController accessController) {}
 
     @Override
-    public void onUpdate(Mirror mirror, MirrorAccessController accessController) {}
+    public void onUpdate(Mirror mirror, User updater, MirrorAccessController accessController) {}
 
     @Override
     public void onDisallowed(Mirror mirror) {}
