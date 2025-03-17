@@ -131,7 +131,6 @@ public class XdsRegisterEndpointTest {
                            .build();
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), endpoint, clusterName);
 
-
         // Deregister the endpoint.
         response = registerOrDeregister(endpointName, localityLbEndpoint3, false);
         assertOk(response);
