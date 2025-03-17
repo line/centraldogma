@@ -46,6 +46,7 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.xds.endpoint.v1.DeregisterLocalityLbEndpointRequest;
 import com.linecorp.centraldogma.xds.endpoint.v1.RegisterLocalityLbEndpointRequest;
 import com.linecorp.centraldogma.xds.group.v1.CreateGroupRequest;
 import com.linecorp.centraldogma.xds.k8s.v1.CreateKubernetesEndpointAggregatorRequest;
@@ -75,6 +76,7 @@ public final class XdsResourceManager {
                .register(Cluster.getDefaultInstance())
                .register(ClusterLoadAssignment.getDefaultInstance())
                .register(RegisterLocalityLbEndpointRequest.getDefaultInstance())
+               .register(DeregisterLocalityLbEndpointRequest.getDefaultInstance())
                .register(RouteConfiguration.getDefaultInstance())
                .register(CreateKubernetesEndpointAggregatorRequest.getDefaultInstance())
                .register(UpdateKubernetesEndpointAggregatorRequest.getDefaultInstance())
