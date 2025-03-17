@@ -19,12 +19,14 @@ import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.common.EntryType.JSON;
 import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static com.linecorp.centraldogma.common.Revision.INIT;
-import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITH_CONTENT;
+import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITH_CONTENT;
+import static com.linecorp.centraldogma.server.storage.repository.Repository.ALL_PATH;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -73,15 +75,18 @@ class CachingRepositoryTest {
         final Query<String> query = Query.ofText("/baz.txt");
 
         final Entry<String> result = Entry.ofText(new Revision(10), "/baz.txt", "qux");
-        final Map<String, Entry<?>> entries = ImmutableMap.of("/baz.txt", result);
+        final Entry<String> unexpected = Entry.ofText(new Revision(10), "/foo.txt", "bar");
+        final Map<String, Entry<?>> entries = ImmutableMap.of("/baz.txt", result,
+                                                              "/foo.txt", unexpected);
 
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        when(delegateRepo.find(any(), any(), any())).thenReturn(completedFuture(entries));
+        when(delegateRepo.find(any(), eq(ALL_PATH), eq(FIND_ALL_WITH_CONTENT)))
+                .thenReturn(completedFuture(entries));
         assertThat(repo.get(HEAD, query).join()).isEqualTo(result);
-        verify(delegateRepo).find(new Revision(10), "/baz.txt", FIND_ONE_WITH_CONTENT);
+        verify(delegateRepo).find(new Revision(10), ALL_PATH, FIND_ALL_WITH_CONTENT);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
@@ -97,15 +102,20 @@ class CachingRepositoryTest {
     void jsonPathQuery() throws JsonParseException {
         final CachingRepository repo = setMockNames(newCachingRepo());
         final Query<JsonNode> query = Query.ofJsonPath("/baz.json", "$.a");
-        final Entry<JsonNode> queryResult = Entry.ofJson(new Revision(10), query.path(), "{\"a\": \"b\"}");
+        final Entry<JsonNode> result = Entry.ofJson(new Revision(10), query.path(), "{\"a\": \"b\"}");
+        final Entry<JsonNode> unexpected = Entry.ofJson(new Revision(10), "/foo.json", "{\"bar\": 1}");
+        final Entry<JsonNode> queryResult = Entry.ofJson(new Revision(10), query.path(), "\"b\"");
+        final Map<String, Entry<?>> entries = ImmutableMap.of("/baz.json", result,
+                                                              "/foo.json", unexpected);
 
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        when(delegateRepo.getOrNull(any(), any(Query.class))).thenReturn(completedFuture(queryResult));
+        when(delegateRepo.find(any(), eq(ALL_PATH), eq(FIND_ALL_WITH_CONTENT)))
+                .thenReturn(completedFuture(entries));
         assertThat(repo.get(HEAD, query).join()).isEqualTo(queryResult);
-        verify(delegateRepo).getOrNull(new Revision(10), query);
+        verify(delegateRepo).find(new Revision(10), ALL_PATH, FIND_ALL_WITH_CONTENT);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
@@ -151,9 +161,10 @@ class CachingRepositoryTest {
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        when(delegateRepo.find(any(), any(), any())).thenReturn(completedFuture(ImmutableMap.of()));
+        when(delegateRepo.find(any(), eq(ALL_PATH), eq(FIND_ALL_WITH_CONTENT)))
+                .thenReturn(completedFuture(ImmutableMap.of()));
         assertThat(repo.getOrNull(HEAD, query).join()).isNull();
-        verify(delegateRepo).find(new Revision(10), "/baz.txt", FIND_ONE_WITH_CONTENT);
+        verify(delegateRepo).find(new Revision(10), ALL_PATH, FIND_ALL_WITH_CONTENT);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
@@ -174,9 +185,10 @@ class CachingRepositoryTest {
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        when(delegateRepo.getOrNull(any(), any(Query.class))).thenReturn(completedFuture(null));
+        when(delegateRepo.find(any(), eq(ALL_PATH), eq(FIND_ALL_WITH_CONTENT)))
+                .thenReturn(completedFuture(ImmutableMap.of()));
         assertThat(repo.getOrNull(HEAD, query).join()).isNull();
-        verify(delegateRepo).getOrNull(new Revision(10), query);
+        verify(delegateRepo).find(new Revision(10), ALL_PATH, FIND_ALL_WITH_CONTENT);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
