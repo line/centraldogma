@@ -412,19 +412,16 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public CompletableFuture<Map<String, EntryType>> listFiles(String projectName, String repositoryName,
                                                                Revision revision, PathPattern pathPattern) {
-        validateProjectAndRepositoryName(projectName, repositoryName);
-        requireNonNull(revision, "revision");
-        requireNonNull(pathPattern, "pathPattern");
-        try {
-            final StringBuilder path = pathBuilder(projectName, repositoryName);
-            path.append("/list").append(pathPattern.encoded()).append("?revision=").append(revision.major());
+        return listFiles0(projectName, repositoryName, revision, pathPattern, 1,
+                          ArmeriaCentralDogma::listFiles);
+    }
 
-            return client.execute(headers(HttpMethod.GET, path.toString()))
-                         .aggregate()
-                         .thenApply(ArmeriaCentralDogma::listFiles);
-        } catch (Exception e) {
-            return exceptionallyCompletedFuture(e);
-        }
+    @Override
+    public CompletableFuture<Map<String, Entry<?>>> listFiles(String projectName, String repositoryName,
+                                                              Revision revision, PathPattern pathPattern,
+                                                              int includeLastFileRevision) {
+        return listFiles0(projectName, repositoryName, revision, pathPattern, includeLastFileRevision,
+                          ArmeriaCentralDogma::listFilesWithRevision);
     }
 
     private static Map<String, EntryType> listFiles(AggregatedHttpResponse res) {
@@ -435,6 +432,48 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 node.forEach(e -> builder.put(
                         getField(e, "path").asText(),
                         EntryType.valueOf(getField(e, "type").asText())));
+                return builder.build();
+            case 204:
+                return ImmutableMap.of();
+        }
+
+        return handleErrorResponse(res);
+    }
+
+    private <T> CompletableFuture<T> listFiles0(String projectName, String repositoryName,
+                                                Revision revision, PathPattern pathPattern,
+                                                int includeLastFileRevision,
+                                                Function<AggregatedHttpResponse, T> responseConverter) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(revision, "revision");
+        requireNonNull(pathPattern, "pathPattern");
+        try {
+            final StringBuilder path = pathBuilder(projectName, repositoryName);
+            path.append("/list").append(pathPattern.encoded()).append("?revision=").append(revision.major());
+            if (includeLastFileRevision > 1) {
+                path.append("&includeLastFileRevision=").append(includeLastFileRevision);
+            }
+
+            return client.execute(headers(HttpMethod.GET, path.toString()))
+                         .aggregate()
+                         .thenApply(responseConverter);
+        } catch (Exception e) {
+            return exceptionallyCompletedFuture(e);
+        }
+    }
+
+    private static Map<String, Entry<?>> listFilesWithRevision(AggregatedHttpResponse res) {
+        switch (res.status().code()) {
+            case 200:
+                final ImmutableMap.Builder<String, Entry<?>> builder = ImmutableMap.builder();
+                final JsonNode node = toJson(res, JsonNodeType.ARRAY);
+                for (JsonNode e : node) {
+                    final Revision revision = new Revision(getField(e, "revision").asInt());
+                    final String path = getField(e, "path").asText();
+                    final EntryType type = EntryType.valueOf(getField(e, "type").asText());
+                    final Entry<Object> entry = Entry.ofNullable(revision, path, type, null);
+                    builder.put(path, entry);
+                }
                 return builder.build();
             case 204:
                 return ImmutableMap.of();
@@ -459,17 +498,17 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
                 return client.execute(headers(HttpMethod.GET, path.toString()))
                              .aggregate()
-                             .thenApply(res -> getFile(normRev, res, query));
+                             .thenApply(res -> getFile(res, query));
             });
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
     }
 
-    private static <T> Entry<T> getFile(Revision normRev, AggregatedHttpResponse res, Query<T> query) {
+    private static <T> Entry<T> getFile(AggregatedHttpResponse res, Query<T> query) {
         if (res.status().code() == 200) {
             final JsonNode node = toJson(res, JsonNodeType.OBJECT);
-            return toEntry(normRev, node, query.type());
+            return toEntry(node, query.type());
         }
 
         return handleErrorResponse(res);
@@ -477,7 +516,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
-                                                             Revision revision, PathPattern pathPattern) {
+                                                             Revision revision, PathPattern pathPattern,
+                                                             int includeLastFileRevision) {
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(revision, "revision");
         requireNonNull(pathPattern, "pathPattern");
@@ -489,27 +529,30 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                     .append(pathPattern.encoded())
                     .append("?revision=")
                     .append(normRev.major());
+                if (includeLastFileRevision > 1) {
+                    path.append("&includeLastFileRevision=").append(includeLastFileRevision);
+                }
 
                 return client.execute(headers(HttpMethod.GET, path.toString()))
                              .aggregate()
-                             .thenApply(res -> getFiles(normRev, res));
+                             .thenApply(res -> getFiles(res));
             });
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
     }
 
-    private static Map<String, Entry<?>> getFiles(Revision normRev, AggregatedHttpResponse res) {
+    private static Map<String, Entry<?>> getFiles(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
                 final JsonNode node = toJson(res, null);
                 final ImmutableMap.Builder<String, Entry<?>> builder = ImmutableMap.builder();
                 if (node.isObject()) { // Single entry
-                    final Entry<?> entry = toEntry(normRev, node, QueryType.IDENTITY);
+                    final Entry<?> entry = toEntry(node, QueryType.IDENTITY);
                     builder.put(entry.path(), entry);
                 } else if (node.isArray()) { // Multiple entries
                     node.forEach(e -> {
-                        final Entry<?> entry = toEntry(normRev, e, QueryType.IDENTITY);
+                        final Entry<?> entry = toEntry(e, QueryType.IDENTITY);
                         builder.put(entry.path(), entry);
                     });
                 } else {
@@ -865,8 +908,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         switch (res.status().code()) {
             case 200: // OK
                 final JsonNode node = toJson(res, JsonNodeType.OBJECT);
-                final Revision revision = new Revision(getField(node, "revision").asInt());
-                return toEntry(revision, getField(node, "entry"), queryType);
+                return toEntry(getField(node, "entry"), queryType);
             case 304: // Not Modified
                 return null;
         }
@@ -1031,9 +1073,11 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         return res.content(charset);
     }
 
-    private static <T> Entry<T> toEntry(Revision revision, JsonNode node, QueryType queryType) {
+    private static <T> Entry<T> toEntry(JsonNode node, QueryType queryType) {
         final String entryPath = getField(node, "path").asText();
         final EntryType receivedEntryType = EntryType.valueOf(getField(node, "type").asText());
+        final Revision revision = new Revision(getField(node, "revision").asInt());
+
         switch (queryType) {
             case IDENTITY_TEXT:
                 return entryAsText(revision, node, entryPath);

@@ -37,14 +37,16 @@ final class CacheableQueryCall extends AbstractCacheableCall<Entry<?>> {
 
     final Revision revision;
     final Query<?> query;
+    final int includeLastFileRevision;
     final int hashCode;
 
-    CacheableQueryCall(Repository repo, Revision revision, Query<?> query) {
+    CacheableQueryCall(Repository repo, Revision revision, Query<?> query, int includeLastFileRevision) {
         super(repo);
         this.revision = requireNonNull(revision, "revision");
         this.query = requireNonNull(query, "query");
+        this.includeLastFileRevision = includeLastFileRevision;
 
-        hashCode = Objects.hash(revision, query) * 31 + System.identityHashCode(repo);
+        hashCode = Objects.hash(revision, query, includeLastFileRevision) * 31 + System.identityHashCode(repo);
 
         assert !revision.isRelative();
     }
@@ -59,13 +61,17 @@ final class CacheableQueryCall extends AbstractCacheableCall<Entry<?>> {
         if (value != null && value.hasContent()) {
             weight += value.contentAsText().length();
         }
+        if (includeLastFileRevision > 0) {
+            weight += includeLastFileRevision;
+        }
         return weight;
     }
 
     @Override
     public CompletableFuture<Entry<?>> execute() {
         logger.debug("Cache miss: {}", this);
-        return repo().getOrNull(revision, query).thenApply(e -> firstNonNull(e, EMPTY));
+        return repo().getOrNull(revision, query, includeLastFileRevision)
+                     .thenApply(e -> firstNonNull(e, EMPTY));
     }
 
     @Override
@@ -81,12 +87,14 @@ final class CacheableQueryCall extends AbstractCacheableCall<Entry<?>> {
 
         final CacheableQueryCall that = (CacheableQueryCall) o;
         return revision.equals(that.revision) &&
-               query.equals(that.query);
+               query.equals(that.query) &&
+               includeLastFileRevision == that.includeLastFileRevision;
     }
 
     @Override
     protected void toString(ToStringHelper helper) {
         helper.add("revision", revision)
-              .add("query", query);
+              .add("query", query)
+              .add("includeLastFileRevision", includeLastFileRevision);
     }
 }

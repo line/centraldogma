@@ -221,6 +221,13 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     }
 
     @Override
+    public CompletableFuture<Map<String, Entry<?>>> listFiles(String projectName, String repositoryName,
+                                                              Revision revision, PathPattern pathPattern,
+                                                              int includeLastFileRevision) {
+        throw new UnsupportedOperationException("Use ArmeriaCentralDogma instead.");
+    }
+
+    @Override
     public <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName,
                                                    Revision revision, Query<T> query) {
         requireNonNull(query, "query");
@@ -291,6 +298,13 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
             return future.thenApply(list -> convertToMap(list, e -> EntryConverter.convert(normRev, e),
                                                          Entry::path, Function.identity()));
         });
+    }
+
+    @Override
+    public CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
+                                                             Revision revision, PathPattern pathPattern,
+                                                             int includeLastFileRevision) {
+        throw new UnsupportedOperationException("Use ArmeriaCentralDogma instead.");
     }
 
     @Override

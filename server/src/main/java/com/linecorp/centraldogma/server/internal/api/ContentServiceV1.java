@@ -43,6 +43,7 @@ import javax.annotation.Nullable;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Streams;
 
@@ -127,19 +128,27 @@ public class ContentServiceV1 extends AbstractService {
     public CompletableFuture<List<EntryDto<?>>> listFiles(ServiceRequestContext ctx,
                                                           @Param String path,
                                                           @Param @Default("-1") String revision,
+                                                          @Param @Default("1") int includeLastFileRevision,
                                                           Repository repository) {
         final String normalizedPath = normalizePath(path);
         final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
         increaseCounterIfOldRevisionUsed(ctx, repository, normalizedRev);
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
-        listFiles(repository, normalizedPath, normalizedRev, false, future);
+        listFiles(repository, normalizedPath, normalizedRev, false, includeLastFileRevision, future);
         return future;
     }
 
     private static void listFiles(Repository repository, String pathPattern, Revision normalizedRev,
-                                  boolean withContent, CompletableFuture<List<EntryDto<?>>> result) {
-        final Map<FindOption<?>, ?> options = withContent ? FindOptions.FIND_ALL_WITH_CONTENT
-                                                          : FindOptions.FIND_ALL_WITHOUT_CONTENT;
+                                  boolean withContent, int includeLastFileRevision,
+                                  CompletableFuture<List<EntryDto<?>>> result) {
+        final Map<FindOption<?>, ?> options;
+        if (includeLastFileRevision <= 1) {
+            options = withContent ? FindOptions.FIND_ALL_WITH_CONTENT
+                                  : FindOptions.FIND_ALL_WITHOUT_CONTENT;
+        } else {
+            options = ImmutableMap.of(FindOption.FETCH_LAST_FILE_REVISION, includeLastFileRevision,
+                                      FindOption.FETCH_CONTENT, withContent);
+        }
 
         repository.find(normalizedRev, pathPattern, options).handle((entries, thrown) -> {
             if (thrown != null) {
@@ -151,10 +160,11 @@ public class ContentServiceV1 extends AbstractService {
             // This is called once at most, because the pathPattern is not a valid file path anymore.
             if (isValidFilePath(pathPattern) && entries.size() == 1 &&
                 entries.values().iterator().next().type() == DIRECTORY) {
-                listFiles(repository, pathPattern + "/*", normalizedRev, withContent, result);
+                listFiles(repository, pathPattern + "/*", normalizedRev, withContent, includeLastFileRevision,
+                          result);
             } else {
                 result.complete(entries.values().stream()
-                                       .map(entry -> convert(repository, normalizedRev, entry, withContent))
+                                       .map(entry -> convert(repository, entry, withContent))
                                        .collect(toImmutableList()));
             }
             return null;
@@ -253,7 +263,7 @@ public class ContentServiceV1 extends AbstractService {
      * jsonpath={jsonpath}
      *
      * <p>Returns the entry of files in the path. This is same with
-     * {@link #listFiles(ServiceRequestContext, String, String, Repository)} except that containing
+     * {@link #listFiles(ServiceRequestContext, String, String, int, Repository)} except that containing
      * the content of the files.
      * Note that if the {@link HttpHeaderNames#IF_NONE_MATCH} in which has a revision is sent with,
      * this will await for the time specified in {@link HttpHeaderNames#PREFER}.
@@ -265,6 +275,7 @@ public class ContentServiceV1 extends AbstractService {
     public CompletableFuture<?> getFiles(
             ServiceRequestContext ctx,
             @Param String path, @Param @Default("-1") String revision,
+            @Param @Default("1") int includeLastFileRevision,
             Repository repository,
             @RequestConverter(WatchRequestConverter.class) @Nullable WatchRequest watchRequest,
             @RequestConverter(QueryRequestConverter.class) @Nullable Query<?> query) {
@@ -289,14 +300,13 @@ public class ContentServiceV1 extends AbstractService {
         final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
         if (query != null) {
             // get a file
-            return repository.get(normalizedRev, query)
-                             .handle(returnOrThrow((Entry<?> result) -> convert(repository, normalizedRev,
-                                                                                result, true)));
+            return repository.get(normalizedRev, query, includeLastFileRevision)
+                             .handle(returnOrThrow((Entry<?> result) -> convert(repository, result, true)));
         }
 
         // get files
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
-        listFiles(repository, normalizedPath, normalizedRev, true, future);
+        listFiles(repository, normalizedPath, normalizedRev, true, includeLastFileRevision, future);
         return future;
     }
 
@@ -311,9 +321,8 @@ public class ContentServiceV1 extends AbstractService {
         }
 
         return future.thenApply(entry -> {
-            final Revision revision = entry.revision();
-            final EntryDto<?> entryDto = convert(repository, revision, entry, true);
-            return (Object) new WatchResultDto(revision, entryDto);
+            final EntryDto<?> entryDto = convert(repository, entry, true);
+            return (Object) new WatchResultDto(entry.revision(), entryDto);
         }).exceptionally(ContentServiceV1::handleWatchFailure);
     }
 

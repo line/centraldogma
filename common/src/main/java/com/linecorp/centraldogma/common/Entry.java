@@ -44,7 +44,7 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param path the path of the directory
      */
     public static Entry<Void> ofDirectory(Revision revision, String path) {
-        return new Entry<>(revision, path, EntryType.DIRECTORY, null);
+        return new Entry<>(revision, path, EntryType.DIRECTORY, null, true);
     }
 
     /**
@@ -55,7 +55,7 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param content the content of the JSON file
      */
     public static Entry<JsonNode> ofJson(Revision revision, String path, JsonNode content) {
-        return new Entry<>(revision, path, EntryType.JSON, content);
+        return new Entry<>(revision, path, EntryType.JSON, content, false);
     }
 
     /**
@@ -80,7 +80,7 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param content the content of the text file
      */
     public static Entry<String> ofText(Revision revision, String path, String content) {
-        return new Entry<>(revision, path, EntryType.TEXT, content);
+        return new Entry<>(revision, path, EntryType.TEXT, content, false);
     }
 
     /**
@@ -93,7 +93,20 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param <T> the content type. {@link JsonNode} if JSON. {@link String} if text.
      */
     public static <T> Entry<T> of(Revision revision, String path, EntryType type, @Nullable T content) {
-        return new Entry<>(revision, path, type, content);
+        return new Entry<>(revision, path, type, content, false);
+    }
+
+    /**
+     * Returns a newly-created {@link Entry} whose content is nullable.
+     *
+     * @param revision the revision of the {@link Entry}
+     * @param path the path of the {@link Entry}
+     * @param content the content of the {@link Entry}
+     * @param type the type of the {@link Entry}
+     * @param <T> the content type. {@link JsonNode} if JSON. {@link String} if text.
+     */
+    public static <T> Entry<T> ofNullable(Revision revision, String path, EntryType type, @Nullable T content) {
+        return new Entry<>(revision, path, type, content, true);
     }
 
     private final Revision revision;
@@ -114,7 +127,8 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param type the type of given {@code content}
      * @param content an object of given type {@code T}
      */
-    private Entry(Revision revision, String path, EntryType type, @Nullable T content) {
+    private Entry(Revision revision, String path, EntryType type, @Nullable T content,
+                  boolean allowNullContent) {
         requireNonNull(revision, "revision");
         checkArgument(!revision.isRelative(), "revision: %s (expected: absolute revision)", revision);
         this.revision = revision;
@@ -127,9 +141,13 @@ public final class Entry<T> implements ContentHolder<T> {
             checkArgument(content == null, "content: %s (expected: null)", content);
             this.content = null;
         } else {
-            @SuppressWarnings("unchecked")
-            final T castContent = (T) entryContentType.cast(requireNonNull(content, "content"));
-            this.content = castContent;
+            if (content == null && allowNullContent) {
+                this.content = null;
+            } else {
+                @SuppressWarnings("unchecked")
+                final T castContent = (T) entryContentType.cast(requireNonNull(content, "content"));
+                this.content = castContent;
+            }
         }
     }
 
@@ -141,6 +159,14 @@ public final class Entry<T> implements ContentHolder<T> {
     }
 
     /**
+     * Returns a new {@link Entry} with the specified {@link Revision}.
+     */
+    public Entry<T> withRevision(Revision revision) {
+        requireNonNull(revision, "revision");
+        return new Entry<>(revision, path, type, content, true);
+    }
+
+    /**
      * Returns the path of this {@link Entry}.
      */
     public String path() {
@@ -148,7 +174,7 @@ public final class Entry<T> implements ContentHolder<T> {
     }
 
     /**
-     * Returns if this {@link Entry} has content, which is always {@code true} if it's not a directory.
+     * Returns if this {@link Entry} has content.
      */
     public boolean hasContent() {
         return content != null;

@@ -59,13 +59,12 @@ final class DtoConverter {
                                  repository.creationTimeMillis());
     }
 
-    public static <T> EntryDto<T> convert(Repository repository, Revision revision,
-                                          Entry<T> entry, boolean withContent) {
+    public static <T> EntryDto<T> convert(Repository repository, Entry<T> entry, boolean withContent) {
         requireNonNull(entry, "entry");
         if (withContent && entry.hasContent()) {
-            return convert(repository, revision, entry.path(), entry.type(), entry.content());
+            return convert(repository, entry.revision(), entry.path(), entry.type(), entry.content());
         }
-        return convert(repository, revision, entry.path(), entry.type());
+        return convert(repository, entry.revision(), entry.path(), entry.type());
     }
 
     private static <T> EntryDto<T> convert(Repository repository, Revision revision,

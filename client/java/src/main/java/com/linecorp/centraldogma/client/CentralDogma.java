@@ -159,7 +159,26 @@ public interface CentralDogma extends AutoCloseable {
      * @return a {@link Map} of file path and type pairs
      */
     CompletableFuture<Map<String, EntryType>> listFiles(String projectName, String repositoryName,
-                                                        Revision revision, PathPattern pathPattern);
+                                                                Revision revision, PathPattern pathPattern);
+
+    /**
+     * Retrieves the list of the files matched by the given {@link PathPattern}.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * // Find the last file revision from the last 100 revisions.
+     * int includeLastFileRevision = 100;
+     * dogma.forRepo(projectName, repositoryName)
+     *      .files(pathPattern)
+     *      .includeLastFileRevision(includeLastFileRevision)
+     *      .list(revision);
+     * }</pre>
+     *
+     * @return a {@link Map} of file path and {@link Entry} pairs
+     */
+    CompletableFuture<Map<String, Entry<?>>> listFiles(String projectName, String repositoryName,
+                                                       Revision revision, PathPattern pathPattern,
+                                                       int includeLastFileRevision);
 
     /**
      * Retrieves the file at the specified revision and path. This method is a shortcut of
@@ -220,8 +239,30 @@ public interface CentralDogma extends AutoCloseable {
      *
      * @return a {@link Map} of file path and {@link Entry} pairs
      */
+    default CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
+                                                              Revision revision, PathPattern pathPattern) {
+        return getFiles(projectName, repositoryName, revision, pathPattern, 1);
+    }
+
+    /**
+     * Retrieves the files matched by the {@link PathPattern}.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * // Find the last file revision from the last 100 revisions.
+     * // If the last file revision is not found, the `Revision.INIT` revision is returned instead.
+     * int includeLastFileRevision = 100;
+     * dogma.forRepo(projectName, repositoryName)
+     *      .file(pathPattern)
+     *      .includeLastFileRevision(includeLastFileRevision)
+     *      .get(revision);
+     * }</pre>
+     *
+     * @return a {@link Map} of file path and {@link Entry} pairs
+     */
     CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
-                                                      Revision revision, PathPattern pathPattern);
+                                                      Revision revision, PathPattern pathPattern,
+                                                      int includeLastFileRevision);
 
     /**
      * Retrieves the merged entry of the specified {@link MergeSource}s at the specified revision.

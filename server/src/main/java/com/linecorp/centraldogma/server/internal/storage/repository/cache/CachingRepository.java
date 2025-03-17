@@ -19,6 +19,8 @@ package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.throwUnsafelyIfNonNull;
+import static com.linecorp.centraldogma.server.storage.repository.FindOption.FETCH_LAST_FILE_REVISION;
+import static com.linecorp.centraldogma.server.storage.repository.FindOption.MAX_ENTRIES;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITH_CONTENT;
 import static java.util.Objects.requireNonNull;
 
@@ -27,6 +29,8 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.RequestContext;
@@ -82,7 +86,8 @@ final class CachingRepository implements Repository {
     }
 
     @Override
-    public <T> CompletableFuture<Entry<T>> getOrNull(Revision revision, Query<T> query) {
+    public <T> CompletableFuture<Entry<T>> getOrNull(Revision revision, Query<T> query,
+                                                     int includeLastFileRevision) {
         requireNonNull(revision, "revision");
         requireNonNull(query, "query");
 
@@ -92,13 +97,20 @@ final class CachingRepository implements Repository {
             // If the query is an IDENTITY type, call find() so that the caches are reused in one place when
             // calls getOrNull(), find() and mergeFiles().
             final String path = query.path();
+            final Map<FindOption<?>, ?> options;
+            if (includeLastFileRevision <= 1) {
+                options = FIND_ONE_WITH_CONTENT;
+            } else {
+                options = ImmutableMap.of(MAX_ENTRIES, 1, FETCH_LAST_FILE_REVISION, includeLastFileRevision);
+            }
             final CompletableFuture<Entry<?>> future =
-                    find(revision, path, FIND_ONE_WITH_CONTENT).thenApply(findResult -> findResult.get(path));
+                    find(revision, path, options).thenApply(
+                            findResult -> findResult.get(path));
             return unsafeCast(future);
         }
 
         final CompletableFuture<Object> future =
-                cache.get(new CacheableQueryCall(repo, normalizedRevision, query))
+                cache.get(new CacheableQueryCall(repo, normalizedRevision, query, includeLastFileRevision))
                      .handleAsync((result, cause) -> {
                          throwUnsafelyIfNonNull(cause);
                          return result != CacheableQueryCall.EMPTY ? result : null;
