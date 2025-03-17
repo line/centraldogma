@@ -138,7 +138,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 : aggregator.getLocalityLbEndpointsList()) {
             final ServiceEndpointWatcher watcher = kubernetesLocalityLbEndpoints.getWatcher();
             final CompletableFuture<KubernetesEndpointGroup> future =
-                    createKubernetesEndpointGroup(watcher, xdsProject().metaRepo(), groupName, path);
+                    createKubernetesEndpointGroup(watcher, xdsProject().metaRepo(), groupName, path, true);
             futures.add(future);
         }
 
@@ -246,6 +246,11 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
 
         private void addListenerToEndpointGroups() {
             kubernetesEndpointGroupFutures.forEach(future -> future.thenAccept(kubernetesEndpointGroup -> {
+                if (kubernetesEndpointGroup.whenReady().isCompletedExceptionally()) {
+                    logger.warn("Failed to initialize k8s endpoint group: {}, aggregator: {}",
+                                kubernetesEndpointGroup, aggregator);
+                    return;
+                }
                 kubernetesEndpointGroup.addListener(endpoints -> {
                     if (endpoints.isEmpty()) {
                         return;

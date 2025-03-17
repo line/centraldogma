@@ -137,7 +137,7 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
             final ServiceEndpointWatcher watcher = kubernetesLocalityLbEndpoints.getWatcher();
             final CompletableFuture<KubernetesEndpointGroup> endpointGroupFuture =
                     createKubernetesEndpointGroup(watcher, xdsResourceManager.xdsProject().metaRepo(),
-                                                  group, fileName);
+                                                  group, fileName, false);
             endpointGroupFuture.handle((kubernetesEndpointGroup, cause) -> {
                 if (cause != null) {
                     cause = Exceptions.peel(cause);
@@ -199,25 +199,33 @@ public final class XdsKubernetesService extends XdsKubernetesServiceImplBase {
 
     /**
      * Creates a {@link KubernetesEndpointGroup} from the specified {@link ServiceEndpointWatcher}.
-     * This method must be executed in a blocking thread because
-     * {@link KubernetesEndpointGroupBuilder#build()} blocks the execution thread.
      */
     public static CompletableFuture<KubernetesEndpointGroup> createKubernetesEndpointGroup(
-            ServiceEndpointWatcher watcher, MetaRepository metaRepository, String group, String fileName) {
+            ServiceEndpointWatcher watcher, MetaRepository metaRepository, String group, String fileName,
+            boolean logIfFail) {
         final Kubeconfig kubeconfig = watcher.getKubeconfig();
         final String serviceName = watcher.getServiceName();
 
-        return toConfig(kubeconfig, metaRepository, group, fileName).thenApply(config -> {
-            final KubernetesEndpointGroupBuilder kubernetesEndpointGroupBuilder =
-                    KubernetesEndpointGroup.builder(config).serviceName(serviceName);
-            if (!isNullOrEmpty(kubeconfig.getNamespace())) {
-                kubernetesEndpointGroupBuilder.namespace(kubeconfig.getNamespace());
-            }
-            if (!isNullOrEmpty(watcher.getPortName())) {
-                kubernetesEndpointGroupBuilder.portName(watcher.getPortName());
-            }
-            return kubernetesEndpointGroupBuilder.build();
-        });
+        final CompletableFuture<KubernetesEndpointGroup> future =
+                toConfig(kubeconfig, metaRepository, group, fileName).thenApply(config -> {
+                    final KubernetesEndpointGroupBuilder kubernetesEndpointGroupBuilder =
+                            KubernetesEndpointGroup.builder(config).serviceName(serviceName);
+                    if (!isNullOrEmpty(kubeconfig.getNamespace())) {
+                        kubernetesEndpointGroupBuilder.namespace(kubeconfig.getNamespace());
+                    }
+                    if (!isNullOrEmpty(watcher.getPortName())) {
+                        kubernetesEndpointGroupBuilder.portName(watcher.getPortName());
+                    }
+                    return kubernetesEndpointGroupBuilder.build();
+                });
+        if (logIfFail) {
+            future.exceptionally(cause -> {
+                logger.warn("Failed to create KubernetesEndpointGroup. watcher: {}", watcher, cause);
+                return null;
+            });
+        }
+
+        return future;
     }
 
     private static CompletableFuture<Config> toConfig(Kubeconfig kubeconfig, MetaRepository metaRepository,
