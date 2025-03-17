@@ -169,8 +169,8 @@ public class MirroringServiceV1 extends AbstractService {
     public CompletableFuture<PushResultDto> createMirror(@Param String projectName,
                                                          Repository repository,
                                                          MirrorRequest newMirror,
-                                                         Author author) {
-        return createOrUpdate(projectName, repository.name(), newMirror, author, false);
+                                                         Author author, User user) {
+        return createOrUpdate(projectName, repository.name(), newMirror, author, user, false);
     }
 
     /**
@@ -184,9 +184,9 @@ public class MirroringServiceV1 extends AbstractService {
     public CompletableFuture<PushResultDto> updateMirror(@Param String projectName,
                                                          Repository repository,
                                                          MirrorRequest mirror,
-                                                         @Param String id, Author author) {
+                                                         @Param String id, Author author, User user) {
         checkArgument(id.equals(mirror.id()), "The mirror ID (%s) can't be updated", id);
-        return createOrUpdate(projectName, repository.name(), mirror, author, true);
+        return createOrUpdate(projectName, repository.name(), mirror, author, user, true);
     }
 
     /**
@@ -213,7 +213,7 @@ public class MirroringServiceV1 extends AbstractService {
 
     private CompletableFuture<PushResultDto> createOrUpdate(
             String projectName, String repoName, MirrorRequest newMirror,
-            Author author, boolean update) {
+            Author author, User user, boolean update) {
         final MetaRepository metaRepo = metaRepo(projectName);
         return metaRepo.createMirrorPushCommand(repoName, newMirror, author, zoneConfig, update).thenCompose(
                 command -> {
@@ -225,20 +225,20 @@ public class MirroringServiceV1 extends AbstractService {
                                         logger.warn("Failed to get the mirror: {}", newMirror.id(), cause);
                                         return null;
                                     }
-                                    return notifyMirrorEvent(mirror, update);
+                                    return notifyMirrorEvent(mirror, user, update);
                                 });
                         return new PushResultDto(result.revision(), command.timestamp());
                     });
                 });
     }
 
-    private Void notifyMirrorEvent(Mirror mirror, boolean update) {
+    private Void notifyMirrorEvent(Mirror mirror, User user, boolean update) {
         try {
             final MirrorListener listener = MirrorSchedulingService.mirrorListener();
             if (update) {
-                listener.onUpdate(mirror, accessController);
+                listener.onUpdate(mirror, user, accessController);
             } else {
-                listener.onCreate(mirror, accessController);
+                listener.onCreate(mirror, user, accessController);
             }
         } catch (Throwable ex) {
             logger.warn("Failed to notify the mirror listener. (mirror: {})", mirror, ex);
