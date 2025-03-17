@@ -20,7 +20,7 @@ import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static com.linecorp.centraldogma.internal.Util.validateProjectName;
 import static com.linecorp.centraldogma.internal.Util.validateRepositoryName;
-import static com.linecorp.centraldogma.server.internal.api.ContentServiceV1.checkPush;
+import static com.linecorp.centraldogma.server.internal.api.ContentServiceV1.checkMetaRepoPush;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1.increaseCounterIfOldRevisionUsed;
 import static com.linecorp.centraldogma.server.internal.thrift.Converter.convert;
 import static com.linecorp.centraldogma.server.storage.project.Project.isReservedRepoName;
@@ -314,7 +314,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
         final List<com.linecorp.centraldogma.common.Change<?>> convertedChanges =
                 convert(changes, Converter::convert);
         try {
-            checkPush(repositoryName, convertedChanges, false);
+            checkMetaRepoPush(repositoryName, convertedChanges);
         } catch (Exception e) {
             resultHandler.onError(e);
             return;

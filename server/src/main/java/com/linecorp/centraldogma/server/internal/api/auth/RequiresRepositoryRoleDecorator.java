@@ -89,7 +89,7 @@ public final class RequiresRepositoryRoleDecorator extends SimpleDecoratingHttpS
             return unwrap().serve(ctx, req);
         }
 
-        if (Project.REPO_DOGMA.equals(repoName)) {
+        if (Project.internalRepos().contains(repoName)) {
             return throwForbiddenResponse(ctx, projectName, repoName);
         }
         return serveUserRepo(ctx, req, user, projectName, maybeRemoveGitSuffix(repoName));

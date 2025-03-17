@@ -134,7 +134,7 @@ public abstract class XdsResourceWatchingService {
             executor().execute(() -> {
                 for (Repository repo : xdsProject.repos().list().values()) {
                     final String groupName = repo.name();
-                    if (Project.REPO_META.equals(groupName) || Project.REPO_DOGMA.equals(groupName)) {
+                    if (Project.internalRepos().contains(groupName)) {
                         continue;
                     }
                     final boolean added = watchingGroups.add(groupName);

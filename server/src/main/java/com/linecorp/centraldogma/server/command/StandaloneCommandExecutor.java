@@ -292,7 +292,8 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     private CompletableFuture<CommitResult> push(RepositoryCommand<?> c, boolean normalizing) {
-        if (c.projectName().equals(INTERNAL_PROJECT_DOGMA) || c.repositoryName().equals(Project.REPO_DOGMA) ||
+        if (c.projectName().equals(INTERNAL_PROJECT_DOGMA) ||
+            Project.internalRepos().contains(c.repositoryName()) ||
             !writeQuotaEnabled()) {
             return push0(c, normalizing);
         }

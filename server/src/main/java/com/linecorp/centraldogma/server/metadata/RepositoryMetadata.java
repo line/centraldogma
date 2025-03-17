@@ -62,13 +62,6 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     }
 
     /**
-     * Creates a new instance with internal project roles.
-     */
-    public static RepositoryMetadata ofInternal(String name, UserAndTimestamp creation) {
-        return new RepositoryMetadata(name, creation, INTERNAL_PROJECT_ROLES);
-    }
-
-    /**
      * A name of this repository.
      */
     private final String name;

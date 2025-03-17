@@ -97,30 +97,24 @@ class ThriftBackwardCompatibilityTest {
 
         res = webClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
         metadata = Jackson.readValue(res.contentUtf8(), ProjectMetadata.class);
-        assertThat(metadata.repos()).hasSize(2);
+        assertThat(metadata.repos()).hasSize(1);
         assertThat(metadata.repo(repo1)).isNotNull();
         assertThat(metadata.repo(repo1).removal()).isNull();
-        assertThat(metadata.repo(REPO_META)).isNotNull();
-        assertThat(metadata.repo(REPO_META).removal()).isNull();
 
         client.removeRepository(projectName, repo1);
 
         res = webClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
         metadata = Jackson.readValue(res.contentUtf8(), ProjectMetadata.class);
-        assertThat(metadata.repos()).hasSize(2);
+        assertThat(metadata.repos()).hasSize(1);
         assertThat(metadata.repo(repo1)).isNotNull();
         assertThat(metadata.repo(repo1).removal()).isNotNull();
-        assertThat(metadata.repo(REPO_META)).isNotNull();
-        assertThat(metadata.repo(REPO_META).removal()).isNull();
 
         client.unremoveRepository(projectName, repo1);
 
         res = webClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
         metadata = Jackson.readValue(res.contentUtf8(), ProjectMetadata.class);
-        assertThat(metadata.repos()).hasSize(2);
+        assertThat(metadata.repos()).hasSize(1);
         assertThat(metadata.repo(repo1)).isNotNull();
         assertThat(metadata.repo(repo1).removal()).isNull();
-        assertThat(metadata.repo(REPO_META)).isNotNull();
-        assertThat(metadata.repo(REPO_META).removal()).isNull();
     }
 }

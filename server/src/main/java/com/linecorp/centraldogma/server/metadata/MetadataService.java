@@ -62,6 +62,7 @@ import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.TestAbsenceOperation;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.metadata.ProjectMetadataTransformer;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -126,8 +127,7 @@ public class MetadataService {
         // after creating a new repository.
         final ImmutableList.Builder<CompletableFuture<Revision>> builder = ImmutableList.builder();
         for (String repo : repos) {
-            if (reposWithMetadata.contains(repo) ||
-                repo.equals(Project.REPO_DOGMA)) {
+            if (reposWithMetadata.contains(repo) || Project.internalRepos().contains(repo)) {
                 continue;
             }
 
@@ -351,6 +351,7 @@ public class MetadataService {
      */
     public CompletableFuture<Revision> addRepo(Author author, String projectName, String repoName,
                                                ProjectRoles projectRoles) {
+        // TODO(minwoox): Prohibit adding internal repositories after migration is done.
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -444,17 +445,11 @@ public class MetadataService {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
 
-        if (Project.REPO_DOGMA.equals(repoName)) {
+        if (Project.internalRepos().contains(repoName)) {
             throw new UnsupportedOperationException(
                     "Can't update role for internal repository: " + repoName);
         }
 
-        if (Project.REPO_META.equals(repoName)) {
-            if (projectRoles.guest() != null) {
-                throw new UnsupportedOperationException(
-                        "Can't give a role to guest for internal repository: " + repoName);
-            }
-        }
         final String commitSummary =
                 "Update the project roles of the '" + repoName + "' in the project '" + projectName + '\'';
         final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
