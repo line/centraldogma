@@ -23,7 +23,7 @@ import static com.linecorp.centraldogma.internal.Util.validateRepositoryName;
 import static com.linecorp.centraldogma.server.internal.api.ContentServiceV1.checkMetaRepoPush;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1.increaseCounterIfOldRevisionUsed;
 import static com.linecorp.centraldogma.server.internal.thrift.Converter.convert;
-import static com.linecorp.centraldogma.server.storage.project.Project.isReservedRepoName;
+import static com.linecorp.centraldogma.server.storage.project.Project.isInternalRepo;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 import static com.spotify.futures.CompletableFutures.allAsList;
 import static java.util.Objects.requireNonNull;
@@ -166,7 +166,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                                  AsyncMethodCallback resultHandler) {
         validateRepositoryName(repositoryName, "repositoryName");
         // HTTP v1 API will return '403 forbidden' in this case, but we deal it as '400 bad request' here.
-        if (isReservedRepoName(repositoryName)) {
+        if (isInternalRepo(repositoryName)) {
             resultHandler.onError(convert(RESERVED_REPOSITORY_EXCEPTION));
             return;
         }
@@ -179,7 +179,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     public void removeRepository(String projectName, String repositoryName,
                                  AsyncMethodCallback resultHandler) {
         // HTTP v1 API will return '403 forbidden' in this case, but we deal it as '400 bad request' here.
-        if (isReservedRepoName(repositoryName)) {
+        if (isInternalRepo(repositoryName)) {
             resultHandler.onError(convert(RESERVED_REPOSITORY_EXCEPTION));
             return;
         }

@@ -70,7 +70,7 @@ public final class HttpApiRequestConverter implements RequestConverterFunction {
             checkArgument(!isNullOrEmpty(repositoryName),
                           "repository name should not be null or empty.");
 
-            if (Project.internalRepos().contains(repositoryName) && !user.isSystemAdmin()) {
+            if (Project.isInternalRepo(repositoryName) && !user.isSystemAdmin()) {
                 return HttpApiUtil.throwResponse(
                         ctx, HttpStatus.FORBIDDEN,
                         "Repository '%s/%s' can be accessed only by a system administrator.",

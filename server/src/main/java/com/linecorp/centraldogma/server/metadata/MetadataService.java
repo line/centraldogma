@@ -127,7 +127,7 @@ public class MetadataService {
         // after creating a new repository.
         final ImmutableList.Builder<CompletableFuture<Revision>> builder = ImmutableList.builder();
         for (String repo : repos) {
-            if (reposWithMetadata.contains(repo) || Project.internalRepos().contains(repo)) {
+            if (reposWithMetadata.contains(repo) || Project.isInternalRepo(repo)) {
                 continue;
             }
 
@@ -445,7 +445,7 @@ public class MetadataService {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
 
-        if (Project.internalRepos().contains(repoName)) {
+        if (Project.isInternalRepo(repoName)) {
             throw new UnsupportedOperationException(
                     "Can't update role for internal repository: " + repoName);
         }

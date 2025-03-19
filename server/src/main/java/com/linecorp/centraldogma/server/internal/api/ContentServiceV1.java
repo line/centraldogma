@@ -466,7 +466,7 @@ public class ContentServiceV1 extends AbstractService {
                                    final JsonNode localRepoNode = node.get(MIRROR_LOCAL_REPO);
                                    if (localRepoNode != null) {
                                        final String localRepo = localRepoNode.textValue();
-                                       if (Project.isReservedRepoName(localRepo)) {
+                                       if (Project.isInternalRepo(localRepo)) {
                                            return localRepo;
                                        }
                                    }

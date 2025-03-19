@@ -86,8 +86,18 @@ public interface Project {
     }
 
     /**
-     * Returns {@code true} if the specified repository name is reserved by Central Dogma.
+     * Returns {@code true} if the specified repository is an internal repository.
      */
+    static boolean isInternalRepo(String repoName) {
+        return isReservedRepoName(repoName);
+    }
+
+    /**
+     * Returns {@code true} if the specified repository name is reserved by Central Dogma.
+     *
+     * @deprecated Use {@link #isInternalRepo(String)} instead.
+     */
+    @Deprecated
     static boolean isReservedRepoName(String repoName) {
         requireNonNull(repoName, "repoName");
         repoName = Ascii.toLowerCase(repoName);

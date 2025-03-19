@@ -101,7 +101,7 @@ public class RepositoryServiceV1 extends AbstractService {
             }
 
             return project.repos().list().values().stream()
-                          .filter(r -> user.isSystemAdmin() || !Project.internalRepos().contains(r.name()))
+                          .filter(r -> user.isSystemAdmin() || !Project.isInternalRepo(r.name()))
                           .map(DtoConverter::convert)
                           .collect(toImmutableList());
         });
@@ -120,9 +120,9 @@ public class RepositoryServiceV1 extends AbstractService {
                                                              CreateRepositoryRequest request,
                                                              Author author) {
         final String repoName = request.name();
-        if (Project.isReservedRepoName(repoName)) {
+        if (Project.isInternalRepo(repoName)) {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
-                                             "A reserved repository cannot be created.");
+                                             "An internal repository cannot be created.");
         }
         final CommandExecutor commandExecutor = executor();
         final CompletableFuture<Revision> future =
@@ -141,9 +141,9 @@ public class RepositoryServiceV1 extends AbstractService {
                                                     @Param String repoName,
                                                     Repository repository,
                                                     Author author) {
-        if (Project.isReservedRepoName(repoName)) {
+        if (Project.isInternalRepo(repoName)) {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
-                                             "A reserved repository cannot be removed.");
+                                             "An internal repository cannot be removed.");
         }
         return RepositoryServiceUtil.removeRepository(executor(), mds, author,
                                                       repository.parent().name(), repoName)
