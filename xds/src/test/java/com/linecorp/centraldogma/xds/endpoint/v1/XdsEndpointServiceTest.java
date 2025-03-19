@@ -90,7 +90,7 @@ public class XdsEndpointServiceTest {
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), actualEndpoint, clusterName);
     }
 
-    private static void assertOk(AggregatedHttpResponse response) {
+    static void assertOk(AggregatedHttpResponse response) {
         assertThat(response.status()).isSameAs(HttpStatus.OK);
         assertThat(response.headers().get("grpc-status")).isEqualTo("0");
     }
