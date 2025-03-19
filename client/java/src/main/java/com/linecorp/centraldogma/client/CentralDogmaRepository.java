@@ -21,6 +21,8 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
+import javax.annotation.Nullable;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 
@@ -33,6 +35,8 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * Prepares to send requests to the Central Dogma repository.
  */
@@ -42,13 +46,17 @@ public final class CentralDogmaRepository {
     private final String projectName;
     private final String repositoryName;
     private final ScheduledExecutorService blockingTaskExecutor;
+    @Nullable
+    private final MeterRegistry meterRegistry;
 
     CentralDogmaRepository(CentralDogma centralDogma, String projectName, String repositoryName,
-                           ScheduledExecutorService blockingTaskExecutor) {
+                           ScheduledExecutorService blockingTaskExecutor,
+                           @Nullable MeterRegistry meterRegistry) {
         this.centralDogma = centralDogma;
         this.projectName = projectName;
         this.repositoryName = repositoryName;
         this.blockingTaskExecutor = blockingTaskExecutor;
+        this.meterRegistry = meterRegistry;
     }
 
     CentralDogma centralDogma() {
@@ -279,7 +287,7 @@ public final class CentralDogmaRepository {
      */
     public <T> WatcherRequest<T> watcher(Query<T> query) {
         requireNonNull(query, "query");
-        return new WatcherRequest<>(this, query, blockingTaskExecutor);
+        return new WatcherRequest<>(this, query, blockingTaskExecutor, meterRegistry);
     }
 
     /**
@@ -287,7 +295,7 @@ public final class CentralDogmaRepository {
      */
     public WatcherRequest<Revision> watcher(PathPattern pathPattern) {
         requireNonNull(pathPattern, "pathPattern");
-        return new WatcherRequest<>(this, pathPattern, blockingTaskExecutor);
+        return new WatcherRequest<>(this, pathPattern, blockingTaskExecutor, meterRegistry);
     }
 
     @Override

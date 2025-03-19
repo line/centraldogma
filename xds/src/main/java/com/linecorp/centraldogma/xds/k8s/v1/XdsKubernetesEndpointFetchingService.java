@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.xds.k8s.v1;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.ControlPlaneService.K8S_ENDPOINTS_DIRECTORY;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
@@ -28,20 +29,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
-
-import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.client.kubernetes.endpoints.KubernetesEndpointGroup;
 import com.linecorp.armeria.common.util.Exceptions;
@@ -139,8 +138,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 : aggregator.getLocalityLbEndpointsList()) {
             final ServiceEndpointWatcher watcher = kubernetesLocalityLbEndpoints.getWatcher();
             final CompletableFuture<KubernetesEndpointGroup> future =
-                    createKubernetesEndpointGroup(watcher, xdsProject().metaRepo(), groupName,
-                                                  path, executorService);
+                    createKubernetesEndpointGroup(watcher, xdsProject().metaRepo(), groupName, path, true);
             futures.add(future);
         }
 
@@ -221,8 +219,6 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
         private final ScheduledExecutorService executorService;
         private final String groupName;
         private final KubernetesEndpointAggregator aggregator;
-        @Nullable
-        private ScheduledFuture<?> scheduledFuture;
         private boolean closing;
 
         KubernetesEndpointsUpdater(
@@ -236,32 +232,38 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             this.groupName = groupName;
             this.aggregator = aggregator;
 
+            CompletableFutures.successfulAsList(kubernetesEndpointGroupFutures, t -> null)
+                              .thenAccept(endpointGroups -> {
+                                  final List<CompletableFuture<List<com.linecorp.armeria.client.Endpoint>>>
+                                          whenReadys = endpointGroups.stream()
+                                                                     .filter(Objects::nonNull)
+                                                                     .map(KubernetesEndpointGroup::whenReady)
+                                                                     .collect(toImmutableList());
+                                  CompletableFutures.successfulAsList(whenReadys, t -> null)
+                                                    .thenAccept(unused -> addListenerToEndpointGroups());
+                              });
+        }
+
+        private void addListenerToEndpointGroups() {
             kubernetesEndpointGroupFutures.forEach(future -> future.thenAccept(kubernetesEndpointGroup -> {
+                if (kubernetesEndpointGroup.whenReady().isCompletedExceptionally()) {
+                    logger.warn("Failed to initialize k8s endpoint group: {}, aggregator: {}",
+                                kubernetesEndpointGroup, aggregator);
+                    return;
+                }
                 kubernetesEndpointGroup.addListener(endpoints -> {
                     if (endpoints.isEmpty()) {
                         return;
                     }
-                    executorService.execute(this::maybeSchedule);
+                    executorService.execute(this::pushK8sEndpoints);
                 }, true);
             }));
         }
 
-        void maybeSchedule() {
-            if (closing || scheduledFuture != null) {
+        private void pushK8sEndpoints() {
+            if (closing) {
                 return;
             }
-            // Commit after 3 seconds so that it pushes with all the fetched endpoints in the duration
-            // instead of pushing one by one.
-            scheduledFuture = executorService.schedule(() -> {
-                scheduledFuture = null;
-                if (closing) {
-                    return;
-                }
-                pushK8sEndpoints();
-            }, 3, TimeUnit.SECONDS);
-        }
-
-        private void pushK8sEndpoints() {
             logger.debug("Pushing k8s endpoints: {}, group: {}", aggregator.getClusterName(), groupName);
             final ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder =
                     ClusterLoadAssignment.newBuilder().setClusterName(aggregator.getClusterName());
@@ -271,6 +273,10 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                         kubernetesEndpointGroupFutures.get(i);
                 final KubernetesLocalityLbEndpoints localityLbEndpoints = aggregator.getLocalityLbEndpoints(i);
                 addLocalityLbEndpoints(clusterLoadAssignmentBuilder, future, localityLbEndpoints);
+            }
+            if (clusterLoadAssignmentBuilder.getEndpointsCount() == 0) {
+                logger.warn("No endpoints found for {}. group: {}", aggregator.getClusterName(), groupName);
+                return;
             }
 
             final String json;
@@ -306,11 +312,11 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                 ClusterLoadAssignment.Builder clusterLoadAssignmentBuilder,
                 CompletableFuture<KubernetesEndpointGroup> future,
                 KubernetesLocalityLbEndpoints kubernetesLocalityLbEndpoints) {
-            if (!future.isDone()) {
+            if (future.isCompletedExceptionally()) {
                 return;
             }
             final KubernetesEndpointGroup kubernetesEndpointGroup = future.join();
-            if (!kubernetesEndpointGroup.whenReady().isDone()) {
+            if (kubernetesEndpointGroup.whenReady().isCompletedExceptionally()) {
                 return;
             }
 
@@ -342,9 +348,6 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
 
         void close() {
             closing = true;
-            if (scheduledFuture != null) {
-                scheduledFuture.cancel(true);
-            }
             kubernetesEndpointGroupFutures.forEach(
                     future -> future.thenAccept(KubernetesEndpointGroup::closeAsync));
         }

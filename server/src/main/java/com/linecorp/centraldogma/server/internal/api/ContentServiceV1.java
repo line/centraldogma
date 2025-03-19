@@ -94,6 +94,7 @@ import com.linecorp.centraldogma.server.storage.repository.FindOptions;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import io.netty.util.AttributeKey;
 
 /**
  * Annotated service object for managing and watching contents.
@@ -102,6 +103,9 @@ import io.micrometer.core.instrument.MeterRegistry;
 @RequiresRepositoryRole(RepositoryRole.READ)
 @RequestConverter(CommitMessageRequestConverter.class)
 public class ContentServiceV1 extends AbstractService {
+
+    static final AttributeKey<Boolean> IS_WATCH_REQUEST =
+            AttributeKey.valueOf(ContentServiceV1.class, "IS_WATCH_REQUEST");
 
     private static final String MIRROR_LOCAL_REPO = "localRepo";
 
@@ -269,6 +273,7 @@ public class ContentServiceV1 extends AbstractService {
 
         // watch repository or a file
         if (watchRequest != null) {
+            ctx.setAttr(IS_WATCH_REQUEST, true);
             final Revision lastKnownRevision = watchRequest.lastKnownRevision();
             final long timeOutMillis = watchRequest.timeoutMillis();
             final boolean errorOnEntryNotFound = watchRequest.notifyEntryNotFound();

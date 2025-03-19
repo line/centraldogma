@@ -21,6 +21,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.mirror.MirrorListener;
@@ -38,10 +39,10 @@ final class CompositeMirrorListener implements MirrorListener {
     }
 
     @Override
-    public void onCreate(Mirror mirror, MirrorAccessController accessController) {
+    public void onCreate(Mirror mirror, User creator, MirrorAccessController accessController) {
         for (MirrorListener delegate : delegates) {
             try {
-                delegate.onCreate(mirror, accessController);
+                delegate.onCreate(mirror, creator, accessController);
             } catch (Exception e) {
                 logger.warn("Failed to notify a listener of the mirror create event: {}", delegate, e);
             }
@@ -49,10 +50,10 @@ final class CompositeMirrorListener implements MirrorListener {
     }
 
     @Override
-    public void onUpdate(Mirror mirror, MirrorAccessController accessController) {
+    public void onUpdate(Mirror mirror, User updater, MirrorAccessController accessController) {
         for (MirrorListener delegate : delegates) {
             try {
-                delegate.onUpdate(mirror, accessController);
+                delegate.onUpdate(mirror, updater, accessController);
             } catch (Exception e) {
                 logger.warn("Failed to notify a listener of the mirror update event: {}", delegate, e);
             }

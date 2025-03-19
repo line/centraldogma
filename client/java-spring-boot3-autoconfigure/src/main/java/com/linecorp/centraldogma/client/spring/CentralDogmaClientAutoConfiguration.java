@@ -39,6 +39,8 @@ import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.ArmeriaClientConfigurator;
 import com.linecorp.centraldogma.client.armeria.DnsAddressEndpointGroupConfigurator;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * Spring bean configuration for {@link CentralDogma} client.
  */
@@ -60,7 +62,8 @@ public class CentralDogmaClientAutoConfiguration {
             CentralDogmaSettings settings,
             Optional<List<CentralDogmaClientFactoryConfigurator>> factoryConfigurators,
             Optional<ArmeriaClientConfigurator> armeriaClientConfigurator,
-            Optional<DnsAddressEndpointGroupConfigurator> dnsAddressEndpointGroupConfigurator)
+            Optional<DnsAddressEndpointGroupConfigurator> dnsAddressEndpointGroupConfigurator,
+            Optional<MeterRegistry> meterRegistry)
             throws UnknownHostException {
 
         final ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
@@ -129,6 +132,8 @@ public class CentralDogmaClientAutoConfiguration {
         if (retryIntervalOnReplicationLagMillis != null) {
             builder.retryIntervalOnReplicationLagMillis(retryIntervalOnReplicationLagMillis);
         }
+
+        meterRegistry.ifPresent(builder::meterRegistry);
 
         final CentralDogma centralDogma = builder.build();
         Long initializationTimeoutMillis = settings.getInitializationTimeoutMillis();

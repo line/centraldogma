@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.mirror.MirrorListener;
@@ -48,12 +49,12 @@ public class TestMirrorRunnerListener implements MirrorListener {
     }
 
     @Override
-    public void onCreate(Mirror mirror, MirrorAccessController accessController) {
+    public void onCreate(Mirror mirror, User creator, MirrorAccessController accessController) {
         creationCount.merge(mirror.remoteRepoUri().toString(), 1, Integer::sum);
     }
 
     @Override
-    public void onUpdate(Mirror mirror, MirrorAccessController accessController) {
+    public void onUpdate(Mirror mirror, User updater, MirrorAccessController accessController) {
         updateCount.merge(mirror.remoteRepoUri().toString(), 1, Integer::sum);
     }
 

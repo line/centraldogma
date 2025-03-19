@@ -20,6 +20,8 @@ import java.util.ServiceLoader;
 
 import javax.annotation.Nullable;
 
+import com.linecorp.centraldogma.server.metadata.User;
+
 /**
  * A listener which is notified when a {@link Mirror} operation is started, completed or failed.
  *
@@ -37,12 +39,12 @@ public interface MirrorListener {
     /**
      * Invoked when a new {@link Mirror} is created.
      */
-    void onCreate(Mirror mirror, MirrorAccessController accessController);
+    void onCreate(Mirror mirror, User creator, MirrorAccessController accessController);
 
     /**
      * Invoked when the {@link Mirror} is updated.
      */
-    void onUpdate(Mirror mirror, MirrorAccessController accessController);
+    void onUpdate(Mirror mirror, User updater, MirrorAccessController accessController);
 
     /**
      * Invoked when the {@link Mirror} operation is disallowed.

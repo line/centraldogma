@@ -35,6 +35,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nullable;
 
@@ -102,10 +103,12 @@ public final class MirrorSchedulingService implements MirroringService {
     @Nullable
     private final String currentZone;
     private final MirrorAccessController mirrorAccessController;
+    private final AtomicInteger numActiveMirrors = new AtomicInteger();
 
     private volatile CommandExecutor commandExecutor;
     private volatile ListeningScheduledExecutorService scheduler;
     private volatile ListeningExecutorService worker;
+    private volatile boolean closing;
 
     private ZonedDateTime lastExecutionTime;
     private final MeterRegistry meterRegistry;
@@ -199,6 +202,23 @@ public final class MirrorSchedulingService implements MirroringService {
     }
 
     public synchronized void stop() {
+        closing = true;
+        final int numActiveMirrors = this.numActiveMirrors.get();
+        if (numActiveMirrors > 0) {
+            // TODO(ikhoon): Consider adding an option for the maximum wait time.
+            logger.info("Waiting for {} active mirrors to finish up to 10 seconds...", numActiveMirrors);
+            for (int i = 0; i < 10; i++) {
+                try {
+                    if (this.numActiveMirrors.get() == 0) {
+                        break;
+                    }
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
         final ExecutorService scheduler = this.scheduler;
         final ExecutorService worker = this.worker;
 
@@ -214,6 +234,10 @@ public final class MirrorSchedulingService implements MirroringService {
     }
 
     private void scheduleMirrors() {
+        if (closing) {
+            return;
+        }
+
         final ZonedDateTime now = ZonedDateTime.now();
         if (lastExecutionTime == null) {
             lastExecutionTime = now.minus(TICK);
@@ -225,6 +249,10 @@ public final class MirrorSchedulingService implements MirroringService {
         projectManager.list()
                       .values()
                       .forEach(project -> {
+                          if (closing) {
+                              return;
+                          }
+
                           final List<Mirror> mirrors;
                           try {
                               mirrors = project.metaRepo().mirrors()
@@ -313,6 +341,12 @@ public final class MirrorSchedulingService implements MirroringService {
     }
 
     private void run(MirrorTask mirrorTask) {
+        numActiveMirrors.incrementAndGet();
+        if (closing) {
+            numActiveMirrors.decrementAndGet();
+            return;
+        }
+
         try {
             mirrorListener.onStart(mirrorTask);
             final MirrorResult result =
@@ -328,6 +362,8 @@ public final class MirrorSchedulingService implements MirroringService {
                     throw new MirrorException(e);
                 }
             }
+        } finally {
+            numActiveMirrors.decrementAndGet();
         }
     }
 }
