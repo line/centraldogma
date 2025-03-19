@@ -242,7 +242,7 @@ class MetadataApiServiceTest {
                                                         .auth(AuthToken.ofOAuth2(memberToken)).build()
                                                         .blocking();
         res = memberClient.get("/api/v1/projects/" + PROJECT_NAME + "/repos/meta/list");
-        // A member isn't allowed to access the meta repository yet.
+        // A member isn't allowed to access the meta repository.
         assertThat(res.status()).isSameAs(HttpStatus.FORBIDDEN);
         assertThat(res.contentUtf8()).contains(
                 "Repository 'foo_proj/meta' can be accessed only by a system administrator.");
