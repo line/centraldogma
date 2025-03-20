@@ -124,24 +124,28 @@ const FileEditor = ({
         >
           History
         </Button>
-        <Button
-          onClick={switchMode}
-          leftIcon={readOnly ? <FcEditImage /> : <FcCancel />}
-          colorScheme={readOnly ? 'teal' : 'blue'}
-          variant="outline"
-          size="sm"
-        >
-          {readOnly ? 'Edit' : 'Cancel changes'}
-        </Button>
-        <Button
-          onClick={onDeleteModalOpen}
-          leftIcon={<AiOutlineDelete />}
-          colorScheme="red"
-          display={readOnly ? 'visible' : 'none'}
-          size="sm"
-        >
-          Delete
-        </Button>
+        {projectName !== 'dogma' && repoName !== 'dogma' && (
+          <>
+            <Button
+              onClick={switchMode}
+              leftIcon={readOnly ? <FcEditImage /> : <FcCancel />}
+              colorScheme={readOnly ? 'teal' : 'blue'}
+              variant="outline"
+              size="sm"
+            >
+              {readOnly ? 'Edit' : 'Cancel changes'}
+            </Button>
+            <Button
+              onClick={onDeleteModalOpen}
+              leftIcon={<AiOutlineDelete />}
+              colorScheme="red"
+              display={readOnly ? 'visible' : 'none'}
+              size="sm"
+            >
+              Delete
+            </Button>
+          </>
+        )}
       </Flex>
       <Tabs
         variant="enclosed-colored"

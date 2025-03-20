@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.server.metadata;
+package com.linecorp.centraldogma.server.internal.metadata;
 
 import static com.linecorp.centraldogma.server.metadata.MetadataService.METADATA_JSON;
 
@@ -27,10 +27,11 @@ import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.ContentTransformer;
+import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 
-class ProjectMetadataTransformer extends ContentTransformer<JsonNode> {
+public class ProjectMetadataTransformer extends ContentTransformer<JsonNode> {
 
-    ProjectMetadataTransformer(BiFunction<Revision, ProjectMetadata, ProjectMetadata> transformer) {
+    public ProjectMetadataTransformer(BiFunction<Revision, ProjectMetadata, ProjectMetadata> transformer) {
         super(METADATA_JSON, EntryType.JSON,
               (headRevision, jsonNode) -> Jackson.valueToTree(
                       transformer.apply(headRevision, projectMetadata(jsonNode))));

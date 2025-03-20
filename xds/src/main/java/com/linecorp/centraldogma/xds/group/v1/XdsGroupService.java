@@ -94,7 +94,7 @@ public final class XdsGroupService extends XdsGroupServiceImplBase {
             throw Status.NOT_FOUND.withDescription("Group does not exist: " + groupName)
                                   .asRuntimeException();
         }
-        if (Project.isReservedRepoName(name)) {
+        if (Project.isInternalRepo(name)) {
             throw Status.PERMISSION_DENIED.withDescription("Now allowed to delete " + groupName)
                                           .asRuntimeException();
         }

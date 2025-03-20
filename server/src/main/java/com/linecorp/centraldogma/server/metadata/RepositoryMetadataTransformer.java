@@ -21,6 +21,7 @@ import java.util.function.BiFunction;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.internal.metadata.ProjectMetadataTransformer;
 
 final class RepositoryMetadataTransformer extends ProjectMetadataTransformer {
 
