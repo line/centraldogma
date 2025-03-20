@@ -61,17 +61,17 @@ final class CommitExecutor {
     private final String summary;
     private final String detail;
     private final Markup markup;
-    private final EmptyCommitPolicy emptyCommitPolicy;
+    private final boolean allowEmptyCommit;
 
     CommitExecutor(GitRepository gitRepository, long commitTimeMillis, Author author,
-                   String summary, String detail, Markup markup, EmptyCommitPolicy emptyCommitPolicy) {
+                   String summary, String detail, Markup markup, boolean allowEmptyCommit) {
         this.gitRepository = gitRepository;
         this.commitTimeMillis = commitTimeMillis;
         this.author = author;
         this.summary = summary;
         this.detail = detail;
         this.markup = markup;
-        this.emptyCommitPolicy = emptyCommitPolicy;
+        this.allowEmptyCommit = allowEmptyCommit;
     }
 
     Author author() {
@@ -153,19 +153,11 @@ final class CommitExecutor {
                 } else {
                     diffEntries = ImmutableList.of();
                 }
-                if (isEmpty) {
-                    switch (emptyCommitPolicy) {
-                        case ALLOW:
-                            break;
-                        case DISALLOW:
+                if (!allowEmptyCommit && isEmpty) {
                             throw new RedundantChangeException(
                                     headRevision,
-                                    "changes did not change anything in " + gitRepository.parent().name() +
-                                    '/' + gitRepository.name() + " at revision " + headRevision.major() +
-                                    ": " + changes);
-                        case IGNORE:
-                            return new RevisionAndEntries(headRevision, diffEntries);
-                    }
+                            "changes did not change anything in " + gitRepository.parent().name() + '/' +
+                            gitRepository.name() + " at revision " + headRevision.major() + ": " + changes);
                 }
             } else {
                 // initial commit.
@@ -218,11 +210,5 @@ final class CommitExecutor {
             this.revision = revision;
             this.diffEntries = diffEntries;
         }
-    }
-
-    enum EmptyCommitPolicy {
-        ALLOW,
-        DISALLOW,
-        IGNORE
     }
 }

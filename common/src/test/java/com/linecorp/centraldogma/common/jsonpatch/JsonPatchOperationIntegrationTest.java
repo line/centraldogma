@@ -38,6 +38,7 @@ import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.PushResult;
+import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -142,18 +143,19 @@ class JsonPatchOperationIntegrationTest {
                 JsonPatchOperation.removeIfExists(JsonPointer.compile("/a"));
         final Change<JsonNode> change = Change.ofJsonPatch("/a.json", removeIfExists);
         final PushResult result0 = repository.commit("remove a", change)
-                                            .push()
-                                            .join();
+                                             .push()
+                                             .join();
 
         final JsonNode jsonNode = repository.file("/a.json").get().join().contentAsJson();
         assertThatJson(jsonNode).isEqualTo("{ \"b\": 2 }");
 
-        final PushResult result1 = repository.commit("remove a again", change)
-                                             .push()
-                                             .join();
-        // Should not increase the revision if the path is absent and the history must be the same.
-        assertThat(result1.revision()).isEqualTo(result0.revision());
-
+        assertThatThrownBy(() -> {
+            repository.commit("remove a again", change)
+                      .push()
+                      .join();
+        }).isInstanceOf(CompletionException.class)
+          // `removeIfExists` changed nothing.
+          .hasCauseInstanceOf(RedundantChangeException.class);
         final Entry<?> data = repository.file("/a.json").get().join();
         assertThat(data.revision()).isEqualTo(result0.revision());
         assertThatJson(data.contentAsJson()).isEqualTo("{ \"b\": 2 }");
