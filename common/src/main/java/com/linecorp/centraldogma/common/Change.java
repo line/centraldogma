@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.common;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.Util.validateDirPath;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static java.util.Objects.requireNonNull;
@@ -37,6 +38,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -257,6 +259,7 @@ public interface Change<T> {
     static Change<JsonNode> ofJsonPatch(String path, Iterable<? extends JsonPatchOperation> jsonPatches) {
         requireNonNull(path, "path");
         requireNonNull(jsonPatches, "jsonPatches");
+        checkArgument(!Iterables.isEmpty(jsonPatches), "jsonPatches cannot be empty");
         return new DefaultChange<>(path, ChangeType.APPLY_JSON_PATCH,
                                    JsonPatchOperation.asJsonArray(jsonPatches));
     }
