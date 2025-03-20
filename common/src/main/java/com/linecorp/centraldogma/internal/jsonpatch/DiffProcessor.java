@@ -46,6 +46,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Equivalence;
 import com.google.common.base.Predicate;
 
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
+
 // TODO: cleanup
 final class DiffProcessor {
 
@@ -75,16 +77,16 @@ final class DiffProcessor {
     void valueReplaced(final JsonPointer pointer, final JsonNode oldValue, final JsonNode newValue) {
         switch (replaceMode) {
             case RFC6902:
-                diffs.add(new ReplaceOperation(pointer, newValue));
+                diffs.add(JsonPatchOperation.replace(pointer, newValue));
                 break;
             case SAFE:
-                diffs.add(new SafeReplaceOperation(pointer, oldValue, newValue));
+                diffs.add(JsonPatchOperation.safeReplace(pointer, oldValue, newValue));
                 break;
         }
     }
 
     void valueRemoved(final JsonPointer pointer) {
-        diffs.add(new RemoveOperation(pointer));
+        diffs.add(JsonPatchOperation.remove(pointer));
     }
 
     void valueAdded(final JsonPointer pointer, final JsonNode value) {
@@ -92,10 +94,10 @@ final class DiffProcessor {
         if (value.isContainerNode()) {
             // Use copy operation only for container nodes.
             final JsonPointer ptr = findUnchangedValue(value);
-            op = ptr != null ? new CopyOperation(ptr, pointer)
-                             : new AddOperation(pointer, value);
+            op = ptr != null ? JsonPatchOperation.copy(ptr, pointer)
+                             : JsonPatchOperation.add(pointer, value);
         } else {
-            op = new AddOperation(pointer, value);
+            op = JsonPatchOperation.add(pointer, value);
         }
 
         diffs.add(op);

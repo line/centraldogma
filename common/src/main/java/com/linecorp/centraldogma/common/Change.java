@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.common;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.Util.validateDirPath;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static java.util.Objects.requireNonNull;
@@ -36,7 +37,10 @@ import javax.annotation.Nullable;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
@@ -221,6 +225,43 @@ public interface Change<T> {
 
         return new DefaultChange<>(path, ChangeType.APPLY_JSON_PATCH,
                                    JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE).toJson());
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
+     *
+     * @param path the path of the file
+     * @param jsonPatch the patch in <a href="https://tools.ietf.org/html/rfc6902">JSON patch format</a>
+     */
+    static Change<JsonNode> ofJsonPatch(String path, JsonPatchOperation jsonPatch) {
+        requireNonNull(path, "path");
+        requireNonNull(jsonPatch, "jsonPatch");
+        return new DefaultChange<>(path, ChangeType.APPLY_JSON_PATCH, jsonPatch.toJsonNode());
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
+     *
+     * @param path the path of the file
+     * @param jsonPatches the list of patches in <a href="https://tools.ietf.org/html/rfc6902">JSON patch format</a>
+     */
+    static Change<JsonNode> ofJsonPatch(String path, JsonPatchOperation... jsonPatches) {
+        requireNonNull(jsonPatches, "jsonPatches");
+        return ofJsonPatch(path, ImmutableList.copyOf(jsonPatches));
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
+     *
+     * @param path the path of the file
+     * @param jsonPatches the list of patches in <a href="https://tools.ietf.org/html/rfc6902">JSON patch format</a>
+     */
+    static Change<JsonNode> ofJsonPatch(String path, Iterable<? extends JsonPatchOperation> jsonPatches) {
+        requireNonNull(path, "path");
+        requireNonNull(jsonPatches, "jsonPatches");
+        checkArgument(!Iterables.isEmpty(jsonPatches), "jsonPatches cannot be empty");
+        return new DefaultChange<>(path, ChangeType.APPLY_JSON_PATCH,
+                                   JsonPatchOperation.asJsonArray(jsonPatches));
     }
 
     /**

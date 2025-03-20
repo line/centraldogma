@@ -154,8 +154,8 @@ final class CommitExecutor {
                     diffEntries = ImmutableList.of();
                 }
                 if (!allowEmptyCommit && isEmpty) {
-                    throw new RedundantChangeException(
-                            headRevision,
+                            throw new RedundantChangeException(
+                                    headRevision,
                             "changes did not change anything in " + gitRepository.parent().name() + '/' +
                             gitRepository.name() + " at revision " + headRevision.major() + ": " + changes);
                 }

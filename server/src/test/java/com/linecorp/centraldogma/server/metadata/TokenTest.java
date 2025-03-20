@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.server.metadata;
 
-import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
+import static com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.server.metadata.MetadataService.TOKEN_JSON;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -39,9 +39,8 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.jsonpatch.AddOperation;
-import com.linecorp.centraldogma.internal.jsonpatch.TestAbsenceOperation;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.TokenLevelRequest;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.TokenService;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
@@ -79,10 +78,10 @@ class TokenTest {
         final JsonPointer secretPath = JsonPointer.compile("/secrets/" + APP_SECRET);
         final Change<JsonNode> change = Change.ofJsonPatch(
                 TOKEN_JSON,
-                asJsonArray(new TestAbsenceOperation(appIdPath),
-                            new TestAbsenceOperation(secretPath),
-                            new AddOperation(appIdPath, Jackson.readTree(tokenJson(true))),
-                            new AddOperation(secretPath, Jackson.valueToTree(APP_ID))));
+                asJsonArray(JsonPatchOperation.testAbsence(appIdPath),
+                            JsonPatchOperation.testAbsence(secretPath),
+                            JsonPatchOperation.add(appIdPath, Jackson.readTree(tokenJson(true))),
+                            JsonPatchOperation.add(secretPath, Jackson.valueToTree(APP_ID))));
 
         dogmaRepository.commit(Revision.HEAD, System.currentTimeMillis(), AUTHOR,
                                "Add the legacy token", change).join();

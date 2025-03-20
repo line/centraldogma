@@ -32,7 +32,9 @@
  * - ASL 2.0: https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 
-package com.linecorp.centraldogma.internal.jsonpatch;
+package com.linecorp.centraldogma.common.jsonpatch;
+
+import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -49,19 +51,22 @@ import com.fasterxml.jackson.databind.JsonNode;
  * <p>It is an error if no value exists at the given path.</p>
  *
  * <p>Also note that equality as defined by JSON Patch is exactly the same as it
- * is defined by JSON Schema itself. As such, this operation reuses {@link
- * JsonNumEquals} for testing equality.</p>
+ * is defined by JSON Schema itself.
  */
 public final class TestOperation extends PathValueOperation {
 
+    /**
+     * Creates a new instance.
+     */
     @JsonCreator
-    public TestOperation(@JsonProperty("path") final JsonPointer path,
-                         @JsonProperty("value") final JsonNode value) {
+    TestOperation(@JsonProperty("path") final JsonPointer path,
+                  @JsonProperty("value") final JsonNode value) {
         super("test", path, value);
     }
 
     @Override
-    JsonNode apply(final JsonNode node) {
+    public JsonNode apply(final JsonNode node) {
+        requireNonNull(node, "node");
         ensureEquivalence(ensureExistence(node));
         return node;
     }

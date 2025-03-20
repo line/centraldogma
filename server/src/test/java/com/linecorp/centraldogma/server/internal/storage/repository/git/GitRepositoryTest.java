@@ -76,6 +76,8 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
+import com.linecorp.centraldogma.common.TextPatchConflictException;
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.storage.StorageException;
@@ -241,20 +243,20 @@ class GitRepositoryTest {
         assertThatThrownBy(
                 () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, nextChange).join())
                 .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(ChangeConflictException.class);
+                .hasCauseInstanceOf(JsonPatchConflictException.class);
     }
 
     @Test
     void testJsonPatch() {
-        testPatch(jsonPatches, jsonUpserts);
+        testPatch(jsonPatches, jsonUpserts, true);
     }
 
     @Test
     void testTextPatch() {
-        testPatch(textPatches, textUpserts);
+        testPatch(textPatches, textUpserts, false);
     }
 
-    private static void testPatch(Change<?>[] patches, Change<?>[] upserts) {
+    private static void testPatch(Change<?>[] patches, Change<?>[] upserts, boolean jsonPatch) {
         final String path = patches[0].path();
         for (int i = 0; i < NUM_ITERATIONS; i++) {
             assert path.equals(patches[i].path());
@@ -267,7 +269,8 @@ class GitRepositoryTest {
                 assertThatThrownBy(
                         () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, patches[finalJ]).join())
                         .isInstanceOf(CompletionException.class)
-                        .hasCauseInstanceOf(ChangeConflictException.class);
+                        .hasCauseExactlyInstanceOf(jsonPatch ? JsonPatchConflictException.class
+                                                             : TextPatchConflictException.class);
             }
 
             // Ensure that the failed commit does not change the revision.
@@ -558,7 +561,7 @@ class GitRepositoryTest {
         assertThatThrownBy(() -> repo
                 .commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0], jsonPatches[2]).join())
                 .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(ChangeConflictException.class);
+                .hasCauseInstanceOf(JsonPatchConflictException.class);
     }
 
     /**
@@ -599,7 +602,7 @@ class GitRepositoryTest {
         // Invalid patch
         assertThatThrownBy(() -> repo.previewDiff(HEAD, jsonPatches[1]).join())
                 .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(ChangeConflictException.class);
+                .hasCauseInstanceOf(JsonPatchConflictException.class);
 
         // Invalid removal
         assertThatThrownBy(() -> repo.previewDiff(HEAD, Change.ofRemoval(jsonPaths[0])).join())
@@ -662,7 +665,9 @@ class GitRepositoryTest {
 
             // PATCH_TO_UPSERT diff option.
             final Map<String, Change<?>> diffUpsert = repo.diff(
-                    prevRevision, currRevision, Repository.ALL_PATH, DiffResultType.PATCH_TO_UPSERT)
+                                                                  prevRevision, currRevision,
+                                                                  Repository.ALL_PATH,
+                                                                  DiffResultType.PATCH_TO_UPSERT)
                                                           .join();
             assertThat(diffUpsert).hasSize(2)
                                   .containsEntry(jsonPath, jsonUpsert)
@@ -766,13 +771,17 @@ class GitRepositoryTest {
 
             // PATCH_TO_UPSERT diff option.
             final Map<String, Change<?>> diffUpsert = repo.diff(
-                    prevRevision, currRevision, Repository.ALL_PATH, DiffResultType.PATCH_TO_UPSERT)
+                                                                  prevRevision, currRevision,
+                                                                  Repository.ALL_PATH,
+                                                                  DiffResultType.PATCH_TO_UPSERT)
                                                           .join();
             assertThat(diffUpsert).hasSize(2)
                                   .containsEntry(jsonNodePath, expectedJsonUpsert)
                                   .containsEntry(textNodePath, expectedTextUpsert);
             final Change<?> jsonQueryUpsert = repo.diff(
-                    prevRevision, currRevision, Query.ofJson(jsonNodePath), DiffResultType.PATCH_TO_UPSERT)
+                                                          prevRevision, currRevision,
+                                                          Query.ofJson(jsonNodePath),
+                                                          DiffResultType.PATCH_TO_UPSERT)
                                                   .join();
             assertThat(jsonQueryUpsert).isEqualTo(expectedJsonUpsert);
             final Change<?> textQueryUpsert = repo.diff(prevRevision, currRevision, Query.ofText(textNodePath),

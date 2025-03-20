@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.metadata;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
+import static com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager.listProjectsWithoutInternal;
 import static com.linecorp.centraldogma.server.metadata.RepositoryMetadata.DEFAULT_PROJECT_ROLES;
@@ -55,11 +55,8 @@ import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.jsonpatch.AddOperation;
-import com.linecorp.centraldogma.internal.jsonpatch.RemoveOperation;
-import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
-import com.linecorp.centraldogma.internal.jsonpatch.TestAbsenceOperation;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.metadata.ProjectMetadataTransformer;
@@ -199,9 +196,9 @@ public class MetadataService {
 
         final Change<JsonNode> change = Change.ofJsonPatch(
                 METADATA_JSON,
-                asJsonArray(new TestAbsenceOperation(PROJECT_REMOVAL),
-                            new AddOperation(PROJECT_REMOVAL,
-                                             Jackson.valueToTree(UserAndTimestamp.of(author)))));
+                asJsonArray(JsonPatchOperation.testAbsence(PROJECT_REMOVAL),
+                            JsonPatchOperation.add(PROJECT_REMOVAL,
+                                                   Jackson.valueToTree(UserAndTimestamp.of(author)))));
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author,
                                  "Remove the project: " + projectName, change);
     }
@@ -214,7 +211,7 @@ public class MetadataService {
         requireNonNull(projectName, "projectName");
 
         final Change<JsonNode> change =
-                Change.ofJsonPatch(METADATA_JSON, new RemoveOperation(PROJECT_REMOVAL).toJsonNode());
+                Change.ofJsonPatch(METADATA_JSON, JsonPatchOperation.remove(PROJECT_REMOVAL).toJsonNode());
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author,
                                  "Restore the project: " + projectName, change);
     }
@@ -245,8 +242,8 @@ public class MetadataService {
         final JsonPointer path = JsonPointer.compile("/members" + encodeSegment(newMember.id()));
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
-                                   asJsonArray(new TestAbsenceOperation(path),
-                                               new AddOperation(path, Jackson.valueToTree(newMember))));
+                                   asJsonArray(JsonPatchOperation.testAbsence(path),
+                                               JsonPatchOperation.add(path, Jackson.valueToTree(newMember))));
         final String commitSummary =
                 "Add a member '" + newMember.id() + "' to the project '" + projectName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
@@ -318,8 +315,9 @@ public class MetadataService {
 
         final Change<JsonNode> change = Change.ofJsonPatch(
                 METADATA_JSON,
-                new ReplaceOperation(JsonPointer.compile("/members" + encodeSegment(member.id()) + "/role"),
-                                     Jackson.valueToTree(projectRole)).toJsonNode());
+                JsonPatchOperation.replace(
+                        JsonPointer.compile("/members" + encodeSegment(member.id()) + "/role"),
+                        Jackson.valueToTree(projectRole)).toJsonNode());
         final String commitSummary = "Updates the role of the member '" + member.id() +
                                      "' as '" + projectRole + "' for the project '" + projectName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
@@ -361,9 +359,9 @@ public class MetadataService {
                 RepositoryMetadata.of(repoName, UserAndTimestamp.of(author), projectRoles);
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
-                                   asJsonArray(new TestAbsenceOperation(path),
-                                               new AddOperation(path,
-                                                                Jackson.valueToTree(newRepositoryMetadata))));
+                                   asJsonArray(JsonPatchOperation.testAbsence(path),
+                                               JsonPatchOperation.add(
+                                                       path, Jackson.valueToTree(newRepositoryMetadata))));
         final String commitSummary =
                 "Add a repo '" + newRepositoryMetadata.id() + "' to the project '" + projectName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change)
@@ -391,8 +389,8 @@ public class MetadataService {
         final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) + "/removal");
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
-                                   asJsonArray(new TestAbsenceOperation(path),
-                                               new AddOperation(path, Jackson.valueToTree(
+                                   asJsonArray(JsonPatchOperation.testAbsence(path),
+                                               JsonPatchOperation.add(path, Jackson.valueToTree(
                                                        UserAndTimestamp.of(author)))));
         final String commitSummary =
                 "Remove the repo '" + repoName + "' from the project '" + projectName + '\'';
@@ -410,7 +408,7 @@ public class MetadataService {
 
         final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName));
         final Change<JsonNode> change = Change.ofJsonPatch(METADATA_JSON,
-                                                           new RemoveOperation(path).toJsonNode());
+                                                           JsonPatchOperation.remove(path).toJsonNode());
         final String commitSummary =
                 "Purge the repo '" + repoName + "' from the project '" + projectName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
@@ -427,7 +425,7 @@ public class MetadataService {
 
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
-                                   new RemoveOperation(JsonPointer.compile(
+                                   JsonPatchOperation.remove(JsonPointer.compile(
                                            "/repos" + encodeSegment(repoName) + "/removal")).toJsonNode());
         final String commitSummary =
                 "Restore the repo '" + repoName + "' from the project '" + projectName + '\'';
@@ -489,8 +487,9 @@ public class MetadataService {
         final JsonPointer path = JsonPointer.compile("/tokens" + encodeSegment(registration.id()));
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
-                                   asJsonArray(new TestAbsenceOperation(path),
-                                               new AddOperation(path, Jackson.valueToTree(registration))));
+                                       asJsonArray(JsonPatchOperation.testAbsence(path),
+                                                   JsonPatchOperation.add(path,
+                                                                          Jackson.valueToTree(registration))));
         final String commitSummary = "Add a token '" + registration.id() +
                                      "' to the project '" + projectName + "' with a role '" + role + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
@@ -585,8 +584,8 @@ public class MetadataService {
         final JsonPointer path = JsonPointer.compile("/tokens" + encodeSegment(registration.id()));
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
-                                   new ReplaceOperation(path, Jackson.valueToTree(registration))
-                                           .toJsonNode());
+                                   JsonPatchOperation.replace(
+                                           path, Jackson.valueToTree(registration)).toJsonNode());
         final String commitSummary = "Update the role of a token '" + token.appId() +
                                      "' as '" + role + "' for the project '" + projectName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
@@ -835,7 +834,7 @@ public class MetadataService {
         final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) + "/writeQuota");
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
-                                   new AddOperation(path, Jackson.valueToTree(writeQuota)).toJsonNode());
+                                   JsonPatchOperation.add(path, Jackson.valueToTree(writeQuota)).toJsonNode());
         final String commitSummary = "Update a write quota for the repository '" + repoName + '\'';
         executor.setWriteQuota(projectName, repoName, writeQuota);
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
@@ -1023,11 +1022,11 @@ public class MetadataService {
         final JsonPointer secretPath = JsonPointer.compile("/secrets" + encodeSegment(newTokenSecret));
         final Change<JsonNode> change =
                 Change.ofJsonPatch(TOKEN_JSON,
-                                   asJsonArray(new TestAbsenceOperation(appIdPath),
-                                               new TestAbsenceOperation(secretPath),
-                                               new AddOperation(appIdPath, Jackson.valueToTree(newToken)),
-                                               new AddOperation(secretPath,
-                                                                Jackson.valueToTree(newToken.id()))));
+                                   asJsonArray(JsonPatchOperation.testAbsence(appIdPath),
+                                               JsonPatchOperation.testAbsence(secretPath),
+                                               JsonPatchOperation.add(appIdPath, Jackson.valueToTree(newToken)),
+                                               JsonPatchOperation.add(secretPath,
+                                                                      Jackson.valueToTree(newToken.id()))));
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
                               "Add a token: " + newToken.id(), change);
     }

@@ -32,7 +32,9 @@
  * - ASL 2.0: https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 
-package com.linecorp.centraldogma.internal.jsonpatch;
+package com.linecorp.centraldogma.common.jsonpatch;
+
+import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -53,15 +55,17 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 public final class ReplaceOperation extends PathValueOperation {
 
     @JsonCreator
-    public ReplaceOperation(@JsonProperty("path") final JsonPointer path,
-                            @JsonProperty("value") final JsonNode value) {
+    ReplaceOperation(@JsonProperty("path") final JsonPointer path,
+                     @JsonProperty("value") final JsonNode value) {
         super("replace", path, value);
     }
 
     @Override
-    JsonNode apply(final JsonNode node) {
+    public JsonNode apply(final JsonNode node) {
+        requireNonNull(node, "node");
         ensureExistence(node);
 
+        final JsonPointer path = path();
         final JsonNode replacement = valueCopy();
         if (path.toString().isEmpty()) {
             return replacement;

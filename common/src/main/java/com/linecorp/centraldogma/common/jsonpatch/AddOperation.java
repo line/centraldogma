@@ -32,7 +32,9 @@
  * - ASL 2.0: https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 
-package com.linecorp.centraldogma.internal.jsonpatch;
+package com.linecorp.centraldogma.common.jsonpatch;
+
+import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -79,14 +81,19 @@ public final class AddOperation extends PathValueOperation {
 
     private static final String LAST_ARRAY_ELEMENT = "-";
 
+    /**
+     * Creates a new instance with the specified {@code path} and {@code value}.
+     */
     @JsonCreator
-    public AddOperation(@JsonProperty("path") final JsonPointer path,
-                        @JsonProperty("value") final JsonNode value) {
+    AddOperation(@JsonProperty("path") final JsonPointer path,
+                 @JsonProperty("value") final JsonNode value) {
         super("add", path, value);
     }
 
     @Override
-    JsonNode apply(final JsonNode node) {
+    public JsonNode apply(final JsonNode node) {
+        requireNonNull(node, "node");
+        final JsonPointer path = path();
         if (path.toString().isEmpty()) {
             return valueCopy();
         }
@@ -110,12 +117,13 @@ public final class AddOperation extends PathValueOperation {
         try {
             index = Integer.parseInt(rawToken);
         } catch (NumberFormatException ignored) {
-            throw new JsonPatchException("not an index: " + rawToken + " (expected: a non-negative integer)");
+            throw new JsonPatchConflictException(
+                    "not an index: " + rawToken + " (expected: a non-negative integer)");
         }
 
         if (index < 0 || index > size) {
-            throw new JsonPatchException("index out of bounds: " + index +
-                                         " (expected: >= 0 && <= " + size + ')');
+            throw new JsonPatchConflictException("index out of bounds: " + index +
+                                                 " (expected: >= 0 && <= " + size + ')');
         }
 
         target.insert(index, value);
