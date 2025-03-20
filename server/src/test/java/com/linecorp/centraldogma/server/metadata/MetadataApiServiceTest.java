@@ -242,7 +242,7 @@ class MetadataApiServiceTest {
 
     @Test
     void grantRoleToMemberForMetaRepository() throws Exception {
-        AggregatedHttpResponse res =
+        final AggregatedHttpResponse res =
                 memberTokenClient.get("/api/v1/projects/" + PROJECT_NAME + "/repos/meta/list");
         // A member isn't allowed to access the meta repository.
         assertThat(res.status()).isSameAs(HttpStatus.FORBIDDEN);
