@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="null" lang="null">
 <head><meta http-equiv="content-type" content="text/html; charset=UTF-8" />
 <title>ProjectMetadataTransformer xref</title>
-<link type="text/css" rel="stylesheet" href="../../../../../stylesheet.css" />
+<link type="text/css" rel="stylesheet" href="../../../../../../stylesheet.css" />
 </head>
 <body>
 <pre>
@@ -21,7 +21,7 @@
 <a class="jxr_linenumber" name="L13" href="#L13">13</a>  <em class="jxr_comment"> * License for the specific language governing permissions and limitations</em>
 <a class="jxr_linenumber" name="L14" href="#L14">14</a>  <em class="jxr_comment"> * under the License.</em>
 <a class="jxr_linenumber" name="L15" href="#L15">15</a>  <em class="jxr_comment"> */</em>
-<a class="jxr_linenumber" name="L16" href="#L16">16</a>  <strong class="jxr_keyword">package</strong> com.linecorp.centraldogma.server.metadata;
+<a class="jxr_linenumber" name="L16" href="#L16">16</a>  <strong class="jxr_keyword">package</strong> com.linecorp.centraldogma.server.internal.metadata;
 <a class="jxr_linenumber" name="L17" href="#L17">17</a>  
 <a class="jxr_linenumber" name="L18" href="#L18">18</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.MetadataService.METADATA_JSON;
 <a class="jxr_linenumber" name="L19" href="#L19">19</a>  
@@ -35,24 +35,25 @@
 <a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Revision;
 <a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.internal.Jackson;
 <a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.ContentTransformer;
-<a class="jxr_linenumber" name="L30" href="#L30">30</a>  
-<a class="jxr_linenumber" name="L31" href="#L31">31</a>  <strong class="jxr_keyword">class</strong> <a href="../../../../../com/linecorp/centraldogma/server/metadata/ProjectMetadataTransformer.html">ProjectMetadataTransformer</a> <strong class="jxr_keyword">extends</strong> ContentTransformer&lt;JsonNode&gt; {
-<a class="jxr_linenumber" name="L32" href="#L32">32</a>  
-<a class="jxr_linenumber" name="L33" href="#L33">33</a>      <a href="../../../../../com/linecorp/centraldogma/server/metadata/ProjectMetadataTransformer.html">ProjectMetadataTransformer</a>(BiFunction&lt;Revision, ProjectMetadata, ProjectMetadata&gt; transformer) {
-<a class="jxr_linenumber" name="L34" href="#L34">34</a>          <strong class="jxr_keyword">super</strong>(METADATA_JSON, EntryType.JSON,
-<a class="jxr_linenumber" name="L35" href="#L35">35</a>                (headRevision, jsonNode) -&gt; Jackson.valueToTree(
-<a class="jxr_linenumber" name="L36" href="#L36">36</a>                        transformer.apply(headRevision, projectMetadata(jsonNode))));
-<a class="jxr_linenumber" name="L37" href="#L37">37</a>      }
-<a class="jxr_linenumber" name="L38" href="#L38">38</a>  
-<a class="jxr_linenumber" name="L39" href="#L39">39</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../com/linecorp/centraldogma/server/metadata/ProjectMetadata.html">ProjectMetadata</a> projectMetadata(JsonNode node) {
-<a class="jxr_linenumber" name="L40" href="#L40">40</a>          <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L41" href="#L41">41</a>              <strong class="jxr_keyword">return</strong> Jackson.treeToValue(node, ProjectMetadata.<strong class="jxr_keyword">class</strong>);
-<a class="jxr_linenumber" name="L42" href="#L42">42</a>          } <strong class="jxr_keyword">catch</strong> (JsonParseException | JsonMappingException e) {
-<a class="jxr_linenumber" name="L43" href="#L43">43</a>              <em class="jxr_comment">// Should never reach here.</em>
-<a class="jxr_linenumber" name="L44" href="#L44">44</a>              <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> Error();
-<a class="jxr_linenumber" name="L45" href="#L45">45</a>          }
-<a class="jxr_linenumber" name="L46" href="#L46">46</a>      }
-<a class="jxr_linenumber" name="L47" href="#L47">47</a>  }
+<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.ProjectMetadata;
+<a class="jxr_linenumber" name="L31" href="#L31">31</a>  
+<a class="jxr_linenumber" name="L32" href="#L32">32</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../../../com/linecorp/centraldogma/server/internal/metadata/ProjectMetadataTransformer.html">ProjectMetadataTransformer</a> <strong class="jxr_keyword">extends</strong> ContentTransformer&lt;JsonNode&gt; {
+<a class="jxr_linenumber" name="L33" href="#L33">33</a>  
+<a class="jxr_linenumber" name="L34" href="#L34">34</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../../com/linecorp/centraldogma/server/internal/metadata/ProjectMetadataTransformer.html">ProjectMetadataTransformer</a>(BiFunction&lt;Revision, ProjectMetadata, ProjectMetadata&gt; transformer) {
+<a class="jxr_linenumber" name="L35" href="#L35">35</a>          <strong class="jxr_keyword">super</strong>(METADATA_JSON, EntryType.JSON,
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>                (headRevision, jsonNode) -&gt; Jackson.valueToTree(
+<a class="jxr_linenumber" name="L37" href="#L37">37</a>                        transformer.apply(headRevision, projectMetadata(jsonNode))));
+<a class="jxr_linenumber" name="L38" href="#L38">38</a>      }
+<a class="jxr_linenumber" name="L39" href="#L39">39</a>  
+<a class="jxr_linenumber" name="L40" href="#L40">40</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/server/metadata/ProjectMetadata.html">ProjectMetadata</a> projectMetadata(JsonNode node) {
+<a class="jxr_linenumber" name="L41" href="#L41">41</a>          <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L42" href="#L42">42</a>              <strong class="jxr_keyword">return</strong> Jackson.treeToValue(node, ProjectMetadata.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="L43" href="#L43">43</a>          } <strong class="jxr_keyword">catch</strong> (JsonParseException | JsonMappingException e) {
+<a class="jxr_linenumber" name="L44" href="#L44">44</a>              <em class="jxr_comment">// Should never reach here.</em>
+<a class="jxr_linenumber" name="L45" href="#L45">45</a>              <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> Error();
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>          }
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>      }
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>  }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2025 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

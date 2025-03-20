@@ -78,7 +78,7 @@
 <a class="jxr_linenumber" name="L70" href="#L70">70</a>              checkArgument(!isNullOrEmpty(repositoryName),
 <a class="jxr_linenumber" name="L71" href="#L71">71</a>                            <span class="jxr_string">"repository name should not be null or empty."</span>);
 <a class="jxr_linenumber" name="L72" href="#L72">72</a>  
-<a class="jxr_linenumber" name="L73" href="#L73">73</a>              <strong class="jxr_keyword">if</strong> (Project.REPO_DOGMA.equals(repositoryName) &amp;&amp; !user.isSystemAdmin()) {
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>              <strong class="jxr_keyword">if</strong> (Project.isInternalRepo(repositoryName) &amp;&amp; !user.isSystemAdmin()) {
 <a class="jxr_linenumber" name="L74" href="#L74">74</a>                  <strong class="jxr_keyword">return</strong> HttpApiUtil.throwResponse(
 <a class="jxr_linenumber" name="L75" href="#L75">75</a>                          ctx, HttpStatus.FORBIDDEN,
 <a class="jxr_linenumber" name="L76" href="#L76">76</a>                          <span class="jxr_string">"Repository '%s/%s' can be accessed only by a system administrator."</span>,

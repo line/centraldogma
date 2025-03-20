@@ -93,7 +93,7 @@
 <a class="jxr_linenumber" name="L85" href="#L85">85</a>          <strong class="jxr_keyword">final</strong> Builder&lt;CompletableFuture&lt;Void&gt;&gt; futures = ImmutableList.builder();
 <a class="jxr_linenumber" name="L86" href="#L86">86</a>          <strong class="jxr_keyword">for</strong> (Repository repository : xdsProject.repos().list().values()) {
 <a class="jxr_linenumber" name="L87" href="#L87">87</a>              <strong class="jxr_keyword">final</strong> String groupName = repository.name();
-<a class="jxr_linenumber" name="L88" href="#L88">88</a>              <strong class="jxr_keyword">if</strong> (Project.internalRepos().contains(groupName)) {
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>              <strong class="jxr_keyword">if</strong> (Project.isInternalRepo(groupName)) {
 <a class="jxr_linenumber" name="L89" href="#L89">89</a>                  <strong class="jxr_keyword">continue</strong>;
 <a class="jxr_linenumber" name="L90" href="#L90">90</a>              }
 <a class="jxr_linenumber" name="L91" href="#L91">91</a>              watchingGroups.add(groupName);
@@ -142,7 +142,7 @@
 <a class="jxr_linenumber" name="L134" href="#L134">134</a>             executor().execute(() -&gt; {
 <a class="jxr_linenumber" name="L135" href="#L135">135</a>                 <strong class="jxr_keyword">for</strong> (Repository repo : xdsProject.repos().list().values()) {
 <a class="jxr_linenumber" name="L136" href="#L136">136</a>                     <strong class="jxr_keyword">final</strong> String groupName = repo.name();
-<a class="jxr_linenumber" name="L137" href="#L137">137</a>                     <strong class="jxr_keyword">if</strong> (Project.REPO_META.equals(groupName) || Project.REPO_DOGMA.equals(groupName)) {
+<a class="jxr_linenumber" name="L137" href="#L137">137</a>                     <strong class="jxr_keyword">if</strong> (Project.isInternalRepo(groupName)) {
 <a class="jxr_linenumber" name="L138" href="#L138">138</a>                         <strong class="jxr_keyword">continue</strong>;
 <a class="jxr_linenumber" name="L139" href="#L139">139</a>                     }
 <a class="jxr_linenumber" name="L140" href="#L140">140</a>                     <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> added = watchingGroups.add(groupName);

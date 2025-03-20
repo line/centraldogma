@@ -5,6 +5,7 @@ com.linecorp.centraldogma.client.armeria.xds
 com.linecorp.centraldogma.client.spring
 com.linecorp.centraldogma.client.updater
 com.linecorp.centraldogma.common
+com.linecorp.centraldogma.common.jsonpatch
 com.linecorp.centraldogma.common.util
 com.linecorp.centraldogma.server
 com.linecorp.centraldogma.server.auth

@@ -300,7 +300,7 @@
 <a class="jxr_linenumber" name="L292" href="#L292">292</a>     }
 <a class="jxr_linenumber" name="L293" href="#L293">293</a> 
 <a class="jxr_linenumber" name="L294" href="#L294">294</a>     <strong class="jxr_keyword">private</strong> CompletableFuture&lt;CommitResult&gt; push(RepositoryCommand&lt;?&gt; c, <strong class="jxr_keyword">boolean</strong> normalizing) {
-<a class="jxr_linenumber" name="L295" href="#L295">295</a>         <strong class="jxr_keyword">if</strong> (c.projectName().equals(INTERNAL_PROJECT_DOGMA) || c.repositoryName().equals(Project.REPO_DOGMA) ||
+<a class="jxr_linenumber" name="L295" href="#L295">295</a>         <strong class="jxr_keyword">if</strong> (c.projectName().equals(INTERNAL_PROJECT_DOGMA) || Project.isInternalRepo(c.repositoryName()) ||
 <a class="jxr_linenumber" name="L296" href="#L296">296</a>             !writeQuotaEnabled()) {
 <a class="jxr_linenumber" name="L297" href="#L297">297</a>             <strong class="jxr_keyword">return</strong> push0(c, normalizing);
 <a class="jxr_linenumber" name="L298" href="#L298">298</a>         }

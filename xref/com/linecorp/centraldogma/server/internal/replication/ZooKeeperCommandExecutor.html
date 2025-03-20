@@ -1054,7 +1054,7 @@
 <a class="jxr_linenumber" name="L1046" href="#L1046">1046</a>     @Nullable
 <a class="jxr_linenumber" name="L1047" href="#L1047">1047</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../../../com/linecorp/centraldogma/server/internal/replication/ZooKeeperCommandExecutor.html">WriteLock</a> acquireWriteLock(<a href="../../../../../../com/linecorp/centraldogma/server/command/NormalizingPushCommand.html">NormalizingPushCommand</a> command) <strong class="jxr_keyword">throws</strong> Exception {
 <a class="jxr_linenumber" name="L1048" href="#L1048">1048</a>         <strong class="jxr_keyword">if</strong> (command.projectName().equals(INTERNAL_PROJECT_DOGMA) ||
-<a class="jxr_linenumber" name="L1049" href="#L1049">1049</a>             command.repositoryName().equals(Project.REPO_DOGMA)) {
+<a class="jxr_linenumber" name="L1049" href="#L1049">1049</a>             Project.isInternalRepo(command.repositoryName())) {
 <a class="jxr_linenumber" name="L1050" href="#L1050">1050</a>             <em class="jxr_comment">// Do not check quota for internal project and repository.</em>
 <a class="jxr_linenumber" name="L1051" href="#L1051">1051</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="L1052" href="#L1052">1052</a>         }
