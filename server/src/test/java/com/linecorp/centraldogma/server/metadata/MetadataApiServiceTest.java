@@ -133,7 +133,6 @@ class MetadataApiServiceTest {
                                      .blocking();
     }
 
-
     @Test
     void addUpdateAndRemoveProjectMember() throws JsonProcessingException {
         addProjectMember();
