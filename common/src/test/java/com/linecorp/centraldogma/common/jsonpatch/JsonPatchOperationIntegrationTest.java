@@ -209,9 +209,12 @@ class JsonPatchOperationIntegrationTest {
                   .join();
         TestOperation test = JsonPatchOperation.test(JsonPointer.compile("/a"), new IntNode(1));
         final Change<JsonNode> change = Change.ofJsonPatch("/a.json", test);
-        repository.commit("test a", change)
-                  .push()
-                  .join();
+        assertThatThrownBy(() -> {
+            repository.commit("test a", change)
+                      .push()
+                      .join();
+        }).isInstanceOf(CompletionException.class)
+          .hasCauseInstanceOf(RedundantChangeException.class);
 
         test = JsonPatchOperation.test(JsonPointer.compile("/a"), new IntNode(2));
         final Change<JsonNode> change1 = Change.ofJsonPatch("/a.json", test);
@@ -231,9 +234,12 @@ class JsonPatchOperationIntegrationTest {
                   .join();
         TestAbsenceOperation testAbsence = JsonPatchOperation.testAbsence(JsonPointer.compile("/b"));
         final Change<JsonNode> change = Change.ofJsonPatch("/a.json", testAbsence);
-        repository.commit("test absence", change)
-                  .push()
-                  .join();
+        assertThatThrownBy(() -> {
+            repository.commit("test absence", change)
+                      .push()
+                      .join();
+        }).isInstanceOf(CompletionException.class)
+          .hasCauseInstanceOf(RedundantChangeException.class);
 
         testAbsence = JsonPatchOperation.testAbsence(JsonPointer.compile("/a"));
         final Change<JsonNode> change1 = Change.ofJsonPatch("/a.json", testAbsence);
