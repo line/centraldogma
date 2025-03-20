@@ -51,6 +51,7 @@ import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectRoles;
@@ -61,7 +62,6 @@ import com.linecorp.centraldogma.server.metadata.User;
  * Annotated service object for managing metadata of projects.
  */
 @ProducesJson
-@RequiresProjectRole(ProjectRole.OWNER)
 public class MetadataApiService extends AbstractService {
 
     private final MetadataService mds;
@@ -79,6 +79,7 @@ public class MetadataApiService extends AbstractService {
      *
      * <p>Adds a member to the specified {@code projectName}.
      */
+    @RequiresProjectRole(ProjectRole.OWNER)
     @Post("/metadata/{projectName}/members")
     public CompletableFuture<Revision> addMember(@Param String projectName,
                                                  IdAndProjectRole request,
@@ -93,6 +94,7 @@ public class MetadataApiService extends AbstractService {
      * <p>Updates the {@link ProjectRole} of the specified {@code memberId} in the specified
      * {@code projectName}.
      */
+    @RequiresProjectRole(ProjectRole.OWNER)
     @Patch("/metadata/{projectName}/members/{memberId}")
     @Consumes("application/json-patch+json")
     public CompletableFuture<Revision> updateMember(@Param String projectName,
@@ -111,6 +113,7 @@ public class MetadataApiService extends AbstractService {
      *
      * <p>Removes the specified {@code memberId} from the specified {@code projectName}.
      */
+    @RequiresProjectRole(ProjectRole.OWNER)
     @Delete("/metadata/{projectName}/members/{memberId}")
     public CompletableFuture<Revision> removeMember(@Param String projectName,
                                                     @Param String memberId,
@@ -125,6 +128,7 @@ public class MetadataApiService extends AbstractService {
      *
      * <p>Adds a {@link Token} to the specified {@code projectName}.
      */
+    @RequiresProjectRole(ProjectRole.OWNER)
     @Post("/metadata/{projectName}/tokens")
     public CompletableFuture<Revision> addToken(@Param String projectName,
                                                 IdAndProjectRole request,
@@ -139,6 +143,7 @@ public class MetadataApiService extends AbstractService {
      * <p>Updates the {@link ProjectRole} of the {@link Token} of the specified {@code appId}
      * in the specified {@code projectName}.
      */
+    @RequiresProjectRole(ProjectRole.OWNER)
     @Patch("/metadata/{projectName}/tokens/{appId}")
     @Consumes("application/json-patch+json")
     public CompletableFuture<Revision> updateTokenRole(@Param String projectName,
@@ -156,6 +161,7 @@ public class MetadataApiService extends AbstractService {
      *
      * <p>Removes the {@link Token} of the specified {@code appId} from the specified {@code projectName}.
      */
+    @RequiresProjectRole(ProjectRole.OWNER)
     @Delete("/metadata/{projectName}/tokens/{appId}")
     public CompletableFuture<Revision> removeToken(@Param String projectName,
                                                    @Param String appId,
@@ -176,6 +182,7 @@ public class MetadataApiService extends AbstractService {
      * }
      * }</pre>
      */
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Post("/metadata/{projectName}/repos/{repoName}/roles/projects")
     public CompletableFuture<Revision> updateRepositoryProjectRoles(
             @Param String projectName,
@@ -201,6 +208,7 @@ public class MetadataApiService extends AbstractService {
      * <p>Adds the {@link RepositoryRole} of the specific users to the specified {@code repoName} in the
      * specified {@code projectName}.
      */
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Post("/metadata/{projectName}/repos/{repoName}/roles/users")
     public CompletableFuture<Revision> addUserRepositoryRole(
             @Param String projectName,
@@ -218,6 +226,7 @@ public class MetadataApiService extends AbstractService {
      * <p>Removes {@link RepositoryRole} of the specified {@code memberId} from the specified {@code repoName}
      * in the specified {@code projectName}.
      */
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Delete("/metadata/{projectName}/repos/{repoName}/roles/users/{memberId}")
     public CompletableFuture<Revision> removeUserRepositoryRole(@Param String projectName,
                                                                 @Param String repoName,
@@ -235,6 +244,7 @@ public class MetadataApiService extends AbstractService {
      * <p>Adds the {@link RepositoryRole} for a token to the specified {@code repoName} in the specified
      * {@code projectName}.
      */
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Post("/metadata/{projectName}/repos/{repoName}/roles/tokens")
     public CompletableFuture<Revision> addTokenRepositoryRole(
             @Param String projectName,
@@ -251,6 +261,7 @@ public class MetadataApiService extends AbstractService {
      * <p>Removes the {@link RepositoryRole} of the specified {@code appId} from the specified {@code repoName}
      * in the specified {@code projectName}.
      */
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Delete("/metadata/{projectName}/repos/{repoName}/roles/tokens/{appId}")
     public CompletableFuture<Revision> removeTokenRepositoryRole(@Param String projectName,
                                                                  @Param String repoName,

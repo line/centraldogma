@@ -59,6 +59,7 @@ class MetadataApiServiceTest {
     private static final String REPOSITORY_NAME = "foo_repo";
 
     private static final String MEMBER_ID = "member_id@linecorp.com";
+    private static final String MEMBER_APP_ID = "foo";
     private static final String APP_ID = "app_id";
 
     @RegisterExtension
@@ -73,6 +74,8 @@ class MetadataApiServiceTest {
 
     @SuppressWarnings("NotNullFieldNotInitialized")
     static BlockingWebClient systemAdminClient;
+    @SuppressWarnings("NotNullFieldNotInitialized")
+    static BlockingWebClient memberTokenClient;
 
     @BeforeAll
     static void setUp() throws JsonMappingException, JsonParseException {
@@ -98,11 +101,35 @@ class MetadataApiServiceTest {
                 .isSameAs(HttpStatus.CREATED);
 
         // Create a token
-        final HttpRequest request = HttpRequest.builder()
-                                               .post("/api/v1/tokens")
-                                               .content(MediaType.FORM_DATA, "appId=" + APP_ID)
-                                               .build();
+        HttpRequest request = HttpRequest.builder()
+                                         .post("/api/v1/tokens")
+                                         .content(MediaType.FORM_DATA, "appId=" + APP_ID)
+                                         .build();
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.CREATED);
+
+        final String memberToken = "appToken-secret-member";
+        // Create a token with a non-random secret.
+        request = HttpRequest.builder()
+                             .post("/api/v1/tokens")
+                             .content(MediaType.FORM_DATA,
+                                      "secret=" + memberToken + "&isSystemAdmin=false&appId=foo")
+                             .build();
+        AggregatedHttpResponse res = systemAdminClient.execute(request);
+        assertThat(res.status()).isEqualTo(HttpStatus.CREATED);
+        res = systemAdminClient.get("/api/v1/tokens");
+        assertThat(res.contentUtf8()).contains("\"secret\":\"" + memberToken + '"');
+
+        // Add as a member to the project
+        request = HttpRequest.builder()
+                             .post("/api/v1/metadata/" + PROJECT_NAME + "/tokens")
+                             .contentJson(new IdAndProjectRole(MEMBER_APP_ID, ProjectRole.MEMBER))
+                             .build();
+        res = systemAdminClient.execute(request);
+        assertThat(res.status()).isSameAs(HttpStatus.OK);
+
+        memberTokenClient = WebClient.builder(dogma.httpClient().uri())
+                                     .auth(AuthToken.ofOAuth2(memberToken)).build()
+                                     .blocking();
     }
 
     @Test
@@ -113,18 +140,13 @@ class MetadataApiServiceTest {
                                                        ReplaceMode.RFC6902);
         // [{"op":"replace","path":"/role","value":"OWNER"}]
         // Update the member
-        HttpRequest request = HttpRequest.builder()
-                                         .patch("/api/v1/metadata/" + PROJECT_NAME + "/members/" + MEMBER_ID)
-                                         .content(MediaType.JSON_PATCH, Jackson.writeValueAsString(jsonPatch))
-                                         .build();
+        final HttpRequest request =
+                HttpRequest.builder()
+                           .patch("/api/v1/metadata/" + PROJECT_NAME + "/members/" + MEMBER_ID)
+                           .content(MediaType.JSON_PATCH, Jackson.writeValueAsString(jsonPatch))
+                           .build();
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.OK);
-
-        // Remove the member
-        request = HttpRequest.builder()
-                             .delete("/api/v1/metadata/" + PROJECT_NAME + "/members/" + MEMBER_ID)
-                             .build();
-        assertThat(systemAdminClient.execute(request).status())
-                .isSameAs(HttpStatus.NO_CONTENT);
+        removeProjectMember();
     }
 
     private static void addProjectMember() {
@@ -133,6 +155,15 @@ class MetadataApiServiceTest {
                                                .contentJson(new IdAndProjectRole(MEMBER_ID, ProjectRole.MEMBER))
                                                .build();
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.OK);
+    }
+
+    private static void removeProjectMember() {
+        final HttpRequest request = HttpRequest.builder()
+                                               .delete("/api/v1/metadata/" + PROJECT_NAME + "/members/" +
+                                                       MEMBER_ID)
+                                               .build();
+        assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.NO_CONTENT);
+        assertThat(projectMetadata().repo(REPOSITORY_NAME).roles().users().get(MEMBER_ID)).isNull();
     }
 
     @Test
@@ -171,25 +202,18 @@ class MetadataApiServiceTest {
     @Test
     void addUpdateAndRemoveRepositoryUser() throws JsonProcessingException {
         addProjectMember();
-        HttpRequest request = HttpRequest.builder()
-                                         .post("/api/v1/metadata/" + PROJECT_NAME + "/repos/" +
-                                               REPOSITORY_NAME + "/roles/users")
-                                         .contentJson(new IdAndRepositoryRole(MEMBER_ID, RepositoryRole.READ))
-                                         .build();
+        final HttpRequest request =
+                HttpRequest.builder()
+                           .post("/api/v1/metadata/" + PROJECT_NAME + "/repos/" +
+                                 REPOSITORY_NAME + "/roles/users")
+                           .contentJson(new IdAndRepositoryRole(MEMBER_ID, RepositoryRole.READ))
+                           .build();
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.OK);
 
-        ProjectMetadata projectMetadata = projectMetadata();
-        assertThat(projectMetadata.repo(REPOSITORY_NAME).roles().users().get(MEMBER_ID))
+        assertThat(projectMetadata().repo(REPOSITORY_NAME).roles().users().get(MEMBER_ID))
                 .isSameAs(RepositoryRole.READ);
 
-        // Remove the member
-        request = HttpRequest.builder()
-                             .delete("/api/v1/metadata/" + PROJECT_NAME + "/members/" + MEMBER_ID)
-                             .build();
-        assertThat(systemAdminClient.execute(request).status())
-                .isSameAs(HttpStatus.NO_CONTENT);
-        projectMetadata = projectMetadata();
-        assertThat(projectMetadata.repo(REPOSITORY_NAME).roles().users().get(MEMBER_ID)).isNull();
+        removeProjectMember();
     }
 
     @Test
@@ -218,44 +242,23 @@ class MetadataApiServiceTest {
 
     @Test
     void grantRoleToMemberForMetaRepository() throws Exception {
-        final String memberToken = "appToken-secret-member";
-        // Create a token with a non-random secret.
-        HttpRequest request = HttpRequest.builder()
-                                         .post("/api/v1/tokens")
-                                         .content(MediaType.FORM_DATA,
-                                                  "secret=" + memberToken + "&isSystemAdmin=false&appId=foo")
-                                         .build();
-        AggregatedHttpResponse res = systemAdminClient.execute(request);
-        assertThat(res.status()).isEqualTo(HttpStatus.CREATED);
-        res = systemAdminClient.get("/api/v1/tokens");
-        assertThat(res.contentUtf8()).contains("\"secret\":\"" + memberToken + '"');
-
-        // Add as a member to the project
-        request = HttpRequest.builder()
-                             .post("/api/v1/metadata/" + PROJECT_NAME + "/tokens")
-                             .contentJson(new IdAndProjectRole("foo", ProjectRole.MEMBER))
-                             .build();
-        res = systemAdminClient.execute(request);
-        assertThat(res.status()).isSameAs(HttpStatus.OK);
-
-        final BlockingWebClient memberClient = WebClient.builder(dogma.httpClient().uri())
-                                                        .auth(AuthToken.ofOAuth2(memberToken)).build()
-                                                        .blocking();
-        res = memberClient.get("/api/v1/projects/" + PROJECT_NAME + "/repos/meta/list");
+        final AggregatedHttpResponse res =
+                memberTokenClient.get("/api/v1/projects/" + PROJECT_NAME + "/repos/meta/list");
         // A member isn't allowed to access the meta repository.
         assertThat(res.status()).isSameAs(HttpStatus.FORBIDDEN);
         assertThat(res.contentUtf8()).contains(
                 "Repository 'foo_proj/meta' can be accessed only by a system administrator.");
 
         // Can't give a READ role to the member.
-        request = HttpRequest.builder()
-                             .post("/api/v1/metadata/" + PROJECT_NAME + "/repos/meta/roles/projects")
-                             .contentJson(ProjectRoles.of(RepositoryRole.READ, null))
-                             .build();
+        final HttpRequest request =
+                HttpRequest.builder()
+                           .post("/api/v1/metadata/" + PROJECT_NAME + "/repos/meta/roles/projects")
+                           .contentJson(ProjectRoles.of(RepositoryRole.READ, null))
+                           .build();
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.BAD_REQUEST);
 
         // The member cannot access the meta repository.
-        assertThat(memberClient.get(
+        assertThat(memberTokenClient.get(
                 "/api/v1/projects/" + PROJECT_NAME + "/repos/meta/list").status())
                 .isSameAs(HttpStatus.FORBIDDEN);
     }
@@ -291,11 +294,68 @@ class MetadataApiServiceTest {
         assertThat(successResponse.content().major()).isGreaterThan(0);
     }
 
+    @Test
+    void repositoryAdminCanUpdateRepositoryMetadata() {
+        addProjectMember();
+        HttpRequest updateRepositoryProjectRolesRequest = updateRepositoryProjectRolesRequest();
+        assertThat(memberTokenClient.execute(updateRepositoryProjectRolesRequest).status())
+                .isSameAs(HttpStatus.FORBIDDEN);
+        HttpRequest addUserRepositoryRoleRequest = addUserRepositoryRoleRequest();
+        assertThat(memberTokenClient.execute(addUserRepositoryRoleRequest).status())
+                .isSameAs(HttpStatus.FORBIDDEN);
+        HttpRequest removeUserRepositoryRoleRequest = removeUserRepositoryRoleRequest();
+        assertThat(memberTokenClient.execute(removeUserRepositoryRoleRequest).status())
+                .isSameAs(HttpStatus.FORBIDDEN);
+
+        // Promote the member to a repository admin.
+        final HttpRequest req = HttpRequest.builder()
+                                           .post("/api/v1/metadata/" + PROJECT_NAME + "/repos/" +
+                                                 REPOSITORY_NAME + "/roles/tokens")
+                                           .contentJson(new IdAndRepositoryRole("foo", RepositoryRole.ADMIN))
+                                           .build();
+        assertThat(systemAdminClient.execute(req).status()).isSameAs(HttpStatus.OK);
+
+        // Now the member can update the repository metadata.
+        updateRepositoryProjectRolesRequest = updateRepositoryProjectRolesRequest();
+        assertThat(memberTokenClient.execute(updateRepositoryProjectRolesRequest).status())
+                .isSameAs(HttpStatus.OK);
+        addUserRepositoryRoleRequest = addUserRepositoryRoleRequest();
+        assertThat(memberTokenClient.execute(addUserRepositoryRoleRequest).status())
+                .isSameAs(HttpStatus.OK);
+        removeUserRepositoryRoleRequest = removeUserRepositoryRoleRequest();
+        assertThat(memberTokenClient.execute(removeUserRepositoryRoleRequest).status())
+                .isSameAs(HttpStatus.NO_CONTENT);
+        removeProjectMember();
+    }
+
     private static ProjectMetadata projectMetadata() {
         return systemAdminClient.prepare()
                                 .get("/api/v1/projects/" + PROJECT_NAME)
                                 .asJson(ProjectMetadata.class, new ObjectMapper())
                                 .execute()
                                 .content();
+    }
+
+    private static HttpRequest updateRepositoryProjectRolesRequest() {
+        return HttpRequest.builder()
+                          .post("/api/v1/metadata/" + PROJECT_NAME + "/repos/" +
+                                REPOSITORY_NAME + "/roles/projects")
+                          .contentJson(ProjectRoles.of(RepositoryRole.READ, null))
+                          .build();
+    }
+
+    private static HttpRequest addUserRepositoryRoleRequest() {
+        return HttpRequest.builder()
+                          .post("/api/v1/metadata/" + PROJECT_NAME + "/repos/" +
+                                REPOSITORY_NAME + "/roles/users")
+                          .contentJson(new IdAndRepositoryRole(MEMBER_ID, RepositoryRole.ADMIN))
+                          .build();
+    }
+
+    private static HttpRequest removeUserRepositoryRoleRequest() {
+        return HttpRequest.builder()
+                          .delete("/api/v1/metadata/" + PROJECT_NAME + "/repos/" +
+                                  REPOSITORY_NAME + "/roles/users/" + MEMBER_ID)
+                          .build();
     }
 }
