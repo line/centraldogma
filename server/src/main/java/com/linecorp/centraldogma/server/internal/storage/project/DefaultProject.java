@@ -56,7 +56,6 @@ import com.linecorp.centraldogma.server.internal.storage.repository.cache.Cachin
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager;
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
@@ -189,13 +188,12 @@ public class DefaultProject implements Project {
         final Repository dogmaRepo = repos.get(REPO_DOGMA);
         final Revision headRev = dogmaRepo.normalizeNow(Revision.HEAD);
         if (!dogmaRepo.exists(headRev, METADATA_JSON).join()) {
-            logger.info("Initializing metadata: {}", name);
+            logger.info("Initializing metadata of project: {}", name);
 
             final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
-            final RepositoryMetadata repo = RepositoryMetadata.ofInternal(REPO_META, userAndTimestamp);
             final Member member = new Member(author, ProjectRole.OWNER, userAndTimestamp);
             final ProjectMetadata metadata = new ProjectMetadata(name,
-                                                                 ImmutableMap.of(repo.id(), repo),
+                                                                 ImmutableMap.of(),
                                                                  ImmutableMap.of(member.id(), member),
                                                                  ImmutableMap.of(),
                                                                  userAndTimestamp, null);

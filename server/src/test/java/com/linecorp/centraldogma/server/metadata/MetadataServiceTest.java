@@ -87,8 +87,7 @@ class MetadataServiceTest {
         assertThat(metadata.name()).isEqualTo(project1);
         assertThat(metadata.creation().user()).isEqualTo(author.email());
         assertThat(metadata.removal()).isNull();
-        assertThat(metadata.repos().size()).isOne();
-        assertThat(metadata.repos().get(REPO_META)).isNotNull();
+        assertThat(metadata.repos().size()).isZero();
 
         // Remove a project and check whether the project is removed.
         mds.removeProject(author, project1).join();
@@ -209,7 +208,7 @@ class MetadataServiceTest {
                 author, project1, REPO_META, ProjectRoles.of(RepositoryRole.WRITE, RepositoryRole.WRITE))
                                     .join())
                 .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining("Can't give a role to guest for internal repository");
+                .hasMessageContaining("Can't update role for internal repository: meta");
     }
 
     @Test

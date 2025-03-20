@@ -19,7 +19,6 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJE
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -243,33 +242,22 @@ class MetadataApiServiceTest {
                                                         .auth(AuthToken.ofOAuth2(memberToken)).build()
                                                         .blocking();
         res = memberClient.get("/api/v1/projects/" + PROJECT_NAME + "/repos/meta/list");
-        // A member isn't allowed to access the meta repository yet.
+        // A member isn't allowed to access the meta repository.
         assertThat(res.status()).isSameAs(HttpStatus.FORBIDDEN);
         assertThat(res.contentUtf8()).contains(
-                "You must have the READ repository role to access the 'foo_proj/meta'");
+                "Repository 'foo_proj/meta' can be accessed only by a system administrator.");
 
-        // Grant a READ role to the member.
+        // Can't give a READ role to the member.
         request = HttpRequest.builder()
                              .post("/api/v1/metadata/" + PROJECT_NAME + "/repos/meta/roles/projects")
                              .contentJson(ProjectRoles.of(RepositoryRole.READ, null))
                              .build();
-        assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.OK);
+        assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.BAD_REQUEST);
 
-        // Now the member can access the meta repository.
-        res = memberClient.get("/api/v1/projects/" + PROJECT_NAME + "/repos/meta/list");
-        assertThat(res.status()).isSameAs(HttpStatus.NO_CONTENT);
-
-        // Revoke the role
-        request = HttpRequest.builder()
-                             .post("/api/v1/metadata/" + PROJECT_NAME + "/repos/meta/roles/projects")
-                             .contentJson(ProjectRoles.of(null, null))
-                             .build();
-        assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.OK);
-
-        // Now the member cannot access the meta repository.
-        await().untilAsserted(() -> assertThat(memberClient.get(
+        // The member cannot access the meta repository.
+        assertThat(memberClient.get(
                 "/api/v1/projects/" + PROJECT_NAME + "/repos/meta/list").status())
-                .isSameAs(HttpStatus.FORBIDDEN));
+                .isSameAs(HttpStatus.FORBIDDEN);
     }
 
     @Test

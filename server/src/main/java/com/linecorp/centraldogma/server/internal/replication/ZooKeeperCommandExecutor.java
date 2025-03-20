@@ -1046,7 +1046,7 @@ public final class ZooKeeperCommandExecutor
     @Nullable
     private WriteLock acquireWriteLock(NormalizingPushCommand command) throws Exception {
         if (command.projectName().equals(INTERNAL_PROJECT_DOGMA) ||
-            command.repositoryName().equals(Project.REPO_DOGMA)) {
+            Project.isInternalRepo(command.repositoryName())) {
             // Do not check quota for internal project and repository.
             return null;
         }

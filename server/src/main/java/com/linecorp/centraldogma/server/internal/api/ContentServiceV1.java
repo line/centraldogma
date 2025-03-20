@@ -60,7 +60,6 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.RequestConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.Markup;
@@ -79,7 +78,6 @@ import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
-import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.CommitMessageRequestConverter;
@@ -87,7 +85,6 @@ import com.linecorp.centraldogma.server.internal.api.converter.MergeQueryRequest
 import com.linecorp.centraldogma.server.internal.api.converter.QueryRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
-import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
@@ -201,8 +198,7 @@ public class ContentServiceV1 extends AbstractService {
             Author author,
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
-        final User user = AuthUtil.currentUser(ctx);
-        checkPush(repository.name(), changes, user.isSystemAdmin());
+        checkMetaRepoPush(repository.name(), changes);
         meterRegistry.counter("commits.push",
                               "project", repository.parent().name(),
                               "repository", repository.name())
@@ -445,42 +441,13 @@ public class ContentServiceV1 extends AbstractService {
         return repository.mergeFiles(rev, query).thenApply(DtoConverter::convert);
     }
 
-    /**
-     * Checks if the commit is for creating a file and raises a {@link InvalidPushException} if the
-     * given {@code repoName} field is one of {@code meta} and {@code dogma} which are internal repositories.
-     */
-    public static void checkPush(String repoName, Iterable<Change<?>> changes, boolean isSystemAdmin) {
+    public static void checkMetaRepoPush(String repoName, Iterable<Change<?>> changes) {
         if (Project.REPO_META.equals(repoName)) {
             final boolean hasChangesOtherThanMetaRepoFiles =
                     Streams.stream(changes).anyMatch(change -> !isMetaFile(change.path()));
             if (hasChangesOtherThanMetaRepoFiles) {
                 throw new InvalidPushException(
                         "The " + Project.REPO_META + " repository is reserved for internal usage.");
-            }
-
-            if (isSystemAdmin) {
-                // A system admin may push the legacy files to test the mirror migration.
-            } else {
-                for (Change<?> change : changes) {
-                    // 'mirrors.json' and 'credentials.json' are disallowed to be created or modified.
-                    // 'mirrors/{id}.json' and 'credentials/{id}.json' must be used instead.
-                    final String path = change.path();
-                    if (change.type() == ChangeType.REMOVE) {
-                        continue;
-                    }
-                    if ("/mirrors.json".equals(path)) {
-                        throw new InvalidPushException(
-                                "'/mirrors.json' file is not allowed to create. " +
-                                "Use '/mirrors/{id}.json' file or " +
-                                "'/api/v1/projects/{projectName}/mirrors' API instead.");
-                    }
-                    if ("/credentials.json".equals(path)) {
-                        throw new InvalidPushException(
-                                "'/credentials.json' file is not allowed to create. " +
-                                "Use '/credentials/{id}.json' file or " +
-                                "'/api/v1/projects/{projectName}/credentials' API instead.");
-                    }
-                }
             }
 
             // TODO(ikhoon): Disallow creating a mirror with the commit API. Mirroring REST API should be used
@@ -499,7 +466,7 @@ public class ContentServiceV1 extends AbstractService {
                                    final JsonNode localRepoNode = node.get(MIRROR_LOCAL_REPO);
                                    if (localRepoNode != null) {
                                        final String localRepo = localRepoNode.textValue();
-                                       if (Project.isReservedRepoName(localRepo)) {
+                                       if (Project.isInternalRepo(localRepo)) {
                                            return localRepo;
                                        }
                                    }

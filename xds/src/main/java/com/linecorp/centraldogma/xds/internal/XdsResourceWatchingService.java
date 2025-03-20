@@ -85,7 +85,7 @@ public abstract class XdsResourceWatchingService {
         final Builder<CompletableFuture<Void>> futures = ImmutableList.builder();
         for (Repository repository : xdsProject.repos().list().values()) {
             final String groupName = repository.name();
-            if (Project.internalRepos().contains(groupName)) {
+            if (Project.isInternalRepo(groupName)) {
                 continue;
             }
             watchingGroups.add(groupName);
@@ -134,7 +134,7 @@ public abstract class XdsResourceWatchingService {
             executor().execute(() -> {
                 for (Repository repo : xdsProject.repos().list().values()) {
                     final String groupName = repo.name();
-                    if (Project.REPO_META.equals(groupName) || Project.REPO_DOGMA.equals(groupName)) {
+                    if (Project.isInternalRepo(groupName)) {
                         continue;
                     }
                     final boolean added = watchingGroups.add(groupName);
