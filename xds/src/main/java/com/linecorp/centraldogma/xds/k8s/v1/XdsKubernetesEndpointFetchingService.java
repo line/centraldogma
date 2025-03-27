@@ -33,6 +33,9 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 
 import org.slf4j.Logger;
@@ -43,6 +46,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.client.kubernetes.endpoints.KubernetesEndpointGroup;
+import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -219,6 +223,8 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
         private final ScheduledExecutorService executorService;
         private final String groupName;
         private final KubernetesEndpointAggregator aggregator;
+        @Nullable
+        private ScheduledFuture<?> scheduledFuture;
         private boolean closing;
 
         KubernetesEndpointsUpdater(
@@ -251,13 +257,32 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                                 kubernetesEndpointGroup, aggregator);
                     return;
                 }
+                final AtomicBoolean initialized = new AtomicBoolean();
                 kubernetesEndpointGroup.addListener(endpoints -> {
                     if (endpoints.isEmpty()) {
                         return;
                     }
-                    executorService.execute(this::pushK8sEndpoints);
+                    if (!initialized.get()) {
+                        initialized.set(true);
+                        executorService.execute(this::pushK8sEndpoints);
+                        return;
+                    }
+
+                    executorService.execute(this::maybeSchedule);
                 }, true);
             }));
+        }
+
+        void maybeSchedule() {
+            if (closing || scheduledFuture != null) {
+                return;
+            }
+            // Commit after 3 seconds so that it pushes with all the fetched endpoints in the duration
+            // instead of pushing one by one.
+            scheduledFuture = executorService.schedule(() -> {
+                scheduledFuture = null;
+                pushK8sEndpoints();
+            }, 3, TimeUnit.SECONDS);
         }
 
         private void pushK8sEndpoints() {
@@ -346,8 +371,12 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             clusterLoadAssignmentBuilder.addEndpoints(localityLbEndpointsBuilder.build());
         }
 
+        // Called by the executorService.
         void close() {
             closing = true;
+            if (scheduledFuture != null) {
+                scheduledFuture.cancel(true);
+            }
             kubernetesEndpointGroupFutures.forEach(
                     future -> future.thenAccept(KubernetesEndpointGroup::closeAsync));
         }
