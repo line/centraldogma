@@ -32,7 +32,6 @@ import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -90,6 +89,17 @@ class AggregatingMultipleKubernetesTest {
 
     private static void createResources(List<Node> nodes, Deployment deployment, Service service,
                                         boolean create) {
+        createNodesAndPods(nodes, deployment);
+
+        client.apps().deployments().resource(deployment).create();
+        if (create) {
+            client.services().resource(service).create();
+        } else {
+            client.services().resource(service).update();
+        }
+    }
+
+    private static void createNodesAndPods(List<Node> nodes, Deployment deployment) {
         final List<Pod> pods = nodes.stream()
                                     .map(node -> node.getMetadata().getName())
                                     .map(nodeName -> newPod(deployment.getSpec().getTemplate(), nodeName))
@@ -99,18 +109,13 @@ class AggregatingMultipleKubernetesTest {
         for (Node node : nodes) {
             client.nodes().resource(node).create();
         }
-        client.pods().resource(pods.get(0)).create();
-        client.pods().resource(pods.get(1)).create();
-        client.apps().deployments().resource(deployment).create();
-        if (create) {
-            client.services().resource(service).create();
-        } else {
-            client.services().resource(service).update();
+        for (Pod pod : pods) {
+            client.pods().resource(pod).create();
         }
     }
 
     @Test
-    void aggregateMultipleKubernetes() throws IOException {
+    void aggregateMultipleKubernetes() throws Exception {
         final String aggregatorId = "foo-k8s-cluster/1";
         final String clusterName = "groups/foo/k8s/clusters/" + aggregatorId;
         final KubernetesEndpointAggregator aggregator = aggregator(aggregatorId);
@@ -187,12 +192,20 @@ class AggregatingMultipleKubernetesTest {
                 '}'
         );
         // Change service2
-        final List<Node> nodes = ImmutableList.of(newNode("5.5.5.5"), newNode("6.6.6.6"));
+        List<Node> nodes = ImmutableList.of(newNode("5.5.5.5"));
         final Map<String, String> selector = ImmutableMap.of("app3", "nginx3");
         final Deployment deployment = newDeployment("deployment3", selector);
         final Service service2 = newService("service2", selector);
         createResources(nodes, deployment, service2, false);
 
+        // Sleep for a while to wait for the KubernetesEndpointGroup to be updated.
+        Thread.sleep(500);
+        nodes = ImmutableList.of(newNode("6.6.6.6"));
+        createNodesAndPods(nodes, deployment);
+        client.services().resource(service2).update();
+
+        // Even though the nodes are updated sequentially, only one commit is made because of
+        // the debouncing logic.
         await().until(() -> fooGroup.normalizeNow(Revision.HEAD).equals(
                 endpointEntry.revision().forward(1)));
         final Entry<JsonNode> endpointEntry1 = fooGroup.getOrNull(Revision.HEAD, Query.ofJson(
