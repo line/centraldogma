@@ -57,6 +57,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepos
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -82,20 +83,21 @@ public class DefaultProject implements Project {
      * Opens an existing project.
      */
     DefaultProject(File rootDir, Executor repositoryWorker, Executor purgeWorker,
-                   @Nullable RepositoryCache cache) {
+                   @Nullable RepositoryCache cache, EncryptionStorageManager encryptionStorageManager) {
         requireNonNull(rootDir, "rootDir");
         requireNonNull(repositoryWorker, "repositoryWorker");
+        requireNonNull(encryptionStorageManager, "encryptionStorageManager");
 
         if (!rootDir.exists()) {
             throw new ProjectNotFoundException(rootDir.toString());
         }
 
         name = rootDir.getName();
-        repos = newRepoManager(rootDir, repositoryWorker, purgeWorker, cache);
+        repos = newRepoManager(rootDir, repositoryWorker, purgeWorker, cache, encryptionStorageManager);
 
         boolean success = false;
         try {
-            createReservedRepos(System.currentTimeMillis());
+            createReservedRepos(System.currentTimeMillis(), false);
             final ProjectMetadata projectedMetadata = initialMetadata();
             if (projectedMetadata != null) {
                 final UserAndTimestamp creation = projectedMetadata.creation();
@@ -121,20 +123,22 @@ public class DefaultProject implements Project {
      * Creates a new project.
      */
     DefaultProject(File rootDir, Executor repositoryWorker, Executor purgeWorker,
-                   long creationTimeMillis, Author author, @Nullable RepositoryCache cache) {
+                   long creationTimeMillis, Author author, @Nullable RepositoryCache cache,
+                   EncryptionStorageManager encryptionStorageManager, boolean encryptDogmaRepo) {
         requireNonNull(rootDir, "rootDir");
         requireNonNull(repositoryWorker, "repositoryWorker");
+        requireNonNull(encryptionStorageManager, "encryptionStorageManager");
 
         if (rootDir.exists()) {
             throw new ProjectExistsException(rootDir.getName());
         }
 
         name = rootDir.getName();
-        repos = newRepoManager(rootDir, repositoryWorker, purgeWorker, cache);
+        repos = newRepoManager(rootDir, repositoryWorker, purgeWorker, cache, encryptionStorageManager);
 
         boolean success = false;
         try {
-            createReservedRepos(creationTimeMillis);
+            createReservedRepos(creationTimeMillis, encryptDogmaRepo);
             initializeMetadata(creationTimeMillis, author);
             this.creationTimeMillis = creationTimeMillis;
             this.author = author;
@@ -149,24 +153,27 @@ public class DefaultProject implements Project {
     }
 
     private RepositoryManager newRepoManager(File rootDir, Executor repositoryWorker, Executor purgeWorker,
-                                             @Nullable RepositoryCache cache) {
+                                             @Nullable RepositoryCache cache,
+                                             EncryptionStorageManager encryptionStorageManager) {
         // Enable caching if 'cache' is not null.
         final GitRepositoryManager gitRepos =
-                new GitRepositoryManager(this, rootDir, repositoryWorker, purgeWorker, cache);
+                new GitRepositoryManager(this, rootDir, repositoryWorker, purgeWorker, cache,
+                                         encryptionStorageManager);
         return cache == null ? gitRepos : new CachingRepositoryManager(gitRepos, cache);
     }
 
-    private void createReservedRepos(long creationTimeMillis) {
+    private void createReservedRepos(long creationTimeMillis, boolean encryptDogmaRepo) {
+        // TODO(minwoox): Support encryption after merging dogma and meta repository.
         if (!repos.exists(REPO_DOGMA)) {
             try {
-                repos.create(REPO_DOGMA, creationTimeMillis, Author.SYSTEM);
+                repos.create(REPO_DOGMA, creationTimeMillis, Author.SYSTEM, false);
             } catch (RepositoryExistsException ignored) {
                 // Just in case there's a race.
             }
         }
         if (!repos.exists(REPO_META)) {
             try {
-                repos.create(REPO_META, creationTimeMillis, Author.SYSTEM);
+                repos.create(REPO_META, creationTimeMillis, Author.SYSTEM, false);
             } catch (RepositoryExistsException ignored) {
                 // Just in case there's a race.
             }

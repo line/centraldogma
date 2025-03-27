@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager.createFileRepository;
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager.openFileRepository;
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,16 +42,16 @@ import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
-class CommitIdDatabaseTest {
+class DefaultCommitIdDatabaseTest {
 
     @TempDir
     File tempDir;
 
-    private CommitIdDatabase db;
+    private DefaultCommitIdDatabase db;
 
     @BeforeEach
     void setUp() {
-        db = new CommitIdDatabase(tempDir);
+        db = new DefaultCommitIdDatabase(tempDir);
     }
 
     @AfterEach
@@ -101,7 +103,7 @@ class CommitIdDatabaseTest {
             f.truncate(23);
         }
 
-        assertThatThrownBy(() -> new CommitIdDatabase(tempDir))
+        assertThatThrownBy(() -> new DefaultCommitIdDatabase(tempDir))
                 .isInstanceOf(StorageException.class)
                 .hasMessageContaining("incorrect file length");
     }
@@ -126,7 +128,7 @@ class CommitIdDatabaseTest {
         }
 
         // Reopen the database and see if it fails to resolve the revision 1.
-        db = new CommitIdDatabase(tempDir);
+        db = new DefaultCommitIdDatabase(tempDir);
         assertThatThrownBy(() -> db.get(Revision.INIT))
                 .isInstanceOf(StorageException.class)
                 .hasMessageContaining("incorrect revision number");
@@ -139,7 +141,8 @@ class CommitIdDatabaseTest {
         final File commitIdDatabaseFile = new File(repoDir, "commit_ids.dat");
 
         // Create a repository which contains some commits.
-        GitRepository repo = new GitRepository(mock(Project.class), repoDir, commonPool(), 1000, Author.SYSTEM);
+        GitRepository repo = createFileRepository(mock(Project.class), repoDir, Author.SYSTEM,
+                                                  1000, commonPool(), null);
         Revision headRevision = null;
         try {
             for (int i = 1; i <= numCommits; i++) {
@@ -157,7 +160,7 @@ class CommitIdDatabaseTest {
         }
 
         // Open the repository again to see if the commit ID database is regenerated automatically.
-        repo = new GitRepository(mock(Project.class), repoDir, commonPool(), null);
+        repo = openFileRepository(mock(Project.class), repoDir, commonPool(), null);
         try {
             assertThat(repo.normalizeNow(Revision.HEAD)).isEqualTo(headRevision);
             for (int i = 1; i <= numCommits; i++) {

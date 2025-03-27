@@ -30,6 +30,7 @@ import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -40,9 +41,11 @@ public class DefaultProjectManager extends DirectoryBasedStorageManager<Project>
     private final Executor repositoryWorker;
     @Nullable
     private final RepositoryCache cache;
+    private final EncryptionStorageManager encryptionStorageManager;
 
     public DefaultProjectManager(File rootDir, Executor repositoryWorker, Executor purgeWorker,
-                                 MeterRegistry meterRegistry, @Nullable String cacheSpec) {
+                                 MeterRegistry meterRegistry, @Nullable String cacheSpec,
+                                 EncryptionStorageManager encryptionStorageManager) {
         super(rootDir, Project.class, purgeWorker);
 
         requireNonNull(meterRegistry, "meterRegistry");
@@ -50,6 +53,7 @@ public class DefaultProjectManager extends DirectoryBasedStorageManager<Project>
 
         this.repositoryWorker = repositoryWorker;
         cache = cacheSpec != null ? new RepositoryCache(cacheSpec, meterRegistry) : null;
+        this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
 
         init();
     }
@@ -64,12 +68,14 @@ public class DefaultProjectManager extends DirectoryBasedStorageManager<Project>
 
     @Override
     protected Project openChild(File childDir) throws Exception {
-        return new DefaultProject(childDir, repositoryWorker, purgeWorker(), cache);
+        return new DefaultProject(childDir, repositoryWorker, purgeWorker(), cache, encryptionStorageManager);
     }
 
     @Override
-    protected Project createChild(File childDir, Author author, long creationTimeMillis) throws Exception {
-        return new DefaultProject(childDir, repositoryWorker, purgeWorker(), creationTimeMillis, author, cache);
+    protected Project createChild(
+            File childDir, Author author, long creationTimeMillis, boolean encrypt) throws Exception {
+        return new DefaultProject(childDir, repositoryWorker, purgeWorker(),
+                                  creationTimeMillis, author, cache, encryptionStorageManager, encrypt);
     }
 
     @Override

@@ -28,9 +28,9 @@ class IsolatedSystemReaderTest {
         assertThat(reader).isInstanceOf(IsolatedSystemReader.class);
 
         // Make sure all the necessary properties are set.
-        assertThat(reader.getUserConfig()).isSameAs(IsolatedSystemReader.EMPTY_CONFIG);
-        assertThat(reader.getSystemConfig()).isSameAs(IsolatedSystemReader.EMPTY_CONFIG);
-        assertThat(reader.getJGitConfig()).isSameAs(IsolatedSystemReader.EMPTY_CONFIG);
-        assertThat(reader.getUserConfig()).isSameAs(IsolatedSystemReader.EMPTY_CONFIG);
+        assertThat(reader.getUserConfig()).isSameAs(EmptyGitConfig.INSTANCE);
+        assertThat(reader.getSystemConfig()).isSameAs(EmptyGitConfig.INSTANCE);
+        assertThat(reader.getJGitConfig()).isSameAs(EmptyGitConfig.INSTANCE);
+        assertThat(reader.getUserConfig()).isSameAs(EmptyGitConfig.INSTANCE);
     }
 }

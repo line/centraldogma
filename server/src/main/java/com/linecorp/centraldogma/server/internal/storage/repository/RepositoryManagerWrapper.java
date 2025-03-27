@@ -78,9 +78,9 @@ public class RepositoryManagerWrapper implements RepositoryManager {
     }
 
     @Override
-    public Repository create(String name, long creationTimeMillis, Author author) {
+    public Repository create(String name, long creationTimeMillis, Author author, boolean encrypt) {
         return repos.compute(
-                name, (n, v) -> repoWrapper.apply(delegate.create(name, creationTimeMillis, author)));
+                name, (n, v) -> repoWrapper.apply(delegate.create(name, creationTimeMillis, author, encrypt)));
     }
 
     @Override

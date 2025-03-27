@@ -17,19 +17,51 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.Nullable;
+
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.EncryptionKeyException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
 public final class RepositoryServiceUtil {
 
     public static CompletableFuture<Revision> createRepository(
             CommandExecutor commandExecutor, MetadataService mds,
-            Author author, String projectName, String repoName) {
-        return commandExecutor.execute(Command.createRepository(author, projectName, repoName))
-                              .thenCompose(unused -> mds.addRepo(author, projectName, repoName));
+            Author author, String projectName, String repoName, boolean encryptionEnabled,
+            @Nullable EncryptionStorageManager encryptionStorageManager) {
+        if (!encryptionEnabled) {
+            return commandExecutor.execute(Command.createRepository(author, projectName, repoName))
+                                  .thenCompose(unused -> mds.addRepo(author, projectName, repoName));
+        }
+
+        assert encryptionStorageManager != null;
+
+        final CompletableFuture<Revision> result = new CompletableFuture<>();
+        final CompletableFuture<byte[]> wdekFuture = encryptionStorageManager.generateWdek();
+        wdekFuture.handle((wdek, cause) -> {
+            if (cause != null) {
+                result.completeExceptionally(
+                        new EncryptionKeyException("Failed to generate a new WDEK for " +
+                                                   projectName + '/' + repoName, cause));
+                return null;
+            }
+            commandExecutor.execute(Command.createRepository(author, projectName, repoName, wdek))
+                           .thenCompose(unused -> mds.addRepo(author, projectName, repoName))
+                           .handle((revision, cause2) -> {
+                               if (cause2 != null) {
+                                   result.completeExceptionally(cause2);
+                                   return null;
+                               }
+                               result.complete(revision);
+                               return null;
+                           });
+            return null;
+        });
+        return result;
     }
 
     public static CompletableFuture<Revision> removeRepository(

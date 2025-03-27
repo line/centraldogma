@@ -58,7 +58,7 @@ public interface StorageManager<T> {
      * @param author the author who is creating the new element
      */
     default T create(String name, Author author) {
-        return create(name, System.currentTimeMillis(), author);
+        return create(name, System.currentTimeMillis(), author, false);
     }
 
     /**
@@ -69,7 +69,7 @@ public interface StorageManager<T> {
      * @param creationTimeMillis the creation time in milliseconds
      * @param author the author who is creating the new element
      */
-    T create(String name, long creationTimeMillis, Author author);
+    T create(String name, long creationTimeMillis, Author author, boolean encrypt);
 
     /**
      * Returns all elements as a {@link Map} of the name and the element.

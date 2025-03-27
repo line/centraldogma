@@ -221,6 +221,8 @@ public final class CentralDogmaConfig {
     @Nullable
     private final TlsConfig tls;
     @Nullable
+    private final EncryptionAtRestConfig encryptionAtRest;
+    @Nullable
     private final List<String> trustedProxyAddresses;
     @Nullable
     private final List<String> clientAddressSources;
@@ -279,6 +281,7 @@ public final class CentralDogmaConfig {
             @JsonDeserialize(contentUsing = ServerPortDeserializer.class)
             List<ServerPort> ports,
             @JsonProperty("tls") @Nullable TlsConfig tls,
+            @JsonProperty("encryptionAtRest") @Nullable EncryptionAtRestConfig encryptionAtRest,
             @JsonProperty("trustedProxyAddresses") @Nullable List<String> trustedProxyAddresses,
             @JsonProperty("clientAddressSources") @Nullable List<String> clientAddressSources,
             @JsonProperty("numWorkers") @Nullable Integer numWorkers,
@@ -306,6 +309,7 @@ public final class CentralDogmaConfig {
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
         checkArgument(!ports.isEmpty(), "ports must have at least one port.");
         this.tls = tls;
+        this.encryptionAtRest = encryptionAtRest;
         this.trustedProxyAddresses = trustedProxyAddresses;
         this.clientAddressSources = clientAddressSources;
 
@@ -376,6 +380,15 @@ public final class CentralDogmaConfig {
     @JsonProperty
     public TlsConfig tls() {
         return tls;
+    }
+
+    /**
+     * Returns the Encryption at Rest configuration.
+     */
+    @Nullable
+    @JsonProperty
+    public EncryptionAtRestConfig encryptionAtRest() {
+        return encryptionAtRest;
     }
 
     /**

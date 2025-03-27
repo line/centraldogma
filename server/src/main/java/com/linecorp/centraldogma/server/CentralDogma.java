@@ -173,6 +173,7 @@ import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -244,6 +245,7 @@ public class CentralDogma implements AutoCloseable {
     private final PluginGroup pluginsForZoneLeaderOnly;
 
     private final CentralDogmaConfig cfg;
+    private final EncryptionStorageManager encryptionStorageManager;
     @Nullable
     private volatile ProjectManager pm;
     @Nullable
@@ -270,6 +272,7 @@ public class CentralDogma implements AutoCloseable {
 
     CentralDogma(CentralDogmaConfig cfg, MeterRegistry meterRegistry, List<Plugin> plugins) {
         this.cfg = requireNonNull(cfg, "cfg");
+        encryptionStorageManager = EncryptionStorageManager.of(cfg);
         pluginGroups = PluginGroup.loadPlugins(CentralDogma.class.getClassLoader(), cfg, plugins);
         pluginsForAllReplicas = pluginGroups.get(PluginTarget.ALL_REPLICAS);
         pluginsForLeaderOnly = pluginGroups.get(PluginTarget.LEADER_ONLY);
@@ -422,7 +425,7 @@ public class CentralDogma implements AutoCloseable {
                     new DefaultThreadFactory("purge-worker", true));
 
             pm = new DefaultProjectManager(cfg.dataDir(), repositoryWorker, purgeWorker,
-                                           meterRegistry, cfg.repositoryCacheSpec());
+                                           meterRegistry, cfg.repositoryCacheSpec(), encryptionStorageManager);
 
             logger.info("Started the project manager: {}", pm);
 
@@ -556,12 +559,14 @@ public class CentralDogma implements AutoCloseable {
         switch (replicationMethod) {
             case ZOOKEEPER:
                 executor = newZooKeeperCommandExecutor(pm, repositoryWorker, statusManager, meterRegistry,
-                                                       sessionManager, onTakeLeadership, onReleaseLeadership,
+                                                       sessionManager, encryptionStorageManager,
+                                                       onTakeLeadership, onReleaseLeadership,
                                                        onTakeZoneLeadership, onReleaseZoneLeadership);
                 break;
             case NONE:
                 logger.info("No replication mechanism specified; entering standalone");
                 executor = new StandaloneCommandExecutor(pm, repositoryWorker, statusManager, sessionManager,
+                                                         encryptionStorageManager,
                                                          cfg.writeQuotaPerRepository(),
                                                          onTakeLeadership, onReleaseLeadership,
                                                          onTakeZoneLeadership, onReleaseZoneLeadership);
@@ -693,7 +698,8 @@ public class CentralDogma implements AutoCloseable {
         executor.setRepositoryMetadataSupplier(mds::getRepo);
         final WatchService watchService = new WatchService(meterRegistry);
         final AuthProvider authProvider = createAuthProvider(executor, sessionManager, mds);
-        final ProjectApiManager projectApiManager = new ProjectApiManager(pm, executor, mds);
+        final ProjectApiManager projectApiManager =
+                new ProjectApiManager(pm, executor, mds, encryptionStorageManager);
 
         configureThriftService(sb, projectApiManager, executor, watchService, mds);
 
@@ -797,6 +803,7 @@ public class CentralDogma implements AutoCloseable {
             ServerStatusManager serverStatusManager,
             MeterRegistry meterRegistry,
             @Nullable SessionManager sessionManager,
+            EncryptionStorageManager encryptionStorageManager,
             @Nullable Consumer<CommandExecutor> onTakeLeadership,
             @Nullable Consumer<CommandExecutor> onReleaseLeadership,
             @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
@@ -816,6 +823,7 @@ public class CentralDogma implements AutoCloseable {
         return new ZooKeeperCommandExecutor(
                 zkCfg, dataDir,
                 new StandaloneCommandExecutor(pm, repositoryWorker, serverStatusManager, sessionManager,
+                                              encryptionStorageManager,
                         /* onTakeLeadership */ null, /* onReleaseLeadership */ null,
                         /* onTakeZoneLeadership */ null, /* onReleaseZoneLeadership */ null),
                 meterRegistry, config().writeQuotaPerRepository(), zone,
@@ -904,7 +912,7 @@ public class CentralDogma implements AutoCloseable {
         apiV1ServiceBuilder
                 .annotatedService(new ServerStatusService(executor, statusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
-                .annotatedService(new RepositoryServiceV1(executor, mds))
+                .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor));
 
         if (GIT_MIRROR_ENABLED) {

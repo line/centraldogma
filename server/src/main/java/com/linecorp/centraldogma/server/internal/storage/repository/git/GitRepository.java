@@ -16,20 +16,16 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
-import static com.google.common.base.Preconditions.checkState;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.FailFastUtil.context;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.FailFastUtil.failFastIfTimedOut;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
-import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_CORE_SECTION;
-import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_REPO_FORMAT_VERSION;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,7 +37,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -57,16 +52,13 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectIdOwnerMap;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.PersonIdent;
-import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.RefUpdate.Result;
-import org.eclipse.jgit.lib.RepositoryBuilder;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.revwalk.TreeRevFilter;
 import org.eclipse.jgit.revwalk.filter.RevFilter;
-import org.eclipse.jgit.storage.file.FileBasedConfig;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.AndTreeFilter;
@@ -91,8 +83,6 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
-import com.linecorp.centraldogma.common.RedundantChangeException;
-import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
@@ -104,7 +94,6 @@ import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.internal.IsolatedSystemReader;
-import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.Watch.WatchListener;
 import com.linecorp.centraldogma.server.storage.StorageException;
@@ -181,152 +170,41 @@ class GitRepository implements Repository {
     /**
      * The current head revision. Initialized by the constructor and updated by commit().
      */
+    @SuppressWarnings("NotNullFieldNotInitialized")
     private volatile Revision headRevision;
 
     /**
-     * Creates a new Git-backed repository.
-     *
-     * @param repoDir the location of this repository
-     * @param repositoryWorker the {@link Executor} which will perform the blocking repository operations
-     * @param creationTimeMillis the creation time
-     * @param author the user who initiated the creation of this repository
-     *
-     * @throws StorageException if failed to create a new repository
-     */
-    @VisibleForTesting
-    GitRepository(Project parent, File repoDir, Executor repositoryWorker,
-                  long creationTimeMillis, Author author) {
-        this(parent, repoDir, repositoryWorker, creationTimeMillis, author, null);
-    }
-
-    /**
-     * Creates a new Git-backed repository.
-     *
-     * @param repoDir the location of this repository
-     * @param repositoryWorker the {@link Executor} which will perform the blocking repository operations
-     * @param creationTimeMillis the creation time
-     * @param author the user who initiated the creation of this repository
-     *
-     * @throws StorageException if failed to create a new repository
+     * Creates a new Git repository.
      */
     GitRepository(Project parent, File repoDir, Executor repositoryWorker,
-                  long creationTimeMillis, Author author, @Nullable RepositoryCache cache) {
-
-        this.parent = requireNonNull(parent, "parent");
-        name = requireNonNull(repoDir, "repoDir").getName();
-        this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
+                  long creationTimeMillis, Author author, @Nullable RepositoryCache cache,
+                  org.eclipse.jgit.lib.Repository jGitRepository, CommitIdDatabase commitIdDatabase) {
+        this.parent = parent;
+        name = repoDir.getName();
+        this.repositoryWorker = repositoryWorker;
         this.creationTimeMillis = creationTimeMillis;
-        this.author = requireNonNull(author, "author");
+        this.author = author;
         this.cache = cache;
-
-        final RepositoryBuilder repositoryBuilder = new RepositoryBuilder().setGitDir(repoDir).setBare();
-        boolean success = false;
-        try {
-            // Create an empty repository with format version 0 first.
-            try (org.eclipse.jgit.lib.Repository initRepo = repositoryBuilder.build()) {
-                if (exist(repoDir)) {
-                    throw new StorageException(
-                            "failed to create a repository at: " + repoDir + " (exists already)");
-                }
-                initRepo.create(true);
-
-                // Save the initial default settings.
-                JGitUtil.applyDefaultsAndSave(initRepo.getConfig());
-            }
-
-            // Re-open the repository with the updated settings.
-            jGitRepository = new RepositoryBuilder().setGitDir(repoDir).build();
-
-            // Initialize the master branch.
-            final RefUpdate head = jGitRepository.updateRef(Constants.HEAD);
-            head.disableRefLog();
-            head.link(Constants.R_HEADS + Constants.MASTER);
-
-            // Initialize the commit ID database.
-            commitIdDatabase = new CommitIdDatabase(jGitRepository);
-
-            new CommitExecutor(this, creationTimeMillis, author, "Create a new repository", "",
-                               Markup.PLAINTEXT, true)
-                    .executeInitialCommit();
-
-            headRevision = Revision.INIT;
-            success = true;
-        } catch (IOException e) {
-            throw new StorageException("failed to create a repository at: " + repoDir, e);
-        } finally {
-            if (!success) {
-                internalClose();
-                // Failed to create a repository. Remove any cruft so that it is not loaded on the next run.
-                deleteCruft(repoDir);
-            }
-        }
+        this.jGitRepository = jGitRepository;
+        this.commitIdDatabase = commitIdDatabase;
     }
 
     /**
-     * Opens an existing Git-backed repository.
-     *
-     * @param repoDir the location of this repository
-     * @param repositoryWorker the {@link Executor} which will perform the blocking repository operations
-     *
-     * @throws StorageException if failed to open the repository at the specified location
+     * Opens the existing Git repository.
      */
-    GitRepository(Project parent, File repoDir, Executor repositoryWorker, @Nullable RepositoryCache cache) {
+    GitRepository(Project parent, File repoDir, Executor repositoryWorker, @Nullable RepositoryCache cache,
+                  org.eclipse.jgit.lib.Repository jGitRepository, CommitIdDatabase commitIdDatabase,
+                  Revision headRevision) {
         this.parent = requireNonNull(parent, "parent");
         name = requireNonNull(repoDir, "repoDir").getName();
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.cache = cache;
-
-        final RepositoryBuilder repositoryBuilder = new RepositoryBuilder().setGitDir(repoDir).setBare();
-        try {
-            jGitRepository = repositoryBuilder.build();
-            if (!exist(repoDir)) {
-                throw new RepositoryNotFoundException(repoDir.toString());
-            }
-
-            // Retrieve the repository format.
-            final int formatVersion = jGitRepository.getConfig().getInt(
-                    CONFIG_CORE_SECTION, null, CONFIG_KEY_REPO_FORMAT_VERSION, 0);
-            if (formatVersion != JGitUtil.REPO_FORMAT_VERSION) {
-                throw new StorageException("unsupported repository format version: " + formatVersion +
-                                           " (expected: " + JGitUtil.REPO_FORMAT_VERSION + ')');
-            }
-
-            // Update the default settings if necessary.
-            JGitUtil.applyDefaultsAndSave(jGitRepository.getConfig());
-        } catch (IOException e) {
-            throw new StorageException("failed to open a repository at: " + repoDir, e);
-        }
-
-        boolean success = false;
-        try {
-            headRevision = uncachedHeadRevision();
-            commitIdDatabase = new CommitIdDatabase(jGitRepository);
-            if (!headRevision.equals(commitIdDatabase.headRevision())) {
-                commitIdDatabase.rebuild(jGitRepository);
-                assert headRevision.equals(commitIdDatabase.headRevision());
-            }
-            final Commit initialCommit = blockingHistory(Revision.INIT, Revision.INIT, ALL_PATH, 1).get(0);
-            creationTimeMillis = initialCommit.when();
-            author = initialCommit.author();
-            success = true;
-        } finally {
-            if (!success) {
-                internalClose();
-            }
-        }
-    }
-
-    private static boolean exist(File repoDir) {
-        try {
-            final RepositoryBuilder repositoryBuilder = new RepositoryBuilder().setGitDir(repoDir);
-            final org.eclipse.jgit.lib.Repository repository = repositoryBuilder.build();
-            if (repository.getConfig() instanceof FileBasedConfig) {
-                return ((FileBasedConfig) repository.getConfig()).getFile().exists();
-            }
-            return repository.getDirectory().exists();
-        } catch (IOException e) {
-            throw new StorageException("failed to check if repository exists at " + repoDir, e);
-        }
+        this.jGitRepository = requireNonNull(jGitRepository, "jGitRepository");
+        this.commitIdDatabase = requireNonNull(commitIdDatabase, "commitIdDatabase");
+        this.headRevision = requireNonNull(headRevision, "headRevision");
+        final Commit initialCommit = blockingHistory(Revision.INIT, Revision.INIT, ALL_PATH, 1).get(0);
+        creationTimeMillis = initialCommit.when();
+        author = initialCommit.author();
     }
 
     /**
@@ -342,22 +220,7 @@ class GitRepository implements Repository {
                 // MUST acquire gcLock first to prevent a dead lock
                 rwLock.writeLock().lock();
                 try {
-                    if (commitIdDatabase != null) {
-                        try {
-                            commitIdDatabase.close();
-                        } catch (Exception e) {
-                            logger.warn("Failed to close a commitId database:", e);
-                        }
-                    }
-
-                    if (jGitRepository != null) {
-                        try {
-                            jGitRepository.close();
-                        } catch (Exception e) {
-                            logger.warn("Failed to close a Git repository: {}",
-                                        jGitRepository.getDirectory(), e);
-                        }
-                    }
+                    closeRepository(commitIdDatabase, jGitRepository);
                 } finally {
                     try {
                         rwLock.writeLock().unlock();
@@ -370,6 +233,25 @@ class GitRepository implements Repository {
         }
 
         closeFuture.join();
+    }
+
+    static void closeRepository(@Nullable CommitIdDatabase commitIdDatabase,
+                                @Nullable org.eclipse.jgit.lib.Repository jGitRepository) {
+        if (commitIdDatabase != null) {
+            try {
+                commitIdDatabase.close();
+            } catch (Exception e) {
+                logger.warn("Failed to close a commitId database:", e);
+            }
+        }
+
+        if (jGitRepository != null) {
+            try {
+                jGitRepository.close();
+            } catch (Exception e) {
+                logger.warn("Failed to close a Git repository: {}", jGitRepository.getDirectory(), e);
+            }
+        }
     }
 
     void internalClose() {
@@ -912,12 +794,8 @@ class GitRepository implements Repository {
 
     static void doRefUpdate(org.eclipse.jgit.lib.Repository jGitRepository, RevWalk revWalk,
                             String ref, ObjectId commitId) throws IOException {
-
         if (ref.startsWith(Constants.R_TAGS)) {
-            final Ref oldRef = jGitRepository.exactRef(ref);
-            if (oldRef != null) {
-                throw new StorageException("tag ref exists already: " + ref);
-            }
+            throw new StorageException("Using a tag is not allowed. ref: " + ref);
         }
 
         final RefUpdate refUpdate = jGitRepository.updateRef(ref);
@@ -1237,79 +1115,7 @@ class GitRepository implements Repository {
         rwLock.writeLock().unlock();
     }
 
-    /**
-     * Clones this repository into a new one.
-     */
-    public void cloneTo(File newRepoDir) {
-        cloneTo(newRepoDir, (current, total) -> { /* no-op */ });
-    }
-
-    /**
-     * Clones this repository into a new one.
-     */
-    public void cloneTo(File newRepoDir, BiConsumer<Integer, Integer> progressListener) {
-        requireNonNull(newRepoDir, "newRepoDir");
-        requireNonNull(progressListener, "progressListener");
-
-        final Revision endRevision = normalizeNow(Revision.HEAD);
-        final GitRepository newRepo = new GitRepository(parent, newRepoDir, repositoryWorker,
-                                                        creationTimeMillis(), author(), cache);
-
-        progressListener.accept(1, endRevision.major());
-        boolean success = false;
-        try {
-            // Replay all commits.
-            Revision previousNonEmptyRevision = null;
-            for (int i = 2; i <= endRevision.major();) {
-                // Fetch up to 16 commits at once.
-                final int batch = 16;
-                final List<Commit> commits = blockingHistory(
-                        new Revision(i), new Revision(Math.min(endRevision.major(), i + batch - 1)),
-                        ALL_PATH, batch);
-                checkState(!commits.isEmpty(), "empty commits");
-
-                if (previousNonEmptyRevision == null) {
-                    previousNonEmptyRevision = commits.get(0).revision().backward(1);
-                }
-                for (Commit c : commits) {
-                    final Revision revision = c.revision();
-                    checkState(revision.major() == i,
-                               "mismatching revision: %s (expected: %s)", revision.major(), i);
-
-                    final Revision baseRevision = revision.backward(1);
-                    final Collection<Change<?>> changes =
-                            diff(previousNonEmptyRevision, revision, ALL_PATH).join().values();
-
-                    try {
-                        new CommitExecutor(newRepo, c.when(), c.author(), c.summary(),
-                                           c.detail(), c.markup(), false)
-                                .execute(baseRevision, normBaseRevision -> blockingPreviewDiff(
-                                        normBaseRevision, new DefaultChangesApplier(changes)).values());
-                        previousNonEmptyRevision = revision;
-                    } catch (RedundantChangeException e) {
-                        // NB: We allow an empty commit here because an old version of Central Dogma had a bug
-                        //     which allowed the creation of an empty commit.
-                        new CommitExecutor(newRepo, c.when(), c.author(), c.summary(),
-                                           c.detail(), c.markup(), true)
-                                .execute(baseRevision, normBaseRevision -> blockingPreviewDiff(
-                                        normBaseRevision, new DefaultChangesApplier(changes)).values());
-                    }
-
-                    progressListener.accept(i, endRevision.major());
-                    i++;
-                }
-            }
-
-            success = true;
-        } finally {
-            newRepo.internalClose();
-            if (!success) {
-                deleteCruft(newRepoDir);
-            }
-        }
-    }
-
-    private static void deleteCruft(File repoDir) {
+    static void deleteCruft(File repoDir) {
         try {
             Util.deleteFileTree(repoDir);
         } catch (IOException e) {
