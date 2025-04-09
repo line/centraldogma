@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.EncryptionKeyException;
 import com.linecorp.centraldogma.common.PermissionException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
@@ -35,6 +36,7 @@ import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -47,12 +49,15 @@ public final class ProjectApiManager {
     private final ProjectManager projectManager;
     private final CommandExecutor commandExecutor;
     private final MetadataService metadataService;
+    private final EncryptionStorageManager encryptionStorageManager;
 
     public ProjectApiManager(ProjectManager projectManager, CommandExecutor commandExecutor,
-                             MetadataService metadataService) {
+                             MetadataService metadataService,
+                             EncryptionStorageManager encryptionStorageManager) {
         this.projectManager = projectManager;
         this.commandExecutor = commandExecutor;
         this.metadataService = metadataService;
+        this.encryptionStorageManager = encryptionStorageManager;
     }
 
     public Map<String, Project> listProjects(@Nullable User user) {
@@ -100,7 +105,30 @@ public final class ProjectApiManager {
 
     public CompletableFuture<Void> createProject(String projectName, Author author) {
         checkInternalProject(projectName, "create");
-        return commandExecutor.execute(Command.createProject(author, projectName));
+        if (!encryptionStorageManager.enabled()) {
+            return commandExecutor.execute(Command.createProject(author, projectName));
+        }
+        final CompletableFuture<Void> result = new CompletableFuture<>();
+        final CompletableFuture<byte[]> wdekFuture = encryptionStorageManager.generateWdek();
+        wdekFuture.handle((wdek, cause) -> {
+            if (cause != null) {
+                result.completeExceptionally(
+                        new EncryptionKeyException("Failed to generate a new WDEK for " +
+                                                   projectName + '/' + Project.REPO_DOGMA, cause));
+                return null;
+            }
+            commandExecutor.execute(Command.createProject(author, projectName, wdek))
+                           .handle((unused, cause2) -> {
+                               if (cause2 != null) {
+                                   result.completeExceptionally(cause2);
+                                   return null;
+                               }
+                               result.complete(null);
+                               return null;
+                           });
+            return null;
+        });
+        return result;
     }
 
     private static void checkInternalProject(String projectName, String operation) {

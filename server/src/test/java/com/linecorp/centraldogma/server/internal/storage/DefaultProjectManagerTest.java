@@ -29,6 +29,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
+import com.linecorp.centraldogma.server.storage.encryption.NoopEncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
@@ -47,7 +48,7 @@ class DefaultProjectManagerTest {
                 MoreExecutors.directExecutor(),
                 (Runnable r) -> counter.incrementAndGet(),
                 mock(MeterRegistry.class),
-                null);
+                null, NoopEncryptionStorageManager.INSTANCE);
 
         final String projectName = "foo";
         final String repoName = "bar";

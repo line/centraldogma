@@ -33,6 +33,7 @@ import com.cronutils.utils.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import com.spotify.futures.CompletableFutures;
 
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.server.QuotaConfig;
@@ -40,6 +41,7 @@ import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -57,6 +59,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private final Executor repositoryWorker;
     @Nullable
     private final SessionManager sessionManager;
+    private final EncryptionStorageManager encryptionStorageManager;
     // if permitsPerSecond is -1, a quota is checked by ZooKeeperCommandExecutor.
     private final double permitsPerSecond;
     private final ServerStatusManager serverStatusManager;
@@ -70,8 +73,8 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
      * @param projectManager the project manager for accessing the storage
      * @param repositoryWorker the executor which is used for performing storage operations
      * @param serverStatusManager the server status manager for updating the server status
-     * @param writeQuota the write quota for limiting {@link NormalizingPushCommand}
      * @param sessionManager the session manager for creating/removing a session
+     * @param writeQuota the write quota for limiting {@link NormalizingPushCommand}
      * @param onTakeLeadership the callback to be invoked after the replica has taken the leadership
      * @param onReleaseLeadership the callback to be invoked before the replica releases the leadership
      * @param onTakeZoneLeadership the callback to be invoked after the replica has taken the zone leadership
@@ -81,13 +84,14 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                                      Executor repositoryWorker,
                                      ServerStatusManager serverStatusManager,
                                      @Nullable SessionManager sessionManager,
+                                     EncryptionStorageManager encryptionStorageManager,
                                      @Nullable QuotaConfig writeQuota,
                                      @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                      @Nullable Consumer<CommandExecutor> onReleaseLeadership,
                                      @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
                                      @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
         this(projectManager, repositoryWorker, serverStatusManager, sessionManager,
-             writeQuota != null ? writeQuota.permitsPerSecond() : 0,
+             encryptionStorageManager, writeQuota != null ? writeQuota.permitsPerSecond() : 0,
              onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
     }
 
@@ -106,18 +110,20 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                                      Executor repositoryWorker,
                                      ServerStatusManager serverStatusManager,
                                      @Nullable SessionManager sessionManager,
+                                     EncryptionStorageManager encryptionStorageManager,
                                      @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                      @Nullable Consumer<CommandExecutor> onReleaseLeadership,
                                      @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
                                      @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
-        this(projectManager, repositoryWorker, serverStatusManager, sessionManager, -1,
-             onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
+        this(projectManager, repositoryWorker, serverStatusManager, sessionManager, encryptionStorageManager,
+             -1, onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
     }
 
     private StandaloneCommandExecutor(ProjectManager projectManager,
                                       Executor repositoryWorker,
                                       ServerStatusManager serverStatusManager,
                                       @Nullable SessionManager sessionManager,
+                                      EncryptionStorageManager encryptionStorageManager,
                                       double permitsPerSecond,
                                       @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                       @Nullable Consumer<CommandExecutor> onReleaseLeadership,
@@ -128,6 +134,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.serverStatusManager = requireNonNull(serverStatusManager, "serverStatusManager");
         this.sessionManager = sessionManager;
+        this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
         this.permitsPerSecond = permitsPerSecond;
         writeRateLimiters = new ConcurrentHashMap<>();
     }
@@ -232,7 +239,26 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> createProject(CreateProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager.create(c.projectName(), c.timestamp(), c.author());
+            final byte[] wdek = c.wdek();
+            final boolean encrypt = wdek != null;
+            if (encrypt) {
+                encryptionStorageManager.storeWdek(c.projectName(), Project.REPO_DOGMA, wdek);
+            }
+
+            try {
+                projectManager.create(c.projectName(), c.timestamp(), c.author(), encrypt);
+            } catch (Throwable t) {
+                if (encrypt) {
+                    try {
+                        encryptionStorageManager.removeWdek(c.projectName(), Project.REPO_DOGMA);
+                    } catch (Throwable t2) {
+                        logger.warn("Failed to remove the WDEK of {}/{}",
+                                    c.projectName(), Project.REPO_DOGMA, t2);
+                    }
+                }
+                Exceptions.throwUnsafely(t);
+            }
+
             return null;
         }, repositoryWorker);
     }
@@ -262,7 +288,27 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> createRepository(CreateRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager.get(c.projectName()).repos().create(c.repositoryName(), c.timestamp(), c.author());
+            final byte[] wdek = c.wdek();
+            final boolean encrypt = wdek != null;
+            if (encrypt) {
+                encryptionStorageManager.storeWdek(c.projectName(), c.repositoryName(), wdek);
+            }
+
+            try {
+                projectManager.get(c.projectName()).repos().create(c.repositoryName(), c.timestamp(),
+                                                                   c.author(), encrypt);
+            } catch (Throwable t) {
+                if (encrypt) {
+                    try {
+                        encryptionStorageManager.removeWdek(c.projectName(), c.repositoryName());
+                    } catch (Throwable t2) {
+                        logger.warn("Failed to remove the WDEK of {}/{}",
+                                    c.projectName(), c.repositoryName(), t2);
+                    }
+                }
+                Exceptions.throwUnsafely(t);
+            }
+
             return null;
         }, repositoryWorker);
     }
