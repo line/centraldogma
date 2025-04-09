@@ -39,6 +39,12 @@ final class RocksDbObjectDatabase extends ObjectDatabase {
         return reader;
     }
 
+    // JGit 6.0+ requires this method to be overridden.
+    @SuppressWarnings("override")
+    public long getApproximateObjectCount() {
+        return -1;
+    }
+
     @Override
     public void close() {
         // No-op
