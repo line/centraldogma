@@ -36,6 +36,7 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.StartStopSupport;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 
 /**
  * Helps to implement a concrete {@link CommandExecutor}.
@@ -123,6 +124,22 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     @Override
     public final void setWritable(boolean writable) {
         this.writable = writable;
+    }
+
+    protected void throwExceptionIfRepositoryNotWritable(Command<?> command) throws Exception {
+        if (command instanceof NormalizableCommit) {
+            assert command instanceof RepositoryCommand;
+            final RepositoryCommand<?> repositoryCommand = (RepositoryCommand<?>) command;
+            if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(repositoryCommand.projectName())) {
+                return;
+            }
+            final RepositoryMetadata repositoryMetadata = repositoryMetadata(
+                    repositoryCommand.projectName(), repositoryCommand.repositoryName()).get();
+            if (!repositoryMetadata.replicationStatus().writable()) {
+                throw new ReadOnlyException(
+                        "The repository is not writable. command: " + repositoryCommand);
+            }
+        }
     }
 
     @Override

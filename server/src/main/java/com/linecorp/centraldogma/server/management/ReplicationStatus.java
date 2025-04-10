@@ -19,9 +19,9 @@ package com.linecorp.centraldogma.server.management;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * The status of the server.
+ * The replication status of the server or a repository.
  */
-public enum ServerStatus {
+public enum ReplicationStatus {
 
     READ_ONLY(false, false),
     REPLICATION_ONLY(false, true),
@@ -32,15 +32,15 @@ public enum ServerStatus {
 
     // TODO(trustin): Add more properties, e.g. method, host name, isLeader and config.
 
-    ServerStatus(boolean writable, boolean replicating) {
+    ReplicationStatus(boolean writable, boolean replicating) {
         this.writable = writable;
         this.replicating = replicating;
     }
 
     /**
-     * Returns the {@link ServerStatus} instance with the specified properties.
+     * Returns the {@link ReplicationStatus} instance with the specified properties.
      */
-    public static ServerStatus of(boolean writable, boolean replicating) {
+    public static ReplicationStatus of(boolean writable, boolean replicating) {
         if (writable) {
             if (replicating) {
                 return WRITABLE;

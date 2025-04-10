@@ -165,7 +165,7 @@ import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTra
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutScheduler;
 import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
-import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.mirror.MirrorProvider;
@@ -572,7 +572,7 @@ public class CentralDogma implements AutoCloseable {
         projectInitializer = new InternalProjectInitializer(executor, pm);
         mirrorAccessController = new DefaultMirrorAccessController();
 
-        final ServerStatus initialServerStatus = statusManager.serverStatus();
+        final ReplicationStatus initialServerStatus = statusManager.serverStatus();
         executor.setWritable(initialServerStatus.writable());
         if (!initialServerStatus.replicating()) {
             projectInitializer.whenInitialized().complete(null);

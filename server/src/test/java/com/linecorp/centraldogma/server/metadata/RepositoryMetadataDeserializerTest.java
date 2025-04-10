@@ -27,43 +27,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 class RepositoryMetadataDeserializerTest {
 
     @Test
-    void deserializeLegacyFormat() throws Exception {
-        final String format = '{' +
-                              "  \"name\": \"minu-test\"," +
-                              "  \"perRolePermissions\": {" +
-                              "    \"owner\": [" +
-                              "      \"READ\"," +
-                              "      \"WRITE\"" +
-                              "    ]," +
-                              "    \"member\": [\"READ\"]," +
-                              "    \"guest\": []" +
-                              "  }," +
-                              "  \"perUserPermissions\": {" +
-                              "    \"foo@dogma.com\": [" +
-                              "      \"READ\"" +
-                              "    ]," +
-                              "    \"bar@dogma.com\": [" +
-                              "      \"READ\"," +
-                              "      \"WRITE\"" +
-                              "    ]," +
-                              "    \"emptyMember\": []" + // Will be removed
-                              "  }," +
-                              "  \"perTokenPermissions\": {" +
-                              "    \"goodman\": [" +
-                              "      \"READ\"" +
-                              "    ]," +
-                              "    \"emptyToken\": []" + // Will be removed
-                              "  }," +
-                              "  \"creation\": {" +
-                              "    \"user\": \"minu.song@dogma.com\"," +
-                              "    \"timestamp\": \"2024-08-19T02:47:23.370762417Z\"" +
-                              "  }" +
-                              '}';
-        validate(Jackson.readValue(format, RepositoryMetadata.class));
-    }
-
-    @Test
-    void deserializeNewFormat() throws Exception {
+    void deserialize() throws Exception {
         final String format = '{' +
                               "  \"name\": \"minu-test\"," +
                               "  \"roles\": {" +

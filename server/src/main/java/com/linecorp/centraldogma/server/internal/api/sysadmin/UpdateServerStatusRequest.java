@@ -27,21 +27,21 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
 
 public final class UpdateServerStatusRequest {
-    private final ServerStatus serverStatus;
+    private final ReplicationStatus serverStatus;
     private final Scope scope;
 
     @JsonCreator
-    public UpdateServerStatusRequest(@JsonProperty("serverStatus") ServerStatus serverStatus,
+    public UpdateServerStatusRequest(@JsonProperty("serverStatus") ReplicationStatus serverStatus,
                                      @JsonProperty("scope") @Nullable Scope scope) {
         this.serverStatus = requireNonNull(serverStatus, "serverStatus");
         this.scope = firstNonNull(scope, Scope.ALL);
     }
 
     @JsonProperty("serverStatus")
-    public ServerStatus serverStatus() {
+    public ReplicationStatus serverStatus() {
         return serverStatus;
     }
 

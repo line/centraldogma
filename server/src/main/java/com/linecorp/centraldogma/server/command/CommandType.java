@@ -40,6 +40,7 @@ public enum CommandType {
     PURGE_PROJECT(Void.class),
     PURGE_REPOSITORY(Void.class),
     UPDATE_SERVER_STATUS(Void.class),
+    UPDATE_REPOSITORY_STATUS(Void.class),
     // The result type of FORCE_PUSH is Object because it can be any type.
     FORCE_PUSH(Object.class);
 

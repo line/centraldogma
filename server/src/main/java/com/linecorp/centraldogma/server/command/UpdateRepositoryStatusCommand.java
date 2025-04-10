@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.server.command;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.Objects;
 
 import javax.annotation.Nullable;
@@ -30,30 +32,31 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.management.ReplicationStatus;
 
 /**
- * A {@link Command} which is used to update the status of all servers in the cluster.
+ * A {@link Command} which is used to update the status of a repository.
  */
 @JsonInclude(Include.NON_NULL)
-public final class UpdateServerStatusCommand extends SystemAdministrativeCommand<Void> {
+public final class UpdateRepositoryStatusCommand extends RepositoryCommand<Void> {
 
-    private final ReplicationStatus serverStatus;
+    private final ReplicationStatus replicationStatus;
 
     /**
      * Creates a new instance with the specified properties.
      */
     @JsonCreator
-    public UpdateServerStatusCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
-                                     @JsonProperty("author") @Nullable Author author,
-                                     @JsonProperty("serverStatus") ReplicationStatus serverStatus) {
-        super(CommandType.UPDATE_SERVER_STATUS, timestamp, author);
-        this.serverStatus = serverStatus;
+    public UpdateRepositoryStatusCommand(@JsonProperty("projectName") String projectName,
+                                         @JsonProperty("repositoryName") String repositoryName,
+                                         @JsonProperty("author") @Nullable Author author,
+                                         @JsonProperty("replicationStatus") ReplicationStatus replicationStatus) {
+        super(CommandType.UPDATE_REPOSITORY_STATUS, null, author, projectName, repositoryName);
+        this.replicationStatus = requireNonNull(replicationStatus, "replicationStatus");
     }
 
     /**
-     * Returns the status of the server.
+     * Returns the status of the repository.
      */
-    @JsonProperty("serverStatus")
-    public ReplicationStatus serverStatus() {
-        return serverStatus;
+    @JsonProperty("replicationStatus")
+    public ReplicationStatus replicationStatus() {
+        return replicationStatus;
     }
 
     @Override
@@ -61,22 +64,22 @@ public final class UpdateServerStatusCommand extends SystemAdministrativeCommand
         if (this == o) {
             return true;
         }
-        if (!(o instanceof UpdateServerStatusCommand)) {
+        if (!(o instanceof UpdateRepositoryStatusCommand)) {
             return false;
         }
-        final UpdateServerStatusCommand that = (UpdateServerStatusCommand) o;
+        final UpdateRepositoryStatusCommand that = (UpdateRepositoryStatusCommand) o;
 
-        return super.equals(that) && serverStatus == that.serverStatus;
+        return super.equals(that) && replicationStatus == that.replicationStatus;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), serverStatus);
+        return Objects.hash(super.hashCode(), replicationStatus);
     }
 
     @Override
     ToStringHelper toStringHelper() {
         return super.toStringHelper()
-                    .add("serverStatus", serverStatus);
+                    .add("replicationStatus", replicationStatus);
     }
 }

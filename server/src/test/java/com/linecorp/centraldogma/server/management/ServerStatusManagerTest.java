@@ -38,7 +38,7 @@ class ServerStatusManagerTest {
     @Test
     void defaultValues() throws IOException {
         final ServerStatusManager serverStatusManager = new ServerStatusManager(tmpDir.newFolder().toFile());
-        final ServerStatus serverStatus = serverStatusManager.serverStatus();
+        final ReplicationStatus serverStatus = serverStatusManager.serverStatus();
         assertThat(serverStatus.writable()).isTrue();
         assertThat(serverStatus.replicating()).isTrue();
     }
@@ -46,8 +46,8 @@ class ServerStatusManagerTest {
     @Test
     void updateValues() throws IOException {
         final ServerStatusManager serverStatusManager = new ServerStatusManager(tmpDir.newFolder().toFile());
-        serverStatusManager.updateStatus(ServerStatus.READ_ONLY);
-        final ServerStatus serverStatus = serverStatusManager.serverStatus();
+        serverStatusManager.updateStatus(ReplicationStatus.READ_ONLY);
+        final ReplicationStatus serverStatus = serverStatusManager.serverStatus();
         assertThat(serverStatus.writable()).isFalse();
         assertThat(serverStatus.replicating()).isFalse();
     }
@@ -55,12 +55,12 @@ class ServerStatusManagerTest {
     @Test
     void readOnlyToReplicationOnly() throws IOException {
         final ServerStatusManager serverStatusManager = new ServerStatusManager(tmpDir.newFolder().toFile());
-        serverStatusManager.updateStatus(ServerStatus.READ_ONLY);
-        ServerStatus serverStatus = serverStatusManager.serverStatus();
+        serverStatusManager.updateStatus(ReplicationStatus.READ_ONLY);
+        ReplicationStatus serverStatus = serverStatusManager.serverStatus();
         assertThat(serverStatus.writable()).isFalse();
         assertThat(serverStatus.replicating()).isFalse();
 
-        serverStatusManager.updateStatus(ServerStatus.REPLICATION_ONLY);
+        serverStatusManager.updateStatus(ReplicationStatus.REPLICATION_ONLY);
         serverStatus = serverStatusManager.serverStatus();
         assertThat(serverStatus.writable()).isFalse();
         assertThat(serverStatus.replicating()).isTrue();

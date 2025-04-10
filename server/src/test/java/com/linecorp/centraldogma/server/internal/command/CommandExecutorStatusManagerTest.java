@@ -31,7 +31,7 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommandExecutorStatusManager;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
-import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 
 class CommandExecutorStatusManagerTest {
@@ -41,7 +41,7 @@ class CommandExecutorStatusManagerTest {
         final CommandExecutorStatusManager executorStatusManager =
                 new CommandExecutorStatusManager(new TestCommandExecutor());
         final UpdateServerStatusCommand command =
-                (UpdateServerStatusCommand) Command.updateServerStatus(ServerStatus.REPLICATION_ONLY);
+                (UpdateServerStatusCommand) Command.updateServerStatus(ReplicationStatus.REPLICATION_ONLY);
         executorStatusManager.updateStatus(command);
         assertThat(executorStatusManager.writable()).isFalse();
         assertThat(executorStatusManager.replicating()).isTrue();
@@ -57,11 +57,12 @@ class CommandExecutorStatusManagerTest {
         executorStatusManager.setWritable(true);
         executorStatusManager.setReplicating(true);
         executorStatusManager.updateStatus(
-                new UpdateServerStatusCommand(null, null, ServerStatus.REPLICATION_ONLY));
+                new UpdateServerStatusCommand(null, null, ReplicationStatus.REPLICATION_ONLY));
         assertThat(executorStatusManager.writable()).isFalse();
         assertThat(executorStatusManager.replicating()).isTrue();
 
-        executorStatusManager.updateStatus(new UpdateServerStatusCommand(null, null, ServerStatus.READ_ONLY));
+        executorStatusManager.updateStatus(
+                new UpdateServerStatusCommand(null, null, ReplicationStatus.READ_ONLY));
         assertThat(executorStatusManager.writable()).isFalse();
         assertThat(executorStatusManager.replicating()).isFalse();
     }

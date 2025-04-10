@@ -196,6 +196,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         }
 
         if (command instanceof NormalizingPushCommand) {
+            throwExceptionIfRepositoryNotWritable(command);
             return (CompletableFuture<T>) push((NormalizingPushCommand) command, true);
         }
 
@@ -205,6 +206,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         }
 
         if (command instanceof TransformCommand) {
+            throwExceptionIfRepositoryNotWritable(command);
             return (CompletableFuture<T>) push((TransformCommand) command, true);
         }
 
@@ -221,6 +223,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         }
 
         if (command instanceof ForcePushCommand) {
+            // TODO(minwoox): Should we prevent executing when the replication status is READ_ONLY?
             //noinspection TailRecursion
             return doExecute(((ForcePushCommand<T>) command).delegate());
         }

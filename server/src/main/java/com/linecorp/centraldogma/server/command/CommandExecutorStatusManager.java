@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 
 /**
@@ -68,17 +68,17 @@ public final class CommandExecutorStatusManager {
      * So it should be not called from an event loop thread.
      */
     public synchronized void updateStatus(UpdateServerStatusCommand command) {
-        final ServerStatus serverStatus = command.serverStatus();
+        final ReplicationStatus serverStatus = command.serverStatus();
         updateStatus(serverStatus);
     }
 
     /**
-     * Updates the status of the executor with the specified {@link ServerStatus}.
+     * Updates the status of the executor with the specified {@link ReplicationStatus}.
      *
      * <p>This method could take a long time if the executor is not in the desired state yet.
      * So it should be not called from an event loop thread.
      */
-    public synchronized void updateStatus(ServerStatus serverStatus) {
+    public synchronized void updateStatus(ReplicationStatus serverStatus) {
         if (serverStatus.replicating()) {
             // Replicating mode is enabled first to write data to the cluster.
             setReplicating(serverStatus.replicating());

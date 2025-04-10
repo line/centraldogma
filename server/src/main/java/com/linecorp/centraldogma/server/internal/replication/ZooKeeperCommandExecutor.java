@@ -91,6 +91,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.linecorp.armeria.common.util.SafeCloseable;
+import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -106,6 +107,7 @@ import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizableCommit;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.RemoveRepositoryCommand;
+import com.linecorp.centraldogma.server.command.RepositoryCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -1316,6 +1318,7 @@ public final class ZooKeeperCommandExecutor
                 final long lastRevision = recentRevisions.stream().mapToLong(Long::parseLong).max().getAsLong();
                 replayLogs(lastRevision);
             }
+            throwExceptionIfRepositoryNotWritable(command);
 
             final T result = delegate.execute(command).get();
             final ReplicationLog<?> log;

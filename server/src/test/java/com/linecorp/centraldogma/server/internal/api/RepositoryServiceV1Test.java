@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
@@ -43,6 +45,9 @@ import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest.Scope;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -163,6 +168,34 @@ class RepositoryServiceV1Test {
         final AggregatedHttpResponse aRes = client.execute(headers, unremovePatch).aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
+
+    @Test
+    void status() {
+        final AggregatedHttpResponse aRes = createRepository(dogma.httpClient(), "statusRepo");
+        assertThat(aRes.status()).isEqualTo(HttpStatus.CREATED);
+        final BlockingWebClient client = dogma.httpClient().blocking();
+        final AggregatedHttpResponse res = client.prepare()
+                                                 .get(REPOS_PREFIX + "/statusRepo/status")
+                                                 .execute();
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+//        assertThat(res.contentUtf8()).isEqualTo("\"WRITABLE\"");
+//        final AggregatedHttpResponse res = client.get(API_V1_PATH_PREFIX + "status").aggregate().join();
+//        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+//        assertThat(res.contentUtf8()).isEqualTo("\"WRITABLE\"");
+    }
+
+    AggregatedHttpResponse updateStatus(ReplicationStatus serverStatus) {
+        return updateStatus(serverStatus, Scope.ALL);
+    }
+
+    AggregatedHttpResponse updateStatus(ReplicationStatus serverStatus, Scope scope) {
+        final BlockingWebClient client = dogma.httpClient().blocking();
+        return client.prepare()
+                     .put(API_V1_PATH_PREFIX + "status")
+                     .contentJson(new UpdateServerStatusRequest(serverStatus, scope))
+                     .execute();
+    }
+
 
     @Nested
     class RepositoriesTest {

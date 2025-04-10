@@ -16,22 +16,24 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 
 import javax.annotation.Nullable;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.server.QuotaConfig;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -40,12 +42,9 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL) // These are used when serializing.
-@JsonDeserialize(using = RepositoryMetadataDeserializer.class)
 public final class RepositoryMetadata implements Identifiable, HasWeight {
 
     public static final ProjectRoles DEFAULT_PROJECT_ROLES = ProjectRoles.of(RepositoryRole.WRITE, null);
-
-    private static final ProjectRoles INTERNAL_PROJECT_ROLES = ProjectRoles.of(null, null);
 
     /**
      * Creates a new instance with default properties.
@@ -85,25 +84,34 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     @Nullable
     private final QuotaConfig writeQuota;
 
+    private final ReplicationStatus replicationStatus;
+
     /**
      * Creates a new instance.
      */
     private RepositoryMetadata(String name, UserAndTimestamp creation, ProjectRoles projectRoles) {
         this(name, new Roles(requireNonNull(projectRoles, "projectRoles"),
                              ImmutableMap.of(), ImmutableMap.of()),
-             creation, /* removal */ null, /* writeQuota */ null);
+             creation, /* removal */ null, /* writeQuota */ null, ReplicationStatus.WRITABLE);
     }
 
     /**
      * Creates a new instance.
      */
-    public RepositoryMetadata(String name, Roles roles, UserAndTimestamp creation,
-                              @Nullable UserAndTimestamp removal, @Nullable QuotaConfig writeQuota) {
+    @JsonCreator
+    public RepositoryMetadata(@JsonProperty("name") String name,
+                              @JsonProperty("roles") Roles roles,
+                              @JsonProperty("creation") UserAndTimestamp creation,
+                              @JsonProperty("removal") @Nullable UserAndTimestamp removal,
+                              @JsonProperty("writeQuota") @Nullable QuotaConfig writeQuota,
+                              @JsonProperty("replicationStatus") @Nullable ReplicationStatus
+                                          replicationStatus) {
         this.name = requireNonNull(name, "name");
         this.roles = requireNonNull(roles, "roles");
         this.creation = requireNonNull(creation, "creation");
         this.removal = removal;
         this.writeQuota = writeQuota;
+        this.replicationStatus = firstNonNull(replicationStatus, ReplicationStatus.WRITABLE);
     }
 
     @Override
@@ -145,6 +153,14 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     }
 
     /**
+     * Returns the {@link ReplicationStatus} of this repository.
+     */
+    @JsonProperty
+    public ReplicationStatus replicationStatus() {
+        return replicationStatus;
+    }
+
+    /**
      * Returns the maximum allowed write quota.
      */
     @Nullable
@@ -174,12 +190,13 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
         return name.equals(that.name) &&
                roles.equals(that.roles) &&
                creation.equals(that.creation) && Objects.equals(removal, that.removal) &&
+               replicationStatus == that.replicationStatus &&
                Objects.equals(writeQuota, that.writeQuota);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, roles, creation, removal, writeQuota);
+        return Objects.hash(name, roles, creation, removal, writeQuota, replicationStatus);
     }
 
     @Override
@@ -191,6 +208,7 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
                           .add("creation", creation)
                           .add("removal", removal)
                           .add("writeQuota", writeQuota)
+                          .add("replicationStatus", replicationStatus)
                           .toString();
     }
 }

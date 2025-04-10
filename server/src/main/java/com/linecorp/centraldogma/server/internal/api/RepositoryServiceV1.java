@@ -34,6 +34,7 @@ import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.logging.RequestOnlyLog;
+import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
@@ -42,6 +43,7 @@ import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.ProducesJson;
+import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
@@ -55,8 +57,12 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
+import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -195,6 +201,61 @@ public class RepositoryServiceV1 extends AbstractService {
         final Revision head = repository.normalizeNow(Revision.HEAD);
         increaseCounterIfOldRevisionUsed(ctx, repository, normalizedRevision, head);
         return ImmutableMap.of("revision", normalizedRevision.major());
+    }
+
+    /**
+     * GET /projects/{projectName}/repos/{repoName}/status
+     *
+     * <p>Returns the repository status.
+     */
+    @Get("/projects/{projectName}/repos/{repoName}/status")
+    public ReplicationStatus status(Project project,
+                                    @Param String repoName) {
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
+            throw new IllegalArgumentException(
+                    "Cannot update the status of the internal project: " + project.name());
+        }
+        if (Project.REPO_META.equals(repoName)) {
+            // Use dogma repository for the meta repository because the meta repository will be removed.
+            repoName = Project.REPO_DOGMA;
+        }
+        final ProjectMetadata metadata = project.metadata();
+        assert metadata != null; // not null because the project is not dogma project.
+        return metadata.repo(repoName).replicationStatus();
+    }
+
+    /**
+     * PUT /projects/{projectName}/repos/{repoName}/status
+     *
+     * <p>Patches the repository status with a JSON patch.
+     */
+    @Put("/projects/{projectName}/repos/{repoName}/status")
+    @Consumes("application/json")
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    public CompletableFuture<ReplicationStatus> updateStatus(Project project,
+                                                             @Param String repoName,
+                                                             Author author,
+                                                             UpdateRepositoryStatusRequest statusRequest)
+            throws Exception {
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
+            throw new IllegalArgumentException(
+                    "Cannot update the status of the internal project: " + project.name());
+        }
+        if (Project.REPO_META.equals(repoName)) {
+            // Use dogma repository for the meta repository because the meta repository will be removed.
+            repoName = Project.REPO_DOGMA;
+        }
+
+        final ProjectMetadata metadata = project.metadata();
+        assert metadata != null; // not null because the project is not dogma project.
+        final RepositoryMetadata repo = metadata.repo(repoName);
+        final ReplicationStatus newStatus = statusRequest.replicationStatus();
+        if (repo.replicationStatus() == newStatus) {
+            throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
+        }
+
+        return execute(Command.updateRepositoryStatus(project.name(), repoName, author, newStatus))
+                .thenApply(unused -> newStatus);
     }
 
     static void increaseCounterIfOldRevisionUsed(ServiceRequestContext ctx, Repository repository,

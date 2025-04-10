@@ -32,7 +32,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.auth.Session;
-import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -55,6 +55,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = CreateSessionCommand.class, name = "CREATE_SESSIONS"),
         @Type(value = RemoveSessionCommand.class, name = "REMOVE_SESSIONS"),
         @Type(value = UpdateServerStatusCommand.class, name = "UPDATE_SERVER_STATUS"),
+        @Type(value = UpdateRepositoryStatusCommand.class, name = "UPDATE_REPOSITORY_STATUS"),
         @Type(value = ForcePushCommand.class, name = "FORCE_PUSH_COMMAND"),
 })
 public interface Command<T> {
@@ -376,9 +377,18 @@ public interface Command<T> {
     /**
      * Returns a new {@link Command} which is used to update the status of the server.
      */
-    static Command<Void> updateServerStatus(ServerStatus serverStatus) {
+    static Command<Void> updateServerStatus(ReplicationStatus serverStatus) {
         return new UpdateServerStatusCommand(null, null, serverStatus);
     }
+
+    /**
+     * Returns a new {@link Command} which is used to update the status of the repository.
+     */
+    static Command<Void> updateRepositoryStatus(String projectName, String repositoryName,
+                                                Author author, ReplicationStatus serverStatus) {
+        return new UpdateRepositoryStatusCommand(projectName, repositoryName, author, serverStatus);
+    }
+
 
     /**
      * Returns a new {@link Command} which is used to force-push {@link Command} even the server is in

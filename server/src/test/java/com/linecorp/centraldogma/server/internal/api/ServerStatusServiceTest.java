@@ -34,7 +34,7 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest.Scope;
-import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class ServerStatusServiceTest {
@@ -64,8 +64,7 @@ class ServerStatusServiceTest {
 
     @Test
     void updateStatus_setUnwritable() {
-        final WebClient client = dogma.httpClient();
-        final AggregatedHttpResponse res = updateStatus(ServerStatus.REPLICATION_ONLY);
+        final AggregatedHttpResponse res = updateStatus(ReplicationStatus.REPLICATION_ONLY);
 
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThat(res.contentUtf8()).isEqualTo("\"REPLICATION_ONLY\"");
@@ -73,74 +72,66 @@ class ServerStatusServiceTest {
 
     @Test
     void updateStatus_setUnwritableAndNonReplicating() {
-        final WebClient client = dogma.httpClient();
-
-        final AggregatedHttpResponse res = updateStatus(ServerStatus.READ_ONLY);
+        final AggregatedHttpResponse res = updateStatus(ReplicationStatus.READ_ONLY);
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThat(res.contentUtf8()).isEqualTo("\"READ_ONLY\"");
     }
 
     @Test
     void updateStatus_setWritableAndNonReplicating() {
-        assertThatThrownBy(() -> ServerStatus.of(true, false))
+        assertThatThrownBy(() -> ReplicationStatus.of(true, false))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("replicating must be true if writable is true");
     }
 
     @Test
     void redundantUpdateStatus_Writable() {
-        final WebClient client = dogma.httpClient();
-        final AggregatedHttpResponse res = updateStatus(ServerStatus.WRITABLE, Scope.LOCAL);
+        final AggregatedHttpResponse res = updateStatus(ReplicationStatus.WRITABLE, Scope.LOCAL);
         assertThat(res.status()).isEqualTo(HttpStatus.NOT_MODIFIED);
     }
 
     @Test
     void updateStatus_leaveReadOnlyMode() {
-        final WebClient client = dogma.httpClient();
         // Enter replication-only mode.
         updateStatus_setUnwritable();
         // Try to enter writable mode.
-        final AggregatedHttpResponse res = updateStatus(ServerStatus.WRITABLE);
+        final AggregatedHttpResponse res = updateStatus(ReplicationStatus.WRITABLE);
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThat(res.contentUtf8()).isEqualTo("\"WRITABLE\"");
     }
 
     @Test
     void updateStatus_enableReplicatingWithReadOnlyMode() {
-        final WebClient client = dogma.httpClient();
-
         // Try to enter read-only mode with replication disabled.
-        AggregatedHttpResponse res = updateStatus(ServerStatus.READ_ONLY, Scope.LOCAL);
+        AggregatedHttpResponse res = updateStatus(ReplicationStatus.READ_ONLY, Scope.LOCAL);
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThatJson(res.contentUtf8()).isEqualTo("\"READ_ONLY\"");
 
         // Try to enable replication.
         // Replication can be enabled with the local scope.
-        res = updateStatus(ServerStatus.REPLICATION_ONLY, Scope.LOCAL);
+        res = updateStatus(ReplicationStatus.REPLICATION_ONLY, Scope.LOCAL);
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThatJson(res.contentUtf8()).isEqualTo("\"REPLICATION_ONLY\"");
     }
 
     @Test
     void updateStatus_disableReplicatingWithReadOnlyMode() {
-        final WebClient client = dogma.httpClient();
-
         // Try to enter replication-only mode.
-        AggregatedHttpResponse res = updateStatus(ServerStatus.REPLICATION_ONLY);
+        AggregatedHttpResponse res = updateStatus(ReplicationStatus.REPLICATION_ONLY);
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThat(res.contentUtf8()).isEqualTo("\"REPLICATION_ONLY\"");
 
         // Try to disable replication.
-        res = updateStatus(ServerStatus.READ_ONLY);
+        res = updateStatus(ReplicationStatus.READ_ONLY);
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThat(res.contentUtf8()).isEqualTo("\"READ_ONLY\"");
     }
 
-    AggregatedHttpResponse updateStatus(ServerStatus serverStatus) {
+    AggregatedHttpResponse updateStatus(ReplicationStatus serverStatus) {
        return updateStatus(serverStatus, Scope.ALL);
     }
 
-    AggregatedHttpResponse updateStatus(ServerStatus serverStatus, Scope scope) {
+    AggregatedHttpResponse updateStatus(ReplicationStatus serverStatus, Scope scope) {
         final BlockingWebClient client = dogma.httpClient().blocking();
         return client.prepare()
                      .put(API_V1_PATH_PREFIX + "status")

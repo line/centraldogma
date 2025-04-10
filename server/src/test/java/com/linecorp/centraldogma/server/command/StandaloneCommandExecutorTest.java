@@ -40,7 +40,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.QuotaConfig;
-import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
@@ -134,7 +134,7 @@ class StandaloneCommandExecutorTest {
     @Test
     void shouldPerformAdministrativeCommandWithReadOnly() throws JsonParseException {
         final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) extension.executor();
-        executor.execute(Command.updateServerStatus(ServerStatus.REPLICATION_ONLY)).join();
+        executor.execute(Command.updateServerStatus(ReplicationStatus.REPLICATION_ONLY)).join();
         assertThat(executor.isWritable()).isFalse();
 
         final Change<JsonNode> change = Change.ofJsonUpsert("/foo.json", "{\"a\": \"b\"}");
@@ -153,7 +153,7 @@ class StandaloneCommandExecutorTest {
                                                       .join()
                                                       .contentAsJson();
         assertThat(json.get("a").asText()).isEqualTo("b");
-        executor.execute(Command.updateServerStatus(ServerStatus.WRITABLE)).join();
+        executor.execute(Command.updateServerStatus(ReplicationStatus.WRITABLE)).join();
         assertThat(executor.isWritable()).isTrue();
     }
 
