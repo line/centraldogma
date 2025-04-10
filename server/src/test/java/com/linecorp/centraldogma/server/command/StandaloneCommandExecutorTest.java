@@ -31,7 +31,6 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.RateLimiter;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -39,7 +38,6 @@ import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
@@ -69,25 +67,6 @@ class StandaloneCommandExecutorTest {
         mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO).join();
         mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO2).join();
         mds.addRepo(Author.SYSTEM, TEST_PRJ, TEST_REPO3).join();
-    }
-
-    @Test
-    void setWriteQuota() {
-        final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) extension.executor();
-        final MetadataService mds = new MetadataService(extension.projectManager(), executor,
-                                                        extension.internalProjectInitializer());
-
-        final RateLimiter rateLimiter1 = executor.writeRateLimiters.get("test_prj/test_repo");
-        assertThat(rateLimiter1).isNull();
-        mds.updateWriteQuota(Author.SYSTEM, TEST_PRJ, TEST_REPO, new QuotaConfig(10, 1)).join();
-        final RateLimiter rateLimiter2 = executor.writeRateLimiters.get("test_prj/test_repo");
-        assertThat(rateLimiter2.getRate()).isEqualTo(10);
-
-        mds.updateWriteQuota(Author.SYSTEM, TEST_PRJ, TEST_REPO, new QuotaConfig(20, 1)).join();
-        final RateLimiter rateLimiter3 = executor.writeRateLimiters.get("test_prj/test_repo");
-        // Should update the existing rate limiter.
-        assertThat(rateLimiter3).isSameAs(rateLimiter2);
-        assertThat(rateLimiter2.getRate()).isEqualTo(20);
     }
 
     @Test

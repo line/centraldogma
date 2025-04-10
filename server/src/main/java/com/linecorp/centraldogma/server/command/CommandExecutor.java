@@ -19,9 +19,6 @@ package com.linecorp.centraldogma.server.command;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 
-import javax.annotation.Nullable;
-
-import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 
 /**
@@ -61,12 +58,6 @@ public interface CommandExecutor {
      *                 read-only mode
      */
     void setWritable(boolean writable);
-
-    /**
-     * Sets the specified {@linkplain QuotaConfig write quota} to the specified {@code repoName} in the
-     * specified {@code projectName}.
-     */
-    void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfig writeQuota);
 
     /**
      * Sets the {@link RepositoryMetadata} supplier.

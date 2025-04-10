@@ -27,12 +27,12 @@ import com.linecorp.centraldogma.internal.Jackson;
 class RepositoryMetadataTest {
 
     @Test
-    void deserializeNewFormat() throws Exception {
-        final String format = newFormat();
+    void deserialize() throws Exception {
+        final String format = format();
         validate(Jackson.readValue(format, RepositoryMetadata.class));
     }
 
-    private static String newFormat() {
+    private static String format() {
         return '{' +
                "  \"name\": \"minu-test\"," +
                "  \"roles\": {" +

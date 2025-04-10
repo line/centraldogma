@@ -83,7 +83,6 @@ import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.plugin.PluginConfig;
 import com.linecorp.centraldogma.server.plugin.PluginConfigDeserializer;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
-import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.netty.util.NetUtil;
 
@@ -259,9 +258,6 @@ public final class CentralDogmaConfig {
     private final AuthConfig authConfig;
 
     @Nullable
-    private final QuotaConfig writeQuotaPerRepository;
-
-    @Nullable
     private final CorsConfig corsConfig;
 
     private final List<PluginConfig> pluginConfigs;
@@ -296,7 +292,6 @@ public final class CentralDogmaConfig {
             @JsonProperty("csrfTokenRequiredForThrift") @Nullable Boolean csrfTokenRequiredForThrift,
             @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
             @JsonProperty("authentication") @Nullable AuthConfig authConfig,
-            @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository,
             @JsonProperty("cors") @Nullable CorsConfig corsConfig,
             @JsonProperty("pluginConfigs") @Nullable List<PluginConfig> pluginConfigs,
             @JsonProperty("management") @Nullable ManagementConfig managementConfig,
@@ -342,8 +337,6 @@ public final class CentralDogmaConfig {
         clientAddressSourceList =
                 toClientAddressSourceList(clientAddressSources, hasTrustedProxyAddrCfg,
                                           ports.stream().anyMatch(ServerPort::hasProxyProtocol));
-
-        this.writeQuotaPerRepository = writeQuotaPerRepository;
         this.corsConfig = corsConfig;
         this.pluginConfigs = firstNonNull(pluginConfigs, ImmutableList.of());
         pluginConfigMap = this.pluginConfigs.stream().collect(
@@ -544,15 +537,6 @@ public final class CentralDogmaConfig {
     @JsonProperty("authentication")
     public AuthConfig authConfig() {
         return authConfig;
-    }
-
-    /**
-     * Returns the maximum allowed write quota per {@link Repository}.
-     */
-    @Nullable
-    @JsonProperty("writeQuotaPerRepository")
-    public QuotaConfig writeQuotaPerRepository() {
-        return writeQuotaPerRepository;
     }
 
     /**

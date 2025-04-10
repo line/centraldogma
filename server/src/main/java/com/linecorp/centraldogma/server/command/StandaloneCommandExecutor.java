@@ -15,12 +15,9 @@
  */
 package com.linecorp.centraldogma.server.command;
 
-import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static java.util.Objects.requireNonNull;
 
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
@@ -29,18 +26,9 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.cronutils.utils.VisibleForTesting;
-import com.google.common.util.concurrent.RateLimiter;
-import com.spotify.futures.CompletableFutures;
-
-import com.linecorp.armeria.common.util.UnmodifiableFuture;
-import com.linecorp.centraldogma.common.TooManyRequestsException;
-import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
-import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
-import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -51,46 +39,12 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private static final Logger logger = LoggerFactory.getLogger(StandaloneCommandExecutor.class);
 
-    private static final RateLimiter UNLIMITED = RateLimiter.create(Double.MAX_VALUE);
-
     private final ProjectManager projectManager;
     private final Executor repositoryWorker;
     @Nullable
     private final SessionManager sessionManager;
-    // if permitsPerSecond is -1, a quota is checked by ZooKeeperCommandExecutor.
-    private final double permitsPerSecond;
     private final ServerStatusManager serverStatusManager;
 
-    @VisibleForTesting
-    final Map<String, RateLimiter> writeRateLimiters;
-
-    /**
-     * Creates a new instance.
-     *
-     * @param projectManager the project manager for accessing the storage
-     * @param repositoryWorker the executor which is used for performing storage operations
-     * @param serverStatusManager the server status manager for updating the server status
-     * @param writeQuota the write quota for limiting {@link NormalizingPushCommand}
-     * @param sessionManager the session manager for creating/removing a session
-     * @param onTakeLeadership the callback to be invoked after the replica has taken the leadership
-     * @param onReleaseLeadership the callback to be invoked before the replica releases the leadership
-     * @param onTakeZoneLeadership the callback to be invoked after the replica has taken the zone leadership
-     * @param onReleaseZoneLeadership the callback to be invoked before the replica releases the zone leadership
-     */
-    public StandaloneCommandExecutor(ProjectManager projectManager,
-                                     Executor repositoryWorker,
-                                     ServerStatusManager serverStatusManager,
-                                     @Nullable SessionManager sessionManager,
-                                     @Nullable QuotaConfig writeQuota,
-                                     @Nullable Consumer<CommandExecutor> onTakeLeadership,
-                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership,
-                                     @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
-                                     @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
-        this(projectManager, repositoryWorker, serverStatusManager, sessionManager,
-             writeQuota != null ? writeQuota.permitsPerSecond() : 0,
-             onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
-    }
-
     /**
      * Creates a new instance.
      *
@@ -110,26 +64,11 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                                      @Nullable Consumer<CommandExecutor> onReleaseLeadership,
                                      @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
                                      @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
-        this(projectManager, repositoryWorker, serverStatusManager, sessionManager, -1,
-             onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
-    }
-
-    private StandaloneCommandExecutor(ProjectManager projectManager,
-                                      Executor repositoryWorker,
-                                      ServerStatusManager serverStatusManager,
-                                      @Nullable SessionManager sessionManager,
-                                      double permitsPerSecond,
-                                      @Nullable Consumer<CommandExecutor> onTakeLeadership,
-                                      @Nullable Consumer<CommandExecutor> onReleaseLeadership,
-                                      @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
-                                      @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
         super(onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.serverStatusManager = requireNonNull(serverStatusManager, "serverStatusManager");
         this.sessionManager = sessionManager;
-        this.permitsPerSecond = permitsPerSecond;
-        writeRateLimiters = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -271,9 +210,6 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     private CompletableFuture<Void> removeRepository(RemoveRepositoryCommand c) {
-        if (writeQuotaEnabled()) {
-            writeRateLimiters.remove(rateLimiterKey(c.projectName(), c.repositoryName()));
-        }
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos().remove(c.repositoryName());
             return null;
@@ -295,32 +231,6 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     private CompletableFuture<CommitResult> push(RepositoryCommand<?> c, boolean normalizing) {
-        if (c.projectName().equals(INTERNAL_PROJECT_DOGMA) || Project.isInternalRepo(c.repositoryName()) ||
-            !writeQuotaEnabled()) {
-            return push0(c, normalizing);
-        }
-
-        final RateLimiter rateLimiter =
-                writeRateLimiters.get(rateLimiterKey(c.projectName(), c.repositoryName()));
-        if (rateLimiter != null) {
-            return tryPush(c, normalizing, rateLimiter);
-        }
-
-        return getRateLimiter(c.projectName(), c.repositoryName()).thenCompose(
-                limiter -> tryPush(c, normalizing, limiter));
-    }
-
-    private CompletableFuture<CommitResult> tryPush(
-            RepositoryCommand<?> c, boolean normalizing, @Nullable RateLimiter rateLimiter) {
-        if (rateLimiter == null || rateLimiter == UNLIMITED || rateLimiter.tryAcquire()) {
-            return push0(c, normalizing);
-        } else {
-            return CompletableFutures.exceptionallyCompletedFuture(
-                    new TooManyRequestsException("commits", c.executionPath(), rateLimiter.getRate()));
-        }
-    }
-
-    private CompletableFuture<CommitResult> push0(RepositoryCommand<?> c, boolean normalizing) {
         if (c instanceof TransformCommand) {
             final TransformCommand transformCommand = (TransformCommand) c;
             return repo(c).commit(transformCommand.baseRevision(), transformCommand.timestamp(),
@@ -333,49 +243,6 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         return repo(c).commit(pushCommand.baseRevision(), pushCommand.timestamp(), pushCommand.author(),
                               pushCommand.summary(), pushCommand.detail(), pushCommand.markup(),
                               pushCommand.changes(), normalizing);
-    }
-
-    private CompletableFuture<RateLimiter> getRateLimiter(String projectName, String repoName) {
-        final CompletableFuture<RepositoryMetadata> future = repositoryMetadata(projectName, repoName);
-        if (future == null) {
-            // metadata is not available yet.
-            return UnmodifiableFuture.completedFuture(RateLimiter.create(permitsPerSecond));
-        }
-        return future.thenApply(meta -> {
-            setWriteQuota(projectName, repoName, meta.writeQuota());
-            return writeRateLimiters.get(rateLimiterKey(projectName, repoName));
-        });
-    }
-
-    @Override
-    public final void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfig writeQuota) {
-        if (!writeQuotaEnabled()) {
-            // This method should be called only when a write quota is enabled.
-            return;
-        }
-        final double permitsForRepo = writeQuota != null ? writeQuota.permitsPerSecond() : 0;
-        final double permitsPerSecond = permitsForRepo != 0 ? permitsForRepo : this.permitsPerSecond;
-
-        writeRateLimiters.compute(rateLimiterKey(projectName, repoName), (key, rateLimiter) -> {
-            if (permitsPerSecond == 0) {
-                return UNLIMITED;
-            }
-
-            if (rateLimiter == null) {
-                return RateLimiter.create(permitsPerSecond);
-            } else {
-                rateLimiter.setRate(permitsPerSecond);
-                return rateLimiter;
-            }
-        });
-    }
-
-    private static String rateLimiterKey(String projectName, String repoName) {
-        return projectName + '/' + repoName;
-    }
-
-    private boolean writeQuotaEnabled() {
-        return Double.compare(permitsPerSecond, -1) > 0;
     }
 
     private Repository repo(RepositoryCommand<?> c) {

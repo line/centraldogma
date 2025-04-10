@@ -32,7 +32,6 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.RepositoryRole;
-import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -78,12 +77,6 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     @Nullable
     private final UserAndTimestamp removal;
 
-    /**
-     * A write quota of this repository.
-     */
-    @Nullable
-    private final QuotaConfig writeQuota;
-
     private final ReplicationStatus replicationStatus;
 
     /**
@@ -92,7 +85,7 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     private RepositoryMetadata(String name, UserAndTimestamp creation, ProjectRoles projectRoles) {
         this(name, new Roles(requireNonNull(projectRoles, "projectRoles"),
                              ImmutableMap.of(), ImmutableMap.of()),
-             creation, /* removal */ null, /* writeQuota */ null, ReplicationStatus.WRITABLE);
+             creation, /* removal */ null, ReplicationStatus.WRITABLE);
     }
 
     /**
@@ -103,14 +96,12 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
                               @JsonProperty("roles") Roles roles,
                               @JsonProperty("creation") UserAndTimestamp creation,
                               @JsonProperty("removal") @Nullable UserAndTimestamp removal,
-                              @JsonProperty("writeQuota") @Nullable QuotaConfig writeQuota,
                               @JsonProperty("replicationStatus") @Nullable ReplicationStatus
                                           replicationStatus) {
         this.name = requireNonNull(name, "name");
         this.roles = requireNonNull(roles, "roles");
         this.creation = requireNonNull(creation, "creation");
         this.removal = removal;
-        this.writeQuota = writeQuota;
         this.replicationStatus = firstNonNull(replicationStatus, ReplicationStatus.WRITABLE);
     }
 
@@ -160,15 +151,6 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
         return replicationStatus;
     }
 
-    /**
-     * Returns the maximum allowed write quota.
-     */
-    @Nullable
-    @JsonProperty("writeQuota")
-    public QuotaConfig writeQuota() {
-        return writeQuota;
-    }
-
     @Override
     public int weight() {
         int weight = 0;
@@ -190,13 +172,12 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
         return name.equals(that.name) &&
                roles.equals(that.roles) &&
                creation.equals(that.creation) && Objects.equals(removal, that.removal) &&
-               replicationStatus == that.replicationStatus &&
-               Objects.equals(writeQuota, that.writeQuota);
+               replicationStatus == that.replicationStatus;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, roles, creation, removal, writeQuota, replicationStatus);
+        return Objects.hash(name, roles, creation, removal, replicationStatus);
     }
 
     @Override
@@ -207,7 +188,6 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
                           .add("roles", roles)
                           .add("creation", creation)
                           .add("removal", removal)
-                          .add("writeQuota", writeQuota)
                           .add("replicationStatus", replicationStatus)
                           .toString();
     }

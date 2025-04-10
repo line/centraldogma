@@ -19,7 +19,6 @@ import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.grpc.GrpcExceptionHandlerFunction;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
-import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
 import com.linecorp.centraldogma.server.storage.StorageException;
 
@@ -34,10 +33,6 @@ final class ControlPlaneExceptionHandlerFunction implements GrpcExceptionHandler
     public Status apply(RequestContext ctx, Status status, Throwable cause, Metadata metadata) {
         if (status.getCode() != Code.UNKNOWN) {
             return status;
-        }
-
-        if (cause instanceof TooManyRequestsException) {
-            return Status.RESOURCE_EXHAUSTED.withCause(cause);
         }
 
         if (cause instanceof RequestAlreadyTimedOutException) {
