@@ -57,7 +57,6 @@ import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.metadata.ProjectMetadataTransformer;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
@@ -294,8 +293,7 @@ public class MetadataService {
                                  new RepositoryMetadata(repositoryMetadata.name(),
                                                         newRoles,
                                                         repositoryMetadata.creation(),
-                                                        repositoryMetadata.removal(),
-                                                        repositoryMetadata.writeQuota()));
+                                                        repositoryMetadata.removal()));
             } else {
                 reposBuilder.put(entry);
             }
@@ -457,8 +455,7 @@ public class MetadataService {
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
-                                          repositoryMetadata.removal(),
-                                          repositoryMetadata.writeQuota());
+                                          repositoryMetadata.removal());
         });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -561,8 +558,7 @@ public class MetadataService {
                 builder.put(entry.getKey(), new RepositoryMetadata(repositoryMetadata.name(),
                                                                    newRoles,
                                                                    repositoryMetadata.creation(),
-                                                                   repositoryMetadata.removal(),
-                                                                   repositoryMetadata.writeQuota()));
+                                                                   repositoryMetadata.removal()));
             } else {
                 builder.put(entry);
             }
@@ -624,8 +620,7 @@ public class MetadataService {
                 return new RepositoryMetadata(repositoryMetadata.name(),
                                               newRoles,
                                               repositoryMetadata.creation(),
-                                              repositoryMetadata.removal(),
-                                              repositoryMetadata.writeQuota());
+                                              repositoryMetadata.removal());
             });
             return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
         });
@@ -655,8 +650,7 @@ public class MetadataService {
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
-                                          repositoryMetadata.removal(),
-                                          repositoryMetadata.writeQuota());
+                                          repositoryMetadata.removal());
         });
         final String commitSummary = "Remove repository role of the '" + memberId +
                                      "' from '" + projectName + '/' + repoName + '\'';
@@ -697,8 +691,7 @@ public class MetadataService {
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
-                                          repositoryMetadata.removal(),
-                                          repositoryMetadata.writeQuota());
+                                          repositoryMetadata.removal());
         });
         final String commitSummary = "Update repository role of the '" + memberId + "' as '" + role +
                                      "' for '" + projectName + '/' + repoName + '\'';
@@ -737,8 +730,7 @@ public class MetadataService {
                 return new RepositoryMetadata(repositoryMetadata.name(),
                                               newRoles,
                                               repositoryMetadata.creation(),
-                                              repositoryMetadata.removal(),
-                                              repositoryMetadata.writeQuota());
+                                              repositoryMetadata.removal());
             });
             return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
         });
@@ -769,8 +761,7 @@ public class MetadataService {
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
-                                          repositoryMetadata.removal(),
-                                          repositoryMetadata.writeQuota());
+                                          repositoryMetadata.removal());
         });
         final String commitSummary = "Remove repository role of the token '" + appId +
                                      "' from '" + projectName + '/' + repoName + '\'';
@@ -812,32 +803,11 @@ public class MetadataService {
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
-                                          repositoryMetadata.removal(),
-                                          repositoryMetadata.writeQuota());
+                                          repositoryMetadata.removal());
         });
         final String commitSummary = "Update repository role of the token '" + appId +
                                      "' for '" + projectName + '/' + repoName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
-    }
-
-    /**
-     * Updates the {@linkplain QuotaConfig write quota} for the specified {@code repoName}
-     * in the specified {@code projectName}.
-     */
-    public CompletableFuture<Revision> updateWriteQuota(
-            Author author, String projectName, String repoName, QuotaConfig writeQuota) {
-        requireNonNull(author, "author");
-        requireNonNull(projectName, "projectName");
-        requireNonNull(repoName, "repoName");
-        requireNonNull(writeQuota, "writeQuota");
-
-        final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) + "/writeQuota");
-        final Change<JsonNode> change =
-                Change.ofJsonPatch(METADATA_JSON,
-                                   JsonPatchOperation.add(path, Jackson.valueToTree(writeQuota)).toJsonNode());
-        final String commitSummary = "Update a write quota for the repository '" + repoName + '\'';
-        executor.setWriteQuota(projectName, repoName, writeQuota);
-        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**
