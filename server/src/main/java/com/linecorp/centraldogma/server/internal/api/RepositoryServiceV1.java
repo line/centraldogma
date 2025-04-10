@@ -209,19 +209,14 @@ public class RepositoryServiceV1 extends AbstractService {
      * <p>Returns the repository status.
      */
     @Get("/projects/{projectName}/repos/{repoName}/status")
-    public ReplicationStatus status(Project project,
-                                    @Param String repoName) {
-        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
-            throw new IllegalArgumentException(
-                    "Cannot update the status of the internal project: " + project.name());
+    public ReplicationStatus status(Project project, Repository repository) {
+        final RepositoryMetadata repositoryMetadata = validateAndResolveRepository(project, repository);
+        if (repositoryMetadata == null) {
+            // Return WRITABLE if the repository metadata is not found.
+            return ReplicationStatus.WRITABLE;
         }
-        if (Project.REPO_META.equals(repoName)) {
-            // Use dogma repository for the meta repository because the meta repository will be removed.
-            repoName = Project.REPO_DOGMA;
-        }
-        final ProjectMetadata metadata = project.metadata();
-        assert metadata != null; // not null because the project is not dogma project.
-        return metadata.repo(repoName).replicationStatus();
+        final ReplicationStatus replicationStatus = repositoryMetadata.replicationStatus();
+        return replicationStatus == null ? ReplicationStatus.WRITABLE : replicationStatus;
     }
 
     /**
@@ -233,29 +228,21 @@ public class RepositoryServiceV1 extends AbstractService {
     @Consumes("application/json")
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     public CompletableFuture<ReplicationStatus> updateStatus(Project project,
-                                                             @Param String repoName,
+                                                             Repository repository,
                                                              Author author,
                                                              UpdateRepositoryStatusRequest statusRequest)
             throws Exception {
-        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
-            throw new IllegalArgumentException(
-                    "Cannot update the status of the internal project: " + project.name());
-        }
-        if (Project.REPO_META.equals(repoName)) {
-            // Use dogma repository for the meta repository because the meta repository will be removed.
-            repoName = Project.REPO_DOGMA;
-        }
+        final String originalRepoName = repository.name();
+        final String repoName = Project.REPO_META.equals(originalRepoName) ? Project.REPO_DOGMA
+                                                                           : originalRepoName;
 
-        final ProjectMetadata metadata = project.metadata();
-        assert metadata != null; // not null because the project is not dogma project.
-        final RepositoryMetadata repo = metadata.repo(repoName);
+        final RepositoryMetadata repositoryMetadata = validateAndResolveRepository(project, repository);
         final ReplicationStatus newStatus = statusRequest.replicationStatus();
-        if (repo.replicationStatus() == newStatus) {
+        if (repositoryMetadata != null && repositoryMetadata.replicationStatus() == newStatus) {
             throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
         }
-
-        return execute(Command.updateRepositoryStatus(project.name(), repoName, author, newStatus))
-                .thenApply(unused -> newStatus);
+        return mds.updateRepositoryReplicationStatus(author, project.name(), repoName, newStatus)
+                  .thenApply(unused -> newStatus);
     }
 
     static void increaseCounterIfOldRevisionUsed(ServiceRequestContext ctx, Repository repository,
@@ -293,5 +280,23 @@ public class RepositoryServiceV1 extends AbstractService {
                            Tag.of("repo", repoName),
                            Tag.of("service", firstNonNull(log.serviceName(), "none")),
                            Tag.of("method", log.name()));
+    }
+
+    @Nullable
+    private static RepositoryMetadata validateAndResolveRepository(Project project, Repository repository) {
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
+            throw new IllegalArgumentException(
+                    "Cannot update the status of the internal project: " + project.name());
+        }
+
+        String repoName = repository.name();
+        if (Project.REPO_META.equals(repoName)) {
+            // Use dogma repository for the meta repository because the meta repository will be removed.
+            repoName = Project.REPO_DOGMA;
+        }
+
+        final ProjectMetadata metadata = project.metadata();
+        assert metadata != null; // not null because the project is not dogma project.
+        return metadata.repos().get(repoName);
     }
 }

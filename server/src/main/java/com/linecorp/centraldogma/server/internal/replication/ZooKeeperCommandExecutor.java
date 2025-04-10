@@ -95,6 +95,7 @@ import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizableCommit;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -369,7 +370,7 @@ public final class ZooKeeperCommandExecutor
 
     private volatile ListenerInfo listenerInfo;
 
-    public ZooKeeperCommandExecutor(ZooKeeperReplicationConfig cfg,
+    public ZooKeeperCommandExecutor(ProjectManager projectManager, ZooKeeperReplicationConfig cfg,
                                     File dataDir, CommandExecutor delegate,
                                     MeterRegistry meterRegistry,
                                     @Nullable String zone,
@@ -377,7 +378,8 @@ public final class ZooKeeperCommandExecutor
                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership,
                                     @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
                                     @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
-        super(onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
+        super(projectManager, onTakeLeadership, onReleaseLeadership,
+              onTakeZoneLeadership, onReleaseZoneLeadership);
 
         this.cfg = requireNonNull(cfg, "cfg");
         requireNonNull(dataDir, "dataDir");

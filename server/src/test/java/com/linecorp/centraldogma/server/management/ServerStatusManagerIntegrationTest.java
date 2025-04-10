@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.net.ConnectException;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -59,12 +60,20 @@ class ServerStatusManagerIntegrationTest {
         assertThatThrownBy(() -> dogma.client().createProject("test-project").join())
                 .hasCauseInstanceOf(ReadOnlyException.class);
 
-        serverStatus = updateServerStatus(client, ReplicationStatus.WRITABLE);
-        assertThat(serverStatus.writable()).isTrue();
-        assertThat(serverStatus.replicating()).isTrue();
+        enableWritable();
         assertAllServerStatus(true, true);
         // Make sure that the server is writable again.
         dogma.client().createProject("test-project").join();
+    }
+
+    private void enableWritable() throws Exception {
+        final List<CentralDogmaRuleDelegate> servers = cluster.servers();
+        for (CentralDogmaRuleDelegate server : servers) {
+            final ReplicationStatus serverStatus =
+                    updateServerStatus(server.blockingHttpClient(), ReplicationStatus.WRITABLE, Scope.LOCAL);
+            assertThat(serverStatus.writable()).isTrue();
+            assertThat(serverStatus.replicating()).isTrue();
+        }
     }
 
     @Test
@@ -94,7 +103,7 @@ class ServerStatusManagerIntegrationTest {
         assertThat(serverStatus.replicating()).isTrue();
 
         // Enable the writable mode.
-        serverStatus = updateServerStatus(client, ReplicationStatus.WRITABLE);
+        serverStatus = updateServerStatus(client, ReplicationStatus.WRITABLE, Scope.LOCAL);
         assertThat(serverStatus.writable()).isTrue();
         assertThat(serverStatus.replicating()).isTrue();
 
@@ -171,8 +180,10 @@ class ServerStatusManagerIntegrationTest {
                       .asJson(ReplicationStatus.class)
                       .execute()
                       .content();
-        // Wait for the status to be replicated to the other servers.
-        Thread.sleep(500);
+        if (scope == Scope.LOCAL) {
+            // Wait for the status to be replicated to the other servers.
+            Thread.sleep(500);
+        }
         return newServerStatus;
     }
 
@@ -182,13 +193,5 @@ class ServerStatusManagerIntegrationTest {
                      .asJson(ReplicationStatus.class)
                      .execute()
                      .content();
-    }
-
-    private static String patchServerStatus(boolean writable, boolean replicating) {
-        final String writablePatch =
-                "{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": " + writable + " }";
-        final String replicatingPatch =
-                "{ \"op\": \"replace\", \"path\": \"/replicating\", \"value\": " + replicating + " }";
-        return '[' + writablePatch + ", " + replicatingPatch + ']';
     }
 }

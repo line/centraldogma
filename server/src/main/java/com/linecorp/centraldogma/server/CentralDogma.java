@@ -813,6 +813,7 @@ public class CentralDogma implements AutoCloseable {
         // TODO(trustin): Provide a way to restart/reload the replicator
         //                so that we can recover from ZooKeeper maintenance automatically.
         return new ZooKeeperCommandExecutor(
+                pm,
                 zkCfg, dataDir,
                 new StandaloneCommandExecutor(pm, repositoryWorker, serverStatusManager, sessionManager,
                         /* onTakeLeadership */ null, /* onReleaseLeadership */ null,

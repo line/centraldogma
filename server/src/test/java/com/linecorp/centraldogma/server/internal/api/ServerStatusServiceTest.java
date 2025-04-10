@@ -95,7 +95,12 @@ class ServerStatusServiceTest {
         // Enter replication-only mode.
         updateStatus_setUnwritable();
         // Try to enter writable mode.
-        final AggregatedHttpResponse res = updateStatus(ReplicationStatus.WRITABLE);
+        AggregatedHttpResponse res = updateStatus(ReplicationStatus.WRITABLE, Scope.ALL);
+        assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(res.contentUtf8()).contains("Cannot set writable status to true with ALL scope. " +
+                                               "You have to use LOCAL scope ");
+
+        res = updateStatus(ReplicationStatus.WRITABLE, Scope.LOCAL);
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThat(res.contentUtf8()).isEqualTo("\"WRITABLE\"");
     }

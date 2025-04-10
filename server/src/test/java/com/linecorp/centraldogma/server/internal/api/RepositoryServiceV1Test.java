@@ -21,6 +21,7 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJE
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 
@@ -42,8 +43,13 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.centraldogma.client.CentralDogmaRepository;
+import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
+import com.linecorp.centraldogma.common.PushResult;
+import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest.Scope;
@@ -170,32 +176,39 @@ class RepositoryServiceV1Test {
     }
 
     @Test
-    void status() {
+    void updateReplicationStatus() {
         final AggregatedHttpResponse aRes = createRepository(dogma.httpClient(), "statusRepo");
         assertThat(aRes.status()).isEqualTo(HttpStatus.CREATED);
         final BlockingWebClient client = dogma.httpClient().blocking();
-        final AggregatedHttpResponse res = client.prepare()
-                                                 .get(REPOS_PREFIX + "/statusRepo/status")
-                                                 .execute();
+        AggregatedHttpResponse res = client.prepare()
+                                           .get(REPOS_PREFIX + "/statusRepo/status")
+                                           .execute();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
-//        assertThat(res.contentUtf8()).isEqualTo("\"WRITABLE\"");
-//        final AggregatedHttpResponse res = client.get(API_V1_PATH_PREFIX + "status").aggregate().join();
-//        assertThat(res.status()).isEqualTo(HttpStatus.OK);
-//        assertThat(res.contentUtf8()).isEqualTo("\"WRITABLE\"");
+
+        res = updateStatus(ReplicationStatus.READ_ONLY);
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+        assertThat(res.contentUtf8()).isEqualTo("\"READ_ONLY\"");
+
+        final CentralDogmaRepository centralDogmaRepository = dogma.client().forRepo("myPro", "statusRepo");
+        assertThatThrownBy(() -> centralDogmaRepository.commit("commit", Change.ofTextUpsert("/foo.txt", "foo"))
+                                                       .push().join())
+                .hasCauseExactlyInstanceOf(ReadOnlyException.class);
+
+        res = updateStatus(ReplicationStatus.WRITABLE);
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+        assertThat(res.contentUtf8()).isEqualTo("\"WRITABLE\"");
+        final PushResult result =
+                centralDogmaRepository.commit("commit", Change.ofTextUpsert("/foo.txt", "foo")).push().join();
+        assertThat(result.revision()).isEqualTo(new Revision(2));
     }
 
     AggregatedHttpResponse updateStatus(ReplicationStatus serverStatus) {
-        return updateStatus(serverStatus, Scope.ALL);
-    }
-
-    AggregatedHttpResponse updateStatus(ReplicationStatus serverStatus, Scope scope) {
         final BlockingWebClient client = dogma.httpClient().blocking();
         return client.prepare()
-                     .put(API_V1_PATH_PREFIX + "status")
-                     .contentJson(new UpdateServerStatusRequest(serverStatus, scope))
+                     .put(REPOS_PREFIX + "/statusRepo/status")
+                     .contentJson(new UpdateRepositoryStatusRequest(serverStatus))
                      .execute();
     }
-
 
     @Nested
     class RepositoriesTest {

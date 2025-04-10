@@ -36,14 +36,23 @@ import javax.annotation.Nullable;
 
 import org.apache.curator.test.InstanceSpec;
 
+import com.google.common.collect.ImmutableMap;
+
 import com.linecorp.armeria.common.prometheus.PrometheusMeterRegistries;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
+import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -53,6 +62,7 @@ final class Replica {
     private final File dataDir;
     private final MeterRegistry meterRegistry;
     private final CompletableFuture<Void> startFuture;
+    private final MetadataService mds;
 
     Replica(InstanceSpec spec, Map<Integer, ZooKeeperServerConfig> servers,
             Function<Command<?>, CompletableFuture<?>> delegate, boolean start) {
@@ -64,8 +74,9 @@ final class Replica {
         final int id = spec.getServerId();
         final ZooKeeperReplicationConfig zkCfg = new ZooKeeperReplicationConfig(id, servers);
 
+        final ProjectManager pm = mock(ProjectManager.class);
         commandExecutor = new ZooKeeperCommandExecutor(
-                zkCfg, dataDir, new AbstractCommandExecutor(null, null, null, null) {
+                pm, zkCfg, dataDir, new AbstractCommandExecutor(pm, null, null, null, null) {
             @Override
             public int replicaId() {
                 return id;
@@ -92,6 +103,21 @@ final class Replica {
         commandExecutor.setLockTimeoutMillis(10000);
 
         startFuture = start ? commandExecutor.start() : null;
+
+        // Used in AbstractCommandExecutor.throwExceptionIfRepositoryNotWritable.
+        final Project project = mock(Project.class);
+        lenient().when(pm.get(anyString())).thenReturn(project);
+        final ProjectMetadata projectMetadata =
+                new ProjectMetadata("project",
+                                    ImmutableMap.of(),
+                                    ImmutableMap.of(),
+                                    ImmutableMap.of(),
+                                    UserAndTimestamp.of(Author.SYSTEM),
+                                    null);
+
+        lenient().when(project.metadata()).thenReturn(projectMetadata);
+        mds = new MetadataService(
+                pm, commandExecutor, new InternalProjectInitializer(commandExecutor, pm));
     }
 
     void awaitStartup() {
@@ -123,6 +149,10 @@ final class Replica {
 
     ZooKeeperCommandExecutor commandExecutor() {
         return commandExecutor;
+    }
+
+    MetadataService mds() {
+        return mds;
     }
 
     Function<Command<?>, CompletableFuture<?>> delegate() {

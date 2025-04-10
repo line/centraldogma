@@ -55,7 +55,6 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = CreateSessionCommand.class, name = "CREATE_SESSIONS"),
         @Type(value = RemoveSessionCommand.class, name = "REMOVE_SESSIONS"),
         @Type(value = UpdateServerStatusCommand.class, name = "UPDATE_SERVER_STATUS"),
-        @Type(value = UpdateRepositoryStatusCommand.class, name = "UPDATE_REPOSITORY_STATUS"),
         @Type(value = ForcePushCommand.class, name = "FORCE_PUSH_COMMAND"),
 })
 public interface Command<T> {
@@ -382,15 +381,6 @@ public interface Command<T> {
     }
 
     /**
-     * Returns a new {@link Command} which is used to update the status of the repository.
-     */
-    static Command<Void> updateRepositoryStatus(String projectName, String repositoryName,
-                                                Author author, ReplicationStatus serverStatus) {
-        return new UpdateRepositoryStatusCommand(projectName, repositoryName, author, serverStatus);
-    }
-
-
-    /**
      * Returns a new {@link Command} which is used to force-push {@link Command} even the server is in
      * read-only mode. This command is useful for migrating the repository content during maintenance mode.
      *
@@ -401,11 +391,12 @@ public interface Command<T> {
         requireNonNull(delegate, "delegate");
         checkArgument(delegate.type() == CommandType.CREATE_PROJECT ||
                       delegate.type() == CommandType.CREATE_REPOSITORY ||
-                      delegate.type() == CommandType.NORMALIZING_PUSH || delegate.type() == CommandType.PUSH,
-                      "delegate: %s (expected: CREATE_PROJECT, CREATE_REPOSITORY, NORMALIZING_PUSH or PUSH)",
+                      delegate.type() == CommandType.NORMALIZING_PUSH ||
+                      delegate.type() == CommandType.TRANSFORM ||
+                      delegate.type() == CommandType.PUSH,
+                      "delegate: %s " +
+                      "(expected: CREATE_PROJECT, CREATE_REPOSITORY, NORMALIZING_PUSH, TRANSFORM or PUSH)",
                       delegate);
-        checkArgument(delegate.author().equals(Author.SYSTEM), "delegate.author: %s (expected: SYSTEM)",
-                      delegate.author());
         return new ForcePushCommand<>(delegate);
     }
 
