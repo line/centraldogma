@@ -43,10 +43,6 @@ defaults:
       "replication": {
         "method": "NONE"
       },
-      "writeQuotaPerRepository": {
-        "requestQuota": 5,
-        "timeWindowSeconds": 1
-      },
       "accessLogFormat": "common",
       "authentication": null,
       "cors": null,
@@ -192,21 +188,6 @@ Core properties
 
     - the replication method. ``NONE`` indicates 'standalone mode' without replication. See :ref:`replication`
       to learn how to configure ZooKeeper-based multi-master replication.
-
--  ``writeQuotaPerRepository``
-
-   - the maximum allowed write quota per repository. If ``requestQuota`` is set to 5 and
-     ``timeWindowSeconds`` is set to 1, :ref:`pushing-a-commit`` cannot exceed 5 QPS; if exceeded,
-     `429 Too Many Requests <https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429>`_ will be returned.
-     If ``null``, no limit is enforced.
-
-   - ``requestQuota`` (integer)
-
-     - a maximum number of acceptable requests.
-
-   - ``timeWindowSeconds`` (integer)
-
-     - a time windows in seconds.
 
 - ``accessLogFormat`` (string)
 

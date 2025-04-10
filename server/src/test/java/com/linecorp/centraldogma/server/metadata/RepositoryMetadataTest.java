@@ -27,50 +27,12 @@ import com.linecorp.centraldogma.internal.Jackson;
 class RepositoryMetadataTest {
 
     @Test
-    void deserializeLegacyFormat() throws Exception {
-        final String format = '{' +
-                              "  \"name\": \"minu-test\"," +
-                              "  \"perRolePermissions\": {" +
-                              "    \"owner\": [" +
-                              "      \"READ\"," +
-                              "      \"WRITE\"" +
-                              "    ]," +
-                              "    \"member\": [\"READ\"]," +
-                              "    \"guest\": []" +
-                              "  }," +
-                              "  \"perUserPermissions\": {" +
-                              "    \"bar@dogma.com\": [" +
-                              "      \"READ\"," +
-                              "      \"WRITE\"" +
-                              "    ]," +
-                              "    \"foo@dogma.com\": [" +
-                              "      \"READ\"" +
-                              "    ]" +
-                              "  }," +
-                              "  \"perTokenPermissions\": {" +
-                              "    \"goodman\": [" +
-                              "      \"READ\"" +
-                              "    ]" +
-                              "  }," +
-                              "  \"creation\": {" +
-                              "    \"user\": \"minu.song@dogma.com\"," +
-                              "    \"timestamp\": \"2024-08-19T02:47:23.370762417Z\"" +
-                              "  }" +
-                              '}';
-        final RepositoryMetadata repositoryMetadata = Jackson.readValue(format, RepositoryMetadata.class);
-        validate(repositoryMetadata);
-        // The legacy format is serialized into the new format.
-        assertThat(Jackson.writeValueAsString(repositoryMetadata)).isEqualTo(
-                Jackson.writeValueAsString(Jackson.readTree(newFormat())));
-    }
-
-    @Test
-    void deserializeNewFormat() throws Exception {
-        final String format = newFormat();
+    void deserialize() throws Exception {
+        final String format = format();
         validate(Jackson.readValue(format, RepositoryMetadata.class));
     }
 
-    private static String newFormat() {
+    private static String format() {
         return '{' +
                "  \"name\": \"minu-test\"," +
                "  \"roles\": {" +

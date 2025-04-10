@@ -48,11 +48,9 @@ import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.common.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
-import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
-import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectRoles;
 import com.linecorp.centraldogma.server.metadata.Token;
@@ -269,22 +267,6 @@ public class MetadataApiService extends AbstractService {
                                                                  Author author) {
         final Token token = mds.findTokenByAppId(appId);
         return mds.removeTokenRepositoryRole(author, projectName, repoName, appId);
-    }
-
-    /**
-     * PATCH /metadata/{projectName}/repos/{repoName}/quota/write
-     *
-     * <p>Updates the {@linkplain QuotaConfig write quota} for the specified {@code repoName}
-     * in the specified {@code projectName}.
-     */
-    @Patch("/metadata/{projectName}/repos/{repoName}/quota/write")
-    @Consumes("application/json-patch+json")
-    @RequiresSystemAdministrator
-    public CompletableFuture<Revision> updateWriteQuota(@Param String projectName,
-                                                        @Param String repoName,
-                                                        QuotaConfig quota,
-                                                        Author author) {
-        return mds.updateWriteQuota(author, projectName, repoName, quota);
     }
 
     private static ReplaceOperation ensureSingleReplaceOperation(JsonPatch patch, String expectedPath) {

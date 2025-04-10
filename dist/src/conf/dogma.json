@@ -31,7 +31,6 @@
   "replication": {
     "method": "NONE"
   },
-  "writeQuotaPerRepository": null,
   "accessLogFormat": "common",
   "authentication": null,
   "cors": null

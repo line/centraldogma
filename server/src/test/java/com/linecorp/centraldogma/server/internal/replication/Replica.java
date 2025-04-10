@@ -38,7 +38,6 @@ import org.apache.curator.test.InstanceSpec;
 
 import com.linecorp.armeria.common.prometheus.PrometheusMeterRegistries;
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
@@ -56,8 +55,7 @@ final class Replica {
     private final CompletableFuture<Void> startFuture;
 
     Replica(InstanceSpec spec, Map<Integer, ZooKeeperServerConfig> servers,
-            Function<Command<?>, CompletableFuture<?>> delegate,
-            @Nullable QuotaConfig writeQuota, boolean start) {
+            Function<Command<?>, CompletableFuture<?>> delegate, boolean start) {
         this.delegate = delegate;
 
         dataDir = spec.getDataDirectory();
@@ -72,9 +70,6 @@ final class Replica {
             public int replicaId() {
                 return id;
             }
-
-            @Override
-            public void setWriteQuota(String projectName, String repoName, QuotaConfig writeQuota) {}
 
             @Override
             protected void doStart(
@@ -92,7 +87,7 @@ final class Replica {
             protected <T> CompletableFuture<T> doExecute(Command<T> command) {
                 return (CompletableFuture<T>) delegate.apply(command);
             }
-        }, meterRegistry, writeQuota, null, null, null, null, null);
+        }, meterRegistry, null, null, null, null, null);
         commandExecutor.setRepositoryMetadataSupplier(mockMetaService());
         commandExecutor.setLockTimeoutMillis(10000);
 
