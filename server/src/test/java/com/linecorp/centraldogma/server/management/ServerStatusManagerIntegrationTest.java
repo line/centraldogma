@@ -73,7 +73,7 @@ class ServerStatusManagerIntegrationTest {
         dogma.client().createProject("test-project").join();
 
         final BlockingWebClient client = dogma.httpClient().blocking();
-        // Read-only mode.
+        // replication-only mode.
         ReplicationStatus serverStatus = updateServerStatus(client, ReplicationStatus.REPLICATION_ONLY);
         assertThat(serverStatus.writable()).isFalse();
         assertThat(serverStatus.replicating()).isTrue();
@@ -171,7 +171,7 @@ class ServerStatusManagerIntegrationTest {
                       .asJson(ReplicationStatus.class)
                       .execute()
                       .content();
-        if (scope == Scope.LOCAL) {
+        if (scope == Scope.ALL) {
             // Wait for the status to be replicated to the other servers.
             Thread.sleep(500);
         }
