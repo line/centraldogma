@@ -40,7 +40,6 @@ import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.prometheus.PrometheusMeterRegistries;
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
@@ -48,7 +47,6 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
-import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
