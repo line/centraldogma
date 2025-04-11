@@ -20,6 +20,7 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJE
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
@@ -40,9 +42,15 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.centraldogma.client.CentralDogmaRepository;
+import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
+import com.linecorp.centraldogma.common.PushResult;
+import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -162,6 +170,41 @@ class RepositoryServiceV1Test {
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
         final AggregatedHttpResponse aRes = client.execute(headers, unremovePatch).aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void updateReplicationStatus() {
+        final AggregatedHttpResponse aRes = createRepository(dogma.httpClient(), "statusRepo");
+        assertThat(aRes.status()).isEqualTo(HttpStatus.CREATED);
+        final BlockingWebClient client = dogma.httpClient().blocking();
+        AggregatedHttpResponse res = client.prepare()
+                                           .get(REPOS_PREFIX + "/statusRepo/status")
+                                           .execute();
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+
+        res = updateStatus(ReplicationStatus.READ_ONLY);
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+        assertThat(res.contentUtf8()).isEqualTo("\"READ_ONLY\"");
+
+        final CentralDogmaRepository centralDogmaRepository = dogma.client().forRepo("myPro", "statusRepo");
+        assertThatThrownBy(() -> centralDogmaRepository.commit("commit", Change.ofTextUpsert("/foo.txt", "foo"))
+                                                       .push().join())
+                .hasCauseExactlyInstanceOf(ReadOnlyException.class);
+
+        res = updateStatus(ReplicationStatus.WRITABLE);
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+        assertThat(res.contentUtf8()).isEqualTo("\"WRITABLE\"");
+        final PushResult result =
+                centralDogmaRepository.commit("commit", Change.ofTextUpsert("/foo.txt", "foo")).push().join();
+        assertThat(result.revision()).isEqualTo(new Revision(2));
+    }
+
+    AggregatedHttpResponse updateStatus(ReplicationStatus serverStatus) {
+        final BlockingWebClient client = dogma.httpClient().blocking();
+        return client.prepare()
+                     .put(REPOS_PREFIX + "/statusRepo/status")
+                     .contentJson(new UpdateRepositoryStatusRequest(serverStatus))
+                     .execute();
     }
 
     @Nested

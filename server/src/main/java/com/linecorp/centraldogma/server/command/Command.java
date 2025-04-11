@@ -32,7 +32,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.auth.Session;
-import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -376,7 +376,7 @@ public interface Command<T> {
     /**
      * Returns a new {@link Command} which is used to update the status of the server.
      */
-    static Command<Void> updateServerStatus(ServerStatus serverStatus) {
+    static Command<Void> updateServerStatus(ReplicationStatus serverStatus) {
         return new UpdateServerStatusCommand(null, null, serverStatus);
     }
 
@@ -391,11 +391,12 @@ public interface Command<T> {
         requireNonNull(delegate, "delegate");
         checkArgument(delegate.type() == CommandType.CREATE_PROJECT ||
                       delegate.type() == CommandType.CREATE_REPOSITORY ||
-                      delegate.type() == CommandType.NORMALIZING_PUSH || delegate.type() == CommandType.PUSH,
-                      "delegate: %s (expected: CREATE_PROJECT, CREATE_REPOSITORY, NORMALIZING_PUSH or PUSH)",
+                      delegate.type() == CommandType.NORMALIZING_PUSH ||
+                      delegate.type() == CommandType.TRANSFORM ||
+                      delegate.type() == CommandType.PUSH,
+                      "delegate: %s " +
+                      "(expected: CREATE_PROJECT, CREATE_REPOSITORY, NORMALIZING_PUSH, TRANSFORM or PUSH)",
                       delegate);
-        checkArgument(delegate.author().equals(Author.SYSTEM), "delegate.author: %s (expected: SYSTEM)",
-                      delegate.author());
         return new ForcePushCommand<>(delegate);
     }
 

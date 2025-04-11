@@ -27,7 +27,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
 
 /**
  * A {@link Command} which is used to update the status of all servers in the cluster.
@@ -35,7 +35,7 @@ import com.linecorp.centraldogma.server.management.ServerStatus;
 @JsonInclude(Include.NON_NULL)
 public final class UpdateServerStatusCommand extends SystemAdministrativeCommand<Void> {
 
-    private final ServerStatus serverStatus;
+    private final ReplicationStatus serverStatus;
 
     /**
      * Creates a new instance with the specified properties.
@@ -43,7 +43,7 @@ public final class UpdateServerStatusCommand extends SystemAdministrativeCommand
     @JsonCreator
     public UpdateServerStatusCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
                                      @JsonProperty("author") @Nullable Author author,
-                                     @JsonProperty("serverStatus") ServerStatus serverStatus) {
+                                     @JsonProperty("serverStatus") ReplicationStatus serverStatus) {
         super(CommandType.UPDATE_SERVER_STATUS, timestamp, author);
         this.serverStatus = serverStatus;
     }
@@ -52,7 +52,7 @@ public final class UpdateServerStatusCommand extends SystemAdministrativeCommand
      * Returns the status of the server.
      */
     @JsonProperty("serverStatus")
-    public ServerStatus serverStatus() {
+    public ReplicationStatus serverStatus() {
         return serverStatus;
     }
 

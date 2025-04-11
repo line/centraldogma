@@ -110,14 +110,26 @@ final class RepositorySupport<T> {
     CompletableFuture<Revision> push(String projectName, String repoName,
                                      Author author, String commitSummary,
                                      ContentTransformer<JsonNode> transformer) {
+        return push(projectName, repoName, author, commitSummary, transformer, false);
+    }
+
+    CompletableFuture<Revision> push(String projectName, String repoName,
+                                     Author author, String commitSummary,
+                                     ContentTransformer<JsonNode> transformer, boolean forcePush) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(author, "author");
         requireNonNull(commitSummary, "commitSummary");
         requireNonNull(transformer, "transformer");
 
-        return executor.execute(Command.transform(null, author, projectName, repoName, Revision.HEAD,
-                                                  commitSummary, "", Markup.PLAINTEXT, transformer))
+        Command<CommitResult> command = Command.transform(null, author, projectName, repoName,
+                                                          Revision.HEAD,
+                                                          commitSummary, "", Markup.PLAINTEXT,
+                                                          transformer);
+        if (forcePush) {
+            command = Command.forcePush(command);
+        }
+        return executor.execute(command)
                        .thenApply(CommitResult::revision)
                        .exceptionally(cause -> {
                            final Throwable peeled = Exceptions.peel(cause);

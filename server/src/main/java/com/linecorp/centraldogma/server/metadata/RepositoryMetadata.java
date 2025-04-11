@@ -31,6 +31,8 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.RepositoryRole;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -58,6 +60,13 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     }
 
     /**
+     * Creates a new instance for dogma repository.
+     */
+    public static RepositoryMetadata ofDogma(ReplicationStatus replicationStatus) {
+        return new RepositoryMetadata(Project.REPO_DOGMA, Roles.EMPTY, null, null, replicationStatus);
+    }
+
+    /**
      * A name of this repository.
      */
     private final String name;
@@ -67,6 +76,7 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     /**
      * Specifies when this repository is created by whom.
      */
+    @Nullable
     private final UserAndTimestamp creation;
 
     /**
@@ -75,12 +85,16 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     @Nullable
     private final UserAndTimestamp removal;
 
+    @Nullable
+    private final ReplicationStatus replicationStatus;
+
     /**
      * Creates a new instance.
      */
     private RepositoryMetadata(String name, UserAndTimestamp creation, ProjectRoles projectRoles) {
         this(name, new Roles(requireNonNull(projectRoles, "projectRoles"),
-                             ImmutableMap.of(), ImmutableMap.of()), creation, null);
+                             ImmutableMap.of(), ImmutableMap.of()),
+             creation, /* removal */ null, null); // Specify null for backward compatibility.
     }
 
     /**
@@ -89,12 +103,18 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     @JsonCreator
     public RepositoryMetadata(@JsonProperty("name") String name,
                               @JsonProperty("roles") Roles roles,
-                              @JsonProperty("creation") UserAndTimestamp creation,
-                              @JsonProperty("removal") @Nullable UserAndTimestamp removal) {
+                              @JsonProperty("creation") @Nullable UserAndTimestamp creation,
+                              @JsonProperty("removal") @Nullable UserAndTimestamp removal,
+                              @JsonProperty("replicationStatus") @Nullable ReplicationStatus
+                                          replicationStatus) {
         this.name = requireNonNull(name, "name");
         this.roles = requireNonNull(roles, "roles");
-        this.creation = requireNonNull(creation, "creation");
+        if (!Project.REPO_DOGMA.equals(name)) {
+            requireNonNull(creation, "creation");
+        }
+        this.creation = creation;
         this.removal = removal;
+        this.replicationStatus = replicationStatus;
     }
 
     @Override
@@ -120,7 +140,9 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
 
     /**
      * Returns who created this repository when.
+     * This returns {@code null} if this repository is {@link Project#REPO_DOGMA}.
      */
+    @Nullable
     @JsonProperty
     public UserAndTimestamp creation() {
         return creation;
@@ -133,6 +155,15 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     @JsonProperty
     public UserAndTimestamp removal() {
         return removal;
+    }
+
+    /**
+     * Returns the {@link ReplicationStatus} of this repository.
+     */
+    @Nullable
+    @JsonProperty
+    public ReplicationStatus replicationStatus() {
+        return replicationStatus;
     }
 
     @Override
@@ -155,12 +186,13 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
         final RepositoryMetadata that = (RepositoryMetadata) o;
         return name.equals(that.name) &&
                roles.equals(that.roles) &&
-               creation.equals(that.creation) && Objects.equals(removal, that.removal);
+               creation.equals(that.creation) && Objects.equals(removal, that.removal) &&
+               replicationStatus == that.replicationStatus;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, roles, creation, removal);
+        return Objects.hash(name, roles, creation, removal, replicationStatus);
     }
 
     @Override
@@ -171,6 +203,7 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
                           .add("roles", roles)
                           .add("creation", creation)
                           .add("removal", removal)
+                          .add("replicationStatus", replicationStatus)
                           .toString();
     }
 }

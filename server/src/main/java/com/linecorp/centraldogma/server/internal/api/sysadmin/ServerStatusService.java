@@ -29,7 +29,7 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest.Scope;
-import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 
 @ProducesJson
@@ -48,8 +48,8 @@ public final class ServerStatusService extends AbstractService {
      * <p>Returns the server status.
      */
     @Get("/status")
-    public ServerStatus status() {
-        return ServerStatus.of(executor().isWritable(), executor().isStarted());
+    public ReplicationStatus status() {
+        return ReplicationStatus.of(executor().isWritable(), executor().isStarted());
     }
 
     /**
@@ -64,12 +64,12 @@ public final class ServerStatusService extends AbstractService {
     @Put("/status")
     @Consumes("application/json")
     @RequiresSystemAdministrator
-    public CompletableFuture<ServerStatus> updateStatus(UpdateServerStatusRequest statusRequest)
+    public CompletableFuture<ReplicationStatus> updateStatus(UpdateServerStatusRequest statusRequest)
             throws Exception {
         // TODO(trustin): Consider extracting this into common utility or Armeria.
-        final ServerStatus oldStatus = status();
+        final ReplicationStatus oldStatus = status();
 
-        final ServerStatus newStatus = statusRequest.serverStatus();
+        final ReplicationStatus newStatus = statusRequest.serverStatus();
         if (statusRequest.scope() == Scope.LOCAL) {
             // Validate the new status for the local scope. Other servers may have different status.
             if (oldStatus == newStatus) {
@@ -81,9 +81,13 @@ public final class ServerStatusService extends AbstractService {
                 serverStatusManager.updateStatus(newStatus);
                 return status();
             }, serverStatusManager.sequentialExecutor());
-        } else {
-            return execute(Command.updateServerStatus(newStatus))
-                    .thenApply(unused -> status());
         }
+        if (!oldStatus.replicating() && statusRequest.serverStatus().replicating()) {
+            throw new IllegalArgumentException(
+                    "Cannot set replicating status to true with ALL scope. You have to use LOCAL scope " +
+                    "and send this requests to all instances simultaneously to make the cluster replicating.");
+        }
+
+        return execute(Command.updateServerStatus(newStatus)).thenApply(unused -> status());
     }
 }

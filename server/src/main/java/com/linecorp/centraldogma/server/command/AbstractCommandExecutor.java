@@ -35,7 +35,12 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.StartStopSupport;
 import com.linecorp.centraldogma.common.ReadOnlyException;
+import com.linecorp.centraldogma.server.management.ReplicationStatus;
+import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 /**
  * Helps to implement a concrete {@link CommandExecutor}.
@@ -44,6 +49,7 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractCommandExecutor.class);
 
+    private final ProjectManager projectManager;
     @Nullable
     private final Consumer<CommandExecutor> onTakeLeadership;
     @Nullable
@@ -65,20 +71,27 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     /**
      * Creates a new instance.
      *
+     * @param projectManager the {@link ProjectManager} that manages the projects and repositories
      * @param onTakeLeadership the callback to be invoked after the replica has taken the leadership
      * @param onReleaseLeadership the callback to be invoked before the replica releases the leadership
      * @param onTakeZoneLeadership the callback to be invoked after the replica has taken the zone leadership
      * @param onReleaseZoneLeadership the callback to be invoked before the replica releases the zone leadership
      */
-    protected AbstractCommandExecutor(@Nullable Consumer<CommandExecutor> onTakeLeadership,
+    protected AbstractCommandExecutor(ProjectManager projectManager,
+                                      @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                       @Nullable Consumer<CommandExecutor> onReleaseLeadership,
                                       @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
                                       @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
+        this.projectManager = requireNonNull(projectManager, "projectManager");
         this.onTakeLeadership = onTakeLeadership;
         this.onReleaseLeadership = onReleaseLeadership;
         this.onTakeZoneLeadership = onTakeZoneLeadership;
         this.onReleaseZoneLeadership = onReleaseZoneLeadership;
         statusManager = new CommandExecutorStatusManager(this);
+    }
+
+    ProjectManager projectManager() {
+        return projectManager;
     }
 
     @Override
@@ -123,6 +136,34 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     @Override
     public final void setWritable(boolean writable) {
         this.writable = writable;
+    }
+
+    protected void throwExceptionIfRepositoryNotWritable(Command<?> command) throws Exception {
+        if (command instanceof NormalizableCommit) {
+            assert command instanceof RepositoryCommand;
+            final RepositoryCommand<?> repositoryCommand = (RepositoryCommand<?>) command;
+            if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(repositoryCommand.projectName())) {
+                return;
+            }
+            String repoName = repositoryCommand.repositoryName();
+            if (Project.REPO_META.equals(repoName)) {
+                // Use REPO_DOGMA for the meta repository because the meta repository will be removed.
+                repoName = Project.REPO_DOGMA;
+            }
+
+            final ProjectMetadata metadata = projectManager.get(repositoryCommand.projectName()).metadata();
+            assert metadata != null;
+            final RepositoryMetadata repositoryMetadata = metadata.repos().get(repoName);
+            if (repositoryMetadata == null) {
+                // The repository metadata is not found, so it is writable.
+                return;
+            }
+            final ReplicationStatus replicationStatus = repositoryMetadata.replicationStatus();
+            if (replicationStatus != null && !replicationStatus.writable()) {
+                throw new ReadOnlyException(
+                        "The repository is not writable. command: " + repositoryCommand);
+            }
+        }
     }
 
     @Override
