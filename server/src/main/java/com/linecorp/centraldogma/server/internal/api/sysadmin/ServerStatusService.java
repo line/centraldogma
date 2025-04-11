@@ -82,10 +82,10 @@ public final class ServerStatusService extends AbstractService {
                 return status();
             }, serverStatusManager.sequentialExecutor());
         }
-        if (statusRequest.serverStatus().writable() && !oldStatus.writable()) {
+        if (!oldStatus.replicating() && statusRequest.serverStatus().replicating()) {
             throw new IllegalArgumentException(
-                    "Cannot set writable status to true with ALL scope. You have to use LOCAL scope " +
-                    "and send this requests to all instances simultaneously to make the cluster writable.");
+                    "Cannot set replicating status to true with ALL scope. You have to use LOCAL scope " +
+                    "and send this requests to all instances simultaneously to make the cluster replicating.");
         }
 
         return execute(Command.updateServerStatus(newStatus)).thenApply(unused -> status());

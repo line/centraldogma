@@ -72,9 +72,18 @@ class ServerStatusServiceTest {
 
     @Test
     void updateStatus_setUnwritableAndNonReplicating() {
-        final AggregatedHttpResponse res = updateStatus(ReplicationStatus.READ_ONLY);
+        AggregatedHttpResponse res = updateStatus(ReplicationStatus.READ_ONLY);
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThat(res.contentUtf8()).isEqualTo("\"READ_ONLY\"");
+
+        res = updateStatus(ReplicationStatus.WRITABLE, Scope.ALL);
+        assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(res.contentUtf8()).contains(
+                "Cannot set replicating status to true with ALL scope. You have to use LOCAL scope and");
+
+        res = updateStatus(ReplicationStatus.WRITABLE, Scope.LOCAL);
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+        assertThat(res.contentUtf8()).isEqualTo("\"WRITABLE\"");
     }
 
     @Test
@@ -95,12 +104,7 @@ class ServerStatusServiceTest {
         // Enter replication-only mode.
         updateStatus_setUnwritable();
         // Try to enter writable mode.
-        AggregatedHttpResponse res = updateStatus(ReplicationStatus.WRITABLE, Scope.ALL);
-        assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(res.contentUtf8()).contains("Cannot set writable status to true with ALL scope. " +
-                                               "You have to use LOCAL scope ");
-
-        res = updateStatus(ReplicationStatus.WRITABLE, Scope.LOCAL);
+        final AggregatedHttpResponse res = updateStatus(ReplicationStatus.WRITABLE, Scope.ALL);
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThat(res.contentUtf8()).isEqualTo("\"WRITABLE\"");
     }

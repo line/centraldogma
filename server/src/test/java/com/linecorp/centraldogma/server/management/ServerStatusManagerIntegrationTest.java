@@ -20,7 +20,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.net.ConnectException;
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -60,20 +59,12 @@ class ServerStatusManagerIntegrationTest {
         assertThatThrownBy(() -> dogma.client().createProject("test-project").join())
                 .hasCauseInstanceOf(ReadOnlyException.class);
 
-        enableWritable();
+        serverStatus = updateServerStatus(client, ReplicationStatus.WRITABLE);
+        assertThat(serverStatus.writable()).isTrue();
+        assertThat(serverStatus.replicating()).isTrue();
         assertAllServerStatus(true, true);
         // Make sure that the server is writable again.
         dogma.client().createProject("test-project").join();
-    }
-
-    private void enableWritable() throws Exception {
-        final List<CentralDogmaRuleDelegate> servers = cluster.servers();
-        for (CentralDogmaRuleDelegate server : servers) {
-            final ReplicationStatus serverStatus =
-                    updateServerStatus(server.blockingHttpClient(), ReplicationStatus.WRITABLE, Scope.LOCAL);
-            assertThat(serverStatus.writable()).isTrue();
-            assertThat(serverStatus.replicating()).isTrue();
-        }
     }
 
     @Test
