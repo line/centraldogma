@@ -57,12 +57,12 @@ public final class ServerStatusManager {
     }
 
     /**
-     * Reads the {@link ReplicationStatus} from the {@code "<data-dir>/server-status.properties"} file.
+     * Reads the {@link ServerStatus} from the {@code "<data-dir>/server-status.properties"} file.
      *
-     * <p>The stored {@link ReplicationStatus} may be used to determine whether the server is writable and
+     * <p>The stored {@link ServerStatus} may be used to determine whether the server is writable and
      * replicating when the server is started.
      */
-    public ReplicationStatus serverStatus() {
+    public ServerStatus serverStatus() {
         final Properties properties = new Properties();
         synchronized (serverStatusFile) {
             try {
@@ -73,7 +73,7 @@ public final class ServerStatusManager {
         }
 
         final String status = properties.getProperty(STATUS, "WRITABLE");
-        return ReplicationStatus.valueOf(status);
+        return ServerStatus.valueOf(status);
     }
 
     /**
@@ -82,7 +82,7 @@ public final class ServerStatusManager {
      * <p>The status may be stored in the {@code "<data-dir>/server-status.properties"} file so that the server
      * can be initialized with the same status when it is restarted.
      */
-    public void updateStatus(ReplicationStatus newServerStatus) {
+    public void updateStatus(ServerStatus newServerStatus) {
         synchronized (serverStatusFile) {
             final Properties properties = new Properties();
             try {

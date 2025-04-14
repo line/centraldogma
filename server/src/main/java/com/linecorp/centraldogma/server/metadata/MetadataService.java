@@ -55,12 +55,13 @@ import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryRole;
+import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.metadata.ProjectMetadataTransformer;
-import com.linecorp.centraldogma.server.management.ReplicationStatus;
+import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -294,7 +295,7 @@ public class MetadataService {
                                                         newRoles,
                                                         repositoryMetadata.creation(),
                                                         repositoryMetadata.removal(),
-                                                        repositoryMetadata.replicationStatus()));
+                                                        repositoryMetadata.status()));
             } else {
                 reposBuilder.put(entry);
             }
@@ -457,7 +458,7 @@ public class MetadataService {
                                           newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
-                                          repositoryMetadata.replicationStatus());
+                                          repositoryMetadata.status());
         });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -561,7 +562,7 @@ public class MetadataService {
                                                                    newRoles,
                                                                    repositoryMetadata.creation(),
                                                                    repositoryMetadata.removal(),
-                                                                   repositoryMetadata.replicationStatus()));
+                                                                   repositoryMetadata.status()));
             } else {
                 builder.put(entry);
             }
@@ -624,7 +625,7 @@ public class MetadataService {
                                               newRoles,
                                               repositoryMetadata.creation(),
                                               repositoryMetadata.removal(),
-                                              repositoryMetadata.replicationStatus());
+                                              repositoryMetadata.status());
             });
             return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
         });
@@ -655,7 +656,7 @@ public class MetadataService {
                                           newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
-                                          repositoryMetadata.replicationStatus());
+                                          repositoryMetadata.status());
         });
         final String commitSummary = "Remove repository role of the '" + memberId +
                                      "' from '" + projectName + '/' + repoName + '\'';
@@ -697,7 +698,7 @@ public class MetadataService {
                                           newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
-                                          repositoryMetadata.replicationStatus());
+                                          repositoryMetadata.status());
         });
         final String commitSummary = "Update repository role of the '" + memberId + "' as '" + role +
                                      "' for '" + projectName + '/' + repoName + '\'';
@@ -737,7 +738,7 @@ public class MetadataService {
                                               newRoles,
                                               repositoryMetadata.creation(),
                                               repositoryMetadata.removal(),
-                                              repositoryMetadata.replicationStatus());
+                                              repositoryMetadata.status());
             });
             return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
         });
@@ -769,7 +770,7 @@ public class MetadataService {
                                           newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
-                                          repositoryMetadata.replicationStatus());
+                                          repositoryMetadata.status());
         });
         final String commitSummary = "Remove repository role of the token '" + appId +
                                      "' from '" + projectName + '/' + repoName + '\'';
@@ -812,7 +813,7 @@ public class MetadataService {
                                           newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
-                                          repositoryMetadata.replicationStatus());
+                                          repositoryMetadata.status());
         });
         final String commitSummary = "Update repository role of the token '" + appId +
                                      "' for '" + projectName + '/' + repoName + '\'';
@@ -1218,14 +1219,14 @@ public class MetadataService {
     }
 
     /**
-     * Updates the {@link ReplicationStatus} of the specified {@code repoName}.
+     * Updates the {@link ServerStatus} of the specified {@code repoName}.
      */
-    public CompletableFuture<Revision> updateRepositoryReplicationStatus(
-            Author author, String projectName, String repoName, ReplicationStatus replicationStatus) {
+    public CompletableFuture<Revision> updateRepositoryStatus(
+            Author author, String projectName, String repoName, RepositoryStatus repositoryStatus) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
-        requireNonNull(replicationStatus, "replicationStatus");
+        requireNonNull(repositoryStatus, "repositoryStatus");
         final String newRepoName;
         if (Project.REPO_META.equals(repoName)) {
             newRepoName = Project.REPO_DOGMA; // Use dogma repository because meta repository will be removed.
@@ -1240,9 +1241,9 @@ public class MetadataService {
             transformer = new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
                 final RepositoryMetadata repositoryMetadata = projectMetadata.repos().get(Project.REPO_DOGMA);
                 if (repositoryMetadata != null) {
-                    throwIfRedundant(replicationStatus, headRevision, repositoryMetadata, Project.REPO_DOGMA);
+                    throwIfRedundant(repositoryStatus, headRevision, repositoryMetadata, Project.REPO_DOGMA);
                 }
-                final RepositoryMetadata newRepositoryMetadata = RepositoryMetadata.ofDogma(replicationStatus);
+                final RepositoryMetadata newRepositoryMetadata = RepositoryMetadata.ofDogma(repositoryStatus);
                 final Builder<String, RepositoryMetadata> builder = ImmutableMap.builder();
                 builder.put(Project.REPO_DOGMA, newRepositoryMetadata);
                 projectMetadata.repos().forEach((name, metadata) -> {
@@ -1260,29 +1261,27 @@ public class MetadataService {
         } else {
             transformer = new RepositoryMetadataTransformer(
                     newRepoName, (headRevision, repositoryMetadata) -> {
-                throwIfRedundant(replicationStatus, headRevision, repositoryMetadata, newRepoName);
+                throwIfRedundant(repositoryStatus, headRevision, repositoryMetadata, newRepoName);
 
                 return new RepositoryMetadata(repositoryMetadata.name(),
                                               repositoryMetadata.roles(),
                                               repositoryMetadata.creation(),
                                               repositoryMetadata.removal(),
-                                              replicationStatus);
+                                              repositoryStatus);
             });
         }
 
-        final String commitSummary = "Update the replication status of the '" + newRepoName +
-                                     "' for '" + projectName + '/' + newRepoName + "'. replicationStatus: " +
-                                     replicationStatus;
+        final String commitSummary = "Update the status of '" + projectName + '/' + newRepoName +
+                                     "'. status: " + repositoryStatus;
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer, true);
     }
 
-    private static void throwIfRedundant(ReplicationStatus replicationStatus, Revision headRevision,
+    private static void throwIfRedundant(RepositoryStatus repositoryStatus, Revision headRevision,
                                          RepositoryMetadata repositoryMetadata, String newRepoName) {
-        if (repositoryMetadata.replicationStatus() == replicationStatus) {
+        if (repositoryMetadata.status() == repositoryStatus) {
             throw new RedundantChangeException(
                     headRevision,
-                    "the replication status of '" + newRepoName + "' isn't changed. replicationStatus: " +
-                    replicationStatus);
+                    "the status of '" + newRepoName + "' isn't changed. status: " + repositoryStatus);
         }
     }
 }

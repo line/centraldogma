@@ -21,21 +21,20 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.server.management.ReplicationStatus;
+import com.linecorp.centraldogma.common.RepositoryStatus;
 
 public final class UpdateRepositoryStatusRequest {
 
-    private final ReplicationStatus replicationStatus;
+    private final RepositoryStatus status;
 
     @JsonCreator
-    public UpdateRepositoryStatusRequest(
-            @JsonProperty("replicationStatus") ReplicationStatus replicationStatus) {
-        this.replicationStatus = requireNonNull(replicationStatus, "replicationStatus");
+    public UpdateRepositoryStatusRequest(@JsonProperty("status") RepositoryStatus status) {
+        this.status = requireNonNull(status, "status");
     }
 
-    @JsonProperty("replicationStatus")
-    public ReplicationStatus replicationStatus() {
-        return replicationStatus;
+    @JsonProperty("status")
+    public RepositoryStatus status() {
+        return status;
     }
 
     @Override
@@ -47,18 +46,18 @@ public final class UpdateRepositoryStatusRequest {
             return false;
         }
         final UpdateRepositoryStatusRequest that = (UpdateRepositoryStatusRequest) o;
-        return replicationStatus == that.replicationStatus;
+        return status == that.status;
     }
 
     @Override
     public int hashCode() {
-        return replicationStatus.hashCode();
+        return status.hashCode();
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("replicationStatus", replicationStatus)
+                          .add("status", status)
                           .toString();
     }
 }

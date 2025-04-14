@@ -173,6 +173,8 @@ public class ProjectServiceV1 extends AbstractService {
         return projectApiManager.purgeProject(projectName, author);
     }
 
+    // TODO(minwoox): Migrate to /projects/{projectName}:unremove when it's supported.
+
     /**
      * PATCH /projects/{projectName}
      *

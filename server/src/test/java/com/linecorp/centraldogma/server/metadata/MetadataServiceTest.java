@@ -42,10 +42,10 @@ import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryRole;
+import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
-import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
 class MetadataServiceTest {
@@ -476,7 +476,7 @@ class MetadataServiceTest {
     }
 
     @Test
-    void updateRepositoryReplicationStatus() {
+    void updateRepositoryStatus() {
         final MetadataService mds = newMetadataService(manager);
         mds.addMember(author, project1, user1, ProjectRole.MEMBER).join();
 
@@ -487,58 +487,49 @@ class MetadataServiceTest {
         await().untilAsserted(() -> assertThat(getProject(mds, project1).repos().get(repo1).name())
                 .isEqualTo(repo1));
 
-        revision = mds.updateRepositoryReplicationStatus(author, project1, repo1,
-                                                         ReplicationStatus.WRITABLE).join();
-        assertThat(revision).isEqualTo(new Revision(5));
-
         // Same revision because the replication status is not changed.
-        revision = mds.updateRepositoryReplicationStatus(author, project1, repo1,
-                                                         ReplicationStatus.WRITABLE).join();
+        revision = mds.updateRepositoryStatus(author, project1, repo1, RepositoryStatus.ACTIVE).join();
+        assertThat(revision).isEqualTo(new Revision(4));
+
+        revision = mds.updateRepositoryStatus(author, project1, repo1, RepositoryStatus.READ_ONLY).join();
         assertThat(revision).isEqualTo(new Revision(5));
-        revision = mds.updateRepositoryReplicationStatus(author, project1, repo1,
-                                                         ReplicationStatus.REPLICATION_ONLY).join();
-        assertThat(revision).isEqualTo(new Revision(6));
         assertThatThrownBy(() -> manager.executor().execute(Command.push(
                 author, project1, repo1, Revision.HEAD,
                 "foo", "bar", Markup.PLAINTEXT, Change.ofTextUpsert("/a.txt", "1"))).join())
                 .hasCauseExactlyInstanceOf(ReadOnlyException.class);
 
-        revision = mds.updateRepositoryReplicationStatus(author, project1, repo1,
-                                                         ReplicationStatus.WRITABLE).join();
-        assertThat(revision).isEqualTo(new Revision(7));
+        revision = mds.updateRepositoryStatus(author, project1, repo1, RepositoryStatus.ACTIVE).join();
+        assertThat(revision).isEqualTo(new Revision(6));
         // Able to push again.
         final CommitResult commitResult = manager.executor().execute(Command.push(
                 author, project1, repo1, Revision.HEAD,
                 "foo", "bar", Markup.PLAINTEXT, Change.ofTextUpsert("/a.txt", "1"))).join();
         assertThat(commitResult.revision()).isEqualTo(new Revision(2)); // Revision of repo1.
 
-        revision = mds.updateRepositoryReplicationStatus(author, project1, REPO_META,
-                                                         ReplicationStatus.REPLICATION_ONLY).join();
-        assertThat(revision).isEqualTo(new Revision(8));
+        // REPO_META
+        revision = mds.updateRepositoryStatus(author, project1, REPO_META, RepositoryStatus.READ_ONLY).join();
+        assertThat(revision).isEqualTo(new Revision(7));
         // REPO_DOGMA is updated instead of REPO_META.
         final RepositoryMetadata repositoryMetadata =
                 manager.projectManager().get(project1).metadata().repo(REPO_DOGMA);
-        assertThat(repositoryMetadata.replicationStatus()).isSameAs(ReplicationStatus.REPLICATION_ONLY);
+        assertThat(repositoryMetadata.status()).isSameAs(RepositoryStatus.READ_ONLY);
 
         // Same revision
-        revision = mds.updateRepositoryReplicationStatus(author, project1, REPO_DOGMA,
-                                                         ReplicationStatus.REPLICATION_ONLY)
+        revision = mds.updateRepositoryStatus(author, project1, REPO_DOGMA, RepositoryStatus.READ_ONLY)
                       .join();
-        assertThat(revision).isEqualTo(new Revision(8));
+        assertThat(revision).isEqualTo(new Revision(7));
 
         // Can't update the metadata of repositories in this project because the dogma repository is read-only.
         assertThatThrownBy(() -> mds.addUserRepositoryRole(author, project1, repo1, user1, RepositoryRole.READ)
                                     .join())
                 .hasCauseExactlyInstanceOf(ReadOnlyException.class);
 
-        revision = mds.updateRepositoryReplicationStatus(author, project1, REPO_DOGMA,
-                                                         ReplicationStatus.WRITABLE)
-                      .join();
-        assertThat(revision).isEqualTo(new Revision(9));
+        revision = mds.updateRepositoryStatus(author, project1, REPO_DOGMA, RepositoryStatus.ACTIVE).join();
+        assertThat(revision).isEqualTo(new Revision(8));
 
         // It's now writable.
         revision = mds.addUserRepositoryRole(author, project1, repo1, user1, RepositoryRole.READ).join();
-        assertThat(revision).isEqualTo(new Revision(10));
+        assertThat(revision).isEqualTo(new Revision(9));
     }
 
     private static RepositoryMetadata getRepo1(MetadataService mds) {

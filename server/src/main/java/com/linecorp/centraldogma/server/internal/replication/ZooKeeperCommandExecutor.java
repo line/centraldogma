@@ -95,7 +95,6 @@ import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizableCommit;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
-import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -370,7 +369,7 @@ public final class ZooKeeperCommandExecutor
 
     private volatile ListenerInfo listenerInfo;
 
-    public ZooKeeperCommandExecutor(ProjectManager projectManager, ZooKeeperReplicationConfig cfg,
+    public ZooKeeperCommandExecutor(ZooKeeperReplicationConfig cfg,
                                     File dataDir, CommandExecutor delegate,
                                     MeterRegistry meterRegistry,
                                     @Nullable String zone,
@@ -378,8 +377,7 @@ public final class ZooKeeperCommandExecutor
                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership,
                                     @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
                                     @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
-        super(projectManager, onTakeLeadership, onReleaseLeadership,
-              onTakeZoneLeadership, onReleaseZoneLeadership);
+        super(onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
 
         this.cfg = requireNonNull(cfg, "cfg");
         requireNonNull(dataDir, "dataDir");
@@ -1167,7 +1165,6 @@ public final class ZooKeeperCommandExecutor
                 final long lastRevision = recentRevisions.stream().mapToLong(Long::parseLong).max().getAsLong();
                 replayLogs(lastRevision);
             }
-            throwExceptionIfRepositoryNotWritable(command);
 
             final T result = delegate.execute(command).get();
             final ReplicationLog<?> log;

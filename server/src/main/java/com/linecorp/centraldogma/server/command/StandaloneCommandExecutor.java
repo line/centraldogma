@@ -26,9 +26,15 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.linecorp.centraldogma.common.ReadOnlyException;
+import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
+import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
+import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -39,6 +45,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private static final Logger logger = LoggerFactory.getLogger(StandaloneCommandExecutor.class);
 
+    private final ProjectManager projectManager;
     private final Executor repositoryWorker;
     @Nullable
     private final SessionManager sessionManager;
@@ -63,8 +70,8 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                                      @Nullable Consumer<CommandExecutor> onReleaseLeadership,
                                      @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
                                      @Nullable Consumer<CommandExecutor> onReleaseZoneLeadership) {
-        super(projectManager, onTakeLeadership, onReleaseLeadership,
-              onTakeZoneLeadership, onReleaseZoneLeadership);
+        super(onTakeLeadership, onReleaseLeadership, onTakeZoneLeadership, onReleaseZoneLeadership);
+        this.projectManager = requireNonNull(projectManager, "projectManager");
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.serverStatusManager = requireNonNull(serverStatusManager, "serverStatusManager");
         this.sessionManager = sessionManager;
@@ -102,6 +109,33 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     protected <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception {
         throwExceptionIfRepositoryNotWritable(command);
         return doExecute0(command);
+    }
+
+    private void throwExceptionIfRepositoryNotWritable(Command<?> command) throws Exception {
+        if (command instanceof NormalizableCommit) {
+            assert command instanceof RepositoryCommand;
+            final RepositoryCommand<?> repositoryCommand = (RepositoryCommand<?>) command;
+            if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(repositoryCommand.projectName())) {
+                return;
+            }
+            String repoName = repositoryCommand.repositoryName();
+            if (Project.REPO_META.equals(repoName)) {
+                // Use REPO_DOGMA for the meta repository because the meta repository will be removed.
+                repoName = Project.REPO_DOGMA;
+            }
+
+            final ProjectMetadata metadata = projectManager.get(repositoryCommand.projectName()).metadata();
+            assert metadata != null;
+            final RepositoryMetadata repositoryMetadata = metadata.repos().get(repoName);
+            if (repositoryMetadata == null) {
+                // The repository metadata is not found, so it is writable.
+                return;
+            }
+            if (repositoryMetadata.status() == RepositoryStatus.READ_ONLY) {
+                throw new ReadOnlyException(
+                        "The repository is in read-only. command: " + repositoryCommand);
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -176,28 +210,28 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> createProject(CreateProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager().create(c.projectName(), c.timestamp(), c.author());
+            projectManager.create(c.projectName(), c.timestamp(), c.author());
             return null;
         }, repositoryWorker);
     }
 
     private CompletableFuture<Void> removeProject(RemoveProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager().remove(c.projectName());
+            projectManager.remove(c.projectName());
             return null;
         }, repositoryWorker);
     }
 
     private CompletableFuture<Void> unremoveProject(UnremoveProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager().unremove(c.projectName());
+            projectManager.unremove(c.projectName());
             return null;
         }, repositoryWorker);
     }
 
     private CompletableFuture<Void> purgeProject(PurgeProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager().markForPurge(c.projectName());
+            projectManager.markForPurge(c.projectName());
             return null;
         }, repositoryWorker);
     }
@@ -206,28 +240,28 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> createRepository(CreateRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager().get(c.projectName()).repos().create(c.repositoryName(), c.timestamp(), c.author());
+            projectManager.get(c.projectName()).repos().create(c.repositoryName(), c.timestamp(), c.author());
             return null;
         }, repositoryWorker);
     }
 
     private CompletableFuture<Void> removeRepository(RemoveRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager().get(c.projectName()).repos().remove(c.repositoryName());
+            projectManager.get(c.projectName()).repos().remove(c.repositoryName());
             return null;
         }, repositoryWorker);
     }
 
     private CompletableFuture<Void> unremoveRepository(UnremoveRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager().get(c.projectName()).repos().unremove(c.repositoryName());
+            projectManager.get(c.projectName()).repos().unremove(c.repositoryName());
             return null;
         }, repositoryWorker);
     }
 
     private CompletableFuture<Void> purgeRepository(PurgeRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager().get(c.projectName()).repos().markForPurge(c.repositoryName());
+            projectManager.get(c.projectName()).repos().markForPurge(c.repositoryName());
             return null;
         }, repositoryWorker);
     }
@@ -248,7 +282,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     private Repository repo(RepositoryCommand<?> c) {
-        return projectManager().get(c.projectName()).repos().get(c.repositoryName());
+        return projectManager.get(c.projectName()).repos().get(c.repositoryName());
     }
 
     private CompletableFuture<Void> createSession(CreateSessionCommand c) {

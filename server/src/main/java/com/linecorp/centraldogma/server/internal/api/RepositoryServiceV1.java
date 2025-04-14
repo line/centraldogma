@@ -34,7 +34,6 @@ import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.logging.RequestOnlyLog;
-import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
@@ -49,6 +48,7 @@ import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryRole;
+import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.CreateRepositoryRequest;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
@@ -57,7 +57,6 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
-import com.linecorp.centraldogma.server.management.ReplicationStatus;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
@@ -93,24 +92,73 @@ public class RepositoryServiceV1 extends AbstractService {
             HttpApiUtil.checkStatusArgument(status);
         }
 
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
+            if (user.isSystemAdmin()) {
+                if (status != null) {
+                    return CompletableFuture.completedFuture(removedRepositories(project));
+                }
+                return CompletableFuture.completedFuture(
+                        project.repos().list().values().stream()
+                               .map(repository -> DtoConverter.convert(repository, RepositoryStatus.ACTIVE))
+                               .collect(toImmutableList()));
+            }
+            return HttpApiUtil.throwResponse(
+                    ctx, HttpStatus.FORBIDDEN,
+                    "You must be a system administrator to retrieve repositories of the dogma project.");
+        }
+
+        if (status == null) {
+            final Map<String, RepositoryMetadata> repos = projectMetadata(project).repos();
+            return CompletableFuture.completedFuture(
+                    project.repos().list().values().stream()
+                           .filter(r -> user.isSystemAdmin() || !Project.isInternalRepo(r.name()))
+                           .map(repository -> DtoConverter.convert(repository, repos))
+                           .collect(toImmutableList()));
+        }
+
         return mds.findProjectRole(project.name(), user).handle((role, throwable) -> {
             final boolean hasOwnerRole = role == ProjectRole.OWNER;
-            if (status != null) {
-                if (hasOwnerRole) {
-                    return project.repos().listRemoved().keySet().stream().map(RepositoryDto::new)
-                                  .collect(toImmutableList());
-                }
-                return HttpApiUtil.throwResponse(
-                        ctx, HttpStatus.FORBIDDEN,
-                        "You must be an owner of project '%s' to retrieve removed repositories.",
-                        project.name());
+            if (hasOwnerRole) {
+                return removedRepositories(project);
             }
-
-            return project.repos().list().values().stream()
-                          .filter(r -> user.isSystemAdmin() || !Project.isInternalRepo(r.name()))
-                          .map(DtoConverter::convert)
-                          .collect(toImmutableList());
+            return HttpApiUtil.throwResponse(
+                    ctx, HttpStatus.FORBIDDEN,
+                    "You must be an owner of project '%s' to retrieve removed repositories.",
+                    project.name());
         });
+    }
+
+    private static ProjectMetadata projectMetadata(Project project) {
+        assert !InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name());
+        final ProjectMetadata metadata = project.metadata();
+        assert metadata != null; // not null because the project is not dogma project.
+        return metadata;
+    }
+
+    private static RepositoryStatus repositoryStatus(Repository repository) {
+        final Map<String, RepositoryMetadata> repos = projectMetadata(repository.parent()).repos();
+        final String repoName = normalizeRepositoryName(repository);
+
+        final RepositoryMetadata metadata = repos.get(repoName);
+        if (metadata == null) {
+            return RepositoryStatus.ACTIVE;
+        } else {
+            return metadata.status();
+        }
+    }
+
+    private static String normalizeRepositoryName(Repository repository) {
+        final String repoName = repository.name();
+        if (!Project.REPO_META.equals(repoName)) {
+            return repoName;
+        }
+        // Use dogma repository for the meta repository because the meta repository will be removed.
+        return Project.REPO_DOGMA;
+    }
+
+    private static ImmutableList<RepositoryDto> removedRepositories(Project project) {
+        return project.repos().listRemoved().keySet().stream().map(RepositoryDto::removed)
+                      .collect(toImmutableList());
     }
 
     /**
@@ -121,7 +169,7 @@ public class RepositoryServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/repos")
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
-    @RequiresProjectRole(ProjectRole.OWNER)
+    @RequiresProjectRole(ProjectRole.MEMBER)
     public CompletableFuture<RepositoryDto> createRepository(ServiceRequestContext ctx, Project project,
                                                              CreateRepositoryRequest request,
                                                              Author author) {
@@ -133,7 +181,10 @@ public class RepositoryServiceV1 extends AbstractService {
         final CommandExecutor commandExecutor = executor();
         final CompletableFuture<Revision> future =
                 RepositoryServiceUtil.createRepository(commandExecutor, mds, author, project.name(), repoName);
-        return future.handle(returnOrThrow(() -> DtoConverter.convert(project.repos().get(repoName))));
+        return future.handle(returnOrThrow(() -> {
+            final Repository repository = project.repos().get(repoName);
+            return DtoConverter.convert(repository, repositoryStatus(repository));
+        }));
     }
 
     /**
@@ -142,7 +193,7 @@ public class RepositoryServiceV1 extends AbstractService {
      * <p>Removes a repository.
      */
     @Delete("/projects/{projectName}/repos/{repoName}")
-    @RequiresProjectRole(ProjectRole.OWNER)
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
     public CompletableFuture<Void> removeRepository(ServiceRequestContext ctx,
                                                     @Param String repoName,
                                                     Repository repository,
@@ -170,14 +221,19 @@ public class RepositoryServiceV1 extends AbstractService {
                                           .handle(HttpApiUtil::throwUnsafelyIfNonNull));
     }
 
+    // TODO(minwoox): Migrate to /projects/{projectName}/repos/{repoName}:unremove when it's supported.
+
     /**
      * PATCH /projects/{projectName}/repos/{repoName}
      *
      * <p>Patches a repository with the JSON_PATCH. Currently, only unremove repository operation is supported.
+     *
+     * @deprecated Use {@link #unremoveRepository(String, Project, Author)} instead.
      */
     @Consumes("application/json-patch+json")
     @Patch("/projects/{projectName}/repos/{repoName}")
     @RequiresProjectRole(ProjectRole.OWNER)
+    @Deprecated
     public CompletableFuture<RepositoryDto> patchRepository(@Param String repoName,
                                                             Project project,
                                                             JsonNode node,
@@ -185,7 +241,10 @@ public class RepositoryServiceV1 extends AbstractService {
         checkUnremoveArgument(node);
         return execute(Command.unremoveRepository(author, project.name(), repoName))
                 .thenCompose(unused -> mds.restoreRepo(author, project.name(), repoName))
-                .handle(returnOrThrow(() -> DtoConverter.convert(project.repos().get(repoName))));
+                .handle(returnOrThrow(() -> {
+                    final Repository repository = project.repos().get(repoName);
+                    return DtoConverter.convert(repository, repositoryStatus(repository));
+                }));
     }
 
     /**
@@ -209,14 +268,10 @@ public class RepositoryServiceV1 extends AbstractService {
      * <p>Returns the repository status.
      */
     @Get("/projects/{projectName}/repos/{repoName}/status")
-    public ReplicationStatus status(Project project, Repository repository) {
-        final RepositoryMetadata repositoryMetadata = validateAndResolveRepository(project, repository);
-        if (repositoryMetadata == null) {
-            // Return WRITABLE if the repository metadata is not found.
-            return ReplicationStatus.WRITABLE;
-        }
-        final ReplicationStatus replicationStatus = repositoryMetadata.replicationStatus();
-        return replicationStatus == null ? ReplicationStatus.WRITABLE : replicationStatus;
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    public RepositoryDto status(Project project, Repository repository) {
+        validateDogmaProject(project);
+        return DtoConverter.convert(repository, repositoryStatus(repository));
     }
 
     /**
@@ -227,22 +282,22 @@ public class RepositoryServiceV1 extends AbstractService {
     @Put("/projects/{projectName}/repos/{repoName}/status")
     @Consumes("application/json")
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
-    public CompletableFuture<ReplicationStatus> updateStatus(Project project,
-                                                             Repository repository,
-                                                             Author author,
-                                                             UpdateRepositoryStatusRequest statusRequest)
+    public CompletableFuture<RepositoryDto> updateStatus(Project project,
+                                                         Repository repository,
+                                                         Author author,
+                                                         UpdateRepositoryStatusRequest statusRequest)
             throws Exception {
-        final String originalRepoName = repository.name();
-        final String repoName = Project.REPO_META.equals(originalRepoName) ? Project.REPO_DOGMA
-                                                                           : originalRepoName;
-
-        final RepositoryMetadata repositoryMetadata = validateAndResolveRepository(project, repository);
-        final ReplicationStatus newStatus = statusRequest.replicationStatus();
-        if (repositoryMetadata != null && repositoryMetadata.replicationStatus() == newStatus) {
-            throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
+        validateDogmaProject(project);
+        final RepositoryStatus oldStatus = repositoryStatus(repository);
+        final RepositoryStatus newStatus = statusRequest.status();
+        if (oldStatus == newStatus) {
+            // No need to update the status, just return the current status.
+            return CompletableFuture.completedFuture(DtoConverter.convert(repository, oldStatus));
         }
-        return mds.updateRepositoryReplicationStatus(author, project.name(), repoName, newStatus)
-                  .thenApply(unused -> newStatus);
+
+        return mds.updateRepositoryStatus(author, project.name(),
+                                          normalizeRepositoryName(repository), newStatus)
+                  .thenApply(unused -> DtoConverter.convert(repository, newStatus));
     }
 
     static void increaseCounterIfOldRevisionUsed(ServiceRequestContext ctx, Repository repository,
@@ -282,21 +337,10 @@ public class RepositoryServiceV1 extends AbstractService {
                            Tag.of("method", log.name()));
     }
 
-    @Nullable
-    private static RepositoryMetadata validateAndResolveRepository(Project project, Repository repository) {
+    private static void validateDogmaProject(Project project) {
         if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
             throw new IllegalArgumentException(
                     "Cannot update the status of the internal project: " + project.name());
         }
-
-        String repoName = repository.name();
-        if (Project.REPO_META.equals(repoName)) {
-            // Use dogma repository for the meta repository because the meta repository will be removed.
-            repoName = Project.REPO_DOGMA;
-        }
-
-        final ProjectMetadata metadata = project.metadata();
-        assert metadata != null; // not null because the project is not dogma project.
-        return metadata.repos().get(repoName);
     }
 }

@@ -45,21 +45,21 @@ class ServerStatusManagerIntegrationTest {
     void replicationOnlyMode() throws Exception {
         final CentralDogmaRuleDelegate dogma = cluster.servers().get(0);
         final BlockingWebClient client = dogma.httpClient().blocking();
-        ReplicationStatus serverStatus = getServerStatus(client);
+        ServerStatus serverStatus = getServerStatus(client);
 
         // The initial status of the server.
         assertThat(serverStatus.writable()).isTrue();
         assertThat(serverStatus.replicating()).isTrue();
 
         // Read-only mode.
-        serverStatus = updateServerStatus(client, ReplicationStatus.REPLICATION_ONLY);
+        serverStatus = updateServerStatus(client, ServerStatus.REPLICATION_ONLY);
         assertThat(serverStatus.writable()).isFalse();
         assertThat(serverStatus.replicating()).isTrue();
         assertAllServerStatus(false, true);
         assertThatThrownBy(() -> dogma.client().createProject("test-project").join())
                 .hasCauseInstanceOf(ReadOnlyException.class);
 
-        serverStatus = updateServerStatus(client, ReplicationStatus.WRITABLE);
+        serverStatus = updateServerStatus(client, ServerStatus.WRITABLE);
         assertThat(serverStatus.writable()).isTrue();
         assertThat(serverStatus.replicating()).isTrue();
         assertAllServerStatus(true, true);
@@ -74,7 +74,7 @@ class ServerStatusManagerIntegrationTest {
 
         final BlockingWebClient client = dogma.httpClient().blocking();
         // replication-only mode.
-        ReplicationStatus serverStatus = updateServerStatus(client, ReplicationStatus.REPLICATION_ONLY);
+        ServerStatus serverStatus = updateServerStatus(client, ServerStatus.REPLICATION_ONLY);
         assertThat(serverStatus.writable()).isFalse();
         assertThat(serverStatus.replicating()).isTrue();
         assertAllServerStatus(false, true);
@@ -94,12 +94,12 @@ class ServerStatusManagerIntegrationTest {
         assertThat(serverStatus.replicating()).isTrue();
 
         // Enable the writable mode.
-        serverStatus = updateServerStatus(client, ReplicationStatus.WRITABLE, Scope.LOCAL);
+        serverStatus = updateServerStatus(client, ServerStatus.WRITABLE, Scope.LOCAL);
         assertThat(serverStatus.writable()).isTrue();
         assertThat(serverStatus.replicating()).isTrue();
 
         // Disable both the writable and replicating mode.
-        serverStatus = updateServerStatus(client, ReplicationStatus.READ_ONLY);
+        serverStatus = updateServerStatus(client, ServerStatus.READ_ONLY);
         assertThat(serverStatus.writable()).isFalse();
         assertThat(serverStatus.replicating()).isFalse();
         assertAllServerStatus(false, false);
@@ -127,11 +127,11 @@ class ServerStatusManagerIntegrationTest {
         final CentralDogmaRuleDelegate dogma = cluster.servers().get(0);
         final BlockingWebClient client = dogma.httpClient().blocking();
 
-        ReplicationStatus serverStatus = getServerStatus(client);
+        ServerStatus serverStatus = getServerStatus(client);
         assertThat(serverStatus.writable()).isTrue();
         assertThat(serverStatus.replicating()).isTrue();
 
-        updateServerStatus(client, ReplicationStatus.READ_ONLY, Scope.LOCAL);
+        updateServerStatus(client, ServerStatus.READ_ONLY, Scope.LOCAL);
 
         serverStatus = getServerStatus(client);
         assertThat(serverStatus.writable()).isFalse();
@@ -143,32 +143,32 @@ class ServerStatusManagerIntegrationTest {
             assertThat(serverStatus.replicating()).isTrue();
         }
 
-        updateServerStatus(client, ReplicationStatus.WRITABLE, Scope.LOCAL);
+        updateServerStatus(client, ServerStatus.WRITABLE, Scope.LOCAL);
         assertAllServerStatus(true, true);
     }
 
     private void assertAllServerStatus(boolean writable, boolean replicating) {
         for (CentralDogmaRuleDelegate server : cluster.servers()) {
             final BlockingWebClient otherClient = server.httpClient().blocking();
-            final ReplicationStatus serverStatus = getServerStatus(otherClient);
+            final ServerStatus serverStatus = getServerStatus(otherClient);
             assertThat(serverStatus.writable()).isEqualTo(writable);
             assertThat(serverStatus.replicating()).isEqualTo(replicating);
         }
     }
 
-    private static ReplicationStatus updateServerStatus(BlockingWebClient client,
-                                                        ReplicationStatus serverStatus) throws Exception {
+    private static ServerStatus updateServerStatus(BlockingWebClient client,
+                                                   ServerStatus serverStatus) throws Exception {
         return updateServerStatus(client, serverStatus, Scope.ALL);
     }
 
-    private static ReplicationStatus updateServerStatus(BlockingWebClient client,
-                                                        ReplicationStatus serverStatus, Scope scope)
+    private static ServerStatus updateServerStatus(BlockingWebClient client,
+                                                   ServerStatus serverStatus, Scope scope)
             throws Exception {
-        final ReplicationStatus newServerStatus =
+        final ServerStatus newServerStatus =
                 client.prepare()
                       .put("/api/v1/status")
                       .contentJson(new UpdateServerStatusRequest(serverStatus, scope))
-                      .asJson(ReplicationStatus.class)
+                      .asJson(ServerStatus.class)
                       .execute()
                       .content();
         if (scope == Scope.ALL) {
@@ -178,10 +178,10 @@ class ServerStatusManagerIntegrationTest {
         return newServerStatus;
     }
 
-    private static ReplicationStatus getServerStatus(BlockingWebClient client) {
+    private static ServerStatus getServerStatus(BlockingWebClient client) {
         return client.prepare()
                      .get("/api/v1/status")
-                     .asJson(ReplicationStatus.class)
+                     .asJson(ServerStatus.class)
                      .execute()
                      .content();
     }
