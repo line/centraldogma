@@ -227,13 +227,10 @@ public class RepositoryServiceV1 extends AbstractService {
      * PATCH /projects/{projectName}/repos/{repoName}
      *
      * <p>Patches a repository with the JSON_PATCH. Currently, only unremove repository operation is supported.
-     *
-     * @deprecated Use {@link #unremoveRepository(String, Project, Author)} instead.
      */
     @Consumes("application/json-patch+json")
     @Patch("/projects/{projectName}/repos/{repoName}")
     @RequiresProjectRole(ProjectRole.OWNER)
-    @Deprecated
     public CompletableFuture<RepositoryDto> patchRepository(@Param String repoName,
                                                             Project project,
                                                             JsonNode node,
@@ -277,7 +274,7 @@ public class RepositoryServiceV1 extends AbstractService {
     /**
      * PUT /projects/{projectName}/repos/{repoName}/status
      *
-     * <p>Patches the repository status with a JSON patch.
+     * <p>Changes the repository status.
      */
     @Put("/projects/{projectName}/repos/{repoName}/status")
     @Consumes("application/json")
