@@ -26,6 +26,7 @@ public enum CommandType {
     REMOVE_PROJECT(Void.class),
     UNREMOVE_PROJECT(Void.class),
     CREATE_REPOSITORY(Void.class),
+    RESET_META_REPOSITORY(Void.class),
     REMOVE_REPOSITORY(Void.class),
     UNREMOVE_REPOSITORY(Void.class),
     NORMALIZING_PUSH(CommitResult.class),

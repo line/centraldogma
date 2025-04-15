@@ -89,7 +89,9 @@ public interface Project {
      * Returns {@code true} if the specified repository is an internal repository.
      */
     static boolean isInternalRepo(String repoName) {
-        return isReservedRepoName(repoName);
+        requireNonNull(repoName, "repoName");
+        repoName = Ascii.toLowerCase(repoName);
+        return internalRepos().contains(repoName);
     }
 
     /**
@@ -99,8 +101,14 @@ public interface Project {
      */
     @Deprecated
     static boolean isReservedRepoName(String repoName) {
-        requireNonNull(repoName, "repoName");
-        repoName = Ascii.toLowerCase(repoName);
-        return internalRepos().contains(repoName);
+        return isInternalRepo(repoName);
     }
+
+    /**
+     * Resets the {@link MetaRepository} of this project.
+     *
+     * @deprecated This will be removed after migrating the content in meta repository to dogma repository.
+     */
+    @Deprecated
+    MetaRepository resetMetaRepository();
 }

@@ -29,7 +29,9 @@ import org.slf4j.LoggerFactory;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -104,6 +106,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     protected <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception {
         if (command instanceof CreateProjectCommand) {
             return (CompletableFuture<T>) createProject((CreateProjectCommand) command);
+        }
+
+        if (command instanceof ResetMetaRepositoryCommand) {
+            return (CompletableFuture<T>) resetMetaRepository((ResetMetaRepositoryCommand) command);
         }
 
         if (command instanceof RemoveProjectCommand) {
@@ -193,6 +199,21 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private CompletableFuture<Void> purgeProject(PurgeProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.markForPurge(c.projectName());
+            return null;
+        }, repositoryWorker);
+    }
+
+    private CompletableFuture<Void> resetMetaRepository(ResetMetaRepositoryCommand command) {
+        return CompletableFuture.supplyAsync(() -> {
+            final Project project = projectManager.get(command.projectName());
+            if (project == null) {
+                throw new IllegalStateException("Project not found: " + command.projectName());
+            }
+            final MetaRepository metaRepository = project.resetMetaRepository();
+            if (!Project.REPO_DOGMA.equals(metaRepository.name())) {
+                logger.warn("Meta repository name is not changed in {}. meta repo: {}",
+                            project.name(), metaRepository.name());
+            }
             return null;
         }, repositoryWorker);
     }
