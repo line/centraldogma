@@ -51,6 +51,13 @@ class SamlAuthTest {
                     "        \"encryption\": \"centraldogma\"" +
                     "    }" +
                     "}," +
+                    "\"acs\": [{" +
+                    "    \"uri\": \"https://dogma-example.linecorp.com/saml/acs/post\"," +
+                    "    \"binding\": \"HTTP_POST\"" +
+                    "},{" +
+                    "    \"uri\": \"https://dogma-example.linecorp.com/saml/acs/redirect\"," +
+                    "    \"binding\": \"HTTP_REDIRECT\"" +
+                    "}]," +
                     "\"idp\": {" +
                     "    \"entityId\": \"test-idp\"," +
                     "    \"uri\": \"https://idp-example.linecorp.com/saml/sso\"" +
