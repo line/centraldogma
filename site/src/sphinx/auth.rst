@@ -110,6 +110,18 @@ the authentication to.
             },
             "signatureAlgorithm": "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
           },
+          "acs": {
+            "endpoints": [
+              {
+                "uri": "https://dogma-example.linecorp.com/saml/acs/post",
+                "binding": "HTTP_POST"
+              },
+              {
+                "uri": "https://dogma-example.linecorp.com/saml/acs/redirect",
+                "binding": "HTTP_REDIRECT"
+              }
+            ]
+          },
           "idp": {
             "entityId": "some-idp",
             "uri": "https://idp.some-service.com/saml/single_sign_on_service",
@@ -168,6 +180,23 @@ The following describes the meaning of SAML-specific properties.
 
     - a name of the signature algorithm for signing and encryption.
       If unspecified, ``http://www.w3.org/2000/09/xmldsig#rsa-sha1`` is used by default.
+
+- ``acs``
+
+  - the assertion consumer service configuration. If unspecified, the default value is used which is
+    ``{scheme}://{hostname}:{port}/saml/acs/post`` and ``{scheme}://{hostname}:{port}/saml/acs/redirect``.
+  - ``endpoints`` (array of object)
+
+    - an array of assertion consumer service endpoints. Each endpoint has the following properties:
+
+    - ``uri`` (string)
+
+      - a uri where a SAML response is supposed to be sent to.
+
+    - ``binding`` (string)
+
+      - a binding protocol of the ``uri``. It can be one of ``HTTP_POST`` or ``HTTP_REDIRECT``.
+        If unspecified, ``HTTP_POST`` is used by default.
 
 - ``idp``
 

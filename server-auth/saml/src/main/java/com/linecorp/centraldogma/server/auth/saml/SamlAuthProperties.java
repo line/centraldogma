@@ -19,6 +19,7 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.server.CentralDogmaConfig.convertValue;
 import static java.util.Objects.requireNonNull;
 
+import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nullable;
@@ -56,6 +57,18 @@ import com.linecorp.centraldogma.internal.Jackson;
  *                 "encryption": "...the password of the encryption key..."
  *             },
  *             "signatureAlgorithm": "...the signature algorithm for signing and encryption (optional)..."
+ *         },
+ *         // Specify when your server uses different uri from the recipient of the assertion that
+ *         // the IdP sends. For example, if your server is behind a proxy, you need to specify
+ *         // the uri of the proxy.
+ *         "acs": {
+ *             "endpoints": [{
+ *                 "uri": "https://dogma-example.linecorp.com/saml/acs/post",
+ *                 "binding": "HTTP_POST"
+ *             }, {
+ *                 "uri": "https://dogma-example.linecorp.com/saml/acs/redirect",
+ *                 "binding": "HTTP_REDIRECT"
+ *             }]
  *         },
  *         "idp": {
  *             "entityId": "...the identity provider ID...",
@@ -108,6 +121,12 @@ final class SamlAuthProperties {
     private final KeyStore keyStore;
 
     /**
+     * {@link SamlEndpoint}s of the assertion consumer service.
+     */
+    @Nullable
+    private final Acs acs;
+
+    /**
      * An identity provider configuration. A single identity provider is supported.
      */
     private final Idp idp;
@@ -119,42 +138,50 @@ final class SamlAuthProperties {
             @JsonProperty("signingKey") @Nullable String signingKey,
             @JsonProperty("encryptionKey") @Nullable String encryptionKey,
             @JsonProperty("keyStore") KeyStore keyStore,
+            @JsonProperty("acs") @Nullable Acs acs,
             @JsonProperty("idp") Idp idp) {
         this.entityId = requireNonNull(entityId, "entityId");
         this.hostname = requireNonNull(hostname, "hostname");
         this.signingKey = firstNonNull(signingKey, DEFAULT_SIGNING_KEY);
         this.encryptionKey = firstNonNull(encryptionKey, DEFAULT_ENCRYPTION_KEY);
         this.keyStore = requireNonNull(keyStore, "keyStore");
+        this.acs = acs;
         this.idp = requireNonNull(idp, "idp");
     }
 
     @JsonProperty
-    public String entityId() {
+    String entityId() {
         return entityId;
     }
 
     @JsonProperty
-    public String hostname() {
+    String hostname() {
         return hostname;
     }
 
     @JsonProperty
-    public String signingKey() {
+    String signingKey() {
         return signingKey;
     }
 
     @JsonProperty
-    public String encryptionKey() {
+    String encryptionKey() {
         return encryptionKey;
     }
 
     @JsonProperty
-    public KeyStore keyStore() {
+    KeyStore keyStore() {
         return keyStore;
     }
 
+    @Nullable
     @JsonProperty
-    public Idp idp() {
+    Acs acs() {
+        return acs;
+    }
+
+    @JsonProperty
+    Idp idp() {
         return idp;
     }
 
@@ -218,23 +245,23 @@ final class SamlAuthProperties {
         }
 
         @JsonProperty
-        public String type() {
+        String type() {
             return type;
         }
 
         @JsonProperty
-        public String path() {
+        String path() {
             return path;
         }
 
         @Nullable
         @JsonProperty
-        public String password() {
+        String password() {
             return convertValue(password, "keyStore.password");
         }
 
         @JsonProperty
-        public Map<String, String> keyPasswords() {
+        Map<String, String> keyPasswords() {
             return sanitizePasswords(keyPasswords);
         }
 
@@ -249,8 +276,23 @@ final class SamlAuthProperties {
         }
 
         @JsonProperty
-        public String signatureAlgorithm() {
+        String signatureAlgorithm() {
             return signatureAlgorithm;
+        }
+    }
+
+    static class Acs {
+
+        private final List<SamlEndpoint> endpoints;
+
+        @JsonCreator
+        Acs(@JsonProperty("endpoints") List<SamlEndpoint> endpoints) {
+            this.endpoints = requireNonNull(endpoints, "endpoints");
+        }
+
+        @JsonProperty
+        List<SamlEndpoint> endpoints() {
+            return endpoints;
         }
     }
 
@@ -320,43 +362,43 @@ final class SamlAuthProperties {
         }
 
         @JsonProperty
-        public String entityId() {
+        String entityId() {
             return entityId;
         }
 
         @JsonProperty
-        public String uri() {
+        String uri() {
             return uri;
         }
 
         @JsonProperty
-        public String binding() {
+        String binding() {
             return binding.name();
         }
 
         @JsonProperty
-        public String signingKey() {
+        String signingKey() {
             return signingKey;
         }
 
         @JsonProperty
-        public String encryptionKey() {
+        String encryptionKey() {
             return encryptionKey;
         }
 
         @Nullable
         @JsonProperty
-        public String subjectLoginNameIdFormat() {
+        String subjectLoginNameIdFormat() {
             return subjectLoginNameIdFormat;
         }
 
         @Nullable
         @JsonProperty
-        public String attributeLoginName() {
+        String attributeLoginName() {
             return attributeLoginName;
         }
 
-        public SamlEndpoint endpoint() {
+        SamlEndpoint endpoint() {
             switch (binding) {
                 case HTTP_POST:
                     return SamlEndpoint.ofHttpPost(uri);
