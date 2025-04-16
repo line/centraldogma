@@ -59,7 +59,7 @@ import com.linecorp.centraldogma.internal.Jackson;
  *             "signatureAlgorithm": "...the signature algorithm for signing and encryption (optional)..."
  *         },
  *         // Specify when your server uses different uri from the recipient of the assertion that
- *         // the IdP sends. // For example, if your server is behind a proxy, you need to specify
+ *         // the IdP sends. For example, if your server is behind a proxy, you need to specify
  *         // the uri of the proxy.
  *         "acs": {
  *             "endpoints": [{
