@@ -51,13 +51,15 @@ class SamlAuthTest {
                     "        \"encryption\": \"centraldogma\"" +
                     "    }" +
                     "}," +
-                    "\"acs\": [{" +
-                    "    \"uri\": \"https://dogma-example.linecorp.com/saml/acs/post\"," +
-                    "    \"binding\": \"HTTP_POST\"" +
-                    "},{" +
-                    "    \"uri\": \"https://dogma-example.linecorp.com/saml/acs/redirect\"," +
-                    "    \"binding\": \"HTTP_REDIRECT\"" +
-                    "}]," +
+                    "\"acs\": {" +
+                    "    \"endpoints\": [{" +
+                    "        \"uri\": \"https://foo.linecorp.com/saml/acs/post\"," +
+                    "        \"binding\": \"HTTP_POST\"" +
+                    "    },{" +
+                    "        \"uri\": \"/saml/acs/redirect\"," +
+                    "        \"binding\": \"HTTP_REDIRECT\"" +
+                    "    }]" +
+                    "}," +
                     "\"idp\": {" +
                     "    \"entityId\": \"test-idp\"," +
                     "    \"uri\": \"https://idp-example.linecorp.com/saml/sso\"" +
@@ -108,9 +110,11 @@ class SamlAuthTest {
                 .contains("entityID=\"test-sp\"")
                 .contains("<md:AssertionConsumerService " +
                           "Binding=\"urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST\" " +
-                          "Location=\"http://dogma-example.linecorp.com:" + port + "/saml/acs/post")
+                          // full URI is specified in the acs.
+                          "Location=\"https://foo.linecorp.com/saml/acs/post")
                 .contains("<md:AssertionConsumerService " +
                           "Binding=\"urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect\" " +
+                          // Only the path is specified in the acs. Scheme, host and port are auto-filled.
                           "Location=\"http://dogma-example.linecorp.com:" + port + "/saml/acs/redirect");
     }
 }

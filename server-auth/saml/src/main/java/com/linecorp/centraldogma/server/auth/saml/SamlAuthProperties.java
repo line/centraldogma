@@ -61,13 +61,15 @@ import com.linecorp.centraldogma.internal.Jackson;
  *         // Specify when your server uses different uri from the recipient of the assertion that
  *         // the IdP sends. // For example, if your server is behind a proxy, you need to specify
  *         // the uri of the proxy.
- *         "acs": [{
- *             "uri": "https://dogma-example.linecorp.com/saml/acs/post",
- *             "binding": "HTTP_POST"
- *         }, {
- *             "uri": "https://dogma-example.linecorp.com/saml/acs/redirect",
- *             "binding": "HTTP_REDIRECT"
- *         }]
+ *         "acs": {
+ *             "endpoints": [{
+ *                 "uri": "https://dogma-example.linecorp.com/saml/acs/post",
+ *                 "binding": "HTTP_POST"
+ *             }, {
+ *                 "uri": "https://dogma-example.linecorp.com/saml/acs/redirect",
+ *                 "binding": "HTTP_REDIRECT"
+ *             }]
+ *         },
  *         "idp": {
  *             "entityId": "...the identity provider ID...",
  *             "uri": "https://idp-example.linecorp.com/saml/sso",
@@ -284,7 +286,7 @@ final class SamlAuthProperties {
         private final List<SamlEndpoint> endpoints;
 
         @JsonCreator
-        Acs(@JsonProperty("uri") List<SamlEndpoint> endpoints) {
+        Acs(@JsonProperty("endpoints") List<SamlEndpoint> endpoints) {
             this.endpoints = requireNonNull(endpoints, "endpoints");
         }
 
