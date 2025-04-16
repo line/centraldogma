@@ -264,7 +264,7 @@ public class RepositoryServiceV1 extends AbstractService {
      *
      * <p>Returns the repository status.
      */
-    @Get("/projects/{projectName}/repos/{repoName}/status")
+    @Get("/projects/{projectName}/repos/{repoName}")
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     public RepositoryDto status(Project project, Repository repository) {
         validateDogmaProject(project);

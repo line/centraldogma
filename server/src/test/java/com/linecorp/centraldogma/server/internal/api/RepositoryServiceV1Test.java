@@ -185,9 +185,9 @@ class RepositoryServiceV1Test {
         assertThat(aRes.status()).isEqualTo(HttpStatus.CREATED);
         final BlockingWebClient client = dogma.httpClient().blocking();
         ResponseEntity<RepositoryDto> responseEntity = client.prepare()
-                                                            .get(REPOS_PREFIX + '/' + repoName + "/status")
-                                                            .asJson(RepositoryDto.class)
-                                                            .execute();
+                                                             .get(REPOS_PREFIX + '/' + repoName)
+                                                             .asJson(RepositoryDto.class)
+                                                             .execute();
         assertThat(responseEntity.status()).isSameAs(HttpStatus.OK);
         assertThat(responseEntity.content().status()).isSameAs(RepositoryStatus.ACTIVE);
 

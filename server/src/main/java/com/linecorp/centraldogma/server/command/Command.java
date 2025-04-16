@@ -383,9 +383,6 @@ public interface Command<T> {
     /**
      * Returns a new {@link Command} which is used to force-push {@link Command} even the server is in
      * read-only mode. This command is useful for migrating the repository content during maintenance mode.
-     *
-     * <p>Note that {@link CommandType#NORMALIZING_PUSH} and {@link CommandType#PUSH} are allowed as the
-     * delegate.
      */
     static <T> Command<T> forcePush(Command<T> delegate) {
         requireNonNull(delegate, "delegate");
