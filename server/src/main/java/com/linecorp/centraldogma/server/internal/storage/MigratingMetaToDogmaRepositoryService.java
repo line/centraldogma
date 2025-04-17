@@ -120,8 +120,6 @@ public final class MigratingMetaToDogmaRepositoryService {
                 // Do not continue the migration if the migration fails.
                 return;
             }
-
-            Thread.sleep(3000L);
             metadataService.updateRepositoryStatus(
                     Author.SYSTEM, projectName, REPO_DOGMA, RepositoryStatus.ACTIVE).join();
             logger.info("Dogma repository in the project '{}' is set to active.", projectName);
