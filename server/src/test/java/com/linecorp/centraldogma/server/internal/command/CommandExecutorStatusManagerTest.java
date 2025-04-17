@@ -58,7 +58,8 @@ class CommandExecutorStatusManagerTest {
         assertThat(executorStatusManager.writable()).isFalse();
         assertThat(executorStatusManager.replicating()).isTrue();
 
-        executorStatusManager.updateStatus(new UpdateServerStatusCommand(null, null, ServerStatus.READ_ONLY));
+        executorStatusManager.updateStatus(
+                new UpdateServerStatusCommand(null, null, ServerStatus.READ_ONLY));
         assertThat(executorStatusManager.writable()).isFalse();
         assertThat(executorStatusManager.replicating()).isFalse();
     }

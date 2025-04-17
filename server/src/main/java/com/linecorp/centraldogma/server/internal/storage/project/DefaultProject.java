@@ -198,6 +198,7 @@ public class DefaultProject implements Project {
     @Nullable
     @Override
     public ProjectMetadata metadata() {
+        // projectMetadata is null only when the project is dogma project.
         return projectMetadata;
     }
 

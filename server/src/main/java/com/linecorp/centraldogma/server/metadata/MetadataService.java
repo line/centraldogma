@@ -42,6 +42,7 @@ import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMap.Builder;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.common.annotation.Nullable;
@@ -54,11 +55,13 @@ import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryRole;
+import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.metadata.ProjectMetadataTransformer;
+import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -88,7 +91,6 @@ public class MetadataService {
     private final ProjectManager projectManager;
     private final RepositorySupport<ProjectMetadata> metadataRepo;
     private final RepositorySupport<Tokens> tokenRepo;
-    private final CommandExecutor executor;
     private final InternalProjectInitializer projectInitializer;
 
     private final Map<String, CompletableFuture<Revision>> reposInAddingMetadata = new ConcurrentHashMap<>();
@@ -99,7 +101,6 @@ public class MetadataService {
     public MetadataService(ProjectManager projectManager, CommandExecutor executor,
                            InternalProjectInitializer projectInitializer) {
         this.projectManager = requireNonNull(projectManager, "projectManager");
-        this.executor = requireNonNull(executor, "executor");
         this.projectInitializer = requireNonNull(projectInitializer, "projectInitializer");
         metadataRepo = new RepositorySupport<>(projectManager, executor, ProjectMetadata.class);
         tokenRepo = new RepositorySupport<>(projectManager, executor, Tokens.class);
@@ -293,7 +294,8 @@ public class MetadataService {
                                  new RepositoryMetadata(repositoryMetadata.name(),
                                                         newRoles,
                                                         repositoryMetadata.creation(),
-                                                        repositoryMetadata.removal()));
+                                                        repositoryMetadata.removal(),
+                                                        repositoryMetadata.status()));
             } else {
                 reposBuilder.put(entry);
             }
@@ -455,7 +457,8 @@ public class MetadataService {
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
-                                          repositoryMetadata.removal());
+                                          repositoryMetadata.removal(),
+                                          repositoryMetadata.status());
         });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -558,7 +561,8 @@ public class MetadataService {
                 builder.put(entry.getKey(), new RepositoryMetadata(repositoryMetadata.name(),
                                                                    newRoles,
                                                                    repositoryMetadata.creation(),
-                                                                   repositoryMetadata.removal()));
+                                                                   repositoryMetadata.removal(),
+                                                                   repositoryMetadata.status()));
             } else {
                 builder.put(entry);
             }
@@ -620,7 +624,8 @@ public class MetadataService {
                 return new RepositoryMetadata(repositoryMetadata.name(),
                                               newRoles,
                                               repositoryMetadata.creation(),
-                                              repositoryMetadata.removal());
+                                              repositoryMetadata.removal(),
+                                              repositoryMetadata.status());
             });
             return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
         });
@@ -650,7 +655,8 @@ public class MetadataService {
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
-                                          repositoryMetadata.removal());
+                                          repositoryMetadata.removal(),
+                                          repositoryMetadata.status());
         });
         final String commitSummary = "Remove repository role of the '" + memberId +
                                      "' from '" + projectName + '/' + repoName + '\'';
@@ -691,7 +697,8 @@ public class MetadataService {
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
-                                          repositoryMetadata.removal());
+                                          repositoryMetadata.removal(),
+                                          repositoryMetadata.status());
         });
         final String commitSummary = "Update repository role of the '" + memberId + "' as '" + role +
                                      "' for '" + projectName + '/' + repoName + '\'';
@@ -730,7 +737,8 @@ public class MetadataService {
                 return new RepositoryMetadata(repositoryMetadata.name(),
                                               newRoles,
                                               repositoryMetadata.creation(),
-                                              repositoryMetadata.removal());
+                                              repositoryMetadata.removal(),
+                                              repositoryMetadata.status());
             });
             return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
         });
@@ -761,7 +769,8 @@ public class MetadataService {
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
-                                          repositoryMetadata.removal());
+                                          repositoryMetadata.removal(),
+                                          repositoryMetadata.status());
         });
         final String commitSummary = "Remove repository role of the token '" + appId +
                                      "' from '" + projectName + '/' + repoName + '\'';
@@ -803,7 +812,8 @@ public class MetadataService {
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
-                                          repositoryMetadata.removal());
+                                          repositoryMetadata.removal(),
+                                          repositoryMetadata.status());
         });
         final String commitSummary = "Update repository role of the token '" + appId +
                                      "' for '" + projectName + '/' + repoName + '\'';
@@ -1206,5 +1216,72 @@ public class MetadataService {
         return map.entrySet().stream()
                   .filter(e -> !e.getKey().equals(id))
                   .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+    }
+
+    /**
+     * Updates the {@link ServerStatus} of the specified {@code repoName}.
+     */
+    public CompletableFuture<Revision> updateRepositoryStatus(
+            Author author, String projectName, String repoName, RepositoryStatus repositoryStatus) {
+        requireNonNull(author, "author");
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repoName, "repoName");
+        requireNonNull(repositoryStatus, "repositoryStatus");
+        final String newRepoName;
+        if (Project.REPO_META.equals(repoName)) {
+            newRepoName = Project.REPO_DOGMA; // Use dogma repository because meta repository will be removed.
+        } else {
+            newRepoName = repoName;
+        }
+
+        final ProjectMetadataTransformer transformer;
+        if (Project.REPO_DOGMA.equals(newRepoName)) {
+            // Have to use ProjectMetadataTransformer because the repository metadata of dogma repository
+            // might not exist.
+            transformer = new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
+                final RepositoryMetadata repositoryMetadata = projectMetadata.repos().get(Project.REPO_DOGMA);
+                if (repositoryMetadata != null) {
+                    throwIfRedundant(repositoryStatus, headRevision, repositoryMetadata, Project.REPO_DOGMA);
+                }
+                final RepositoryMetadata newRepositoryMetadata = RepositoryMetadata.ofDogma(repositoryStatus);
+                final Builder<String, RepositoryMetadata> builder = ImmutableMap.builder();
+                builder.put(Project.REPO_DOGMA, newRepositoryMetadata);
+                projectMetadata.repos().forEach((name, metadata) -> {
+                    if (!Project.REPO_DOGMA.equals(name)) {
+                        builder.put(name, metadata);
+                    }
+                });
+                return new ProjectMetadata(projectMetadata.name(),
+                                           builder.build(),
+                                           projectMetadata.members(),
+                                           projectMetadata.tokens(),
+                                           projectMetadata.creation(),
+                                           projectMetadata.removal());
+            });
+        } else {
+            transformer = new RepositoryMetadataTransformer(
+                    newRepoName, (headRevision, repositoryMetadata) -> {
+                throwIfRedundant(repositoryStatus, headRevision, repositoryMetadata, newRepoName);
+
+                return new RepositoryMetadata(repositoryMetadata.name(),
+                                              repositoryMetadata.roles(),
+                                              repositoryMetadata.creation(),
+                                              repositoryMetadata.removal(),
+                                              repositoryStatus);
+            });
+        }
+
+        final String commitSummary = "Update the status of '" + projectName + '/' + newRepoName +
+                                     "'. status: " + repositoryStatus;
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer, true);
+    }
+
+    private static void throwIfRedundant(RepositoryStatus repositoryStatus, Revision headRevision,
+                                         RepositoryMetadata repositoryMetadata, String newRepoName) {
+        if (repositoryMetadata.status() == repositoryStatus) {
+            throw new RedundantChangeException(
+                    headRevision,
+                    "the status of '" + newRepoName + "' isn't changed. status: " + repositoryStatus);
+        }
     }
 }

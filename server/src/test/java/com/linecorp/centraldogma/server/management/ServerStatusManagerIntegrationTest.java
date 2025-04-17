@@ -73,7 +73,7 @@ class ServerStatusManagerIntegrationTest {
         dogma.client().createProject("test-project").join();
 
         final BlockingWebClient client = dogma.httpClient().blocking();
-        // Read-only mode.
+        // replication-only mode.
         ServerStatus serverStatus = updateServerStatus(client, ServerStatus.REPLICATION_ONLY);
         assertThat(serverStatus.writable()).isFalse();
         assertThat(serverStatus.replicating()).isTrue();
@@ -94,7 +94,7 @@ class ServerStatusManagerIntegrationTest {
         assertThat(serverStatus.replicating()).isTrue();
 
         // Enable the writable mode.
-        serverStatus = updateServerStatus(client, ServerStatus.WRITABLE);
+        serverStatus = updateServerStatus(client, ServerStatus.WRITABLE, Scope.LOCAL);
         assertThat(serverStatus.writable()).isTrue();
         assertThat(serverStatus.replicating()).isTrue();
 
@@ -171,8 +171,10 @@ class ServerStatusManagerIntegrationTest {
                       .asJson(ServerStatus.class)
                       .execute()
                       .content();
-        // Wait for the status to be replicated to the other servers.
-        Thread.sleep(500);
+        if (scope == Scope.ALL) {
+            // Wait for the status to be replicated to the other servers.
+            Thread.sleep(500);
+        }
         return newServerStatus;
     }
 
@@ -182,13 +184,5 @@ class ServerStatusManagerIntegrationTest {
                      .asJson(ServerStatus.class)
                      .execute()
                      .content();
-    }
-
-    private static String patchServerStatus(boolean writable, boolean replicating) {
-        final String writablePatch =
-                "{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": " + writable + " }";
-        final String replicatingPatch =
-                "{ \"op\": \"replace\", \"path\": \"/replicating\", \"value\": " + replicating + " }";
-        return '[' + writablePatch + ", " + replicatingPatch + ']';
     }
 }

@@ -262,8 +262,7 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
                     if (endpoints.isEmpty()) {
                         return;
                     }
-                    if (!initialized.get()) {
-                        initialized.set(true);
+                    if (initialized.compareAndSet(false, true)) {
                         executorService.execute(this::pushK8sEndpoints);
                         return;
                     }

@@ -392,19 +392,17 @@ public interface Command<T> {
     /**
      * Returns a new {@link Command} which is used to force-push {@link Command} even the server is in
      * read-only mode. This command is useful for migrating the repository content during maintenance mode.
-     *
-     * <p>Note that {@link CommandType#NORMALIZING_PUSH} and {@link CommandType#PUSH} are allowed as the
-     * delegate.
      */
     static <T> Command<T> forcePush(Command<T> delegate) {
         requireNonNull(delegate, "delegate");
         checkArgument(delegate.type() == CommandType.CREATE_PROJECT ||
                       delegate.type() == CommandType.CREATE_REPOSITORY ||
-                      delegate.type() == CommandType.NORMALIZING_PUSH || delegate.type() == CommandType.PUSH,
-                      "delegate: %s (expected: CREATE_PROJECT, CREATE_REPOSITORY, NORMALIZING_PUSH or PUSH)",
+                      delegate.type() == CommandType.NORMALIZING_PUSH ||
+                      delegate.type() == CommandType.TRANSFORM ||
+                      delegate.type() == CommandType.PUSH,
+                      "delegate: %s " +
+                      "(expected: CREATE_PROJECT, CREATE_REPOSITORY, NORMALIZING_PUSH, TRANSFORM or PUSH)",
                       delegate);
-        checkArgument(delegate.author().equals(Author.SYSTEM), "delegate.author: %s (expected: SYSTEM)",
-                      delegate.author());
         return new ForcePushCommand<>(delegate);
     }
 
