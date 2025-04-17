@@ -81,9 +81,13 @@ public final class ServerStatusService extends AbstractService {
                 serverStatusManager.updateStatus(newStatus);
                 return status();
             }, serverStatusManager.sequentialExecutor());
-        } else {
-            return execute(Command.updateServerStatus(newStatus))
-                    .thenApply(unused -> status());
         }
+        if (!oldStatus.replicating() && statusRequest.serverStatus().replicating()) {
+            throw new IllegalArgumentException(
+                    "Cannot set replicating status to true with ALL scope. You have to use LOCAL scope " +
+                    "and send this requests to all instances simultaneously to make the cluster replicating.");
+        }
+
+        return execute(Command.updateServerStatus(newStatus)).thenApply(unused -> status());
     }
 }

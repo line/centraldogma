@@ -20,6 +20,7 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJE
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 
@@ -31,6 +32,8 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import com.linecorp.armeria.client.BlockingWebClient;
+import com.linecorp.armeria.client.InvalidHttpResponseException;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
@@ -39,10 +42,21 @@ import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.centraldogma.client.CentralDogmaRepository;
+import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
+import com.linecorp.centraldogma.common.PushResult;
+import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
+import com.linecorp.centraldogma.common.RepositoryStatus;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
+import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
+import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
+import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -164,6 +178,74 @@ class RepositoryServiceV1Test {
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    @Test
+    void updateRepositoryStatus() {
+        final String repoName = "statusRepo";
+        final AggregatedHttpResponse aRes = createRepository(dogma.httpClient(), repoName);
+        assertThat(aRes.status()).isEqualTo(HttpStatus.CREATED);
+        final BlockingWebClient client = dogma.httpClient().blocking();
+        ResponseEntity<RepositoryDto> responseEntity = client.prepare()
+                                                             .get(REPOS_PREFIX + '/' + repoName)
+                                                             .asJson(RepositoryDto.class)
+                                                             .execute();
+        assertThat(responseEntity.status()).isSameAs(HttpStatus.OK);
+        assertThat(responseEntity.content().status()).isSameAs(RepositoryStatus.ACTIVE);
+
+        responseEntity = updateStatus(RepositoryStatus.READ_ONLY, repoName);
+        assertThat(responseEntity.status()).isSameAs(HttpStatus.OK);
+        assertThat(responseEntity.content().status()).isSameAs(RepositoryStatus.READ_ONLY);
+
+        final CentralDogmaRepository centralDogmaRepository = dogma.client().forRepo("myPro", "statusRepo");
+        assertThatThrownBy(() -> centralDogmaRepository.commit("commit", Change.ofTextUpsert("/foo.txt", "foo"))
+                                                       .push().join())
+                .hasCauseExactlyInstanceOf(ReadOnlyException.class);
+
+        responseEntity = updateStatus(RepositoryStatus.ACTIVE, repoName);
+        assertThat(responseEntity.status()).isSameAs(HttpStatus.OK);
+        assertThat(responseEntity.content().status()).isSameAs(RepositoryStatus.ACTIVE);
+        final PushResult result =
+                centralDogmaRepository.commit("commit", Change.ofTextUpsert("/foo.txt", "foo")).push().join();
+        assertThat(result.revision()).isEqualTo(new Revision(2));
+    }
+
+    @Test
+    void updateInternalRepositoryStatus() {
+        ResponseEntity<RepositoryDto> statusResponseEntity =
+                updateStatus(RepositoryStatus.READ_ONLY, Project.REPO_META);
+        assertThat(statusResponseEntity.status()).isSameAs(HttpStatus.OK);
+        assertThat(statusResponseEntity.content().status()).isSameAs(RepositoryStatus.READ_ONLY);
+
+        assertThatThrownBy(() -> createCredential()).isInstanceOf(InvalidHttpResponseException.class)
+                                                    // Read only exception produces 503
+                                                    .hasMessageContaining("status: 503 Service Unavailable");
+
+        statusResponseEntity = updateStatus(RepositoryStatus.ACTIVE, Project.REPO_META);
+        assertThat(statusResponseEntity.status()).isSameAs(HttpStatus.OK);
+        assertThat(statusResponseEntity.content().status()).isSameAs(RepositoryStatus.ACTIVE);
+
+        final ResponseEntity<PushResultDto> credential = createCredential();
+        assertThat(credential.status()).isSameAs(HttpStatus.CREATED);
+    }
+
+    ResponseEntity<RepositoryDto> updateStatus(RepositoryStatus status, String repoName) {
+        final BlockingWebClient client = dogma.httpClient().blocking();
+        return client.prepare()
+                     .put(REPOS_PREFIX + '/' + repoName + "/status")
+                     .contentJson(new UpdateRepositoryStatusRequest(status))
+                     .asJson(RepositoryDto.class)
+                     .execute();
+    }
+
+    private static ResponseEntity<PushResultDto> createCredential() {
+        final CreateCredentialRequest request = new CreateCredentialRequest(
+                "access-token-credential", new AccessTokenCredential(null, "secret-token-abc-1"));
+        return dogma.blockingHttpClient().prepare()
+                    .post("/api/v1/projects/myPro/credentials")
+                    .contentJson(request)
+                    .asJson(PushResultDto.class)
+                    .execute();
+    }
+
     @Nested
     class RepositoriesTest {
 
@@ -202,7 +284,8 @@ class RepositoryServiceV1Test {
                     "       }," +
                     "       \"headRevision\": \"${json-unit.ignore}\"," +
                     "       \"url\": \"/api/v1/projects/myPro/repos/dogma\"," +
-                    "       \"createdAt\": \"${json-unit.ignore}\"" +
+                    "       \"createdAt\": \"${json-unit.ignore}\"," +
+                    "       \"status\": \"ACTIVE\"" +
                     "   }," +
                     "   {" +
                     "       \"name\": \"meta\"," +
@@ -212,7 +295,8 @@ class RepositoryServiceV1Test {
                     "       }," +
                     "       \"headRevision\": \"${json-unit.ignore}\"," +
                     "       \"url\": \"/api/v1/projects/myPro/repos/meta\"," +
-                    "       \"createdAt\": \"${json-unit.ignore}\"" +
+                    "       \"createdAt\": \"${json-unit.ignore}\"," +
+                    "       \"status\": \"ACTIVE\"" +
                     "   }," +
                     "   {" +
                     "       \"name\": \"myRepo\"," +
@@ -222,7 +306,8 @@ class RepositoryServiceV1Test {
                     "       }," +
                     "       \"headRevision\": \"${json-unit.ignore}\"," +
                     "       \"url\": \"/api/v1/projects/myPro/repos/myRepo\"," +
-                    "       \"createdAt\": \"${json-unit.ignore}\"" +
+                    "       \"createdAt\": \"${json-unit.ignore}\"," +
+                    "       \"status\": \"ACTIVE\"" +
                     "   }" +
                     ']';
             assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
@@ -280,7 +365,8 @@ class RepositoryServiceV1Test {
                     "   }," +
                     "   \"headRevision\": 1," +
                     "   \"url\": \"/api/v1/projects/myPro/repos/foo\"," +
-                    "   \"createdAt\": \"${json-unit.ignore}\"" +
+                    "   \"createdAt\": \"${json-unit.ignore}\"," +
+                    "   \"status\": \"ACTIVE\"" +
                     '}';
             assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
         }

@@ -26,9 +26,14 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.linecorp.centraldogma.common.ReadOnlyException;
+import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
+import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
+import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
@@ -102,8 +107,40 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     protected <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception {
+        throwExceptionIfRepositoryNotWritable(command);
+        return doExecute0(command);
+    }
+
+    private void throwExceptionIfRepositoryNotWritable(Command<?> command) throws Exception {
+        if (command instanceof NormalizableCommit) {
+            assert command instanceof RepositoryCommand;
+            final RepositoryCommand<?> repositoryCommand = (RepositoryCommand<?>) command;
+            if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(repositoryCommand.projectName())) {
+                return;
+            }
+            String repoName = repositoryCommand.repositoryName();
+            if (Project.REPO_META.equals(repoName)) {
+                // Use REPO_DOGMA for the meta repository because the meta repository will be removed.
+                repoName = Project.REPO_DOGMA;
+            }
+
+            final ProjectMetadata metadata = projectManager.get(repositoryCommand.projectName()).metadata();
+            assert metadata != null;
+            final RepositoryMetadata repositoryMetadata = metadata.repos().get(repoName);
+            if (repositoryMetadata == null) {
+                // The repository metadata is not found, so it is writable.
+                return;
+            }
+            if (repositoryMetadata.status() == RepositoryStatus.READ_ONLY) {
+                throw new ReadOnlyException(
+                        "The repository is in read-only. command: " + repositoryCommand);
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> CompletableFuture<T> doExecute0(Command<T> command) throws Exception {
         if (command instanceof CreateProjectCommand) {
             return (CompletableFuture<T>) createProject((CreateProjectCommand) command);
         }
@@ -166,8 +203,9 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         }
 
         if (command instanceof ForcePushCommand) {
+            // TODO(minwoox): Should we prevent executing when the replication status is READ_ONLY?
             //noinspection TailRecursion
-            return doExecute(((ForcePushCommand<T>) command).delegate());
+            return doExecute0(((ForcePushCommand<T>) command).delegate());
         }
 
         throw new UnsupportedOperationException(command.toString());

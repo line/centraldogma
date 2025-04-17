@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.server.storage.repository.HasWeight;
@@ -32,6 +33,9 @@ import com.linecorp.centraldogma.server.storage.repository.HasWeight;
  * Role metadata for a repository.
  */
 public final class Roles implements HasWeight {
+
+    static final Roles EMPTY = new Roles(ProjectRoles.of(null, null),
+                                         ImmutableMap.of(), ImmutableMap.of());
 
     private final ProjectRoles projectRoles;
 

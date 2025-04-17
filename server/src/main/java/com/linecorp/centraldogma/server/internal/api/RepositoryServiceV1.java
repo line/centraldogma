@@ -42,11 +42,13 @@ import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.ProducesJson;
+import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryRole;
+import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.CreateRepositoryRequest;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
@@ -56,7 +58,10 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
+import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -87,24 +92,73 @@ public class RepositoryServiceV1 extends AbstractService {
             HttpApiUtil.checkStatusArgument(status);
         }
 
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
+            if (user.isSystemAdmin()) {
+                if (status != null) {
+                    return CompletableFuture.completedFuture(removedRepositories(project));
+                }
+                return CompletableFuture.completedFuture(
+                        project.repos().list().values().stream()
+                               .map(repository -> DtoConverter.convert(repository, RepositoryStatus.ACTIVE))
+                               .collect(toImmutableList()));
+            }
+            return HttpApiUtil.throwResponse(
+                    ctx, HttpStatus.FORBIDDEN,
+                    "You must be a system administrator to retrieve repositories of the dogma project.");
+        }
+
+        if (status == null) {
+            final Map<String, RepositoryMetadata> repos = projectMetadata(project).repos();
+            return CompletableFuture.completedFuture(
+                    project.repos().list().values().stream()
+                           .filter(r -> user.isSystemAdmin() || !Project.isInternalRepo(r.name()))
+                           .map(repository -> DtoConverter.convert(repository, repos))
+                           .collect(toImmutableList()));
+        }
+
         return mds.findProjectRole(project.name(), user).handle((role, throwable) -> {
             final boolean hasOwnerRole = role == ProjectRole.OWNER;
-            if (status != null) {
-                if (hasOwnerRole) {
-                    return project.repos().listRemoved().keySet().stream().map(RepositoryDto::new)
-                                  .collect(toImmutableList());
-                }
-                return HttpApiUtil.throwResponse(
-                        ctx, HttpStatus.FORBIDDEN,
-                        "You must be an owner of project '%s' to retrieve removed repositories.",
-                        project.name());
+            if (hasOwnerRole) {
+                return removedRepositories(project);
             }
-
-            return project.repos().list().values().stream()
-                          .filter(r -> user.isSystemAdmin() || !Project.isInternalRepo(r.name()))
-                          .map(DtoConverter::convert)
-                          .collect(toImmutableList());
+            return HttpApiUtil.throwResponse(
+                    ctx, HttpStatus.FORBIDDEN,
+                    "You must be an owner of project '%s' to retrieve removed repositories.",
+                    project.name());
         });
+    }
+
+    private static ProjectMetadata projectMetadata(Project project) {
+        assert !InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name());
+        final ProjectMetadata metadata = project.metadata();
+        assert metadata != null; // not null because the project is not dogma project.
+        return metadata;
+    }
+
+    private static RepositoryStatus repositoryStatus(Repository repository) {
+        final Map<String, RepositoryMetadata> repos = projectMetadata(repository.parent()).repos();
+        final String repoName = normalizeRepositoryName(repository);
+
+        final RepositoryMetadata metadata = repos.get(repoName);
+        if (metadata == null) {
+            return RepositoryStatus.ACTIVE;
+        } else {
+            return metadata.status();
+        }
+    }
+
+    private static String normalizeRepositoryName(Repository repository) {
+        final String repoName = repository.name();
+        if (!Project.REPO_META.equals(repoName)) {
+            return repoName;
+        }
+        // Use dogma repository for the meta repository because the meta repository will be removed.
+        return Project.REPO_DOGMA;
+    }
+
+    private static ImmutableList<RepositoryDto> removedRepositories(Project project) {
+        return project.repos().listRemoved().keySet().stream().map(RepositoryDto::removed)
+                      .collect(toImmutableList());
     }
 
     /**
@@ -115,7 +169,7 @@ public class RepositoryServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/repos")
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
-    @RequiresProjectRole(ProjectRole.OWNER)
+    @RequiresProjectRole(ProjectRole.MEMBER)
     public CompletableFuture<RepositoryDto> createRepository(ServiceRequestContext ctx, Project project,
                                                              CreateRepositoryRequest request,
                                                              Author author) {
@@ -127,7 +181,10 @@ public class RepositoryServiceV1 extends AbstractService {
         final CommandExecutor commandExecutor = executor();
         final CompletableFuture<Revision> future =
                 RepositoryServiceUtil.createRepository(commandExecutor, mds, author, project.name(), repoName);
-        return future.handle(returnOrThrow(() -> DtoConverter.convert(project.repos().get(repoName))));
+        return future.handle(returnOrThrow(() -> {
+            final Repository repository = project.repos().get(repoName);
+            return DtoConverter.convert(repository, repositoryStatus(repository));
+        }));
     }
 
     /**
@@ -136,7 +193,7 @@ public class RepositoryServiceV1 extends AbstractService {
      * <p>Removes a repository.
      */
     @Delete("/projects/{projectName}/repos/{repoName}")
-    @RequiresProjectRole(ProjectRole.OWNER)
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
     public CompletableFuture<Void> removeRepository(ServiceRequestContext ctx,
                                                     @Param String repoName,
                                                     Repository repository,
@@ -164,6 +221,8 @@ public class RepositoryServiceV1 extends AbstractService {
                                           .handle(HttpApiUtil::throwUnsafelyIfNonNull));
     }
 
+    // TODO(minwoox): Migrate to /projects/{projectName}/repos/{repoName}:unremove when it's supported.
+
     /**
      * PATCH /projects/{projectName}/repos/{repoName}
      *
@@ -179,7 +238,10 @@ public class RepositoryServiceV1 extends AbstractService {
         checkUnremoveArgument(node);
         return execute(Command.unremoveRepository(author, project.name(), repoName))
                 .thenCompose(unused -> mds.restoreRepo(author, project.name(), repoName))
-                .handle(returnOrThrow(() -> DtoConverter.convert(project.repos().get(repoName))));
+                .handle(returnOrThrow(() -> {
+                    final Repository repository = project.repos().get(repoName);
+                    return DtoConverter.convert(repository, repositoryStatus(repository));
+                }));
     }
 
     /**
@@ -195,6 +257,44 @@ public class RepositoryServiceV1 extends AbstractService {
         final Revision head = repository.normalizeNow(Revision.HEAD);
         increaseCounterIfOldRevisionUsed(ctx, repository, normalizedRevision, head);
         return ImmutableMap.of("revision", normalizedRevision.major());
+    }
+
+    /**
+     * GET /projects/{projectName}/repos/{repoName}/status
+     *
+     * <p>Returns the repository status.
+     */
+    @Get("/projects/{projectName}/repos/{repoName}")
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    public RepositoryDto status(Project project, Repository repository) {
+        validateDogmaProject(project);
+        return DtoConverter.convert(repository, repositoryStatus(repository));
+    }
+
+    /**
+     * PUT /projects/{projectName}/repos/{repoName}/status
+     *
+     * <p>Changes the repository status.
+     */
+    @Put("/projects/{projectName}/repos/{repoName}/status")
+    @Consumes("application/json")
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    public CompletableFuture<RepositoryDto> updateStatus(Project project,
+                                                         Repository repository,
+                                                         Author author,
+                                                         UpdateRepositoryStatusRequest statusRequest)
+            throws Exception {
+        validateDogmaProject(project);
+        final RepositoryStatus oldStatus = repositoryStatus(repository);
+        final RepositoryStatus newStatus = statusRequest.status();
+        if (oldStatus == newStatus) {
+            // No need to update the status, just return the current status.
+            return CompletableFuture.completedFuture(DtoConverter.convert(repository, oldStatus));
+        }
+
+        return mds.updateRepositoryStatus(author, project.name(),
+                                          normalizeRepositoryName(repository), newStatus)
+                  .thenApply(unused -> DtoConverter.convert(repository, newStatus));
     }
 
     static void increaseCounterIfOldRevisionUsed(ServiceRequestContext ctx, Repository repository,
@@ -232,5 +332,12 @@ public class RepositoryServiceV1 extends AbstractService {
                            Tag.of("repo", repoName),
                            Tag.of("service", firstNonNull(log.serviceName(), "none")),
                            Tag.of("method", log.name()));
+    }
+
+    private static void validateDogmaProject(Project project) {
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
+            throw new IllegalArgumentException(
+                    "Cannot update the status of the internal project: " + project.name());
+        }
     }
 }
