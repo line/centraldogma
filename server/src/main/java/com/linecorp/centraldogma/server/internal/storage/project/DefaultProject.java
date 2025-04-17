@@ -17,6 +17,8 @@
 package com.linecorp.centraldogma.server.internal.storage.project;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.linecorp.centraldogma.server.internal.storage.MigratingMetaToDogmaRepositoryService.META_TO_DOGMA_MIGRATED;
+import static com.linecorp.centraldogma.server.internal.storage.MigratingMetaToDogmaRepositoryService.META_TO_DOGMA_MIGRATION_JOB;
 import static com.linecorp.centraldogma.server.metadata.MetadataService.METADATA_JSON;
 import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static java.util.Objects.requireNonNull;
@@ -68,12 +70,6 @@ import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 public class DefaultProject implements Project {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultProject.class);
-
-    // Will be stored in dogma/dogma
-    public static final String META_TO_DOGMA_MIGRATION_JOB = "/meta-to-dogma-migration-job.json";
-
-    // Will be stored in {project}/dogma
-    public static final String META_TO_DOGMA_MIGRATED = "/meta-to-dogma-migrated.json";
 
     private final String name;
     private final long creationTimeMillis;
