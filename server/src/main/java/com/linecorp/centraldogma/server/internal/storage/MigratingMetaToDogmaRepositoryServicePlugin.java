@@ -35,7 +35,7 @@ import com.linecorp.centraldogma.server.plugin.PluginTarget;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
-public class MigratingMetaToDogmaRepositoryServicePlugin implements Plugin {
+public final class MigratingMetaToDogmaRepositoryServicePlugin implements Plugin {
 
     private static final Logger logger = LoggerFactory.getLogger(
             MigratingMetaToDogmaRepositoryServicePlugin.class);
@@ -49,7 +49,6 @@ public class MigratingMetaToDogmaRepositoryServicePlugin implements Plugin {
     public synchronized CompletionStage<Void> start(PluginContext context) {
         requireNonNull(context, "context");
         try {
-            // executor
             final MigratingMetaToDogmaRepositoryService migratingMetaToDogmaRepositoryService =
                     new MigratingMetaToDogmaRepositoryService(context.projectManager(),
                                                               context.commandExecutor(),
