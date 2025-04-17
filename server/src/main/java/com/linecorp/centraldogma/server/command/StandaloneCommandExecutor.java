@@ -36,6 +36,7 @@ import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -144,6 +145,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return (CompletableFuture<T>) createProject((CreateProjectCommand) command);
         }
 
+        if (command instanceof ResetMetaRepositoryCommand) {
+            return (CompletableFuture<T>) resetMetaRepository((ResetMetaRepositoryCommand) command);
+        }
+
         if (command instanceof RemoveProjectCommand) {
             return (CompletableFuture<T>) removeProject((RemoveProjectCommand) command);
         }
@@ -232,6 +237,21 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private CompletableFuture<Void> purgeProject(PurgeProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.markForPurge(c.projectName());
+            return null;
+        }, repositoryWorker);
+    }
+
+    private CompletableFuture<Void> resetMetaRepository(ResetMetaRepositoryCommand command) {
+        return CompletableFuture.supplyAsync(() -> {
+            final Project project = projectManager.get(command.projectName());
+            if (project == null) {
+                throw new IllegalStateException("Project not found: " + command.projectName());
+            }
+            final MetaRepository metaRepository = project.resetMetaRepository();
+            if (!Project.REPO_DOGMA.equals(metaRepository.name())) {
+                logger.warn("Meta repository name is not changed in {}. meta repo: {}",
+                            project.name(), metaRepository.name());
+            }
             return null;
         }, repositoryWorker);
     }
