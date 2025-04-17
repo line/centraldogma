@@ -689,7 +689,6 @@ public class CentralDogma implements AutoCloseable {
         });
 
         final MetadataService mds = new MetadataService(pm, executor, projectInitializer);
-        executor.setRepositoryMetadataSupplier(mds::getRepo);
         final WatchService watchService = new WatchService(meterRegistry);
         final AuthProvider authProvider = createAuthProvider(executor, sessionManager, mds);
         final ProjectApiManager projectApiManager = new ProjectApiManager(pm, executor, mds);

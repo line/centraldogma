@@ -22,7 +22,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -35,7 +34,6 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.StartStopSupport;
 import com.linecorp.centraldogma.common.ReadOnlyException;
-import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 
 /**
  * Helps to implement a concrete {@link CommandExecutor}.
@@ -58,9 +56,6 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     private volatile boolean writable = true;
     private final AtomicInteger numPendingStopRequests = new AtomicInteger();
     private final CommandExecutorStatusManager statusManager;
-
-    @Nullable
-    private BiFunction<String, String, CompletableFuture<RepositoryMetadata>> repositoryMetadataSupplier;
 
     /**
      * Creates a new instance.
@@ -123,12 +118,6 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     @Override
     public final void setWritable(boolean writable) {
         this.writable = writable;
-    }
-
-    @Override
-    public void setRepositoryMetadataSupplier(
-            BiFunction<String, String, CompletableFuture<RepositoryMetadata>> supplier) {
-        repositoryMetadataSupplier = requireNonNull(supplier, "supplier");
     }
 
     @Override

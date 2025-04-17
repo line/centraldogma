@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.common.Author;
@@ -66,6 +67,7 @@ class MigratingMetaToDogmaRepositoryServiceTest {
         }
     };
 
+    @Timeout(20)
     @Test
     void migrate() throws Exception {
         final ProjectManager projectManager = projectManagerExtension.projectManager();
@@ -100,17 +102,26 @@ class MigratingMetaToDogmaRepositoryServiceTest {
         assertThat(commitResult.revision().major()).isEqualTo(4);
 
         // Add a dummy file that will be not copied to the dogma repository.
-        project.repos().get(Project.REPO_META).commit(
+        commitResult = project.repos().get(Project.REPO_META).commit(
                 Revision.HEAD, System.currentTimeMillis(),
                 Author.SYSTEM, "dummy file", Change.ofJsonUpsert("/dummy.json", "{\"a\": \"b\"}")).join();
+        // Meta repository revision;
+        assertThat(commitResult.revision().major()).isEqualTo(5);
+
+        // Dogma repository revision is 3.
+        Revision revision = project.repos().get(Project.REPO_DOGMA).normalizeNow(Revision.HEAD);
+        assertThat(revision.major()).isEqualTo(3);
 
         final MigratingMetaToDogmaRepositoryService migrationService =
                 new MigratingMetaToDogmaRepositoryService(
-                        projectManager, projectManagerExtension.executor());
+                        projectManager, projectManagerExtension.executor(),
+                        projectManagerExtension.internalProjectInitializer());
         migrationService.migrate();
 
-        // Remove this.
-        project.resetMetaRepository();
+        // Dogma repository revision increased by 3.
+        // read-only, commit, active
+        revision = project.repos().get(Project.REPO_DOGMA).normalizeNow(Revision.HEAD);
+        assertThat(revision.major()).isEqualTo(6);
 
         assertThat(project.metaRepo().name()).isEqualTo(Project.REPO_DOGMA);
         final Repository repository = project.repos().get(Project.REPO_DOGMA);
@@ -125,5 +136,11 @@ class MigratingMetaToDogmaRepositoryServiceTest {
                 "/metadata.json",
                 "/repos/repo/credentials/alice.json",
                 "/repos/repo/mirrors/foo.json");
+
+        // Check if the dogma repository is active.
+        commitResult = project.repos().get(Project.REPO_DOGMA).commit(
+                Revision.HEAD, System.currentTimeMillis(),
+                Author.SYSTEM, "dummy file", Change.ofJsonUpsert("/foo.json", "{\"a\": \"b\"}")).join();
+        assertThat(commitResult.revision().major()).isEqualTo(7);
     }
 }

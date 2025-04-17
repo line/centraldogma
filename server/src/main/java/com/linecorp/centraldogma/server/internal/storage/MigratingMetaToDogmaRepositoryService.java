@@ -37,11 +37,14 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -59,10 +62,13 @@ public final class MigratingMetaToDogmaRepositoryService {
 
     private final ProjectManager projectManager;
     private final CommandExecutor commandExecutor;
+    private final MetadataService metadataService;
 
-    MigratingMetaToDogmaRepositoryService(ProjectManager projectManager, CommandExecutor commandExecutor) {
+    MigratingMetaToDogmaRepositoryService(ProjectManager projectManager, CommandExecutor commandExecutor,
+                                          InternalProjectInitializer internalProjectInitializer) {
         this.projectManager = projectManager;
         this.commandExecutor = commandExecutor;
+        metadataService = new MetadataService(projectManager, commandExecutor, internalProjectInitializer);
     }
 
     boolean hasMigrationLog() throws ExecutionException, InterruptedException {
@@ -77,6 +83,7 @@ public final class MigratingMetaToDogmaRepositoryService {
         logger.info("Starting to migrate meta repository to dogma repository of all projects ...");
         final Stopwatch stopwatch = Stopwatch.createStarted();
         int numMigratedProjects = 0;
+
         for (Project project : projectManager.list().values()) {
             final String projectName = project.name();
             if (INTERNAL_PROJECT_DOGMA.equals(projectName)) {
@@ -88,15 +95,12 @@ public final class MigratingMetaToDogmaRepositoryService {
                 continue;
             }
             logger.info("Migrating meta repository to dogma repository in the project: {} ...", projectName);
-            // fire read-only command
-            Thread.sleep(3000L);
-            // Copy the meta repository metadata to the dogma repository.
-            // put the migration log to the dogma repository
-            // sleep 3000
-            // reset the meta repository
-            // sleep 3000
-            // read-only command
 
+            metadataService.updateRepositoryStatus(
+                    Author.SYSTEM, projectName, REPO_DOGMA, RepositoryStatus.READ_ONLY).join();
+            // Wait for the repository status to be updated.
+            Thread.sleep(3000L);
+            logger.info("Dogma repository in the project '{}' is set to read-only.", projectName);
             try {
                 migrateMetaRepository(project);
                 numMigratedProjects++;
@@ -104,18 +108,33 @@ public final class MigratingMetaToDogmaRepositoryService {
                             projectName);
             } catch (Throwable t) {
                 logger.warn("Failed to migrate meta repository. project: {}", projectName, t);
-                continue;
+                // Do not continue the migration if the migration fails.
+                return;
             }
+
+            try {
+                commandExecutor.execute(Command.resetMetaRepository(Author.SYSTEM, projectName))
+                               .get(1, TimeUnit.MINUTES);
+            } catch (Throwable t) {
+                logger.warn("Failed to reset meta repository. project: {}", projectName, t);
+                // Do not continue the migration if the migration fails.
+                return;
+            }
+
+            Thread.sleep(3000L);
+            metadataService.updateRepositoryStatus(
+                    Author.SYSTEM, projectName, REPO_DOGMA, RepositoryStatus.ACTIVE).join();
+            logger.info("Dogma repository in the project '{}' is set to active.", projectName);
         }
         logMigrationJob(numMigratedProjects);
-        logger.info("Migrating meta repository to dogma repository of {} projects has been completed."
-                    + "(took: {} ms.)", numMigratedProjects, stopwatch.elapsed().toMillis());
+        logger.info("Migrating meta repository to dogma repository of {} projects has been completed." +
+                    "(took: {} ms.)", numMigratedProjects, stopwatch.elapsed().toMillis());
     }
 
     private void logMigrationJob(int numMigratedProjects) throws Exception {
         final Map<String, Object> data =
                 ImmutableMap.of("timestamp", Instant.now(),
-                                "meta_removed", numMigratedProjects);
+                                "numMigratedProjects", numMigratedProjects);
         final Change<JsonNode> change = Change.ofJsonUpsert(META_TO_DOGMA_MIGRATION_JOB,
                                                             Jackson.writeValueAsString(data));
         final Command<CommitResult> command =

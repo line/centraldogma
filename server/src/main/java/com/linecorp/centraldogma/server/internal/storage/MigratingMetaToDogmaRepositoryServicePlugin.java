@@ -18,8 +18,9 @@ package com.linecorp.centraldogma.server.internal.storage;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,23 +52,25 @@ public class MigratingMetaToDogmaRepositoryServicePlugin implements Plugin {
             // executor
             final MigratingMetaToDogmaRepositoryService migratingMetaToDogmaRepositoryService =
                     new MigratingMetaToDogmaRepositoryService(context.projectManager(),
-                                                              context.commandExecutor());
+                                                              context.commandExecutor(),
+                                                              context.internalProjectInitializer());
 
             if (migratingMetaToDogmaRepositoryService.hasMigrationLog()) {
                 logger.debug("Meta repositories of all projects have already been migrated.");
                 return UnmodifiableFuture.completedFuture(null);
             }
 
-            final ExecutorService executor = Executors.newSingleThreadExecutor(
-                    new DefaultThreadFactory("purge-worker", true));
+            final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
+                    new DefaultThreadFactory("migrating-meta-to-dogma-repository-worker", true));
 
-            executor.execute(() -> {
+            executor.schedule(() -> {
                 try {
                     migratingMetaToDogmaRepositoryService.migrate();
                 } catch (Exception e) {
                     logger.error("Failed to migrate meta repository to dogma repository:", e);
                 }
-            });
+                // Execute after 60 seconds to start the migration process in stabilized state.
+            }, 60, TimeUnit.SECONDS);
         } catch (Exception e) {
             logger.error("Failed to migrate meta repository to dogma repository:", e);
         }

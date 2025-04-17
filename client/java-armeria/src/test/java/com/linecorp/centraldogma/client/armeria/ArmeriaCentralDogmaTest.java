@@ -28,6 +28,7 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.PushResult;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class ArmeriaCentralDogmaTest {
@@ -41,12 +42,12 @@ class ArmeriaCentralDogmaTest {
     };
 
     @Test
-    void pushFileToMetaRepositoryShouldFail() throws UnknownHostException {
+    void pushFileToDogmaRepositoryShouldFail() throws UnknownHostException {
         final CentralDogma client = new ArmeriaCentralDogmaBuilder()
                 .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
                 .build();
 
-        assertThatThrownBy(() -> client.forRepo("foo", "meta")
+        assertThatThrownBy(() -> client.forRepo("foo", Project.REPO_META)
                                        .commit("summary", Change.ofJsonUpsert("/bar.json", "{ \"a\": \"b\" }"))
                                        .push()
                                        .join())
@@ -55,13 +56,14 @@ class ArmeriaCentralDogmaTest {
     }
 
     @Test
-    void pushMirrorsJsonFileToMetaRepository() throws UnknownHostException {
+    void pushMirrorsJsonFileToDogmaRepository() throws UnknownHostException {
         final CentralDogma client = new ArmeriaCentralDogmaBuilder()
                 .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
                 .build();
 
-        final PushResult result = client.forRepo("foo", "meta")
-                                        .commit("summary", Change.ofJsonUpsert("/mirrors/foo.json", "{}"))
+        final PushResult result = client.forRepo("foo", Project.REPO_META)
+                                        .commit("summary",
+                                                Change.ofJsonUpsert("/repos/foo/mirrors/foo.json", "{}"))
                                         .push()
                                         .join();
         assertThat(result.revision().major()).isPositive();
