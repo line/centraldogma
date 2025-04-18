@@ -185,7 +185,15 @@ public class DefaultProject implements Project {
     private void createReservedRepos(long creationTimeMillis, boolean useDogmaRepoAsMetaRepo) {
         if (!repos.exists(REPO_DOGMA)) {
             try {
-                repos.create(REPO_DOGMA, creationTimeMillis, Author.SYSTEM);
+                final Repository dogmaRepository =
+                        repos.create(REPO_DOGMA, creationTimeMillis, Author.SYSTEM);
+                if (useDogmaRepoAsMetaRepo) {
+                    dogmaRepository.commit(
+                            Revision.HEAD, creationTimeMillis, Author.SYSTEM,
+                            "Add " + META_TO_DOGMA_MIGRATED + " file to dogma repository", "", Markup.PLAINTEXT,
+                            Change.ofJsonUpsert(META_TO_DOGMA_MIGRATED, "{}"))
+                                   .join();
+                }
             } catch (RepositoryExistsException ignored) {
                 // Just in case there's a race.
             }
@@ -305,13 +313,14 @@ public class DefaultProject implements Project {
         final Repository repository = repos.get(REPO_DOGMA);
         final CompletableFuture<Entry<JsonNode>> future = repository.getOrNull(Revision.HEAD, Query.ofJson(
                 META_TO_DOGMA_MIGRATED));
+        final Entry<JsonNode> entry;
         try {
             // Will be executed by the ZooKeeper command executor during migration.
-            final Entry<JsonNode> entry = future.get(10, TimeUnit.SECONDS);
-            return setMetaRepository(entry != null);
+            entry = future.get(10, TimeUnit.SECONDS);
         } catch (Exception e) {
             throw new IllegalStateException("failed to get the migration entry in 10 seconds. ", e);
         }
+        return setMetaRepository(entry != null);
     }
 
     private MetaRepository setMetaRepository(boolean useDogmaRepoAsMetaRepo) {
