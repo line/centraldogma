@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Authentication and Access Control &mdash; Central Dogma 0.75.1 documentation</title>
+  <title>Authentication and Access Control &mdash; Central Dogma 0.76.0 documentation</title>
   
 
   
@@ -72,7 +72,7 @@
             
             
               <div class="version">
-                0.75
+                0.76
               </div>
             
           
@@ -292,6 +292,18 @@ the authentication to.</p>
         },
         &quot;signatureAlgorithm&quot;: &quot;http://www.w3.org/2000/09/xmldsig#rsa-sha1&quot;
       },
+      &quot;acs&quot;: {
+        &quot;endpoints&quot;: [
+          {
+            &quot;uri&quot;: &quot;https://dogma-example.linecorp.com/saml/acs/post&quot;,
+            &quot;binding&quot;: &quot;HTTP_POST&quot;
+          },
+          {
+            &quot;uri&quot;: &quot;https://dogma-example.linecorp.com/saml/acs/redirect&quot;,
+            &quot;binding&quot;: &quot;HTTP_REDIRECT&quot;
+          }
+        ]
+      },
       &quot;idp&quot;: {
         &quot;entityId&quot;: &quot;some-idp&quot;,
         &quot;uri&quot;: &quot;https://idp.some-service.com/saml/single_sign_on_service&quot;,
@@ -358,6 +370,28 @@ Executing <a class="reference external" href="https://docs.oracle.com/en/java/ja
 <ul>
 <li><p>a name of the signature algorithm for signing and encryption.
 If unspecified, <code class="docutils literal notranslate"><span class="pre">http://www.w3.org/2000/09/xmldsig#rsa-sha1</span></code> is used by default.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">acs</span></code></p>
+<ul>
+<li><p>the assertion consumer service configuration. If unspecified, the default value is used which is
+<code class="docutils literal notranslate"><span class="pre">{scheme}://{hostname}:{port}/saml/acs/post</span></code> and <code class="docutils literal notranslate"><span class="pre">{scheme}://{hostname}:{port}/saml/acs/redirect</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">endpoints</span></code> (array of object)</p>
+<ul>
+<li><p>an array of assertion consumer service endpoints. Each endpoint has the following properties:</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">uri</span></code> (string)</p>
+<ul>
+<li><p>a uri where a SAML response is supposed to be sent to.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">binding</span></code> (string)</p>
+<ul>
+<li><p>a binding protocol of the <code class="docutils literal notranslate"><span class="pre">uri</span></code>. It can be one of <code class="docutils literal notranslate"><span class="pre">HTTP_POST</span></code> or <code class="docutils literal notranslate"><span class="pre">HTTP_REDIRECT</span></code>.
+If unspecified, <code class="docutils literal notranslate"><span class="pre">HTTP_POST</span></code> is used by default.</p></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>

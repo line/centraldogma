@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Configuration &mdash; Central Dogma 0.75.1 documentation</title>
+  <title>Configuration &mdash; Central Dogma 0.76.0 documentation</title>
   
 
   
@@ -72,7 +72,7 @@
             
             
               <div class="version">
-                0.75
+                0.76
               </div>
             
           
@@ -229,10 +229,6 @@ defaults:</p>
   },
   &quot;replication&quot;: {
     &quot;method&quot;: &quot;NONE&quot;
-  },
-  &quot;writeQuotaPerRepository&quot;: {
-    &quot;requestQuota&quot;: 5,
-    &quot;timeWindowSeconds&quot;: 1
   },
   &quot;accessLogFormat&quot;: &quot;common&quot;,
   &quot;authentication&quot;: null,
@@ -405,24 +401,6 @@ even if there is a stuck request.</p></li>
 <ul>
 <li><p>the replication method. <code class="docutils literal notranslate"><span class="pre">NONE</span></code> indicates ‘standalone mode’ without replication. See <a class="reference internal" href="#replication"><span class="std std-ref">Configuring replication</span></a>
 to learn how to configure ZooKeeper-based multi-master replication.</p></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">writeQuotaPerRepository</span></code></p>
-<ul class="simple">
-<li><p>the maximum allowed write quota per repository. If <code class="docutils literal notranslate"><span class="pre">requestQuota</span></code> is set to 5 and
-<code class="docutils literal notranslate"><span class="pre">timeWindowSeconds</span></code> is set to 1, <span class="xref std std-ref">pushing-a-commit`</span> cannot exceed 5 QPS; if exceeded,
-<a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429">429 Too Many Requests</a> will be returned.
-If <code class="docutils literal notranslate"><span class="pre">null</span></code>, no limit is enforced.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">requestQuota</span></code> (integer)</p>
-<ul>
-<li><p>a maximum number of acceptable requests.</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">timeWindowSeconds</span></code> (integer)</p>
-<ul>
-<li><p>a time windows in seconds.</p></li>
 </ul>
 </li>
 </ul>
