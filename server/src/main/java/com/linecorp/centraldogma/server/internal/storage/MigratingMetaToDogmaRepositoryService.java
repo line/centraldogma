@@ -82,19 +82,19 @@ public final class MigratingMetaToDogmaRepositoryService {
     void migrate() throws Exception {
         logger.info("Starting to migrate meta repository to dogma repository of all projects ...");
         final Stopwatch stopwatch = Stopwatch.createStarted();
-        int numMigratedProjects = migrate0();
+        int numMigratedProjects = migrate0(true);
         logMigrationJob(numMigratedProjects);
         logger.info("Migrating meta repository to dogma repository of {} projects has been completed." +
                     "(took: {} ms.)", numMigratedProjects, stopwatch.elapsed().toMillis());
 
         logger.info("Starting to migrate meta repository to dogma repository again to check " +
                     "if there are any projects that are created during migration ...");
-        numMigratedProjects = migrate0();
+        numMigratedProjects = migrate0(false);
         logger.info("Migrating meta repository to dogma repository of {} projects has been completed.",
                     numMigratedProjects);
     }
 
-    private int migrate0() throws Exception {
+    private int migrate0(boolean logSkippedProject) throws Exception {
         int numMigratedProjects = 0;
 
         for (Project project : projectManager.list().values()) {
@@ -104,7 +104,9 @@ public final class MigratingMetaToDogmaRepositoryService {
             }
 
             if (REPO_DOGMA.equals(project.metaRepo().name())) {
-                logger.debug("The project '{}' has already been migrated.", projectName);
+                if (logSkippedProject) {
+                    logger.debug("The project '{}' has already been migrated.", projectName);
+                }
                 continue;
             }
             logger.info("Migrating meta repository to dogma repository in the project: {} ...", projectName);

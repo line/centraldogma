@@ -56,7 +56,7 @@ class ArmeriaCentralDogmaTest {
     }
 
     @Test
-    void pushMirrorsJsonFileToDogmaRepository() throws UnknownHostException {
+    void pushMirrorsJsonFileToMetaRepository() throws UnknownHostException {
         final CentralDogma client = new ArmeriaCentralDogmaBuilder()
                 .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
                 .build();

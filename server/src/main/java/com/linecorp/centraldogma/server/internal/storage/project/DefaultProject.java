@@ -196,6 +196,7 @@ public class DefaultProject implements Project {
                 // Just in case there's a race.
             } catch (JsonProcessingException e) {
                 // Should never happen because map is used.
+                throw new Error();
             }
         }
         if (!useDogmaRepoAsMetaRepo && !repos.exists(REPO_META)) {
