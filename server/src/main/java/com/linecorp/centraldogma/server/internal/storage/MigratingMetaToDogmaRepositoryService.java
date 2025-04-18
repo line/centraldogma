@@ -82,6 +82,19 @@ public final class MigratingMetaToDogmaRepositoryService {
     void migrate() throws Exception {
         logger.info("Starting to migrate meta repository to dogma repository of all projects ...");
         final Stopwatch stopwatch = Stopwatch.createStarted();
+        int numMigratedProjects = migrate0();
+        logMigrationJob(numMigratedProjects);
+        logger.info("Migrating meta repository to dogma repository of {} projects has been completed." +
+                    "(took: {} ms.)", numMigratedProjects, stopwatch.elapsed().toMillis());
+
+        logger.info("Starting to migrate meta repository to dogma repository again to check " +
+                    "if there are any projects that are created during migration ...");
+        numMigratedProjects = migrate0();
+        logger.info("Migrating meta repository to dogma repository of {} projects has been completed.",
+                    numMigratedProjects);
+    }
+
+    private int migrate0() throws Exception {
         int numMigratedProjects = 0;
 
         for (Project project : projectManager.list().values()) {
@@ -107,26 +120,20 @@ public final class MigratingMetaToDogmaRepositoryService {
                 logger.info("Meta repository in the project '{}' is migrated to dogma repository.",
                             projectName);
             } catch (Throwable t) {
-                logger.warn("Failed to migrate meta repository. project: {}", projectName, t);
+                logger.warn("Failed to migrate meta repository of {} project. Set back to active.",
+                            projectName, t);
+                metadataService.updateRepositoryStatus(
+                        Author.SYSTEM, projectName, REPO_DOGMA, RepositoryStatus.ACTIVE).join();
                 // Do not continue the migration if the migration fails.
-                return;
+                throw t;
             }
 
-            try {
-                commandExecutor.execute(Command.resetMetaRepository(Author.SYSTEM, projectName))
-                               .get(1, TimeUnit.MINUTES);
-            } catch (Throwable t) {
-                logger.warn("Failed to reset meta repository. project: {}", projectName, t);
-                // Do not continue the migration if the migration fails.
-                return;
-            }
+            commandExecutor.execute(Command.resetMetaRepository(Author.SYSTEM, projectName)).join();
             metadataService.updateRepositoryStatus(
                     Author.SYSTEM, projectName, REPO_DOGMA, RepositoryStatus.ACTIVE).join();
-            logger.info("Dogma repository in the project '{}' is set to active.", projectName);
+            logger.info("Dogma repository of {} project is set to active.", projectName);
         }
-        logMigrationJob(numMigratedProjects);
-        logger.info("Migrating meta repository to dogma repository of {} projects has been completed." +
-                    "(took: {} ms.)", numMigratedProjects, stopwatch.elapsed().toMillis());
+        return numMigratedProjects;
     }
 
     private void logMigrationJob(int numMigratedProjects) throws Exception {
