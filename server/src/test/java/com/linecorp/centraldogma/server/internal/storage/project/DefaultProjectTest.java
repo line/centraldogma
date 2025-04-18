@@ -15,8 +15,8 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.project;
 
-import static com.linecorp.centraldogma.server.internal.storage.project.DefaultProject.META_TO_DOGMA_MIGRATED;
-import static com.linecorp.centraldogma.server.internal.storage.project.DefaultProject.META_TO_DOGMA_MIGRATION_JOB;
+import static com.linecorp.centraldogma.server.internal.storage.MigratingMetaToDogmaRepositoryService.META_TO_DOGMA_MIGRATED;
+import static com.linecorp.centraldogma.server.internal.storage.MigratingMetaToDogmaRepositoryService.META_TO_DOGMA_MIGRATION_JOB;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
@@ -81,5 +81,8 @@ class DefaultProjectTest {
         // Meta repository is not created when a project is created.
         assertThat(foo.repos().list().keySet()).containsExactlyInAnyOrder("dogma");
         assertThat(foo.metaRepo().name()).isEqualTo("dogma");
+
+        // No exception is raised while reopening the project.
+        extension.recreateProjectManager();
     }
 }

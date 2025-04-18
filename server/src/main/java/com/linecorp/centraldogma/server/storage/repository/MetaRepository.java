@@ -32,7 +32,7 @@ import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 
 /**
- * A Revision-controlled filesystem-like repository which is named {@code "meta"}.
+ * A Revision-controlled filesystem-like repository.
  */
 public interface MetaRepository extends Repository {
 
