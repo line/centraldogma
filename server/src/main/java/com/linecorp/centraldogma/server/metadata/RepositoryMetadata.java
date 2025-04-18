@@ -16,22 +16,24 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 
 import javax.annotation.Nullable;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.RepositoryRole;
-import com.linecorp.centraldogma.server.QuotaConfig;
+import com.linecorp.centraldogma.common.RepositoryStatus;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -40,12 +42,9 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL) // These are used when serializing.
-@JsonDeserialize(using = RepositoryMetadataDeserializer.class)
 public final class RepositoryMetadata implements Identifiable, HasWeight {
 
     public static final ProjectRoles DEFAULT_PROJECT_ROLES = ProjectRoles.of(RepositoryRole.WRITE, null);
-
-    private static final ProjectRoles INTERNAL_PROJECT_ROLES = ProjectRoles.of(null, null);
 
     /**
      * Creates a new instance with default properties.
@@ -62,6 +61,13 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     }
 
     /**
+     * Creates a new instance for dogma repository.
+     */
+    public static RepositoryMetadata ofDogma(RepositoryStatus repositoryStatus) {
+        return new RepositoryMetadata(Project.REPO_DOGMA, Roles.EMPTY, null, null, repositoryStatus);
+    }
+
+    /**
      * A name of this repository.
      */
     private final String name;
@@ -71,6 +77,7 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     /**
      * Specifies when this repository is created by whom.
      */
+    @Nullable
     private final UserAndTimestamp creation;
 
     /**
@@ -79,11 +86,7 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     @Nullable
     private final UserAndTimestamp removal;
 
-    /**
-     * A write quota of this repository.
-     */
-    @Nullable
-    private final QuotaConfig writeQuota;
+    private final RepositoryStatus repositoryStatus;
 
     /**
      * Creates a new instance.
@@ -91,19 +94,26 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     private RepositoryMetadata(String name, UserAndTimestamp creation, ProjectRoles projectRoles) {
         this(name, new Roles(requireNonNull(projectRoles, "projectRoles"),
                              ImmutableMap.of(), ImmutableMap.of()),
-             creation, /* removal */ null, /* writeQuota */ null);
+             creation, /* removal */ null, RepositoryStatus.ACTIVE);
     }
 
     /**
      * Creates a new instance.
      */
-    public RepositoryMetadata(String name, Roles roles, UserAndTimestamp creation,
-                              @Nullable UserAndTimestamp removal, @Nullable QuotaConfig writeQuota) {
+    @JsonCreator
+    public RepositoryMetadata(@JsonProperty("name") String name,
+                              @JsonProperty("roles") Roles roles,
+                              @JsonProperty("creation") @Nullable UserAndTimestamp creation,
+                              @JsonProperty("removal") @Nullable UserAndTimestamp removal,
+                              @JsonProperty("status") @Nullable RepositoryStatus repositoryStatus) {
         this.name = requireNonNull(name, "name");
         this.roles = requireNonNull(roles, "roles");
-        this.creation = requireNonNull(creation, "creation");
+        if (!Project.REPO_DOGMA.equals(name)) {
+            requireNonNull(creation, "creation");
+        }
+        this.creation = creation;
         this.removal = removal;
-        this.writeQuota = writeQuota;
+        this.repositoryStatus = firstNonNull(repositoryStatus, RepositoryStatus.ACTIVE);
     }
 
     @Override
@@ -129,7 +139,9 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
 
     /**
      * Returns who created this repository when.
+     * This returns {@code null} if this repository is {@link Project#REPO_DOGMA}.
      */
+    @Nullable
     @JsonProperty
     public UserAndTimestamp creation() {
         return creation;
@@ -145,12 +157,11 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     }
 
     /**
-     * Returns the maximum allowed write quota.
+     * Returns the {@link RepositoryStatus}.
      */
-    @Nullable
-    @JsonProperty("writeQuota")
-    public QuotaConfig writeQuota() {
-        return writeQuota;
+    @JsonProperty
+    public RepositoryStatus status() {
+        return repositoryStatus;
     }
 
     @Override
@@ -173,13 +184,14 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
         final RepositoryMetadata that = (RepositoryMetadata) o;
         return name.equals(that.name) &&
                roles.equals(that.roles) &&
-               creation.equals(that.creation) && Objects.equals(removal, that.removal) &&
-               Objects.equals(writeQuota, that.writeQuota);
+               Objects.equals(creation, that.creation) &&
+               Objects.equals(removal, that.removal) &&
+               repositoryStatus == that.repositoryStatus;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, roles, creation, removal, writeQuota);
+        return Objects.hash(name, roles, creation, removal, repositoryStatus);
     }
 
     @Override
@@ -190,7 +202,7 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
                           .add("roles", roles)
                           .add("creation", creation)
                           .add("removal", removal)
-                          .add("writeQuota", writeQuota)
+                          .add("repositoryStatus", repositoryStatus)
                           .toString();
     }
 }

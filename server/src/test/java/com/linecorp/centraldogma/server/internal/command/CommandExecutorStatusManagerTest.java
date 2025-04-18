@@ -21,12 +21,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 
-import javax.annotation.Nullable;
-
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
-import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommandExecutorStatusManager;
@@ -61,7 +58,8 @@ class CommandExecutorStatusManagerTest {
         assertThat(executorStatusManager.writable()).isFalse();
         assertThat(executorStatusManager.replicating()).isTrue();
 
-        executorStatusManager.updateStatus(new UpdateServerStatusCommand(null, null, ServerStatus.READ_ONLY));
+        executorStatusManager.updateStatus(
+                new UpdateServerStatusCommand(null, null, ServerStatus.READ_ONLY));
         assertThat(executorStatusManager.writable()).isFalse();
         assertThat(executorStatusManager.replicating()).isFalse();
     }
@@ -110,10 +108,6 @@ class CommandExecutorStatusManagerTest {
         @Override
         public void setWritable(boolean writable) {
             this.writable = writable;
-        }
-
-        @Override
-        public void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfig writeQuota) {
         }
 
         @Override

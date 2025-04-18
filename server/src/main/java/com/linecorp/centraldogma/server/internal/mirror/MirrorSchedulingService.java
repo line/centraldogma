@@ -61,6 +61,7 @@ import com.linecorp.centraldogma.server.mirror.MirrorAccessController;
 import com.linecorp.centraldogma.server.mirror.MirrorListener;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirrorTask;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -177,15 +178,6 @@ public final class MirrorSchedulingService implements MirroringService {
                     }
                 }));
 
-        if (runMigration) {
-            try {
-                new MigratingMirrorToRepositoryService(projectManager, commandExecutor).migrate();
-            } catch (Exception e) {
-                logger.error("Failed to migrate mirrors to each repository:", e);
-                return;
-            }
-        }
-
         final ListenableScheduledFuture<?> future = scheduler.scheduleWithFixedDelay(
                 this::scheduleMirrors,
                 TICK.getSeconds(), TICK.getSeconds(), TimeUnit.SECONDS);
@@ -250,6 +242,9 @@ public final class MirrorSchedulingService implements MirroringService {
                       .values()
                       .forEach(project -> {
                           if (closing) {
+                              return;
+                          }
+                          if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
                               return;
                           }
 
@@ -325,6 +320,9 @@ public final class MirrorSchedulingService implements MirroringService {
 
         return CompletableFuture.runAsync(
                 () -> projectManager.list().values().forEach(p -> {
+                    if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(p.name())) {
+                        return;
+                    }
                     try {
                         p.metaRepo().mirrors().get(5, TimeUnit.SECONDS)
                          .forEach(m -> run(new MirrorTask(m, User.SYSTEM, Instant.now(), currentZone, false)));

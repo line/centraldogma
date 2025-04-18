@@ -124,7 +124,7 @@ class XdsMemberPermissionTest {
             userClient.createRepository("@xds", "test2").join();
         }).isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(PermissionException.class)
-          .hasMessageContaining("You must have the OWNER project role to access the project '@xds'.");
+          .hasMessageContaining("You must have the MEMBER project role to access the project '@xds'.");
 
         final CentralDogmaRepository userRepo = userClient.forRepo("@xds", "test");
         assertThatThrownBy(() -> {

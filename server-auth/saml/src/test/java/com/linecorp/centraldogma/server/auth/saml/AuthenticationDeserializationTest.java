@@ -57,6 +57,8 @@ class AuthenticationDeserializationTest {
         assertThat(properties.keyStore().keyPasswords()).containsOnly(Maps.immutableEntry("dogma", "bar1"));
     }
 
+    // This is used by SPI.
+    @SuppressWarnings("unused")
     public static class KeyConfigValueConverter implements ConfigValueConverter {
 
         @Override

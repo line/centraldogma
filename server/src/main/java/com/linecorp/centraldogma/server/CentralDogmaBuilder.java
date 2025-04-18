@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.server;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_CACHE_SPEC;
 import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_TIMEOUT_MILLIS;
 import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_VALIDATION_SCHEDULE;
@@ -127,8 +126,6 @@ public final class CentralDogmaBuilder {
     private String sessionValidationSchedule = DEFAULT_SESSION_VALIDATION_SCHEDULE;
     @Nullable
     private Object authProviderProperties;
-    private int writeQuota;
-    private int timeWindowSeconds;
     private MeterRegistry meterRegistry = Flags.meterRegistry();
 
     @Nullable
@@ -501,17 +498,6 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Sets maximum allowed write requests per {@code timeWindowSeconds} for each {@link Repository}.
-     */
-    public CentralDogmaBuilder writeQuotaPerRepository(int writeQuota, int timeWindowSeconds) {
-        checkArgument(writeQuota > 0, "writeQuota: %s (expected: > 0)", writeQuota);
-        checkArgument(timeWindowSeconds > 0, "timeWindowSeconds: %s (expected: > 0)", timeWindowSeconds);
-        this.writeQuota = writeQuota;
-        this.timeWindowSeconds = timeWindowSeconds;
-        return this;
-    }
-
-    /**
      * Sets the {@link MeterRegistry} used to collect metrics.
      */
     public CentralDogmaBuilder meterRegistry(MeterRegistry meterRegistry) {
@@ -611,15 +597,13 @@ public final class CentralDogmaBuilder {
                         AuthConfig.class.getSimpleName());
         }
 
-        final QuotaConfig quotaConfig = writeQuota > 0 ? new QuotaConfig(writeQuota, timeWindowSeconds) : null;
-
         return new CentralDogmaConfig(dataDir, ports, tls, encryptionAtRest, trustedProxyAddresses,
                                       clientAddressSources, numWorkers, maxNumConnections,
                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
                                       numRepositoryWorkers, repositoryCacheSpec,
                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
                                       webAppEnabled, webAppTitle, replicationConfig,
-                                      null, accessLogFormat, authCfg, quotaConfig,
+                                      null, accessLogFormat, authCfg,
                                       corsConfig, pluginConfigs, managementConfig, zoneConfig);
     }
 }

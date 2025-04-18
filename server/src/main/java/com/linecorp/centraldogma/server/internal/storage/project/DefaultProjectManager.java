@@ -31,6 +31,7 @@ import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
+import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -74,7 +75,13 @@ public class DefaultProjectManager extends DirectoryBasedStorageManager<Project>
     @Override
     protected Project createChild(
             File childDir, Author author, long creationTimeMillis, boolean encrypt) throws Exception {
-        return new DefaultProject(childDir, repositoryWorker, purgeWorker(),
+        final Project dogmaProject;
+        if (exists(InternalProjectInitializer.INTERNAL_PROJECT_DOGMA)) {
+            dogmaProject = get(InternalProjectInitializer.INTERNAL_PROJECT_DOGMA);
+        } else {
+            dogmaProject = null;
+        }
+        return new DefaultProject(dogmaProject, childDir, repositoryWorker, purgeWorker(),
                                   creationTimeMillis, author, cache, encryptionStorageManager, encrypt);
     }
 

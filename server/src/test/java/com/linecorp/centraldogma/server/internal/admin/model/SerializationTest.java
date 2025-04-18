@@ -93,7 +93,8 @@ class SerializationTest {
                                            "      \"creation\" : {\n" +
                                            "        \"user\" : \"editor@dogma.org\",\n" +
                                            "        \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
-                                           "      }\n" +
+                                           "      },\n" +
+                                           "      \"status\" : \"ACTIVE\"\n" +
                                            "    }\n" +
                                            "  },\n" +
                                            "  \"members\" : {\n" +
@@ -169,7 +170,8 @@ class SerializationTest {
                                            "      \"creation\" : {\n" +
                                            "        \"user\" : \"editor@dogma.org\",\n" +
                                            "        \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
-                                           "      }\n" +
+                                           "      },\n" +
+                                           "      \"status\" : \"ACTIVE\"\n" +
                                            "    }\n" +
                                            "  },\n" +
                                            "  \"members\" : {\n" +

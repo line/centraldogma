@@ -58,6 +58,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  */
 public class ProjectManagerExtension extends AbstractAllOrEachExtension {
 
+    private Executor repositoryWorker;
     private ProjectManager projectManager;
     private CommandExecutor executor;
     private ScheduledExecutorService purgeWorker;
@@ -74,7 +75,7 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
     public void before(ExtensionContext context) throws Exception {
         tempDir.create();
         dataDir = tempDir.newFolder().toFile();
-        final Executor repositoryWorker = newWorker();
+        repositoryWorker = newWorker();
         purgeWorker = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("purge-worker", true));
         projectManager = newProjectManager(repositoryWorker, purgeWorker);
@@ -155,12 +156,16 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
         }
     }
 
+    public void recreateProjectManager() {
+        projectManager.close(ShuttingDownException::new);
+        projectManager = newProjectManager(repositoryWorker, purgeWorker);
+    }
+
     /**
      * Override this method to customize a {@link CommandExecutor}.
      */
     protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker, File dataDir) {
         return new StandaloneCommandExecutor(projectManager, worker, new ServerStatusManager(dataDir), null,
-                                             NoopEncryptionStorageManager.INSTANCE,
-                                             null, null, null, null, null);
+                                             NoopEncryptionStorageManager.INSTANCE, null, null, null, null);
     }
 }

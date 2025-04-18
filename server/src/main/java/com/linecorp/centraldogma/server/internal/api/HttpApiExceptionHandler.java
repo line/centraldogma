@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.server.internal.api.ContentServiceV1.IS_WATCH_REQUEST;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newResponse;
 
@@ -51,7 +50,6 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.common.TextPatchConflictException;
-import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
@@ -113,13 +111,6 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                     (ctx, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
                .put(UnsupportedOperationException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
-               .put(TooManyRequestsException.class,
-                    (ctx, cause) -> {
-                        final TooManyRequestsException cast = (TooManyRequestsException) cause;
-                        final Object type = firstNonNull(cast.type(), "requests");
-                        return newResponse(ctx, HttpStatus.TOO_MANY_REQUESTS, cast,
-                                           "Too many %s are sent to %s", type, cause.getMessage());
-                    })
                .put(InvalidPushException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
                .put(ReadOnlyException.class,

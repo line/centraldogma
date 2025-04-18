@@ -43,6 +43,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
         @Type(value = CreateProjectCommand.class, name = "CREATE_PROJECT"),
+        @Type(value = ResetMetaRepositoryCommand.class, name = "RESET_META_REPOSITORY"),
         @Type(value = RemoveProjectCommand.class, name = "REMOVE_PROJECT"),
         @Type(value = PurgeProjectCommand.class, name = "PURGE_PROJECT"),
         @Type(value = UnremoveProjectCommand.class, name = "UNREMOVE_PROJECT"),
@@ -92,6 +93,14 @@ public interface Command<T> {
     static Command<Void> createProject(@Nullable Long timestamp, Author author, String name) {
         requireNonNull(author, "author");
         return new CreateProjectCommand(timestamp, author, name, null);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to reset the meta repository.
+     */
+    static Command<Void> resetMetaRepository(Author author, String name) {
+        requireNonNull(author, "author");
+        return new ResetMetaRepositoryCommand(null, author, name);
     }
 
     /**
@@ -410,19 +419,17 @@ public interface Command<T> {
     /**
      * Returns a new {@link Command} which is used to force-push {@link Command} even the server is in
      * read-only mode. This command is useful for migrating the repository content during maintenance mode.
-     *
-     * <p>Note that {@link CommandType#NORMALIZING_PUSH} and {@link CommandType#PUSH} are allowed as the
-     * delegate.
      */
     static <T> Command<T> forcePush(Command<T> delegate) {
         requireNonNull(delegate, "delegate");
         checkArgument(delegate.type() == CommandType.CREATE_PROJECT ||
                       delegate.type() == CommandType.CREATE_REPOSITORY ||
-                      delegate.type() == CommandType.NORMALIZING_PUSH || delegate.type() == CommandType.PUSH,
-                      "delegate: %s (expected: CREATE_PROJECT, CREATE_REPOSITORY, NORMALIZING_PUSH or PUSH)",
+                      delegate.type() == CommandType.NORMALIZING_PUSH ||
+                      delegate.type() == CommandType.TRANSFORM ||
+                      delegate.type() == CommandType.PUSH,
+                      "delegate: %s " +
+                      "(expected: CREATE_PROJECT, CREATE_REPOSITORY, NORMALIZING_PUSH, TRANSFORM or PUSH)",
                       delegate);
-        checkArgument(delegate.author().equals(Author.SYSTEM), "delegate.author: %s (expected: SYSTEM)",
-                      delegate.author());
         return new ForcePushCommand<>(delegate);
     }
 

@@ -33,6 +33,7 @@ import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
 import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
+import com.linecorp.centraldogma.server.auth.saml.SamlAuthProperties.Acs;
 import com.linecorp.centraldogma.server.auth.saml.SamlAuthProperties.Idp;
 import com.linecorp.centraldogma.server.auth.saml.SamlAuthProperties.KeyStore;
 
@@ -66,6 +67,11 @@ public final class SamlAuthProviderFactory implements AuthProviderFactory {
                    .ssoEndpoint(idp.endpoint())
                    .signingKey(idp.signingKey())
                    .encryptionKey(idp.encryptionKey());
+            final Acs acs = properties.acs();
+            if (acs != null && !acs.endpoints().isEmpty()) {
+                acs.endpoints().forEach(builder::acs);
+            }
+
             return new SamlAuthProvider(builder.build());
         } catch (Exception e) {
             throw new IllegalStateException("Failed to create " +

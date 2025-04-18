@@ -567,7 +567,6 @@ public class CentralDogma implements AutoCloseable {
                 logger.info("No replication mechanism specified; entering standalone");
                 executor = new StandaloneCommandExecutor(pm, repositoryWorker, statusManager, sessionManager,
                                                          encryptionStorageManager,
-                                                         cfg.writeQuotaPerRepository(),
                                                          onTakeLeadership, onReleaseLeadership,
                                                          onTakeZoneLeadership, onReleaseZoneLeadership);
                 break;
@@ -826,7 +825,7 @@ public class CentralDogma implements AutoCloseable {
                                               encryptionStorageManager,
                         /* onTakeLeadership */ null, /* onReleaseLeadership */ null,
                         /* onTakeZoneLeadership */ null, /* onReleaseZoneLeadership */ null),
-                meterRegistry, config().writeQuotaPerRepository(), zone,
+                meterRegistry, zone,
                 onTakeLeadership, onReleaseLeadership,
                 onTakeZoneLeadership, onReleaseZoneLeadership);
     }

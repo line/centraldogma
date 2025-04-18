@@ -131,17 +131,6 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
         repositoryMetadataSupplier = requireNonNull(supplier, "supplier");
     }
 
-    /**
-     * Returns the {@link RepositoryMetadata} of the specified repository.
-     */
-    @Nullable
-    protected CompletableFuture<RepositoryMetadata> repositoryMetadata(String projectName, String repoName) {
-        if (repositoryMetadataSupplier == null) {
-            return null;
-        }
-        return repositoryMetadataSupplier.apply(projectName, repoName);
-    }
-
     @Override
     public final <T> CompletableFuture<T> execute(Command<T> command) {
         requireNonNull(command, "command");

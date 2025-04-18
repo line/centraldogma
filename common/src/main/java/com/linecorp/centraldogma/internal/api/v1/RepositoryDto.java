@@ -25,45 +25,71 @@ import java.time.Instant;
 
 import javax.annotation.Nullable;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.common.Revision;
 
 @JsonInclude(Include.NON_NULL)
 public class RepositoryDto {
 
+    public static RepositoryDto removed(String name) {
+        requireNonNull(name, "name");
+        return new RepositoryDto(name);
+    }
+
     private final String name;
 
-    private Author creator;
+    @Nullable
+    private final Author creator;
 
-    private Revision headRevision;
+    @Nullable
+    private final Revision headRevision;
 
-    private String url;
+    @Nullable
+    private final String url;
 
-    private String commitsUrl;
+    @Nullable
+    private final String createdAt;
 
-    private String compareUrl;
+    @Nullable
+    private final RepositoryStatus status;
 
-    private String contentsUrl;
-
-    private String createdAt;
-
-    public RepositoryDto(String name) {
+    RepositoryDto(String name) {
         this.name = requireNonNull(name, "name");
+        creator = null;
+        headRevision = null;
+        url = null;
+        createdAt = null;
+        status = null;
     }
 
     public RepositoryDto(String projectName, String repoName, Author creator, Revision headRevision,
-                         long creationTimeMillis) {
-        name = requireNonNull(repoName, "repoName");
-        this.creator = requireNonNull(creator, "creator");
-        this.headRevision = requireNonNull(headRevision, "headRevision");
-        url = PROJECTS_PREFIX + '/' + requireNonNull(projectName, "projectName") + REPOS + '/' + repoName;
-        createdAt = ISO_INSTANT.format(Instant.ofEpochMilli(creationTimeMillis));
+                         long creationTimeMillis, RepositoryStatus status) {
+        this(requireNonNull(repoName, "repoName"), requireNonNull(creator, "creator"),
+             requireNonNull(headRevision, "headRevision"),
+             PROJECTS_PREFIX + '/' + requireNonNull(projectName, "projectName") + REPOS + '/' + repoName,
+             ISO_INSTANT.format(Instant.ofEpochMilli(creationTimeMillis)), requireNonNull(status, "status"));
+    }
+
+    @JsonCreator
+    public RepositoryDto(@JsonProperty("name") String name,
+                         @JsonProperty("creator") @Nullable Author creator,
+                         @JsonProperty("headRevision") @Nullable Revision headRevision,
+                         @JsonProperty("url") @Nullable String url,
+                         @JsonProperty("createdAt") @Nullable String createdAt,
+                         @JsonProperty("status") @Nullable RepositoryStatus status) {
+        this.name = requireNonNull(name, "name");
+        this.creator = creator;
+        this.headRevision = headRevision;
+        this.url = url;
+        this.createdAt = createdAt;
+        this.status = status;
     }
 
     @JsonProperty("name")
@@ -90,45 +116,26 @@ public class RepositoryDto {
     }
 
     @Nullable
-    @JsonProperty("commitsUrl")
-    public String commitsUrl() {
-        return commitsUrl;
-    }
-
-    @Nullable
-    @JsonProperty("compareUrl")
-    public String compareUrl() {
-        return compareUrl;
-    }
-
-    @Nullable
-    @JsonProperty("contentsUrl")
-    public String contentsUrl() {
-        return contentsUrl;
-    }
-
-    @Nullable
     @JsonProperty("createdAt")
     public String createdAt() {
         return createdAt;
     }
 
+    @Nullable
+    @JsonProperty("status")
+    public RepositoryStatus status() {
+        return status;
+    }
+
     @Override
     public String toString() {
-        final ToStringHelper stringHelper = MoreObjects.toStringHelper(this)
-                                                       .add("name", name());
-        if (creator() != null) {
-            stringHelper.add("creator", creator());
-        }
-
-        if (headRevision() != null) {
-            stringHelper.add("headRevision", headRevision());
-        }
-
-        if (createdAt() != null) {
-            stringHelper.add("createdAt", createdAt());
-        }
-
-        return stringHelper.toString();
+        return MoreObjects.toStringHelper(this).omitNullValues()
+                          .add("name", name())
+                          .add("creator", creator())
+                          .add("headRevision", headRevision())
+                          .add("url", url())
+                          .add("createdAt", createdAt())
+                          .add("status", status())
+                          .toString();
     }
 }
