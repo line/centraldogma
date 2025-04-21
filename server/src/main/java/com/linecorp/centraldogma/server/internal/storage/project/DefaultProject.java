@@ -188,15 +188,11 @@ public class DefaultProject implements Project {
                     dogmaRepository.commit(
                             Revision.HEAD, creationTimeMillis, Author.SYSTEM,
                             "Add " + META_TO_DOGMA_MIGRATED + " file to dogma repository", "", Markup.PLAINTEXT,
-                            Change.ofJsonUpsert(META_TO_DOGMA_MIGRATED,
-                                                Jackson.writeValueAsString(
-                                                        ImmutableMap.of("timestamp", Instant.now())))).join();
+                            Change.ofJsonUpsert(META_TO_DOGMA_MIGRATED, "{}"))
+                                   .join();
                 }
             } catch (RepositoryExistsException ignored) {
                 // Just in case there's a race.
-            } catch (JsonProcessingException e) {
-                // Should never happen because map is used.
-                throw new Error();
             }
         }
         if (!useDogmaRepoAsMetaRepo && !repos.exists(REPO_META)) {
