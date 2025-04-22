@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +37,7 @@ public class TestZoneAwareMirrorListener implements MirrorListener {
 
     private static final Logger logger = LoggerFactory.getLogger(TestZoneAwareMirrorListener.class);
 
-    static final Map<String, AtomicInteger> startCount = new ConcurrentHashMap<>();
+    static final Map<String, Integer> startCount = new ConcurrentHashMap<>();
     static final Map<String, List<MirrorResult>> completions = new ConcurrentHashMap<>();
     static final Map<String, List<Throwable>> errors = new ConcurrentHashMap<>();
 
@@ -64,14 +63,7 @@ public class TestZoneAwareMirrorListener implements MirrorListener {
     @Override
     public void onStart(MirrorTask mirror) {
         logger.debug("onStart: {}", mirror);
-        startCount.compute(key(mirror), (k, v) -> {
-            if (v == null) {
-                return new AtomicInteger(1);
-            } else {
-                v.incrementAndGet();
-                return v;
-            }
-        });
+        startCount.merge(key(mirror), 1, Integer::sum);
     }
 
     @Override

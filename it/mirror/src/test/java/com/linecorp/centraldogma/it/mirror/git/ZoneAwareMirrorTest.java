@@ -31,7 +31,6 @@ import static org.awaitility.Awaitility.await;
 
 import java.net.URI;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nullable;
 
@@ -121,9 +120,7 @@ class ZoneAwareMirrorTest {
 
         await().untilAsserted(() -> {
             // Wait for three mirror tasks to run to ensure that all tasks are running in the same zone.
-            final AtomicInteger atomicInteger = TestZoneAwareMirrorListener.startCount.get(zone);
-            assertThat(atomicInteger).isNotNull();
-            assertThat(atomicInteger.get()).isGreaterThanOrEqualTo(3);
+            assertThat(TestZoneAwareMirrorListener.startCount.get(zone)).isGreaterThanOrEqualTo(3);
         });
         await().untilAsserted(() -> {
             final List<MirrorResult> results = TestZoneAwareMirrorListener.completions.get(zone);
@@ -144,9 +141,7 @@ class ZoneAwareMirrorTest {
         final String defaultZone = ZONES.get(0);
         await().untilAsserted(() -> {
             // Wait for 3 mirror tasks to be run to verify all jobs are executed in the same zone.
-            final AtomicInteger atomicInteger = TestZoneAwareMirrorListener.startCount.get(defaultZone);
-            assertThat(atomicInteger).isNotNull();
-            assertThat(atomicInteger.get()).isGreaterThanOrEqualTo(3);
+            assertThat(TestZoneAwareMirrorListener.startCount.get(defaultZone)).isGreaterThanOrEqualTo(3);
         });
         await().untilAsserted(() -> {
             final List<MirrorResult> results = TestZoneAwareMirrorListener.completions.get(defaultZone);
@@ -195,9 +190,7 @@ class ZoneAwareMirrorTest {
 
         await().untilAsserted(() -> {
             // Wait for 3 mirror tasks to be run to verify all jobs are executed in the same zone.
-            final AtomicInteger atomicInteger = TestZoneAwareMirrorListener.startCount.get(unknownZone);
-            assertThat(atomicInteger).isNotNull();
-            assertThat(atomicInteger.get()).isGreaterThanOrEqualTo(1);
+            assertThat(TestZoneAwareMirrorListener.startCount.get(unknownZone)).isGreaterThanOrEqualTo(1);
         });
         await().untilAsserted(() -> {
             final List<MirrorResult> results = TestZoneAwareMirrorListener.completions.get(unknownZone);
