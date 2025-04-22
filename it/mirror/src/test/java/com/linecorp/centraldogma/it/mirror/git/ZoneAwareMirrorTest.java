@@ -31,6 +31,7 @@ import static org.awaitility.Awaitility.await;
 
 import java.net.URI;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nullable;
 
@@ -54,7 +55,6 @@ import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.MirrorException;
-import com.linecorp.centraldogma.internal.CredentialUtil;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
@@ -121,7 +121,9 @@ class ZoneAwareMirrorTest {
 
         await().untilAsserted(() -> {
             // Wait for three mirror tasks to run to ensure that all tasks are running in the same zone.
-            assertThat(TestZoneAwareMirrorListener.startCount.get(zone)).isGreaterThanOrEqualTo(3);
+            final AtomicInteger atomicInteger = TestZoneAwareMirrorListener.startCount.get(zone);
+            assertThat(atomicInteger).isNotNull();
+            assertThat(atomicInteger.get()).isGreaterThanOrEqualTo(3);
         });
         await().untilAsserted(() -> {
             final List<MirrorResult> results = TestZoneAwareMirrorListener.completions.get(zone);
@@ -142,7 +144,9 @@ class ZoneAwareMirrorTest {
         final String defaultZone = ZONES.get(0);
         await().untilAsserted(() -> {
             // Wait for 3 mirror tasks to be run to verify all jobs are executed in the same zone.
-            assertThat(TestZoneAwareMirrorListener.startCount.get(defaultZone)).isGreaterThanOrEqualTo(3);
+            final AtomicInteger atomicInteger = TestZoneAwareMirrorListener.startCount.get(defaultZone);
+            assertThat(atomicInteger).isNotNull();
+            assertThat(atomicInteger.get()).isGreaterThanOrEqualTo(3);
         });
         await().untilAsserted(() -> {
             final List<MirrorResult> results = TestZoneAwareMirrorListener.completions.get(defaultZone);
@@ -181,7 +185,7 @@ class ZoneAwareMirrorTest {
                                  URI.create("git+ssh://github.com/line/centraldogma-authtest.git/#main"),
                                  null,
                                  null,
-                                 CredentialUtil.credentialName("foo", "bar-unknown-zone", "credential-id"),
+                                 credentialName("foo", "bar-unknown-zone", "credential-id"),
                                  unknownZone);
         final Change<JsonNode> change = Change.ofJsonUpsert(
                 "/repos/bar-unknown-zone/mirrors/" + mirrorId + ".json",
@@ -191,7 +195,9 @@ class ZoneAwareMirrorTest {
 
         await().untilAsserted(() -> {
             // Wait for 3 mirror tasks to be run to verify all jobs are executed in the same zone.
-            assertThat(TestZoneAwareMirrorListener.startCount.get(unknownZone)).isGreaterThanOrEqualTo(1);
+            final AtomicInteger atomicInteger = TestZoneAwareMirrorListener.startCount.get(unknownZone);
+            assertThat(atomicInteger).isNotNull();
+            assertThat(atomicInteger.get()).isGreaterThanOrEqualTo(1);
         });
         await().untilAsserted(() -> {
             final List<MirrorResult> results = TestZoneAwareMirrorListener.completions.get(unknownZone);
