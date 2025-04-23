@@ -17,9 +17,6 @@
 package com.linecorp.centraldogma.server.command;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
-
-import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 
 /**
  * An executor interface which executes {@link Command}s.
@@ -58,12 +55,6 @@ public interface CommandExecutor {
      *                 read-only mode
      */
     void setWritable(boolean writable);
-
-    /**
-     * Sets the {@link RepositoryMetadata} supplier.
-     */
-    void setRepositoryMetadataSupplier(
-            BiFunction<String, String, CompletableFuture<RepositoryMetadata>> supplier);
 
     /**
      * Executes the specified {@link Command}.

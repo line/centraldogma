@@ -74,13 +74,6 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
 
     public static final String ALL_MIRRORS = "/repos/*/mirrors/*.json";
 
-    public static boolean isMetaFile(String path) {
-        return "/mirrors.json".equals(path) || "/credentials.json".equals(path) ||
-               (path.endsWith(".json") &&
-                (path.startsWith(CREDENTIALS) || path.startsWith(LEGACY_MIRRORS_PATH))) ||
-               isMirrorOrCredentialFile(path);
-    }
-
     public static boolean isMirrorOrCredentialFile(String path) {
         return MIRROR_PATH_PATTERN.matcher(path).matches() ||
                REPO_CREDENTIAL_PATH_PATTERN.matcher(path).matches() ||
