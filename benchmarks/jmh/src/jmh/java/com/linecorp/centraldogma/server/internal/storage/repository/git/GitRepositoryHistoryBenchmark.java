@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC;
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager.createFileRepository;
 import static org.mockito.Mockito.mock;
 
 import java.io.File;
@@ -60,9 +61,8 @@ public class GitRepositoryHistoryBenchmark {
     public void init() throws Exception {
         repoDir = Files.createTempDirectory("jmh-gitrepository.").toFile();
         cache = new RepositoryCache(DEFAULT_REPOSITORY_CACHE_SPEC, NoopMeterRegistry.get());
-        repo = new GitRepository(mock(Project.class), repoDir, ForkJoinPool.commonPool(),
-                                 System.currentTimeMillis(), AUTHOR,
-                                 cache);
+        repo = createFileRepository(mock(Project.class), repoDir, AUTHOR,
+                                    System.currentTimeMillis(), ForkJoinPool.commonPool(), cache);
         currentRevision = 1;
 
         // 1000 is the maximum number of allowed commits for a single history query.

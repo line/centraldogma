@@ -84,6 +84,8 @@ public final class CentralDogmaBuilder {
     private final List<ServerPort> ports = new ArrayList<>(2);
     @Nullable
     private TlsConfig tls;
+    @Nullable
+    private EncryptionAtRestConfig encryptionAtRest;
     private final List<String> trustedProxyAddresses = new ArrayList<>();
     private final List<String> clientAddressSources = new ArrayList<>();
     @Nullable
@@ -179,6 +181,14 @@ public final class CentralDogmaBuilder {
      */
     public CentralDogmaBuilder tls(TlsConfig tls) {
         this.tls = requireNonNull(tls, "tls");
+        return this;
+    }
+
+    /**
+     * Sets whether encryption at rest is enabled or not.
+     */
+    public CentralDogmaBuilder encryptionAtRest(EncryptionAtRestConfig encryptionAtRest) {
+        this.encryptionAtRest = requireNonNull(encryptionAtRest, "encryptionAtRest");
         return this;
     }
 
@@ -587,8 +597,8 @@ public final class CentralDogmaBuilder {
                         AuthConfig.class.getSimpleName());
         }
 
-        return new CentralDogmaConfig(dataDir, ports, tls, trustedProxyAddresses, clientAddressSources,
-                                      numWorkers, maxNumConnections,
+        return new CentralDogmaConfig(dataDir, ports, tls, encryptionAtRest, trustedProxyAddresses,
+                                      clientAddressSources, numWorkers, maxNumConnections,
                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
                                       numRepositoryWorkers, repositoryCacheSpec,
                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
