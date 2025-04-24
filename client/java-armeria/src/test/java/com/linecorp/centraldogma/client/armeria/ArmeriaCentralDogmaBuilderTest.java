@@ -32,6 +32,7 @@ import java.util.function.Consumer;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.ImmutableMap;
@@ -129,7 +130,7 @@ class ArmeriaCentralDogmaBuilderTest {
         }
     }
 
-    @Test
+    @RepeatedTest(10000)
     void buildingWithMultipleHosts() throws Exception {
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
         b.dnsAddressEndpointGroupConfigurator(
