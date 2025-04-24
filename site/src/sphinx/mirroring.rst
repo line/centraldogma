@@ -67,21 +67,28 @@ Here is the properties of the mirroring task:
   - the directory path. The content of the ``remote path`` will be mirrored into this directory.
     If unspecified, ``/`` is used.
 
-- ``remoteUri`` (string)
+- ``Remote``
 
-  - the URI of the Git repository which will be mirrored from.
   - Supported schemes are:
 
     - ``git+http``
     - ``git+https``
     - ``git+ssh``
 
-  - Path is split after ``.git``. The part after ``.git`` refers the directory inside the Git repository.
-    e.g. ``/foo.git/src/settings`` refers to the files under the directory ``/src/settings`` which resides in
-    the Git repository ``/foo.git`` If you want to mirror the whole content of the repository, you can simply
-    end the URI with ``.git``. e.g. ``git+ssh://git.example.com/foo.git``
-  - Fragment represents a branch name. e.g. ``#release`` will mirror the branch ``release``. If unspecified,
-    the repository's default branch is mirrored.
+  - ``repo``
+
+    - the uri of the remote Git repository except the scheme.
+      e.g. ``github.com/foo.git``
+
+  - ``branch``
+
+    - the branch name of the remote Git repository. If unspecified, the default branch of the remote
+      Git repository is used.
+
+  - ``path``
+
+    - the path of the remote Git repository. If unspecified, the whole content of
+      the remote Git repository is mirrored.
 
 - ``Credential``
 
