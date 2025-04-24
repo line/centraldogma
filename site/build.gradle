@@ -16,11 +16,13 @@ if (project.hasProperty("noSite")) {
 apply plugin: "kr.motd.sphinx"
 
 def osdetector = project.rootProject.osdetector
+def skipSphinx = osdetector.os == 'osx' && osdetector.arch == 'aarch_64'
 
 sphinx {
     group = 'Documentation'
     description = 'Generates the Sphinx web site.'
     sourceDirectory "${project.projectDir}/src/sphinx"
+    skip = skipSphinx
 }
 
 task javadoc(type: Javadoc,
