@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager.createFileRepository;
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 
 import java.io.File;
@@ -58,6 +59,7 @@ class GitRepositoryListenerTest {
                                     0L, commonPool(), null);
         listener = new TestRepositoryListener();
         repo.addListener(listener);
+        await().until(() -> listener.updateCount.get() == 1);
     }
 
     @AfterAll

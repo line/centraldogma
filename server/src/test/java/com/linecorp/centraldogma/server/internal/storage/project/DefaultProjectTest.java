@@ -81,5 +81,8 @@ class DefaultProjectTest {
         // Meta repository is not created when a project is created.
         assertThat(foo.repos().list().keySet()).containsExactlyInAnyOrder("dogma");
         assertThat(foo.metaRepo().name()).isEqualTo("dogma");
+
+        // No exception is raised while reopening the project.
+        extension.recreateProjectManager();
     }
 }

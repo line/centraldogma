@@ -1,14 +1,14 @@
 [
   {
-    "name": "sslip",
+    "name": "foo",
     "hosts": [
       {
-        "host": "1.2.3.4.sslip.io",
+        "host": "1.2.3.4.foo.com",
         "protocol": "http",
         "port": 36462
       },
       {
-        "host": "5.6.7.8.sslip.io",
+        "host": "5.6.7.8.foo.com",
         "protocol": "http",
         "port": 8080
       }

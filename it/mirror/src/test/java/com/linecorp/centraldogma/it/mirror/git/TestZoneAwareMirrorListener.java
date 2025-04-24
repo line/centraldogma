@@ -18,10 +18,10 @@ package com.linecorp.centraldogma.it.mirror.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,7 +69,7 @@ public class TestZoneAwareMirrorListener implements MirrorListener {
     @Override
     public void onComplete(MirrorTask mirror, MirrorResult result) {
         logger.debug("onComplete: {} -> {}", mirror, result);
-        final List<MirrorResult> results = new ArrayList<>();
+        final List<MirrorResult> results = new CopyOnWriteArrayList<>();
         results.add(result);
         completions.merge(key(mirror), results, (oldValue, newValue) -> {
             oldValue.addAll(newValue);
@@ -80,7 +80,7 @@ public class TestZoneAwareMirrorListener implements MirrorListener {
     @Override
     public void onError(MirrorTask mirror, Throwable cause) {
         logger.debug("onError: {}", mirror, cause);
-        final List<Throwable> exceptions = new ArrayList<>();
+        final List<Throwable> exceptions = new CopyOnWriteArrayList<>();
         exceptions.add(cause);
         errors.merge(key(mirror), exceptions, (oldValue, newValue) -> {
             oldValue.addAll(newValue);
