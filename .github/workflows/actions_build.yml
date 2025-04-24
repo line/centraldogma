@@ -45,12 +45,12 @@ jobs:
             snapshot: true
             os: ubuntu-latest
 
-    name: build-${{ matrix.on }}-jdk-${{ matrix.java }}${{ matrix.min-java && format('-min-java-{0}', matrix.min-java) || '' }}${{ matrix.coverage && '-coverage' || ''}}${{ matrix.snapshot && '-snapshot' || ''}}
+    name: build-${{ matrix.os }}-jdk-${{ matrix.java }}${{ matrix.min-java && format('-min-java-{0}', matrix.min-java) || '' }}${{ matrix.coverage && '-coverage' || ''}}${{ matrix.snapshot && '-snapshot' || ''}}
 
     steps:
     - name: Set job name
       run: |
-        JOB_NAME="build-${{ matrix.on }}-jdk-${{ matrix.java }}${{ matrix.min-java && format('-min-java-{0}', matrix.min-java) || '' }}${{ matrix.coverage && '-coverage' || ''}}${{ matrix.snapshot && '-snapshot' || ''}}"
+        JOB_NAME="build-${{ matrix.os }}-jdk-${{ matrix.java }}${{ matrix.min-java && format('-min-java-{0}', matrix.min-java) || '' }}${{ matrix.coverage && '-coverage' || ''}}${{ matrix.snapshot && '-snapshot' || ''}}"
         echo "JOB_NAME=$JOB_NAME" >> $GITHUB_ENV
       shell: bash
     - uses: actions/checkout@v3
