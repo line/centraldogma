@@ -157,7 +157,6 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
             return toResolvedHostEndpoint(firstHost);
         }
 
-        final List<Endpoint> staticEndpoints = new ArrayList<>();
         final List<EndpointGroup> groups = new ArrayList<>();
         for (final InetSocketAddress addr : hosts) {
             if (addr.isUnresolved()) {
@@ -167,19 +166,15 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
                 dnsAddressEndpointGroupConfigurator.configure(dnsAddressEndpointGroup);
                 groups.add(dnsAddressEndpointGroup.port(addr.getPort()).build());
             } else {
-                staticEndpoints.add(toResolvedHostEndpoint(addr));
+                groups.add(toResolvedHostEndpoint(addr));
             }
-        }
-
-        if (!staticEndpoints.isEmpty()) {
-            groups.add(EndpointGroup.of(staticEndpoints));
         }
 
         final EndpointGroup group;
         if (groups.size() == 1) {
             group = groups.get(0);
         } else {
-            group = new CompositeEndpointGroup(groups, EndpointSelectionStrategy.roundRobin());
+            group = EndpointGroup.of(EndpointSelectionStrategy.roundRobin(), groups);
         }
 
         return group;
