@@ -179,7 +179,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
         if (groups.size() == 1) {
             group = groups.get(0);
         } else {
-            group = new CompositeEndpointGroup(groups, EndpointSelectionStrategy.roundRobin());
+            group = EndpointGroup.of(EndpointSelectionStrategy.roundRobin(), groups);
         }
 
         return group;

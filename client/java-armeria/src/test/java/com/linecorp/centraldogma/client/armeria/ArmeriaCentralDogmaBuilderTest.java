@@ -74,17 +74,11 @@ class ArmeriaCentralDogmaBuilderTest {
         b.dnsAddressEndpointGroupConfigurator(
                 configurator -> configurator.serverAddressStreamProvider(dnsServer.dnsServerList()));
         b.healthCheckIntervalMillis(0);
-        // See src/test/resources/centraldogma-client-test.json
+        // See src/test/resources/centraldogma-profiles-test.json
         b.profile("foo");
 
         try (EndpointGroup group = b.endpointGroup()) {
             assertThat(group).isNotNull();
-            assertThat(group).isInstanceOf(CompositeEndpointGroup.class);
-            final CompositeEndpointGroup compositeGroup = (CompositeEndpointGroup) group;
-            final List<EndpointGroup> childGroups = compositeGroup.groups();
-            assertThat(childGroups).hasSize(2);
-            assertThat(childGroups.get(0)).isInstanceOf(DnsAddressEndpointGroup.class);
-            assertThat(childGroups.get(1)).isInstanceOf(DnsAddressEndpointGroup.class);
 
             await().untilAsserted(() -> {
                 final List<Endpoint> endpoints = group.endpoints();
@@ -142,13 +136,6 @@ class ArmeriaCentralDogmaBuilderTest {
 
         try (EndpointGroup endpointGroup = b.endpointGroup()) {
             assertThat(endpointGroup).isNotNull();
-            assertThat(endpointGroup).isInstanceOf(CompositeEndpointGroup.class);
-            final CompositeEndpointGroup compositeGroup = (CompositeEndpointGroup) endpointGroup;
-            final List<EndpointGroup> childGroups = compositeGroup.groups();
-            assertThat(childGroups).hasSize(3);
-            assertThat(childGroups.get(0)).isInstanceOf(DnsAddressEndpointGroup.class);
-            assertThat(childGroups.get(1)).isInstanceOf(DnsAddressEndpointGroup.class);
-            assertThat(childGroups.get(2).toString()).contains("StaticEndpointGroup");
 
             await().untilAsserted(() -> {
                 final List<Endpoint> endpoints = endpointGroup.endpoints();
