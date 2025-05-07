@@ -17,23 +17,38 @@ package com.linecorp.centraldogma.client;
 
 import static java.util.Objects.requireNonNull;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.PathPattern;
+import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -42,6 +57,8 @@ import io.micrometer.core.instrument.MeterRegistry;
  */
 public final class CentralDogmaRepository {
 
+    private static final Set<String> PLACEHOLDERS =
+            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(".gitkeep", ".keep", ".gitignore")));
     private final CentralDogma centralDogma;
     private final String projectName;
     private final String repositoryName;
@@ -57,6 +74,30 @@ public final class CentralDogmaRepository {
         this.repositoryName = repositoryName;
         this.blockingTaskExecutor = blockingTaskExecutor;
         this.meterRegistry = meterRegistry;
+    }
+
+    private static Change<?> toChange(String repoPath, Path file) {
+        try {
+            byte[] bytes = Files.readAllBytes(file);
+            String lower = file.getFileName().toString().toLowerCase();
+
+            if (lower.endsWith(".json")) {
+                return Change.ofJsonUpsert(repoPath,
+                                           Jackson.readTree(bytes));
+            }
+
+            if (lower.endsWith(".yml") || lower.endsWith(".yaml") ||
+                (Files.probeContentType(file) != null &&
+                 Files.probeContentType(file).startsWith("text/"))) {
+                return Change.ofTextUpsert(repoPath,
+                                           new String(bytes, StandardCharsets.UTF_8));
+            }
+            return Change.ofTextUpsert(repoPath,
+                                       new String(bytes, StandardCharsets.UTF_8));
+
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to create Change for " + file, e);
+        }
     }
 
     CentralDogma centralDogma() {
@@ -296,6 +337,48 @@ public final class CentralDogmaRepository {
     public WatcherRequest<Revision> watcher(PathPattern pathPattern) {
         requireNonNull(pathPattern, "pathPattern");
         return new WatcherRequest<>(this, pathPattern, blockingTaskExecutor, meterRegistry);
+    }
+
+    public CompletableFuture<ImportResult> importDir(Path dir) {
+        requireNonNull(dir, "dir");
+
+        if (!Files.isDirectory(dir)) {
+            return CompletableFutures.exceptionallyCompletedFuture(
+                    new IllegalArgumentException(dir + " is not a directory"));
+        }
+
+        final List<Change<?>> changes = new ArrayList<>();
+        try (Stream<Path> s = Files.walk(dir)) {
+            s.filter(Files::isRegularFile)
+             .filter(p -> !PLACEHOLDERS.contains(p.getFileName().toString()))
+             .forEach(p -> {
+                 Path rel = dir.relativize(p);                      // repo-relative path
+                 String repoPath = '/' + rel.toString()
+                                            .replace(File.separatorChar, '/');
+                 changes.add(toChange(repoPath, p));
+             });
+        } catch (IOException e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
+        }
+
+        return ensureProjectAndRepoExist()
+                .thenCompose(unused -> {
+                    if (changes.isEmpty()) {
+                        return CompletableFuture.completedFuture(ImportResult.empty());
+                    }
+                    return commit("Import " + dir.getFileName(), changes)
+                            .push(Revision.HEAD)
+                            .thenApply(ImportResult::fromPushResult);
+                });
+    }
+
+    private CompletableFuture<Void> ensureProjectAndRepoExist() {
+        return centralDogma.createProject(projectName()).exceptionally(ignore -> null)
+                           .thenCompose(unused ->
+                                                centralDogma.createRepository(projectName(),
+                                                                              repositoryName())
+                                                            .exceptionally(ignore -> null))
+                           .thenApply(unused -> null);
     }
 
     @Override

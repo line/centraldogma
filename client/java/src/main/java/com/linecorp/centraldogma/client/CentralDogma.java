@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.client;
 import static com.linecorp.centraldogma.internal.PathPatternUtil.toPathPattern;
 import static java.util.Objects.requireNonNull;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -419,6 +420,7 @@ public interface CentralDogma extends AutoCloseable {
     CompletableFuture<List<Change<?>>> getDiff(String projectName, String repositoryName,
                                                Revision from, Revision to, PathPattern pathPattern);
 
+    CompletableFuture<ImportResult> importDir(Path dir);
     /**
      * Retrieves the diffs of the files matched by the given path pattern between two {@link Revision}s.
      *

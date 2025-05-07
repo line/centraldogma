@@ -17,15 +17,25 @@
 package com.linecorp.centraldogma.client;
 
 import static com.linecorp.centraldogma.internal.PathPatternUtil.toPathPattern;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -37,6 +47,7 @@ import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -60,6 +71,25 @@ public abstract class AbstractCentralDogma implements CentralDogma {
                                    @Nullable MeterRegistry meterRegistry) {
         this.blockingTaskExecutor = requireNonNull(blockingTaskExecutor, "blockingTaskExecutor");
         this.meterRegistry = meterRegistry;
+    }
+
+    private static Change<?> toChange(String repoPath, Path file) {
+        try {
+            byte[] bytes = Files.readAllBytes(file);
+            String name = file.getFileName().toString().toLowerCase();
+
+            if (name.endsWith(".json")) {
+                return Change.ofJsonUpsert(repoPath, Jackson.readTree(bytes));
+            }
+            if (name.endsWith(".yml") || name.endsWith(".yaml") ||
+                (Files.probeContentType(file) != null &&
+                 Files.probeContentType(file).startsWith("text/"))) {
+                return Change.ofTextUpsert(repoPath, new String(bytes, UTF_8));
+            }
+            return Change.ofTextUpsert(repoPath, new String(bytes, UTF_8));
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to build Change for " + file, e);
+        }
     }
 
     /**
@@ -190,6 +220,44 @@ public abstract class AbstractCentralDogma implements CentralDogma {
                                                                 .map(function)
                                                                 .mapperExecutor(executor)
                                                                 .start();
+    }
+
+    @Override
+    public CompletableFuture<ImportResult> importDir(Path dir) {
+        requireNonNull(dir, "dir");
+        if (dir.getNameCount() < 2) {
+            return CompletableFutures.exceptionallyCompletedFuture(new IllegalArgumentException(
+                    "Path must be <project>/<repo>[/…]: " + dir));
+        }
+        // todo : should refactor this method ( reference backward )
+
+        final String project = dir.getName(0).toString();
+        final String repo = dir.getName(1).toString();
+        final Path norm = dir.toAbsolutePath().normalize();
+        final CentralDogmaRepository centralDogmaRepository = forRepo(project, repo);
+
+        if (dir.getNameCount() == 2 || Files.isDirectory(norm)) {
+            return centralDogmaRepository.importDir(norm);
+        }
+
+        // single file
+        final Path rel = norm.subpath(2, norm.getNameCount());
+        final String logical = '/' + rel.toString().replace(File.separatorChar, '/');
+        final Change<?> ch = toChange(logical, norm);
+
+        return centralDogmaRepository.commit("Import " + logical, ch)
+                .push(Revision.HEAD)
+                .thenApply(ImportResult::fromPushResult);
+    }
+
+    @Override
+    public CompletableFuture<ImportResult> importResourceDir(String dir) {
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<ImportResult> importResourceDir(String dir, ClassLoader classLoader) {
+        return null;
     }
 
     /**
