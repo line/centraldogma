@@ -57,13 +57,13 @@ public class RocksDbRefUpdate extends RefUpdate {
 
     @Override
     protected Result doUpdate(Result desiredResult) throws IOException {
-        return repo.encryptedGitStorage().updateRef(getRef().getName(), getNewObjectId(), desiredResult);
+        return repo.encryptionGitStorage().updateRef(getRef().getName(), getNewObjectId(), desiredResult);
     }
 
     @Override
     protected Result doDelete(Result desiredResult) throws IOException {
         if (getRef().getStorage() != Ref.Storage.NEW) {
-            repo.encryptedGitStorage().deleteRef(getRef().getName());
+            repo.encryptionGitStorage().deleteRef(getRef().getName());
         }
         return desiredResult;
     }
@@ -71,7 +71,7 @@ public class RocksDbRefUpdate extends RefUpdate {
     @Override
     protected Result doLink(String target) throws IOException {
         assert target.startsWith(Constants.R_REFS) : target;
-        repo.encryptedGitStorage().linkRef(getRef().getName(), target);
+        repo.encryptionGitStorage().linkRef(getRef().getName(), target);
         if (getRef().getStorage() == Ref.Storage.NEW) {
             return Result.NEW;
         }

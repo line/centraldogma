@@ -170,7 +170,6 @@ class GitRepository implements Repository {
     /**
      * The current head revision. Initialized by the constructor and updated by commit().
      */
-    @SuppressWarnings("NotNullFieldNotInitialized")
     private volatile Revision headRevision;
 
     /**
@@ -187,6 +186,11 @@ class GitRepository implements Repository {
         this.cache = cache;
         this.jGitRepository = jGitRepository;
         this.commitIdDatabase = commitIdDatabase;
+        new CommitExecutor(this, creationTimeMillis, author, "Create a new repository", "",
+                           Markup.PLAINTEXT, true)
+                .executeInitialCommit();
+        // Must be set after the initial commit.
+        headRevision = Revision.INIT;
     }
 
     /**

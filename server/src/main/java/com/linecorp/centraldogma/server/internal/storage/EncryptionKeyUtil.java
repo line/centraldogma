@@ -66,6 +66,10 @@ public final class EncryptionKeyUtil {
         return nonce;
     }
 
+    public static byte[] encrypt(SecretKey key, byte[] nonce, byte[] data) throws Exception {
+        return encrypt(key, nonce, data, 0, data.length);
+    }
+
     public static byte[] encrypt(SecretKey key, byte[] nonce, byte[] data, int off, int len) throws Exception {
         final Cipher cipher = Cipher.getInstance(ALGORITHM, PROVIDER);
         final GCMParameterSpec parameterSpec = new GCMParameterSpec(TAG_SIZE_BITS, nonce);

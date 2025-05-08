@@ -15,11 +15,16 @@
  */
 package com.linecorp.centraldogma.server.storage.encryption;
 
+import static com.linecorp.centraldogma.server.internal.storage.EncryptionKeyUtil.NONCE_SIZE_BYTES;
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.EncryptionGitStorage.OBJS;
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.EncryptionGitStorage.REFS;
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.EncryptionGitStorage.REV2SHA;
 import static java.util.Objects.requireNonNull;
 import static org.rocksdb.RocksDB.listColumnFamilies;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
@@ -35,6 +40,7 @@ import org.rocksdb.DBOptions;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+import org.rocksdb.RocksIterator;
 import org.rocksdb.WriteBatch;
 import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
@@ -55,7 +61,8 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
     private final KeyManagementService keyManagementService;
     private final DBOptions options;
     private final RocksDB rocksDb;
-    private final List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>();
+    private final ColumnFamilyHandle defaultColumnFamilyHandle;
+    private final ColumnFamilyHandle metadataColumnFamilyHandle;
 
     DefaultEncryptionStorageManager(String rocksDbPath) {
         final List<KeyManagementService> keyManagementServices = ImmutableList.copyOf(ServiceLoader.load(
@@ -97,7 +104,23 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
                 ENCRYPTION_METADATA_COLUMN_FAMILY.getBytes(), new ColumnFamilyOptions()));
         options = new DBOptions();
         try {
+            final List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>();
             rocksDb = RocksDB.open(options, rocksDbPath, columnFamilyDescriptors, columnFamilyHandles);
+            ColumnFamilyHandle defaultColumnFamilyHandle = null;
+            ColumnFamilyHandle metadataColumnFamilyHandle = null;
+            for (ColumnFamilyHandle handle : columnFamilyHandles) {
+                if (Arrays.equals(RocksDB.DEFAULT_COLUMN_FAMILY, handle.getName())) {
+                    defaultColumnFamilyHandle = handle;
+                } else if (Arrays.equals(ENCRYPTION_METADATA_COLUMN_FAMILY.getBytes(StandardCharsets.UTF_8),
+                                         handle.getName())) {
+                    metadataColumnFamilyHandle = handle;
+                }
+            }
+            if (defaultColumnFamilyHandle == null || metadataColumnFamilyHandle == null) {
+                throw new EncryptionStorageException("Failed to get required column family handles.");
+            }
+            this.defaultColumnFamilyHandle = defaultColumnFamilyHandle;
+            this.metadataColumnFamilyHandle = metadataColumnFamilyHandle;
         } catch (RocksDBException e) {
             throw new EncryptionStorageException("Failed to open RocksDB", e);
         }
@@ -145,9 +168,15 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
         requireNonNull(repoName, "repoName");
         requireNonNull(wdek, "wdek");
         final byte[] wdekKeyBytes = repoWdekDbKey(projectName, repoName).getBytes(StandardCharsets.UTF_8);
-        if (rocksDb.keyMayExist(wdekKeyBytes, null)) {
+        try {
+            final byte[] existingWdek = rocksDb.get(wdekKeyBytes);
+            if (existingWdek != null) {
+                throw new EncryptionStorageException(
+                        "WDEK of " + projectRepo(projectName, repoName) + " already exists");
+            }
+        } catch (RocksDBException e) {
             throw new EncryptionStorageException(
-                    "WDEK of " + projectRepo(projectName, repoName) + " already exists");
+                    "Failed to check existence of WDEK for " + projectRepo(projectName, repoName), e);
         }
 
         // RocksDB is thread-safe.
@@ -193,7 +222,7 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
     public byte[] getMetadata(byte[] metadataKey) {
         requireNonNull(metadataKey, "metadataKey");
         try {
-            return rocksDb.get(columnFamilyHandles.get(1), metadataKey);
+            return rocksDb.get(metadataColumnFamilyHandle, metadataKey);
         } catch (RocksDBException e) {
             throw new EncryptionStorageException("Failed to get metadata. key: " +
                                                  new String(metadataKey, StandardCharsets.UTF_8), e);
@@ -203,8 +232,8 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
     @Override
     public void put(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value) {
         try (WriteBatch writeBatch = new WriteBatch()) {
-            writeBatch.put(columnFamilyHandles.get(1), metadataKey, metadataValue);
-            writeBatch.put(columnFamilyHandles.get(0), key, value);
+            writeBatch.put(metadataColumnFamilyHandle, metadataKey, metadataValue);
+            writeBatch.put(defaultColumnFamilyHandle, key, value);
             rocksDb.write(new WriteOptions(), writeBatch);
         } catch (RocksDBException e) {
             throw new EncryptionStorageException("Failed to write key-value with metadata. metadata key: " +
@@ -215,7 +244,13 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
     @Override
     public boolean containsMetadata(byte[] key) {
         requireNonNull(key, "key");
-        return rocksDb.keyMayExist(columnFamilyHandles.get(1), key, null);
+        try {
+            final byte[] value = rocksDb.get(metadataColumnFamilyHandle, key);
+            return value != null;
+        } catch (RocksDBException e) {
+            throw new EncryptionStorageException("Failed to check existence of metadata. key: " +
+                                                 new String(key, StandardCharsets.UTF_8), e);
+        }
     }
 
     @Override
@@ -224,8 +259,8 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
         requireNonNull(key, "key");
         try (WriteBatch writeBatch = new WriteBatch();
              WriteOptions writeOptions = new WriteOptions()) {
-            writeBatch.delete(columnFamilyHandles.get(1), metadataKey);
-            writeBatch.delete(columnFamilyHandles.get(0), key);
+            writeBatch.delete(metadataColumnFamilyHandle, metadataKey);
+            writeBatch.delete(defaultColumnFamilyHandle, key);
             rocksDb.write(writeOptions, writeBatch);
         } catch (RocksDBException e) {
             throw new EncryptionStorageException("Failed to delete key-value with metadata. metadata key: " +
@@ -234,13 +269,139 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
     }
 
     @Override
+    public void deleteRepositoryData(String projectName, String repoName) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repoName, "repoName");
+
+        final SecretKey dek = getDek(projectName, repoName);
+
+        final String projectRepoPrefix = projectRepo(projectName, repoName) + '/';
+        final byte[] projectRepoPrefixBytes = projectRepoPrefix.getBytes(StandardCharsets.UTF_8);
+
+        final byte[] objectKeyPrefixBytes = (projectRepoPrefix + OBJS).getBytes(StandardCharsets.UTF_8);
+        final byte[] refsKeyPrefixBytes = (projectRepoPrefix + REFS).getBytes(StandardCharsets.UTF_8);
+        final byte[] rev2ShaPrefixBytes = (projectRepoPrefix + REV2SHA).getBytes(StandardCharsets.UTF_8);
+
+        int deletedCount = 0;
+        try (WriteBatch writeBatch = new WriteBatch();
+             WriteOptions writeOptions = new WriteOptions();
+             RocksIterator iterator = rocksDb.newIterator(metadataColumnFamilyHandle)) {
+
+            iterator.seek(projectRepoPrefixBytes);
+            while (iterator.isValid()) {
+                final byte[] metadataKey = iterator.key();
+
+                if (!startsWith(metadataKey, projectRepoPrefixBytes)) {
+                    break;
+                }
+
+                final byte[] metadataValue = iterator.value();
+                byte[] keyInDefaultColumnFamily = null;
+                final byte[] nonce;
+                final byte[] idPart; // ObjectId, refName or revNum
+
+                if (startsWith(metadataKey, objectKeyPrefixBytes)) {
+                    // MetadataKey: project/repo/objs/<objectId_bytes(20)>
+                    // MetadataValue: nonce(12) + type(4)
+                    if (metadataKey.length == objectKeyPrefixBytes.length + 20) {
+                        idPart = Arrays.copyOfRange(metadataKey, objectKeyPrefixBytes.length,
+                                                    metadataKey.length);
+                        if (metadataValue != null && metadataValue.length >= NONCE_SIZE_BYTES) {
+                            nonce = Arrays.copyOfRange(metadataValue, 0, NONCE_SIZE_BYTES);
+                            keyInDefaultColumnFamily = EncryptionKeyUtil.encrypt(dek, nonce, idPart);
+                        } else {
+                            logger.warn("Invalid metadata value for object key: {}",
+                                        new String(metadataKey, StandardCharsets.UTF_8));
+                        }
+                    } else {
+                        logger.warn("Invalid object metadata key length: {}",
+                                    new String(metadataKey, StandardCharsets.UTF_8));
+                    }
+                } else if (startsWith(metadataKey, rev2ShaPrefixBytes)) {
+                    // MetadataKey: project/repo/rev2sha/<revision_major_bytes(4)>
+                    // MetadataValue: nonce(12)
+                    if (metadataKey.length == rev2ShaPrefixBytes.length + 4) {
+                        idPart = Arrays.copyOfRange(metadataKey, rev2ShaPrefixBytes.length, metadataKey.length);
+                        nonce = metadataValue;
+                        if (nonce != null && nonce.length == NONCE_SIZE_BYTES) {
+                            keyInDefaultColumnFamily = EncryptionKeyUtil.encrypt(dek, nonce, idPart);
+                        } else {
+                            logger.warn("Invalid nonce (metadata value) for rev2sha key: {}",
+                                        new String(metadataKey, StandardCharsets.UTF_8));
+                        }
+                    } else {
+                        logger.warn("Invalid rev2sha metadata key length: {}",
+                                    new String(metadataKey, StandardCharsets.UTF_8));
+                    }
+                } else if (startsWith(metadataKey, refsKeyPrefixBytes)) {
+                    // MetadataKey: project/repo/refs/... (e.g., project/repo/refs/heads/master)
+                    // idPart should be "refs/..." so copy from projectRepoPrefixBytes.length
+                    // MetadataValue: nonce(12)
+                    idPart = Arrays.copyOfRange(metadataKey, projectRepoPrefixBytes.length, metadataKey.length);
+                    nonce = metadataValue;
+                    if (nonce != null && nonce.length == NONCE_SIZE_BYTES) {
+                        keyInDefaultColumnFamily = EncryptionKeyUtil.encrypt(dek, nonce, idPart);
+                    } else {
+                        logger.warn("Invalid nonce (metadata value) for ref key: {}",
+                                    new String(metadataKey, StandardCharsets.UTF_8));
+                    }
+                } else {
+                    logger.warn("Unknown metadata key pattern for prefix {}: {}",
+                                projectRepoPrefix, new String(metadataKey, StandardCharsets.UTF_8));
+                }
+
+                writeBatch.delete(metadataColumnFamilyHandle, metadataKey);
+                deletedCount++;
+                if (keyInDefaultColumnFamily != null) {
+                    writeBatch.delete(defaultColumnFamilyHandle, keyInDefaultColumnFamily);
+                    deletedCount++;
+                } else {
+                    logger.warn("Failed to find the corresponding key for metadata key: {}.",
+                                new String(metadataKey, StandardCharsets.UTF_8));
+                }
+                iterator.next();
+            }
+
+            if (deletedCount > 0) {
+                rocksDb.write(writeOptions, writeBatch);
+                logger.info("Deleted {} entries for repository {}/{}", deletedCount, projectName, repoName);
+            } else {
+                logger.info("No data found for repository {}/{}", projectName, repoName);
+            }
+        } catch (RocksDBException | EncryptionStorageException e) {
+            throw new EncryptionStorageException(
+                    "Failed to delete repository data for " + projectRepo(projectName, repoName), e);
+        } catch (Exception e) {
+            throw new EncryptionStorageException("Unexpected error during repository data deletion for " +
+                                                 projectRepo(projectName, repoName), e);
+        }
+
+        removeWdek(projectName, repoName);
+    }
+
+    private static boolean startsWith(byte[] array, byte[] prefix) {
+        if (array.length < prefix.length) {
+            return false;
+        }
+        for (int i = 0; i < prefix.length; i++) {
+            if (array[i] != prefix[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
     public void close() {
         try {
-            for (final ColumnFamilyHandle handle : columnFamilyHandles) {
-                handle.close();
-            }
+            defaultColumnFamilyHandle.close();
         } catch (Throwable t) {
-            logger.warn("Failed to close RocksDB column family handles", t);
+            logger.warn("Failed to close default column family handle", t);
+        }
+        try {
+            metadataColumnFamilyHandle.close();
+        } catch (Throwable t) {
+            logger.warn("Failed to close metadata column family handle", t);
         }
         try {
             rocksDb.close();

@@ -61,7 +61,7 @@ final class RocksDbRefDatabase extends RefDatabase {
     @Override
     public RefUpdate newUpdate(String name, boolean detach) throws IOException {
         assert !detach;
-        Ref ref = repo.encryptedGitStorage().readRef(name);
+        Ref ref = repo.encryptionGitStorage().readRef(name);
         if (ref == null) {
             ref = new ObjectIdRef.Unpeeled(NEW, name, null);
         }
@@ -77,7 +77,7 @@ final class RocksDbRefDatabase extends RefDatabase {
     @Nullable
     @Override
     public Ref exactRef(String name) throws IOException {
-        return repo.encryptedGitStorage().readRef(name);
+        return repo.encryptionGitStorage().readRef(name);
     }
 
     @Override

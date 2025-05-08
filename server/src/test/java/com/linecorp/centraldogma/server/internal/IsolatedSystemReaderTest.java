@@ -31,6 +31,5 @@ class IsolatedSystemReaderTest {
         assertThat(reader.getUserConfig()).isSameAs(EmptyGitConfig.INSTANCE);
         assertThat(reader.getSystemConfig()).isSameAs(EmptyGitConfig.INSTANCE);
         assertThat(reader.getJGitConfig()).isSameAs(EmptyGitConfig.INSTANCE);
-        assertThat(reader.getUserConfig()).isSameAs(EmptyGitConfig.INSTANCE);
     }
 }

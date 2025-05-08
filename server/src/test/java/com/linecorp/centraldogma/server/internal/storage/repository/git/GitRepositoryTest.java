@@ -1550,7 +1550,10 @@ class GitRepositoryTest {
 
     private static void ensureWatcherCleanUp() {
         // Make sure CommitWatchers has cleared the watch.
-        await().untilAsserted(() -> assertThat(fileRepo.commitWatchers.watchesMap).isEmpty());
+        await().untilAsserted(() -> {
+            assertThat(fileRepo.commitWatchers.watchesMap).isEmpty();
+            assertThat(encryptedRepo.commitWatchers.watchesMap).isEmpty();
+        });
     }
 
     @Test

@@ -72,7 +72,7 @@ protobuf = "3.25.5"
 protobuf-gradle-plugin = "0.8.19"
 quartz = "2.3.2"
 reflections = "0.9.11"
-rocksdb = "9.10.0"
+rocksdb = "10.0.1"
 shadow-gradle-plugin = "7.1.2"
 # Don't update `shiro` version
 shiro = "1.3.2"

@@ -40,28 +40,15 @@ public final class RepositoryServiceUtil {
 
         assert encryptionStorageManager != null;
 
-        final CompletableFuture<Revision> result = new CompletableFuture<>();
-        final CompletableFuture<byte[]> wdekFuture = encryptionStorageManager.generateWdek();
-        wdekFuture.handle((wdek, cause) -> {
-            if (cause != null) {
-                result.completeExceptionally(
-                        new EncryptionKeyException("Failed to generate a new WDEK for " +
-                                                   projectName + '/' + repoName, cause));
-                return null;
-            }
-            commandExecutor.execute(Command.createRepository(author, projectName, repoName, wdek))
-                           .thenCompose(unused -> mds.addRepo(author, projectName, repoName))
-                           .handle((revision, cause2) -> {
-                               if (cause2 != null) {
-                                   result.completeExceptionally(cause2);
-                                   return null;
-                               }
-                               result.complete(revision);
-                               return null;
-                           });
-            return null;
-        });
-        return result;
+        return encryptionStorageManager.generateWdek()
+                                       .thenCompose(wdek -> commandExecutor.execute(Command.createRepository(
+                                               author, projectName, repoName, wdek)))
+                                       .thenCompose(unused -> mds.addRepo(author, projectName, repoName))
+                                       .exceptionally(cause -> {
+                                           throw new EncryptionKeyException(
+                                                   "Failed to create encrypted repository " +
+                                                   projectName + '/' + repoName, cause);
+                                       });
     }
 
     public static CompletableFuture<Revision> removeRepository(

@@ -51,13 +51,14 @@ import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.StorageManager;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
 public abstract class DirectoryBasedStorageManager<T> implements StorageManager<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(DirectoryBasedStorageManager.class);
 
-    private static final String SUFFIX_REMOVED = ".removed";
-    private static final String SUFFIX_PURGED = ".purged";
+    public static final String SUFFIX_REMOVED = ".removed";
+    public static final String SUFFIX_PURGED = ".purged";
     private static final String GIT_EXTENSION = ".git";
 
     private final String childTypeName;
@@ -66,12 +67,15 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     private final ConcurrentMap<String, T> children = new ConcurrentHashMap<>();
     private final AtomicReference<Supplier<CentralDogmaException>> closed = new AtomicReference<>();
     private final Executor purgeWorker;
+    private final EncryptionStorageManager encryptionStorageManager;
     private boolean initialized;
 
     protected DirectoryBasedStorageManager(File rootDir, Class<? extends T> childType,
-                                           Executor purgeWorker) {
+                                           Executor purgeWorker,
+                                           EncryptionStorageManager encryptionStorageManager) {
         requireNonNull(rootDir, "rootDir");
         this.purgeWorker = requireNonNull(purgeWorker, "purgeWorker");
+        this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
 
         if (!rootDir.exists()) {
             if (!rootDir.mkdirs()) {
@@ -95,6 +99,10 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
     protected Executor purgeWorker() {
         return purgeWorker;
+    }
+
+    protected EncryptionStorageManager encryptionStorageManager() {
+        return encryptionStorageManager;
     }
 
     /**
@@ -167,6 +175,8 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     protected abstract CentralDogmaException newStorageExistsException(String name);
 
     protected abstract CentralDogmaException newStorageNotFoundException(String name);
+
+    protected abstract void deletePurged(File file);
 
     @Override
     public void close(Supplier<CentralDogmaException> failureCauseSupplier) {
@@ -374,7 +384,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         }
         final File purged = marked;
         try {
-            purgeWorker.execute(() -> deletePurgedFile(purged));
+            purgeWorker().execute(() -> deletePurged(purged));
         } catch (Exception e) {
             logger.warn("Failed to schedule a purge task for {}:", purged, e);
         }
@@ -393,18 +403,8 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
             }
             final String name = f.getName();
             if (name.endsWith(SUFFIX_PURGED)) {
-                deletePurgedFile(f);
+                deletePurged(f);
             }
-        }
-    }
-
-    private void deletePurgedFile(File file) {
-        try {
-            logger.info("Deleting a purged {}: {} ..", childTypeName, file);
-            Util.deleteFileTree(file);
-            logger.info("Deleted a purged {}: {}.", childTypeName, file);
-        } catch (IOException e) {
-            logger.warn("Failed to delete a purged {}: {}", childTypeName, file, e);
         }
     }
 

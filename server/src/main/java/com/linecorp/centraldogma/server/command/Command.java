@@ -191,7 +191,9 @@ public interface Command<T> {
      */
     static Command<Void> createRepository(Author author, String projectName, String repositoryName,
                                           byte[] wdek) {
+        requireNonNull(author, "author");
         requireNonNull(wdek, "wdek");
+        checkArgument(wdek.length > 0, "wdek must not be empty");
         return new CreateRepositoryCommand(null, author, projectName, repositoryName, wdek);
     }
 

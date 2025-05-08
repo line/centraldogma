@@ -108,27 +108,12 @@ public final class ProjectApiManager {
         if (!encryptionStorageManager.enabled()) {
             return commandExecutor.execute(Command.createProject(author, projectName));
         }
-        final CompletableFuture<Void> result = new CompletableFuture<>();
-        final CompletableFuture<byte[]> wdekFuture = encryptionStorageManager.generateWdek();
-        wdekFuture.handle((wdek, cause) -> {
-            if (cause != null) {
-                result.completeExceptionally(
-                        new EncryptionKeyException("Failed to generate a new WDEK for " +
-                                                   projectName + '/' + Project.REPO_DOGMA, cause));
-                return null;
-            }
-            commandExecutor.execute(Command.createProject(author, projectName, wdek))
-                           .handle((unused, cause2) -> {
-                               if (cause2 != null) {
-                                   result.completeExceptionally(cause2);
-                                   return null;
-                               }
-                               result.complete(null);
-                               return null;
-                           });
-            return null;
-        });
-        return result;
+        return encryptionStorageManager.generateWdek()
+                                       .thenAccept(wdek -> Command.createProject(author, projectName, wdek))
+                                       .exceptionally(cause -> {
+                                           throw new EncryptionKeyException(
+                                                   "Failed to create encrypted project " + projectName, cause);
+                                       });
     }
 
     private static void checkInternalProject(String projectName, String operation) {

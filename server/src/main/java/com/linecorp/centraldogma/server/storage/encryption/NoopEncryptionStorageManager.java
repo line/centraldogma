@@ -83,6 +83,11 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     }
 
     @Override
+    public void deleteRepositoryData(String projectName, String repoName) {
+        // No-op
+    }
+
+    @Override
     public void close() {
         // No-op
     }

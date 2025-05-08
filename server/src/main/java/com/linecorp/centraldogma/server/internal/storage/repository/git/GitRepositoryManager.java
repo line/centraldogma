@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.linecorp.centraldogma.internal.Util.deleteFileTree;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.R_HEADS_MASTER;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.closeRepository;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.deleteCruft;
@@ -41,12 +42,13 @@ import org.eclipse.jgit.lib.RepositoryBuilder;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileBasedConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
-import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
@@ -65,6 +67,8 @@ import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 public final class GitRepositoryManager extends DirectoryBasedStorageManager<Repository>
         implements RepositoryManager {
 
+    private static final Logger logger = LoggerFactory.getLogger(GitRepositoryManager.class);
+
     private static final String ENCRYPTION_REPO_PLACEHOLDER_FILE = ".encryption-repo-placeholder";
 
     private final Project parent;
@@ -72,16 +76,14 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
 
     @Nullable
     private final RepositoryCache cache;
-    private final EncryptionStorageManager encryptionStorageManager;
 
     public GitRepositoryManager(Project parent, File rootDir, Executor repositoryWorker,
                                 Executor purgeWorker, @Nullable RepositoryCache cache,
                                 EncryptionStorageManager encryptionStorageManager) {
-        super(rootDir, Repository.class, purgeWorker);
+        super(rootDir, Repository.class, purgeWorker, encryptionStorageManager);
         this.parent = requireNonNull(parent, "parent");
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.cache = cache;
-        this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
         init();
     }
 
@@ -93,17 +95,21 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
     @Override
     protected Repository openChild(File childDir) throws Exception {
         requireNonNull(childDir, "childDir");
-        if (Files.exists(Paths.get(childDir.getPath(), ENCRYPTION_REPO_PLACEHOLDER_FILE))) {
+        if (isEncryptedRepository(childDir)) {
             return openEncryptionRepository(
-                    parent, childDir, repositoryWorker, cache, encryptionStorageManager);
+                    parent, childDir, repositoryWorker, cache, encryptionStorageManager());
         } else {
             return openFileRepository(parent, childDir, repositoryWorker, cache);
         }
     }
 
+    public static boolean isEncryptedRepository(File dir) {
+        return Files.exists(dir.toPath().resolve(ENCRYPTION_REPO_PLACEHOLDER_FILE));
+    }
+
     @VisibleForTesting
     static Repository openEncryptionRepository(Project parent, File repoDir, Executor repositoryWorker,
-                                               RepositoryCache cache,
+                                               @Nullable RepositoryCache cache,
                                                EncryptionStorageManager encryptionStorageManager) {
         final EncryptionGitStorage encryptionGitStorage =
                 encryptionGitStorage(parent, repoDir, encryptionStorageManager);
@@ -125,7 +131,7 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
 
     @VisibleForTesting
     static GitRepository openFileRepository(Project parent, File repoDir, Executor repositoryWorker,
-                                            RepositoryCache cache) {
+                                            @Nullable RepositoryCache cache) {
         final org.eclipse.jgit.lib.Repository jGitRepository;
         try {
             jGitRepository = new RepositoryBuilder().setGitDir(repoDir).setBare().build();
@@ -192,7 +198,7 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         requireNonNull(author, "author");
         if (encrypt) {
             return createEncryptionRepository(parent, childDir, author, creationTimeMillis,
-                                              repositoryWorker, cache, encryptionStorageManager);
+                                              repositoryWorker, cache, encryptionStorageManager());
         } else {
             return createFileRepository(parent, childDir, author, creationTimeMillis, repositoryWorker, cache);
         }
@@ -214,12 +220,9 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
             final RocksDbRepository rocksDbRepository = new RocksDbRepository(encryptionGitStorage);
             final RocksDbCommitIdDatabase commitIdDatabase =
                     new RocksDbCommitIdDatabase(encryptionGitStorage, null);
-            final GitRepository gitRepository = new GitRepository(parent, repoDir, repositoryWorker,
-                                                                  creationTimeMillis, author, cache,
-                                                                  rocksDbRepository, commitIdDatabase);
-            executeInitialCommit(gitRepository, creationTimeMillis, author);
-            gitRepository.setHeadRevision(Revision.INIT);
-            return gitRepository;
+            return new GitRepository(parent, repoDir, repositoryWorker,
+                                     creationTimeMillis, author, cache,
+                                     rocksDbRepository, commitIdDatabase);
         } catch (Throwable t) {
             deleteCruft(repoDir);
             throw new StorageException("failed to create a repository at: " + repoDir, t);
@@ -254,24 +257,15 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
             head.disableRefLog();
             head.link(R_HEADS_MASTER);
             commitIdDatabase = new DefaultCommitIdDatabase(jGitRepository);
-            final GitRepository gitRepository = new GitRepository(parent, repoDir, repositoryWorker,
-                                                                  creationTimeMillis, author, cache,
-                                                                  jGitRepository, commitIdDatabase);
-            executeInitialCommit(gitRepository, creationTimeMillis, author);
-            gitRepository.setHeadRevision(Revision.INIT);
-            return gitRepository;
+            return new GitRepository(parent, repoDir, repositoryWorker,
+                                     creationTimeMillis, author, cache,
+                                     jGitRepository, commitIdDatabase);
         } catch (Throwable t) {
             closeRepository(commitIdDatabase, jGitRepository);
             // Failed to create a repository. Remove any cruft so that it is not loaded on the next run.
             deleteCruft(repoDir);
             throw new StorageException("failed to create a repository at: " + repoDir, t);
         }
-    }
-
-    private static void executeInitialCommit(GitRepository repository, long creationTimeMillis, Author author) {
-        new CommitExecutor(repository, creationTimeMillis, author, "Create a new repository", "",
-                           Markup.PLAINTEXT, true)
-                .executeInitialCommit();
     }
 
     private static boolean exist(File repoDir) {
@@ -301,5 +295,30 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
     @Override
     protected CentralDogmaException newStorageNotFoundException(String name) {
         return new RepositoryNotFoundException(parent().name() + '/' + name);
+    }
+
+    @Override
+    protected void deletePurged(File file) {
+        if (isEncryptedRepository(file)) {
+            String name = file.getName();
+            name = removeInterfixAndPurgedSuffix(name);
+            encryptionStorageManager().deleteRepositoryData(parent.name(), name);
+            // Then remove the directory below.
+        }
+        try {
+            logger.info("Deleting a purged repository: {} ..", file);
+            deleteFileTree(file);
+            logger.info("Deleted a purged repository: {}.", file);
+        } catch (IOException e) {
+            logger.warn("Failed to delete a purged repository: {}", file, e);
+        }
+    }
+
+    public static String removeInterfixAndPurgedSuffix(String name) {
+        assert name.endsWith(SUFFIX_PURGED);
+        name = name.substring(0, name.length() - SUFFIX_PURGED.length());
+        final int index = name.lastIndexOf('.');
+        assert index > 0;
+        return name.substring(0, index);
     }
 }

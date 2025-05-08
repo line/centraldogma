@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb;
 
 import static com.linecorp.centraldogma.server.internal.storage.EncryptionKeyUtil.NONCE_SIZE_BYTES;
+import static org.eclipse.jgit.lib.Constants.R_REFS;
 import static org.eclipse.jgit.lib.Constants.encode;
 import static org.eclipse.jgit.lib.ObjectReader.OBJ_ANY;
 import static org.eclipse.jgit.lib.Ref.Storage.NEW;
@@ -49,6 +50,10 @@ import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageMana
 
 public final class EncryptionGitStorage {
 
+    public static final String OBJS = "objs/";
+    public static final String REFS = R_REFS;
+    public static final String REV2SHA = "rev2sha/";
+
     private final String projectName;
     private final String repoName;
     private final byte[] objectKeyPrefix;
@@ -61,10 +66,11 @@ public final class EncryptionGitStorage {
                                 EncryptionStorageManager encryptionStorageManager) {
         this.projectName = projectName;
         this.repoName = repoName;
-        objectKeyPrefix = (projectName + '/' + repoName + "/objs/").getBytes(StandardCharsets.UTF_8);
-        // Suffixes start with refs/.
-        refsKeyPrefix = (projectName + '/' + repoName + '/').getBytes(StandardCharsets.UTF_8);
-        rev2ShaPrefix = (projectName + '/' + repoName + "/rev2sha/").getBytes(StandardCharsets.UTF_8);
+        final String projectRepoPrefix = projectName + '/' + repoName + '/';
+        objectKeyPrefix = (projectRepoPrefix + OBJS).getBytes(StandardCharsets.UTF_8);
+        // Suffixes start with refs/ so do not add REFS.
+        refsKeyPrefix = projectRepoPrefix.getBytes(StandardCharsets.UTF_8);
+        rev2ShaPrefix = (projectRepoPrefix + REV2SHA).getBytes(StandardCharsets.UTF_8);
         this.encryptionStorageManager = encryptionStorageManager;
         dek = encryptionStorageManager.getDek(projectName, repoName);
     }
@@ -95,7 +101,7 @@ public final class EncryptionGitStorage {
     }
 
     @VisibleForTesting
-    byte[] objectMetadataKey(ObjectId objectId) {
+    public byte[] objectMetadataKey(ObjectId objectId) {
         final ByteBuffer byteBuffer = ByteBuffer.allocate(objectKeyPrefix.length + 20);
         byteBuffer.put(objectKeyPrefix);
         objectId.copyRawTo(byteBuffer);
@@ -127,7 +133,7 @@ public final class EncryptionGitStorage {
     }
 
     @Nullable
-    ObjectLoader getObject(ObjectId objectId, int typeHint) throws IncorrectObjectTypeException {
+    public ObjectLoader getObject(ObjectId objectId, int typeHint) throws IncorrectObjectTypeException {
         final byte[] metadataKey = objectMetadataKey(objectId);
         final byte[] metadata = encryptionStorageManager.getMetadata(metadataKey);
         if (metadata == null) {
@@ -154,7 +160,8 @@ public final class EncryptionGitStorage {
     }
 
     @Nullable
-    Ref readRef(String refName) {
+    @VisibleForTesting
+    public Ref readRef(String refName) {
         final byte[] refNameBytes = refName.getBytes(StandardCharsets.UTF_8);
         final byte[] metadataKey = refMetadataKey(refNameBytes);
         final byte[] nonce = encryptionStorageManager.getMetadata(metadataKey);
@@ -203,7 +210,8 @@ public final class EncryptionGitStorage {
         return desiredResult;
     }
 
-    private byte[] refMetadataKey(byte[] refNameBytes) {
+    @VisibleForTesting
+    public byte[] refMetadataKey(byte[] refNameBytes) {
         final ByteBuffer byteBuffer = ByteBuffer.allocate(refsKeyPrefix.length + refNameBytes.length);
         byteBuffer.put(refsKeyPrefix);
         byteBuffer.put(refNameBytes);
@@ -233,7 +241,8 @@ public final class EncryptionGitStorage {
         encryptionStorageManager.put(metadataKey, nonce, encryptedRefName, encryptedTarget);
     }
 
-    ObjectId getRevisionObjectId(Revision revision) {
+    @VisibleForTesting
+    public ObjectId getRevisionObjectId(Revision revision) {
         final byte[] metadataKey = rev2ShaMetadataKey(revision);
         final byte[] nonce = encryptionStorageManager.getMetadata(metadataKey);
         if (nonce == null) {
@@ -245,11 +254,17 @@ public final class EncryptionGitStorage {
         if (value == null) {
             throw new RevisionNotFoundException(revision);
         }
-        return ObjectId.fromRaw(decrypt(nonce, value));
+        final byte[] raw = decrypt(nonce, value);
+        if (raw.length != 20) {
+            throw new EncryptionStorageException(
+                    "Corrupted commit ID for " + revision + " in " + projectName + '/' + repoName + ": " +
+                    " expected 20 bytes but got " + raw.length);
+        }
+        return ObjectId.fromRaw(raw);
     }
 
     @VisibleForTesting
-    byte[] rev2ShaMetadataKey(Revision revision) {
+    public byte[] rev2ShaMetadataKey(Revision revision) {
         final ByteBuffer byteBuffer = ByteBuffer.allocate(rev2ShaPrefix.length + 4);
         byteBuffer.put(rev2ShaPrefix);
         byteBuffer.putInt(revision.major());

@@ -48,7 +48,7 @@ public final class RocksDbRepository extends Repository {
         refDatabase = new RocksDbRefDatabase(this);
     }
 
-    public EncryptionGitStorage encryptedGitStorage() {
+    public EncryptionGitStorage encryptionGitStorage() {
         return encryptionGitStorage;
     }
 
