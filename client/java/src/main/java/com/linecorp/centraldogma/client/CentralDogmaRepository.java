@@ -383,8 +383,13 @@ public final class CentralDogmaRepository {
         requireNonNull(dir, "dir");
         requireNonNull(classLoader, "classLoader");
 
+
         final URL url = requireNonNull(classLoader.getResource(dir),
                                        () -> "resource not found: " + dir);
+        if (!"file".equals(url.getProtocol())) {
+            return CompletableFutures.exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Resource dir must be explodable (got " + url + ')'));
+        }
 
         final Path logical = Paths.get(dir);
         final Path physicalPath = Paths.get(url.getPath());
