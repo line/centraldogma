@@ -197,4 +197,44 @@ class CentralDogmaImporterTest {
             removeCreatedDir(tempDir);
         }
     }
+
+    @Test
+    void importResourceDir_createsAndPushes() throws IOException {
+        final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+
+        final Path tmpRoot = Files.createTempDirectory("classpath-");
+        final Path fooBar = tmpRoot.resolve("foo/bar");
+        Files.createDirectories(fooBar);
+        Files.write(fooBar.resolve("hello.txt"), "hello".getBytes(UTF_8));
+
+        try (URLClassLoader cl = new URLClassLoader(new URL[] { tmpRoot.toUri().toURL() },
+                                                    Thread.currentThread().getContextClassLoader())) {
+
+            when(dogma.createProject("foo")).thenReturn(CompletableFuture.completedFuture(null));
+            when(dogma.createRepository("foo", "bar")).thenReturn(CompletableFuture.completedFuture(null));
+            when(dogma.push(any(), any(), any(), any(), any(), any(), anyCollection()))
+                    .thenReturn(CompletableFuture.completedFuture(
+                            new PushResult(Revision.HEAD, System.currentTimeMillis())));
+
+            final CentralDogmaRepository repo = new CentralDogmaRepository(
+                    dogma, "foo", "bar", scheduler, null);
+
+            final ImportResult importResult = repo.importResourceDir("foo/bar", cl).join();
+
+            final ArgumentCaptor<Collection<Change<?>>> captor = ArgumentCaptor.forClass(
+                    Collection.class);
+            verify(dogma).createProject("foo");
+            verify(dogma).createRepository("foo", "bar");
+            verify(dogma).push(eq("foo"), eq("bar"), any(),
+                               argThat(s -> s.contains("Import")), anyString(), any(), captor.capture());
+
+            assertThat(captor.getValue())
+                    .singleElement()
+                    .extracting(Change::path, Change::content)
+                    .containsExactly("/hello.txt", "hello");
+        } finally {
+            scheduler.shutdownNow();
+            removeCreatedDir(tmpRoot);
+        }
+    }
 }
