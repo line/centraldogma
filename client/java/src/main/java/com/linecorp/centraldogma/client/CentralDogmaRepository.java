@@ -19,9 +19,11 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,7 +32,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
@@ -44,8 +48,10 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.PathPattern;
+import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
+import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 
@@ -364,6 +370,45 @@ public final class CentralDogmaRepository {
             return CompletableFuture.completedFuture(ImportResult.empty());
         }
         return commit("Import " + dir.getFileName(), changes)
+                .push(Revision.HEAD)
+                .thenApply(ImportResult::fromPushResult);
+    }
+
+    public CompletableFuture<ImportResult> importResourceDir(String dir) {
+        requireNonNull(dir, "dir");
+        return importResourceDir(dir, CentralDogmaRepository.class.getClassLoader());
+    }
+
+    public CompletableFuture<ImportResult> importResourceDir(String dir, ClassLoader classLoader) {
+        requireNonNull(dir, "dir");
+        requireNonNull(classLoader, "classLoader");
+
+        final URL url = requireNonNull(classLoader.getResource(dir),
+                                       () -> "resource not found: " + dir);
+
+        final Path logical = Paths.get(dir);
+        final Path physicalPath = Paths.get(url.getPath());
+        if (logical.getNameCount() < 2) {
+            return CompletableFutures.exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Path must be <project>/<repo>[/…]: " + dir));
+        }
+        centralDogma.createProject(projectName()).join();
+        centralDogma.createRepository(projectName(), repositoryName()).join();
+
+        final List<Change<?>> changes = new ArrayList<>();
+        if (Files.isRegularFile(physicalPath)) {
+            final String repoPath = '/' + logical.getFileName()
+                                                 .toString()
+                                                 .replace(File.separatorChar, '/');
+            changes.add(toChange(repoPath, physicalPath));
+        } else {
+            changes.addAll(collectImportFiles(physicalPath));
+        }
+
+        if (changes.isEmpty()) {
+            return CompletableFuture.completedFuture(ImportResult.empty());
+        }
+        return commit("Import " + logical.getFileName(), changes)
                 .push(Revision.HEAD)
                 .thenApply(ImportResult::fromPushResult);
     }

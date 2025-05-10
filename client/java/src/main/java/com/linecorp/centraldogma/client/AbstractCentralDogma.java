@@ -235,12 +235,29 @@ public abstract class AbstractCentralDogma implements CentralDogma {
 
     @Override
     public CompletableFuture<ImportResult> importResourceDir(String dir) {
-        return null;
+        final Path path = Paths.get(dir);
+        if (path.getNameCount() < 2) {
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Path must be <project>/<repo>[/…]: " + dir));
+        }
+        final String project = path.getName(0).toString();
+        final String repo = path.getName(1).toString();
+
+        return forRepo(project, repo).importResourceDir(dir);
     }
 
     @Override
     public CompletableFuture<ImportResult> importResourceDir(String dir, ClassLoader classLoader) {
-        return null;
+
+        final Path path = Paths.get(dir);
+        if (path.getNameCount() < 2) {
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Path must be <project>/<repo>[/…]: " + dir));
+        }
+        final String project = path.getName(0).toString();
+        final String repo = path.getName(1).toString();
+
+        return forRepo(project, repo).importResourceDir(dir, classLoader);
     }
 
     /**
