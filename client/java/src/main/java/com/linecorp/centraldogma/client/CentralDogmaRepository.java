@@ -44,7 +44,6 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.PathPattern;
-import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
@@ -335,44 +334,32 @@ public final class CentralDogmaRepository {
 
     public CompletableFuture<ImportResult> importDir(Path dir) {
         requireNonNull(dir, "dir");
-
-        if (!Files.isDirectory(dir)) {
-            return CompletableFutures.exceptionallyCompletedFuture(
-                    new IllegalArgumentException(dir + " is not a directory"));
-        }
-
         final List<Change<?>> changes = new ArrayList<>();
-        try (Stream<Path> s = Files.walk(dir)) {
-            s.filter(Files::isRegularFile)
-             .filter(p -> !PLACEHOLDERS.contains(p.getFileName().toString()))
-             .forEach(p -> {
-                 Path rel = dir.relativize(p);                      // repo-relative path
-                 String repoPath = '/' + rel.toString()
-                                            .replace(File.separatorChar, '/');
-                 changes.add(toChange(repoPath, p));
-             });
-        } catch (IOException e) {
-            return CompletableFutures.exceptionallyCompletedFuture(e);
+
+        if (Files.isRegularFile(dir)) {
+            final String repoPath = '/' + dir.getFileName().toString().replace(File.separatorChar, '/');
+            changes.add(toChange(repoPath, dir));
+        } else {
+            try (Stream<Path> s = Files.walk(dir)) {
+                s.filter(Files::isRegularFile)
+                 .filter(p -> !PLACEHOLDERS.contains(p.getFileName().toString()))
+                 .forEach(p -> {
+                     final Path rel = dir.relativize(p);
+                     final String repoPath = '/' + rel.toString().replace(File.separatorChar, '/');
+                     changes.add(toChange(repoPath, p));
+                 });
+            } catch (IOException e) {
+                return CompletableFutures.exceptionallyCompletedFuture(e);
+            }
         }
 
-        return ensureProjectAndRepoExist()
-                .thenCompose(unused -> {
-                    if (changes.isEmpty()) {
-                        return CompletableFuture.completedFuture(ImportResult.empty());
-                    }
-                    return commit("Import " + dir.getFileName(), changes)
-                            .push(Revision.HEAD)
-                            .thenApply(ImportResult::fromPushResult);
-                });
-    }
+        if (changes.isEmpty()) {
+            return CompletableFuture.completedFuture(ImportResult.empty());
+        }
 
-    private CompletableFuture<Void> ensureProjectAndRepoExist() {
-        return centralDogma.createProject(projectName()).exceptionally(ignore -> null)
-                           .thenCompose(unused ->
-                                                centralDogma.createRepository(projectName(),
-                                                                              repositoryName())
-                                                            .exceptionally(ignore -> null))
-                           .thenApply(unused -> null);
+        return commit("Import " + dir.getFileName(), changes)
+                .push(Revision.HEAD)
+                .thenApply(ImportResult::fromPushResult);
     }
 
     @Override

@@ -20,12 +20,9 @@ import static com.linecorp.centraldogma.internal.PathPatternUtil.toPathPattern;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
-import java.io.File;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -33,8 +30,6 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Author;
@@ -229,25 +224,15 @@ public abstract class AbstractCentralDogma implements CentralDogma {
             return CompletableFutures.exceptionallyCompletedFuture(new IllegalArgumentException(
                     "Path must be <project>/<repo>[/…]: " + dir));
         }
-        // todo : should refactor this method ( reference backward )
-
         final String project = dir.getName(0).toString();
         final String repo = dir.getName(1).toString();
         final Path norm = dir.toAbsolutePath().normalize();
         final CentralDogmaRepository centralDogmaRepository = forRepo(project, repo);
+        final CentralDogma centralDogma = centralDogmaRepository.centralDogma();
 
-        if (dir.getNameCount() == 2 || Files.isDirectory(norm)) {
-            return centralDogmaRepository.importDir(norm);
-        }
-
-        // single file
-        final Path rel = norm.subpath(2, norm.getNameCount());
-        final String logical = '/' + rel.toString().replace(File.separatorChar, '/');
-        final Change<?> ch = toChange(logical, norm);
-
-        return centralDogmaRepository.commit("Import " + logical, ch)
-                .push(Revision.HEAD)
-                .thenApply(ImportResult::fromPushResult);
+        return centralDogma.createProject(project)
+                           .thenCompose(unused -> centralDogma.createRepository(project, repo))
+                           .thenCompose(a -> centralDogmaRepository.importDir(norm));
     }
 
     @Override
