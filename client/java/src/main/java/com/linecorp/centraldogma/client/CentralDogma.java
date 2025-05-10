@@ -420,7 +420,34 @@ public interface CentralDogma extends AutoCloseable {
     CompletableFuture<List<Change<?>>> getDiff(String projectName, String repositoryName,
                                                Revision from, Revision to, PathPattern pathPattern);
 
+    /**
+     * Imports files from the given absolute {@link Path} into a repository.
+     * <p>
+     * The {@code dir} must follow the format: {@code /<project>/<repository>[/path/to/files]}.
+     * If a single file is specified, only that file is imported. If a directory is specified,
+     * all eligible files under it will be imported.
+     */
     CompletableFuture<ImportResult> importDir(Path dir);
+
+    /**
+     * Imports resource files from the given directory located in the default classloader.
+     * <p>
+     * The path must follow the format: {@code <project>/<repository>[/resourcePath]}.
+     * The specified directory is resolved from the current classpath.
+     */
+    CompletableFuture<ImportResult> importResourceDir(String dir);
+
+    /**
+     * Imports resource files from the given directory using the specified {@link ClassLoader}.
+     * <p>
+     * This is useful for testing or loading from custom classpaths such as in embedded environments.
+     * The path must follow the format: {@code <project>/<repository>[/resourcePath]}.
+     *
+     * @param dir the resource directory path (project/repository/optionalSubPath)
+     * @param classLoader the class loader used to locate the resource directory
+     */
+    CompletableFuture<ImportResult> importResourceDir(String dir, ClassLoader classLoader);
+    
     /**
      * Retrieves the diffs of the files matched by the given path pattern between two {@link Revision}s.
      *
