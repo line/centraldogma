@@ -86,12 +86,6 @@ public final class CentralDogmaRepository {
                                            Jackson.readTree(bytes));
             }
 
-            if (lower.endsWith(".yml") || lower.endsWith(".yaml") ||
-                (Files.probeContentType(file) != null &&
-                 Files.probeContentType(file).startsWith("text/"))) {
-                return Change.ofTextUpsert(repoPath,
-                                           new String(bytes, StandardCharsets.UTF_8));
-            }
             return Change.ofTextUpsert(repoPath,
                                        new String(bytes, StandardCharsets.UTF_8));
 
