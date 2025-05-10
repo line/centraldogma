@@ -15,19 +15,28 @@
  */
 package com.linecorp.centraldogma.client.armeria;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Comparator;
 import java.util.concurrent.CompletionException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.client.ImportResult;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.PushResult;
+import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class ArmeriaCentralDogmaTest {
@@ -39,6 +48,34 @@ class ArmeriaCentralDogmaTest {
             client.createProject("foo").join();
         }
     };
+
+    private static void cleanProjectAndRepo(CentralDogma centralDogma, String project, String repository) throws IOException {
+        centralDogma.removeRepository(project, repository).join();
+        centralDogma.purgeRepository(project, repository).join();
+
+        centralDogma.removeProject(project).join();
+        centralDogma.purgeProject(project).join();
+    }
+
+    private static void cleanDirectory(Path dir) throws IOException {
+        if (Files.exists(dir)) {
+            Files.walk(dir)
+                 .sorted(Comparator.reverseOrder())
+                 .forEach(p -> {
+                     try {
+                         Files.deleteIfExists(p);
+                     } catch (IOException ignored) {
+                     }
+                 });
+        }
+        final Path projectRoot = dir.getParent();
+        if (projectRoot != null && Files.exists(projectRoot)) {
+            try {
+                Files.deleteIfExists(projectRoot);
+            } catch (IOException ignored) {
+            }
+        }
+    }
 
     @Test
     void pushFileToMetaRepositoryShouldFail() throws UnknownHostException {
@@ -65,5 +102,40 @@ class ArmeriaCentralDogmaTest {
                                         .push()
                                         .join();
         assertThat(result.revision().major()).isPositive();
+    }
+
+    @Test
+    void importDir_createsProjectRepo_andImportsFile() throws IOException {
+
+        final String project = "foo5";
+        final String repository = "bar";
+        final String fileName = "alice.txt";
+        final String content = "hello";
+        final CentralDogma centralDogma = new ArmeriaCentralDogmaBuilder()
+                .host("localhost", 36462)
+                .build();
+
+        final Path testRoot = Paths.get(project, repository);
+        cleanDirectory(testRoot);
+        Files.createDirectories(testRoot);
+
+        final Path file = testRoot.resolve(fileName);
+        Files.write(file, content.getBytes(UTF_8));
+
+        try {
+            final ImportResult importResult = centralDogma.importDir(Paths.get(project, repository, fileName)).join();
+            assertThat(importResult).isNotNull();
+            assertThat(importResult.revision().major()).isPositive();
+            assertThat(importResult.isEmpty()).isFalse();
+
+            final Change<?> diff = centralDogma.forRepo(project, repository)
+                                               .diff(Query.ofText('/' + fileName))
+                                               .get(Revision.HEAD, Revision.HEAD)
+                                               .join();
+            assertThat(diff.path()).isEqualTo('/' + fileName);
+        } finally {
+            cleanProjectAndRepo(centralDogma, project, repository);
+            cleanDirectory(testRoot);
+        }
     }
 }
