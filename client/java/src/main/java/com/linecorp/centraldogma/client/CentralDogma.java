@@ -447,7 +447,7 @@ public interface CentralDogma extends AutoCloseable {
      * @param classLoader the class loader used to locate the resource directory
      */
     CompletableFuture<ImportResult> importResourceDir(String dir, ClassLoader classLoader);
-    
+
     /**
      * Retrieves the diffs of the files matched by the given path pattern between two {@link Revision}s.
      *
