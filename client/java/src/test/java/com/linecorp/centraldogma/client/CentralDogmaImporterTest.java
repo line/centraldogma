@@ -28,10 +28,24 @@ class CentralDogmaImporterTest {
 
     CentralDogma dogma = mock(CentralDogma.class);
 
-    private static void cleanUp(Path tempDir) throws IOException {
-        Files.walk(tempDir).sorted(Comparator.reverseOrder()).forEach(p -> {
-            try {Files.deleteIfExists(p);} catch (Exception ignored) {}
-        });
+    private static void removeCreatedDir(Path dir) throws IOException {
+        if (Files.exists(dir)) {
+            Files.walk(dir)
+                 .sorted(Comparator.reverseOrder())
+                 .forEach(p -> {
+                     try {
+                         Files.deleteIfExists(p);
+                     } catch (IOException ignored) {
+                     }
+                 });
+        }
+        final Path projectRoot = dir.getParent();
+        if (projectRoot != null && Files.exists(projectRoot)) {
+            try {
+                Files.deleteIfExists(projectRoot);
+            } catch (IOException ignored) {
+            }
+        }
     }
 
     @Test
@@ -82,7 +96,7 @@ class CentralDogmaImporterTest {
 
         // cleanUp
         scheduler.shutdownNow();
-        cleanUp(fooBar);
+        removeCreatedDir(fooBar);
     }
 
     @Test
@@ -132,7 +146,7 @@ class CentralDogmaImporterTest {
 
         // cleanup
         scheduler.shutdownNow();
-        cleanUp(tempDir);
+        removeCreatedDir(tempDir);
     }
 
     @Test
@@ -152,15 +166,17 @@ class CentralDogmaImporterTest {
         when(dogma.createRepository(eq("foo"), eq("bar"))).thenReturn(CompletableFuture.completedFuture(null));
 
         // when
-        final ImportResult result = repo.importDir(fooBar).join();
+        try {
+            final ImportResult result = repo.importDir(fooBar).join();
 
-        // then
-        verify(dogma).createProject("foo");
-        verify(dogma).createRepository("foo", "bar");
-        verify(dogma, never()).push(any(), any(), any(), any(), any(), any(), anyCollection());
+            // then
+            verify(dogma).createProject("foo");
+            verify(dogma).createRepository("foo", "bar");
+            verify(dogma, never()).push(any(), any(), any(), any(), any(), any(), anyCollection());
 
-        // cleanup
-        scheduler.shutdownNow();
-        cleanUp(tempDir);
+        } finally {
+            scheduler.shutdownNow();
+            removeCreatedDir(tempDir);
+        }
     }
 }
