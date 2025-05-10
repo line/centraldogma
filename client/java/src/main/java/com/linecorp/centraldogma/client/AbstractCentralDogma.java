@@ -71,25 +71,6 @@ public abstract class AbstractCentralDogma implements CentralDogma {
         this.meterRegistry = meterRegistry;
     }
 
-    private static Change<?> toChange(String repoPath, Path file) {
-        try {
-            byte[] bytes = Files.readAllBytes(file);
-            String name = file.getFileName().toString().toLowerCase();
-
-            if (name.endsWith(".json")) {
-                return Change.ofJsonUpsert(repoPath, Jackson.readTree(bytes));
-            }
-            if (name.endsWith(".yml") || name.endsWith(".yaml") ||
-                (Files.probeContentType(file) != null &&
-                 Files.probeContentType(file).startsWith("text/"))) {
-                return Change.ofTextUpsert(repoPath, new String(bytes, UTF_8));
-            }
-            return Change.ofTextUpsert(repoPath, new String(bytes, UTF_8));
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to build Change for " + file, e);
-        }
-    }
-
     /**
      * Returns the {@link ScheduledExecutorService} which is used for scheduling the tasks related with
      * automatic retries and invoking the callbacks for watched changes.
