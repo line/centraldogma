@@ -91,6 +91,22 @@ public final class CentralDogmaRepository {
         }
     }
 
+    private static List<Change<?>> collectImportFiles(Path path) {
+        final List<Change<?>> changes = new ArrayList<>();
+        try (Stream<Path> s = Files.walk(path)) {
+            s.filter(Files::isRegularFile)
+             .filter(p -> !PLACEHOLDERS.contains(p.getFileName().toString()))
+             .forEach(p -> {
+                 final Path rel = path.relativize(p);
+                 final String repoPath = '/' + rel.toString().replace(File.separatorChar, '/');
+                 changes.add(toChange(repoPath, p));
+             });
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to walk directory: " + path, e);
+        }
+        return changes;
+    }
+
     CentralDogma centralDogma() {
         return centralDogma;
     }
@@ -332,29 +348,21 @@ public final class CentralDogmaRepository {
 
     public CompletableFuture<ImportResult> importDir(Path dir) {
         requireNonNull(dir, "dir");
-        final List<Change<?>> changes = new ArrayList<>();
 
+        final List<Change<?>> changes = new ArrayList<>();
         if (Files.isRegularFile(dir)) {
             final String repoPath = '/' + dir.getFileName().toString().replace(File.separatorChar, '/');
             changes.add(toChange(repoPath, dir));
         } else {
-            try (Stream<Path> s = Files.walk(dir)) {
-                s.filter(Files::isRegularFile)
-                 .filter(p -> !PLACEHOLDERS.contains(p.getFileName().toString()))
-                 .forEach(p -> {
-                     final Path rel = dir.relativize(p);
-                     final String repoPath = '/' + rel.toString().replace(File.separatorChar, '/');
-                     changes.add(toChange(repoPath, p));
-                 });
-            } catch (IOException e) {
-                return CompletableFutures.exceptionallyCompletedFuture(e);
-            }
+            changes.addAll(collectImportFiles(dir));
         }
+
+        centralDogma.createProject(projectName()).join();
+        centralDogma.createRepository(projectName(), repositoryName()).join();
 
         if (changes.isEmpty()) {
             return CompletableFuture.completedFuture(ImportResult.empty());
         }
-
         return commit("Import " + dir.getFileName(), changes)
                 .push(Revision.HEAD)
                 .thenApply(ImportResult::fromPushResult);
