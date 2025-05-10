@@ -81,12 +81,10 @@ public final class CentralDogmaRepository {
             String lower = file.getFileName().toString().toLowerCase();
 
             if (lower.endsWith(".json")) {
-                return Change.ofJsonUpsert(repoPath,
-                                           Jackson.readTree(bytes));
+                return Change.ofJsonUpsert(repoPath, Jackson.readTree(bytes));
             }
 
-            return Change.ofTextUpsert(repoPath,
-                                       new String(bytes, StandardCharsets.UTF_8));
+            return Change.ofTextUpsert(repoPath, new String(bytes, StandardCharsets.UTF_8));
 
         } catch (Exception e) {
             throw new IllegalStateException("Failed to create Change for " + file, e);
