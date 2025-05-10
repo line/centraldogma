@@ -13,19 +13,41 @@ public final class ImportResult {
     }
 
     public static ImportResult empty() {
-        //todo: should refactor this logic
-        return new ImportResult(Revision.INIT, 0);
+        return new ImportResult(Revision.INIT, 0, true);
     }
 
+    private final boolean isEmpty;
     private final Revision revision;
     private final long when;
 
-    private ImportResult(Revision revision, long when) {
+    private ImportResult(Revision revision, long when, boolean isEmpty) {
         this.revision = requireNonNull(revision, "revision");
-        this.when = when / 1000L * 1000L; // Drop the milliseconds
+        this.when = when / 1000L * 1000L;
+        this.isEmpty = isEmpty;
     }
 
-    public Revision revision() {return revision;}
+    private ImportResult(Revision revision, long when) {
+        this(revision, when, false);
+    }
 
-    public long whenMillis() {return when;}
+    public boolean isEmpty() {
+        return isEmpty;
+    }
+
+    public Revision revision() {
+        return revision;
+    }
+
+    public long whenMillis() {
+        return when;
+    }
+
+    @Override
+    public String toString() {
+        return "ImportResult{" +
+               "isEmpty=" + isEmpty +
+               ", revision=" + revision +
+               ", when=" + when +
+               '}';
+    }
 }
