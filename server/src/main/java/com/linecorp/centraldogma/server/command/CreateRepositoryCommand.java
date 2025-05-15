@@ -30,8 +30,6 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
 
-import io.netty.buffer.ByteBufUtil;
-
 /**
  * A {@link Command} which is used for creating a new repository.
  */
