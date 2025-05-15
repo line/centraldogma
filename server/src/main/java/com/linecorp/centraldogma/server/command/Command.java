@@ -80,6 +80,7 @@ public interface Command<T> {
     static Command<Void> createProject(Author author, String name, byte[] wdek) {
         requireNonNull(author, "author");
         requireNonNull(wdek, "wdek");
+        checkArgument(wdek.length > 0, "wdek must not be empty");
         return new CreateProjectCommand(null, author, name, wdek);
     }
 

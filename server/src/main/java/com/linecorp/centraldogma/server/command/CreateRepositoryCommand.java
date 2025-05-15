@@ -50,7 +50,7 @@ public final class CreateRepositoryCommand extends ProjectCommand<Void> {
                             @JsonProperty("wdek") @Nullable byte[] wdek) {
         super(CommandType.CREATE_REPOSITORY, timestamp, author, projectName);
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
-        this.wdek = wdek;
+        this.wdek = wdek != null ? wdek.clone() : null;
     }
 
     /**
@@ -67,7 +67,7 @@ public final class CreateRepositoryCommand extends ProjectCommand<Void> {
     @JsonProperty
     @Nullable
     public byte[] wdek() {
-        return wdek;
+        return wdek != null ? wdek.clone() : null;
     }
 
     @Override
@@ -96,7 +96,7 @@ public final class CreateRepositoryCommand extends ProjectCommand<Void> {
         final ToStringHelper toStringHelper = super.toStringHelper()
                                                    .add("repositoryName", repositoryName);
         if (wdek != null) {
-            toStringHelper.add("wdek", ByteBufUtil.hexDump(wdek));
+            toStringHelper.add("wdek", "[***]");
         }
         return toStringHelper;
     }

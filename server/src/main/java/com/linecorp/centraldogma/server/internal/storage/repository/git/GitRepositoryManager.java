@@ -33,7 +33,6 @@ import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
-import javax.crypto.SecretKey;
 
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
@@ -112,21 +111,13 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
                                                @Nullable RepositoryCache cache,
                                                EncryptionStorageManager encryptionStorageManager) {
         final EncryptionGitStorage encryptionGitStorage =
-                encryptionGitStorage(parent, repoDir, encryptionStorageManager);
+                new EncryptionGitStorage(parent.name(), repoDir.getName(), encryptionStorageManager);
         final RocksDbRepository rocksDbRepository = new RocksDbRepository(encryptionGitStorage);
         final Revision headRevision = uncachedHeadRevision(rocksDbRepository, parent, repoDir);
         final RocksDbCommitIdDatabase commitIdDatabase =
                 new RocksDbCommitIdDatabase(encryptionGitStorage, headRevision);
         return new GitRepository(parent, repoDir, repositoryWorker, cache, rocksDbRepository,
                                  commitIdDatabase, headRevision);
-    }
-
-    private static EncryptionGitStorage encryptionGitStorage(
-            Project parent, File repoDir, EncryptionStorageManager encryptionStorageManager) {
-        final String repoName = repoDir.getName();
-        final SecretKey repoKey = encryptionStorageManager.getDek(parent.name(), repoName);
-        requireNonNull(repoKey, "failed to get a DEK for " + parent.name() + '/' + repoName);
-        return new EncryptionGitStorage(parent.name(), repoName, encryptionStorageManager);
     }
 
     @VisibleForTesting
@@ -216,7 +207,7 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
             }
             Files.createFile(Paths.get(repoDir.getPath(), ENCRYPTION_REPO_PLACEHOLDER_FILE));
             final EncryptionGitStorage encryptionGitStorage =
-                    encryptionGitStorage(parent, repoDir, encryptionStorageManager);
+                    new EncryptionGitStorage(parent.name(), repoDir.getName(), encryptionStorageManager);
             final RocksDbRepository rocksDbRepository = new RocksDbRepository(encryptionGitStorage);
             final RocksDbCommitIdDatabase commitIdDatabase =
                     new RocksDbCommitIdDatabase(encryptionGitStorage, null);

@@ -49,7 +49,7 @@ public final class CreateProjectCommand extends RootCommand<Void> {
                          @JsonProperty("wdek") @Nullable byte[] wdek) {
         super(CommandType.CREATE_PROJECT, timestamp, author);
         this.projectName = requireNonNull(projectName, "projectName");
-        this.wdek = wdek;
+        this.wdek = wdek != null ? wdek.clone() : null;
     }
 
     /**
@@ -66,7 +66,7 @@ public final class CreateProjectCommand extends RootCommand<Void> {
     @Nullable
     @JsonProperty
     public byte[] wdek() {
-        return wdek;
+        return wdek != null ? wdek.clone() : null;
     }
 
     @Override
@@ -95,7 +95,7 @@ public final class CreateProjectCommand extends RootCommand<Void> {
         final ToStringHelper toStringHelper = super.toStringHelper()
                                                    .add("projectName", projectName);
         if (wdek != null) {
-            toStringHelper.add("wdek", ByteBufUtil.hexDump(wdek));
+            toStringHelper.add("wdek", "[***]");
         }
         return toStringHelper;
     }

@@ -20,11 +20,11 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.common.EncryptionKeyException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
 public final class RepositoryServiceUtil {
@@ -45,7 +45,7 @@ public final class RepositoryServiceUtil {
                                                author, projectName, repoName, wdek)))
                                        .thenCompose(unused -> mds.addRepo(author, projectName, repoName))
                                        .exceptionally(cause -> {
-                                           throw new EncryptionKeyException(
+                                           throw new EncryptionStorageException(
                                                    "Failed to create encrypted repository " +
                                                    projectName + '/' + repoName, cause);
                                        });

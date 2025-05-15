@@ -68,6 +68,7 @@ public interface StorageManager<T> {
      * @param name the name of an element which is supposed to be created
      * @param creationTimeMillis the creation time in milliseconds
      * @param author the author who is creating the new element
+     * @param encrypt whether to enable encryption for the created element
      */
     T create(String name, long creationTimeMillis, Author author, boolean encrypt);
 

@@ -231,10 +231,11 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
 
     @Override
     public void put(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value) {
-        try (WriteBatch writeBatch = new WriteBatch()) {
+        try (WriteBatch writeBatch = new WriteBatch();
+             WriteOptions writeOptions = new WriteOptions()) {
             writeBatch.put(metadataColumnFamilyHandle, metadataKey, metadataValue);
             writeBatch.put(defaultColumnFamilyHandle, key, value);
-            rocksDb.write(new WriteOptions(), writeBatch);
+            rocksDb.write(writeOptions, writeBatch);
         } catch (RocksDBException e) {
             throw new EncryptionStorageException("Failed to write key-value with metadata. metadata key: " +
                                                  new String(metadataKey, StandardCharsets.UTF_8), e);

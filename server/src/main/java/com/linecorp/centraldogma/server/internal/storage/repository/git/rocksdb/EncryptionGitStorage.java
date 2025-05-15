@@ -84,6 +84,9 @@ public final class EncryptionGitStorage {
     }
 
     ObjectId insertObject(ObjectId objectId, int type, byte[] data, int off, int len) throws IOException {
+        if (off < 0 || len < 0 || off + len > data.length) {
+            throw new IllegalArgumentException("Invalid offset or length: " + off + ", " + len);
+        }
         final byte[] metadataKey = objectMetadataKey(objectId);
         if (encryptionStorageManager.containsMetadata(metadataKey)) {
             return objectId;

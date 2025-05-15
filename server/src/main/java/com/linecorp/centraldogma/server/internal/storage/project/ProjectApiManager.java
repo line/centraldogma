@@ -27,7 +27,6 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.common.EncryptionKeyException;
 import com.linecorp.centraldogma.common.PermissionException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
@@ -36,6 +35,7 @@ import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -109,9 +109,10 @@ public final class ProjectApiManager {
             return commandExecutor.execute(Command.createProject(author, projectName));
         }
         return encryptionStorageManager.generateWdek()
-                                       .thenAccept(wdek -> Command.createProject(author, projectName, wdek))
+                                       .thenCompose(wdek -> commandExecutor.execute(
+                                               Command.createProject(author, projectName, wdek)))
                                        .exceptionally(cause -> {
-                                           throw new EncryptionKeyException(
+                                           throw new EncryptionStorageException(
                                                    "Failed to create encrypted project " + projectName, cause);
                                        });
     }
