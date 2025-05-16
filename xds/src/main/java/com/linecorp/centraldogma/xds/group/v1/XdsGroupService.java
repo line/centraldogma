@@ -63,7 +63,7 @@ public final class XdsGroupService extends XdsGroupServiceImplBase {
         if (projectManager.get(XDS_CENTRAL_DOGMA_PROJECT).repos().exists(groupId)) {
             throw alreadyExistsException(groupId);
         }
-        createRepository(commandExecutor, mds, currentAuthor(), XDS_CENTRAL_DOGMA_PROJECT, groupId)
+        createRepository(commandExecutor, mds, currentAuthor(), XDS_CENTRAL_DOGMA_PROJECT, groupId, false, null)
                 .handle((unused, cause) -> {
                     if (cause != null) {
                         final Throwable peeled = Exceptions.peel(cause);

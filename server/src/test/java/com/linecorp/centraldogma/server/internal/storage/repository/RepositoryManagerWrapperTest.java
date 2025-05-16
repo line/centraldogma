@@ -41,6 +41,7 @@ import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager;
+import com.linecorp.centraldogma.server.storage.encryption.NoopEncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
@@ -58,11 +59,12 @@ class RepositoryManagerWrapperTest {
     @BeforeEach
     void setUp() {
         purgeWorker = mock(Executor.class);
-        m = new RepositoryManagerWrapper(new GitRepositoryManager(mock(Project.class),
-                                                                  tempDir.toFile(),
-                                                                  ForkJoinPool.commonPool(),
-                                                                  purgeWorker, null),
-                                         RepositoryWrapper::new);
+        m = new RepositoryManagerWrapper(
+                new GitRepositoryManager(mock(Project.class),
+                                         tempDir.toFile(),
+                                         ForkJoinPool.commonPool(),
+                                         purgeWorker, null, NoopEncryptionStorageManager.INSTANCE),
+                RepositoryWrapper::new);
     }
 
     @AfterEach
