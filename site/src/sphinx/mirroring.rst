@@ -32,93 +32,75 @@ applications access Central Dogma repositories instead:
 - Source code repositories are not always highly-available, although they may be backed up regularly.
 - Central Dogma repositories are highly-available, queryable and watchable.
 
-Setting up a Git-to-CD mirror
------------------------------
-You need to put two files into the ``meta`` repository of your Central Dogma project:
-``/mirrors/{mirror-id}.json`` and ``/credentials/{credential-id}.json``.
+Setting up a mirror
+-------------------
+First, you need to create a credential to access the Git repository. You can create a project-wide credential
+via project settings or a repository-specific credential via repository settings.
+
+Currently, you can use SSH key authentication, password-based authentication, or access token-based authentication.
 
 Setting up a mirroring task
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``/mirrors/{mirror-id}.json`` contains an object of a periodic mirroring task. For example:
+You can set up a mirroring task via repository settings.
 
-.. code-block:: json
-   :caption: foo-settings-mirror.json
+.. image:: _images/mirroring_1.png
 
-   {
-     "id": "foo-settings-mirror",
-     "enabled": true,
-     "schedule": "0 * * * * ?",
-     "direction": "REMOTE_TO_LOCAL",
-     "localRepo": "foo",
-     "localPath": "/",
-     "remoteUri": "git+ssh://git.example.com/foo.git/settings#release",
-     "credentialId": "my_private_key",
-     "gitignore": [
-         "/credential.txt",
-         "private_dir"
-     ],
-     "zone": "zone1"
-   }
+Here is the properties of the mirroring task:
 
-- ``id`` (string)
+- ``Mirror ID``
 
-  - the ID of the mirroring task. You should set the same value specified in the file name.
-    For example, if the file name is ``/mirrors/foo-settings-mirror.json``, the value of this field should be
-    ``foo-settings-mirror``.
+  - the ID of the mirroring task. This must be unique in the repository.
 
-- ``enabled`` (boolean, optional)
-
-  - whether the mirroring task is enabled. Enabled by default if unspecified.
-
-- ``schedule`` (string, optional)
+- ``Schedule``
 
   - a `Quartz cron expression <https://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html>`_
     that describes when the mirroring task is supposed to be triggered. If unspecified, ``0 * * * * ?``
     (every minute) is used.
 
-- ``direction`` (string)
+- ``Direction``
 
-  - the direction of mirror. Use ``REMOTE_TO_LOCAL``.
+  - the direction of mirror.
 
-- ``localRepo`` (string)
+- ``Local path``
 
-  - the Central Dogma repository name. The content under the location specified in ``remoteUri`` will be
-    mirrored into this repository.
+  - the directory path. The content of the ``remote path`` will be mirrored into this directory.
+    If unspecified, ``/`` is used.
 
-- ``localPath`` (string, optional)
+- ``Remote``
 
-  - the directory path in ``localRepo``. The content under the location specified in ``remoteUri`` will be
-    mirrored into this directory in ``localRepo``. If unspecified, ``/`` is used.
-
-- ``remoteUri`` (string)
-
-  - the URI of the Git repository which will be mirrored from.
   - Supported schemes are:
 
     - ``git+http``
     - ``git+https``
     - ``git+ssh``
 
-  - Path is split after ``.git``. The part after ``.git`` refers the directory inside the Git repository.
-    e.g. ``/foo.git/src/settings`` refers to the files under the directory ``/src/settings`` which resides in
-    the Git repository ``/foo.git`` If you want to mirror the whole content of the repository, you can simply
-    end the URI with ``.git``. e.g. ``git+ssh://git.example.com/foo.git``
-  - Fragment represents a branch name. e.g. ``#release`` will mirror the branch ``release``. If unspecified,
-    the repository's default branch is mirrored.
+  - ``repo``
 
-- ``credentialId`` (string)
+    - the uri of the remote Git repository except the scheme.
+      e.g. ``github.com/foo.git``
 
-  - the ID of the credential to use for authentication, as defined in ``/credentials/{credential-id}.json``.
+  - ``branch``
 
-- ``gitignore`` (string or array of strings, optional)
+    - the branch name of the remote Git repository. If unspecified, the default branch of the remote
+      Git repository is used.
+
+  - ``path``
+
+    - the path of the remote Git repository. If unspecified, the whole content of
+      the remote Git repository is mirrored.
+
+- ``Credential``
+
+  - the ID of the credential to use for authentication.
+
+- ``gitignore``
 
   - a `gitignore <https://git-scm.com/docs/gitignore>` specifies files that should be excluded from mirroring.
     The type of gitignore can either be a string containing the entire file (e.g. ``/filename.txt\ndirectory``) or an array 
-    of strings where each line represents a single pattern. The file pattern expressed in gitignore is relative to the
-    path of ``remoteUri``.
+    of strings where each line represents a single pattern.
 
-- ``zone`` (string, optional)
+- ``Zone`` (Displayed only if ``zone`` in the :ref:`setup-configuration` is configured)
 
    - the zone where the mirroring task is executed.
 
@@ -127,115 +109,9 @@ Setting up a mirroring task
      - a mirroring task is executed in the first zone of ``zone.allZones`` configuration.
      - if ``zone.allZones`` is not configured, a mirroring task is executed in the leader replica.
 
-Setting up a credential
-^^^^^^^^^^^^^^^^^^^^^^^
+- ``Enable mirror``
 
-``/credentials/{credential-id}.json`` contains the authentication credential which is required when accessing
-the Git repositories defined in ``/mirrors/{mirror-id}.json``:
-
-* No authentication
-.. code-block:: json
-   :caption: no_auth.json
-
-   {
-     "id": "no_auth",
-     "type": "none"
-   }
-
-* Password-based authentication
-.. code-block:: json
-   :caption: my_password.json
-
-   {
-     "id": "my_password",
-     "type": "password",
-     "username": "alice",
-     "password": "secret!"
-   }
-
-* SSH public key authentication
-.. code-block:: json
-   :caption: my_private_key.json
-
-   {
-     "id": "my_private_key",
-     "type": "public_key",
-     "username": "git",
-     "publicKey": "ssh-ed25519 ... user@host",
-     "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----\n",
-     "passphrase": null
-   }
-
-* Access token-based authentication
-.. code-block:: json
-   :caption: my_access_token.json
-
-   {
-     "id": "my_access_token",
-     "type": "access_token",
-     "accessToken": "github_pat_..."
-   }
-
-- ``id`` (string)
-
-  - the ID of the credential. You should set the same value specified in the file name. For example, if the file
-    name is ``/credentials/my_private_key.json``, the value of this field should be ``my_private_key``.
-    You can specify the value of this field in the ``credentialId`` field of the mirror definitions in
-    ``/mirrors/{mirror-id}.json``.
-
-- ``type`` (string)
-
-  - the type of authentication mechanism: ``none``, ``password``, ``public_key`` or ``access_token``.
-
-- ``username`` (string)
-
-  - the user name. You must specify this field if you use a credential whose type is ``password`` or
-    ``public_key``.
-
-- ``password`` (string)
-
-  - the password which is used for password-based authentication.
-
-- ``publicKey`` (string)
-
-  - the OpenSSH RSA, ECDSA or EdDSA public key which is used for SSH public key authentication.
-
-- ``privateKey`` (string)
-
-  - the OpenSSH RSA, ECDSA or EdDSA private key which is used for SSH public key authentication.
-    The PEM format is also supported.
-
-    .. tip::
-
-        You can convert your private key into a JSON string using a ``perl`` command:
-
-        .. code-block:: shell
-
-            $ cat ~/.ssh/id_rsa | perl -p -0 -e 's/\r?\n/\\n/g'
-
-- ``passphrase`` (string)
-
-  - the passphrase of ``privateKey`` if the private key is encrypted.
-    If unspecified or ``null``, the private key should not be encrypted.
-
-- ``accessToken`` (string)
-
-  - the access token which is used for access token-based authentication such as
-    `GitHub Personal Access Token <https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token>`_.
-
-If everything was configured correctly, the repository you specified in ``localRepo`` will have a file named
-``mirror_state.json`` on a successful run, which contains the commit ID of the Git repository:
-
-.. code-block:: json
-
-    {
-      "sourceRevision": "22fb176e4d8096d709d34ffe985c5f3acea83ef2"
-    }
-
-Setting up a CD-to-Git mirror
------------------------------
-It's exactly the same as setting up a Git-to-CD mirror which is described above, except you need to specify
-``direction`` with ``LOCAL_TO_REMOTE``.
+  - whether the mirroring task is enabled.
 
 Mirror limit settings
 ---------------------
