@@ -290,18 +290,17 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
 
     @Override
     protected void deletePurged(File file) {
+        final String repoName = removeInterfixAndPurgedSuffix(file.getName());
+        logger.info("Deleting a purged repository: {} ..", repoName);
         if (isEncryptedRepository(file)) {
-            String name = file.getName();
-            name = removeInterfixAndPurgedSuffix(name);
-            encryptionStorageManager().deleteRepositoryData(parent.name(), name);
+            encryptionStorageManager().deleteRepositoryData(parent.name(), repoName);
             // Then remove the directory below.
         }
         try {
-            logger.info("Deleting a purged repository: {} ..", file);
             deleteFileTree(file);
-            logger.info("Deleted a purged repository: {}.", file);
+            logger.info("Deleted a purged repository: {}.", repoName);
         } catch (IOException e) {
-            logger.warn("Failed to delete a purged repository: {}", file, e);
+            logger.warn("Failed to delete a purged repository: {}", repoName, e);
         }
     }
 

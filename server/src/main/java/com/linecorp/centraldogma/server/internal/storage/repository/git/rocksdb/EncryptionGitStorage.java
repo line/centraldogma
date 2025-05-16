@@ -51,7 +51,7 @@ import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageMana
 public final class EncryptionGitStorage {
 
     public static final String OBJS = "objs/";
-    public static final String REFS = R_REFS;
+    public static final String REFS = R_REFS; // refs/
     public static final String REV2SHA = "rev2sha/";
 
     private final String projectName;

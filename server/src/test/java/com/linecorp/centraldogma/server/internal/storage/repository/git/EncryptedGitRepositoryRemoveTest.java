@@ -104,5 +104,7 @@ final class EncryptedGitRepositoryRemoveTest {
         assertThatThrownBy(() -> encryptionStorageManager.getDek(PROJECT_NAME, REPO_NAME))
                 .isInstanceOf(EncryptionStorageException.class)
                 .hasMessageContaining("WDEK of foo/bar does not exist");
+
+        encryptionStorageManager.close();
     }
 }

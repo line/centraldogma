@@ -112,7 +112,8 @@ public final class DefaultProjectManager extends DirectoryBasedStorageManager<Pr
 
     @Override
     protected void deletePurged(File file) {
-        logger.info("Deleting a purged project: {} ..", file);
+        final String projectName = removeInterfixAndPurgedSuffix(file.getName());
+        logger.info("Deleting a purged project: {} ..", projectName);
         try {
             final File[] childFiles = file.listFiles();
             if (childFiles != null) {
@@ -127,15 +128,14 @@ public final class DefaultProjectManager extends DirectoryBasedStorageManager<Pr
                         } else {
                             repoName = name;
                         }
-                        final String projectName = removeInterfixAndPurgedSuffix(file.getName());
                         encryptionStorageManager().deleteRepositoryData(projectName, repoName);
                     }
                 }
             }
             deleteFileTree(file);
-            logger.info("Deleted a purged project: {}.", file);
+            logger.info("Deleted a purged project: {}.", projectName);
         } catch (IOException e) {
-            logger.warn("Failed to delete a purged project: {}", file, e);
+            logger.warn("Failed to delete a purged project: {}", projectName, e);
         }
     }
 }
