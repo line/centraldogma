@@ -66,8 +66,7 @@ class BasicAuthTest {
     }
 
     @Test
-    void useSessionTokenToAccessResources() throws InterruptedException {
-        Thread.sleep(Long.MAX_VALUE);
+    void useSessionTokenToAccessResources() {
         final String accessToken = TestAuthMessageUtil.getAccessToken(dogma.httpClient(),
                                                                       TestAuthMessageUtil.USERNAME,
                                                                       TestAuthMessageUtil.PASSWORD);

@@ -66,12 +66,12 @@ public abstract class AbstractAuthorizer implements Authorizer<HttpRequest> {
         }
 
         // Check the scheme of the authorization header to avoid unnecessary warning logs.
-        if (authorization.startsWith("Bearer")) {
+        if (authorization.regionMatches(true, 0, "Bearer", 0, 6)) {
             final OAuth2Token oAuth2Token = AuthTokenExtractors.oAuth2().apply(headers);
             if (oAuth2Token != null) {
                 token = oAuth2Token.accessToken();
             }
-        } else if (authorization.startsWith("Basic")) {
+        } else if (authorization.regionMatches(true, 0, "Basic", 0, 5)) {
             final BasicToken basicToken = AuthTokenExtractors.basic().apply(headers);
             if (basicToken != null) {
                 // Allow only the 'dogma' username for basic authentication.
