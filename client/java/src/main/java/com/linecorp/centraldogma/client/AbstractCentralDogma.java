@@ -17,8 +17,14 @@
 package com.linecorp.centraldogma.client;
 
 import static com.linecorp.centraldogma.internal.PathPatternUtil.toPathPattern;
+import static com.spotify.futures.CompletableFutures.exceptionallyCompletedFuture;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -26,6 +32,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
+
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -37,6 +45,7 @@ import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -190,6 +199,46 @@ public abstract class AbstractCentralDogma implements CentralDogma {
                                                                 .map(function)
                                                                 .mapperExecutor(executor)
                                                                 .start();
+    }
+
+    @Override
+    public CompletableFuture<ImportResult> importDir(Path dir) {
+        if (dir.getNameCount() < 2) {
+            return exceptionallyCompletedFuture(new IllegalArgumentException(
+                    "Path must be <project>/<repo>[/…]: " + dir));
+        }
+        final String project = dir.getName(0).toString();
+        final String repo = dir.getName(1).toString();
+        final Path norm = dir.toAbsolutePath().normalize();
+
+        return forRepo(project, repo).importDir(norm);
+    }
+
+    @Override
+    public CompletableFuture<ImportResult> importResourceDir(String dir) {
+        final Path path = Paths.get(dir);
+        if (path.getNameCount() < 2) {
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Path must be <project>/<repo>[/…]: " + dir));
+        }
+        final String project = path.getName(0).toString();
+        final String repo = path.getName(1).toString();
+
+        return forRepo(project, repo).importResourceDir(dir);
+    }
+
+    @Override
+    public CompletableFuture<ImportResult> importResourceDir(String dir, ClassLoader classLoader) {
+
+        final Path path = Paths.get(dir);
+        if (path.getNameCount() < 2) {
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Path must be <project>/<repo>[/…]: " + dir));
+        }
+        final String project = path.getName(0).toString();
+        final String repo = path.getName(1).toString();
+
+        return forRepo(project, repo).importResourceDir(dir, classLoader);
     }
 
     /**
