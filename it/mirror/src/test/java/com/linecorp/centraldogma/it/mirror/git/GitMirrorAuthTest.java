@@ -111,7 +111,7 @@ class GitMirrorAuthTest {
         client.forRepo(projName, Project.REPO_META)
               .commit("Add a mirror",
                       Change.ofJsonUpsert(credentialFile(credentialName), credential),
-                      Change.ofJsonUpsert("/mirrors/main.json",
+                      Change.ofJsonUpsert("/repos/main/mirrors/main.json",
                                           '{' +
                                           "  \"id\": \"main\"," +
                                           "  \"enabled\": true," +

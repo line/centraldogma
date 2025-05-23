@@ -64,6 +64,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaReplicationExtension;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaRuleDelegate;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -167,7 +168,7 @@ class ZoneAwareMirrorTest {
     @Test
     void shouldWarnUnknownZoneForScheduledJob() throws Exception {
         final CentralDogma client = cluster.servers().get(0).client();
-        final CentralDogmaRepository repo = client.forRepo(FOO_PROJ, "meta");
+        final CentralDogmaRepository repo = client.forRepo(FOO_PROJ, Project.REPO_META);
         final String mirrorId = TEST_MIRROR_ID + "-unknown-zone";
         final String unknownZone = "unknown-zone";
         final MirrorConfig mirrorConfig =
