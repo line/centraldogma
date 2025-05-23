@@ -20,9 +20,11 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthFailureHandler;
@@ -35,6 +37,13 @@ final class CentralDogmaAuthFailureHandler implements AuthFailureHandler {
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaAuthFailureHandler.class);
 
     private static final AuthorizationException AUTHORIZATION_EXCEPTION = new AuthorizationException("", false);
+    private static final ResponseHeaders UNAUTHORIZED_HEADERS =
+            ResponseHeaders.builder(HttpStatus.UNAUTHORIZED)
+                           .add(HttpHeaderNames.WWW_AUTHENTICATE,
+                                "Bearer realm=\"Central Dogma\", charset=\"UTF-8\"")
+                           .add(HttpHeaderNames.WWW_AUTHENTICATE,
+                                "Basic realm=\"Central Dogma\", charset=\"UTF-8\"")
+                           .build();
 
     @Override
     public HttpResponse authFailed(HttpService delegate,
@@ -47,6 +56,6 @@ final class CentralDogmaAuthFailureHandler implements AuthFailureHandler {
             return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause);
         }
 
-        return HttpApiUtil.newResponse(ctx, HttpStatus.UNAUTHORIZED, AUTHORIZATION_EXCEPTION);
+        return HttpApiUtil.newResponse(ctx, UNAUTHORIZED_HEADERS, AUTHORIZATION_EXCEPTION);
     }
 }

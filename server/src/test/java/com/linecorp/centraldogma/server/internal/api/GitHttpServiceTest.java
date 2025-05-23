@@ -15,6 +15,9 @@
  */
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.eclipse.jgit.transport.GitProtocolConstants.VERSION_2_REQUEST;
 
@@ -25,7 +28,6 @@ import java.util.List;
 import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.TransportCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
@@ -33,8 +35,9 @@ import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.FetchResult;
-import org.eclipse.jgit.transport.TransportHttp;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.TreeWalk;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
@@ -42,9 +45,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
@@ -53,9 +56,13 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.common.annotation.Nullable;
+import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.internal.api.GitHttpService.PacketLineFraming;
+import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class GitHttpServiceTest {
@@ -70,6 +77,20 @@ class GitHttpServiceTest {
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
 
         @Override
+        protected void configure(CentralDogmaBuilder builder) {
+            builder.authProviderFactory(new TestAuthProviderFactory());
+            builder.systemAdministrators(USERNAME);
+        }
+
+        @Override
+        protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
+            final String accessToken = getAccessToken(
+                    WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
+                    USERNAME, PASSWORD);
+            builder.accessToken(accessToken);
+        }
+
+        @Override
         protected void scaffold(CentralDogma client) {
             client.createProject("foo").join();
             client.createRepository("foo", "bar").join();
@@ -78,13 +99,24 @@ class GitHttpServiceTest {
         }
     };
 
+    private String accessToken;
+    private String basicAuthToken;
+
+    @BeforeEach
+    void setUp() {
+        accessToken = getAccessToken(
+                WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
+                USERNAME, PASSWORD);
+        basicAuthToken = AuthToken.ofBasic("dogma", accessToken).asHeaderValue();
+    }
+
     @CsvSource({ "bar.git", "bar" })
     @ParameterizedTest
     void advertiseCapability(String repoName) {
         final RequestHeaders headers =
                 RequestHeaders.of(HttpMethod.GET, "/foo/" + repoName + "/info/refs?service=git-upload-pack",
                                   HttpHeaderNames.GIT_PROTOCOL, VERSION_2_REQUEST,
-                                  HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+                                  HttpHeaderNames.AUTHORIZATION, basicAuthToken);
         final AggregatedHttpResponse res = dogma.httpClient().execute(headers).aggregate().join();
         assertThat(res.status()).isSameAs(HttpStatus.OK);
         assertThat(res.headers().contentType()).isSameAs(MediaType.GIT_UPLOAD_PACK_ADVERTISEMENT);
@@ -103,18 +135,18 @@ class GitHttpServiceTest {
         RequestHeaders headers =
                 RequestHeaders.of(HttpMethod.GET, "/foo/non-exist-repo/info/refs?service=git-upload-pack",
                                   HttpHeaderNames.GIT_PROTOCOL, VERSION_2_REQUEST,
-                                  HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+                                  HttpHeaderNames.AUTHORIZATION, basicAuthToken);
         assertThat(dogma.httpClient().execute(headers).aggregate().join().status())
                 .isSameAs(HttpStatus.NOT_FOUND);
 
         headers = RequestHeaders.of(HttpMethod.GET, "/foo/bar.git/info/refs?service=no-such-service",
-                                    HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+                                    HttpHeaderNames.AUTHORIZATION, basicAuthToken);
         assertThat(dogma.httpClient().execute(headers).aggregate().join().status())
                 .isSameAs(HttpStatus.FORBIDDEN);
 
         headers = RequestHeaders.of(HttpMethod.GET, "/foo/bar.git/info/refs?service=git-upload-pack",
                                     HttpHeaderNames.GIT_PROTOCOL, "invalid-version",
-                                    HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+                                    HttpHeaderNames.AUTHORIZATION, basicAuthToken);
         assertThat(dogma.httpClient().execute(headers).aggregate().join().status())
                 .isSameAs(HttpStatus.BAD_REQUEST);
     }
@@ -126,7 +158,7 @@ class GitHttpServiceTest {
                 RequestHeaders.of(HttpMethod.POST, "/foo/bar.git/git-upload-pack",
                                   HttpHeaderNames.CONTENT_TYPE, "application/x-git-upload-pack-request",
                                   HttpHeaderNames.GIT_PROTOCOL, VERSION_2_REQUEST,
-                                  HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+                                  HttpHeaderNames.AUTHORIZATION, basicAuthToken);
         AggregatedHttpResponse res = dogma.httpClient().execute(headers, lsRefsCommand())
                                           .aggregate().join();
         assertThat(res.status()).isSameAs(HttpStatus.OK);
@@ -171,20 +203,20 @@ class GitHttpServiceTest {
                 RequestHeaders.of(HttpMethod.POST, "/foo/non-exist-repo/git-upload-pack",
                                   HttpHeaderNames.CONTENT_TYPE, "application/x-git-upload-pack-request",
                                   HttpHeaderNames.GIT_PROTOCOL, VERSION_2_REQUEST,
-                                  HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+                                  HttpHeaderNames.AUTHORIZATION, basicAuthToken);
         assertThat(dogma.httpClient().execute(headers).aggregate().join().status())
                 .isSameAs(HttpStatus.NOT_FOUND);
 
         headers = RequestHeaders.of(HttpMethod.POST, "/foo/bar.git/git-upload-pack",
                                     HttpHeaderNames.CONTENT_TYPE, MediaType.PLAIN_TEXT_UTF_8,
-                                    HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+                                    HttpHeaderNames.AUTHORIZATION, basicAuthToken);
         assertThat(dogma.httpClient().execute(headers).aggregate().join().status())
                 .isSameAs(HttpStatus.BAD_REQUEST);
 
         headers = RequestHeaders.of(HttpMethod.POST, "/foo/bar.git/git-upload-pack",
                                     HttpHeaderNames.CONTENT_TYPE, "application/x-git-upload-pack-request",
                                     HttpHeaderNames.GIT_PROTOCOL, "invalid-version",
-                                    HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+                                    HttpHeaderNames.AUTHORIZATION, basicAuthToken);
         assertThat(dogma.httpClient().execute(headers).aggregate().join().status())
                 .isSameAs(HttpStatus.BAD_REQUEST);
     }
@@ -224,7 +256,8 @@ class GitHttpServiceTest {
              .push()
              .join();
         final FetchCommand fetch = git1.fetch();
-        addAuthHeader(fetch);
+        fetch.setCredentialsProvider(
+                new UsernamePasswordCredentialsProvider("dogma", accessToken));
         final FetchResult call = fetch.call();
         assertThat(call.getAdvertisedRefs()).hasSize(1);
         final Ref ref2 = Iterables.getFirst(call.getAdvertisedRefs(), null);
@@ -236,23 +269,14 @@ class GitHttpServiceTest {
         git1.close();
     }
 
-    private static Git clone(File directory) throws GitAPIException {
+    private Git clone(File directory) throws GitAPIException {
         final CloneCommand cloneCommand = Git.cloneRepository().setURI("http://127.0.0.1:" +
                                                                        dogma.serverAddress().getPort() +
                                                                        "/foo/bar.git")
                                              .setDirectory(directory);
-        addAuthHeader(cloneCommand);
+        cloneCommand.setCredentialsProvider(
+                new UsernamePasswordCredentialsProvider("dogma", accessToken));
         return cloneCommand.call();
-    }
-
-    private static void addAuthHeader(TransportCommand<?, ?> command) {
-        command.setTransportConfigCallback(transport -> {
-            if (transport instanceof TransportHttp) {
-                ((TransportHttp) transport).setAdditionalHeaders(
-                        ImmutableMap.of(HttpHeaderNames.AUTHORIZATION.toString(),
-                                        "Bearer anonymous"));
-            }
-        });
     }
 
     private static Ref assertRefs(Git git) throws IOException {

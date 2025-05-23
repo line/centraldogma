@@ -849,7 +849,10 @@ public class CentralDogma implements AutoCloseable {
     private Function<? super HttpService, AuthService> authService(
             MetadataService mds, @Nullable AuthProvider authProvider, @Nullable SessionManager sessionManager) {
         if (authProvider == null) {
-            return AuthService.newDecorator(new CsrfTokenAuthorizer());
+            return AuthService.builder()
+                              .add(new CsrfTokenAuthorizer())
+                              .onFailure(new CentralDogmaAuthFailureHandler())
+                              .newDecorator();
         }
         final AuthConfig authCfg = cfg.authConfig();
         assert authCfg != null : "authCfg";
