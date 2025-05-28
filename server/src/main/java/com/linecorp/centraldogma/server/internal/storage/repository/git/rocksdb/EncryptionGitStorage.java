@@ -41,6 +41,7 @@ import org.eclipse.jgit.lib.SymbolicRef;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import com.google.common.primitives.Ints;
 
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
@@ -266,8 +267,7 @@ public final class EncryptionGitStorage {
         if (nonce == null) {
             throw new RevisionNotFoundException(revision);
         }
-        final byte[] encryptedKey =
-                encrypt(nonce, ByteBuffer.allocate(4).putInt(revision.major()).array(), 0, 4);
+        final byte[] encryptedKey = encrypt(nonce, Ints.toByteArray(revision.major()), 0, 4);
         final byte[] value = encryptionStorageManager.get(encryptedKey);
         if (value == null) {
             throw new RevisionNotFoundException(revision);
@@ -297,8 +297,7 @@ public final class EncryptionGitStorage {
         }
         final byte[] nonce = AesGcmSivCipher.generateNonce();
 
-        final byte[] encryptedRevision =
-                encrypt(nonce, ByteBuffer.allocate(4).putInt(revision.major()).array(), 0, 4);
+        final byte[] encryptedRevision = encrypt(nonce, Ints.toByteArray(revision.major()), 0, 4);
         final byte[] encryptedId = encryptObjectId(nonce, objectId);
         encryptionStorageManager.put(metadataKey, nonce, encryptedRevision, encryptedId);
     }
