@@ -57,6 +57,8 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
 
     private static final String ENCRYPTION_METADATA_COLUMN_FAMILY = "encryption_metadata";
 
+    private static final int BATCH_WRITE_SIZE = 1000;
+
     static final String ROCKSDB_PATH = "_rocks";
 
     private final KeyManagementService keyManagementService;
@@ -301,7 +303,9 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
         final byte[] refsKeyPrefixBytes = (projectRepoPrefix + REFS).getBytes(StandardCharsets.UTF_8);
         final byte[] rev2ShaPrefixBytes = (projectRepoPrefix + REV2SHA).getBytes(StandardCharsets.UTF_8);
 
-        int deletedCount = 0;
+        int totalDeletedCount = 0;
+        int operationsInCurrentBatch = 0;
+
         try (WriteBatch writeBatch = new WriteBatch();
              WriteOptions writeOptions = new WriteOptions();
              RocksIterator iterator = rocksDb.newIterator(metadataColumnFamilyHandle)) {
@@ -370,21 +374,42 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
                 }
 
                 writeBatch.delete(metadataColumnFamilyHandle, metadataKey);
-                deletedCount++;
+                operationsInCurrentBatch++;
+                totalDeletedCount++;
                 if (keyInDefaultColumnFamily != null) {
                     writeBatch.delete(defaultColumnFamilyHandle, keyInDefaultColumnFamily);
-                    deletedCount++;
+                    operationsInCurrentBatch++;
+                    totalDeletedCount++;
                 } else {
                     logger.warn("Failed to find the corresponding key for metadata key: {}.",
                                 new String(metadataKey, StandardCharsets.UTF_8));
                 }
+                if (operationsInCurrentBatch >= BATCH_WRITE_SIZE) {
+                    if (writeBatch.count() > 0) {
+                        writeOptions.setSync(true);
+                        rocksDb.write(writeOptions, writeBatch);
+                        logger.info("Deleted {} entries for repository {}/{}. " +
+                                    "Total entries processed for deletion so far: {}.",
+                                    operationsInCurrentBatch, projectName, repoName, totalDeletedCount);
+                        writeBatch.clear();
+                        operationsInCurrentBatch = 0;
+                    }
+                }
+
                 iterator.next();
             }
 
-            if (deletedCount > 0) {
+            if (operationsInCurrentBatch > 0) {
                 writeOptions.setSync(true);
                 rocksDb.write(writeOptions, writeBatch);
-                logger.info("Deleted {} entries for repository {}/{}", deletedCount, projectName, repoName);
+                logger.info("Deleted {} entries for repository {}/{}. " +
+                            "Total entries processed for deletion so far: {}.",
+                            operationsInCurrentBatch, projectName, repoName, totalDeletedCount);
+            }
+
+            if (totalDeletedCount > 0) {
+                logger.info("Successfully deleted a total of {} entries for repository {}/{}",
+                            totalDeletedCount, projectName, repoName);
             } else {
                 logger.info("No data found for repository {}/{}", projectName, repoName);
             }
