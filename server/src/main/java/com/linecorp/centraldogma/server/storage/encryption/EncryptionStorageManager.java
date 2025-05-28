@@ -73,7 +73,7 @@ public interface EncryptionStorageManager extends SafeCloseable {
     CompletableFuture<byte[]> generateWdek();
 
     /**
-     * Returns the unwrapped data encryption key (WDEK) for the specified project and repository.
+     * Returns the data encryption key (DEK) for the specified project and repository.
      */
     SecretKey getDek(String projectName, String repoName);
 
@@ -104,6 +104,12 @@ public interface EncryptionStorageManager extends SafeCloseable {
      * Stores the specified key-value pair with metadata.
      */
     void put(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value);
+
+    /**
+     * Stores the specified key-value pair with metadata. The {@code previousKeyToRemove} will be removed.
+     */
+    void putAndRemovePrevious(byte[] metadataKey, byte[] metadataValue,
+                              byte[] key, byte[] value, byte[] previousKeyToRemove);
 
     /**
      * Returns {@code true} if the specified key exists.

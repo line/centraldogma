@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb;
 
-import static com.linecorp.centraldogma.server.internal.storage.EncryptionKeyUtil.NONCE_SIZE_BYTES;
+import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.NONCE_SIZE_BYTES;
 import static org.eclipse.jgit.lib.Constants.R_REFS;
 import static org.eclipse.jgit.lib.Constants.encode;
 import static org.eclipse.jgit.lib.ObjectReader.OBJ_ANY;
@@ -44,7 +44,7 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
-import com.linecorp.centraldogma.server.internal.storage.EncryptionKeyUtil;
+import com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
@@ -92,14 +92,19 @@ public final class EncryptionGitStorage {
             return objectId;
         }
 
-        final byte[] nonce = EncryptionKeyUtil.generateNonce();
-        final ByteBuffer byteBuffer = ByteBuffer.allocate(NONCE_SIZE_BYTES + 4);
-        byteBuffer.put(nonce);
-        byteBuffer.putInt(type);
+        final byte[] nonce = AesGcmSivCipher.generateNonce();
+        final byte[] nonceAndType = new byte[NONCE_SIZE_BYTES + 4];
+
+        System.arraycopy(nonce, 0, nonceAndType, 0, NONCE_SIZE_BYTES);
+
+        nonceAndType[NONCE_SIZE_BYTES] = (byte) (type >> 24);
+        nonceAndType[NONCE_SIZE_BYTES + 1] = (byte) (type >> 16);
+        nonceAndType[NONCE_SIZE_BYTES + 2] = (byte) (type >> 8);
+        nonceAndType[NONCE_SIZE_BYTES + 3] = (byte) type;
 
         final byte[] encryptedId = encryptObjectId(nonce, objectId);
         final byte[] encryptedValue = encrypt(nonce, data, off, len);
-        encryptionStorageManager.put(metadataKey, byteBuffer.array(), encryptedId, encryptedValue);
+        encryptionStorageManager.put(metadataKey, nonceAndType, encryptedId, encryptedValue);
         return objectId;
     }
 
@@ -119,7 +124,7 @@ public final class EncryptionGitStorage {
 
     private byte[] encrypt(byte[] nonce, byte[] data, int offset, int length) {
         try {
-            return EncryptionKeyUtil.encrypt(dek, nonce, data, offset, length);
+            return AesGcmSivCipher.encrypt(dek, nonce, data, offset, length);
         } catch (Exception e) {
             throw new EncryptionStorageException(
                     "Failed to encrypt data in " + projectName + '/' + repoName, e);
@@ -128,7 +133,7 @@ public final class EncryptionGitStorage {
 
     private byte[] decrypt(byte[] nonce, byte[] ciphertext) {
         try {
-            return EncryptionKeyUtil.decrypt(dek, nonce, ciphertext);
+            return AesGcmSivCipher.decrypt(dek, nonce, ciphertext);
         } catch (Exception e) {
             throw new EncryptionStorageException(
                     "Failed to decrypt data in " + projectName + '/' + repoName, e);
@@ -143,9 +148,10 @@ public final class EncryptionGitStorage {
             return null;
         }
 
-        final ByteBuffer byteBuffer = ByteBuffer.allocate(4);
-        byteBuffer.put(metadata, 12, 4).flip();
-        final int actualType = byteBuffer.getInt();
+        final int actualType = ((metadata[NONCE_SIZE_BYTES] & 0xFF) << 24) |
+                               ((metadata[NONCE_SIZE_BYTES + 1] & 0xFF) << 16) |
+                               ((metadata[NONCE_SIZE_BYTES + 2] & 0xFF) << 8) |
+                               (metadata[NONCE_SIZE_BYTES + 3] & 0xFF);
         if (typeHint != OBJ_ANY && actualType != typeHint) {
             throw new IncorrectObjectTypeException(objectId.copy(), typeHint);
         }
@@ -205,11 +211,20 @@ public final class EncryptionGitStorage {
     Result updateRef(String refName, ObjectId objectId, Result desiredResult) {
         final byte[] refNameBytes = refName.getBytes(StandardCharsets.UTF_8);
         final byte[] metadataKey = refMetadataKey(refNameBytes);
-        final byte[] nonce = EncryptionKeyUtil.generateNonce();
+        final byte[] nonce = AesGcmSivCipher.generateNonce();
 
         final byte[] encryptedRefName = encrypt(nonce, refNameBytes, 0, refNameBytes.length);
         final byte[] encryptedId = encryptObjectId(nonce, objectId);
-        encryptionStorageManager.put(metadataKey, nonce, encryptedRefName, encryptedId);
+
+        // We should remove the previous ref name if it exists.
+        final byte[] previousNonce = encryptionStorageManager.getMetadata(metadataKey);
+        if (previousNonce == null) {
+            encryptionStorageManager.put(metadataKey, nonce, encryptedRefName, encryptedId);
+            return desiredResult;
+        }
+        final byte[] previousEncryptedRefName = encrypt(previousNonce, refNameBytes, 0, refNameBytes.length);
+        encryptionStorageManager.putAndRemovePrevious(metadataKey, nonce, encryptedRefName,
+                                                      encryptedId, previousEncryptedRefName);
         return desiredResult;
     }
 
@@ -236,7 +251,7 @@ public final class EncryptionGitStorage {
     void linkRef(String refName, String target) {
         final byte[] refNameBytes = refName.getBytes(StandardCharsets.UTF_8);
         final byte[] metadataKey = refMetadataKey(refNameBytes);
-        final byte[] nonce = EncryptionKeyUtil.generateNonce();
+        final byte[] nonce = AesGcmSivCipher.generateNonce();
 
         final byte[] encryptedRefName = encrypt(nonce, refNameBytes, 0, refNameBytes.length);
         final byte[] encoded = encode(RefDirectory.SYMREF + target);
@@ -280,7 +295,7 @@ public final class EncryptionGitStorage {
             throw new EncryptionStorageException(
                     "Revision already exists: " + revision + " in " + projectName + '/' + repoName);
         }
-        final byte[] nonce = EncryptionKeyUtil.generateNonce();
+        final byte[] nonce = AesGcmSivCipher.generateNonce();
 
         final byte[] encryptedRevision =
                 encrypt(nonce, ByteBuffer.allocate(4).putInt(revision.major()).array(), 0, 4);

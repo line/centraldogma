@@ -73,6 +73,12 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     }
 
     @Override
+    public void putAndRemovePrevious(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value,
+                                     byte[] previousKeyToRemove) {
+        // No-op
+    }
+
+    @Override
     public boolean containsMetadata(byte[] key) {
         return false;
     }

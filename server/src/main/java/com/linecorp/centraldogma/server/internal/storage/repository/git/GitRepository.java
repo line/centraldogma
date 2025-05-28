@@ -1046,25 +1046,6 @@ class GitRepository implements Repository {
         this.headRevision = headRevision;
     }
 
-    /**
-     * Returns the current revision.
-     */
-    private Revision uncachedHeadRevision() {
-        try (RevWalk revWalk = newRevWalk()) {
-            final ObjectId headRevisionId = jGitRepository.resolve(R_HEADS_MASTER);
-            if (headRevisionId != null) {
-                final RevCommit revCommit = revWalk.parseCommit(headRevisionId);
-                return CommitUtil.extractRevision(revCommit.getFullMessage());
-            }
-        } catch (CentralDogmaException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new StorageException("failed to get the current revision", e);
-        }
-
-        throw new StorageException("failed to determine the HEAD: " + parent.name() + '/' + name);
-    }
-
     private RevTree toTree(RevWalk revWalk, Revision revision) {
         return toTree(commitIdDatabase, revWalk, revision);
     }

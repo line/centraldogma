@@ -29,9 +29,9 @@ import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.util.SystemInfo;
 
-public final class EncryptionKeyUtil {
+public final class AesGcmSivCipher {
 
-    private static final Logger logger = LoggerFactory.getLogger(EncryptionKeyUtil.class);
+    private static final Logger logger = LoggerFactory.getLogger(AesGcmSivCipher.class);
 
     private static final String ALGORITHM = "AES/GCM-SIV/NoPadding";
     // https://datatracker.ietf.org/doc/html/rfc8452#section-4
@@ -55,7 +55,7 @@ public final class EncryptionKeyUtil {
     }
 
     public static byte[] generateAes256Key() {
-        final byte[] keyBytes = new byte[KEY_SIZE_BYTES]; // 256비트
+        final byte[] keyBytes = new byte[KEY_SIZE_BYTES]; // 256bit
         SECURE_RANDOM.nextBytes(keyBytes);
         return keyBytes;
     }
@@ -84,5 +84,5 @@ public final class EncryptionKeyUtil {
         return cipher.doFinal(ciphertext);
     }
 
-    private EncryptionKeyUtil() {}
+    private AesGcmSivCipher() {}
 }

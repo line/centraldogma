@@ -209,6 +209,10 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
             final EncryptionGitStorage encryptionGitStorage =
                     new EncryptionGitStorage(parent.name(), repoDir.getName(), encryptionStorageManager);
             final RocksDbRepository rocksDbRepository = new RocksDbRepository(encryptionGitStorage);
+            // Initialize the master branch.
+            final RefUpdate head = rocksDbRepository.updateRef(Constants.HEAD);
+            head.disableRefLog();
+            head.link(R_HEADS_MASTER);
             final RocksDbCommitIdDatabase commitIdDatabase =
                     new RocksDbCommitIdDatabase(encryptionGitStorage, null);
             return new GitRepository(parent, repoDir, repositoryWorker,

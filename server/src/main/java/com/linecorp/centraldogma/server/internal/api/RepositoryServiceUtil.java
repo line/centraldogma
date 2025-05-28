@@ -31,9 +31,9 @@ public final class RepositoryServiceUtil {
 
     public static CompletableFuture<Revision> createRepository(
             CommandExecutor commandExecutor, MetadataService mds,
-            Author author, String projectName, String repoName, boolean encryptionEnabled,
+            Author author, String projectName, String repoName, boolean encrypt,
             @Nullable EncryptionStorageManager encryptionStorageManager) {
-        if (!encryptionEnabled) {
+        if (!encrypt) {
             return commandExecutor.execute(Command.createRepository(author, projectName, repoName))
                                   .thenCompose(unused -> mds.addRepo(author, projectName, repoName));
         }
@@ -45,6 +45,9 @@ public final class RepositoryServiceUtil {
                                                author, projectName, repoName, wdek)))
                                        .thenCompose(unused -> mds.addRepo(author, projectName, repoName))
                                        .exceptionally(cause -> {
+                                           if (cause instanceof EncryptionStorageException) {
+                                               throw (EncryptionStorageException) cause;
+                                           }
                                            throw new EncryptionStorageException(
                                                    "Failed to create encrypted repository " +
                                                    projectName + '/' + repoName, cause);

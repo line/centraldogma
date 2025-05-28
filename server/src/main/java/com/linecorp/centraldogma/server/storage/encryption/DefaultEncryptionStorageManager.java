@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.server.storage.encryption;
 
-import static com.linecorp.centraldogma.server.internal.storage.EncryptionKeyUtil.NONCE_SIZE_BYTES;
+import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.NONCE_SIZE_BYTES;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.EncryptionGitStorage.OBJS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.EncryptionGitStorage.REFS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.EncryptionGitStorage.REV2SHA;
@@ -30,6 +30,7 @@ import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -48,7 +49,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 
-import com.linecorp.centraldogma.server.internal.storage.EncryptionKeyUtil;
+import com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher;
 
 final class DefaultEncryptionStorageManager implements EncryptionStorageManager {
 
@@ -133,8 +134,8 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
 
     @Override
     public CompletableFuture<byte[]> generateWdek() {
-        final byte[] dek = EncryptionKeyUtil.generateAes256Key();
-        return keyManagementService.wrapDek(dek);
+        final byte[] dek = AesGcmSivCipher.generateAes256Key();
+        return keyManagementService.wrap(dek);
     }
 
     @Override
@@ -155,7 +156,7 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
         }
 
         try {
-            return new SecretKeySpec(keyManagementService.unwrapWdek(wdek).get(10, TimeUnit.SECONDS), "AES");
+            return new SecretKeySpec(keyManagementService.unwrap(wdek).get(10, TimeUnit.SECONDS), "AES");
         } catch (Throwable t) {
             throw new EncryptionStorageException(
                     "Failed to unwrap WDEK of " + projectRepo(projectName, repoName), t);
@@ -180,8 +181,9 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
         }
 
         // RocksDB is thread-safe.
-        try {
-            rocksDb.put(wdekKeyBytes, wdek);
+        try (WriteOptions writeOptions = new WriteOptions()) {
+            writeOptions.setSync(true);
+            rocksDb.put(writeOptions, wdekKeyBytes, wdek);
         } catch (RocksDBException e) {
             throw new EncryptionStorageException(
                     "Failed to store WDEK of " + projectRepo(projectName, repoName), e);
@@ -231,15 +233,30 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
 
     @Override
     public void put(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value) {
+        put(metadataKey, metadataValue, key, value, null);
+    }
+
+    private void put(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value,
+                     @Nullable byte[] previousKeyToRemove) {
         try (WriteBatch writeBatch = new WriteBatch();
              WriteOptions writeOptions = new WriteOptions()) {
+            writeOptions.setSync(true);
             writeBatch.put(metadataColumnFamilyHandle, metadataKey, metadataValue);
             writeBatch.put(defaultColumnFamilyHandle, key, value);
+            if (previousKeyToRemove != null) {
+                writeBatch.delete(defaultColumnFamilyHandle, previousKeyToRemove);
+            }
             rocksDb.write(writeOptions, writeBatch);
         } catch (RocksDBException e) {
             throw new EncryptionStorageException("Failed to write key-value with metadata. metadata key: " +
                                                  new String(metadataKey, StandardCharsets.UTF_8), e);
         }
+    }
+
+    @Override
+    public void putAndRemovePrevious(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value,
+                                     byte[] previousKeyToRemove) {
+        put(metadataKey, metadataValue, key, value, previousKeyToRemove);
     }
 
     @Override
@@ -260,6 +277,7 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
         requireNonNull(key, "key");
         try (WriteBatch writeBatch = new WriteBatch();
              WriteOptions writeOptions = new WriteOptions()) {
+            writeOptions.setSync(true);
             writeBatch.delete(metadataColumnFamilyHandle, metadataKey);
             writeBatch.delete(defaultColumnFamilyHandle, key);
             rocksDb.write(writeOptions, writeBatch);
@@ -309,7 +327,7 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
                                                     metadataKey.length);
                         if (metadataValue != null && metadataValue.length >= NONCE_SIZE_BYTES) {
                             nonce = Arrays.copyOfRange(metadataValue, 0, NONCE_SIZE_BYTES);
-                            keyInDefaultColumnFamily = EncryptionKeyUtil.encrypt(dek, nonce, idPart);
+                            keyInDefaultColumnFamily = AesGcmSivCipher.encrypt(dek, nonce, idPart);
                         } else {
                             logger.warn("Invalid metadata value for object key: {}",
                                         new String(metadataKey, StandardCharsets.UTF_8));
@@ -325,7 +343,7 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
                         idPart = Arrays.copyOfRange(metadataKey, rev2ShaPrefixBytes.length, metadataKey.length);
                         nonce = metadataValue;
                         if (nonce != null && nonce.length == NONCE_SIZE_BYTES) {
-                            keyInDefaultColumnFamily = EncryptionKeyUtil.encrypt(dek, nonce, idPart);
+                            keyInDefaultColumnFamily = AesGcmSivCipher.encrypt(dek, nonce, idPart);
                         } else {
                             logger.warn("Invalid nonce (metadata value) for rev2sha key: {}",
                                         new String(metadataKey, StandardCharsets.UTF_8));
@@ -341,7 +359,7 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
                     idPart = Arrays.copyOfRange(metadataKey, projectRepoPrefixBytes.length, metadataKey.length);
                     nonce = metadataValue;
                     if (nonce != null && nonce.length == NONCE_SIZE_BYTES) {
-                        keyInDefaultColumnFamily = EncryptionKeyUtil.encrypt(dek, nonce, idPart);
+                        keyInDefaultColumnFamily = AesGcmSivCipher.encrypt(dek, nonce, idPart);
                     } else {
                         logger.warn("Invalid nonce (metadata value) for ref key: {}",
                                     new String(metadataKey, StandardCharsets.UTF_8));
@@ -364,6 +382,7 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
             }
 
             if (deletedCount > 0) {
+                writeOptions.setSync(true);
                 rocksDb.write(writeOptions, writeBatch);
                 logger.info("Deleted {} entries for repository {}/{}", deletedCount, projectName, repoName);
             } else {

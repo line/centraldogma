@@ -207,7 +207,7 @@ public class DefaultProject implements Project {
         }
         if (!useDogmaRepoAsMetaRepo && !repos.exists(REPO_META)) {
             try {
-                repos.create(REPO_META, creationTimeMillis, Author.SYSTEM, false);
+                repos.create(REPO_META, creationTimeMillis, Author.SYSTEM, encryptDogmaRepo);
             } catch (RepositoryExistsException ignored) {
                 // Just in case there's a race.
             }

@@ -31,13 +31,13 @@ import com.google.common.base.MoreObjects;
 public class CreateRepositoryRequest {
 
     private final String name;
-    private final boolean encryptionEnabled;
+    private final boolean encrypt;
 
     @JsonCreator
     public CreateRepositoryRequest(@JsonProperty("name") String name,
-                                   @JsonProperty("encryptionEnabled") @Nullable Boolean encryptionEnabled) {
+                                   @JsonProperty("encrypt") @Nullable Boolean encrypt) {
         this.name = validateRepositoryName(name, "name");
-        this.encryptionEnabled = firstNonNull(encryptionEnabled, false);
+        this.encrypt = firstNonNull(encrypt, false);
     }
 
     @JsonProperty
@@ -46,15 +46,15 @@ public class CreateRepositoryRequest {
     }
 
     @JsonProperty
-    public boolean encryptionEnabled() {
-        return encryptionEnabled;
+    public boolean encrypt() {
+        return encrypt;
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("name", name())
-                          .add("encryptionEnabled", encryptionEnabled)
+                          .add("encrypt", encrypt)
                           .toString();
     }
 }

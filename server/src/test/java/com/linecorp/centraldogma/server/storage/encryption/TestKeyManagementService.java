@@ -20,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
 public final class TestKeyManagementService implements KeyManagementService {
 
     @Override
-    public CompletableFuture<byte[]> wrapDek(byte[] dek) {
+    public CompletableFuture<byte[]> wrap(byte[] dek) {
         final byte[] prefix = "wrapped-".getBytes();
         final byte[] wdek = new byte[prefix.length + dek.length];
         System.arraycopy(prefix, 0, wdek, 0, prefix.length);
@@ -29,7 +29,7 @@ public final class TestKeyManagementService implements KeyManagementService {
     }
 
     @Override
-    public CompletableFuture<byte[]> unwrapWdek(byte[] wdek) {
+    public CompletableFuture<byte[]> unwrap(byte[] wdek) {
         final int prefixLength = "wrapped-".length();
         if (wdek.length <= prefixLength) {
             throw new IllegalArgumentException("Invalid wrapped DEK length: " + wdek.length);

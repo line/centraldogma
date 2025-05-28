@@ -182,7 +182,7 @@ public class RepositoryServiceV1 extends AbstractService {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
                                              "An internal repository cannot be created.");
         }
-        if (request.encryptionEnabled() && !encryptionStorageManager.enabled()) {
+        if (request.encrypt() && !encryptionStorageManager.enabled()) {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.BAD_REQUEST,
                                              "Encryption is not enabled in the server.");
         }
@@ -190,7 +190,7 @@ public class RepositoryServiceV1 extends AbstractService {
         final CommandExecutor commandExecutor = executor();
         final CompletableFuture<Revision> future =
                 RepositoryServiceUtil.createRepository(commandExecutor, mds, author, project.name(), repoName,
-                                                       request.encryptionEnabled(), encryptionStorageManager);
+                                                       request.encrypt(), encryptionStorageManager);
         return future.handle(returnOrThrow(() -> {
             final Repository repository = project.repos().get(repoName);
             return DtoConverter.convert(repository, repositoryStatus(repository));

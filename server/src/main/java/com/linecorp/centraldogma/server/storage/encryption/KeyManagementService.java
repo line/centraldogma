@@ -25,10 +25,10 @@ public interface KeyManagementService {
     /**
      * Wraps the given data encryption key (DEK) using the key management service.
      */
-    CompletableFuture<byte[]> wrapDek(byte[] dek);
+    CompletableFuture<byte[]> wrap(byte[] dek);
 
     /**
      * Unwraps the given wrapped data encryption key (WDEK) using the key management service.
      */
-    CompletableFuture<byte[]> unwrapWdek(byte[] wdek);
+    CompletableFuture<byte[]> unwrap(byte[] wdek);
 }
