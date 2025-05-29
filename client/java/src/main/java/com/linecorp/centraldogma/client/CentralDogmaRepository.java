@@ -376,7 +376,6 @@ public final class CentralDogmaRepository {
         requireNonNull(dir, "dir");
         requireNonNull(classLoader, "classLoader");
 
-
         final URL url = requireNonNull(classLoader.getResource(dir),
                                        () -> "resource not found: " + dir);
         if (!"file".equals(url.getProtocol())) {
