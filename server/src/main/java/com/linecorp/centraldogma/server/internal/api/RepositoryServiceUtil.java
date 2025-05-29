@@ -17,19 +17,41 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.Nullable;
+
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageException;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
 public final class RepositoryServiceUtil {
 
     public static CompletableFuture<Revision> createRepository(
             CommandExecutor commandExecutor, MetadataService mds,
-            Author author, String projectName, String repoName) {
-        return commandExecutor.execute(Command.createRepository(author, projectName, repoName))
-                              .thenCompose(unused -> mds.addRepo(author, projectName, repoName));
+            Author author, String projectName, String repoName, boolean encrypt,
+            @Nullable EncryptionStorageManager encryptionStorageManager) {
+        if (!encrypt) {
+            return commandExecutor.execute(Command.createRepository(author, projectName, repoName))
+                                  .thenCompose(unused -> mds.addRepo(author, projectName, repoName));
+        }
+
+        assert encryptionStorageManager != null;
+
+        return encryptionStorageManager.generateWdek()
+                                       .thenCompose(wdek -> commandExecutor.execute(Command.createRepository(
+                                               author, projectName, repoName, wdek)))
+                                       .thenCompose(unused -> mds.addRepo(author, projectName, repoName))
+                                       .exceptionally(cause -> {
+                                           if (cause instanceof EncryptionStorageException) {
+                                               throw (EncryptionStorageException) cause;
+                                           }
+                                           throw new EncryptionStorageException(
+                                                   "Failed to create encrypted repository " +
+                                                   projectName + '/' + repoName, cause);
+                                       });
     }
 
     public static CompletableFuture<Revision> removeRepository(

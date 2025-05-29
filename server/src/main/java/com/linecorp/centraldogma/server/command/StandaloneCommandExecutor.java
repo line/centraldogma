@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.server.auth.Session;
@@ -33,6 +34,7 @@ import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -50,6 +52,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private final Executor repositoryWorker;
     @Nullable
     private final SessionManager sessionManager;
+    private final EncryptionStorageManager encryptionStorageManager;
     private final ServerStatusManager serverStatusManager;
 
     /**
@@ -67,6 +70,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                                      Executor repositoryWorker,
                                      ServerStatusManager serverStatusManager,
                                      @Nullable SessionManager sessionManager,
+                                     EncryptionStorageManager encryptionStorageManager,
                                      @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                      @Nullable Consumer<CommandExecutor> onReleaseLeadership,
                                      @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
@@ -76,6 +80,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.serverStatusManager = requireNonNull(serverStatusManager, "serverStatusManager");
         this.sessionManager = sessionManager;
+        this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
     }
 
     @Override
@@ -215,7 +220,26 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> createProject(CreateProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager.create(c.projectName(), c.timestamp(), c.author());
+            final byte[] wdek = c.wdek();
+            final boolean encrypt = wdek != null;
+            if (encrypt) {
+                encryptionStorageManager.storeWdek(c.projectName(), Project.REPO_DOGMA, wdek);
+            }
+
+            try {
+                projectManager.create(c.projectName(), c.timestamp(), c.author(), encrypt);
+            } catch (Throwable t) {
+                if (encrypt) {
+                    try {
+                        encryptionStorageManager.removeWdek(c.projectName(), Project.REPO_DOGMA);
+                    } catch (Throwable t2) {
+                        logger.warn("Failed to remove the WDEK of {}/{}",
+                                    c.projectName(), Project.REPO_DOGMA, t2);
+                    }
+                }
+                Exceptions.throwUnsafely(t);
+            }
+
             return null;
         }, repositoryWorker);
     }
@@ -260,7 +284,27 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> createRepository(CreateRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager.get(c.projectName()).repos().create(c.repositoryName(), c.timestamp(), c.author());
+            final byte[] wdek = c.wdek();
+            final boolean encrypt = wdek != null;
+            if (encrypt) {
+                encryptionStorageManager.storeWdek(c.projectName(), c.repositoryName(), wdek);
+            }
+
+            try {
+                projectManager.get(c.projectName()).repos().create(c.repositoryName(), c.timestamp(),
+                                                                   c.author(), encrypt);
+            } catch (Throwable t) {
+                if (encrypt) {
+                    try {
+                        encryptionStorageManager.removeWdek(c.projectName(), c.repositoryName());
+                    } catch (Throwable t2) {
+                        logger.warn("Failed to remove the WDEK of {}/{}",
+                                    c.projectName(), c.repositoryName(), t2);
+                    }
+                }
+                Exceptions.throwUnsafely(t);
+            }
+
             return null;
         }, repositoryWorker);
     }

@@ -18,6 +18,9 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static com.linecorp.centraldogma.common.Revision.INIT;
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.R_HEADS_MASTER;
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager.createEncryptionRepository;
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager.createFileRepository;
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,6 +32,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -39,15 +43,11 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nullable;
-
-import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
@@ -81,6 +81,7 @@ import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.storage.StorageException;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -95,39 +96,30 @@ class GitRepositoryTest {
     @TempDir
     static File repoDir;
 
-    private static GitRepository repo;
-
-    /**
-     * Used by {@link GitRepositoryTest#testWatchWithQueryCancellation()}.
-     */
-    @Nullable
-    private static Consumer<CompletableFuture<Revision>> watchConsumer;
+    private static GitRepository fileRepo;
+    private static GitRepository encryptedRepo;
+    private static EncryptionStorageManager encryptionStorageManager;
 
     @BeforeAll
-    static void init() {
-        repo = new GitRepository(mock(Project.class), new File(repoDir, "test_repo"),
-                                 commonPool(), 0L, Author.SYSTEM) {
-            /**
-             * Used by {@link GitRepositoryTest#testWatchWithQueryCancellation()}.
-             */
-            @Override
-            public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern,
-                                                     boolean errorOnEntryNotFound) {
-                final CompletableFuture<Revision> f = super.watch(lastKnownRevision, pathPattern,
-                                                                  errorOnEntryNotFound);
-                if (watchConsumer != null) {
-                    watchConsumer.accept(f);
-                }
-                return f;
-            }
-        };
+    static void init() throws IOException {
+        final Project project = mock(Project.class);
+        when(project.name()).thenReturn("foo");
+        fileRepo = createFileRepository(project, new File(repoDir, "test_repo"), Author.SYSTEM,
+                                        0L, commonPool(), null);
+        encryptionStorageManager = EncryptionStorageManager.of(
+                new File(repoDir, "rocksdb").toPath());
+        encryptionStorageManager.storeWdek(project.name(), "test_repo2",
+                                           encryptionStorageManager.generateWdek().join());
+        encryptedRepo = createEncryptionRepository(project, new File(repoDir, "test_repo2"),
+                                                   Author.SYSTEM, 0L, commonPool(), null,
+                                                   encryptionStorageManager);
     }
 
     @AfterAll
     static void destroy() {
-        if (repo != null) {
-            repo.internalClose();
-        }
+        fileRepo.internalClose();
+        encryptedRepo.internalClose();
+        encryptionStorageManager.close();
     }
 
     private String prefix;
@@ -163,8 +155,6 @@ class GitRepositoryTest {
             textPatches[i] = Change.ofTextPatch(textPaths[0], textUpserts[i - 1].content(),
                                                 textUpserts[i].content());
         }
-
-        watchConsumer = null;
     }
 
     @Test
@@ -199,6 +189,11 @@ class GitRepositoryTest {
     }
 
     private void testUpsert(Change<?>[] upserts, EntryType entryType) {
+        testUpsert(fileRepo, upserts, entryType);
+        testUpsert(encryptedRepo, upserts, entryType);
+    }
+
+    private void testUpsert(GitRepository repo, Change<?>[] upserts, EntryType entryType) {
         final Revision oldHeadRev = repo.normalizeNow(HEAD);
         for (int i = 0; i < upserts.length; i++) {
             final Change<?> change = upserts[i];
@@ -235,6 +230,11 @@ class GitRepositoryTest {
 
     @Test
     void testJsonPatch_safeReplace(TestInfo testInfo) {
+        testJsonPatchSafeReplace(fileRepo, testInfo);
+        testJsonPatchSafeReplace(encryptedRepo, testInfo);
+    }
+
+    private static void testJsonPatchSafeReplace(GitRepository repo, TestInfo testInfo) {
         final String name = TestUtil.normalizedDisplayName(testInfo);
         final String jsonFilePath = String.format("/test_%s.json", name);
         final Change<JsonNode> change = Change.ofJsonUpsert(jsonFilePath, "{\"key\":1}");
@@ -257,6 +257,12 @@ class GitRepositoryTest {
     }
 
     private static void testPatch(Change<?>[] patches, Change<?>[] upserts, boolean jsonPatch) {
+        testPatch(patches, upserts, jsonPatch, fileRepo);
+        testPatch(patches, upserts, jsonPatch, encryptedRepo);
+    }
+
+    private static void testPatch(Change<?>[] patches, Change<?>[] upserts, boolean jsonPatch,
+                                  GitRepository repo) {
         final String path = patches[0].path();
         for (int i = 0; i < NUM_ITERATIONS; i++) {
             assert path.equals(patches[i].path());
@@ -296,6 +302,11 @@ class GitRepositoryTest {
 
     @Test
     void testRemoval() {
+        testRemoval(fileRepo);
+        testRemoval(encryptedRepo);
+    }
+
+    private void testRemoval(GitRepository repo) {
         // A removal should fail when there's no such entry.
         assertThatThrownBy(() -> repo
                 .commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Change.ofRemoval(jsonPaths[0])).join())
@@ -320,6 +331,11 @@ class GitRepositoryTest {
 
     @Test
     void testRecursiveRemoval() {
+        testRecursiveRemoval(fileRepo);
+        testRecursiveRemoval(encryptedRepo);
+    }
+
+    private void testRecursiveRemoval(GitRepository repo) {
         // A recursive removal should fail when there's no such entry.
         final String curDir = prefix.substring(0, prefix.length() - 1); // Remove trailing '/'.
         assertThatThrownBy(
@@ -338,6 +354,11 @@ class GitRepositoryTest {
 
     @Test
     void testRename() {
+        testRename(fileRepo);
+        testRename(encryptedRepo);
+    }
+
+    private void testRename(GitRepository repo) {
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
         // Rename without content modification.
@@ -364,6 +385,11 @@ class GitRepositoryTest {
 
     @Test
     void testRecursiveRename() {
+        testRecursiveRename(fileRepo);
+        testRecursiveRename(encryptedRepo);
+    }
+
+    private void testRecursiveRename(GitRepository repo) {
         // Add some files under a directory.
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts).join();
         assertThat(repo.find(HEAD, allPattern).join()).hasSize(jsonUpserts.length);
@@ -388,6 +414,11 @@ class GitRepositoryTest {
 
     @Test
     void testRenameFailure() {
+        testRenameFailure(fileRepo);
+        testRenameFailure(encryptedRepo);
+    }
+
+    private void testRenameFailure(GitRepository repo) {
         assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                              jsonUpserts[0], jsonUpserts[1],
                                              Change.ofRename(jsonPaths[0], jsonPaths[1])).join())
@@ -395,11 +426,7 @@ class GitRepositoryTest {
                 .hasCauseInstanceOf(ChangeConflictException.class);
 
         // Renaming to its own path.
-        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
-        assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
-                                             Change.ofRename(jsonPaths[0], jsonPaths[0])).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(ChangeConflictException.class);
+        testRenameWithConflict(repo);
 
         // Renaming to its own path, when the file is not committed yet.
         assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
@@ -414,6 +441,11 @@ class GitRepositoryTest {
      */
     @Test
     void testLateCommit() {
+        testLateCommit(fileRepo);
+        testLateCommit(encryptedRepo);
+    }
+
+    private void testLateCommit(GitRepository repo) {
         // Increase the head revision by one by pushing one commit.
         final Revision rev = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0])
                                  .join().revision();
@@ -427,6 +459,11 @@ class GitRepositoryTest {
 
     @Test
     void testEmptyCommit() {
+        testEmptyCommit(fileRepo);
+        testEmptyCommit(encryptedRepo);
+    }
+
+    private static void testEmptyCommit(GitRepository repo) {
         assertThatThrownBy(
                 () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Collections.emptyList()).join())
                 .isInstanceOf(CompletionException.class)
@@ -435,6 +472,11 @@ class GitRepositoryTest {
 
     @Test
     void testEmptyCommitWithRedundantRenames() {
+        testEmptyCommitWithRedundantRenames(fileRepo);
+        testEmptyCommitWithRedundantRenames(encryptedRepo);
+    }
+
+    private void testEmptyCommitWithRedundantRenames(GitRepository repo) {
         // Create a file to produce redundant changes.
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
@@ -448,6 +490,11 @@ class GitRepositoryTest {
 
     @Test
     void testEmptyCommitWithRedundantUpsert() {
+        testEmptyCommitWithRedundantUpsert(fileRepo);
+        testEmptyCommitWithRedundantUpsert(encryptedRepo);
+    }
+
+    private void testEmptyCommitWithRedundantUpsert(GitRepository repo) {
         assertThatThrownBy(
                 () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Collections.emptyList()).join())
                 .isInstanceOf(CompletionException.class)
@@ -465,6 +512,11 @@ class GitRepositoryTest {
 
     @Test
     void testEmptyCommitWithRedundantUpsert2() {
+        testEmptyCommitWithRedundantUpsert2(fileRepo);
+        testEmptyCommitWithRedundantUpsert2(encryptedRepo);
+    }
+
+    private static void testEmptyCommitWithRedundantUpsert2(GitRepository repo) {
         // Create files to produce redundant changes.
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/redundant_upsert_2.json",
                                                              "{ \"foo\": 0, \"bar\": 1 }");
@@ -490,6 +542,11 @@ class GitRepositoryTest {
 
     @Test
     void testTextSanitization() {
+        testTextSanitization(fileRepo);
+        testTextSanitization(encryptedRepo);
+    }
+
+    private static void testTextSanitization(GitRepository repo) {
         // Ensure CRs are stripped.
         final Change<String> dosText = Change.ofTextUpsert("/text_sanitization_dos.txt", "foo\r\nbar\r\n");
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, dosText).join();
@@ -522,6 +579,11 @@ class GitRepositoryTest {
 
     @Test
     void testMultipleChanges() {
+        testMultipleChanges(fileRepo);
+        testMultipleChanges(encryptedRepo);
+    }
+
+    private void testMultipleChanges(GitRepository repo) {
         final List<Change<?>> changes = new ArrayList<>();
         Collections.addAll(changes, jsonUpserts);
         changes.addAll(Arrays.asList(jsonPatches).subList(1, jsonPatches.length));
@@ -546,6 +608,11 @@ class GitRepositoryTest {
 
     @Test
     void testRenameWithConflict() {
+        testRenameWithConflict(fileRepo);
+        testRenameWithConflict(encryptedRepo);
+    }
+
+    private void testRenameWithConflict(GitRepository repo) {
         // Create a file to produce redundant changes.
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
@@ -558,6 +625,11 @@ class GitRepositoryTest {
 
     @Test
     void testMultipleChangesWithConflict() {
+        testMultipleChangesWithConflict(fileRepo);
+        testMultipleChangesWithConflict(encryptedRepo);
+    }
+
+    private void testMultipleChangesWithConflict(GitRepository repo) {
         assertThatThrownBy(() -> repo
                 .commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0], jsonPatches[2]).join())
                 .isInstanceOf(CompletionException.class)
@@ -569,6 +641,11 @@ class GitRepositoryTest {
      */
     @Test
     void testDiff_invalidParameters() {
+        testDiffInvalidParameters(fileRepo);
+        testDiffInvalidParameters(encryptedRepo);
+    }
+
+    private void testDiffInvalidParameters(GitRepository repo) {
         final String path = jsonPatches[0].path();
         final Revision revision1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                                jsonPatches[0]).join().revision();
@@ -596,6 +673,11 @@ class GitRepositoryTest {
 
     @Test
     void testPreviewDiff() {
+        testPreviewDiff(fileRepo);
+        testPreviewDiff(encryptedRepo);
+    }
+
+    private void testPreviewDiff(GitRepository repo) {
         final Map<String, Change<?>> changeMap = repo.previewDiff(HEAD, jsonUpserts[0]).join();
         assertThat(changeMap).containsEntry(jsonPaths[0], jsonUpserts[0]);
 
@@ -632,6 +714,11 @@ class GitRepositoryTest {
      */
     @Test
     void testDiff_add() {
+        testDiffAdd(fileRepo);
+        testDiffAdd(encryptedRepo);
+    }
+
+    private void testDiffAdd(GitRepository repo) {
         final String jsonPath = jsonUpserts[0].path();
         final String textPath = textUpserts[0].path();
 
@@ -690,6 +777,11 @@ class GitRepositoryTest {
      */
     @Test
     void testDiff_remove() {
+        testDiffRemove(fileRepo);
+        testDiffRemove(encryptedRepo);
+    }
+
+    private void testDiffRemove(GitRepository repo) {
         // add all files into repository
         Revision lastRevision = null;
         for (int i = 0; i < NUM_ITERATIONS; i++) {
@@ -728,6 +820,11 @@ class GitRepositoryTest {
      */
     @Test
     void testDiff_modify() {
+        testDiffModify(fileRepo);
+        testDiffModify(encryptedRepo);
+    }
+
+    private void testDiffModify(GitRepository repo) {
         final String jsonNodePath = jsonPatches[0].path();
         final String textNodePath = textPatches[0].path();
 
@@ -800,6 +897,11 @@ class GitRepositoryTest {
      */
     @Test
     void testDiff_twoCommits() {
+        testDiffTwoCommits(fileRepo);
+        testDiffTwoCommits(encryptedRepo);
+    }
+
+    private void testDiffTwoCommits(GitRepository repo) {
         final String oldPath = prefix + "foo/a.json";
         final String newPath = prefix + "bar/a.json";
 
@@ -838,7 +940,11 @@ class GitRepositoryTest {
      */
     @Test
     void testHistory_correctRangeOfResult() {
+        testHistoryCorrectRangeOfResult(fileRepo);
+        testHistoryCorrectRangeOfResult(encryptedRepo);
+    }
 
+    private void testHistoryCorrectRangeOfResult(GitRepository repo) {
         final String jsonPath = jsonPatches[0].path();
         final String textPath = textPatches[0].path();
 
@@ -913,6 +1019,11 @@ class GitRepositoryTest {
      */
     @Test
     void testHistory_returnOnlyAffectedRevisions() {
+        testHistoryReturnOnlyAffectedRevisions(fileRepo);
+        testHistoryReturnOnlyAffectedRevisions(encryptedRepo);
+    }
+
+    private void testHistoryReturnOnlyAffectedRevisions(GitRepository repo) {
         final String jsonPath = jsonPatches[0].path();
         final String textPath = textPatches[0].path();
 
@@ -948,6 +1059,11 @@ class GitRepositoryTest {
 
     @Test
     void testHistory_parameterCheck() {
+        testHistoryParameterCheck(fileRepo);
+        testHistoryParameterCheck(encryptedRepo);
+    }
+
+    private void testHistoryParameterCheck(GitRepository repo) {
         // Make sure that we added at least one non-initial commit.
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
@@ -987,6 +1103,11 @@ class GitRepositoryTest {
 
     @Test
     void testFind_negativeRevisionQuery(TestInfo testInfo) {
+        testFindNegativeRevisionQuery(testInfo, fileRepo);
+        testFindNegativeRevisionQuery(testInfo, encryptedRepo);
+    }
+
+    private static void testFindNegativeRevisionQuery(TestInfo testInfo, GitRepository repo) {
         final int numIterations = 10;
 
         final String name = TestUtil.normalizedDisplayName(testInfo);
@@ -1030,12 +1151,22 @@ class GitRepositoryTest {
 
     @Test
     void testFindNone() {
+        testFindNone(fileRepo);
+        testFindNone(encryptedRepo);
+    }
+
+    private static void testFindNone(GitRepository repo) {
         assertThat(repo.find(HEAD, "/non-existent").join()).isEmpty();
         assertThat(repo.find(HEAD, "non-existent").join()).isEmpty();
     }
 
     @Test
     void testFind_invalidPathPattern() {
+        testFindInvalidPathPattern(fileRepo);
+        testFindInvalidPathPattern(encryptedRepo);
+    }
+
+    private static void testFindInvalidPathPattern(GitRepository repo) {
         final String pattern = "a'\"><img src=1 onerror=alert(document.domain)>";
         assertThatThrownBy(() -> repo.find(HEAD, pattern).join())
                 .isInstanceOf(CompletionException.class)
@@ -1047,6 +1178,11 @@ class GitRepositoryTest {
      */
     @Test
     void testFind_invalidParameter() {
+        testFindInvalidParameter(fileRepo);
+        testFindInvalidParameter(encryptedRepo);
+    }
+
+    private static void testFindInvalidParameter(GitRepository repo) {
         final String jsonNodePath = "/node.json";
         final String jsonString = "{\"key\":\"value\"}";
         final Change<JsonNode> jsonChange = Change.ofJsonUpsert(jsonNodePath, jsonString);
@@ -1059,13 +1195,17 @@ class GitRepositoryTest {
 
     @Test
     void testFind_directory() {
+        testFindDirectory(fileRepo);
+        testFindDirectory(encryptedRepo);
+    }
+
+    private void testFindDirectory(GitRepository repo) {
         // Will create the following directory structure:
         //
         // prefix -+- a
         //         +- b -+- ba
         //               +- bb
         //
-
         final Revision rev = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                          Change.ofTextUpsert(prefix + "a/file", ""),
                                          Change.ofTextUpsert(prefix + "b/ba/file", ""),
@@ -1091,6 +1231,11 @@ class GitRepositoryTest {
 
     @Test
     void testJsonPathQuery() {
+        testJsonPathQuery(fileRepo);
+        testJsonPathQuery(encryptedRepo);
+    }
+
+    private static void testJsonPathQuery(GitRepository repo) {
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                     Change.ofJsonUpsert("/instances.json",
                                         '[' +
@@ -1155,6 +1300,11 @@ class GitRepositoryTest {
 
     @Test
     void testWatch() throws Exception {
+        testWatch(fileRepo);
+        testWatch(encryptedRepo);
+    }
+
+    private void testWatch(GitRepository repo) throws Exception {
         final Revision rev1 = repo.normalizeNow(HEAD);
         final Revision rev2 = rev1.forward(1);
 
@@ -1171,6 +1321,11 @@ class GitRepositoryTest {
 
     @Test
     void testWatchWithPathPattern() throws Exception {
+        testWatchWithPathPattern(fileRepo);
+        testWatchWithPathPattern(encryptedRepo);
+    }
+
+    private void testWatchWithPathPattern(GitRepository repo) throws Exception {
         final Revision rev1 = repo.normalizeNow(HEAD);
         final Revision rev2 = rev1.forward(1);
         final Revision rev3 = rev2.forward(1);
@@ -1193,6 +1348,12 @@ class GitRepositoryTest {
 
     @Test
     void testWatchWithOldRevision() throws Exception {
+        testWatchWithOldRevision(fileRepo);
+        testWatchWithOldRevision(encryptedRepo);
+    }
+
+    private void testWatchWithOldRevision(GitRepository repo)
+            throws InterruptedException, ExecutionException, TimeoutException {
         final Revision lastKnownRev = repo.normalizeNow(HEAD);
         repo.commit(lastKnownRev, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts).join();
         final Revision latestRev = repo.normalizeNow(HEAD);
@@ -1207,6 +1368,11 @@ class GitRepositoryTest {
 
     @Test
     void testWatchWithOldRevisionAndPathPattern() throws Exception {
+        testWatchWithOldRevisionAndPathPattern(fileRepo);
+        testWatchWithOldRevisionAndPathPattern(encryptedRepo);
+    }
+
+    private void testWatchWithOldRevisionAndPathPattern(GitRepository repo) throws Exception {
         final Revision lastKnownRev = repo.normalizeNow(HEAD);
         repo.commit(lastKnownRev, 0L, Author.UNKNOWN, SUMMARY, jsonPatches).join();
         final Revision latestRev = repo.normalizeNow(HEAD);
@@ -1228,6 +1394,11 @@ class GitRepositoryTest {
 
     @Test
     void testWatchWithQuery() throws Exception {
+        testWatchWithQuery(fileRepo);
+        testWatchWithQuery(encryptedRepo);
+    }
+
+    private void testWatchWithQuery(GitRepository repo) throws Exception {
         final Revision rev1 = repo.commit(
                 HEAD, 0L, Author.UNKNOWN, SUMMARY,
                 Change.ofJsonUpsert(jsonPaths[0], "{ \"hello\": \"mars\" }")).join().revision();
@@ -1264,6 +1435,11 @@ class GitRepositoryTest {
 
     @Test
     void testWatchWithIdentityQuery() throws Exception {
+        testWatchWithIdentityQuery(fileRepo);
+        testWatchWithIdentityQuery(encryptedRepo);
+    }
+
+    private void testWatchWithIdentityQuery(GitRepository repo) throws Exception {
         final Revision rev1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, textUpserts[0]).join().revision();
 
         final CompletableFuture<Entry<String>> f =
@@ -1281,6 +1457,11 @@ class GitRepositoryTest {
 
     @Test
     void testWatchRemoval() throws Exception {
+        testWatchRemoval(fileRepo);
+        testWatchRemoval(encryptedRepo);
+    }
+
+    private void testWatchRemoval(GitRepository repo) throws Exception {
         final String path = jsonPaths[0];
         final Change<JsonNode> upsert1 = Change.ofJsonUpsert(path, "1");
         final Change<JsonNode> upsert2 = Change.ofJsonUpsert(path, "2");
@@ -1320,27 +1501,37 @@ class GitRepositoryTest {
 
     @Test
     void testWatchWithQueryCancellation() throws Exception {
-        final AtomicInteger numSubtasks = new AtomicInteger();
+        testWatchWithQueryCancellation(fileRepo);
+        testWatchWithQueryCancellation(encryptedRepo);
+    }
+
+    private void testWatchWithQueryCancellation(GitRepository repo) throws Exception {
         final CountDownLatch subtaskCancelled = new CountDownLatch(1);
 
-        watchConsumer = f -> {
-            numSubtasks.getAndIncrement();
-            f.exceptionally(cause -> {
-                if (cause instanceof CancellationException) {
-                    subtaskCancelled.countDown();
-                }
-                return null;
-            });
-        };
+        assertThat(repo.commitWatchers.watchesMap.size()).isZero();
 
         // Start a watch that never finishes.
         final CompletableFuture<Entry<JsonNode>> f =
                 repo.watch(HEAD, Query.ofJsonPath(jsonPaths[0], "$"));
+        await().untilAsserted(() -> assertThat(repo.commitWatchers.watchesMap.size()).isOne());
+        // Add a subtask that will be cancelled when the watch is cancelled.
+        repo.commitWatchers.watchesMap.values().forEach(set -> {
+            assertThat(set.size()).isEqualTo(1);
+            set.forEach(watch -> {
+                watch.future().exceptionally(cause -> {
+                    if (cause instanceof CancellationException) {
+                        subtaskCancelled.countDown();
+                    }
+                    return null;
+                });
+            });
+        });
+
         assertThatThrownBy(() -> f.get(500, TimeUnit.MILLISECONDS))
                 .isInstanceOf(TimeoutException.class);
 
-        // A watch with a query should start a subtask.
-        assertThat(numSubtasks.get()).isEqualTo(1);
+        // Make sure the watch is still running.
+        assertThat(repo.commitWatchers.watchesMap.size()).isOne();
         assertThat(subtaskCancelled.getCount()).isEqualTo(1L);
 
         // Cancel the watch.
@@ -1352,14 +1543,17 @@ class GitRepositoryTest {
         assertThat(subtaskCancelled.await(3, TimeUnit.SECONDS)).isTrue();
 
         // No new subtask should be spawned.
-        assertThat(numSubtasks.get()).isEqualTo(1);
+        assertThat(repo.commitWatchers.watchesMap.size()).isZero();
 
         ensureWatcherCleanUp();
     }
 
     private static void ensureWatcherCleanUp() {
         // Make sure CommitWatchers has cleared the watch.
-        await().untilAsserted(() -> assertThat(repo.commitWatchers.watchesMap).isEmpty());
+        await().untilAsserted(() -> {
+            assertThat(fileRepo.commitWatchers.watchesMap).isEmpty();
+            assertThat(encryptedRepo.commitWatchers.watchesMap).isEmpty();
+        });
     }
 
     @Test
@@ -1367,8 +1561,7 @@ class GitRepositoryTest {
         final ObjectId commitId = mock(ObjectId.class);
 
         // A commit on the mainlane
-        testDoUpdateRef(Constants.R_TAGS + '1', commitId, false);
-        testDoUpdateRef(Constants.R_HEADS + Constants.MASTER, commitId, false);
+        testDoUpdateRef(R_HEADS_MASTER, commitId, false);
     }
 
     private static void testDoUpdateRef(String ref, ObjectId commitId, boolean tagExists) throws Exception {
@@ -1391,19 +1584,11 @@ class GitRepositoryTest {
     }
 
     @Test
-    void testDoUpdateRefOnExistingTag() {
-        final ObjectId commitId = mock(ObjectId.class);
-
-        assertThatThrownBy(() -> testDoUpdateRef(Constants.R_TAGS + "01/1.0", commitId, true))
-                .isInstanceOf(StorageException.class);
-    }
-
-    @Test
-    void operationOnClosedRepository() {
+    void operationOnClosedRepository() throws IOException {
         final CentralDogmaException expectedException = new CentralDogmaException();
-        final GitRepository repo = new GitRepository(mock(Project.class),
-                                                     new File(repoDir, "close_test_repo"),
-                                                     commonPool(), 0L, Author.SYSTEM);
+        final GitRepository repo = createFileRepository(
+                mock(Project.class), new File(repoDir, "close_test_repo"), Author.SYSTEM,
+                0L, commonPool(), null);
         repo.close(() -> expectedException);
 
         assertThatThrownBy(() -> repo.find(INIT, "/**").join()).hasCause(expectedException);

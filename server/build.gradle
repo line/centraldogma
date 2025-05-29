@@ -7,8 +7,12 @@ dependencies {
     api libs.armeria.thrift09
     testImplementation libs.armeria.junit5
 
+    implementation libs.bouncycastle.bcprov
+
     // Caffeine
     implementation libs.caffeine
+
+    implementation libs.conscrypt
 
     // Curator & ZooKeeper
     implementation libs.curator.recipes
@@ -33,6 +37,8 @@ dependencies {
     // Micrometer
     implementation libs.micrometer.core
     implementation libs.micrometer.prometheus
+
+    implementation libs.rocksdbjni
 
     // Quartz
     implementation libs.quartz

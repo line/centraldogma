@@ -33,6 +33,7 @@ import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.storage.encryption.NoopEncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.testing.junit.AbstractAllOrEachExtension;
@@ -147,7 +148,8 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
         try {
             return new DefaultProjectManager(dataDir, repositoryWorker,
                                              purgeWorker, NoopMeterRegistry.get(),
-                                             CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC);
+                                             CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC,
+                                             NoopEncryptionStorageManager.INSTANCE);
         } catch (Exception e) {
             // Should not reach here.
             throw new Error(e);
@@ -163,7 +165,7 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
      * Override this method to customize a {@link CommandExecutor}.
      */
     protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker, File dataDir) {
-        return new StandaloneCommandExecutor(projectManager, worker, new ServerStatusManager(dataDir),
-                                             null, null, null, null, null);
+        return new StandaloneCommandExecutor(projectManager, worker, new ServerStatusManager(dataDir), null,
+                                             NoopEncryptionStorageManager.INSTANCE, null, null, null, null);
     }
 }

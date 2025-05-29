@@ -35,6 +35,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
+import com.linecorp.centraldogma.server.storage.encryption.NoopEncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -160,6 +161,6 @@ class GitRepositoryManagerTest {
     private GitRepositoryManager newRepositoryManager() {
         return new GitRepositoryManager(mock(Project.class), tempDir.toFile(),
                                         ForkJoinPool.commonPool(), MoreExecutors.directExecutor(),
-                                        null);
+                                        null, NoopEncryptionStorageManager.INSTANCE);
     }
 }

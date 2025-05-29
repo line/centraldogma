@@ -1,0 +1,490 @@
+/*
+ * Copyright 2025 LINE Corporation
+ *
+ * LINE Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+package com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.eclipse.jgit.errors.IncorrectObjectTypeException;
+import org.eclipse.jgit.internal.storage.file.RefDirectory;
+import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.ObjectLoader;
+import org.eclipse.jgit.lib.ObjectReader;
+import org.eclipse.jgit.lib.Ref;
+import org.eclipse.jgit.lib.Ref.Storage;
+import org.eclipse.jgit.lib.RefUpdate.Result;
+import org.eclipse.jgit.lib.SymbolicRef;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+
+import com.google.common.base.Strings;
+
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.RevisionNotFoundException;
+import com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageException;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
+
+class EncryptionGitStorageTest {
+
+    private static final String TEST_PROJECT = "foo";
+    private static final String TEST_REPO = "bar";
+    private static final SecretKey DEK = new SecretKeySpec(AesGcmSivCipher.generateAes256Key(), "AES");
+
+    private static final String HEAD_MASTER_REF = Constants.R_HEADS + Constants.MASTER;
+
+    // Test Data
+    private static final ObjectId OBJECT_ID = ObjectId.fromString(Strings.repeat("a", 40));
+    private static final ObjectId OBJECT_ID2 = ObjectId.fromString(Strings.repeat("b", 40));
+    private static final byte[] OBJ_DATA = "Object Data 1".getBytes(StandardCharsets.UTF_8);
+    private static final Revision REV_1 = new Revision(1);
+
+    @Mock
+    EncryptionStorageManager encryptionStorageManager;
+
+    EncryptionGitStorage storage;
+
+    @BeforeEach
+    void setUp() {
+        // Mock getDek to return our fixed key
+        when(encryptionStorageManager.getDek(TEST_PROJECT, TEST_REPO)).thenReturn(DEK);
+        storage = new EncryptionGitStorage(TEST_PROJECT, TEST_REPO, encryptionStorageManager);
+
+        // Leniently stubs.
+        lenient().when(encryptionStorageManager.containsMetadata(any())).thenReturn(false);
+        lenient().when(encryptionStorageManager.get(any())).thenReturn(null);
+    }
+
+    // object test methods
+
+    @Test
+    void insertObject() throws Exception {
+        final ArgumentCaptor<byte[]> metadataKeyCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> metadataValueCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> dataKeyCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> dataValueCaptor = ArgumentCaptor.forClass(byte[].class);
+
+        final ObjectId result =
+                storage.insertObject(OBJECT_ID, Constants.OBJ_BLOB, OBJ_DATA, 0, OBJ_DATA.length);
+        assertThat(result).isEqualTo(OBJECT_ID);
+
+        // Verify the specific put method was called once
+        verify(encryptionStorageManager, times(1)).put(
+                metadataKeyCaptor.capture(), metadataValueCaptor.capture(),
+                dataKeyCaptor.capture(), dataValueCaptor.capture()
+        );
+
+        // Verify Metadata Entry Key
+        final byte[] expectedMetadataKey = storage.objectMetadataKey(OBJECT_ID);
+        assertThat(metadataKeyCaptor.getValue()).isEqualTo(expectedMetadataKey);
+
+        // Verify Metadata Entry Value (Nonce + Type)
+        final byte[] actualMetadataValue = metadataValueCaptor.getValue();
+        assertThat(actualMetadataValue.length).isEqualTo(AesGcmSivCipher.NONCE_SIZE_BYTES + 4);
+        final byte[] capturedNonce =
+                Arrays.copyOfRange(actualMetadataValue, 0, AesGcmSivCipher.NONCE_SIZE_BYTES);
+        final int capturedType = ByteBuffer.wrap(actualMetadataValue, AesGcmSivCipher.NONCE_SIZE_BYTES, 4)
+                                           .getInt();
+        assertThat(capturedType).isEqualTo(Constants.OBJ_BLOB);
+
+        final byte[] expectedEncryptedDataKey = encryptObjectIdWithDek(capturedNonce, OBJECT_ID);
+        assertThat(dataKeyCaptor.getValue()).isEqualTo(expectedEncryptedDataKey);
+
+        final byte[] expectedEncryptedDataValue = encryptWithDek(capturedNonce, OBJ_DATA);
+        assertThat(dataValueCaptor.getValue()).isEqualTo(expectedEncryptedDataValue);
+    }
+
+    @Test
+    void insertExistingObject() throws Exception {
+        when(encryptionStorageManager.containsMetadata(storage.objectMetadataKey(OBJECT_ID))).thenReturn(true);
+
+        final ObjectId result =
+                storage.insertObject(OBJECT_ID, Constants.OBJ_BLOB, OBJ_DATA, 0, OBJ_DATA.length);
+        assertThat(result).isEqualTo(OBJECT_ID);
+        verify(encryptionStorageManager, never()).put(any(), any(), any(), any());
+    }
+
+    @Test
+    void getObject() throws Exception {
+        final byte[] metadataKey = storage.objectMetadataKey(OBJECT_ID);
+
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(null);
+
+        ObjectLoader loader = storage.getObject(OBJECT_ID, ObjectReader.OBJ_ANY);
+        assertThat(loader).isNull();
+        verify(encryptionStorageManager).getMetadata(metadataKey);
+        verify(encryptionStorageManager, never()).get(argThat(key -> !Arrays.equals(key, metadataKey)));
+
+        final byte[] nonce = AesGcmSivCipher.generateNonce();
+        final byte[] metadataValue = ByteBuffer.allocate(AesGcmSivCipher.NONCE_SIZE_BYTES + 4)
+                                               .put(nonce).putInt(Constants.OBJ_COMMIT).array();
+        final byte[] encryptedObjKey = encryptObjectIdWithDek(nonce, OBJECT_ID);
+        final byte[] encryptedObjValue = encryptWithDek(nonce, OBJ_DATA);
+
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadataValue);
+        when(encryptionStorageManager.get(encryptedObjKey)).thenReturn(encryptedObjValue);
+
+        loader = storage.getObject(OBJECT_ID, ObjectReader.OBJ_ANY);
+
+        assertThat(loader).isNotNull();
+        assertThat(loader.getType()).isEqualTo(Constants.OBJ_COMMIT);
+        assertThat(loader.getSize()).isEqualTo(OBJ_DATA.length);
+        assertThat(loader.getBytes()).isEqualTo(OBJ_DATA);
+        assertThat(loader.getCachedBytes()).isEqualTo(OBJ_DATA);
+
+        verify(encryptionStorageManager, times(2)).getMetadata(metadataKey);
+        verify(encryptionStorageManager).get(encryptedObjKey);
+    }
+
+    @Test
+    void getObject_incorrectType() throws Exception {
+        final int actualType = Constants.OBJ_BLOB;
+        final int wrongTypeHint = Constants.OBJ_COMMIT;
+        final byte[] nonce = AesGcmSivCipher.generateNonce();
+        final byte[] metadataKey = storage.objectMetadataKey(OBJECT_ID);
+        final byte[] metadataValue = ByteBuffer.allocate(AesGcmSivCipher.NONCE_SIZE_BYTES + 4)
+                                               .put(nonce).putInt(actualType).array();
+
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadataValue);
+
+        assertThatThrownBy(() -> storage.getObject(OBJECT_ID, wrongTypeHint))
+                .isInstanceOf(IncorrectObjectTypeException.class);
+
+        verify(encryptionStorageManager).getMetadata(metadataKey);
+        verify(encryptionStorageManager, never()).getMetadata(
+                argThat(key -> !Arrays.equals(key, metadataKey)));
+    }
+
+    @Test
+    void getObject_decryptionError() throws Exception {
+        final int type = Constants.OBJ_BLOB;
+        final byte[] nonce = AesGcmSivCipher.generateNonce();
+        final byte[] metadataKey = storage.objectMetadataKey(OBJECT_ID);
+        final byte[] metadataValue = ByteBuffer.allocate(AesGcmSivCipher.NONCE_SIZE_BYTES + 4)
+                                               .put(nonce).putInt(type).array();
+        final byte[] encryptedObjKey = encryptObjectIdWithDek(nonce, OBJECT_ID);
+        // Simulate corrupted data that will cause decrypt to fail
+        final byte[] corruptedEncryptedValue = "corrupted data".getBytes();
+
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadataValue);
+        when(encryptionStorageManager.get(encryptedObjKey)).thenReturn(corruptedEncryptedValue);
+
+        assertThatThrownBy(() -> storage.getObject(OBJECT_ID, ObjectReader.OBJ_ANY))
+                .isInstanceOf(EncryptionStorageException.class)
+                .hasMessageContaining("Failed to decrypt data");
+    }
+
+    // ref test methods
+
+    @Test
+    void readRef() throws Exception {
+        final byte[] nonce = AesGcmSivCipher.generateNonce();
+        final byte[] metadataKey = refMetadataKey(HEAD_MASTER_REF);
+        final byte[] encryptedRefName = encryptStringWithDek(nonce, HEAD_MASTER_REF);
+        final byte[] encryptedValue = encryptObjectIdWithDek(nonce, OBJECT_ID);
+
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(nonce);
+        when(encryptionStorageManager.get(encryptedRefName)).thenReturn(encryptedValue);
+
+        final Ref ref = storage.readRef(HEAD_MASTER_REF);
+
+        assertThat(ref).isNotNull();
+        assertThat(ref.getName()).isEqualTo(HEAD_MASTER_REF);
+        assertThat(ref.isSymbolic()).isFalse();
+        assertThat(ref.getObjectId()).isEqualTo(OBJECT_ID);
+        assertThat(ref.getStorage()).isEqualTo(Storage.LOOSE);
+
+        verify(encryptionStorageManager).getMetadata(metadataKey);
+        verify(encryptionStorageManager).get(encryptedRefName);
+    }
+
+    @Test
+    void readSymbolicRef() throws Exception {
+        final byte[] symRefNonce = AesGcmSivCipher.generateNonce();
+        final byte[] targetRefNonce = AesGcmSivCipher.generateNonce();
+
+        final byte[] symRefMetadataKey = refMetadataKey(Constants.HEAD);
+        final byte[] encryptedSymRefName = encryptStringWithDek(symRefNonce, Constants.HEAD);
+        final byte[] encryptedSymRefTargetValue = encryptWithDek(
+                symRefNonce, symbolicRefBytes(HEAD_MASTER_REF));
+
+        final byte[] targetRefMetadataKey = refMetadataKey(HEAD_MASTER_REF);
+        final byte[] encryptedTargetRefName = encryptStringWithDek(targetRefNonce, HEAD_MASTER_REF);
+        final byte[] encryptedTargetRefObjectIdValue = encryptObjectIdWithDek(targetRefNonce, OBJECT_ID);
+
+        when(encryptionStorageManager.getMetadata(symRefMetadataKey)).thenReturn(symRefNonce);
+        when(encryptionStorageManager.get(encryptedSymRefName)).thenReturn(encryptedSymRefTargetValue);
+        when(encryptionStorageManager.getMetadata(targetRefMetadataKey)).thenReturn(targetRefNonce);
+        when(encryptionStorageManager.get(encryptedTargetRefName)).thenReturn(
+                encryptedTargetRefObjectIdValue);
+
+        final Ref ref = storage.readRef(Constants.HEAD);
+
+        assertThat(ref).isNotNull().isInstanceOf(SymbolicRef.class);
+        assertThat(ref.getName()).isEqualTo(Constants.HEAD);
+        assertThat(ref.getObjectId()).isEqualTo(OBJECT_ID);
+
+        final Ref target = ref.getTarget();
+        assertThat(target).isNotNull();
+        assertThat(target.getName()).isEqualTo(HEAD_MASTER_REF);
+        assertThat(target.isSymbolic()).isFalse();
+        assertThat(target.getObjectId()).isEqualTo(OBJECT_ID);
+
+        verify(encryptionStorageManager, times(2)).getMetadata(any());
+        verify(encryptionStorageManager, times(2)).get(any());
+        verify(encryptionStorageManager).getMetadata(symRefMetadataKey);
+        verify(encryptionStorageManager).get(encryptedSymRefName);
+        verify(encryptionStorageManager).getMetadata(targetRefMetadataKey);
+        verify(encryptionStorageManager).get(encryptedTargetRefName);
+    }
+
+    @Test
+    void updateRef_storesCorrectly() throws Exception {
+        final Result desiredResult = Result.NEW;
+
+        final ArgumentCaptor<byte[]> metaKeyCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> nonceCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> refNameKeyCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> refValueCaptor = ArgumentCaptor.forClass(byte[].class); // Encrypted ID
+
+        final Result actualResult = storage.updateRef(HEAD_MASTER_REF, OBJECT_ID, desiredResult);
+        assertThat(actualResult).isEqualTo(desiredResult);
+
+        verify(encryptionStorageManager, times(1)).put(
+                metaKeyCaptor.capture(), nonceCaptor.capture(),
+                refNameKeyCaptor.capture(), refValueCaptor.capture()
+        );
+
+        final byte[] expectedMetadataKey = refMetadataKey(HEAD_MASTER_REF);
+        assertThat(metaKeyCaptor.getValue()).isEqualTo(expectedMetadataKey);
+        final byte[] capturedNonce = nonceCaptor.getValue();
+        assertThat(capturedNonce).hasSize(AesGcmSivCipher.NONCE_SIZE_BYTES);
+
+        final byte[] expectedEncryptedRefNameKey = encryptStringWithDek(capturedNonce, HEAD_MASTER_REF);
+        assertThat(refNameKeyCaptor.getValue()).isEqualTo(expectedEncryptedRefNameKey);
+        final byte[] expectedEncryptedRefValue = encryptObjectIdWithDek(capturedNonce, OBJECT_ID);
+        assertThat(refValueCaptor.getValue()).isEqualTo(expectedEncryptedRefValue);
+
+        when(encryptionStorageManager.getMetadata(expectedMetadataKey)).thenReturn(capturedNonce);
+        final ArgumentCaptor<byte[]> previousRefNameKeyCaptor = ArgumentCaptor.forClass(byte[].class);
+        final Result actualResult2 = storage.updateRef(HEAD_MASTER_REF, OBJECT_ID, desiredResult);
+        assertThat(actualResult2).isEqualTo(desiredResult);
+
+        verify(encryptionStorageManager, times(1)).putAndRemovePrevious(
+                metaKeyCaptor.capture(), nonceCaptor.capture(),
+                refNameKeyCaptor.capture(), refValueCaptor.capture(), previousRefNameKeyCaptor.capture()
+        );
+
+        assertThat(metaKeyCaptor.getValue()).isEqualTo(expectedMetadataKey);
+        final byte[] capturedNonce2 = nonceCaptor.getValue();
+        assertThat(capturedNonce2).hasSize(AesGcmSivCipher.NONCE_SIZE_BYTES);
+
+        final byte[] expectedEncryptedRefNameKey2 = encryptStringWithDek(capturedNonce2, HEAD_MASTER_REF);
+        assertThat(refNameKeyCaptor.getValue()).isEqualTo(expectedEncryptedRefNameKey2);
+        final byte[] expectedEncryptedRefValue2 = encryptObjectIdWithDek(capturedNonce2, OBJECT_ID);
+        assertThat(refValueCaptor.getValue()).isEqualTo(expectedEncryptedRefValue2);
+
+        assertThat(previousRefNameKeyCaptor.getValue()).isEqualTo(expectedEncryptedRefNameKey);
+    }
+
+    @Test
+    void deleteRef_deletesBothKeys() throws Exception {
+        final byte[] nonce = AesGcmSivCipher.generateNonce();
+        final byte[] metadataKey = refMetadataKey(HEAD_MASTER_REF);
+        final byte[] encryptedRefNameKey = encryptStringWithDek(nonce, HEAD_MASTER_REF);
+
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(nonce);
+
+        storage.deleteRef(HEAD_MASTER_REF);
+
+        final ArgumentCaptor<byte[]> metaKeyCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> refNameKeyCaptor = ArgumentCaptor.forClass(byte[].class);
+
+        verify(encryptionStorageManager).getMetadata(metadataKey);
+        verify(encryptionStorageManager, times(1)).delete(metaKeyCaptor.capture(), refNameKeyCaptor.capture());
+        assertThat(metaKeyCaptor.getValue()).isEqualTo(metadataKey);
+        assertThat(refNameKeyCaptor.getValue()).isEqualTo(encryptedRefNameKey);
+    }
+
+    @Test
+    void linkRef_storesCorrectly() throws Exception {
+        final String target = HEAD_MASTER_REF;
+
+        final ArgumentCaptor<byte[]> metaKeyCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> nonceCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> refNameKeyCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> refValueCaptor = ArgumentCaptor.forClass(byte[].class);
+
+        storage.linkRef(Constants.HEAD, target);
+
+        verify(encryptionStorageManager, times(1)).put(
+                metaKeyCaptor.capture(), nonceCaptor.capture(),
+                refNameKeyCaptor.capture(), refValueCaptor.capture()
+        );
+
+        final byte[] expectedMetadataKey = refMetadataKey(Constants.HEAD);
+        assertThat(metaKeyCaptor.getValue()).isEqualTo(expectedMetadataKey);
+        final byte[] capturedNonce = nonceCaptor.getValue();
+        assertThat(capturedNonce).hasSize(AesGcmSivCipher.NONCE_SIZE_BYTES);
+
+        final byte[] expectedEncryptedRefNameKey = encryptStringWithDek(capturedNonce, Constants.HEAD);
+        assertThat(refNameKeyCaptor.getValue()).isEqualTo(expectedEncryptedRefNameKey);
+        final byte[] expectedEncryptedRefValue = encryptWithDek(capturedNonce, symbolicRefBytes(target));
+        assertThat(refValueCaptor.getValue()).isEqualTo(expectedEncryptedRefValue);
+    }
+
+    // Revision mapping test methods
+
+    @Test
+    void getRevisionObjectId_found() throws Exception {
+        final byte[] nonce = AesGcmSivCipher.generateNonce();
+        final byte[] metadataKey = storage.rev2ShaMetadataKey(REV_1);
+        final byte[] encryptedRevisionKey = encryptWithDek(nonce, revisionBytes(REV_1));
+        final byte[] encryptedIdValue = encryptObjectIdWithDek(nonce, OBJECT_ID);
+
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(nonce);
+        when(encryptionStorageManager.get(encryptedRevisionKey)).thenReturn(encryptedIdValue);
+
+        final ObjectId retrievedId = storage.getRevisionObjectId(REV_1);
+
+        assertThat(retrievedId).isEqualTo(OBJECT_ID);
+        verify(encryptionStorageManager).getMetadata(metadataKey);
+        verify(encryptionStorageManager).get(encryptedRevisionKey);
+    }
+
+    @Test
+    void getRevisionObjectId_metadataNotFound() {
+        final byte[] metadataKey = storage.rev2ShaMetadataKey(REV_1);
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(null);
+
+        assertThatThrownBy(() -> storage.getRevisionObjectId(REV_1))
+                .isInstanceOf(RevisionNotFoundException.class);
+
+        verify(encryptionStorageManager).getMetadata(metadataKey);
+        verify(encryptionStorageManager, never()).getMetadata(
+                argThat(key -> !Arrays.equals(key, metadataKey)));
+    }
+
+    @Test
+    void getRevisionObjectId_valueNotFound() throws Exception {
+        final byte[] nonce = AesGcmSivCipher.generateNonce();
+        final byte[] metadataKey = storage.rev2ShaMetadataKey(REV_1);
+        final byte[] encryptedRevisionKey = encryptWithDek(nonce, revisionBytes(REV_1));
+
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(nonce);
+        when(encryptionStorageManager.get(encryptedRevisionKey)).thenReturn(null); // Value missing
+
+        assertThatThrownBy(() -> storage.getRevisionObjectId(REV_1))
+                .isInstanceOf(RevisionNotFoundException.class);
+
+        verify(encryptionStorageManager).getMetadata(metadataKey);
+        verify(encryptionStorageManager).get(encryptedRevisionKey);
+    }
+
+    @Test
+    void putRevisionObjectId_new() throws Exception {
+        final byte[] metadataKey = storage.rev2ShaMetadataKey(REV_1);
+
+        // Capture args
+        final ArgumentCaptor<byte[]> metaKeyCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> nonceCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> revKeyCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> idValueCaptor = ArgumentCaptor.forClass(byte[].class);
+
+        storage.putRevisionObjectId(REV_1, OBJECT_ID);
+
+        verify(encryptionStorageManager, times(1)).put(
+                metaKeyCaptor.capture(), nonceCaptor.capture(),
+                revKeyCaptor.capture(), idValueCaptor.capture()
+        );
+
+        // Verify Metadata
+        assertThat(metaKeyCaptor.getValue()).isEqualTo(metadataKey);
+        final byte[] capturedNonce = nonceCaptor.getValue();
+        assertThat(capturedNonce).hasSize(AesGcmSivCipher.NONCE_SIZE_BYTES);
+
+        // Verify Encrypted Revision/ID Entry
+        final byte[] expectedEncryptedRevKey = encryptWithDek(capturedNonce, revisionBytes(REV_1));
+        assertThat(revKeyCaptor.getValue()).isEqualTo(expectedEncryptedRevKey);
+        final byte[] expectedEncryptedIdValue = encryptObjectIdWithDek(capturedNonce, OBJECT_ID);
+        assertThat(idValueCaptor.getValue()).isEqualTo(expectedEncryptedIdValue);
+    }
+
+    @Test
+    void putRevisionObjectId_exists() {
+        final byte[] metadataKey = storage.rev2ShaMetadataKey(REV_1);
+        when(encryptionStorageManager.containsMetadata(metadataKey)).thenReturn(true);
+
+        assertThatThrownBy(() -> storage.putRevisionObjectId(REV_1, OBJECT_ID))
+                .isInstanceOf(EncryptionStorageException.class)
+                .hasMessageContaining("Revision already exists: " + REV_1);
+
+        verify(encryptionStorageManager).containsMetadata(metadataKey);
+        verify(encryptionStorageManager, never()).put(any(), any(), any(), any());
+    }
+
+    private static byte[] refMetadataKey(String name) {
+        final byte[] prefix = (TEST_PROJECT + '/' + TEST_REPO + '/').getBytes(StandardCharsets.UTF_8);
+        final byte[] nameBytes = name.getBytes(StandardCharsets.UTF_8);
+        return ByteBuffer.allocate(prefix.length + nameBytes.length)
+                         .put(prefix)
+                         .put(nameBytes)
+                         .array();
+    }
+
+    private static byte[] encryptWithDek(byte[] nonce, byte[] data) {
+        try {
+            return AesGcmSivCipher.encrypt(DEK, nonce, data, 0, data.length);
+        } catch (Exception e) {
+            throw new RuntimeException("Encryption failed in test helper", e);
+        }
+    }
+
+    private static byte[] encryptObjectIdWithDek(byte[] nonce, ObjectId id) {
+        final byte[] idBytes = new byte[20];
+        id.copyRawTo(idBytes, 0);
+        return encryptWithDek(nonce, idBytes);
+    }
+
+    private static byte[] encryptStringWithDek(byte[] nonce, String str) {
+        return encryptWithDek(nonce, str.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static byte[] symbolicRefBytes(String target) {
+        return Constants.encode(RefDirectory.SYMREF + target);
+    }
+
+    private static byte[] revisionBytes(Revision rev) {
+        return ByteBuffer.allocate(4).putInt(rev.major()).array();
+    }
+}
