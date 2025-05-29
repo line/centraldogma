@@ -25,22 +25,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Change;
@@ -48,10 +44,8 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.PathPattern;
-import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
-import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 
@@ -62,8 +56,7 @@ import io.micrometer.core.instrument.MeterRegistry;
  */
 public final class CentralDogmaRepository {
 
-    private static final Set<String> PLACEHOLDERS =
-            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(".gitkeep", ".keep", ".gitignore")));
+    private static final Set<String> PLACEHOLDERS = ImmutableSet.of(".gitkeep", ".keep", ".gitignore");
     private final CentralDogma centralDogma;
     private final String projectName;
     private final String repositoryName;
