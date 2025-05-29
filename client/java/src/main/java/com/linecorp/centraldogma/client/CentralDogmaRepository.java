@@ -56,7 +56,6 @@ import io.micrometer.core.instrument.MeterRegistry;
  */
 public final class CentralDogmaRepository {
 
-    private static final Set<String> PLACEHOLDERS = ImmutableSet.of(".gitkeep", ".keep", ".gitignore");
     private final CentralDogma centralDogma;
     private final String projectName;
     private final String repositoryName;
@@ -94,7 +93,7 @@ public final class CentralDogmaRepository {
         final List<Change<?>> changes = new ArrayList<>();
         try (Stream<Path> s = Files.walk(path)) {
             s.filter(Files::isRegularFile)
-             .filter(p -> !PLACEHOLDERS.contains(p.getFileName().toString()))
+             .filter(p -> !p.getFileName().toString().startsWith("."))
              .forEach(p -> {
                  final Path rel = path.relativize(p);
                  final String repoPath = '/' + rel.toString().replace(File.separatorChar, '/');
