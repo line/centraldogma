@@ -16,14 +16,11 @@
 
 package com.linecorp.centraldogma.server.internal.admin.auth;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import com.linecorp.armeria.common.HttpRequest;
-import com.linecorp.armeria.common.auth.OAuth2Token;
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.armeria.server.auth.AuthTokenExtractors;
-import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.thrift.THttpService;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
@@ -33,17 +30,16 @@ import com.linecorp.centraldogma.server.metadata.User;
  * A decorator which checks whether CSRF token exists.
  * This should be used for {@link THttpService} and admin service without security.
  */
-public class CsrfTokenAuthorizer implements Authorizer<HttpRequest> {
+public class CsrfTokenAuthorizer extends AbstractAuthorizer {
 
     @Override
-    public CompletionStage<Boolean> authorize(ServiceRequestContext ctx, HttpRequest data) {
-        final OAuth2Token token = AuthTokenExtractors.oAuth2().apply(data.headers());
-        if (token != null && CsrfToken.ANONYMOUS.equals(token.accessToken())) {
+    public CompletionStage<Boolean> authorize(ServiceRequestContext ctx, HttpRequest req, String accessToken) {
+        if (CsrfToken.ANONYMOUS.equals(accessToken)) {
             AuthUtil.setCurrentUser(ctx, User.SYSTEM_ADMIN);
             HttpApiUtil.setVerboseResponses(ctx, User.SYSTEM_ADMIN);
-            return CompletableFuture.completedFuture(true);
+            return UnmodifiableFuture.completedFuture(true);
         } else {
-            return CompletableFuture.completedFuture(false);
+            return UnmodifiableFuture.completedFuture(false);
         }
     }
 }

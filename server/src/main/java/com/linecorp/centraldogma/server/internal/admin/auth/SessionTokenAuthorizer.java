@@ -19,17 +19,13 @@ package com.linecorp.centraldogma.server.internal.admin.auth;
 import static com.linecorp.centraldogma.server.metadata.User.LEVEL_SYSTEM_ADMIN;
 import static com.linecorp.centraldogma.server.metadata.User.LEVEL_USER;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.CompletableFuture.completedFuture;
 
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
 import com.linecorp.armeria.common.HttpRequest;
-import com.linecorp.armeria.common.auth.OAuth2Token;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.armeria.server.auth.AuthTokenExtractors;
-import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.User;
@@ -38,7 +34,7 @@ import com.linecorp.centraldogma.server.metadata.User;
  * A decorator to check whether the request holds a valid token. If it holds a valid token, this
  * decorator would find a session belonging to the token and attach it to the service context attributes.
  */
-public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
+public class SessionTokenAuthorizer extends AbstractAuthorizer {
 
     private final SessionManager sessionManager;
     private final Set<String> systemAdministrators;
@@ -49,25 +45,20 @@ public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
     }
 
     @Override
-    public CompletionStage<Boolean> authorize(ServiceRequestContext ctx, HttpRequest data) {
-        final OAuth2Token token = AuthTokenExtractors.oAuth2().apply(data.headers());
-        if (token == null) {
-            return completedFuture(false);
-        }
-        return sessionManager.get(token.accessToken())
-                             .thenApply(session -> {
-                                 if (session == null) {
-                                     return false;
-                                 }
-                                 final String username = session.username();
-                                 final List<String> roles =
-                                         systemAdministrators.contains(username) ? LEVEL_SYSTEM_ADMIN
-                                                                                 : LEVEL_USER;
-                                 final User user = new User(username, roles);
-                                 ctx.logBuilder().authenticatedUser("user/" + username);
-                                 AuthUtil.setCurrentUser(ctx, user);
-                                 HttpApiUtil.setVerboseResponses(ctx, user);
-                                 return true;
-                             });
+    public CompletionStage<Boolean> authorize(ServiceRequestContext ctx, HttpRequest req, String accessToken) {
+        return sessionManager.get(accessToken).thenApply(session -> {
+            if (session == null) {
+                return false;
+            }
+            final String username = session.username();
+            final List<String> roles =
+                    systemAdministrators.contains(username) ? LEVEL_SYSTEM_ADMIN
+                                                            : LEVEL_USER;
+            final User user = new User(username, roles);
+            ctx.logBuilder().authenticatedUser("user/" + username);
+            AuthUtil.setCurrentUser(ctx, user);
+            HttpApiUtil.setVerboseResponses(ctx, user);
+            return true;
+        });
     }
 }
