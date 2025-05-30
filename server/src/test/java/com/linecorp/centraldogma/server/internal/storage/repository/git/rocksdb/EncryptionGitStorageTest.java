@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -82,7 +83,8 @@ class EncryptionGitStorageTest {
 
         // Leniently stubs.
         lenient().when(encryptionStorageManager.containsMetadata(any())).thenReturn(false);
-        lenient().when(encryptionStorageManager.get(any())).thenReturn(null);
+        lenient().when(encryptionStorageManager.getObject(any(), any())).thenReturn(null);
+        lenient().when(encryptionStorageManager.getObjectId(any(), any())).thenReturn(null);
     }
 
     // object test methods
@@ -99,7 +101,7 @@ class EncryptionGitStorageTest {
         assertThat(result).isEqualTo(OBJECT_ID);
 
         // Verify the specific put method was called once
-        verify(encryptionStorageManager, times(1)).put(
+        verify(encryptionStorageManager, times(1)).putObject(
                 metadataKeyCaptor.capture(), metadataValueCaptor.capture(),
                 dataKeyCaptor.capture(), dataValueCaptor.capture()
         );
@@ -131,7 +133,7 @@ class EncryptionGitStorageTest {
         final ObjectId result =
                 storage.insertObject(OBJECT_ID, Constants.OBJ_BLOB, OBJ_DATA, 0, OBJ_DATA.length);
         assertThat(result).isEqualTo(OBJECT_ID);
-        verify(encryptionStorageManager, never()).put(any(), any(), any(), any());
+        verify(encryptionStorageManager, never()).putObject(any(), any(), any(), any());
     }
 
     @Test
@@ -143,7 +145,8 @@ class EncryptionGitStorageTest {
         ObjectLoader loader = storage.getObject(OBJECT_ID, ObjectReader.OBJ_ANY);
         assertThat(loader).isNull();
         verify(encryptionStorageManager).getMetadata(metadataKey);
-        verify(encryptionStorageManager, never()).get(argThat(key -> !Arrays.equals(key, metadataKey)));
+        verify(encryptionStorageManager, never())
+                .getObject(argThat(key -> !Arrays.equals(key, metadataKey)), any());
 
         final byte[] nonce = AesGcmSivCipher.generateNonce();
         final byte[] metadataValue = ByteBuffer.allocate(AesGcmSivCipher.NONCE_SIZE_BYTES + 4)
@@ -152,7 +155,7 @@ class EncryptionGitStorageTest {
         final byte[] encryptedObjValue = encryptWithDek(nonce, OBJ_DATA);
 
         when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadataValue);
-        when(encryptionStorageManager.get(encryptedObjKey)).thenReturn(encryptedObjValue);
+        when(encryptionStorageManager.getObject(encryptedObjKey, metadataKey)).thenReturn(encryptedObjValue);
 
         loader = storage.getObject(OBJECT_ID, ObjectReader.OBJ_ANY);
 
@@ -163,7 +166,7 @@ class EncryptionGitStorageTest {
         assertThat(loader.getCachedBytes()).isEqualTo(OBJ_DATA);
 
         verify(encryptionStorageManager, times(2)).getMetadata(metadataKey);
-        verify(encryptionStorageManager).get(encryptedObjKey);
+        verify(encryptionStorageManager).getObject(encryptedObjKey, metadataKey);
     }
 
     @Test
@@ -197,7 +200,8 @@ class EncryptionGitStorageTest {
         final byte[] corruptedEncryptedValue = "corrupted data".getBytes();
 
         when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadataValue);
-        when(encryptionStorageManager.get(encryptedObjKey)).thenReturn(corruptedEncryptedValue);
+        when(encryptionStorageManager.getObject(encryptedObjKey, metadataKey))
+                .thenReturn(corruptedEncryptedValue);
 
         assertThatThrownBy(() -> storage.getObject(OBJECT_ID, ObjectReader.OBJ_ANY))
                 .isInstanceOf(EncryptionStorageException.class)
@@ -214,7 +218,7 @@ class EncryptionGitStorageTest {
         final byte[] encryptedValue = encryptObjectIdWithDek(nonce, OBJECT_ID);
 
         when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(nonce);
-        when(encryptionStorageManager.get(encryptedRefName)).thenReturn(encryptedValue);
+        when(encryptionStorageManager.getObjectId(encryptedRefName, metadataKey)).thenReturn(encryptedValue);
 
         final Ref ref = storage.readRef(HEAD_MASTER_REF);
 
@@ -225,7 +229,7 @@ class EncryptionGitStorageTest {
         assertThat(ref.getStorage()).isEqualTo(Storage.LOOSE);
 
         verify(encryptionStorageManager).getMetadata(metadataKey);
-        verify(encryptionStorageManager).get(encryptedRefName);
+        verify(encryptionStorageManager).getObjectId(encryptedRefName, metadataKey);
     }
 
     @Test
@@ -243,9 +247,10 @@ class EncryptionGitStorageTest {
         final byte[] encryptedTargetRefObjectIdValue = encryptObjectIdWithDek(targetRefNonce, OBJECT_ID);
 
         when(encryptionStorageManager.getMetadata(symRefMetadataKey)).thenReturn(symRefNonce);
-        when(encryptionStorageManager.get(encryptedSymRefName)).thenReturn(encryptedSymRefTargetValue);
+        when(encryptionStorageManager.getObjectId(encryptedSymRefName, symRefMetadataKey))
+                .thenReturn(encryptedSymRefTargetValue);
         when(encryptionStorageManager.getMetadata(targetRefMetadataKey)).thenReturn(targetRefNonce);
-        when(encryptionStorageManager.get(encryptedTargetRefName)).thenReturn(
+        when(encryptionStorageManager.getObjectId(encryptedTargetRefName, targetRefMetadataKey)).thenReturn(
                 encryptedTargetRefObjectIdValue);
 
         final Ref ref = storage.readRef(Constants.HEAD);
@@ -261,11 +266,11 @@ class EncryptionGitStorageTest {
         assertThat(target.getObjectId()).isEqualTo(OBJECT_ID);
 
         verify(encryptionStorageManager, times(2)).getMetadata(any());
-        verify(encryptionStorageManager, times(2)).get(any());
+        verify(encryptionStorageManager, times(2)).getObjectId(any(), any());
         verify(encryptionStorageManager).getMetadata(symRefMetadataKey);
-        verify(encryptionStorageManager).get(encryptedSymRefName);
+        verify(encryptionStorageManager).getObjectId(encryptedSymRefName, symRefMetadataKey);
         verify(encryptionStorageManager).getMetadata(targetRefMetadataKey);
-        verify(encryptionStorageManager).get(encryptedTargetRefName);
+        verify(encryptionStorageManager).getObjectId(encryptedTargetRefName, targetRefMetadataKey);
     }
 
     @Test
@@ -276,14 +281,16 @@ class EncryptionGitStorageTest {
         final ArgumentCaptor<byte[]> nonceCaptor = ArgumentCaptor.forClass(byte[].class);
         final ArgumentCaptor<byte[]> refNameKeyCaptor = ArgumentCaptor.forClass(byte[].class);
         final ArgumentCaptor<byte[]> refValueCaptor = ArgumentCaptor.forClass(byte[].class); // Encrypted ID
+        final ArgumentCaptor<byte[]> previousKeyCaptor = ArgumentCaptor.forClass(byte[].class);
 
         final Result actualResult = storage.updateRef(HEAD_MASTER_REF, OBJECT_ID, desiredResult);
         assertThat(actualResult).isEqualTo(desiredResult);
 
-        verify(encryptionStorageManager, times(1)).put(
+        verify(encryptionStorageManager, times(1)).putObjectId(
                 metaKeyCaptor.capture(), nonceCaptor.capture(),
-                refNameKeyCaptor.capture(), refValueCaptor.capture()
+                refNameKeyCaptor.capture(), refValueCaptor.capture(), previousKeyCaptor.capture()
         );
+        reset(encryptionStorageManager);
 
         final byte[] expectedMetadataKey = refMetadataKey(HEAD_MASTER_REF);
         assertThat(metaKeyCaptor.getValue()).isEqualTo(expectedMetadataKey);
@@ -294,15 +301,15 @@ class EncryptionGitStorageTest {
         assertThat(refNameKeyCaptor.getValue()).isEqualTo(expectedEncryptedRefNameKey);
         final byte[] expectedEncryptedRefValue = encryptObjectIdWithDek(capturedNonce, OBJECT_ID);
         assertThat(refValueCaptor.getValue()).isEqualTo(expectedEncryptedRefValue);
+        assertThat(previousKeyCaptor.getValue()).isNull();
 
         when(encryptionStorageManager.getMetadata(expectedMetadataKey)).thenReturn(capturedNonce);
-        final ArgumentCaptor<byte[]> previousRefNameKeyCaptor = ArgumentCaptor.forClass(byte[].class);
         final Result actualResult2 = storage.updateRef(HEAD_MASTER_REF, OBJECT_ID, desiredResult);
         assertThat(actualResult2).isEqualTo(desiredResult);
 
-        verify(encryptionStorageManager, times(1)).putAndRemovePrevious(
+        verify(encryptionStorageManager, times(1)).putObjectId(
                 metaKeyCaptor.capture(), nonceCaptor.capture(),
-                refNameKeyCaptor.capture(), refValueCaptor.capture(), previousRefNameKeyCaptor.capture()
+                refNameKeyCaptor.capture(), refValueCaptor.capture(), previousKeyCaptor.capture()
         );
 
         assertThat(metaKeyCaptor.getValue()).isEqualTo(expectedMetadataKey);
@@ -314,7 +321,7 @@ class EncryptionGitStorageTest {
         final byte[] expectedEncryptedRefValue2 = encryptObjectIdWithDek(capturedNonce2, OBJECT_ID);
         assertThat(refValueCaptor.getValue()).isEqualTo(expectedEncryptedRefValue2);
 
-        assertThat(previousRefNameKeyCaptor.getValue()).isEqualTo(expectedEncryptedRefNameKey);
+        assertThat(previousKeyCaptor.getValue()).isEqualTo(expectedEncryptedRefNameKey);
     }
 
     @Test
@@ -331,7 +338,8 @@ class EncryptionGitStorageTest {
         final ArgumentCaptor<byte[]> refNameKeyCaptor = ArgumentCaptor.forClass(byte[].class);
 
         verify(encryptionStorageManager).getMetadata(metadataKey);
-        verify(encryptionStorageManager, times(1)).delete(metaKeyCaptor.capture(), refNameKeyCaptor.capture());
+        verify(encryptionStorageManager, times(1))
+                .deleteObjectId(metaKeyCaptor.capture(), refNameKeyCaptor.capture());
         assertThat(metaKeyCaptor.getValue()).isEqualTo(metadataKey);
         assertThat(refNameKeyCaptor.getValue()).isEqualTo(encryptedRefNameKey);
     }
@@ -344,12 +352,13 @@ class EncryptionGitStorageTest {
         final ArgumentCaptor<byte[]> nonceCaptor = ArgumentCaptor.forClass(byte[].class);
         final ArgumentCaptor<byte[]> refNameKeyCaptor = ArgumentCaptor.forClass(byte[].class);
         final ArgumentCaptor<byte[]> refValueCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> previousKeyCaptor = ArgumentCaptor.forClass(byte[].class);
 
         storage.linkRef(Constants.HEAD, target);
 
-        verify(encryptionStorageManager, times(1)).put(
+        verify(encryptionStorageManager, times(1)).putObjectId(
                 metaKeyCaptor.capture(), nonceCaptor.capture(),
-                refNameKeyCaptor.capture(), refValueCaptor.capture()
+                refNameKeyCaptor.capture(), refValueCaptor.capture(), previousKeyCaptor.capture()
         );
 
         final byte[] expectedMetadataKey = refMetadataKey(Constants.HEAD);
@@ -361,6 +370,7 @@ class EncryptionGitStorageTest {
         assertThat(refNameKeyCaptor.getValue()).isEqualTo(expectedEncryptedRefNameKey);
         final byte[] expectedEncryptedRefValue = encryptWithDek(capturedNonce, symbolicRefBytes(target));
         assertThat(refValueCaptor.getValue()).isEqualTo(expectedEncryptedRefValue);
+        assertThat(previousKeyCaptor.getValue()).isNull();
     }
 
     // Revision mapping test methods
@@ -373,13 +383,14 @@ class EncryptionGitStorageTest {
         final byte[] encryptedIdValue = encryptObjectIdWithDek(nonce, OBJECT_ID);
 
         when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(nonce);
-        when(encryptionStorageManager.get(encryptedRevisionKey)).thenReturn(encryptedIdValue);
+        when(encryptionStorageManager.getObjectId(encryptedRevisionKey, metadataKey))
+                .thenReturn(encryptedIdValue);
 
         final ObjectId retrievedId = storage.getRevisionObjectId(REV_1);
 
         assertThat(retrievedId).isEqualTo(OBJECT_ID);
         verify(encryptionStorageManager).getMetadata(metadataKey);
-        verify(encryptionStorageManager).get(encryptedRevisionKey);
+        verify(encryptionStorageManager).getObjectId(encryptedRevisionKey, metadataKey);
     }
 
     @Test
@@ -402,13 +413,14 @@ class EncryptionGitStorageTest {
         final byte[] encryptedRevisionKey = encryptWithDek(nonce, revisionBytes(REV_1));
 
         when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(nonce);
-        when(encryptionStorageManager.get(encryptedRevisionKey)).thenReturn(null); // Value missing
+        when(encryptionStorageManager.getObjectId(encryptedRevisionKey, metadataKey))
+                .thenReturn(null); // Value missing
 
         assertThatThrownBy(() -> storage.getRevisionObjectId(REV_1))
                 .isInstanceOf(RevisionNotFoundException.class);
 
         verify(encryptionStorageManager).getMetadata(metadataKey);
-        verify(encryptionStorageManager).get(encryptedRevisionKey);
+        verify(encryptionStorageManager).getObjectId(encryptedRevisionKey, metadataKey);
     }
 
     @Test
@@ -420,12 +432,13 @@ class EncryptionGitStorageTest {
         final ArgumentCaptor<byte[]> nonceCaptor = ArgumentCaptor.forClass(byte[].class);
         final ArgumentCaptor<byte[]> revKeyCaptor = ArgumentCaptor.forClass(byte[].class);
         final ArgumentCaptor<byte[]> idValueCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> previousKeyCaptor = ArgumentCaptor.forClass(byte[].class);
 
         storage.putRevisionObjectId(REV_1, OBJECT_ID);
 
-        verify(encryptionStorageManager, times(1)).put(
+        verify(encryptionStorageManager, times(1)).putObjectId(
                 metaKeyCaptor.capture(), nonceCaptor.capture(),
-                revKeyCaptor.capture(), idValueCaptor.capture()
+                revKeyCaptor.capture(), idValueCaptor.capture(), previousKeyCaptor.capture()
         );
 
         // Verify Metadata
@@ -438,6 +451,7 @@ class EncryptionGitStorageTest {
         assertThat(revKeyCaptor.getValue()).isEqualTo(expectedEncryptedRevKey);
         final byte[] expectedEncryptedIdValue = encryptObjectIdWithDek(capturedNonce, OBJECT_ID);
         assertThat(idValueCaptor.getValue()).isEqualTo(expectedEncryptedIdValue);
+        assertThat(previousKeyCaptor.getValue()).isNull();
     }
 
     @Test
@@ -450,7 +464,7 @@ class EncryptionGitStorageTest {
                 .hasMessageContaining("Revision already exists: " + REV_1);
 
         verify(encryptionStorageManager).containsMetadata(metadataKey);
-        verify(encryptionStorageManager, never()).put(any(), any(), any(), any());
+        verify(encryptionStorageManager, never()).putObjectId(any(), any(), any(), any(), any());
     }
 
     private static byte[] refMetadataKey(String name) {

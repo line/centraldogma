@@ -89,10 +89,16 @@ public interface EncryptionStorageManager extends SafeCloseable {
     void removeWdek(String projectName, String repoName);
 
     /**
-     * Returns the value of the specified key.
+     * Returns the object associated with the specified key.
      */
     @Nullable
-    byte[] get(byte[] key);
+    byte[] getObject(byte[] key, byte[] metadataKey);
+
+    /**
+     * Returns the object ID bytes associated with the specified key.
+     */
+    @Nullable
+    byte[] getObjectId(byte[] key, byte[] metadataKey);
 
     /**
      * Returns the value of the specified metadata key.
@@ -101,15 +107,15 @@ public interface EncryptionStorageManager extends SafeCloseable {
     byte[] getMetadata(byte[] metadataKey);
 
     /**
-     * Stores the specified key-value pair with metadata.
+     * Stores the specified key-value object with metadata.
      */
-    void put(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value);
+    void putObject(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value);
 
     /**
      * Stores the specified key-value pair with metadata. The {@code previousKeyToRemove} will be removed.
      */
-    void putAndRemovePrevious(byte[] metadataKey, byte[] metadataValue,
-                              byte[] key, byte[] value, byte[] previousKeyToRemove);
+    void putObjectId(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value,
+                     @Nullable byte[] previousKeyToRemove);
 
     /**
      * Returns {@code true} if the specified key exists.
@@ -119,7 +125,7 @@ public interface EncryptionStorageManager extends SafeCloseable {
     /**
      * Deletes the specified keys.
      */
-    void delete(byte[] metadataKey, byte[] key);
+    void deleteObjectId(byte[] metadataKey, byte[] key);
 
     /**
      * Deletes all data related to the specified project and repository.

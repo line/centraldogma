@@ -105,7 +105,7 @@ public final class EncryptionGitStorage {
 
         final byte[] encryptedId = encryptObjectId(nonce, objectId);
         final byte[] encryptedValue = encrypt(nonce, data, off, len);
-        encryptionStorageManager.put(metadataKey, nonceAndType, encryptedId, encryptedValue);
+        encryptionStorageManager.putObject(metadataKey, nonceAndType, encryptedId, encryptedValue);
         return objectId;
     }
 
@@ -160,7 +160,7 @@ public final class EncryptionGitStorage {
         final byte[] nonce = new byte[12];
         System.arraycopy(metadata, 0, nonce, 0, 12);
         final byte[] encryptedKey = encryptObjectId(nonce, objectId);
-        final byte[] value = encryptionStorageManager.get(encryptedKey);
+        final byte[] value = encryptionStorageManager.getObject(encryptedKey, metadataKey);
         if (value == null) {
             return null;
         }
@@ -180,7 +180,7 @@ public final class EncryptionGitStorage {
         }
 
         final byte[] encryptedRefName = encrypt(nonce, refNameBytes, 0, refNameBytes.length);
-        final byte[] encryptedRefValue = encryptionStorageManager.get(encryptedRefName);
+        final byte[] encryptedRefValue = encryptionStorageManager.getObjectId(encryptedRefName, metadataKey);
         if (encryptedRefValue == null) {
             return null;
         }
@@ -218,14 +218,16 @@ public final class EncryptionGitStorage {
         final byte[] encryptedId = encryptObjectId(nonce, objectId);
 
         // We should remove the previous ref name if it exists.
+
+        final byte[] previousEncryptedRefName;
         final byte[] previousNonce = encryptionStorageManager.getMetadata(metadataKey);
         if (previousNonce == null) {
-            encryptionStorageManager.put(metadataKey, nonce, encryptedRefName, encryptedId);
-            return desiredResult;
+            previousEncryptedRefName = null;
+        } else {
+            previousEncryptedRefName = encrypt(previousNonce, refNameBytes, 0, refNameBytes.length);
         }
-        final byte[] previousEncryptedRefName = encrypt(previousNonce, refNameBytes, 0, refNameBytes.length);
-        encryptionStorageManager.putAndRemovePrevious(metadataKey, nonce, encryptedRefName,
-                                                      encryptedId, previousEncryptedRefName);
+        encryptionStorageManager.putObjectId(metadataKey, nonce, encryptedRefName,
+                                             encryptedId, previousEncryptedRefName);
         return desiredResult;
     }
 
@@ -246,7 +248,7 @@ public final class EncryptionGitStorage {
         }
 
         final byte[] encryptedRefName = encrypt(nonce, refNameBytes, 0, refNameBytes.length);
-        encryptionStorageManager.delete(metadataKey, encryptedRefName);
+        encryptionStorageManager.deleteObjectId(metadataKey, encryptedRefName);
     }
 
     void linkRef(String refName, String target) {
@@ -257,7 +259,7 @@ public final class EncryptionGitStorage {
         final byte[] encryptedRefName = encrypt(nonce, refNameBytes, 0, refNameBytes.length);
         final byte[] encoded = encode(RefDirectory.SYMREF + target);
         final byte[] encryptedTarget = encrypt(nonce, encoded, 0, encoded.length);
-        encryptionStorageManager.put(metadataKey, nonce, encryptedRefName, encryptedTarget);
+        encryptionStorageManager.putObjectId(metadataKey, nonce, encryptedRefName, encryptedTarget, null);
     }
 
     @VisibleForTesting
@@ -268,7 +270,7 @@ public final class EncryptionGitStorage {
             throw new RevisionNotFoundException(revision);
         }
         final byte[] encryptedKey = encrypt(nonce, Ints.toByteArray(revision.major()), 0, 4);
-        final byte[] value = encryptionStorageManager.get(encryptedKey);
+        final byte[] value = encryptionStorageManager.getObjectId(encryptedKey, metadataKey);
         if (value == null) {
             throw new RevisionNotFoundException(revision);
         }
@@ -299,7 +301,7 @@ public final class EncryptionGitStorage {
 
         final byte[] encryptedRevision = encrypt(nonce, Ints.toByteArray(revision.major()), 0, 4);
         final byte[] encryptedId = encryptObjectId(nonce, objectId);
-        encryptionStorageManager.put(metadataKey, nonce, encryptedRevision, encryptedId);
+        encryptionStorageManager.putObjectId(metadataKey, nonce, encryptedRevision, encryptedId, null);
     }
 
     private static final class DecryptedObjectLoader extends ObjectLoader {

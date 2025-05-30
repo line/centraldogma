@@ -113,27 +113,24 @@ class DefaultEncryptionStorageManagerTest {
         assertThat(storageManager.containsMetadata(TEST_KEY_1)).isFalse();
         assertThat(storageManager.containsMetadata(TEST_KEY_2)).isFalse();
 
-        storageManager.put(TEST_KEY_1, TEST_VALUE_1, TEST_KEY_2, TEST_VALUE_2);
+        storageManager.putObject(TEST_KEY_1, TEST_VALUE_1, TEST_KEY_2, TEST_VALUE_2);
 
         assertThat(storageManager.getMetadata(TEST_KEY_1)).isEqualTo(TEST_VALUE_1);
-        assertThat(storageManager.get(TEST_KEY_2)).isEqualTo(TEST_VALUE_2);
+        assertThat(storageManager.getObject(TEST_KEY_2, TEST_KEY_1)).isEqualTo(TEST_VALUE_2);
     }
 
     @Test
-    void deleteList() {
-        storageManager.put(TEST_KEY_1, TEST_VALUE_1, TEST_KEY_2, TEST_VALUE_2);
-
+    void deleteObjectId() {
+        storageManager.putObjectId(TEST_KEY_1, TEST_VALUE_1, TEST_KEY_2, TEST_VALUE_2, null);
         assertThat(storageManager.containsMetadata(TEST_KEY_1)).isTrue();
-
-        storageManager.delete(TEST_KEY_1, TEST_KEY_2);
-
+        storageManager.deleteObjectId(TEST_KEY_1, TEST_KEY_2);
         assertThat(storageManager.containsMetadata(TEST_KEY_1)).isFalse();
     }
 
     @Test
-    void deleteList_withNonExistent_shouldNotFail() {
-        storageManager.put(TEST_KEY_1, TEST_VALUE_1, TEST_KEY_2, TEST_VALUE_2);
-        storageManager.delete(TEST_KEY_1, "nonExistent".getBytes());
+    void deleteObjectId_withNonExistent_shouldNotFail() {
+        storageManager.putObjectId(TEST_KEY_1, TEST_VALUE_1, TEST_KEY_2, TEST_VALUE_2, null);
+        storageManager.deleteObjectId(TEST_KEY_1, "nonExistent".getBytes());
         assertThat(storageManager.containsMetadata(TEST_KEY_1)).isFalse();
         // No exception
     }

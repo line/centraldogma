@@ -143,9 +143,8 @@ javadocs = "https://www.javadoc.io/doc/com.github.ben-manes.caffeine/caffeine/2.
 module = "com.puppycrawl.tools:checkstyle"
 version.ref = "checkstyle"
 
-#TODO(minwoox): Do not depend on the uber jar.
 [libraries.conscrypt]
-module = "org.conscrypt:conscrypt-openjdk-uber"
+module = "org.conscrypt:conscrypt-openjdk"
 version.ref = "conscrypt"
 
 [libraries.cron-utils]
