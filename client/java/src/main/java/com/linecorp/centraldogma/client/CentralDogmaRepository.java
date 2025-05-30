@@ -17,14 +17,25 @@ package com.linecorp.centraldogma.client;
 
 import static java.util.Objects.requireNonNull;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
@@ -34,6 +45,7 @@ import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -57,6 +69,38 @@ public final class CentralDogmaRepository {
         this.repositoryName = repositoryName;
         this.blockingTaskExecutor = blockingTaskExecutor;
         this.meterRegistry = meterRegistry;
+    }
+
+    private static Change<?> toChange(String repoPath, Path file) {
+        try {
+            byte[] bytes = Files.readAllBytes(file);
+            String lower = file.getFileName().toString().toLowerCase();
+
+            if (lower.endsWith(".json")) {
+                return Change.ofJsonUpsert(repoPath, Jackson.readTree(bytes));
+            }
+
+            return Change.ofTextUpsert(repoPath, new String(bytes, StandardCharsets.UTF_8));
+
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to create Change for " + file, e);
+        }
+    }
+
+    private static List<Change<?>> collectImportFiles(Path path) {
+        final List<Change<?>> changes = new ArrayList<>();
+        try (Stream<Path> s = Files.walk(path)) {
+            s.filter(Files::isRegularFile)
+             .filter(p -> !p.getFileName().toString().startsWith("."))
+             .forEach(p -> {
+                 final Path rel = path.relativize(p);
+                 final String repoPath = '/' + rel.toString().replace(File.separatorChar, '/');
+                 changes.add(toChange(repoPath, p));
+             });
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to walk directory: " + path, e);
+        }
+        return changes;
     }
 
     CentralDogma centralDogma() {
@@ -296,6 +340,72 @@ public final class CentralDogmaRepository {
     public WatcherRequest<Revision> watcher(PathPattern pathPattern) {
         requireNonNull(pathPattern, "pathPattern");
         return new WatcherRequest<>(this, pathPattern, blockingTaskExecutor, meterRegistry);
+    }
+
+    public CompletableFuture<ImportResult> importDir(Path dir) {
+        requireNonNull(dir, "dir");
+
+        final List<Change<?>> changes = new ArrayList<>();
+        if (Files.isRegularFile(dir)) {
+            final String repoPath = '/' + dir.getFileName().toString().replace(File.separatorChar, '/');
+            changes.add(toChange(repoPath, dir));
+        } else {
+            changes.addAll(collectImportFiles(dir));
+        }
+
+        centralDogma.createProject(projectName()).join();
+        centralDogma.createRepository(projectName(), repositoryName()).join();
+
+        if (changes.isEmpty()) {
+            return CompletableFuture.completedFuture(ImportResult.empty());
+        }
+        return commit("Import " + dir.getFileName(), changes)
+                .push(Revision.HEAD)
+                .thenApply(ImportResult::fromPushResult);
+    }
+
+    public CompletableFuture<ImportResult> importResourceDir(String dir) {
+        requireNonNull(dir, "dir");
+        return importResourceDir(dir, CentralDogmaRepository.class.getClassLoader());
+    }
+
+    public CompletableFuture<ImportResult> importResourceDir(String dir, ClassLoader classLoader) {
+        requireNonNull(dir, "dir");
+        requireNonNull(classLoader, "classLoader");
+
+        final URL url = requireNonNull(classLoader.getResource(dir),
+                                       () -> "resource not found: " + dir);
+        if (!"file".equals(url.getProtocol())) {
+            return CompletableFutures.exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Resource dir must be explodable (got " + url + ')'));
+        }
+
+        final Path logical = Paths.get(dir);
+        final Path physicalPath = Paths.get(url.getPath());
+        if (logical.getNameCount() < 2) {
+            return CompletableFutures.exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Path must be <project>/<repo>[/…]: " + dir));
+        }
+        centralDogma.createProject(projectName()).join();
+        centralDogma.createRepository(projectName(), repositoryName()).join();
+
+        final List<Change<?>> changes = new ArrayList<>();
+        if (Files.isRegularFile(physicalPath)) {
+            final String repoPath = '/' + logical.getFileName()
+                                                 .toString()
+                                                 .replace(File.separatorChar, '/');
+            changes.add(toChange(repoPath, physicalPath));
+        } else {
+            changes.addAll(collectImportFiles(physicalPath));
+        }
+
+        if (changes.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "No files found in the resource directory: " + physicalPath);
+        }
+        return commit("Import " + logical.getFileName(), changes)
+                .push(Revision.HEAD)
+                .thenApply(ImportResult::fromPushResult);
     }
 
     @Override
