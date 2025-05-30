@@ -56,10 +56,14 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
         // No-op
     }
 
-    @Nullable
     @Override
-    public byte[] get(byte[] key) {
-        return null;
+    public byte[] getObject(byte[] key, byte[] metadataKey) {
+        return new byte[0];
+    }
+
+    @Override
+    public byte[] getObjectId(byte[] key, byte[] metadataKey) {
+        return new byte[0];
     }
 
     @Override
@@ -68,13 +72,13 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     }
 
     @Override
-    public void put(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value) {
+    public void putObject(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value) {
         // No-op
     }
 
     @Override
-    public void putAndRemovePrevious(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value,
-                                     byte[] previousKeyToRemove) {
+    public void putObjectId(byte[] metadataKey, byte[] metadataValue, byte[] key, byte[] value,
+                            @Nullable byte[] previousKeyToRemove) {
         // No-op
     }
 
@@ -84,7 +88,7 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     }
 
     @Override
-    public void delete(byte[] metadataKey, byte[] key) {
+    public void deleteObjectId(byte[] metadataKey, byte[] key) {
         // No-op
     }
 
