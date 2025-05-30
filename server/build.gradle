@@ -15,9 +15,9 @@ dependencies {
     implementation libs.caffeine
 
     if (OperatingSystem.current().isWindows()) {
-        implementation(variantOf(libs.conscrypt) { classifier('osx-x86_64') })
-    } else if (OperatingSystem.current().isMacOsX()) {
         implementation(variantOf(libs.conscrypt) { classifier('windows-x86_64') })
+    } else if (OperatingSystem.current().isMacOsX()) {
+        implementation(variantOf(libs.conscrypt) { classifier('osx-x86_64') })
     } else {
         implementation(variantOf(libs.conscrypt) { classifier('linux-x86_64') })
     }
