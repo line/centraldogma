@@ -27,7 +27,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Stream;
@@ -36,7 +35,6 @@ import javax.annotation.Nullable;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Change;
@@ -402,7 +400,8 @@ public final class CentralDogmaRepository {
         }
 
         if (changes.isEmpty()) {
-            return CompletableFuture.completedFuture(ImportResult.empty());
+            throw new IllegalArgumentException(
+                    "No files found in the resource directory: " + physicalPath);
         }
         return commit("Import " + logical.getFileName(), changes)
                 .push(Revision.HEAD)
