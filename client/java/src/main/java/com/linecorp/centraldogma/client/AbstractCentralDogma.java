@@ -17,8 +17,13 @@
 package com.linecorp.centraldogma.client;
 
 import static com.linecorp.centraldogma.internal.PathPatternUtil.toPathPattern;
+import static com.spotify.futures.CompletableFutures.exceptionallyCompletedFuture;
 import static java.util.Objects.requireNonNull;
 
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -26,6 +31,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
+
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -192,6 +199,69 @@ public abstract class AbstractCentralDogma implements CentralDogma {
                                                                 .start();
     }
 
+    @Override
+    public CompletableFuture<ImportResult> importDir(Path dir) {
+        if (dir.getNameCount() < 2) {
+            return exceptionallyCompletedFuture(new IllegalArgumentException(
+                    "Path must be <project>/<repo>[/…]: " + dir));
+        }
+        if (dir.isAbsolute()){
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Only relative paths are supported: " + dir));
+        }
+        final String project = dir.getName(0).toString();
+        final String repo = dir.getName(1).toString();
+        final Path physicalPath = Files.isRegularFile(dir) ? dir.getParent() : dir;
+
+        return createProjectIfAbsent(project).thenCompose(unusedProjectCreated ->
+                   createRepositoryIfAbsent(project, repo).thenCompose(unusedRepoCreated ->
+                       forRepo(project, repo)
+                               .importDir(physicalPath)));
+    }
+
+    @Override
+    public CompletableFuture<ImportResult> importResourceDir(String dir) {
+        final Path path = Paths.get(dir);
+        if (path.getNameCount() < 2) {
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Path must be <project>/<repo>[/…]: " + dir));
+        }
+        if (path.isAbsolute()){
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Only relative paths are supported: " + dir));
+        }
+        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        return this.importResourceDir(dir, classLoader);
+    }
+
+    @Override
+    public CompletableFuture<ImportResult> importResourceDir(String dir, ClassLoader classLoader) {
+        final Path path = Paths.get(dir);
+        if (path.getNameCount() < 2) {
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Path must be <project>/<repo>[/…]: " + dir));
+        }
+        if (path.isAbsolute()){
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Only relative paths are supported: " + dir));
+        }
+        final String project = path.getName(0).toString();
+        final String repo = path.getName(1).toString();
+
+        final URL url = requireNonNull(classLoader.getResource(dir),
+                                       () -> "resource not found: " + dir);
+        if (!"file".equals(url.getProtocol())) {
+            return CompletableFutures.exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Resource dir must be explodable (got " + url + ')'));
+        }
+        return createProjectIfAbsent(project).thenCompose(unusedProjectCreated ->
+                   createRepositoryIfAbsent(project, repo).thenCompose(unusedRepoCreated -> {
+                        return forRepo(project, repo).importResourceDir(dir, classLoader);
+                   }
+               )
+        );
+    }
+
     /**
      * Normalizes the specified {@link Revision} only if it is a relative revision.
      *
@@ -205,5 +275,23 @@ public abstract class AbstractCentralDogma implements CentralDogma {
         } else {
             return CompletableFuture.completedFuture(revision);
         }
+    }
+
+    private CompletableFuture<Void> createProjectIfAbsent(String project) {
+        return listProjects().thenCompose(projectSet -> {
+            if (projectSet.contains(project)) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return createProject(project);
+        });
+    }
+
+    private CompletableFuture<CentralDogmaRepository> createRepositoryIfAbsent(String project, String repo) {
+        return listRepositories(project).thenCompose(repoSet -> {
+            if (repoSet.containsKey(repo)) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return createRepository(project, repo);
+        });
     }
 }
