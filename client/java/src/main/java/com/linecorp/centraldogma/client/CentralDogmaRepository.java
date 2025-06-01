@@ -346,18 +346,7 @@ public final class CentralDogmaRepository {
      */
     public CompletableFuture<ImportResult> importDir(Path dir) {
         requireNonNull(dir, "dir");
-        final List<Change<?>> changes = new ArrayList<>();
-        if (Files.isRegularFile(dir)) {
-            final String repoPath = '/' + dir.getFileName().toString().replace(File.separatorChar, '/');
-            changes.add(toChange(repoPath, dir));
-        } else {
-            changes.addAll(collectImportFiles(dir));
-        }
-
-        if (changes.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "No files found in the resource directory: " + dir);
-        }
+        final List<Change<?>> changes = toChanges(dir);
         return commit("Import " + dir.getFileName(), changes)
                 .push(Revision.HEAD)
                 .thenApply(ImportResult::fromPushResult);
@@ -386,23 +375,25 @@ public final class CentralDogmaRepository {
         }
 
         final Path physicalPath = Paths.get(url.getPath());
-        final List<Change<?>> changes = new ArrayList<>();
-        if (Files.isRegularFile(physicalPath)) {
-            final String repoPath = '/' + physicalPath.getFileName()
-                                                       .toString()
-                                                       .replace(File.separatorChar, '/');
-            changes.add(toChange(repoPath, physicalPath));
-        } else {
-            changes.addAll(collectImportFiles(physicalPath));
-        }
-
-        if (changes.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "No files found in the resource directory: " + physicalPath);
-        }
+        final List<Change<?>> changes = toChanges(physicalPath);
         return commit("Import " + physicalPath.getFileName(), changes)
                 .push(Revision.HEAD)
                 .thenApply(ImportResult::fromPushResult);
+    }
+
+    private static List<Change<?>> toChanges(Path path) {
+        final List<Change<?>> changes = new ArrayList<>();
+        if (Files.isRegularFile(path)) {
+            final String repoPath = '/' + path.getFileName().toString().replace(File.separatorChar, '/');
+            changes.add(toChange(repoPath, path));
+        } else {
+            changes.addAll(collectImportFiles(path));
+        }
+
+        if (changes.isEmpty()) {
+            throw new IllegalArgumentException("No files found in the resource directory: " + path);
+        }
+        return changes;
     }
 
     @Override
