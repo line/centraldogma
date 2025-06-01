@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.client;
 
 import static com.linecorp.centraldogma.internal.PathPatternUtil.toPathPattern;
 import static com.spotify.futures.CompletableFutures.exceptionallyCompletedFuture;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
 import java.net.URL;
@@ -45,7 +44,6 @@ import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
 
 import io.micrometer.core.instrument.MeterRegistry;
 

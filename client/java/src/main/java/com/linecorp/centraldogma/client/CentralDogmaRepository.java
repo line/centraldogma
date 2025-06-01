@@ -73,15 +73,14 @@ public final class CentralDogmaRepository {
 
     private static Change<?> toChange(String repoPath, Path file) {
         try {
-            byte[] bytes = Files.readAllBytes(file);
-            String lower = file.getFileName().toString().toLowerCase();
+            final byte[] bytes = Files.readAllBytes(file);
+            final String lower = file.getFileName().toString().toLowerCase();
 
             if (lower.endsWith(".json")) {
                 return Change.ofJsonUpsert(repoPath, Jackson.readTree(bytes));
             }
 
             return Change.ofTextUpsert(repoPath, new String(bytes, StandardCharsets.UTF_8));
-
         } catch (Exception e) {
             throw new IllegalStateException("Failed to create Change for " + file, e);
         }
@@ -342,9 +341,11 @@ public final class CentralDogmaRepository {
         return new WatcherRequest<>(this, pathPattern, blockingTaskExecutor, meterRegistry);
     }
 
+    /**
+     * Returns a new {@link CompletableFuture} that imports the files in the specified.
+     */
     public CompletableFuture<ImportResult> importDir(Path dir) {
         requireNonNull(dir, "dir");
-
         final List<Change<?>> changes = new ArrayList<>();
         if (Files.isRegularFile(dir)) {
             final String repoPath = '/' + dir.getFileName().toString().replace(File.separatorChar, '/');
@@ -364,11 +365,17 @@ public final class CentralDogmaRepository {
                 .thenApply(ImportResult::fromPushResult);
     }
 
+    /**
+     * Returns a new {@link CompletableFuture} that imports the files in the specified.
+     */
     public CompletableFuture<ImportResult> importResourceDir(String dir) {
         requireNonNull(dir, "dir");
         return importResourceDir(dir, CentralDogmaRepository.class.getClassLoader());
     }
 
+    /**
+     * Returns a new {@link CompletableFuture} that imports the files in the specified.
+     */
     public CompletableFuture<ImportResult> importResourceDir(String dir, ClassLoader classLoader) {
         requireNonNull(dir, "dir");
         requireNonNull(classLoader, "classLoader");
