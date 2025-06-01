@@ -107,7 +107,6 @@ class CentralDogmaImportTest {
         }
         scheduler.shutdownNow();
         removeCreatedDir(Paths.get(dir));
-        dogma.close();
     }
 
     @Test
