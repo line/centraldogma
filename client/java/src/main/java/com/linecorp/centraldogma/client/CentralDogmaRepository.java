@@ -354,11 +354,9 @@ public final class CentralDogmaRepository {
             changes.addAll(collectImportFiles(dir));
         }
 
-        centralDogma.createProject(projectName()).join();
-        centralDogma.createRepository(projectName(), repositoryName()).join();
-
         if (changes.isEmpty()) {
-            return CompletableFuture.completedFuture(ImportResult.empty());
+            throw new IllegalArgumentException(
+                    "No files found in the resource directory: " + dir);
         }
         return commit("Import " + dir.getFileName(), changes)
                 .push(Revision.HEAD)
@@ -387,20 +385,12 @@ public final class CentralDogmaRepository {
                     new IllegalArgumentException("Resource dir must be explodable (got " + url + ')'));
         }
 
-        final Path logical = Paths.get(dir);
         final Path physicalPath = Paths.get(url.getPath());
-        if (logical.getNameCount() < 2) {
-            return CompletableFutures.exceptionallyCompletedFuture(
-                    new IllegalArgumentException("Path must be <project>/<repo>[/…]: " + dir));
-        }
-        centralDogma.createProject(projectName()).join();
-        centralDogma.createRepository(projectName(), repositoryName()).join();
-
         final List<Change<?>> changes = new ArrayList<>();
         if (Files.isRegularFile(physicalPath)) {
-            final String repoPath = '/' + logical.getFileName()
-                                                 .toString()
-                                                 .replace(File.separatorChar, '/');
+            final String repoPath = '/' + physicalPath.getFileName()
+                                                       .toString()
+                                                       .replace(File.separatorChar, '/');
             changes.add(toChange(repoPath, physicalPath));
         } else {
             changes.addAll(collectImportFiles(physicalPath));
@@ -410,7 +400,7 @@ public final class CentralDogmaRepository {
             throw new IllegalArgumentException(
                     "No files found in the resource directory: " + physicalPath);
         }
-        return commit("Import " + logical.getFileName(), changes)
+        return commit("Import " + physicalPath.getFileName(), changes)
                 .push(Revision.HEAD)
                 .thenApply(ImportResult::fromPushResult);
     }
