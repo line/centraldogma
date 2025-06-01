@@ -205,6 +205,10 @@ public abstract class AbstractCentralDogma implements CentralDogma {
             return exceptionallyCompletedFuture(new IllegalArgumentException(
                     "Path must be <project>/<repo>[/…]: " + dir));
         }
+        if (dir.isAbsolute()){
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Only relative paths are supported: " + dir));
+        }
         final String project = dir.getName(0).toString();
         final String repo = dir.getName(1).toString();
         final Path physicalPath = Files.isRegularFile(dir) ? dir.getParent() : dir;
@@ -222,6 +226,10 @@ public abstract class AbstractCentralDogma implements CentralDogma {
             return exceptionallyCompletedFuture(
                     new IllegalArgumentException("Path must be <project>/<repo>[/…]: " + dir));
         }
+        if (path.isAbsolute()){
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Only relative paths are supported: " + dir));
+        }
         final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         return this.importResourceDir(dir, classLoader);
     }
@@ -232,6 +240,10 @@ public abstract class AbstractCentralDogma implements CentralDogma {
         if (path.getNameCount() < 2) {
             return exceptionallyCompletedFuture(
                     new IllegalArgumentException("Path must be <project>/<repo>[/…]: " + dir));
+        }
+        if (path.isAbsolute()){
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("Only relative paths are supported: " + dir));
         }
         final String project = path.getName(0).toString();
         final String repo = path.getName(1).toString();
