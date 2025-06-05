@@ -140,6 +140,7 @@ import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
 import com.linecorp.centraldogma.server.internal.api.CredentialServiceV1;
 import com.linecorp.centraldogma.server.internal.api.GitHttpService;
 import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
+import com.linecorp.centraldogma.server.internal.api.LoggerService;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService;
 import com.linecorp.centraldogma.server.internal.api.MirroringServiceV1;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
@@ -912,7 +913,8 @@ public class CentralDogma implements AutoCloseable {
                 .annotatedService(new ServerStatusService(executor, statusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
                 .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager))
-                .annotatedService(new CredentialServiceV1(projectApiManager, executor));
+                .annotatedService(new CredentialServiceV1(projectApiManager, executor))
+                .annotatedService(new LoggerService());
 
         if (GIT_MIRROR_ENABLED) {
             mirrorRunner = new MirrorRunner(projectApiManager, executor, cfg, meterRegistry,
