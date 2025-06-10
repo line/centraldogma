@@ -40,9 +40,13 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.Flags;
+import com.linecorp.armeria.common.HttpData;
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.common.ResponseHeadersBuilder;
 import com.linecorp.armeria.common.logging.LogLevel;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.HttpResponseException;
@@ -140,6 +144,18 @@ public final class HttpApiUtil {
     }
 
     /**
+     * Returns a newly created {@link HttpResponse} with the specified {@link ResponseHeaders} and
+     * {@code cause}.
+     */
+    public static HttpResponse newResponse(ServiceRequestContext ctx, ResponseHeaders headers,
+                                           Throwable cause) {
+        requireNonNull(ctx, "ctx");
+        requireNonNull(headers, "headers");
+        requireNonNull(cause, "cause");
+        return newResponse0(ctx, headers.toBuilder(), cause, null);
+    }
+
+    /**
      * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus}, {@code cause} and
      * the formatted message.
      */
@@ -164,12 +180,18 @@ public final class HttpApiUtil {
         requireNonNull(status, "status");
         requireNonNull(cause, "cause");
         requireNonNull(message, "message");
-
         return newResponse0(ctx, status, cause, message);
     }
 
     private static HttpResponse newResponse0(ServiceRequestContext ctx, HttpStatus status,
                                              @Nullable Throwable cause, @Nullable String message) {
+        final ResponseHeadersBuilder headersBuilder = ResponseHeaders.builder(status);
+        return newResponse0(ctx, headersBuilder, cause, message);
+    }
+
+    private static HttpResponse newResponse0(ServiceRequestContext ctx, ResponseHeadersBuilder headersBuilder,
+                                             @Nullable Throwable cause, @Nullable String message) {
+        final HttpStatus status = headersBuilder.status();
         checkArgument(!status.isContentAlwaysEmpty(),
                       "status: %s (expected: a status with non-empty content)", status);
 
@@ -234,7 +256,12 @@ public final class HttpApiUtil {
         // TODO(hyangtack) Need to introduce a new field such as 'stackTrace' in order to return
         //                 the stack trace of the cause to the trusted client.
         try {
-            return HttpResponse.of(status, MediaType.JSON_UTF_8, Jackson.writeValueAsBytes(node));
+            headersBuilder.remove(HttpHeaderNames.CONTENT_TYPE);
+            final ResponseHeaders headers = headersBuilder
+                    .contentType(MediaType.JSON_UTF_8)
+                    .build();
+
+            return HttpResponse.of(headers, HttpData.wrap(Jackson.writeValueAsBytes(node)));
         } catch (JsonProcessingException e) {
             // should not reach here
             throw new Error(e);
