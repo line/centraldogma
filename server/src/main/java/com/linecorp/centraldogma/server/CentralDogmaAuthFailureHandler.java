@@ -56,6 +56,12 @@ final class CentralDogmaAuthFailureHandler implements AuthFailureHandler {
             return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause);
         }
 
-        return HttpApiUtil.newResponse(ctx, UNAUTHORIZED_HEADERS, AUTHORIZATION_EXCEPTION);
+        if ("/api/v0/users/me".equals(ctx.path())) {
+            // Do not return the WWW-Authenticate header for the /api/v0/users/me to avoid triggering a sign-in
+            // prompt in browsers. It could interfere with the login flow.
+            return HttpApiUtil.newResponse(ctx, HttpStatus.UNAUTHORIZED, AUTHORIZATION_EXCEPTION);
+        } else {
+            return HttpApiUtil.newResponse(ctx, UNAUTHORIZED_HEADERS, AUTHORIZATION_EXCEPTION);
+        }
     }
 }
