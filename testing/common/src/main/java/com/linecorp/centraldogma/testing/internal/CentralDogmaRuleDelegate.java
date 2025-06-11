@@ -41,6 +41,7 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.AbstractArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
+import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.MirroringService;
@@ -141,10 +142,8 @@ public class CentralDogmaRuleDelegate {
             final LegacyCentralDogmaBuilder legacyClientBuilder = new LegacyCentralDogmaBuilder();
 
             final String accessToken = accessToken();
-            if (accessToken != null) {
-                clientBuilder.accessToken(accessToken);
-                legacyClientBuilder.accessToken(accessToken);
-            }
+            clientBuilder.accessToken(accessToken);
+            legacyClientBuilder.accessToken(accessToken);
 
             configureClientCommon(clientBuilder);
             configureClientCommon(legacyClientBuilder);
@@ -308,9 +307,8 @@ public class CentralDogmaRuleDelegate {
     /**
      * Override this method to inject an access token to the clients.
      */
-    @Nullable
     protected String accessToken() {
-        return null;
+        return CsrfToken.ANONYMOUS;
     }
 
     /**
