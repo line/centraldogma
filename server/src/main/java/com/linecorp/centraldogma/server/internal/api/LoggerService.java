@@ -39,45 +39,17 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdminist
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.spi.LoggerContextListener;
 
 @RequiresSystemAdministrator
 @ProducesJson
 public class LoggerService {
 
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(LoggerService.class);
+
     private static final List<String> LEVELS = ImmutableList.of(
             "ALL", "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF");
 
     private final LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
-
-    @Nullable
-    private volatile List<LoggerInfo> loggerInfos;
-
-    /**
-     * Creates a new instance.
-     */
-    public LoggerService() {
-        loggerContext.addListener(new LoggerContextListener() {
-            @Override
-            public boolean isResetResistant() {
-                return true;
-            }
-
-            @Override
-            public void onStart(LoggerContext context) {}
-
-            @Override
-            public void onReset(LoggerContext context) {}
-
-            @Override
-            public void onStop(LoggerContext context) {}
-
-            @Override
-            public void onLevelChange(Logger logger, Level level) {
-                loggerInfos = null; // Invalidate the cached loggerInfos
-            }
-        });
-    }
 
     @Put("/loggers/{logger}")
     @ConsumesJson
@@ -95,6 +67,8 @@ public class LoggerService {
 
         if (levelNode.isNull()) {
             logger.setLevel(null);
+            LoggerService.logger.info("Set log level of '{}' to null. effectiveLevel='{}'",
+                                      loggerName, logger.getEffectiveLevel());
             return HttpResponse.ofJson(LoggerInfo.of(logger));
         }
 
@@ -110,6 +84,7 @@ public class LoggerService {
                                    "Invalid log level: " + level + ". Valid levels are: " + LEVELS);
         }
         logger.setLevel(Level.toLevel(upperCase));
+        LoggerService.logger.info("Set log level of '{}' to '{}'.", loggerName, upperCase);
         return HttpResponse.ofJson(LoggerInfo.of(logger));
     }
 
@@ -126,18 +101,11 @@ public class LoggerService {
     @Get("/loggers")
     @ProducesJson
     public HttpResponse getLogLevels() {
-        List<LoggerInfo> loggerInfos = this.loggerInfos;
-        if (loggerInfos != null) {
-            return HttpResponse.ofJson(loggerInfos);
-        }
-
         final Builder<LoggerInfo> builder = ImmutableList.builder();
         for (Logger logger : loggerContext.getLoggerList()) {
             builder.add(LoggerInfo.of(logger));
         }
-        loggerInfos = builder.build();
-        this.loggerInfos = loggerInfos;
-        return HttpResponse.ofJson(loggerInfos);
+        return HttpResponse.ofJson(builder.build());
     }
 
     private static final class LoggerInfo {
