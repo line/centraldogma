@@ -156,13 +156,13 @@ class EncryptionGitStorageTest {
                 .getObject(argThat(key -> !Arrays.equals(key, metadataKey)), any());
 
         final byte[] nonce = AesGcmSivCipher.generateNonce();
-        final byte[] objeckDek = AesGcmSivCipher.generateAes256Key();
-        final byte[] objectWdek = encryptWithDek(nonce, objeckDek);
+        final byte[] objectDek = AesGcmSivCipher.generateAes256Key();
+        final byte[] objectWdek = encryptWithDek(nonce, objectDek);
         final byte[] metadataValue = ByteBuffer.allocate(NONCE_SIZE_BYTES + 4 + 48)
                                                .put(nonce).putInt(Constants.OBJ_COMMIT).put(objectWdek)
                                                .array();
         final byte[] encryptedObjKey = encryptObjectIdWithDek(nonce, OBJECT_ID);
-        final byte[] encryptedObjValue = encrypt(aesSecretKey(objeckDek), nonce, OBJ_DATA);
+        final byte[] encryptedObjValue = encrypt(aesSecretKey(objectDek), nonce, OBJ_DATA);
 
         when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadataValue);
         when(encryptionStorageManager.getObject(encryptedObjKey, metadataKey)).thenReturn(encryptedObjValue);

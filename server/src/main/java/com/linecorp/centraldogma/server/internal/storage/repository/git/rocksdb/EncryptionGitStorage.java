@@ -100,18 +100,18 @@ public final class EncryptionGitStorage {
         // Generate a new DEK for the data so that we don't decrypt and encrypt the data again when the
         // repository key is rotated.
         final byte[] objectDek = AesGcmSivCipher.generateAes256Key();
-        final byte[] objeckWdek = encrypt(nonce, objectDek, 0, KEY_SIZE_BYTES);
+        final byte[] objectWdek = encrypt(nonce, objectDek, 0, KEY_SIZE_BYTES);
 
-        assert objeckWdek.length == KEY_SIZE_BYTES + 16; // 16 bytes for the tag
+        assert objectWdek.length == KEY_SIZE_BYTES + 16; // 16 bytes for the tag
 
-        final byte[] nonceAndObjectWdek = new byte[NONCE_SIZE_BYTES + 4 + objeckWdek.length];
+        final byte[] nonceAndObjectWdek = new byte[NONCE_SIZE_BYTES + 4 + objectWdek.length];
 
         System.arraycopy(nonce, 0, nonceAndObjectWdek, 0, NONCE_SIZE_BYTES);
         nonceAndObjectWdek[NONCE_SIZE_BYTES] = (byte) (type >> 24);
         nonceAndObjectWdek[NONCE_SIZE_BYTES + 1] = (byte) (type >> 16);
         nonceAndObjectWdek[NONCE_SIZE_BYTES + 2] = (byte) (type >> 8);
         nonceAndObjectWdek[NONCE_SIZE_BYTES + 3] = (byte) type;
-        System.arraycopy(objeckWdek, 0, nonceAndObjectWdek, NONCE_SIZE_BYTES + 4, objeckWdek.length);
+        System.arraycopy(objectWdek, 0, nonceAndObjectWdek, NONCE_SIZE_BYTES + 4, objectWdek.length);
 
         final SecretKeySpec keySpec = aesSecretKey(objectDek);
 
