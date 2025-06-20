@@ -21,6 +21,7 @@ import java.security.Security;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.conscrypt.Conscrypt;
@@ -35,7 +36,7 @@ public final class AesGcmSivCipher {
 
     private static final String ALGORITHM = "AES/GCM-SIV/NoPadding";
     // https://datatracker.ietf.org/doc/html/rfc8452#section-4
-    private static final int KEY_SIZE_BYTES = 32;
+    public static final int KEY_SIZE_BYTES = 32;
     public static final int NONCE_SIZE_BYTES = 12;
     private static final int TAG_SIZE_BITS = 128;
 
@@ -56,8 +57,13 @@ public final class AesGcmSivCipher {
 
     public static byte[] generateAes256Key() {
         final byte[] keyBytes = new byte[KEY_SIZE_BYTES]; // 256bit
+        // Consider sharding the SecureRandom instance if this method is called frequently.
         SECURE_RANDOM.nextBytes(keyBytes);
         return keyBytes;
+    }
+
+    public static SecretKeySpec aesSecretKey(byte[] key) {
+        return new SecretKeySpec(key, "AES");
     }
 
     public static byte[] generateNonce() {

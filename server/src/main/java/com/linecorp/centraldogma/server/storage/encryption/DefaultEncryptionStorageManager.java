@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server.storage.encryption;
 
 import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.NONCE_SIZE_BYTES;
+import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.aesSecretKey;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.EncryptionGitStorage.OBJS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.EncryptionGitStorage.REFS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.EncryptionGitStorage.REV2SHA;
@@ -34,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.BloomFilter;
@@ -190,12 +190,14 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
                     "WDEK of " + projectRepo(projectName, repoName) + " does not exist");
         }
 
+        final byte[] key;
         try {
-            return new SecretKeySpec(keyManagementService.unwrap(wdek).get(10, TimeUnit.SECONDS), "AES");
+            key = keyManagementService.unwrap(wdek).get(10, TimeUnit.SECONDS);
         } catch (Throwable t) {
             throw new EncryptionStorageException(
                     "Failed to unwrap WDEK of " + projectRepo(projectName, repoName), t);
         }
+        return aesSecretKey(key);
     }
 
     @Override
