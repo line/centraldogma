@@ -122,14 +122,15 @@ class EncryptionGitStorageTest {
                                            .getInt();
         assertThat(capturedType).isEqualTo(Constants.OBJ_BLOB);
 
-        final byte[] expectedEncryptedDataKey = encryptObjectIdWithDek(capturedNonce, OBJECT_ID);
-        assertThat(dataKeyCaptor.getValue()).isEqualTo(expectedEncryptedDataKey);
-
         final byte[] objectWdek =
                 Arrays.copyOfRange(actualMetadataValue, NONCE_SIZE_BYTES + 4, actualMetadataValue.length);
         final byte[] objectDek = decrypt(DEK, capturedNonce, objectWdek);
+        final SecretKeySpec key = aesSecretKey(objectDek);
 
-        final byte[] expectedEncryptedDataValue = encrypt(aesSecretKey(objectDek), capturedNonce, OBJ_DATA);
+        final byte[] expectedEncryptedDataKey = encryptObjectId(key, capturedNonce, OBJECT_ID);
+        assertThat(dataKeyCaptor.getValue()).isEqualTo(expectedEncryptedDataKey);
+
+        final byte[] expectedEncryptedDataValue = encrypt(key, capturedNonce, OBJ_DATA);
         assertThat(dataValueCaptor.getValue()).isEqualTo(expectedEncryptedDataValue);
     }
 
@@ -161,8 +162,9 @@ class EncryptionGitStorageTest {
         final byte[] metadataValue = ByteBuffer.allocate(NONCE_SIZE_BYTES + 4 + 48)
                                                .put(nonce).putInt(Constants.OBJ_COMMIT).put(objectWdek)
                                                .array();
-        final byte[] encryptedObjKey = encryptObjectIdWithDek(nonce, OBJECT_ID);
-        final byte[] encryptedObjValue = encrypt(aesSecretKey(objectDek), nonce, OBJ_DATA);
+        final SecretKeySpec key = aesSecretKey(objectDek);
+        final byte[] encryptedObjKey = encryptObjectId(key, nonce, OBJECT_ID);
+        final byte[] encryptedObjValue = encrypt(key, nonce, OBJ_DATA);
 
         when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadataValue);
         when(encryptionStorageManager.getObject(encryptedObjKey, metadataKey)).thenReturn(encryptedObjValue);
@@ -185,8 +187,11 @@ class EncryptionGitStorageTest {
         final int wrongTypeHint = Constants.OBJ_COMMIT;
         final byte[] nonce = AesGcmSivCipher.generateNonce();
         final byte[] metadataKey = storage.objectMetadataKey(OBJECT_ID);
-        final byte[] metadataValue = ByteBuffer.allocate(NONCE_SIZE_BYTES + 4)
-                                               .put(nonce).putInt(actualType).array();
+        final byte[] objectDek = AesGcmSivCipher.generateAes256Key();
+        final byte[] objectWdek = encryptWithDek(nonce, objectDek);
+        final byte[] metadataValue = ByteBuffer.allocate(NONCE_SIZE_BYTES + 4 + 48)
+                                               .put(nonce).putInt(actualType).put(objectWdek)
+                                               .array();
 
         when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadataValue);
 
@@ -203,9 +208,13 @@ class EncryptionGitStorageTest {
         final int type = Constants.OBJ_BLOB;
         final byte[] nonce = AesGcmSivCipher.generateNonce();
         final byte[] metadataKey = storage.objectMetadataKey(OBJECT_ID);
-        final byte[] metadataValue = ByteBuffer.allocate(NONCE_SIZE_BYTES + 4)
-                                               .put(nonce).putInt(type).array();
-        final byte[] encryptedObjKey = encryptObjectIdWithDek(nonce, OBJECT_ID);
+        final byte[] objectDek = AesGcmSivCipher.generateAes256Key();
+        final byte[] objectWdek = encryptWithDek(nonce, objectDek);
+        final byte[] metadataValue = ByteBuffer.allocate(NONCE_SIZE_BYTES + 4 + 48)
+                                               .put(nonce).putInt(type).put(objectWdek)
+                                               .array();
+        final SecretKeySpec key = aesSecretKey(objectDek);
+        final byte[] encryptedObjKey = encryptObjectId(key, nonce, OBJECT_ID);
         // Simulate corrupted data that will cause decrypt to fail
         final byte[] corruptedEncryptedValue = "corrupted data".getBytes();
 
@@ -499,9 +508,13 @@ class EncryptionGitStorageTest {
     }
 
     private static byte[] encryptObjectIdWithDek(byte[] nonce, ObjectId id) {
+        return encryptObjectId(DEK, nonce, id);
+    }
+
+    private static byte[] encryptObjectId(SecretKey key, byte[] nonce, ObjectId id) {
         final byte[] idBytes = new byte[20];
         id.copyRawTo(idBytes, 0);
-        return encryptWithDek(nonce, idBytes);
+        return encrypt(key, nonce, idBytes);
     }
 
     private static byte[] encryptStringWithDek(byte[] nonce, String str) {

@@ -115,7 +115,7 @@ public final class EncryptionGitStorage {
 
         final SecretKeySpec keySpec = aesSecretKey(objectDek);
 
-        final byte[] encryptedId = encryptObjectId(nonce, objectId);
+        final byte[] encryptedId = encryptObjectId(keySpec, nonce, objectId);
         final byte[] encryptedValue = encrypt(keySpec, nonce, data, off, len);
         encryptionStorageManager.putObject(metadataKey, nonceAndObjectWdek, encryptedId, encryptedValue);
         return objectId;
@@ -130,9 +130,13 @@ public final class EncryptionGitStorage {
     }
 
     private byte[] encryptObjectId(byte[] nonce, ObjectId objectId) {
+        return encryptObjectId(dek, nonce, objectId);
+    }
+
+    private byte[] encryptObjectId(SecretKey dek, byte[] nonce, ObjectId objectId) {
         final byte[] idBytes = new byte[20];
         objectId.copyRawTo(idBytes, 0);
-        return encrypt(nonce, idBytes, 0, 20);
+        return encrypt(dek, nonce, idBytes, 0, 20);
     }
 
     private byte[] encrypt(byte[] nonce, byte[] data, int offset, int length) {
@@ -179,18 +183,19 @@ public final class EncryptionGitStorage {
 
         final byte[] nonce = new byte[NONCE_SIZE_BYTES];
         System.arraycopy(metadata, 0, nonce, 0, NONCE_SIZE_BYTES);
-        final byte[] encryptedKey = encryptObjectId(nonce, objectId);
-        final byte[] value = encryptionStorageManager.getObject(encryptedKey, metadataKey);
-        if (value == null) {
-            return null;
-        }
-
         final int wdekLength = metadata.length - (NONCE_SIZE_BYTES + 4);
         final byte[] objectWdek = new byte[wdekLength];
         System.arraycopy(metadata, NONCE_SIZE_BYTES + 4, objectWdek, 0, wdekLength);
 
         final byte[] objectDek = decrypt(nonce, objectWdek);
         final SecretKeySpec keySpec = aesSecretKey(objectDek);
+
+        final byte[] encryptedKey = encryptObjectId(keySpec, nonce, objectId);
+        final byte[] value = encryptionStorageManager.getObject(encryptedKey, metadataKey);
+        if (value == null) {
+            return null;
+        }
+
         final byte[] decrypted = decrypt(keySpec, nonce, value);
         return new DecryptedObjectLoader(decrypted, actualType);
     }
