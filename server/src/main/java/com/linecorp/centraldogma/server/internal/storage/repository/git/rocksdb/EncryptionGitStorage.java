@@ -15,7 +15,9 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb;
 
+import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.KEY_SIZE_BYTES;
 import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.NONCE_SIZE_BYTES;
+import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.aesSecretKey;
 import static org.eclipse.jgit.lib.Constants.R_REFS;
 import static org.eclipse.jgit.lib.Constants.encode;
 import static org.eclipse.jgit.lib.ObjectReader.OBJ_ANY;
@@ -27,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 
 import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.internal.storage.file.RefDirectory;
@@ -94,18 +97,27 @@ public final class EncryptionGitStorage {
         }
 
         final byte[] nonce = AesGcmSivCipher.generateNonce();
-        final byte[] nonceAndType = new byte[NONCE_SIZE_BYTES + 4];
+        // Generate a new DEK for the data so that we don't decrypt and encrypt the data again when the
+        // repository key is rotated.
+        final byte[] objectDek = AesGcmSivCipher.generateAes256Key();
+        final byte[] objectWdek = encrypt(nonce, objectDek, 0, KEY_SIZE_BYTES);
 
-        System.arraycopy(nonce, 0, nonceAndType, 0, NONCE_SIZE_BYTES);
+        assert objectWdek.length == KEY_SIZE_BYTES + 16; // 16 bytes for the tag
 
-        nonceAndType[NONCE_SIZE_BYTES] = (byte) (type >> 24);
-        nonceAndType[NONCE_SIZE_BYTES + 1] = (byte) (type >> 16);
-        nonceAndType[NONCE_SIZE_BYTES + 2] = (byte) (type >> 8);
-        nonceAndType[NONCE_SIZE_BYTES + 3] = (byte) type;
+        final byte[] nonceAndObjectWdek = new byte[NONCE_SIZE_BYTES + 4 + objectWdek.length];
 
-        final byte[] encryptedId = encryptObjectId(nonce, objectId);
-        final byte[] encryptedValue = encrypt(nonce, data, off, len);
-        encryptionStorageManager.putObject(metadataKey, nonceAndType, encryptedId, encryptedValue);
+        System.arraycopy(nonce, 0, nonceAndObjectWdek, 0, NONCE_SIZE_BYTES);
+        nonceAndObjectWdek[NONCE_SIZE_BYTES] = (byte) (type >> 24);
+        nonceAndObjectWdek[NONCE_SIZE_BYTES + 1] = (byte) (type >> 16);
+        nonceAndObjectWdek[NONCE_SIZE_BYTES + 2] = (byte) (type >> 8);
+        nonceAndObjectWdek[NONCE_SIZE_BYTES + 3] = (byte) type;
+        System.arraycopy(objectWdek, 0, nonceAndObjectWdek, NONCE_SIZE_BYTES + 4, objectWdek.length);
+
+        final SecretKeySpec keySpec = aesSecretKey(objectDek);
+
+        final byte[] encryptedId = encryptObjectId(keySpec, nonce, objectId);
+        final byte[] encryptedValue = encrypt(keySpec, nonce, data, off, len);
+        encryptionStorageManager.putObject(metadataKey, nonceAndObjectWdek, encryptedId, encryptedValue);
         return objectId;
     }
 
@@ -118,12 +130,20 @@ public final class EncryptionGitStorage {
     }
 
     private byte[] encryptObjectId(byte[] nonce, ObjectId objectId) {
+        return encryptObjectId(dek, nonce, objectId);
+    }
+
+    private byte[] encryptObjectId(SecretKey dek, byte[] nonce, ObjectId objectId) {
         final byte[] idBytes = new byte[20];
         objectId.copyRawTo(idBytes, 0);
-        return encrypt(nonce, idBytes, 0, 20);
+        return encrypt(dek, nonce, idBytes, 0, 20);
     }
 
     private byte[] encrypt(byte[] nonce, byte[] data, int offset, int length) {
+        return encrypt(dek, nonce, data, offset, length);
+    }
+
+    private byte[] encrypt(SecretKey dek, byte[] nonce, byte[] data, int offset, int length) {
         try {
             return AesGcmSivCipher.encrypt(dek, nonce, data, offset, length);
         } catch (Exception e) {
@@ -133,8 +153,12 @@ public final class EncryptionGitStorage {
     }
 
     private byte[] decrypt(byte[] nonce, byte[] ciphertext) {
+        return decrypt(dek, nonce, ciphertext);
+    }
+
+    private byte[] decrypt(SecretKey key, byte[] nonce, byte[] ciphertext) {
         try {
-            return AesGcmSivCipher.decrypt(dek, nonce, ciphertext);
+            return AesGcmSivCipher.decrypt(key, nonce, ciphertext);
         } catch (Exception e) {
             throw new EncryptionStorageException(
                     "Failed to decrypt data in " + projectName + '/' + repoName, e);
@@ -150,22 +174,29 @@ public final class EncryptionGitStorage {
         }
 
         final int actualType = ((metadata[NONCE_SIZE_BYTES] & 0xFF) << 24) |
-                               ((metadata[NONCE_SIZE_BYTES + 1] & 0xFF) << 16) |
-                               ((metadata[NONCE_SIZE_BYTES + 2] & 0xFF) << 8) |
-                               (metadata[NONCE_SIZE_BYTES + 3] & 0xFF);
+                                ((metadata[NONCE_SIZE_BYTES + 1] & 0xFF) << 16) |
+                                ((metadata[NONCE_SIZE_BYTES + 2] & 0xFF) << 8) |
+                                (metadata[NONCE_SIZE_BYTES + 3] & 0xFF);
         if (typeHint != OBJ_ANY && actualType != typeHint) {
             throw new IncorrectObjectTypeException(objectId.copy(), typeHint);
         }
 
-        final byte[] nonce = new byte[12];
-        System.arraycopy(metadata, 0, nonce, 0, 12);
-        final byte[] encryptedKey = encryptObjectId(nonce, objectId);
+        final byte[] nonce = new byte[NONCE_SIZE_BYTES];
+        System.arraycopy(metadata, 0, nonce, 0, NONCE_SIZE_BYTES);
+        final int wdekLength = metadata.length - (NONCE_SIZE_BYTES + 4);
+        final byte[] objectWdek = new byte[wdekLength];
+        System.arraycopy(metadata, NONCE_SIZE_BYTES + 4, objectWdek, 0, wdekLength);
+
+        final byte[] objectDek = decrypt(nonce, objectWdek);
+        final SecretKeySpec keySpec = aesSecretKey(objectDek);
+
+        final byte[] encryptedKey = encryptObjectId(keySpec, nonce, objectId);
         final byte[] value = encryptionStorageManager.getObject(encryptedKey, metadataKey);
         if (value == null) {
             return null;
         }
 
-        final byte[] decrypted = decrypt(nonce, value);
+        final byte[] decrypted = decrypt(keySpec, nonce, value);
         return new DecryptedObjectLoader(decrypted, actualType);
     }
 
