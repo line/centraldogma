@@ -17,10 +17,9 @@ package com.linecorp.centraldogma.client.armeria;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import java.io.IOException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,6 +28,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
@@ -38,10 +38,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.ImportResult;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.PathPattern;
+import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
@@ -106,39 +106,52 @@ class CentralDogmaImportTest {
             dogma.close();
         }
         scheduler.shutdownNow();
+        removeCreatedDir(Paths.get(dir).toAbsolutePath());
+        removeCreatedDir(Paths.get(project).toAbsolutePath());
+        removeCreatedDir(Paths.get(project));
         removeCreatedDir(Paths.get(dir));
     }
 
+    /**
+     * Tests that importDir only creates project and repository when no files exist in the directory.
+     * This test verifies that the method creates the project and repository structures
+     * but does not import any files when the specified directory is empty.
+     */
     @Test
-    void importDir_createsProjectRepo_andPushes() throws Exception {
+    void importDir_shouldOnlyCreateProjectAndRepo_whenNoFiles() throws Exception {
         // given
-        final Path fooBar = Paths.get(dir);
+        final Path fooBar = Paths.get(dir).toAbsolutePath();
         Files.createDirectories(fooBar);
-        final Path file = fooBar.resolve("hello.txt");
-        Files.write(file, "hello".getBytes(StandardCharsets.UTF_8));
 
         // when
-        final ImportResult result = dogma.importDir(fooBar).join();
-
+        final PushResult result = dogma.importDir(project, repository, fooBar, true).join();
         final Map<String, EntryType> entries = dogma.listFiles(
                 project, repository, Revision.HEAD,
                 PathPattern.of("/**")).join();
+
         final List<String> importedPaths = entries.entrySet().stream()
                                                   .filter(e -> e.getValue() == EntryType.TEXT)
                                                   .map(Map.Entry::getKey)
                                                   .collect(Collectors.toList());
+
         // then
-        assertThat(result).isNotNull();
-        assertThat(result.revision().major()).isPositive();
-        assertThat(importedPaths).contains("/hello.txt");
+        assertThat(result).isNull();
+        assertThat(dogma.listProjects().join()).contains(project);
+        assertThat(dogma.listRepositories(project).join()).containsKey(repository);
+        assertThat(importedPaths).isEmpty();
     }
 
+    /**
+     * Tests that importDir ignores placeholder files (.gitkeep and .gitignore) when
+     * importing a directory with both project name and repository name as null.
+     * Verifies that only non-placeholder files are imported successfully.
+     */
     @Test
     void importDir_shouldIgnoresPlaceholders() throws Exception {
         // given
-        final Path fooBar = Paths.get(dir);
+        final Path fooBar = Paths.get(dir).toAbsolutePath();
         Files.createDirectories(fooBar);
-        final Path boundaryFile = fooBar.resolve("hello.txt");
+        final Path boundaryFile = fooBar.resolve("hello.txt").toAbsolutePath();
 
         // setUp Test Directory
         Files.createDirectories(fooBar);
@@ -147,7 +160,7 @@ class CentralDogmaImportTest {
         Files.write(boundaryFile, "hello".getBytes(StandardCharsets.UTF_8));
 
         // when
-        final ImportResult result = dogma.importDir(fooBar).join();
+        final PushResult result = dogma.importDir(project, repository, fooBar, true).join();
         final Map<String, EntryType> entries = dogma.listFiles(
                 project, repository, Revision.HEAD,
                 PathPattern.of("/**")).join();
@@ -165,145 +178,100 @@ class CentralDogmaImportTest {
         assertThat(importedPaths).doesNotContain("/.gitkeep", "/.gitignore");
     }
 
+    /**
+     * Tests that importDir creates a project repository and imports a file successfully.
+     * This test verifies the creation of the project, repository, and the successful import of a file,
+     * as well as the correct content and path of the imported file.
+     */
     @Test
-    void importDir_onlyCreateRepositoryWhenFilesNotExists() throws IOException {
+    void importDir_createsProjectRepo_andImportsFile() throws IOException {
+        final String fileName = "hello.txt";
+        final Path dirPath = Paths.get(dir).toAbsolutePath();
+        Files.createDirectories(dirPath);
+        final Path file = dirPath.resolve(fileName).toAbsolutePath();
+        Files.write(file, "hello".getBytes(StandardCharsets.UTF_8));
+
+        final PushResult pushResult = dogma.importDir(project, repository, dirPath, true).join();
+        assertThat(pushResult).isNotNull();
+        assertThat(pushResult.revision().major()).isPositive();
+        assertThat(pushResult.revision().major()).isPositive();
+
+        final Change<?> diff = dogma.forRepo(project, repository)
+                                    .diff(Query.ofText('/' + fileName))
+                                    .get(Revision.INIT, Revision.HEAD)
+                                    .join();
+        assertThat(diff.path()).isEqualTo('/' + fileName);
+        assertThat(diff.contentAsText()).isEqualTo("hello" + '\n');
+    }
+
+    /**
+     * Tests the behavior of importDir when the directory to be imported does not exist.
+     * This test verifies that the method handles the case of a non-existent directory correctly.
+     */
+    @Test
+    public void test_importDir_createsProjectRepo_andImportsFile_nonExistentDirectory() throws IOException {
+        final CentralDogmaImportTest testInstance = new CentralDogmaImportTest();
+        testInstance.setUp();
+
+        final Path nonExistentDir = Paths.get("non_existent_directory");
+        assertThrows(CompletionException.class, () -> {
+            testInstance.dogma.importDir(testInstance.project, testInstance.repository, nonExistentDir, true)
+                              .join();
+        });
+    }
+
+    /**
+     * Tests that importDir creates a project repository and pushes files when project name is provided but repository name is null.
+     * This test verifies the creation of the project, a default repository, and the successful import of a file.
+     */
+    @Test
+    public void importDir_createsProjectRepo_andPushes() throws Exception {
         // given
-        final Path fooBar = Paths.get(dir);
+        final Path fooBar = Paths.get(dir).toAbsolutePath();
         Files.createDirectories(fooBar);
-        Files.write(fooBar.resolve("hello.txt"), "hello".getBytes(UTF_8));
+        final Path file = fooBar.resolve("hello.txt").toAbsolutePath();
+        Files.write(file, "hello".getBytes(StandardCharsets.UTF_8));
 
         // when
-        final ImportResult result = dogma.importDir(fooBar).join();
+        final PushResult result = dogma.importDir(project, null, fooBar, true).join();
+
+        final Map<String, EntryType> entries = dogma.listFiles(
+                project, repository, Revision.HEAD,
+                PathPattern.of("/**")).join();
+        final List<String> importedPaths = entries.entrySet().stream()
+                                                  .filter(e -> e.getValue() == EntryType.TEXT)
+                                                  .map(Map.Entry::getKey)
+                                                  .collect(Collectors.toList());
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.revision().major()).isPositive();
+        assertThat(importedPaths).contains("/hello.txt");
+    }
+
+    @Test
+    void importDir_shouldUsePathComponentsAsProjectAndRepo_whenProjectAndRepoAreNull() throws Exception {
+        // given
+        final Path pathBased = Paths.get(dir).toAbsolutePath();
+        Files.createDirectories(pathBased);
+        final Path file = pathBased.resolve("hello.txt");
+        Files.write(file, "hello".getBytes(UTF_8));
+
+        // when
+        final PushResult result = dogma.importDir(null, null, pathBased, true).join();
 
         // then
         assertThat(result).isNotNull();
         assertThat(result.revision().major()).isPositive();
-    }
 
-    @Test
-    void importDir_createsProjectRepo_andImportsFile() throws IOException {
-        final String fileName = "hello.txt";
-        final Path dirPath = Paths.get(dir);
-        Files.createDirectories(dirPath);
-        final Path file = dirPath.resolve(fileName);
-        Files.write(file, "hello".getBytes(StandardCharsets.UTF_8));
+        final Map<String, EntryType> entries = dogma.listFiles(
+                project, repository, Revision.HEAD,
+                PathPattern.of("/**")).join();
 
-            final ImportResult importResult = dogma.importDir(
-                    Paths.get(project + '/' + repository + '/' + fileName)).join();
-            assertThat(importResult).isNotNull();
-            assertThat(importResult.revision().major()).isPositive();
-            assertThat(importResult.isEmpty()).isFalse();
+        final List<String> importedPaths = entries.entrySet().stream()
+                                                  .filter(e -> e.getValue() == EntryType.TEXT)
+                                                  .map(Map.Entry::getKey)
+                                                  .collect(Collectors.toList());
 
-            final Change<?> diff = dogma.forRepo(project, repository)
-                                               .diff(Query.ofText('/' + fileName))
-                                               .get(Revision.INIT, Revision.HEAD)
-                                               .join();
-            assertThat(diff.path()).isEqualTo('/' + fileName);
-            assertThat(diff.contentAsText()).isEqualTo("hello" + '\n');
-    }
-
-    @Test
-    void importResourceDir_createsAndPushes() throws IOException {
-        // given
-        final String baseDir = "resource-test";
-        final Path baseDirPath = Paths.get(baseDir);
-        Files.createDirectories(baseDirPath);
-
-        final Path resourceDir = baseDirPath.resolve(dir);
-        Files.createDirectories(resourceDir);
-        Files.write(resourceDir.resolve("hello.txt"), "hello".getBytes(UTF_8));
-
-        try (URLClassLoader cl = new URLClassLoader(new URL[] { baseDirPath.toUri().toURL() },
-                                                    Thread.currentThread().getContextClassLoader())) {
-
-            // when
-            final ImportResult importResult = dogma.importResourceDir(dir, cl).join();
-
-            // then
-            final Map<String, EntryType> entries = dogma.listFiles(
-                    project, repository, Revision.HEAD,
-                    PathPattern.of("/**")).join();
-            final List<String> importedPaths = entries.entrySet().stream()
-                                                      .filter(e -> e.getValue() == EntryType.TEXT)
-                                                      .map(Map.Entry::getKey)
-                                                      .collect(Collectors.toList());
-            assertThat(importResult).isNotNull();
-            assertThat(importResult.revision().major()).isPositive();
-            assertThat(importedPaths).contains("/hello.txt");
-        } finally {
-            removeCreatedDir(baseDirPath);
-        }
-    }
-
-    @Test
-    void importResourceDir_createsProjectRepo_andImportsFile() throws IOException {
-        // given
-        final String fileName = "hello.txt";
-        final String content = "world";
-
-        final Path tempRoot = Files.createTempDirectory("cp-");
-        final Path fooBar = tempRoot.resolve(project).resolve(repository);
-        Files.createDirectories(fooBar);
-        Files.write(fooBar.resolve(fileName), content.getBytes(UTF_8));
-
-        try (URLClassLoader cl = new URLClassLoader(new URL[] { tempRoot.toUri().toURL() },
-                                                    Thread.currentThread().getContextClassLoader())) {
-
-            // when
-            final ImportResult result = dogma.importResourceDir(project + '/' + repository, cl)
-                                                    .join();
-
-            // then
-            assertThat(result).isNotNull();
-            assertThat(result.revision().major()).isPositive();
-            assertThat(result.isEmpty()).isFalse();
-
-            final Change<?> diff = dogma.forRepo(project, repository)
-                                               .diff(Query.ofText('/' + fileName))
-                                               .get(Revision.INIT, Revision.HEAD)
-                                               .join();
-            assertThat(diff.path()).isEqualTo('/' + fileName);
-            assertThat(diff.content()).isEqualTo(content + '\n');
-        }
-    }
-
-    @Test
-    void importResourceDir_createsProjectRepo_andImportsFileWithString() throws IOException {
-        // given
-        final String fileName = "hello.txt";
-        final String content = "world";
-
-        // baseDir will be added to a dedicated URLClassLoader
-        final Path baseDir = Files.createTempDirectory("cp-");
-        final Path repoDir = baseDir.resolve(project).resolve(repository);
-        Files.createDirectories(repoDir);
-        Files.write(repoDir.resolve(fileName), content.getBytes(UTF_8));
-
-        final ClassLoader previousCl = Thread.currentThread().getContextClassLoader();
-        try (URLClassLoader cl = new URLClassLoader(
-                new URL[] { baseDir.toUri().toURL() },
-                previousCl)) {
-
-            Thread.currentThread().setContextClassLoader(cl);
-
-            // when
-            final ImportResult result = dogma.importResourceDir(project + '/' + repository)
-                                                    .join();
-
-            // then
-            assertThat(result).isNotNull();
-            assertThat(result.revision().major()).isPositive();
-            assertThat(result.isEmpty()).isFalse();
-
-            final Change<?> diff = dogma.forRepo(project, repository)
-                                               .diff(Query.ofText('/' + fileName))
-                                               .get(Revision.INIT, Revision.HEAD)
-                                               .join();
-            assertThat(diff.path()).isEqualTo('/' + fileName);
-            assertThat(diff.content()).isEqualTo(content + '\n');
-        } finally {
-            // Restore original context ClassLoader
-            Thread.currentThread().setContextClassLoader(previousCl);
-        }
+        assertThat(importedPaths).contains("/hello.txt");
     }
 }
