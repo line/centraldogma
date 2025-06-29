@@ -20,10 +20,9 @@ import static com.linecorp.centraldogma.internal.PathPatternUtil.toPathPattern;
 import static com.spotify.futures.CompletableFutures.exceptionallyCompletedFuture;
 import static java.util.Objects.requireNonNull;
 
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -31,8 +30,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
-
-import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -200,66 +197,32 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     }
 
     @Override
-    public CompletableFuture<ImportResult> importDir(Path dir) {
-        if (dir.getNameCount() < 2) {
-            return exceptionallyCompletedFuture(new IllegalArgumentException(
-                    "Path must be <project>/<repo>[/…]: " + dir));
-        }
-        if (dir.isAbsolute()){
-            return exceptionallyCompletedFuture(
-                    new IllegalArgumentException("Only relative paths are supported: " + dir));
-        }
-        final String project = dir.getName(0).toString();
-        final String repo = dir.getName(1).toString();
-        final Path physicalPath = Files.isRegularFile(dir) ? dir.getParent() : dir;
+    public CompletableFuture<PushResult> importDir(@Nullable String projectName,
+                                                   @Nullable String repositoryName, Path dir,
+                                                   boolean createIfMissing) {
+        requireNonNull(dir, "dir");
 
-        return createProjectIfAbsent(project).thenCompose(unusedProjectCreated ->
-                   createRepositoryIfAbsent(project, repo).thenCompose(unusedRepoCreated ->
-                       forRepo(project, repo)
-                               .importDir(physicalPath)));
-    }
+        if (!dir.isAbsolute()) {
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("dir must be an absolute path: " + dir)
+            );
+        }
+        if (!Files.exists(dir) || !Files.isDirectory(dir)) {
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("dir must be an existing directory: " + dir)
+            );
+        }
 
-    @Override
-    public CompletableFuture<ImportResult> importResourceDir(String dir) {
-        final Path path = Paths.get(dir);
-        if (path.getNameCount() < 2) {
-            return exceptionallyCompletedFuture(
-                    new IllegalArgumentException("Path must be <project>/<repo>[/…]: " + dir));
-        }
-        if (path.isAbsolute()){
-            return exceptionallyCompletedFuture(
-                    new IllegalArgumentException("Only relative paths are supported: " + dir));
-        }
-        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        return this.importResourceDir(dir, classLoader);
-    }
+        final List<String> resolvedNames = resolveProjectAndRepoNames(projectName, repositoryName, dir);
+        final String finalProjectName = resolvedNames.get(0);
+        final String finalRepositoryName = resolvedNames.get(1);
 
-    @Override
-    public CompletableFuture<ImportResult> importResourceDir(String dir, ClassLoader classLoader) {
-        final Path path = Paths.get(dir);
-        if (path.getNameCount() < 2) {
-            return exceptionallyCompletedFuture(
-                    new IllegalArgumentException("Path must be <project>/<repo>[/…]: " + dir));
-        }
-        if (path.isAbsolute()){
-            return exceptionallyCompletedFuture(
-                    new IllegalArgumentException("Only relative paths are supported: " + dir));
-        }
-        final String project = path.getName(0).toString();
-        final String repo = path.getName(1).toString();
+        final CompletableFuture<Void> ensureProjectRepo = ensureProjectAndRepo(finalProjectName,
+                                                                               finalRepositoryName,
+                                                                               createIfMissing);
+        final CentralDogmaRepository repo = forRepo(finalProjectName, finalRepositoryName);
 
-        final URL url = requireNonNull(classLoader.getResource(dir),
-                                       () -> "resource not found: " + dir);
-        if (!"file".equals(url.getProtocol())) {
-            return CompletableFutures.exceptionallyCompletedFuture(
-                    new IllegalArgumentException("Resource dir must be explodable (got " + url + ')'));
-        }
-        return createProjectIfAbsent(project).thenCompose(unusedProjectCreated ->
-                   createRepositoryIfAbsent(project, repo).thenCompose(unusedRepoCreated -> {
-                        return forRepo(project, repo).importResourceDir(dir, classLoader);
-                   }
-               )
-        );
+        return ensureProjectRepo.thenCompose(unused -> repo.importDir(dir));
     }
 
     /**
@@ -277,21 +240,78 @@ public abstract class AbstractCentralDogma implements CentralDogma {
         }
     }
 
-    private CompletableFuture<Void> createProjectIfAbsent(String project) {
-        return listProjects().thenCompose(projectSet -> {
-            if (projectSet.contains(project)) {
-                return CompletableFuture.completedFuture(null);
+    private CompletableFuture<Void> ensureProjectAndRepo(String project, String repo, boolean createIfMissing) {
+        return listProjects().thenCompose(projects -> {
+            if (!projects.contains(project)) {
+                if (!createIfMissing) {
+                    return exceptionallyCompletedFuture(
+                            new IllegalStateException("Project does not exist: " + project));
+                }
+                return createProject(project);
             }
-            return createProject(project);
-        });
+            return CompletableFuture.completedFuture(null);
+        }).thenCompose(unused -> listRepositories(project).thenCompose(repos -> {
+            if (!repos.containsKey(repo)) {
+                if (!createIfMissing) {
+                    return exceptionallyCompletedFuture(
+                            new IllegalStateException("Repository does not exist: " + project + '/' + repo));
+                }
+                return createRepository(project, repo).thenApply(unusedRepo -> null);
+            }
+            return CompletableFuture.completedFuture(null);
+        }));
     }
 
-    private CompletableFuture<CentralDogmaRepository> createRepositoryIfAbsent(String project, String repo) {
-        return listRepositories(project).thenCompose(repoSet -> {
-            if (repoSet.containsKey(repo)) {
-                return CompletableFuture.completedFuture(null);
-            }
-            return createRepository(project, repo);
-        });
+    /**
+     * Resolves project and repository names based on the provided parameters and directory path.
+     *
+     * @param projectName the provided project name, or {@code null}
+     * @param repositoryName the provided repository name, or {@code null}
+     * @param dir the directory path to extract names from
+     * @return a {@link List} where get(0) is the project name and get(1) is the repository name
+     * @throws IllegalArgumentException if projectName is null but repositoryName is not null
+     */
+    private List<String> resolveProjectAndRepoNames(@Nullable String projectName,
+                                                    @Nullable String repositoryName,
+                                                    Path dir) {
+        if (projectName == null && repositoryName != null) {
+            throw new IllegalArgumentException("projectName cannot be null when repositoryName is not null");
+        }
+
+        if (projectName == null && repositoryName == null) {
+            return extractProjectAndRepoFromPath(dir);
+        }
+
+        if (projectName != null && repositoryName == null) {
+            return Arrays.asList(projectName, extractRepoNameFromPath(dir));
+        }
+
+        return Arrays.asList(projectName, repositoryName);
+    }
+
+    /**
+     * Extracts both project and repository names from the directory path.
+     * Uses the second-to-last component as project name and the last component as repository name.
+     */
+    private List<String> extractProjectAndRepoFromPath(Path dir) {
+        if (dir.getNameCount() < 2) {
+            throw new IllegalArgumentException(
+                    "Directory path must have at least 2 components : " + dir);
+        }
+        final String project = dir.getName(dir.getNameCount() - 2).toString();
+        final String repo = dir.getName(dir.getNameCount() - 1).toString();
+        return Arrays.asList(project, repo);
+    }
+
+    /**
+     * Extracts the repository name from the directory path.
+     * Uses the last component as repository name.
+     */
+    private String extractRepoNameFromPath(Path dir) {
+        if (dir.getNameCount() < 1) {
+            throw new IllegalArgumentException(
+                    "Directory path must have at least 1 component when repositoryName is null: " + dir);
+        }
+        return dir.getName(dir.getNameCount() - 1).toString();
     }
 }

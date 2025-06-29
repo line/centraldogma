@@ -19,11 +19,9 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -33,15 +31,16 @@ import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
-import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.PathPattern;
+import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
@@ -77,13 +76,25 @@ public final class CentralDogmaRepository {
             final String lower = file.getFileName().toString().toLowerCase();
 
             if (lower.endsWith(".json")) {
-                return Change.ofJsonUpsert(repoPath, Jackson.readTree(bytes));
+                final JsonNode node = Jackson.readValue(bytes, JsonNode.class);
+                return Change.ofJsonUpsert(repoPath, node);
             }
 
             return Change.ofTextUpsert(repoPath, new String(bytes, StandardCharsets.UTF_8));
         } catch (Exception e) {
             throw new IllegalStateException("Failed to create Change for " + file, e);
         }
+    }
+
+    private static List<Change<?>> toChanges(Path path) {
+        final List<Change<?>> changes = new ArrayList<>();
+        if (Files.isRegularFile(path)) {
+            final String repoPath = '/' + path.getFileName().toString().replace(File.separatorChar, '/');
+            changes.add(toChange(repoPath, path));
+        } else {
+            changes.addAll(collectImportFiles(path));
+        }
+        return changes;
     }
 
     private static List<Change<?>> collectImportFiles(Path path) {
@@ -344,56 +355,14 @@ public final class CentralDogmaRepository {
     /**
      * Returns a new {@link CompletableFuture} that imports the files in the specified.
      */
-    public CompletableFuture<ImportResult> importDir(Path dir) {
+    public CompletableFuture<PushResult> importDir(Path dir) {
         requireNonNull(dir, "dir");
         final List<Change<?>> changes = toChanges(dir);
-        return commit("Import " + dir.getFileName(), changes)
-                .push(Revision.HEAD)
-                .thenApply(ImportResult::fromPushResult);
-    }
-
-    /**
-     * Returns a new {@link CompletableFuture} that imports the files in the specified.
-     */
-    public CompletableFuture<ImportResult> importResourceDir(String dir) {
-        requireNonNull(dir, "dir");
-        return importResourceDir(dir, CentralDogmaRepository.class.getClassLoader());
-    }
-
-    /**
-     * Returns a new {@link CompletableFuture} that imports the files in the specified.
-     */
-    public CompletableFuture<ImportResult> importResourceDir(String dir, ClassLoader classLoader) {
-        requireNonNull(dir, "dir");
-        requireNonNull(classLoader, "classLoader");
-
-        final URL url = requireNonNull(classLoader.getResource(dir),
-                                       () -> "resource not found: " + dir);
-        if (!"file".equals(url.getProtocol())) {
-            return CompletableFutures.exceptionallyCompletedFuture(
-                    new IllegalArgumentException("Resource dir must be explodable (got " + url + ')'));
-        }
-
-        final Path physicalPath = Paths.get(url.getPath());
-        final List<Change<?>> changes = toChanges(physicalPath);
-        return commit("Import " + physicalPath.getFileName(), changes)
-                .push(Revision.HEAD)
-                .thenApply(ImportResult::fromPushResult);
-    }
-
-    private static List<Change<?>> toChanges(Path path) {
-        final List<Change<?>> changes = new ArrayList<>();
-        if (Files.isRegularFile(path)) {
-            final String repoPath = '/' + path.getFileName().toString().replace(File.separatorChar, '/');
-            changes.add(toChange(repoPath, path));
-        } else {
-            changes.addAll(collectImportFiles(path));
-        }
-
         if (changes.isEmpty()) {
-            throw new IllegalArgumentException("No files found in the resource directory: " + path);
+            return CompletableFuture.completedFuture(null);
         }
-        return changes;
+        return commit("Import " + dir.getFileName(), changes)
+                .push(Revision.HEAD);
     }
 
     @Override

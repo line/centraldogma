@@ -26,6 +26,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 
@@ -421,32 +423,31 @@ public interface CentralDogma extends AutoCloseable {
                                                Revision from, Revision to, PathPattern pathPattern);
 
     /**
-     * Imports files from the given absolute {@link Path} into a repository.
+     * Imports the contents of the specified directory into a Central Dogma repository. The project and
+     * repository names are resolved based on the provided parameters:
      *
-     * <p>The {@code dir} must follow the format: {@code /<project>/<repository>[/path/to/files]}.
-     * If a single file is specified, only that file is imported. If a directory is specified,
-     * all eligible files under it will be imported.
+     * <ul>
+     * <li><strong>(null, null)</strong>: Both project and repository names are extracted from the directory
+     * path. The second-to-last path component becomes the project name, and the last component becomes
+     * the repository name. <br>Example: {@code /home/user/myproject/myrepo} → project: "myproject",
+     * repository: "myrepo"</li>
+     * <li><strong>(non-null, null)</strong>: The project name is provided, and the repository name is
+     * extracted from the directory path. The last path component becomes the repository name. <br>Example:
+     * {@code importDir("myproject", null, "/home/user/configs/myrepo")} → project: "myproject",
+     * repository: "myrepo"</li>
+     * <li><strong>(non-null, non-null)</strong>: Both project and repository names are provided and used
+     * as-is. <br>Example: {@code importDir("myproject", "myrepo", "/home/user/data")} → project:
+     * "myproject", repository: "myrepo"</li>
+     * </ul>
+     *
+     * @param projectName the project name, or {@code null} to extract from the directory path
+     * @param repositoryName the repository name, or {@code null} to extract from the directory path
+     * @param dir the directory to import
+     * @param createIfMissing whether to create the project and repository if they don't exist
+     * @return a {@link CompletableFuture} that completes with the {@link PushResult}
      */
-    CompletableFuture<ImportResult> importDir(Path dir);
-
-    /**
-     * Imports resource files from the given directory located in the default classloader.
-     *
-     * <p>The path must follow the format: {@code <project>/<repository>[/resourcePath]}.
-     * The specified directory is resolved from the current classpath.
-     */
-    CompletableFuture<ImportResult> importResourceDir(String dir);
-
-    /**
-     * Imports resource files from the given directory using the specified {@link ClassLoader}.
-     *
-     * <p>This is useful for testing or loading from custom classpaths such as in embedded environments.
-     * The path must follow the format: {@code <project>/<repository>[/resourcePath]}.
-     *
-     * @param dir the resource directory path (project/repository/optionalSubPath)
-     * @param classLoader the class loader used to locate the resource directory
-     */
-    CompletableFuture<ImportResult> importResourceDir(String dir, ClassLoader classLoader);
+    CompletableFuture<PushResult> importDir(@Nullable String projectName, @Nullable String repositoryName,
+                                            Path dir, boolean createIfMissing);
 
     /**
      * Retrieves the diffs of the files matched by the given path pattern between two {@link Revision}s.
