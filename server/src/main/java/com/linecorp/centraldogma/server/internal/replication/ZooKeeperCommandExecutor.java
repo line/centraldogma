@@ -83,6 +83,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.linecorp.armeria.common.util.SafeCloseable;
+import com.linecorp.centraldogma.common.LockAcquireTimeoutException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
@@ -957,11 +958,9 @@ public final class ZooKeeperCommandExecutor
                 stopLater();
                 throw new ReplicationException("failed to acquire a lock for " + executionPath, cause);
             } else {
-                logger.error("Failed to acquire a lock for {} in time (command: {}); " +
-                             "entering read-only mode",
-                             executionPath, command);
-                stopLater();
-                throw new ReplicationException("failed to acquire a lock for " + executionPath + " in time");
+                logger.warn("Failed to acquire a lock for {} in time (command: {})", executionPath, command);
+                throw new LockAcquireTimeoutException(
+                        "failed to acquire a lock for " + executionPath + " in time");
             }
         }
 
@@ -1232,7 +1231,7 @@ public final class ZooKeeperCommandExecutor
     }
 
     @VisibleForTesting
-    void setLockTimeoutMillis(long lockTimeoutMillis) {
+    public void setLockTimeoutMillis(long lockTimeoutMillis) {
         lockTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(lockTimeoutMillis);
     }
 }
