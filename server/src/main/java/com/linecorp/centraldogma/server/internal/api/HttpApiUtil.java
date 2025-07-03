@@ -39,6 +39,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.Flags;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
@@ -183,14 +184,35 @@ public final class HttpApiUtil {
         return newResponse0(ctx, status, cause, message);
     }
 
+    /**
+     * Returns a newly created {@link AggregatedHttpResponse} with the specified {@link HttpStatus}, {@code cause} and
+     * {@code message}.
+     */
+    public static AggregatedHttpResponse newAggregatedResponse(@Nullable ServiceRequestContext ctx,
+                                                               HttpStatus status,
+                                                               @Nullable Throwable cause,
+                                                               @Nullable String message) {
+        requireNonNull(status, "status");
+        return newResponse1(AggregatedHttpResponse::of, ctx, ResponseHeaders.builder(status), cause, message);
+    }
+
     private static HttpResponse newResponse0(ServiceRequestContext ctx, HttpStatus status,
                                              @Nullable Throwable cause, @Nullable String message) {
         final ResponseHeadersBuilder headersBuilder = ResponseHeaders.builder(status);
-        return newResponse0(ctx, headersBuilder, cause, message);
+        return newResponse1(HttpResponse::of, ctx, headersBuilder, cause, message);
     }
 
-    private static HttpResponse newResponse0(ServiceRequestContext ctx, ResponseHeadersBuilder headersBuilder,
+    private static HttpResponse newResponse0(ServiceRequestContext ctx,
+                                             ResponseHeadersBuilder headersBuilder,
                                              @Nullable Throwable cause, @Nullable String message) {
+        return newResponse1(HttpResponse::of, ctx, headersBuilder, cause, message);
+    }
+
+    private static <O> O newResponse1(
+            BiFunction<ResponseHeaders, HttpData, O> responseFactory,
+            @Nullable ServiceRequestContext ctx,
+            ResponseHeadersBuilder headersBuilder,
+            @Nullable Throwable cause, @Nullable String message) {
         final HttpStatus status = headersBuilder.status();
         checkArgument(!status.isContentAlwaysEmpty(),
                       "status: %s (expected: a status with non-empty content)", status);
@@ -261,7 +283,7 @@ public final class HttpApiUtil {
                     .contentType(MediaType.JSON_UTF_8)
                     .build();
 
-            return HttpResponse.of(headers, HttpData.wrap(Jackson.writeValueAsBytes(node)));
+            return responseFactory.apply(headers, HttpData.wrap(Jackson.writeValueAsBytes(node)));
         } catch (JsonProcessingException e) {
             // should not reach here
             throw new Error(e);
@@ -339,7 +361,11 @@ public final class HttpApiUtil {
         ctx.setAttr(VERBOSE_RESPONSES, Flags.verboseResponses() || user.isSystemAdmin());
     }
 
-    private static boolean isVerboseResponse(ServiceRequestContext ctx) {
+    private static boolean isVerboseResponse(@Nullable ServiceRequestContext ctx) {
+        if (ctx == null) {
+            // If the context is not available, we assume verbose responses are disabled.
+            return false;
+        }
         final Boolean verboseResponses = ctx.attr(VERBOSE_RESPONSES);
         return firstNonNull(verboseResponses, false);
     }

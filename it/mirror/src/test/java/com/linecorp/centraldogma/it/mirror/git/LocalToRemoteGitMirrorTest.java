@@ -319,7 +319,6 @@ class LocalToRemoteGitMirrorTest {
         // Add files whose total size exceeds the allowed maximum.
         long remainder = MAX_NUM_BYTES + 1;
         final int defaultFileSize = (int) (MAX_NUM_BYTES / MAX_NUM_FILES * 2);
-        final ArrayList<Change<String>> changes = new ArrayList<>();
         for (int i = 0; ; i++) {
             final int fileSize;
             if (remainder > defaultFileSize) {
@@ -330,13 +329,17 @@ class LocalToRemoteGitMirrorTest {
                 remainder = 0;
             }
 
-            changes.add(Change.ofTextUpsert("/" + i + ".txt", Strings.repeat("*", fileSize)));
+            final Change<String> change = Change.ofTextUpsert("/" + i + ".txt",
+                                                              Strings.repeat("*", fileSize));
 
+            client.forRepo(projName, REPO_FOO)
+                  .commit("Add a bunch of numbered asterisks" + " i", change)
+                  .push()
+                  .join();
             if (remainder == 0) {
                 break;
             }
         }
-        client.forRepo(projName, REPO_FOO).commit("Add a bunch of numbered asterisks", changes).push().join();
 
         // Perform mirroring, which should fail.
         assertThatThrownBy(() -> mirroringService.mirror().join())
