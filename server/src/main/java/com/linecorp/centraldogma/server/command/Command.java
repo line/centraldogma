@@ -51,6 +51,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = RemoveRepositoryCommand.class, name = "REMOVE_REPOSITORY"),
         @Type(value = PurgeRepositoryCommand.class, name = "PURGE_REPOSITORY"),
         @Type(value = UnremoveRepositoryCommand.class, name = "UNREMOVE_REPOSITORY"),
+        @Type(value = MigrateToEncryptedRepositoryCommand.class, name = "MIGRATE_TO_ENCRYPTED_REPOSITORY"),
         @Type(value = NormalizingPushCommand.class, name = "NORMALIZING_PUSH"),
         @Type(value = PushAsIsCommand.class, name = "PUSH"),
         @Type(value = CreateSessionCommand.class, name = "CREATE_SESSIONS"),
@@ -287,6 +288,15 @@ public interface Command<T> {
                                          String projectName, String repositoryName) {
         requireNonNull(author, "author");
         return new PurgeRepositoryCommand(timestamp, author, projectName, repositoryName);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to migrate a repository to an encrypted repository.
+     */
+    static Command<Void> migrateToEncryptedRepository(@Nullable Long timestamp, Author author,
+                                                      String projectName, String repositoryName, byte[] wdek) {
+        requireNonNull(author, "author");
+        return new MigrateToEncryptedRepositoryCommand(timestamp, author, projectName, repositoryName, wdek);
     }
 
     /**

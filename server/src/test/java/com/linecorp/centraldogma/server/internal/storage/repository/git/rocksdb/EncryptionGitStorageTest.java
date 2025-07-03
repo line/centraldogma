@@ -66,7 +66,6 @@ class EncryptionGitStorageTest {
 
     // Test Data
     private static final ObjectId OBJECT_ID = ObjectId.fromString(Strings.repeat("a", 40));
-    private static final ObjectId OBJECT_ID2 = ObjectId.fromString(Strings.repeat("b", 40));
     private static final byte[] OBJ_DATA = "Object Data 1".getBytes(StandardCharsets.UTF_8);
     private static final Revision REV_1 = new Revision(1);
 

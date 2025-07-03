@@ -27,4 +27,6 @@ public interface RepositoryManager extends StorageManager<Repository> {
      * Returns the project that the repositories belong to.
      */
     Project parent();
+
+    void migrateToEncryptedRepository(String repositoryName);
 }
