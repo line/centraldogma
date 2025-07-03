@@ -185,8 +185,8 @@ public final class HttpApiUtil {
     }
 
     /**
-     * Returns a newly created {@link AggregatedHttpResponse} with the specified {@link HttpStatus}, {@code cause} and
-     * {@code message}.
+     * Returns a newly created {@link AggregatedHttpResponse} with the specified {@link HttpStatus},
+     * {@code cause} and {@code message}.
      */
     public static AggregatedHttpResponse newAggregatedResponse(@Nullable ServiceRequestContext ctx,
                                                                HttpStatus status,
