@@ -16,11 +16,14 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager.createFileRepository;
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 
 import java.io.File;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
@@ -51,11 +54,12 @@ class GitRepositoryListenerTest {
     private static TestRepositoryListener listener;
 
     @BeforeAll
-    static void init() {
-        repo = new GitRepository(mock(Project.class), new File(repoDir, "test_repo"),
-                                 commonPool(), 0L, Author.SYSTEM);
+    static void init() throws IOException {
+        repo = createFileRepository(mock(Project.class), new File(repoDir, "test_repo"), Author.SYSTEM,
+                                    0L, commonPool(), null);
         listener = new TestRepositoryListener();
         repo.addListener(listener);
+        await().until(() -> listener.updateCount.get() == 1);
     }
 
     @AfterAll

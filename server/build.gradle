@@ -1,3 +1,5 @@
+import org.gradle.internal.os.OperatingSystem
+
 dependencies {
     implementation project(':common-legacy')
 
@@ -7,8 +9,18 @@ dependencies {
     api libs.armeria.thrift09
     testImplementation libs.armeria.junit5
 
+    implementation libs.bouncycastle.bcprov
+
     // Caffeine
     implementation libs.caffeine
+
+    if (OperatingSystem.current().isWindows()) {
+        implementation(variantOf(libs.conscrypt) { classifier('windows-x86_64') })
+    } else if (OperatingSystem.current().isMacOsX()) {
+        implementation(variantOf(libs.conscrypt) { classifier('osx-x86_64') })
+    } else {
+        implementation(variantOf(libs.conscrypt) { classifier('linux-x86_64') })
+    }
 
     // Curator & ZooKeeper
     implementation libs.curator.recipes
@@ -33,6 +45,8 @@ dependencies {
     // Micrometer
     implementation libs.micrometer.core
     implementation libs.micrometer.prometheus
+
+    implementation libs.rocksdbjni
 
     // Quartz
     implementation libs.quartz

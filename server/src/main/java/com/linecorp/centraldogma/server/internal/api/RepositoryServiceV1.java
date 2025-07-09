@@ -61,6 +61,7 @@ import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -74,10 +75,13 @@ import io.micrometer.core.instrument.Tag;
 public class RepositoryServiceV1 extends AbstractService {
 
     private final MetadataService mds;
+    private final EncryptionStorageManager encryptionStorageManager;
 
-    public RepositoryServiceV1(CommandExecutor executor, MetadataService mds) {
+    public RepositoryServiceV1(CommandExecutor executor, MetadataService mds,
+                               EncryptionStorageManager encryptionStorageManager) {
         super(executor);
         this.mds = requireNonNull(mds, "mds");
+        this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
     }
 
     /**
@@ -178,9 +182,15 @@ public class RepositoryServiceV1 extends AbstractService {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
                                              "An internal repository cannot be created.");
         }
+        if (request.encrypt() && !encryptionStorageManager.enabled()) {
+            return HttpApiUtil.throwResponse(ctx, HttpStatus.BAD_REQUEST,
+                                             "Encryption is not enabled in the server.");
+        }
+
         final CommandExecutor commandExecutor = executor();
         final CompletableFuture<Revision> future =
-                RepositoryServiceUtil.createRepository(commandExecutor, mds, author, project.name(), repoName);
+                RepositoryServiceUtil.createRepository(commandExecutor, mds, author, project.name(), repoName,
+                                                       request.encrypt(), encryptionStorageManager);
         return future.handle(returnOrThrow(() -> {
             final Repository repository = project.repos().get(repoName);
             return DtoConverter.convert(repository, repositoryStatus(repository));

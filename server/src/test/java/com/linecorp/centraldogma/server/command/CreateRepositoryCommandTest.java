@@ -28,7 +28,8 @@ class CreateRepositoryCommandTest {
 
     @Test
     void testJsonConversion() {
-        assertJsonConversion(new CreateRepositoryCommand(1234L, new Author("foo", "bar@baz.com"), "foo", "bar"),
+        assertJsonConversion(new CreateRepositoryCommand(1234L, new Author("foo", "bar@baz.com"),
+                                                         "foo", "bar", null),
                              Command.class,
                              '{' +
                              "  \"type\": \"CREATE_REPOSITORY\"," +

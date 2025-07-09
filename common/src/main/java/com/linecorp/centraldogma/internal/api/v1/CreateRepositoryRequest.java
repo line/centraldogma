@@ -16,7 +16,10 @@
 
 package com.linecorp.centraldogma.internal.api.v1;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.internal.Util.validateRepositoryName;
+
+import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -28,10 +31,13 @@ import com.google.common.base.MoreObjects;
 public class CreateRepositoryRequest {
 
     private final String name;
+    private final boolean encrypt;
 
     @JsonCreator
-    public CreateRepositoryRequest(@JsonProperty("name") String name) {
+    public CreateRepositoryRequest(@JsonProperty("name") String name,
+                                   @JsonProperty("encrypt") @Nullable Boolean encrypt) {
         this.name = validateRepositoryName(name, "name");
+        this.encrypt = firstNonNull(encrypt, false);
     }
 
     @JsonProperty
@@ -39,10 +45,16 @@ public class CreateRepositoryRequest {
         return name;
     }
 
+    @JsonProperty
+    public boolean encrypt() {
+        return encrypt;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("name", name())
+                          .add("encrypt", encrypt)
                           .toString();
     }
 }

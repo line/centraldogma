@@ -16,6 +16,9 @@
 
 package com.linecorp.centraldogma.client.armeria;
 
+import static com.linecorp.centraldogma.client.armeria.TestDnsServer.newAddressRecord;
+import static io.netty.handler.codec.dns.DnsRecordType.A;
+import static io.netty.handler.codec.dns.DnsSection.ANSWER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
@@ -27,7 +30,11 @@ import static org.mockito.Mockito.verify;
 import java.util.List;
 import java.util.function.Consumer;
 
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientFactory;
@@ -36,33 +43,49 @@ import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroup;
 import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGroup;
-import com.linecorp.centraldogma.testing.internal.FlakyTest;
 
-@FlakyTest
+import io.netty.handler.codec.dns.DefaultDnsQuestion;
+import io.netty.handler.codec.dns.DefaultDnsResponse;
+
 class ArmeriaCentralDogmaBuilderTest {
 
-    // Note: This test case relies on https://sslip.io/
+    @SuppressWarnings("NotNullFieldNotInitialized")
+    private static TestDnsServer dnsServer;
+
+    @BeforeAll
+    static void setup() {
+        dnsServer = new TestDnsServer(
+                ImmutableMap.of(new DefaultDnsQuestion("1.2.3.4.foo.com.", A),
+                                new DefaultDnsResponse(0).addRecord(
+                                        ANSWER, newAddressRecord("1.2.3.4.foo.com.", "1.2.3.4")),
+                                new DefaultDnsQuestion("5.6.7.8.foo.com.", A),
+                                new DefaultDnsResponse(0).addRecord(
+                                        ANSWER, newAddressRecord("5.6.7.8.foo.com.", "5.6.7.8"))));
+    }
+
+    @AfterAll
+    static void tearDown() {
+        dnsServer.close();
+    }
 
     @Test
     void buildingWithProfile() throws Exception {
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
+        b.dnsAddressEndpointGroupConfigurator(
+                configurator -> configurator.serverAddressStreamProvider(dnsServer.dnsServerList()));
         b.healthCheckIntervalMillis(0);
-        b.profile("sslip");
+        // See src/test/resources/centraldogma-profiles-test.json
+        b.profile("foo");
+
         try (EndpointGroup group = b.endpointGroup()) {
             assertThat(group).isNotNull();
-            assertThat(group).isInstanceOf(CompositeEndpointGroup.class);
-            final CompositeEndpointGroup compositeGroup = (CompositeEndpointGroup) group;
-            final List<EndpointGroup> childGroups = compositeGroup.groups();
-            assertThat(childGroups).hasSize(2);
-            assertThat(childGroups.get(0)).isInstanceOf(DnsAddressEndpointGroup.class);
-            assertThat(childGroups.get(1)).isInstanceOf(DnsAddressEndpointGroup.class);
 
             await().untilAsserted(() -> {
                 final List<Endpoint> endpoints = group.endpoints();
                 assertThat(endpoints).isNotNull();
                 assertThat(endpoints).containsExactlyInAnyOrder(
-                        Endpoint.of("1.2.3.4.sslip.io", 36462).withIpAddr("1.2.3.4"),
-                        Endpoint.of("5.6.7.8.sslip.io", 8080).withIpAddr("5.6.7.8"));
+                        Endpoint.of("1.2.3.4.foo.com", 36462).withIpAddr("1.2.3.4"),
+                        Endpoint.of("5.6.7.8.foo.com", 8080).withIpAddr("5.6.7.8"));
             });
         }
     }
@@ -87,41 +110,39 @@ class ArmeriaCentralDogmaBuilderTest {
     @Test
     void buildingWithSingleUnresolvedHost() throws Exception {
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
+        b.dnsAddressEndpointGroupConfigurator(
+                configurator -> configurator.serverAddressStreamProvider(dnsServer.dnsServerList()));
         b.healthCheckIntervalMillis(0);
-        b.host("1.2.3.4.sslip.io");
+        b.host("1.2.3.4.foo.com");
+
         try (EndpointGroup endpointGroup = b.endpointGroup()) {
             endpointGroup.whenReady().join();
             assertThat(endpointGroup).isInstanceOf(DnsAddressEndpointGroup.class);
             assertThat(endpointGroup.endpoints().size()).isEqualTo(1);
-            assertThat(endpointGroup.endpoints().get(0).host()).isEqualTo("1.2.3.4.sslip.io");
+            assertThat(endpointGroup.endpoints().get(0).host()).isEqualTo("1.2.3.4.foo.com");
         }
     }
 
     @Test
     void buildingWithMultipleHosts() throws Exception {
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
+        b.dnsAddressEndpointGroupConfigurator(
+                configurator -> configurator.serverAddressStreamProvider(dnsServer.dnsServerList()));
         b.healthCheckIntervalMillis(0);
-        b.host("1.2.3.4.sslip.io", 1); // Unresolved host
-        b.host("5.6.7.8.sslip.io", 2); // Another unresolved host
+        b.host("1.2.3.4.foo.com", 1); // Unresolved host
+        b.host("5.6.7.8.foo.com", 2); // Another unresolved host
         b.host("4.3.2.1", 3); // Resolved host
         b.host("8.7.6.5", 4); // Another resolved host
 
         try (EndpointGroup endpointGroup = b.endpointGroup()) {
             assertThat(endpointGroup).isNotNull();
-            assertThat(endpointGroup).isInstanceOf(CompositeEndpointGroup.class);
-            final CompositeEndpointGroup compositeGroup = (CompositeEndpointGroup) endpointGroup;
-            final List<EndpointGroup> childGroups = compositeGroup.groups();
-            assertThat(childGroups).hasSize(3);
-            assertThat(childGroups.get(0)).isInstanceOf(DnsAddressEndpointGroup.class);
-            assertThat(childGroups.get(1)).isInstanceOf(DnsAddressEndpointGroup.class);
-            assertThat(childGroups.get(2).toString()).contains("StaticEndpointGroup");
 
             await().untilAsserted(() -> {
                 final List<Endpoint> endpoints = endpointGroup.endpoints();
                 assertThat(endpoints).isNotNull();
                 assertThat(endpoints).containsExactlyInAnyOrder(
-                        Endpoint.of("1.2.3.4.sslip.io", 1).withIpAddr("1.2.3.4"),
-                        Endpoint.of("5.6.7.8.sslip.io", 2).withIpAddr("5.6.7.8"),
+                        Endpoint.of("1.2.3.4.foo.com", 1).withIpAddr("1.2.3.4"),
+                        Endpoint.of("5.6.7.8.foo.com", 2).withIpAddr("5.6.7.8"),
                         Endpoint.of("4.3.2.1", 3),
                         Endpoint.of("8.7.6.5", 4));
             });

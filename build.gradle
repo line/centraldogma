@@ -43,6 +43,7 @@ configure(projectsWithFlags('java')) {
     // Common properties and functions.
     ext {
         thriftVersion = '0.9'
+        disableThriftJson()
     }
 
     dependencies {

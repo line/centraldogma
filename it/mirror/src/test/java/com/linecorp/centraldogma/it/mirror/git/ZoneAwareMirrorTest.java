@@ -54,7 +54,6 @@ import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.MirrorException;
-import com.linecorp.centraldogma.internal.CredentialUtil;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
@@ -182,7 +181,7 @@ class ZoneAwareMirrorTest {
                                  URI.create("git+ssh://github.com/line/centraldogma-authtest.git/#main"),
                                  null,
                                  null,
-                                 CredentialUtil.credentialName("foo", "bar-unknown-zone", "credential-id"),
+                                 credentialName("foo", "bar-unknown-zone", "credential-id"),
                                  unknownZone);
         final Change<JsonNode> change = Change.ofJsonUpsert(
                 "/repos/bar-unknown-zone/mirrors/" + mirrorId + ".json",

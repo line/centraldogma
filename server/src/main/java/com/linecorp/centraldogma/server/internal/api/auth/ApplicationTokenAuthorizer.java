@@ -28,13 +28,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.HttpRequest;
-import com.linecorp.armeria.common.auth.OAuth2Token;
 import com.linecorp.armeria.common.logging.LogLevel;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.armeria.server.auth.AuthTokenExtractors;
-import com.linecorp.armeria.server.auth.Authorizer;
+import com.linecorp.centraldogma.server.internal.admin.auth.AbstractAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.Token;
@@ -45,7 +43,7 @@ import com.linecorp.centraldogma.server.metadata.UserWithToken;
 /**
  * A decorator which finds an application token from a request and validates it.
  */
-public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
+public class ApplicationTokenAuthorizer extends AbstractAuthorizer {
 
     private static final Logger logger = LoggerFactory.getLogger(
             ApplicationTokenAuthorizer.class);
@@ -57,14 +55,14 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
     }
 
     @Override
-    public CompletionStage<Boolean> authorize(ServiceRequestContext ctx, HttpRequest data) {
-        final OAuth2Token token = AuthTokenExtractors.oAuth2().apply(data.headers());
-        if (token == null || !Tokens.isValidSecret(token.accessToken())) {
+    protected CompletionStage<Boolean> authorize(ServiceRequestContext ctx, HttpRequest req,
+                                                 String accessToken) {
+        if (!Tokens.isValidSecret(accessToken)) {
             return completedFuture(false);
         }
 
         try {
-            final Token appToken = tokenLookupFunc.apply(token.accessToken());
+            final Token appToken = tokenLookupFunc.apply(accessToken);
             if (appToken != null && appToken.isActive()) {
                 final String appId = appToken.appId();
                 final StringBuilder login = new StringBuilder(appId);
@@ -89,8 +87,24 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
                 level = LogLevel.WARN;
             }
             level.log(logger, "Failed to authorize an application token: token={}, addr={}",
-                      token.accessToken(), ctx.clientAddress(), cause);
+                      maskToken(accessToken), ctx.clientAddress(), cause);
             return UnmodifiableFuture.completedFuture(false);
         }
+    }
+
+    private static String maskToken(String token) {
+        if (!token.startsWith("appToken-")) {
+            // Unknown token type
+            return token;
+        }
+
+        // Token format: appToken-aaaa-bbbb-cccc-dddd-eeee
+        final int lastDash = token.lastIndexOf('-');
+        if (lastDash == -1) {
+            // Invalid token format
+            return token;
+        }
+        // Redact the last part of the token
+        return token.substring(0, lastDash) + "-<redacted>";
     }
 }
