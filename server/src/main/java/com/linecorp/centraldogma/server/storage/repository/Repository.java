@@ -25,6 +25,7 @@ import static com.linecorp.centraldogma.server.storage.repository.RepositoryUtil
 import static com.linecorp.centraldogma.server.storage.repository.RepositoryUtil.mergeEntries;
 import static java.util.Objects.requireNonNull;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -78,6 +79,11 @@ public interface Repository {
      * Returns the parent {@link Project} of this {@link Repository}.
      */
     Project parent();
+
+    /**
+     * Returns the directory where this {@link Repository} is stored.
+     */
+    File repoDir();
 
     /**
      * Returns the name of this {@link Repository}.
@@ -573,4 +579,9 @@ public interface Repository {
      * {@link RepositoryListener#pathPattern()} are pushed to this {@link Repository}.
      */
     void addListener(RepositoryListener listener);
+
+    /**
+     * Tells whether this {@link Repository} is encrypted or not.
+     */
+    boolean isEncrypted();
 }
