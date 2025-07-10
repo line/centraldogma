@@ -222,6 +222,8 @@ public class CentralDogma implements AutoCloseable {
         GIT_MIRROR_ENABLED = gitMirrorEnabled;
     }
 
+    private static final int DEFAULT_MAX_FRAME_LENGTH = 1024 * 1024; // 1 MiB
+
     /**
      * Creates a new instance from the given configuration file.
      *
@@ -681,7 +683,7 @@ public class CentralDogma implements AutoCloseable {
         cfg.maxNumConnections().ifPresent(sb::maxNumConnections);
         cfg.idleTimeoutMillis().ifPresent(sb::idleTimeoutMillis);
         cfg.requestTimeoutMillis().ifPresent(sb::requestTimeoutMillis);
-        cfg.maxFrameLength().ifPresent(sb::maxRequestLength);
+        sb.maxRequestLength(cfg.maxFrameLength().orElse(DEFAULT_MAX_FRAME_LENGTH));
         cfg.gracefulShutdownTimeout().ifPresent(t -> {
             final GracefulShutdown gracefulShutdown =
                     GracefulShutdown.builder()
