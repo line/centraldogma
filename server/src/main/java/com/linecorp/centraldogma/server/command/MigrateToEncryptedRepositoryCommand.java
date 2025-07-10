@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.command;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
@@ -45,6 +46,7 @@ public final class MigrateToEncryptedRepositoryCommand extends ProjectCommand<Vo
         super(CommandType.MIGRATE_TO_ENCRYPTED_REPOSITORY, timestamp, author, projectName);
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
         this.wdek = requireNonNull(wdek, "wdek");
+        checkArgument(wdek.length > 0, "wdek must not be empty");
     }
 
     /**
@@ -81,7 +83,7 @@ public final class MigrateToEncryptedRepositoryCommand extends ProjectCommand<Vo
 
     @Override
     public int hashCode() {
-        return ((repositoryName.hashCode() * 31) + wdek.hashCode()) * 31 + super.hashCode();
+        return ((repositoryName.hashCode() * 31) + Arrays.hashCode(wdek)) * 31 + super.hashCode();
     }
 
     @Override
