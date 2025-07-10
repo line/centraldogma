@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 import org.junit.jupiter.api.Test;
@@ -42,5 +43,26 @@ class HttpApiUtilTest {
         assertThatJson(response.contentUtf8())
                 .isEqualTo("{\"exception\":\"java.lang.IllegalArgumentException\"," +
                            "\"message\":\"Invalid input\"}");
+    }
+
+    @Test
+    void foo() throws InterruptedException {
+        final CompletableFuture<String> future1 = new CompletableFuture<>();
+        future1.thenCompose(str -> {
+            System.err.println("str1 = " + str);
+            return new CompletableFuture<>();
+        }).thenCompose(str -> {
+            System.err.println("str2 = " + str);
+            return CompletableFuture.completedFuture("done");
+        }).handle((result, throwable) -> {
+            System.err.println("str3 = " + result);
+            if (throwable != null) {
+                return "error";
+            }
+            return result;
+        });
+
+        future1.completeExceptionally(new IllegalArgumentException("Invalid input"));
+        Thread.sleep(1000);
     }
 }

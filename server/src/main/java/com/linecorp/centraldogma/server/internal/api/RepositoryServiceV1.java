@@ -410,21 +410,14 @@ public class RepositoryServiceV1 extends AbstractService {
                              if (cause != null) {
                                  logger.warn("failed to migrate repository to an encrypted repository: " +
                                              "project={}, repository={}", projectName, repoName, cause);
-                                 return Exceptions.throwUnsafely(cause);
-                             } else {
-                                 logger.info("Successfully migrated repository to an encrypted repository: " +
-                                             "project={}, repository={}", projectName, repoName);
+                                 return setRepositoryStatus(author, project, repository,
+                                                            RepositoryStatus.ACTIVE)
+                                         .thenApply(unused1 -> (RepositoryDto) Exceptions.throwUnsafely(cause));
                              }
-                             return null;
-                         })
-                         .handle((unused, cause) -> {
-                             // Whether the migration succeeded or failed,
-                             // we need to change the repository status to ACTIVE.
+                             logger.info("Successfully migrated repository to an encrypted repository: " +
+                                         "project={}, repository={}", projectName, repoName);
                              return setRepositoryStatus(author, project, repository, RepositoryStatus.ACTIVE)
-                                     .thenApply(v -> {
-                                         if (cause != null) {
-                                             return Exceptions.throwUnsafely(cause);
-                                         }
+                                     .thenApply(unused1 -> {
                                          final Repository updatedRepository =
                                                  project.repos().get(repository.name());
                                          return DtoConverter.convert(updatedRepository,
