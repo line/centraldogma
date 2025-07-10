@@ -97,9 +97,14 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         return parent;
     }
 
+    private String projectRepositoryName(String name) {
+        return parent.name() + '/' + name;
+    }
+
     @Override
     public void migrateToEncryptedRepository(String repositoryName) {
-        logger.info("Starting to migrate the repository '{}' to an encrypted repository.", repositoryName);
+        logger.info("Starting to migrate the repository '{}' to an encrypted repository.",
+                    projectRepositoryName(repositoryName));
         final long startTime = System.nanoTime();
         final Repository oldRepository = get(repositoryName);
 
@@ -113,7 +118,7 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
                                                             encryptionStorageManager);
         } catch (Throwable t) {
             throw new StorageException("failed to create the repository while migrating. " +
-                                       "repositoryName: " + repositoryName, t);
+                                       "repositoryName: " + projectRepositoryName(repositoryName), t);
         }
 
         final Revision headRevision = oldRepository.normalizeNow(Revision.HEAD);
@@ -137,8 +142,8 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
             encryptedRepository.internalClose();
             encryptionStorageManager.deleteRepositoryData(parent.name(), repositoryName);
             throw new StorageException("failed to migrate the contents of the repository '" +
-                                       repositoryName + "' to an encrypted repository. baseRevision: " +
-                                       baseRevision, t);
+                                       projectRepositoryName(repositoryName) + "' to an encrypted repository." +
+                                       " baseRevision: " + baseRevision, t);
         }
 
         // Simply create the placeholder file to indicate that this repository is encrypted.
@@ -162,13 +167,14 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
                             oldRepository.repoDir(), e);
             }
             throw new StorageException("failed to replace the old repository with the encrypted repository. " +
-                                       "repositoryName: " + repositoryName);
+                                       "repositoryName: " + projectRepositoryName(repositoryName));
         }
         logger.info("Migrated the repository '{}' to an encrypted repository in {} seconds.",
-                    repositoryName, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime));
-        // We don't add repository listeners to the encrypted repository so just close the old repository.
+                    projectRepositoryName(repositoryName),
+                    TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime));
+        // We didn't add repository listeners to the repository so don't have to add the listener here.
         ((GitRepository) oldRepository).close(() -> new CentralDogmaException(
-                "repository is migrated to an encrypted repository: " + repositoryName));
+                projectRepositoryName(repositoryName) + " is migrated to an encrypted repository. Try again."));
     }
 
     @Override

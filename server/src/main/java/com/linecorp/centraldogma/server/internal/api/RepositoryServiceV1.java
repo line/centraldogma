@@ -347,8 +347,8 @@ public class RepositoryServiceV1 extends AbstractService {
         if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name()) ||
             Project.REPO_DOGMA.equals(repository.name())) {
             throw new IllegalArgumentException(
-                    "Cannot migrate the internal project or repository to an encrypted repository. project: "
-                    + project.name() + ", repository: " + repository.name());
+                    "Cannot migrate the internal project or repository to an encrypted repository. project: " +
+                    project.name() + ", repository: " + repository.name());
         }
 
         final RepositoryStatus currentStatus = repositoryStatus(repository);
@@ -370,8 +370,8 @@ public class RepositoryServiceV1 extends AbstractService {
         if (currentStatus == RepositoryStatus.READ_ONLY) {
             HttpApiUtil.throwResponse(
                     ctx, HttpStatus.CONFLICT,
-                    "Cannot migrate a read-only repository to an encrypted repository. "
-                    + "Please change the status to ACTIVE first.");
+                    "Cannot migrate a read-only repository to an encrypted repository. " +
+                    "Please change the status to ACTIVE first.");
         }
     }
 
@@ -427,7 +427,8 @@ public class RepositoryServiceV1 extends AbstractService {
                                          }
                                          final Repository updatedRepository =
                                                  project.repos().get(repository.name());
-                                         return DtoConverter.convert(updatedRepository, RepositoryStatus.ACTIVE);
+                                         return DtoConverter.convert(updatedRepository,
+                                                                     RepositoryStatus.ACTIVE);
                                      });
                          }).thenCompose(Function.identity());
     }
