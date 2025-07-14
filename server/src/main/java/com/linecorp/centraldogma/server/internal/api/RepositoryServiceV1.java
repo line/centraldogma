@@ -345,7 +345,7 @@ public class RepositoryServiceV1 extends AbstractService {
 
         // TODO(minwoox): Dogma project and dogma repository will be migrated one day later by a plugin.
         if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name()) ||
-            Project.REPO_DOGMA.equals(repository.name())) {
+            project.name().startsWith("@") || Project.REPO_DOGMA.equals(repository.name())) {
             throw new IllegalArgumentException(
                     "Cannot migrate the internal project or repository to an encrypted repository. project: " +
                     project.name() + ", repository: " + repository.name());
