@@ -58,6 +58,7 @@ import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
+import com.linecorp.centraldogma.server.storage.encryption.SecretKeyWithVersion;
 
 class EncryptionGitStorageTest {
 
@@ -80,7 +81,8 @@ class EncryptionGitStorageTest {
     @BeforeEach
     void setUp() {
         // Mock getDek to return our fixed key
-        when(encryptionStorageManager.getDek(TEST_PROJECT, TEST_REPO)).thenReturn(DEK);
+        when(encryptionStorageManager.getCurrentDek(TEST_PROJECT, TEST_REPO))
+                .thenReturn(new SecretKeyWithVersion(DEK, 1));
         storage = new EncryptionGitStorage(TEST_PROJECT, TEST_REPO, encryptionStorageManager);
 
         // Leniently stubs.
@@ -115,15 +117,19 @@ class EncryptionGitStorageTest {
         // Verify Metadata Entry Value (Nonce + Type + object WDEK)
         final byte[] actualMetadataValue = metadataValueCaptor.getValue();
         assertThat(actualMetadataValue.length).isEqualTo(
-                NONCE_SIZE_BYTES + 4 + 48); // 32 for key 16 for tag
-        final byte[] capturedNonce =
-                Arrays.copyOfRange(actualMetadataValue, 0, NONCE_SIZE_BYTES);
-        final int capturedType = ByteBuffer.wrap(actualMetadataValue, NONCE_SIZE_BYTES, 4)
+                4 + NONCE_SIZE_BYTES + 4 + 48); // 32 for key 16 for tag
+        final int capturedKeyVersion = ByteBuffer.wrap(actualMetadataValue, 0, 4)
+                                                 .getInt();
+        assertThat(capturedKeyVersion).isEqualTo(1);
+        final int capturedType = ByteBuffer.wrap(actualMetadataValue, 4 + NONCE_SIZE_BYTES, 4)
                                            .getInt();
         assertThat(capturedType).isEqualTo(Constants.OBJ_BLOB);
 
+        final byte[] capturedNonce =
+                Arrays.copyOfRange(actualMetadataValue, 4, 4 + NONCE_SIZE_BYTES);
+
         final byte[] objectWdek =
-                Arrays.copyOfRange(actualMetadataValue, NONCE_SIZE_BYTES + 4, actualMetadataValue.length);
+                Arrays.copyOfRange(actualMetadataValue, 4 + NONCE_SIZE_BYTES + 4, actualMetadataValue.length);
         final byte[] objectDek = decrypt(DEK, capturedNonce, objectWdek);
         final SecretKeySpec key = aesSecretKey(objectDek);
 
@@ -159,7 +165,8 @@ class EncryptionGitStorageTest {
         final byte[] nonce = AesGcmSivCipher.generateNonce();
         final byte[] objectDek = AesGcmSivCipher.generateAes256Key();
         final byte[] objectWdek = encryptWithDek(nonce, objectDek);
-        final byte[] metadataValue = ByteBuffer.allocate(NONCE_SIZE_BYTES + 4 + 48)
+        final byte[] metadataValue = ByteBuffer.allocate(4 + NONCE_SIZE_BYTES + 4 + 48)
+                                               .putInt(1)
                                                .put(nonce).putInt(Constants.OBJ_COMMIT).put(objectWdek)
                                                .array();
         final SecretKeySpec key = aesSecretKey(objectDek);
@@ -189,7 +196,8 @@ class EncryptionGitStorageTest {
         final byte[] metadataKey = storage.objectMetadataKey(OBJECT_ID);
         final byte[] objectDek = AesGcmSivCipher.generateAes256Key();
         final byte[] objectWdek = encryptWithDek(nonce, objectDek);
-        final byte[] metadataValue = ByteBuffer.allocate(NONCE_SIZE_BYTES + 4 + 48)
+        final byte[] metadataValue = ByteBuffer.allocate(4 + NONCE_SIZE_BYTES + 4 + 48)
+                                               .putInt(1)
                                                .put(nonce).putInt(actualType).put(objectWdek)
                                                .array();
 
@@ -210,7 +218,8 @@ class EncryptionGitStorageTest {
         final byte[] metadataKey = storage.objectMetadataKey(OBJECT_ID);
         final byte[] objectDek = AesGcmSivCipher.generateAes256Key();
         final byte[] objectWdek = encryptWithDek(nonce, objectDek);
-        final byte[] metadataValue = ByteBuffer.allocate(NONCE_SIZE_BYTES + 4 + 48)
+        final byte[] metadataValue = ByteBuffer.allocate(4 + NONCE_SIZE_BYTES + 4 + 48)
+                                               .putInt(1)
                                                .put(nonce).putInt(type).put(objectWdek)
                                                .array();
         final SecretKeySpec key = aesSecretKey(objectDek);
@@ -232,11 +241,13 @@ class EncryptionGitStorageTest {
     @Test
     void readRef() throws Exception {
         final byte[] nonce = AesGcmSivCipher.generateNonce();
+        final byte[] metadata = new byte[4 + NONCE_SIZE_BYTES];
+        ByteBuffer.wrap(metadata).putInt(1).put(nonce);
         final byte[] metadataKey = refMetadataKey(HEAD_MASTER_REF);
         final byte[] encryptedRefName = encryptStringWithDek(nonce, HEAD_MASTER_REF);
         final byte[] encryptedValue = encryptObjectIdWithDek(nonce, OBJECT_ID);
 
-        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(nonce);
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadata);
         when(encryptionStorageManager.getObjectId(encryptedRefName, metadataKey)).thenReturn(encryptedValue);
 
         final Ref ref = storage.readRef(HEAD_MASTER_REF);
@@ -254,7 +265,12 @@ class EncryptionGitStorageTest {
     @Test
     void readSymbolicRef() throws Exception {
         final byte[] symRefNonce = AesGcmSivCipher.generateNonce();
+        final byte[] symRefMetadata = new byte[4 + NONCE_SIZE_BYTES];
+        ByteBuffer.wrap(symRefMetadata).putInt(1).put(symRefNonce);
+
         final byte[] targetRefNonce = AesGcmSivCipher.generateNonce();
+        final byte[] targetRefMetadata = new byte[4 + NONCE_SIZE_BYTES];
+        ByteBuffer.wrap(targetRefMetadata).putInt(1).put(targetRefNonce);
 
         final byte[] symRefMetadataKey = refMetadataKey(Constants.HEAD);
         final byte[] encryptedSymRefName = encryptStringWithDek(symRefNonce, Constants.HEAD);
@@ -265,10 +281,10 @@ class EncryptionGitStorageTest {
         final byte[] encryptedTargetRefName = encryptStringWithDek(targetRefNonce, HEAD_MASTER_REF);
         final byte[] encryptedTargetRefObjectIdValue = encryptObjectIdWithDek(targetRefNonce, OBJECT_ID);
 
-        when(encryptionStorageManager.getMetadata(symRefMetadataKey)).thenReturn(symRefNonce);
+        when(encryptionStorageManager.getMetadata(symRefMetadataKey)).thenReturn(symRefMetadata);
         when(encryptionStorageManager.getObjectId(encryptedSymRefName, symRefMetadataKey))
                 .thenReturn(encryptedSymRefTargetValue);
-        when(encryptionStorageManager.getMetadata(targetRefMetadataKey)).thenReturn(targetRefNonce);
+        when(encryptionStorageManager.getMetadata(targetRefMetadataKey)).thenReturn(targetRefMetadata);
         when(encryptionStorageManager.getObjectId(encryptedTargetRefName, targetRefMetadataKey)).thenReturn(
                 encryptedTargetRefObjectIdValue);
 
@@ -297,7 +313,7 @@ class EncryptionGitStorageTest {
         final Result desiredResult = Result.NEW;
 
         final ArgumentCaptor<byte[]> metaKeyCaptor = ArgumentCaptor.forClass(byte[].class);
-        final ArgumentCaptor<byte[]> nonceCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
         final ArgumentCaptor<byte[]> refNameKeyCaptor = ArgumentCaptor.forClass(byte[].class);
         final ArgumentCaptor<byte[]> refValueCaptor = ArgumentCaptor.forClass(byte[].class); // Encrypted ID
         final ArgumentCaptor<byte[]> previousKeyCaptor = ArgumentCaptor.forClass(byte[].class);
@@ -306,14 +322,18 @@ class EncryptionGitStorageTest {
         assertThat(actualResult).isEqualTo(desiredResult);
 
         verify(encryptionStorageManager, times(1)).putObjectId(
-                metaKeyCaptor.capture(), nonceCaptor.capture(),
+                metaKeyCaptor.capture(), metadataCaptor.capture(),
                 refNameKeyCaptor.capture(), refValueCaptor.capture(), previousKeyCaptor.capture()
         );
         reset(encryptionStorageManager);
 
         final byte[] expectedMetadataKey = refMetadataKey(HEAD_MASTER_REF);
         assertThat(metaKeyCaptor.getValue()).isEqualTo(expectedMetadataKey);
-        final byte[] capturedNonce = nonceCaptor.getValue();
+        final byte[] metadata = metadataCaptor.getValue();
+        assertThat(metadata).hasSize(4 + NONCE_SIZE_BYTES);
+        final int capturedKeyVersion = ByteBuffer.wrap(metadata, 0, 4).getInt();
+        assertThat(capturedKeyVersion).isEqualTo(1);
+        final byte[] capturedNonce = Arrays.copyOfRange(metadata, 4, 4 + NONCE_SIZE_BYTES);
         assertThat(capturedNonce).hasSize(NONCE_SIZE_BYTES);
 
         final byte[] expectedEncryptedRefNameKey = encryptStringWithDek(capturedNonce, HEAD_MASTER_REF);
@@ -322,17 +342,21 @@ class EncryptionGitStorageTest {
         assertThat(refValueCaptor.getValue()).isEqualTo(expectedEncryptedRefValue);
         assertThat(previousKeyCaptor.getValue()).isNull();
 
-        when(encryptionStorageManager.getMetadata(expectedMetadataKey)).thenReturn(capturedNonce);
+        when(encryptionStorageManager.getMetadata(expectedMetadataKey)).thenReturn(metadata);
         final Result actualResult2 = storage.updateRef(HEAD_MASTER_REF, OBJECT_ID, desiredResult);
         assertThat(actualResult2).isEqualTo(desiredResult);
 
         verify(encryptionStorageManager, times(1)).putObjectId(
-                metaKeyCaptor.capture(), nonceCaptor.capture(),
+                metaKeyCaptor.capture(), metadataCaptor.capture(),
                 refNameKeyCaptor.capture(), refValueCaptor.capture(), previousKeyCaptor.capture()
         );
 
         assertThat(metaKeyCaptor.getValue()).isEqualTo(expectedMetadataKey);
-        final byte[] capturedNonce2 = nonceCaptor.getValue();
+        final byte[] metadata2 = metadataCaptor.getValue();
+        assertThat(metadata2).hasSize(4 + NONCE_SIZE_BYTES);
+        final int capturedKeyVersion2 = ByteBuffer.wrap(metadata2, 0, 4).getInt();
+        assertThat(capturedKeyVersion2).isEqualTo(1);
+        final byte[] capturedNonce2 = Arrays.copyOfRange(metadata2, 4, 4 + NONCE_SIZE_BYTES);
         assertThat(capturedNonce2).hasSize(NONCE_SIZE_BYTES);
 
         final byte[] expectedEncryptedRefNameKey2 = encryptStringWithDek(capturedNonce2, HEAD_MASTER_REF);
@@ -346,10 +370,12 @@ class EncryptionGitStorageTest {
     @Test
     void deleteRef_deletesBothKeys() throws Exception {
         final byte[] nonce = AesGcmSivCipher.generateNonce();
+        final byte[] metadata = new byte[4 + NONCE_SIZE_BYTES];
+        ByteBuffer.wrap(metadata).putInt(1).put(nonce);
         final byte[] metadataKey = refMetadataKey(HEAD_MASTER_REF);
         final byte[] encryptedRefNameKey = encryptStringWithDek(nonce, HEAD_MASTER_REF);
 
-        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(nonce);
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadata);
 
         storage.deleteRef(HEAD_MASTER_REF);
 
@@ -368,7 +394,7 @@ class EncryptionGitStorageTest {
         final String target = HEAD_MASTER_REF;
 
         final ArgumentCaptor<byte[]> metaKeyCaptor = ArgumentCaptor.forClass(byte[].class);
-        final ArgumentCaptor<byte[]> nonceCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
         final ArgumentCaptor<byte[]> refNameKeyCaptor = ArgumentCaptor.forClass(byte[].class);
         final ArgumentCaptor<byte[]> refValueCaptor = ArgumentCaptor.forClass(byte[].class);
         final ArgumentCaptor<byte[]> previousKeyCaptor = ArgumentCaptor.forClass(byte[].class);
@@ -376,13 +402,17 @@ class EncryptionGitStorageTest {
         storage.linkRef(Constants.HEAD, target);
 
         verify(encryptionStorageManager, times(1)).putObjectId(
-                metaKeyCaptor.capture(), nonceCaptor.capture(),
+                metaKeyCaptor.capture(), metadataCaptor.capture(),
                 refNameKeyCaptor.capture(), refValueCaptor.capture(), previousKeyCaptor.capture()
         );
 
         final byte[] expectedMetadataKey = refMetadataKey(Constants.HEAD);
         assertThat(metaKeyCaptor.getValue()).isEqualTo(expectedMetadataKey);
-        final byte[] capturedNonce = nonceCaptor.getValue();
+        final byte[] metadata = metadataCaptor.getValue();
+        assertThat(metadata).hasSize(4 + NONCE_SIZE_BYTES);
+        final int capturedKeyVersion = ByteBuffer.wrap(metadata, 0, 4).getInt();
+        assertThat(capturedKeyVersion).isEqualTo(1);
+        final byte[] capturedNonce = Arrays.copyOfRange(metadata, 4, 4 + NONCE_SIZE_BYTES);
         assertThat(capturedNonce).hasSize(NONCE_SIZE_BYTES);
 
         final byte[] expectedEncryptedRefNameKey = encryptStringWithDek(capturedNonce, Constants.HEAD);
@@ -397,11 +427,13 @@ class EncryptionGitStorageTest {
     @Test
     void getRevisionObjectId_found() throws Exception {
         final byte[] nonce = AesGcmSivCipher.generateNonce();
+        final byte[] metadata = new byte[4 + NONCE_SIZE_BYTES];
+        ByteBuffer.wrap(metadata).putInt(1).put(nonce);
         final byte[] metadataKey = storage.rev2ShaMetadataKey(REV_1);
         final byte[] encryptedRevisionKey = encryptWithDek(nonce, revisionBytes(REV_1));
         final byte[] encryptedIdValue = encryptObjectIdWithDek(nonce, OBJECT_ID);
 
-        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(nonce);
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadata);
         when(encryptionStorageManager.getObjectId(encryptedRevisionKey, metadataKey))
                 .thenReturn(encryptedIdValue);
 
@@ -428,10 +460,12 @@ class EncryptionGitStorageTest {
     @Test
     void getRevisionObjectId_valueNotFound() throws Exception {
         final byte[] nonce = AesGcmSivCipher.generateNonce();
+        final byte[] metadata = new byte[4 + NONCE_SIZE_BYTES];
+        ByteBuffer.wrap(metadata).putInt(1).put(nonce);
         final byte[] metadataKey = storage.rev2ShaMetadataKey(REV_1);
         final byte[] encryptedRevisionKey = encryptWithDek(nonce, revisionBytes(REV_1));
 
-        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(nonce);
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadata);
         when(encryptionStorageManager.getObjectId(encryptedRevisionKey, metadataKey))
                 .thenReturn(null); // Value missing
 
@@ -448,7 +482,7 @@ class EncryptionGitStorageTest {
 
         // Capture args
         final ArgumentCaptor<byte[]> metaKeyCaptor = ArgumentCaptor.forClass(byte[].class);
-        final ArgumentCaptor<byte[]> nonceCaptor = ArgumentCaptor.forClass(byte[].class);
+        final ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
         final ArgumentCaptor<byte[]> revKeyCaptor = ArgumentCaptor.forClass(byte[].class);
         final ArgumentCaptor<byte[]> idValueCaptor = ArgumentCaptor.forClass(byte[].class);
         final ArgumentCaptor<byte[]> previousKeyCaptor = ArgumentCaptor.forClass(byte[].class);
@@ -456,13 +490,17 @@ class EncryptionGitStorageTest {
         storage.putRevisionObjectId(REV_1, OBJECT_ID);
 
         verify(encryptionStorageManager, times(1)).putObjectId(
-                metaKeyCaptor.capture(), nonceCaptor.capture(),
+                metaKeyCaptor.capture(), metadataCaptor.capture(),
                 revKeyCaptor.capture(), idValueCaptor.capture(), previousKeyCaptor.capture()
         );
 
         // Verify Metadata
         assertThat(metaKeyCaptor.getValue()).isEqualTo(metadataKey);
-        final byte[] capturedNonce = nonceCaptor.getValue();
+        final byte[] metadata = metadataCaptor.getValue();
+        assertThat(metadata).hasSize(4 + NONCE_SIZE_BYTES);
+        final int capturedKeyVersion = ByteBuffer.wrap(metadata, 0, 4).getInt();
+        assertThat(capturedKeyVersion).isEqualTo(1);
+        final byte[] capturedNonce = Arrays.copyOfRange(metadata, 4, 4 + NONCE_SIZE_BYTES);
         assertThat(capturedNonce).hasSize(NONCE_SIZE_BYTES);
 
         // Verify Encrypted Revision/ID Entry

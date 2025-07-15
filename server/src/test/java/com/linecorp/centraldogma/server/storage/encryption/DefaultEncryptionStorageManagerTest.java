@@ -77,12 +77,12 @@ class DefaultEncryptionStorageManagerTest {
     void storeAndGetDek() throws Exception {
         final byte[] wdek = storageManager.generateWdek().join();
 
-        assertThatThrownBy(() -> storageManager.getDek(PROJECT_NAME, REPO_NAME))
+        assertThatThrownBy(() -> storageManager.getCurrentDek(PROJECT_NAME, REPO_NAME))
                 .isInstanceOf(EncryptionStorageException.class)
                 .hasMessageContaining("WDEK of " + PROJECT_NAME + '/' + REPO_NAME + " does not exist");
 
         storageManager.storeWdek(PROJECT_NAME, REPO_NAME, wdek);
-        final SecretKey dek = storageManager.getDek(PROJECT_NAME, REPO_NAME);
+        final SecretKey dek = storageManager.getDek(PROJECT_NAME, REPO_NAME, 1);
 
         // 4. Verify
         assertThat(dek).isNotNull();
@@ -92,14 +92,14 @@ class DefaultEncryptionStorageManagerTest {
         // Try storing again
         assertThatThrownBy(() -> storageManager.storeWdek(PROJECT_NAME, REPO_NAME, wdek))
                 .isInstanceOf(EncryptionStorageException.class)
-                .hasMessageContaining("WDEK of " + PROJECT_NAME + '/' + REPO_NAME + " already exists");
+                .hasMessageContaining("WDEK of " + PROJECT_NAME + '/' + REPO_NAME + "/1 already exists");
 
-        assertThat(storageManager.getDek(PROJECT_NAME, REPO_NAME)).isNotNull();
+        assertThat(storageManager.getDek(PROJECT_NAME, REPO_NAME, 1)).isNotNull();
 
         storageManager.removeWdek(PROJECT_NAME, REPO_NAME);
 
         // Verify it's gone
-        assertThatThrownBy(() -> storageManager.getDek(PROJECT_NAME, REPO_NAME))
+        assertThatThrownBy(() -> storageManager.getDek(PROJECT_NAME, REPO_NAME, 1))
                 .isInstanceOf(EncryptionStorageException.class);
     }
 

@@ -15,10 +15,13 @@
  */
 package com.linecorp.centraldogma.server.storage.encryption;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
+
+import com.google.common.collect.ImmutableMap;
 
 /**
  * A no-operation implementation of {@link EncryptionStorageManager} that does not perform any encryption.
@@ -42,7 +45,13 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
 
     @Nullable
     @Override
-    public SecretKey getDek(String projectName, String repoName) {
+    public SecretKey getDek(String projectName, String repoName, int i) {
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public SecretKeyWithVersion getCurrentDek(String projectName, String repoName) {
         return null;
     }
 
@@ -95,6 +104,11 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     @Override
     public void deleteRepositoryData(String projectName, String repoName) {
         // No-op
+    }
+
+    @Override
+    public Map<String, Map<String, byte[]>> getAllData() {
+        return ImmutableMap.of();
     }
 
     @Override

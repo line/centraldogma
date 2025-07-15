@@ -43,10 +43,12 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompressionType;
 import org.rocksdb.DBOptions;
+import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
 import org.rocksdb.RocksObject;
+import org.rocksdb.Snapshot;
 import org.rocksdb.WriteBatch;
 import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
@@ -54,8 +56,10 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.primitives.Ints;
 
 import com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher;
+import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.ObjectDekAndNonce;
 
 final class DefaultEncryptionStorageManager implements EncryptionStorageManager {
 
@@ -173,21 +177,19 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
     }
 
     @Override
-    public SecretKey getDek(String projectName, String repoName) {
-        requireNonNull(projectName, "projectName");
-        requireNonNull(repoName, "repoName");
+    public SecretKey getDek(String projectName, String repoName, int version) {
+        final ColumnFamilyHandle wdekCf = columnFamilyHandlesMap.get(WDEK_COLUMN_FAMILY);
         final byte[] wdek;
         try {
-            wdek = rocksDb.get(columnFamilyHandlesMap.get(WDEK_COLUMN_FAMILY),
-                               repoWdekDbKey(projectName, repoName).getBytes(StandardCharsets.UTF_8));
+            wdek = rocksDb.get(wdekCf, repoWdekDbKey(projectName, repoName, version));
         } catch (RocksDBException e) {
             throw new EncryptionStorageException(
-                    "Failed to get WDEK of " + projectRepo(projectName, repoName), e);
+                    "Failed to get WDEK of " + projectRepoVersion(projectName, repoName, version), e);
         }
 
         if (wdek == null) {
             throw new EncryptionStorageException(
-                    "WDEK of " + projectRepo(projectName, repoName) + " does not exist");
+                    "WDEK of " + projectRepoVersion(projectName, repoName, version) + " does not exist");
         }
 
         final byte[] key;
@@ -195,9 +197,37 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
             key = keyManagementService.unwrap(wdek).get(10, TimeUnit.SECONDS);
         } catch (Throwable t) {
             throw new EncryptionStorageException(
-                    "Failed to unwrap WDEK of " + projectRepo(projectName, repoName), t);
+                    "Failed to unwrap WDEK of " + projectRepoVersion(projectName, repoName, version), t);
         }
         return aesSecretKey(key);
+    }
+
+    @Override
+    public SecretKeyWithVersion getCurrentDek(String projectName, String repoName) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repoName, "repoName");
+        final int version;
+        final ColumnFamilyHandle wdekCf = columnFamilyHandlesMap.get(WDEK_COLUMN_FAMILY);
+
+        try {
+            final byte[] versionBytes = rocksDb.get(wdekCf, repoCurrentWdekDbKey(projectName, repoName));
+            if (versionBytes == null) {
+                throw new EncryptionStorageException(
+                        "Current WDEK of " + projectRepo(projectName, repoName) + " does not exist");
+            }
+            try {
+                version = Ints.fromByteArray(versionBytes);
+            } catch (IllegalArgumentException e) {
+                throw new EncryptionStorageException(
+                        "Failed to parse the current WDEK version of " + projectRepo(projectName, repoName) +
+                        ". The version bytes: " + Arrays.toString(versionBytes), e);
+            }
+        } catch (RocksDBException e) {
+            throw new EncryptionStorageException(
+                    "Failed to get the current WDEK of " + projectRepo(projectName, repoName), e);
+        }
+
+        return new SecretKeyWithVersion(getDek(projectName, repoName, version), version);
     }
 
     @Override
@@ -205,26 +235,32 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(wdek, "wdek");
-        final byte[] wdekKeyBytes = repoWdekDbKey(projectName, repoName).getBytes(StandardCharsets.UTF_8);
+        // Only version 1 is used for now. After implementing key rotation, other versions will be used.
+        final int version = 1;
+
+        final byte[] wdekKeyBytes = repoWdekDbKey(projectName, repoName, version);
+        final ColumnFamilyHandle wdekCf = columnFamilyHandlesMap.get(WDEK_COLUMN_FAMILY);
         try {
-            final byte[] existingWdek = rocksDb.get(columnFamilyHandlesMap.get(WDEK_COLUMN_FAMILY),
-                                                    wdekKeyBytes);
+            final byte[] existingWdek = rocksDb.get(wdekCf, wdekKeyBytes);
             if (existingWdek != null) {
                 throw new EncryptionStorageException(
-                        "WDEK of " + projectRepo(projectName, repoName) + " already exists");
+                        "WDEK of " + projectRepoVersion(projectName, repoName, version) + " already exists");
             }
         } catch (RocksDBException e) {
-            throw new EncryptionStorageException(
-                    "Failed to check existence of WDEK for " + projectRepo(projectName, repoName), e);
+            throw new EncryptionStorageException("Failed to check the existence of WDEK for " +
+                                                 projectRepoVersion(projectName, repoName, version), e);
         }
 
-        // RocksDB is thread-safe.
-        try (WriteOptions writeOptions = new WriteOptions()) {
+        try (WriteBatch writeBatch = new WriteBatch();
+             WriteOptions writeOptions = new WriteOptions()) {
             writeOptions.setSync(true);
-            rocksDb.put(columnFamilyHandlesMap.get(WDEK_COLUMN_FAMILY), writeOptions, wdekKeyBytes, wdek);
+            writeBatch.put(wdekCf, wdekKeyBytes, wdek);
+            writeBatch.put(wdekCf,
+                           repoCurrentWdekDbKey(projectName, repoName), Ints.toByteArray(version));
+            rocksDb.write(writeOptions, writeBatch);
         } catch (RocksDBException e) {
             throw new EncryptionStorageException(
-                    "Failed to store WDEK of " + projectRepo(projectName, repoName), e);
+                    "Failed to store WDEK of " + projectRepoVersion(projectName, repoName, version), e);
         }
     }
 
@@ -232,20 +268,35 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
         return projectName + '/' + repoName;
     }
 
-    private static String repoWdekDbKey(String projectName, String repoName) {
-        return "wdeks/" + projectName + '/' + repoName;
+    private static String projectRepoVersion(String projectName, String repoName, int version) {
+        return projectName + '/' + repoName + '/' + version;
+    }
+
+    private static byte[] repoWdekDbKey(String projectName, String repoName, int version) {
+        return ("wdeks/" + projectName + '/' + repoName + '/' + version).getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static byte[] repoCurrentWdekDbKey(String projectName, String repoName) {
+        return ("wdeks/" + projectName + '/' + repoName + "/current").getBytes(StandardCharsets.UTF_8);
     }
 
     @Override
     public void removeWdek(String projectName, String repoName) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
+        final int version = 1; // We use version 1 for the current WDEK.
         try {
-            rocksDb.delete(columnFamilyHandlesMap.get(WDEK_COLUMN_FAMILY),
-                           repoWdekDbKey(projectName, repoName).getBytes(StandardCharsets.UTF_8));
+            try (WriteBatch writeBatch = new WriteBatch();
+                 WriteOptions writeOptions = new WriteOptions()) {
+                writeOptions.setSync(true);
+                final ColumnFamilyHandle wdekCf = columnFamilyHandlesMap.get(WDEK_COLUMN_FAMILY);
+                writeBatch.delete(wdekCf, repoWdekDbKey(projectName, repoName, version));
+                writeBatch.delete(wdekCf, repoCurrentWdekDbKey(projectName, repoName));
+                rocksDb.write(writeOptions, writeBatch);
+            }
         } catch (RocksDBException e) {
             throw new EncryptionStorageException(
-                    "Failed to remove WDEK of " + projectRepo(projectName, repoName), e);
+                    "Failed to remove WDEK of " + projectRepoVersion(projectName, repoName, version), e);
         }
     }
 
@@ -357,7 +408,8 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
 
-        final SecretKey dek = getDek(projectName, repoName);
+        // Currently, only version 1 of the WDEK is used.
+        final SecretKey dek = getDek(projectName, repoName, 1);
 
         final String projectRepoPrefix = projectRepo(projectName, repoName) + '/';
         final byte[] projectRepoPrefixBytes = projectRepoPrefix.getBytes(StandardCharsets.UTF_8);
@@ -385,18 +437,25 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
                 }
 
                 final byte[] metadataValue = iterator.value();
-                final byte[] nonce;
                 final byte[] idPart; // ObjectId, refName or revNum
 
                 if (startsWith(metadataKey, objectKeyPrefixBytes)) {
                     // MetadataKey: project/repo/objs/<objectId_bytes(20)>
-                    // MetadataValue: nonce(12) + type(4)
+                    // MetadataValue: key version(4) + nonce(12) + type(4) + objectWdek(48)
                     if (metadataKey.length == objectKeyPrefixBytes.length + 20) {
                         idPart = Arrays.copyOfRange(metadataKey, objectKeyPrefixBytes.length,
                                                     metadataKey.length);
-                        if (metadataValue != null && metadataValue.length >= NONCE_SIZE_BYTES) {
-                            nonce = Arrays.copyOfRange(metadataValue, 0, NONCE_SIZE_BYTES);
-                            final byte[] key = AesGcmSivCipher.encrypt(dek, nonce, idPart);
+                        if (metadataValue != null) {
+                            final ObjectDekAndNonce objectDekAndNonce;
+                            try {
+                                objectDekAndNonce = ObjectDekAndNonce.extract(metadataValue, dek);
+                            } catch (Exception e) {
+                                throw new EncryptionStorageException(
+                                        "Failed to decrypt data in " + projectName + '/' + repoName, e);
+                            }
+
+                            final byte[] key = AesGcmSivCipher.encrypt(objectDekAndNonce.objectDek(),
+                                                                       objectDekAndNonce.nonce(), idPart);
                             writeBatch.delete(columnFamilyHandlesMap.get(ENCRYPTED_OBJECT_COLUMN_FAMILY), key);
                             operationsInCurrentBatch++;
                             totalDeletedCount++;
@@ -410,11 +469,12 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
                     }
                 } else if (startsWith(metadataKey, rev2ShaPrefixBytes)) {
                     // MetadataKey: project/repo/rev2sha/<revision_major_bytes(4)>
-                    // MetadataValue: nonce(12)
+                    // MetadataValue: key version(4) + nonce(12)
                     if (metadataKey.length == rev2ShaPrefixBytes.length + 4) {
                         idPart = Arrays.copyOfRange(metadataKey, rev2ShaPrefixBytes.length, metadataKey.length);
-                        nonce = metadataValue;
-                        if (nonce != null && nonce.length == NONCE_SIZE_BYTES) {
+                        if (metadataValue != null && metadataValue.length == 4 + NONCE_SIZE_BYTES) {
+                            final byte[] nonce = new byte[NONCE_SIZE_BYTES];
+                            System.arraycopy(metadataValue, 4, nonce, 0, NONCE_SIZE_BYTES);
                             final byte[] key = AesGcmSivCipher.encrypt(dek, nonce, idPart);
                             writeBatch.delete(columnFamilyHandlesMap.get(ENCRYPTED_OBJECT_ID_COLUMN_FAMILY),
                                               key);
@@ -435,8 +495,9 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
                     // idPart should be "HEAD" or "refs/..." so copy from projectRepoPrefixBytes.length
                     // MetadataValue: nonce(12)
                     idPart = Arrays.copyOfRange(metadataKey, projectRepoPrefixBytes.length, metadataKey.length);
-                    nonce = metadataValue;
-                    if (nonce != null && nonce.length == NONCE_SIZE_BYTES) {
+                    if (metadataValue != null && metadataValue.length == 4 + NONCE_SIZE_BYTES) {
+                        final byte[] nonce = new byte[NONCE_SIZE_BYTES];
+                        System.arraycopy(metadataValue, 4, nonce, 0, NONCE_SIZE_BYTES);
                         final byte[] key = AesGcmSivCipher.encrypt(dek, nonce, idPart);
                         writeBatch.delete(columnFamilyHandlesMap.get(ENCRYPTED_OBJECT_ID_COLUMN_FAMILY), key);
                         operationsInCurrentBatch++;
@@ -503,6 +564,33 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
             }
         }
         return true;
+    }
+
+    @Override
+    public Map<String, Map<String, byte[]>> getAllData() {
+        final Map<String, Map<String, byte[]>> allData = new HashMap<>();
+
+        try (Snapshot snapshot = rocksDb.getSnapshot();
+             ReadOptions readOptions = new ReadOptions().setSnapshot(snapshot)) {
+
+            for (Map.Entry<String, ColumnFamilyHandle> entry : columnFamilyHandlesMap.entrySet()) {
+                final String cfName = entry.getKey();
+                final ColumnFamilyHandle cfHandle = entry.getValue();
+                final Map<String, byte[]> cfData = new HashMap<>();
+
+                try (RocksIterator iterator = rocksDb.newIterator(cfHandle, readOptions)) {
+                    iterator.seekToFirst();
+                    while (iterator.isValid()) {
+                        final String key = new String(iterator.key(), StandardCharsets.UTF_8);
+                        cfData.put(key, iterator.value());
+                        iterator.next();
+                    }
+                }
+                allData.put(cfName, cfData);
+            }
+        }
+
+        return allData;
     }
 
     @Override
