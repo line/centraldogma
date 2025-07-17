@@ -17,8 +17,12 @@
 package com.linecorp.centraldogma.client;
 
 import static com.linecorp.centraldogma.internal.PathPatternUtil.toPathPattern;
+import static com.spotify.futures.CompletableFutures.exceptionallyCompletedFuture;
 import static java.util.Objects.requireNonNull;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -192,6 +196,35 @@ public abstract class AbstractCentralDogma implements CentralDogma {
                                                                 .start();
     }
 
+    @Override
+    public CompletableFuture<PushResult> importDir(@Nullable String projectName,
+                                                   @Nullable String repositoryName, Path dir,
+                                                   boolean createIfMissing) {
+        requireNonNull(dir, "dir");
+
+        if (!dir.isAbsolute()) {
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("dir must be an absolute path: " + dir)
+            );
+        }
+        if (!Files.exists(dir) || !Files.isDirectory(dir)) {
+            return exceptionallyCompletedFuture(
+                    new IllegalArgumentException("dir must be an existing directory: " + dir)
+            );
+        }
+
+        final List<String> resolvedNames = resolveProjectAndRepoNames(projectName, repositoryName, dir);
+        final String finalProjectName = resolvedNames.get(0);
+        final String finalRepositoryName = resolvedNames.get(1);
+
+        final CompletableFuture<Void> ensureProjectRepo = ensureProjectAndRepo(finalProjectName,
+                                                                               finalRepositoryName,
+                                                                               createIfMissing);
+        final CentralDogmaRepository repo = forRepo(finalProjectName, finalRepositoryName);
+
+        return ensureProjectRepo.thenCompose(unused -> repo.importDir(dir));
+    }
+
     /**
      * Normalizes the specified {@link Revision} only if it is a relative revision.
      *
@@ -205,5 +238,80 @@ public abstract class AbstractCentralDogma implements CentralDogma {
         } else {
             return CompletableFuture.completedFuture(revision);
         }
+    }
+
+    private CompletableFuture<Void> ensureProjectAndRepo(String project, String repo, boolean createIfMissing) {
+        return listProjects().thenCompose(projects -> {
+            if (!projects.contains(project)) {
+                if (!createIfMissing) {
+                    return exceptionallyCompletedFuture(
+                            new IllegalStateException("Project does not exist: " + project));
+                }
+                return createProject(project);
+            }
+            return CompletableFuture.completedFuture(null);
+        }).thenCompose(unused -> listRepositories(project).thenCompose(repos -> {
+            if (!repos.containsKey(repo)) {
+                if (!createIfMissing) {
+                    return exceptionallyCompletedFuture(
+                            new IllegalStateException("Repository does not exist: " + project + '/' + repo));
+                }
+                return createRepository(project, repo).thenApply(unusedRepo -> null);
+            }
+            return CompletableFuture.completedFuture(null);
+        }));
+    }
+
+    /**
+     * Resolves project and repository names based on the provided parameters and directory path.
+     *
+     * @param projectName the provided project name, or {@code null}
+     * @param repositoryName the provided repository name, or {@code null}
+     * @param dir the directory path to extract names from
+     * @return a {@link List} where get(0) is the project name and get(1) is the repository name
+     * @throws IllegalArgumentException if projectName is null but repositoryName is not null
+     */
+    private List<String> resolveProjectAndRepoNames(@Nullable String projectName,
+                                                    @Nullable String repositoryName,
+                                                    Path dir) {
+        if (projectName == null && repositoryName != null) {
+            throw new IllegalArgumentException("projectName cannot be null when repositoryName is not null");
+        }
+
+        if (projectName == null && repositoryName == null) {
+            return extractProjectAndRepoFromPath(dir);
+        }
+
+        if (projectName != null && repositoryName == null) {
+            return Arrays.asList(projectName, extractRepoNameFromPath(dir));
+        }
+
+        return Arrays.asList(projectName, repositoryName);
+    }
+
+    /**
+     * Extracts both project and repository names from the directory path.
+     * Uses the second-to-last component as project name and the last component as repository name.
+     */
+    private List<String> extractProjectAndRepoFromPath(Path dir) {
+        if (dir.getNameCount() < 2) {
+            throw new IllegalArgumentException(
+                    "Directory path must have at least 2 components : " + dir);
+        }
+        final String project = dir.getName(dir.getNameCount() - 2).toString();
+        final String repo = dir.getName(dir.getNameCount() - 1).toString();
+        return Arrays.asList(project, repo);
+    }
+
+    /**
+     * Extracts the repository name from the directory path.
+     * Uses the last component as repository name.
+     */
+    private String extractRepoNameFromPath(Path dir) {
+        if (dir.getNameCount() < 1) {
+            throw new IllegalArgumentException(
+                    "Directory path must have at least 1 component when repositoryName is null: " + dir);
+        }
+        return dir.getName(dir.getNameCount() - 1).toString();
     }
 }
