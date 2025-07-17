@@ -225,7 +225,6 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
         stop = true;
         final XdsEndpointService xdsEndpointService = this.xdsEndpointService;
         if (xdsEndpointService != null) {
-            System.err.println(xdsEndpointService.batchUpdateTaskSize());
             if (xdsEndpointService.batchUpdateTaskSize() > 0) {
                 logger.info("Waiting for {} xDS endpoint batch update tasks to finish up to 5 seconds...",
                             xdsEndpointService.batchUpdateTaskSize());
@@ -241,7 +240,6 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                     }
                 }
             }
-            System.err.println(xdsEndpointService.batchUpdateTaskSize());
         }
 
         final boolean interrupted = terminate(controlPlaneExecutor);
