@@ -15,6 +15,9 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb;
 
+import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.NONCE_SIZE_BYTES;
+import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.aesSecretKey;
+import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.decrypt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -66,7 +69,6 @@ class EncryptionGitStorageTest {
 
     // Test Data
     private static final ObjectId OBJECT_ID = ObjectId.fromString(Strings.repeat("a", 40));
-    private static final ObjectId OBJECT_ID2 = ObjectId.fromString(Strings.repeat("b", 40));
     private static final byte[] OBJ_DATA = "Object Data 1".getBytes(StandardCharsets.UTF_8);
     private static final Revision REV_1 = new Revision(1);
 
@@ -110,19 +112,25 @@ class EncryptionGitStorageTest {
         final byte[] expectedMetadataKey = storage.objectMetadataKey(OBJECT_ID);
         assertThat(metadataKeyCaptor.getValue()).isEqualTo(expectedMetadataKey);
 
-        // Verify Metadata Entry Value (Nonce + Type)
+        // Verify Metadata Entry Value (Nonce + Type + object WDEK)
         final byte[] actualMetadataValue = metadataValueCaptor.getValue();
-        assertThat(actualMetadataValue.length).isEqualTo(AesGcmSivCipher.NONCE_SIZE_BYTES + 4);
+        assertThat(actualMetadataValue.length).isEqualTo(
+                NONCE_SIZE_BYTES + 4 + 48); // 32 for key 16 for tag
         final byte[] capturedNonce =
-                Arrays.copyOfRange(actualMetadataValue, 0, AesGcmSivCipher.NONCE_SIZE_BYTES);
-        final int capturedType = ByteBuffer.wrap(actualMetadataValue, AesGcmSivCipher.NONCE_SIZE_BYTES, 4)
+                Arrays.copyOfRange(actualMetadataValue, 0, NONCE_SIZE_BYTES);
+        final int capturedType = ByteBuffer.wrap(actualMetadataValue, NONCE_SIZE_BYTES, 4)
                                            .getInt();
         assertThat(capturedType).isEqualTo(Constants.OBJ_BLOB);
 
-        final byte[] expectedEncryptedDataKey = encryptObjectIdWithDek(capturedNonce, OBJECT_ID);
+        final byte[] objectWdek =
+                Arrays.copyOfRange(actualMetadataValue, NONCE_SIZE_BYTES + 4, actualMetadataValue.length);
+        final byte[] objectDek = decrypt(DEK, capturedNonce, objectWdek);
+        final SecretKeySpec key = aesSecretKey(objectDek);
+
+        final byte[] expectedEncryptedDataKey = encryptObjectId(key, capturedNonce, OBJECT_ID);
         assertThat(dataKeyCaptor.getValue()).isEqualTo(expectedEncryptedDataKey);
 
-        final byte[] expectedEncryptedDataValue = encryptWithDek(capturedNonce, OBJ_DATA);
+        final byte[] expectedEncryptedDataValue = encrypt(key, capturedNonce, OBJ_DATA);
         assertThat(dataValueCaptor.getValue()).isEqualTo(expectedEncryptedDataValue);
     }
 
@@ -149,10 +157,14 @@ class EncryptionGitStorageTest {
                 .getObject(argThat(key -> !Arrays.equals(key, metadataKey)), any());
 
         final byte[] nonce = AesGcmSivCipher.generateNonce();
-        final byte[] metadataValue = ByteBuffer.allocate(AesGcmSivCipher.NONCE_SIZE_BYTES + 4)
-                                               .put(nonce).putInt(Constants.OBJ_COMMIT).array();
-        final byte[] encryptedObjKey = encryptObjectIdWithDek(nonce, OBJECT_ID);
-        final byte[] encryptedObjValue = encryptWithDek(nonce, OBJ_DATA);
+        final byte[] objectDek = AesGcmSivCipher.generateAes256Key();
+        final byte[] objectWdek = encryptWithDek(nonce, objectDek);
+        final byte[] metadataValue = ByteBuffer.allocate(NONCE_SIZE_BYTES + 4 + 48)
+                                               .put(nonce).putInt(Constants.OBJ_COMMIT).put(objectWdek)
+                                               .array();
+        final SecretKeySpec key = aesSecretKey(objectDek);
+        final byte[] encryptedObjKey = encryptObjectId(key, nonce, OBJECT_ID);
+        final byte[] encryptedObjValue = encrypt(key, nonce, OBJ_DATA);
 
         when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadataValue);
         when(encryptionStorageManager.getObject(encryptedObjKey, metadataKey)).thenReturn(encryptedObjValue);
@@ -175,8 +187,11 @@ class EncryptionGitStorageTest {
         final int wrongTypeHint = Constants.OBJ_COMMIT;
         final byte[] nonce = AesGcmSivCipher.generateNonce();
         final byte[] metadataKey = storage.objectMetadataKey(OBJECT_ID);
-        final byte[] metadataValue = ByteBuffer.allocate(AesGcmSivCipher.NONCE_SIZE_BYTES + 4)
-                                               .put(nonce).putInt(actualType).array();
+        final byte[] objectDek = AesGcmSivCipher.generateAes256Key();
+        final byte[] objectWdek = encryptWithDek(nonce, objectDek);
+        final byte[] metadataValue = ByteBuffer.allocate(NONCE_SIZE_BYTES + 4 + 48)
+                                               .put(nonce).putInt(actualType).put(objectWdek)
+                                               .array();
 
         when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadataValue);
 
@@ -193,9 +208,13 @@ class EncryptionGitStorageTest {
         final int type = Constants.OBJ_BLOB;
         final byte[] nonce = AesGcmSivCipher.generateNonce();
         final byte[] metadataKey = storage.objectMetadataKey(OBJECT_ID);
-        final byte[] metadataValue = ByteBuffer.allocate(AesGcmSivCipher.NONCE_SIZE_BYTES + 4)
-                                               .put(nonce).putInt(type).array();
-        final byte[] encryptedObjKey = encryptObjectIdWithDek(nonce, OBJECT_ID);
+        final byte[] objectDek = AesGcmSivCipher.generateAes256Key();
+        final byte[] objectWdek = encryptWithDek(nonce, objectDek);
+        final byte[] metadataValue = ByteBuffer.allocate(NONCE_SIZE_BYTES + 4 + 48)
+                                               .put(nonce).putInt(type).put(objectWdek)
+                                               .array();
+        final SecretKeySpec key = aesSecretKey(objectDek);
+        final byte[] encryptedObjKey = encryptObjectId(key, nonce, OBJECT_ID);
         // Simulate corrupted data that will cause decrypt to fail
         final byte[] corruptedEncryptedValue = "corrupted data".getBytes();
 
@@ -295,7 +314,7 @@ class EncryptionGitStorageTest {
         final byte[] expectedMetadataKey = refMetadataKey(HEAD_MASTER_REF);
         assertThat(metaKeyCaptor.getValue()).isEqualTo(expectedMetadataKey);
         final byte[] capturedNonce = nonceCaptor.getValue();
-        assertThat(capturedNonce).hasSize(AesGcmSivCipher.NONCE_SIZE_BYTES);
+        assertThat(capturedNonce).hasSize(NONCE_SIZE_BYTES);
 
         final byte[] expectedEncryptedRefNameKey = encryptStringWithDek(capturedNonce, HEAD_MASTER_REF);
         assertThat(refNameKeyCaptor.getValue()).isEqualTo(expectedEncryptedRefNameKey);
@@ -314,7 +333,7 @@ class EncryptionGitStorageTest {
 
         assertThat(metaKeyCaptor.getValue()).isEqualTo(expectedMetadataKey);
         final byte[] capturedNonce2 = nonceCaptor.getValue();
-        assertThat(capturedNonce2).hasSize(AesGcmSivCipher.NONCE_SIZE_BYTES);
+        assertThat(capturedNonce2).hasSize(NONCE_SIZE_BYTES);
 
         final byte[] expectedEncryptedRefNameKey2 = encryptStringWithDek(capturedNonce2, HEAD_MASTER_REF);
         assertThat(refNameKeyCaptor.getValue()).isEqualTo(expectedEncryptedRefNameKey2);
@@ -364,7 +383,7 @@ class EncryptionGitStorageTest {
         final byte[] expectedMetadataKey = refMetadataKey(Constants.HEAD);
         assertThat(metaKeyCaptor.getValue()).isEqualTo(expectedMetadataKey);
         final byte[] capturedNonce = nonceCaptor.getValue();
-        assertThat(capturedNonce).hasSize(AesGcmSivCipher.NONCE_SIZE_BYTES);
+        assertThat(capturedNonce).hasSize(NONCE_SIZE_BYTES);
 
         final byte[] expectedEncryptedRefNameKey = encryptStringWithDek(capturedNonce, Constants.HEAD);
         assertThat(refNameKeyCaptor.getValue()).isEqualTo(expectedEncryptedRefNameKey);
@@ -444,7 +463,7 @@ class EncryptionGitStorageTest {
         // Verify Metadata
         assertThat(metaKeyCaptor.getValue()).isEqualTo(metadataKey);
         final byte[] capturedNonce = nonceCaptor.getValue();
-        assertThat(capturedNonce).hasSize(AesGcmSivCipher.NONCE_SIZE_BYTES);
+        assertThat(capturedNonce).hasSize(NONCE_SIZE_BYTES);
 
         // Verify Encrypted Revision/ID Entry
         final byte[] expectedEncryptedRevKey = encryptWithDek(capturedNonce, revisionBytes(REV_1));
@@ -477,17 +496,25 @@ class EncryptionGitStorageTest {
     }
 
     private static byte[] encryptWithDek(byte[] nonce, byte[] data) {
+        return encrypt(DEK, nonce, data);
+    }
+
+    private static byte[] encrypt(SecretKey key, byte[] nonce, byte[] data) {
         try {
-            return AesGcmSivCipher.encrypt(DEK, nonce, data, 0, data.length);
+            return AesGcmSivCipher.encrypt(key, nonce, data, 0, data.length);
         } catch (Exception e) {
             throw new RuntimeException("Encryption failed in test helper", e);
         }
     }
 
     private static byte[] encryptObjectIdWithDek(byte[] nonce, ObjectId id) {
+        return encryptObjectId(DEK, nonce, id);
+    }
+
+    private static byte[] encryptObjectId(SecretKey key, byte[] nonce, ObjectId id) {
         final byte[] idBytes = new byte[20];
         id.copyRawTo(idBytes, 0);
-        return encryptWithDek(nonce, idBytes);
+        return encrypt(key, nonce, idBytes);
     }
 
     private static byte[] encryptStringWithDek(byte[] nonce, String str) {
