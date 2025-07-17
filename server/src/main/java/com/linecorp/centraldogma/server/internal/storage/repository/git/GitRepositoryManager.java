@@ -29,7 +29,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
@@ -48,6 +52,8 @@ import com.google.common.annotations.VisibleForTesting;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
@@ -68,7 +74,7 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
 
     private static final Logger logger = LoggerFactory.getLogger(GitRepositoryManager.class);
 
-    private static final String ENCRYPTION_REPO_PLACEHOLDER_FILE = ".encryption-repo-placeholder";
+    private static final String ENCRYPTED_REPO_PLACEHOLDER_FILE = ".encryption-repo-placeholder";
 
     private final Project parent;
     private final Executor repositoryWorker;
@@ -91,6 +97,86 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         return parent;
     }
 
+    private String projectRepositoryName(String name) {
+        return parent.name() + '/' + name;
+    }
+
+    @Override
+    public void migrateToEncryptedRepository(String repositoryName) {
+        logger.info("Starting to migrate the repository '{}' to an encrypted repository.",
+                    projectRepositoryName(repositoryName));
+        final long startTime = System.nanoTime();
+        final Repository oldRepository = get(repositoryName);
+
+        final GitRepository encryptedRepository;
+        final EncryptionStorageManager encryptionStorageManager = encryptionStorageManager();
+        try {
+            encryptedRepository = createEncryptedRepository(parent, oldRepository.repoDir(),
+                                                            oldRepository.author(),
+                                                            oldRepository.creationTimeMillis(),
+                                                            repositoryWorker, cache,
+                                                            encryptionStorageManager);
+        } catch (Throwable t) {
+            throw new StorageException("failed to create the repository while migrating. " +
+                                       "repositoryName: " + projectRepositoryName(repositoryName), t);
+        }
+
+        final Revision headRevision = oldRepository.normalizeNow(Revision.HEAD);
+        Revision baseRevision = null;
+        try {
+            for (int i = 2; i <= headRevision.major(); i++) {
+                baseRevision = new Revision(i - 1);
+                final Revision revision = new Revision(i);
+                final CompletableFuture<List<Commit>> historyFuture =
+                        oldRepository.history(revision, revision, "/**");
+                final CompletableFuture<Map<String, Change<?>>> changesFuture =
+                        oldRepository.diff(baseRevision, revision, "/**");
+                CompletableFuture.allOf(historyFuture, changesFuture).join();
+                final List<Commit> commits = historyFuture.join();
+                assert commits.size() == 1;
+                final Commit commit = commits.get(0);
+                encryptedRepository.commit(baseRevision, commit.when(), commit.author(), commit.summary(),
+                                           changesFuture.join().values()).join();
+            }
+        } catch (Throwable t) {
+            encryptedRepository.internalClose();
+            encryptionStorageManager.deleteRepositoryData(parent.name(), repositoryName);
+            throw new StorageException("failed to migrate the contents of the repository '" +
+                                       projectRepositoryName(repositoryName) + "' to an encrypted repository." +
+                                       " baseRevision: " + baseRevision, t);
+        }
+
+        // Simply create the placeholder file to indicate that this repository is encrypted.
+        // TODO(minwoox): remove the old content of the repository using a plugin.
+        try {
+            Files.createFile(Paths.get(oldRepository.repoDir().getPath(), ENCRYPTED_REPO_PLACEHOLDER_FILE));
+        } catch (IOException e) {
+            encryptedRepository.internalClose();
+            encryptionStorageManager.deleteRepositoryData(parent.name(), repositoryName);
+            throw new StorageException("failed to create the encrypted repository placeholder file at: " +
+                                       oldRepository.repoDir(), e);
+        }
+
+        if (!replaceChild(repositoryName, oldRepository, encryptedRepository)) {
+            encryptedRepository.internalClose();
+            encryptionStorageManager.deleteRepositoryData(parent.name(), repositoryName);
+            try {
+                Files.delete(Paths.get(oldRepository.repoDir().getPath(), ENCRYPTED_REPO_PLACEHOLDER_FILE));
+            } catch (IOException e) {
+                logger.warn("Failed to delete the encrypted repository placeholder file at: {}",
+                            oldRepository.repoDir(), e);
+            }
+            throw new StorageException("failed to replace the old repository with the encrypted repository. " +
+                                       "repositoryName: " + projectRepositoryName(repositoryName));
+        }
+        logger.info("Migrated the repository '{}' to an encrypted repository in {} seconds.",
+                    projectRepositoryName(repositoryName),
+                    TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime));
+        // We didn't add repository listeners to the repository so don't have to add the listener here.
+        ((GitRepository) oldRepository).close(() -> new CentralDogmaException(
+                projectRepositoryName(repositoryName) + " is migrated to an encrypted repository. Try again."));
+    }
+
     @Override
     protected Repository openChild(File childDir) throws Exception {
         requireNonNull(childDir, "childDir");
@@ -103,7 +189,7 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
     }
 
     public static boolean isEncryptedRepository(File dir) {
-        return Files.exists(dir.toPath().resolve(ENCRYPTION_REPO_PLACEHOLDER_FILE));
+        return Files.exists(dir.toPath().resolve(ENCRYPTED_REPO_PLACEHOLDER_FILE));
     }
 
     @VisibleForTesting
@@ -200,28 +286,37 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
             Project parent, File repoDir, Author author, long creationTimeMillis,
             Executor repositoryWorker, @Nullable RepositoryCache cache,
             EncryptionStorageManager encryptionStorageManager) throws IOException {
+        if (!repoDir.mkdirs()) {
+            throw new StorageException(
+                    "failed to create a repository at: " + repoDir + " (exists already)");
+        }
         try {
-            if (!repoDir.mkdirs()) {
-                throw new StorageException(
-                        "failed to create a repository at: " + repoDir + " (exists already)");
-            }
-            Files.createFile(Paths.get(repoDir.getPath(), ENCRYPTION_REPO_PLACEHOLDER_FILE));
-            final EncryptionGitStorage encryptionGitStorage =
-                    new EncryptionGitStorage(parent.name(), repoDir.getName(), encryptionStorageManager);
-            final RocksDbRepository rocksDbRepository = new RocksDbRepository(encryptionGitStorage);
-            // Initialize the master branch.
-            final RefUpdate head = rocksDbRepository.updateRef(Constants.HEAD);
-            head.disableRefLog();
-            head.link(R_HEADS_MASTER);
-            final RocksDbCommitIdDatabase commitIdDatabase =
-                    new RocksDbCommitIdDatabase(encryptionGitStorage, null);
-            return new GitRepository(parent, repoDir, repositoryWorker,
-                                     creationTimeMillis, author, cache,
-                                     rocksDbRepository, commitIdDatabase);
+            Files.createFile(Paths.get(repoDir.getPath(), ENCRYPTED_REPO_PLACEHOLDER_FILE));
+            return createEncryptedRepository(parent, repoDir, author, creationTimeMillis, repositoryWorker,
+                                             cache, encryptionStorageManager);
         } catch (Throwable t) {
             deleteCruft(repoDir);
             throw new StorageException("failed to create a repository at: " + repoDir, t);
         }
+    }
+
+    private static GitRepository createEncryptedRepository(
+            Project parent, File repoDir, Author author,
+            long creationTimeMillis, Executor repositoryWorker,
+            @Nullable RepositoryCache cache,
+            EncryptionStorageManager encryptionStorageManager) throws IOException {
+        final EncryptionGitStorage encryptionGitStorage =
+                new EncryptionGitStorage(parent.name(), repoDir.getName(), encryptionStorageManager);
+        final RocksDbRepository rocksDbRepository = new RocksDbRepository(encryptionGitStorage);
+        // Initialize the master branch.
+        final RefUpdate head = rocksDbRepository.updateRef(Constants.HEAD);
+        head.disableRefLog();
+        head.link(R_HEADS_MASTER);
+        final RocksDbCommitIdDatabase commitIdDatabase =
+                new RocksDbCommitIdDatabase(encryptionGitStorage, null);
+        return new GitRepository(parent, repoDir, repositoryWorker,
+                                 creationTimeMillis, author, cache,
+                                 rocksDbRepository, commitIdDatabase);
     }
 
     @VisibleForTesting

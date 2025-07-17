@@ -246,7 +246,8 @@ public class CentralDogma implements AutoCloseable {
     private final PluginGroup pluginsForZoneLeaderOnly;
 
     private final CentralDogmaConfig cfg;
-    private final EncryptionStorageManager encryptionStorageManager;
+    @Nullable
+    private volatile EncryptionStorageManager encryptionStorageManager;
     @Nullable
     private volatile ProjectManager pm;
     @Nullable
@@ -273,7 +274,6 @@ public class CentralDogma implements AutoCloseable {
 
     CentralDogma(CentralDogmaConfig cfg, MeterRegistry meterRegistry, List<Plugin> plugins) {
         this.cfg = requireNonNull(cfg, "cfg");
-        encryptionStorageManager = EncryptionStorageManager.of(cfg);
         pluginGroups = PluginGroup.loadPlugins(CentralDogma.class.getClassLoader(), cfg, plugins);
         pluginsForAllReplicas = pluginGroups.get(PluginTarget.ALL_REPLICAS);
         pluginsForLeaderOnly = pluginGroups.get(PluginTarget.LEADER_ONLY);
@@ -404,6 +404,7 @@ public class CentralDogma implements AutoCloseable {
         boolean success = false;
         ExecutorService repositoryWorker = null;
         ScheduledExecutorService purgeWorker = null;
+        EncryptionStorageManager encryptionStorageManager = null;
         ProjectManager pm = null;
         CommandExecutor executor = null;
         Server server = null;
@@ -425,6 +426,8 @@ public class CentralDogma implements AutoCloseable {
             purgeWorker = Executors.newSingleThreadScheduledExecutor(
                     new DefaultThreadFactory("purge-worker", true));
 
+            encryptionStorageManager = EncryptionStorageManager.of(cfg);
+
             pm = new DefaultProjectManager(cfg.dataDir(), repositoryWorker, purgeWorker,
                                            meterRegistry, cfg.repositoryCacheSpec(), encryptionStorageManager);
 
@@ -436,7 +439,7 @@ public class CentralDogma implements AutoCloseable {
 
             logger.info("Starting the command executor ..");
             executor = startCommandExecutor(pm, repositoryWorker, purgeWorker,
-                                            meterRegistry, sessionManager);
+                                            meterRegistry, sessionManager, encryptionStorageManager);
             // The projectInitializer is set in startCommandExecutor.
             assert projectInitializer != null;
             if (executor.isWritable()) {
@@ -445,7 +448,7 @@ public class CentralDogma implements AutoCloseable {
 
             logger.info("Starting the RPC server.");
             server = startServer(pm, executor, purgeWorker, meterRegistry, sessionManager,
-                                 projectInitializer);
+                                 projectInitializer, encryptionStorageManager);
             logger.info("Started the RPC server at: {}", server.activePorts());
             logger.info("Started the Central Dogma successfully.");
             success = true;
@@ -453,12 +456,14 @@ public class CentralDogma implements AutoCloseable {
             if (success) {
                 this.repositoryWorker = repositoryWorker;
                 this.purgeWorker = purgeWorker;
+                this.encryptionStorageManager = encryptionStorageManager;
                 this.pm = pm;
                 this.executor = executor;
                 this.server = server;
                 this.sessionManager = sessionManager;
             } else {
-                doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager, mirrorRunner);
+                doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager, mirrorRunner,
+                       encryptionStorageManager);
             }
         }
         return success;
@@ -467,7 +472,7 @@ public class CentralDogma implements AutoCloseable {
     private CommandExecutor startCommandExecutor(
             ProjectManager pm, Executor repositoryWorker,
             ScheduledExecutorService purgeWorker, MeterRegistry meterRegistry,
-            @Nullable SessionManager sessionManager) {
+            @Nullable SessionManager sessionManager, EncryptionStorageManager encryptionStorageManager) {
 
         final Consumer<CommandExecutor> onTakeLeadership = exec -> {
             if (pluginsForLeaderOnly != null) {
@@ -647,7 +652,8 @@ public class CentralDogma implements AutoCloseable {
     private Server startServer(ProjectManager pm, CommandExecutor executor,
                                ScheduledExecutorService purgeWorker, MeterRegistry meterRegistry,
                                @Nullable SessionManager sessionManager,
-                               InternalProjectInitializer projectInitializer) {
+                               InternalProjectInitializer projectInitializer,
+                               EncryptionStorageManager encryptionStorageManager) {
         final ServerBuilder sb = Server.builder();
         cfg.ports().forEach(sb::port);
 
@@ -718,7 +724,7 @@ public class CentralDogma implements AutoCloseable {
         final Function<? super HttpService, AuthService> authService =
                 authService(mds, authProvider, sessionManager);
         configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, authService,
-                         meterRegistry);
+                         meterRegistry, encryptionStorageManager);
 
         configureMetrics(sb, meterRegistry);
         // Add the CORS service as the last decorator(executed first) so that the CORS service is applied
@@ -880,7 +886,8 @@ public class CentralDogma implements AutoCloseable {
                                   WatchService watchService, MetadataService mds,
                                   @Nullable AuthProvider authProvider,
                                   Function<? super HttpService, AuthService> authService,
-                                  MeterRegistry meterRegistry) {
+                                  MeterRegistry meterRegistry,
+                                  EncryptionStorageManager encryptionStorageManager) {
         final DependencyInjector dependencyInjector = DependencyInjector.ofSingletons(
                 // Use the default ObjectMapper without any configuration.
                 // See JacksonRequestConverterFunctionTest
@@ -1122,6 +1129,7 @@ public class CentralDogma implements AutoCloseable {
         final Server server = this.server;
         final CommandExecutor executor = this.executor;
         final ProjectManager pm = this.pm;
+        final EncryptionStorageManager encryptionStorageManager = this.encryptionStorageManager;
         final ExecutorService repositoryWorker = this.repositoryWorker;
         final ExecutorService purgeWorker = this.purgeWorker;
         final SessionManager sessionManager = this.sessionManager;
@@ -1129,6 +1137,7 @@ public class CentralDogma implements AutoCloseable {
 
         this.server = null;
         this.executor = null;
+        this.encryptionStorageManager = null;
         this.pm = null;
         this.repositoryWorker = null;
         this.sessionManager = null;
@@ -1141,7 +1150,8 @@ public class CentralDogma implements AutoCloseable {
         }
 
         logger.info("Stopping the Central Dogma ..");
-        if (!doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager, mirrorRunner)) {
+        if (!doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager, mirrorRunner,
+                    encryptionStorageManager)) {
             logger.warn("Stopped the Central Dogma with failure.");
         } else {
             logger.info("Stopped the Central Dogma successfully.");
@@ -1152,7 +1162,8 @@ public class CentralDogma implements AutoCloseable {
             @Nullable Server server, @Nullable CommandExecutor executor,
             @Nullable ProjectManager pm,
             @Nullable ExecutorService repositoryWorker, @Nullable ExecutorService purgeWorker,
-            @Nullable SessionManager sessionManager, @Nullable MirrorRunner mirrorRunner) {
+            @Nullable SessionManager sessionManager, @Nullable MirrorRunner mirrorRunner,
+            @Nullable EncryptionStorageManager encryptionStorageManager) {
 
         boolean success = true;
 
@@ -1199,6 +1210,17 @@ public class CentralDogma implements AutoCloseable {
         } catch (Throwable t) {
             success = false;
             logger.warn("Failed to stop the command executor:", t);
+        }
+
+        try {
+            if (encryptionStorageManager != null) {
+                logger.info("Stopping the encryption storage manager ..");
+                encryptionStorageManager.close();
+                logger.info("Stopped the encryption storage manager.");
+            }
+        } catch (Throwable t) {
+            success = false;
+            logger.warn("Failed to stop the encryption storage manager:", t);
         }
 
         final BiFunction<ExecutorService, String, Boolean> stopWorker = (worker, name) -> {

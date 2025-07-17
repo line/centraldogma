@@ -96,6 +96,7 @@ import com.linecorp.centraldogma.server.command.ContentTransformer;
 import com.linecorp.centraldogma.server.internal.IsolatedSystemReader;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.Watch.WatchListener;
+import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.RocksDbRepository;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.CacheableCall;
@@ -158,8 +159,10 @@ class GitRepository implements Repository {
     @VisibleForTesting
     @Nullable
     final RepositoryCache cache;
+    private final File repoDir;
     private final String name;
     private final org.eclipse.jgit.lib.Repository jGitRepository;
+    private final boolean isEncrypted;
     private final CommitIdDatabase commitIdDatabase;
     @VisibleForTesting
     final CommitWatchers commitWatchers = new CommitWatchers();
@@ -179,12 +182,14 @@ class GitRepository implements Repository {
                   long creationTimeMillis, Author author, @Nullable RepositoryCache cache,
                   org.eclipse.jgit.lib.Repository jGitRepository, CommitIdDatabase commitIdDatabase) {
         this.parent = parent;
+        this.repoDir = repoDir;
         name = repoDir.getName();
         this.repositoryWorker = repositoryWorker;
         this.creationTimeMillis = creationTimeMillis;
         this.author = author;
         this.cache = cache;
         this.jGitRepository = jGitRepository;
+        isEncrypted = jGitRepository instanceof RocksDbRepository;
         this.commitIdDatabase = commitIdDatabase;
         new CommitExecutor(this, creationTimeMillis, author, "Create a new repository", "",
                            Markup.PLAINTEXT, true)
@@ -200,10 +205,12 @@ class GitRepository implements Repository {
                   org.eclipse.jgit.lib.Repository jGitRepository, CommitIdDatabase commitIdDatabase,
                   Revision headRevision) {
         this.parent = requireNonNull(parent, "parent");
+        this.repoDir = requireNonNull(repoDir, "repoDir");
         name = requireNonNull(repoDir, "repoDir").getName();
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.cache = cache;
         this.jGitRepository = requireNonNull(jGitRepository, "jGitRepository");
+        isEncrypted = jGitRepository instanceof RocksDbRepository;
         this.commitIdDatabase = requireNonNull(commitIdDatabase, "commitIdDatabase");
         this.headRevision = requireNonNull(headRevision, "headRevision");
         final Commit initialCommit = blockingHistory(Revision.INIT, Revision.INIT, ALL_PATH, 1).get(0);
@@ -274,6 +281,11 @@ class GitRepository implements Repository {
     @Override
     public Project parent() {
         return parent;
+    }
+
+    @Override
+    public File repoDir() {
+        return repoDir;
     }
 
     @Override
@@ -1106,6 +1118,11 @@ class GitRepository implements Repository {
         } catch (IOException e) {
             logger.error("Failed to delete a half-created repository at: {}", repoDir, e);
         }
+    }
+
+    @Override
+    public boolean isEncrypted() {
+        return isEncrypted;
     }
 
     @Override

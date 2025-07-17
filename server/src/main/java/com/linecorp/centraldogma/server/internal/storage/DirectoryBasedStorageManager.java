@@ -161,6 +161,10 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         }
     }
 
+    protected boolean replaceChild(String name, T oldChild, T newChild) {
+        return children.replace(name, oldChild, newChild);
+    }
+
     protected abstract T openChild(File childDir) throws Exception;
 
     protected abstract T createChild(

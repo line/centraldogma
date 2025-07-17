@@ -22,6 +22,7 @@ import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.throwUns
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITH_CONTENT;
 import static java.util.Objects.requireNonNull;
 
+import java.io.File;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -296,6 +297,11 @@ final class CachingRepository implements Repository {
     }
 
     @Override
+    public File repoDir() {
+        return repo.repoDir();
+    }
+
+    @Override
     public String name() {
         return repo.name();
     }
@@ -331,6 +337,11 @@ final class CachingRepository implements Repository {
                                                   String summary, String detail, Markup markup,
                                                   ContentTransformer<?> transformer) {
         return repo.commit(baseRevision, commitTimeMillis, author, summary, detail, markup, transformer);
+    }
+
+    @Override
+    public boolean isEncrypted() {
+        return repo.isEncrypted();
     }
 
     @Override
