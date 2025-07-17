@@ -22,6 +22,7 @@ import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.RESOURCE_ID_PATTERN_STRING;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.removePrefix;
 
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,9 +49,10 @@ public final class XdsEndpointService extends XdsEndpointServiceImplBase {
     /**
      * Creates a new instance.
      */
-    public XdsEndpointService(XdsResourceManager xdsResourceManager) {
+    public XdsEndpointService(XdsResourceManager xdsResourceManager,
+                              ScheduledExecutorService controlPlaneExecutor) {
         this.xdsResourceManager = xdsResourceManager;
-        xdsEndpointUpdateScheduler = new XdsEndpointUpdateScheduler(xdsResourceManager);
+        xdsEndpointUpdateScheduler = new XdsEndpointUpdateScheduler(xdsResourceManager, controlPlaneExecutor);
     }
 
     @Override

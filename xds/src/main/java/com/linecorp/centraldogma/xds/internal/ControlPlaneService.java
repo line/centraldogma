@@ -110,7 +110,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                                    .build();
         pluginInitContext.serverBuilder().route().build(grpcService);
         final XdsResourceManager xdsResourceManager = new XdsResourceManager(xdsProject(), commandExecutor);
-        xdsEndpointService = new XdsEndpointService(xdsResourceManager);
+        xdsEndpointService = new XdsEndpointService(xdsResourceManager, controlPlaneExecutor);
         final GrpcService xdsApplicationService =
                 GrpcService.builder()
                            .addService(new XdsGroupService(pluginInitContext.projectManager(),

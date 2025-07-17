@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -41,7 +40,6 @@ import com.google.protobuf.Empty;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.SafeCloseable;
-import com.linecorp.armeria.common.util.ThreadFactories;
 import com.linecorp.armeria.internal.common.RequestContextUtil;
 import com.linecorp.armeria.internal.common.util.ReentrantShortLock;
 import com.linecorp.centraldogma.common.Author;
@@ -68,15 +66,15 @@ import io.grpc.stub.StreamObserver;
 
 final class XdsEndpointUpdateScheduler {
 
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
-            ThreadFactories.newThreadFactory("xds-endpoint-update-scheduler", true));
-
     private final XdsResourceManager xdsResourceManager;
+    private final ScheduledExecutorService scheduler;
 
     private final ConcurrentMap<String, BatchUpdateTask> batchUpdateTasks = new ConcurrentHashMap<>();
 
-    XdsEndpointUpdateScheduler(XdsResourceManager xdsResourceManager) {
+    XdsEndpointUpdateScheduler(XdsResourceManager xdsResourceManager,
+                               ScheduledExecutorService scheduler) {
         this.xdsResourceManager = xdsResourceManager;
+        this.scheduler = scheduler;
     }
 
     int batchUpdateTaskSize() {
