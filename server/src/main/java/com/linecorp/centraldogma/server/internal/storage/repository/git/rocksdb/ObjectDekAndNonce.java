@@ -28,7 +28,11 @@ public final class ObjectDekAndNonce {
 
     public static ObjectDekAndNonce extract(byte[] metadata, SecretKey dek) throws Exception {
         // metadata: key version(4) + Nonce(12) + type(4) + objectWdek(48)
-        assert metadata.length == 4 + NONCE_SIZE_BYTES + 4 + KEY_SIZE_BYTES + 16;
+        if (metadata.length != 4 + NONCE_SIZE_BYTES + 4 + KEY_SIZE_BYTES + 16) {
+            throw new IllegalArgumentException("Invalid metadata length: expected " +
+                                               (4 + NONCE_SIZE_BYTES + 4 + KEY_SIZE_BYTES + 16) +
+                                               ", got " + metadata.length);
+        }
         final byte[] nonce = new byte[NONCE_SIZE_BYTES];
 
         System.arraycopy(metadata, 4, nonce, 0, NONCE_SIZE_BYTES);

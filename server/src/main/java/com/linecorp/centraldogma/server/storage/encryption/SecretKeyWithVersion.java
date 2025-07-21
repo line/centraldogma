@@ -15,6 +15,9 @@
  */
 package com.linecorp.centraldogma.server.storage.encryption;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.requireNonNull;
+
 import javax.crypto.SecretKey;
 
 import com.google.common.base.MoreObjects;
@@ -31,7 +34,8 @@ public final class SecretKeyWithVersion {
      * Creates a new instance of {@link SecretKeyWithVersion}.
      */
     public SecretKeyWithVersion(SecretKey secretKey, int version) {
-        this.secretKey = secretKey;
+        this.secretKey = requireNonNull(secretKey, "secretKey");
+        checkArgument(version >= 1, "version: %s (expected: >= 1)", version);
         this.version = version;
     }
 
