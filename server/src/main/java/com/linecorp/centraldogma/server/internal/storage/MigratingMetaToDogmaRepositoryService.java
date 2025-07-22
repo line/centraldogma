@@ -32,6 +32,7 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.internal.common.util.ReentrantShortLock;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
@@ -64,6 +65,9 @@ public final class MigratingMetaToDogmaRepositoryService {
     private final CommandExecutor commandExecutor;
     private final MetadataService metadataService;
 
+    private volatile State state = State.NOT_STARTED;
+    private final ReentrantShortLock lock = new ReentrantShortLock();
+
     MigratingMetaToDogmaRepositoryService(ProjectManager projectManager, CommandExecutor commandExecutor,
                                           InternalProjectInitializer internalProjectInitializer) {
         this.projectManager = projectManager;
@@ -80,6 +84,22 @@ public final class MigratingMetaToDogmaRepositoryService {
     }
 
     void migrate() throws Exception {
+        lock.lock();
+        try {
+            if (state == State.STARTED) {
+                logger.info("Migration job is already running. Skipping the migration.");
+                return;
+            }
+            if (state == State.STOPPED) {
+                logger.info("Migration job has been stopped. Skipping the migration.");
+                return;
+            }
+
+            state = State.STARTED;
+        } finally {
+            lock.unlock();
+        }
+
         logger.info("Starting to migrate meta repository to dogma repository of all projects ...");
         final Stopwatch stopwatch = Stopwatch.createStarted();
         int numMigratedProjects = migrate0(true);
@@ -92,6 +112,7 @@ public final class MigratingMetaToDogmaRepositoryService {
         numMigratedProjects = migrate0(false);
         logger.info("Migrating meta repository to dogma repository of {} projects has been completed.",
                     numMigratedProjects);
+        state = State.STOPPED;
     }
 
     private int migrate0(boolean logSkippedProject) throws Exception {
@@ -176,5 +197,25 @@ public final class MigratingMetaToDogmaRepositoryService {
     private void executeCommand(Command<CommitResult> command)
             throws InterruptedException, ExecutionException, TimeoutException {
         commandExecutor.execute(command).get(1, TimeUnit.MINUTES);
+    }
+
+    boolean tryStop() {
+        lock.lock();
+        try {
+            if (state == State.NOT_STARTED) {
+                state = State.STOPPED;
+                return true;
+            }
+
+            return state == State.STOPPED;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private enum State {
+        NOT_STARTED,
+        STARTED,
+        STOPPED
     }
 }
