@@ -65,7 +65,7 @@ public final class MigratingMetaToDogmaRepositoryService {
     private final CommandExecutor commandExecutor;
     private final MetadataService metadataService;
 
-    private volatile State state = State.NOT_STARTED;
+    private State state = State.NOT_STARTED;
     private final ReentrantShortLock lock = new ReentrantShortLock();
 
     MigratingMetaToDogmaRepositoryService(ProjectManager projectManager, CommandExecutor commandExecutor,
@@ -112,7 +112,12 @@ public final class MigratingMetaToDogmaRepositoryService {
         numMigratedProjects = migrate0(false);
         logger.info("Migrating meta repository to dogma repository of {} projects has been completed.",
                     numMigratedProjects);
-        state = State.STOPPED;
+        lock.lock();
+        try {
+            state = State.STOPPED;
+        } finally {
+            lock.unlock();
+        }
     }
 
     private int migrate0(boolean logSkippedProject) throws Exception {

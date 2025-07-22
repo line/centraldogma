@@ -92,7 +92,7 @@ public final class MigratingMetaToDogmaRepositoryServicePlugin implements Plugin
                                 "to finish up to 10 seconds...");
                     for (int i = 0; i < 10; i++) {
                         try {
-                            if (migratingMetaToDogmaRepositoryService.hasMigrationLog()) {
+                            if (migratingMetaToDogmaRepositoryService.tryStop()) {
                                 break;
                             }
                             Thread.sleep(1000);
