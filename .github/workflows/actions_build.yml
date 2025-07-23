@@ -118,7 +118,7 @@ jobs:
 
     - name: Dump stuck threads
       if: always()
-      run: jps | grep -vi "jps" | awk '{ print $1 }' | xargs -I'{}' jstack -l {} || true
+      run: jps | grep -iv "jps" | grep -v 'Daemon' | awk '{ print $1 }' | xargs -I'{}' jstack -l {} || true
       shell: bash
 
     - name: Upload coverage to Codecov
