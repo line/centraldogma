@@ -165,15 +165,33 @@ tasks.assemble.dependsOn(tasks.tarball)
 
 // Tasks for building docker image
 task docker(group: 'Build',
-            description: "Builds a docker image from the distribution directory (${project.ext.relativeDistDir})",
+            description: "Builds multiplatform docker image from the distribution directory" +
+                    " (${project.ext.relativeDistDir})",
             dependsOn: tasks.distDir,
-            type: DockerBuildImage) {
-    inputDir = file('.')
-    def name = 'ghcr.io/line/centraldogma:'
-    images = [name + "${project.version}"]
+            type: Exec) {
+
+    workingDir = file('.')
+    executable 'docker'
+
+    def imageName = 'ghcr.io/line/centraldogma'
+    def imageVersion = project.hasProperty('version') ? project.project('version') : project.version
+    def platforms = ['linux/amd64', 'linux/arm64']
+
+    def buildArgs = [
+        'buildx', 'build',
+        '--platform', platforms.join(','),
+        '--push'
+    ]
+
+    buildArgs.add("--tag")
+    buildArgs.add("${imageName}:${imageVersion}")
     if (!(project.version =~ /-SNAPSHOT$/)) {
-        images.add(name + "latest")
+        buildArgs.add("--tag")
+        buildArgs.add("${imageName}:latest")
     }
+    buildArgs.add('.')
+
+    args = buildArgs
 }
 
 // Tasks for running Central Dogma conveniently.
