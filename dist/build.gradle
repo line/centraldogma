@@ -174,7 +174,7 @@ task docker(group: 'Build',
     executable 'docker'
 
     def imageName = 'ghcr.io/line/centraldogma'
-    def imageVersion = project.hasProperty('version') ? project.project('version') : project.version
+    def imageVersion = project.hasProperty('version') ? project.getProperty('version') : project.version
     def platforms = ['linux/amd64', 'linux/arm64']
 
     def buildArgs = [
