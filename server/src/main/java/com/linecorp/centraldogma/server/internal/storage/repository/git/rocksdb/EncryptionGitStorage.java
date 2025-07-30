@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb
 import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.KEY_SIZE_BYTES;
 import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.NONCE_SIZE_BYTES;
 import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.aesSecretKey;
+import static com.linecorp.centraldogma.server.internal.storage.encryption.EncryptionUtil.getInt;
+import static com.linecorp.centraldogma.server.internal.storage.encryption.EncryptionUtil.putInt;
 import static org.eclipse.jgit.lib.Constants.R_REFS;
 import static org.eclipse.jgit.lib.Constants.encode;
 import static org.eclipse.jgit.lib.ObjectReader.OBJ_ANY;
@@ -115,34 +117,16 @@ public final class EncryptionGitStorage {
 
         assert objectWdek.length == KEY_SIZE_BYTES + 16; // 16 bytes for the tag
 
-        // key version(4) + Nonce(20) + type(4) + objectWdek(48)
-        final byte[] metadata = new byte[4 + NONCE_SIZE_BYTES + 4 + objectWdek.length];
-
-        putInt(metadata, 0, currentDek.version());
-        System.arraycopy(nonce, 0, metadata, 4, NONCE_SIZE_BYTES);
-        putInt(metadata, 4 + NONCE_SIZE_BYTES, type);
-        System.arraycopy(objectWdek, 0, metadata, 4 + NONCE_SIZE_BYTES + 4, objectWdek.length);
+        final GitObjectMetadata gitObjectMetadata = GitObjectMetadata.of(currentDek.version(), nonce, type,
+                                                                         objectWdek);
 
         final SecretKeySpec keySpec = aesSecretKey(objectDek);
 
         final byte[] encryptedId = encryptObjectId(keySpec, nonce, objectId);
         final byte[] encryptedValue = encrypt(keySpec, nonce, data, off, len);
-        encryptionStorageManager.putObject(metadataKey, metadata, encryptedId, encryptedValue);
+        encryptionStorageManager.putObject(metadataKey, gitObjectMetadata.toBytes(),
+                                           encryptedId, encryptedValue);
         return objectId;
-    }
-
-    private static void putInt(byte[] metadata, int offset, int num) {
-        metadata[offset] = (byte) (num >> 24);
-        metadata[offset + 1] = (byte) (num >> 16);
-        metadata[offset + 2] = (byte) (num >> 8);
-        metadata[offset + 3] = (byte) num;
-    }
-
-    private static int getInt(byte[] metadata, int offset) {
-        return ((metadata[offset] & 0xFF) << 24) |
-               ((metadata[offset + 1] & 0xFF) << 16) |
-               ((metadata[offset + 2] & 0xFF) << 8) |
-               (metadata[offset + 3] & 0xFF);
     }
 
     @VisibleForTesting
@@ -193,22 +177,23 @@ public final class EncryptionGitStorage {
         final int keyVersion = getInt(metadata, 0);
         final SecretKey dek = dek(keyVersion);
 
-        final ObjectDekAndNonce objectDekAndNonce;
+        final GitObjectMetadata gitObjectMetadata = GitObjectMetadata.fromBytes(metadata);
+        final SecretKeySpec objectDek;
         try {
-            objectDekAndNonce = ObjectDekAndNonce.extract(metadata, dek);
+            objectDek = gitObjectMetadata.objectDek(dek);
         } catch (Exception e) {
             throw new EncryptionStorageException(
-                    "Failed to decrypt data in " + projectName + '/' + repoName, e);
+                    "Failed to get object dek in " + projectName + '/' + repoName + " for " + objectId, e);
         }
 
-        final byte[] encryptedKey = encryptObjectId(objectDekAndNonce.objectDek(),
-                                                    objectDekAndNonce.nonce(), objectId);
+        final byte[] encryptedKey = encryptObjectId(objectDek,
+                                                    gitObjectMetadata.nonce(), objectId);
         final byte[] value = encryptionStorageManager.getObject(encryptedKey, metadataKey);
         if (value == null) {
             return null;
         }
 
-        final byte[] decrypted = decrypt(objectDekAndNonce.objectDek(), objectDekAndNonce.nonce(), value);
+        final byte[] decrypted = decrypt(objectDek, gitObjectMetadata.nonce(), value);
         return new DecryptedObjectLoader(decrypted, actualType);
     }
 

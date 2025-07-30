@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.BloomFilter;
@@ -59,7 +60,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 
 import com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher;
-import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.ObjectDekAndNonce;
+import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.GitObjectMetadata;
 
 final class DefaultEncryptionStorageManager implements EncryptionStorageManager {
 
@@ -446,16 +447,20 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
                         idPart = Arrays.copyOfRange(metadataKey, objectKeyPrefixBytes.length,
                                                     metadataKey.length);
                         if (metadataValue != null) {
-                            final ObjectDekAndNonce objectDekAndNonce;
+                            final GitObjectMetadata gitObjectMetadata =
+                                    GitObjectMetadata.fromBytes(metadataValue);
+
+                            final SecretKeySpec objectDek;
                             try {
-                                objectDekAndNonce = ObjectDekAndNonce.extract(metadataValue, dek);
+                                objectDek = gitObjectMetadata.objectDek(dek);
                             } catch (Exception e) {
                                 throw new EncryptionStorageException(
-                                        "Failed to decrypt data in " + projectName + '/' + repoName, e);
+                                        "Failed to get object dek for " +
+                                        new String(metadataKey, StandardCharsets.UTF_8), e);
                             }
 
-                            final byte[] key = AesGcmSivCipher.encrypt(objectDekAndNonce.objectDek(),
-                                                                       objectDekAndNonce.nonce(), idPart);
+                            final byte[] key = AesGcmSivCipher.encrypt(objectDek,
+                                                                       gitObjectMetadata.nonce(), idPart);
                             writeBatch.delete(columnFamilyHandlesMap.get(ENCRYPTED_OBJECT_COLUMN_FAMILY), key);
                             operationsInCurrentBatch++;
                             totalDeletedCount++;

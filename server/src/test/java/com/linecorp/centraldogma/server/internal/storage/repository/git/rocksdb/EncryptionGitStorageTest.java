@@ -17,7 +17,6 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb
 
 import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.NONCE_SIZE_BYTES;
 import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.aesSecretKey;
-import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.decrypt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -118,25 +117,17 @@ class EncryptionGitStorageTest {
         final byte[] actualMetadataValue = metadataValueCaptor.getValue();
         assertThat(actualMetadataValue.length).isEqualTo(
                 4 + NONCE_SIZE_BYTES + 4 + 48); // 32 for key 16 for tag
-        final int capturedKeyVersion = ByteBuffer.wrap(actualMetadataValue, 0, 4)
-                                                 .getInt();
-        assertThat(capturedKeyVersion).isEqualTo(1);
-        final int capturedType = ByteBuffer.wrap(actualMetadataValue, 4 + NONCE_SIZE_BYTES, 4)
-                                           .getInt();
-        assertThat(capturedType).isEqualTo(Constants.OBJ_BLOB);
+        final GitObjectMetadata gitObjectMetadata = GitObjectMetadata.fromBytes(actualMetadataValue);
+        assertThat(gitObjectMetadata.keyVersion()).isEqualTo(1);
+        assertThat(gitObjectMetadata.type()).isEqualTo(Constants.OBJ_BLOB);
 
-        final byte[] capturedNonce =
-                Arrays.copyOfRange(actualMetadataValue, 4, 4 + NONCE_SIZE_BYTES);
+        final SecretKeySpec objectDek = gitObjectMetadata.objectDek(DEK);
 
-        final byte[] objectWdek =
-                Arrays.copyOfRange(actualMetadataValue, 4 + NONCE_SIZE_BYTES + 4, actualMetadataValue.length);
-        final byte[] objectDek = decrypt(DEK, capturedNonce, objectWdek);
-        final SecretKeySpec key = aesSecretKey(objectDek);
-
-        final byte[] expectedEncryptedDataKey = encryptObjectId(key, capturedNonce, OBJECT_ID);
+        final byte[] expectedEncryptedDataKey =
+                encryptObjectId(objectDek, gitObjectMetadata.nonce(), OBJECT_ID);
         assertThat(dataKeyCaptor.getValue()).isEqualTo(expectedEncryptedDataKey);
 
-        final byte[] expectedEncryptedDataValue = encrypt(key, capturedNonce, OBJ_DATA);
+        final byte[] expectedEncryptedDataValue = encrypt(objectDek, gitObjectMetadata.nonce(), OBJ_DATA);
         assertThat(dataValueCaptor.getValue()).isEqualTo(expectedEncryptedDataValue);
     }
 
@@ -165,15 +156,13 @@ class EncryptionGitStorageTest {
         final byte[] nonce = AesGcmSivCipher.generateNonce();
         final byte[] objectDek = AesGcmSivCipher.generateAes256Key();
         final byte[] objectWdek = encryptWithDek(nonce, objectDek);
-        final byte[] metadataValue = ByteBuffer.allocate(4 + NONCE_SIZE_BYTES + 4 + 48)
-                                               .putInt(1)
-                                               .put(nonce).putInt(Constants.OBJ_COMMIT).put(objectWdek)
-                                               .array();
+        final GitObjectMetadata gitObjectMetadata =
+                GitObjectMetadata.of(1, nonce, Constants.OBJ_COMMIT, objectWdek);
         final SecretKeySpec key = aesSecretKey(objectDek);
         final byte[] encryptedObjKey = encryptObjectId(key, nonce, OBJECT_ID);
         final byte[] encryptedObjValue = encrypt(key, nonce, OBJ_DATA);
 
-        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadataValue);
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(gitObjectMetadata.toBytes());
         when(encryptionStorageManager.getObject(encryptedObjKey, metadataKey)).thenReturn(encryptedObjValue);
 
         loader = storage.getObject(OBJECT_ID, ObjectReader.OBJ_ANY);
@@ -196,12 +185,9 @@ class EncryptionGitStorageTest {
         final byte[] metadataKey = storage.objectMetadataKey(OBJECT_ID);
         final byte[] objectDek = AesGcmSivCipher.generateAes256Key();
         final byte[] objectWdek = encryptWithDek(nonce, objectDek);
-        final byte[] metadataValue = ByteBuffer.allocate(4 + NONCE_SIZE_BYTES + 4 + 48)
-                                               .putInt(1)
-                                               .put(nonce).putInt(actualType).put(objectWdek)
-                                               .array();
+        final GitObjectMetadata gitObjectMetadata = GitObjectMetadata.of(1, nonce, actualType, objectWdek);
 
-        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadataValue);
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(gitObjectMetadata.toBytes());
 
         assertThatThrownBy(() -> storage.getObject(OBJECT_ID, wrongTypeHint))
                 .isInstanceOf(IncorrectObjectTypeException.class);
@@ -218,16 +204,13 @@ class EncryptionGitStorageTest {
         final byte[] metadataKey = storage.objectMetadataKey(OBJECT_ID);
         final byte[] objectDek = AesGcmSivCipher.generateAes256Key();
         final byte[] objectWdek = encryptWithDek(nonce, objectDek);
-        final byte[] metadataValue = ByteBuffer.allocate(4 + NONCE_SIZE_BYTES + 4 + 48)
-                                               .putInt(1)
-                                               .put(nonce).putInt(type).put(objectWdek)
-                                               .array();
+        final GitObjectMetadata gitObjectMetadata = GitObjectMetadata.of(1, nonce, type, objectWdek);
         final SecretKeySpec key = aesSecretKey(objectDek);
         final byte[] encryptedObjKey = encryptObjectId(key, nonce, OBJECT_ID);
         // Simulate corrupted data that will cause decrypt to fail
         final byte[] corruptedEncryptedValue = "corrupted data".getBytes();
 
-        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(metadataValue);
+        when(encryptionStorageManager.getMetadata(metadataKey)).thenReturn(gitObjectMetadata.toBytes());
         when(encryptionStorageManager.getObject(encryptedObjKey, metadataKey))
                 .thenReturn(corruptedEncryptedValue);
 
