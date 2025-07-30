@@ -34,9 +34,9 @@ public final class GitObjectMetadata {
 
     public static GitObjectMetadata fromBytes(byte[] metadata) {
         // metadata: key version(4) + Nonce(12) + type(4) + objectWdek(48)
-        if (metadata.length != 4 + NONCE_SIZE_BYTES + 4 + KEY_SIZE_BYTES + 16) {
-            throw new IllegalArgumentException("Invalid metadata length: expected " +
-                                               (4 + NONCE_SIZE_BYTES + 4 + KEY_SIZE_BYTES + 16) +
+        final int expectedLength = 4 + NONCE_SIZE_BYTES + 4 + KEY_SIZE_BYTES + 16;
+        if (metadata.length != expectedLength) {
+            throw new IllegalArgumentException("Invalid metadata length: expected " + expectedLength +
                                                ", got " + metadata.length);
         }
         final byte[] nonce = new byte[NONCE_SIZE_BYTES];
@@ -81,7 +81,7 @@ public final class GitObjectMetadata {
     }
 
     public byte[] toBytes() {
-        // key version(4) + Nonce(20) + type(4) + objectWdek(48)
+        // key version(4) + Nonce(12) + type(4) + objectWdek(48)
         final byte[] bytes = new byte[4 + NONCE_SIZE_BYTES + 4 + objectWdek.length];
         int index = 0;
         putInt(bytes, index, keyVersion);
