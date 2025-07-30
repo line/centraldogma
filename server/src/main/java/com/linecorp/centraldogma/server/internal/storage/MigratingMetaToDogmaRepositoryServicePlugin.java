@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.plugin.Plugin;
@@ -39,6 +40,9 @@ public final class MigratingMetaToDogmaRepositoryServicePlugin implements Plugin
 
     private static final Logger logger = LoggerFactory.getLogger(
             MigratingMetaToDogmaRepositoryServicePlugin.class);
+
+    @Nullable
+    private MigratingMetaToDogmaRepositoryService migratingMetaToDogmaRepositoryService;
 
     @Override
     public PluginTarget target(CentralDogmaConfig config) {
@@ -53,6 +57,7 @@ public final class MigratingMetaToDogmaRepositoryServicePlugin implements Plugin
                     new MigratingMetaToDogmaRepositoryService(context.projectManager(),
                                                               context.commandExecutor(),
                                                               context.internalProjectInitializer());
+            this.migratingMetaToDogmaRepositoryService = migratingMetaToDogmaRepositoryService;
 
             if (migratingMetaToDogmaRepositoryService.hasMigrationLog()) {
                 logger.debug("Meta repositories of all projects have already been migrated.");
@@ -78,6 +83,31 @@ public final class MigratingMetaToDogmaRepositoryServicePlugin implements Plugin
 
     @Override
     public synchronized CompletionStage<Void> stop(PluginContext context) {
+        final MigratingMetaToDogmaRepositoryService migratingMetaToDogmaRepositoryService =
+                this.migratingMetaToDogmaRepositoryService;
+        if (migratingMetaToDogmaRepositoryService != null) {
+            try {
+                if (!migratingMetaToDogmaRepositoryService.tryStop()) {
+                    logger.info("Waiting for the migration of meta repositories to dogma repositories " +
+                                "to finish up to 10 seconds...");
+                    for (int i = 0; i < 10; i++) {
+                        try {
+                            if (migratingMetaToDogmaRepositoryService.tryStop()) {
+                                break;
+                            }
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to check if the migration of meta repositories to dogma repositories " +
+                            " is done:", e);
+            }
+            this.migratingMetaToDogmaRepositoryService = null;
+        }
         return UnmodifiableFuture.completedFuture(null);
     }
 
