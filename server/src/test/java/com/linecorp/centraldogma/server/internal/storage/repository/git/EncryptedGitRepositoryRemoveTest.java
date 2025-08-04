@@ -20,12 +20,14 @@ import static com.linecorp.centraldogma.server.internal.storage.repository.git.G
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.eclipse.jgit.lib.Constants.HEAD;
 import static org.eclipse.jgit.lib.ObjectReader.OBJ_ANY;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectLoader;
@@ -33,9 +35,11 @@ import org.eclipse.jgit.lib.Ref;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.EncryptionGitStorage;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.RocksDbRepository;
@@ -92,6 +96,40 @@ final class EncryptedGitRepositoryRemoveTest {
         assertThat(ref.getObjectId()).isEqualTo(revisionObjectId);
         assertThat(ref.getName()).isEqualTo(R_HEADS_MASTER);
 
+        final Ref headRef = encryptionGitStorage.readRef(HEAD);
+        assertThat(headRef).isNotNull();
+        assertThat(headRef.getObjectId()).isEqualTo(revisionObjectId);
+        assertThat(headRef.getName()).isEqualTo(HEAD);
+        assertThat(headRef.getTarget().getObjectId()).isEqualTo(ref.getObjectId());
+
+        int wdekSize = 2; // version 1 and current
+        int encryptionMetadataSize = 5; // The sum of the following:
+        int encryptedObjectIdSize = 3; // refs/heads/master, HEAD, revision 1 number
+        int encryptedObjectSize = 2; // revision 1 tree and commit
+        assertEntrySize(encryptionStorageManager, wdekSize,
+                        encryptionMetadataSize, encryptedObjectIdSize, encryptedObjectSize);
+
+        repo.commit(Revision.INIT, 0, Author.SYSTEM, "Add a file",
+                    ImmutableList.of(Change.ofJsonUpsert("/foo.json", "{\"a:\":\"b\"}"))).join();
+
+        encryptionMetadataSize = 9; // The sum of the following:
+        encryptedObjectIdSize = 4; // refs/heads/master, HEAD, revision 1 number, revision 2 number
+        encryptedObjectSize = 5; // revision 1 tree and commit, revision 2 tree and commit, foo.json
+        assertEntrySize(encryptionStorageManager, wdekSize,
+                        encryptionMetadataSize, encryptedObjectIdSize, encryptedObjectSize);
+
+        // Create another repository.
+        encryptionStorageManager.storeWdek(PROJECT_NAME, "bar2",
+                                           encryptionStorageManager.generateWdek().join());
+        gitRepositoryManager.create("bar2", 0, Author.SYSTEM, true);
+
+        wdekSize = 2 + 2;
+        encryptionMetadataSize = 5 + 9;
+        encryptedObjectIdSize = 3 + 4;
+        encryptedObjectSize = 2 + 5;
+        assertEntrySize(encryptionStorageManager, wdekSize,
+                        encryptionMetadataSize, encryptedObjectIdSize, encryptedObjectSize);
+
         // Delete the repository.
         gitRepositoryManager.remove(REPO_NAME);
         gitRepositoryManager.markForPurge(REPO_NAME);
@@ -101,10 +139,32 @@ final class EncryptedGitRepositoryRemoveTest {
         assertThat(encryptionStorageManager.getMetadata(objectMetadataKey)).isNull();
         assertThat(encryptionStorageManager.getMetadata(refMetadataKey)).isNull();
 
-        assertThatThrownBy(() -> encryptionStorageManager.getDek(PROJECT_NAME, REPO_NAME))
+        assertThatThrownBy(() -> encryptionStorageManager.getCurrentDek(PROJECT_NAME, REPO_NAME))
                 .isInstanceOf(EncryptionStorageException.class)
                 .hasMessageContaining("WDEK of foo/bar does not exist");
 
+        wdekSize = 2; // version 1 and current
+        encryptionMetadataSize = 5; // The sum of the following:
+        encryptedObjectIdSize = 3; // refs/heads/master, HEAD, revision 1 number
+        encryptedObjectSize = 2; // revision 1 tree and commit
+        assertEntrySize(encryptionStorageManager, wdekSize,
+                        encryptionMetadataSize, encryptedObjectIdSize, encryptedObjectSize);
+
+        // Delete the rest repository.
+        gitRepositoryManager.remove("bar2");
+        gitRepositoryManager.markForPurge("bar2");
+        assertEntrySize(encryptionStorageManager, 0, 0, 0, 0);
+
         encryptionStorageManager.close();
+    }
+
+    private static void assertEntrySize(EncryptionStorageManager encryptionStorageManager, int wdekSize,
+                                        int encryptionMetadataSize, int encryptedObjectIdSize,
+                                        int encryptedObjectSize) {
+        final Map<String, Map<String, byte[]>> allData = encryptionStorageManager.getAllData();
+        assertThat(allData.get("wdek").size()).isEqualTo(wdekSize);
+        assertThat(allData.get("encryption_metadata").size()).isEqualTo(encryptionMetadataSize);
+        assertThat(allData.get("encrypted_object_id").size()).isEqualTo(encryptedObjectIdSize);
+        assertThat(allData.get("encrypted_object").size()).isEqualTo(encryptedObjectSize);
     }
 }

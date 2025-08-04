@@ -19,6 +19,7 @@ import static com.linecorp.centraldogma.server.storage.encryption.DefaultEncrypt
 import static java.util.Objects.requireNonNull;
 
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nullable;
@@ -75,7 +76,12 @@ public interface EncryptionStorageManager extends SafeCloseable {
     /**
      * Returns the data encryption key (DEK) for the specified project and repository.
      */
-    SecretKey getDek(String projectName, String repoName);
+    SecretKey getDek(String projectName, String repoName, int version);
+
+    /**
+     * Returns the current wrapped data encryption key (WDEK) for the specified project and repository.
+     */
+    SecretKeyWithVersion getCurrentDek(String projectName, String repoName);
 
     /**
      * Stores the wrapped data encryption key (WDEK) for the specified project and repository.
@@ -131,4 +137,12 @@ public interface EncryptionStorageManager extends SafeCloseable {
      * Deletes all data related to the specified project and repository.
      */
     void deleteRepositoryData(String projectName, String repoName);
+
+    /**
+     * Returns all data stored in the encryption storage manager.
+     *
+     * @deprecated Do not use this method for production code as it may return a large amount of data.
+     */
+    @Deprecated
+    Map<String, Map<String, byte[]>> getAllData();
 }
