@@ -40,6 +40,7 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 /**
  * A {@link CommandExecutor} implementation which performs operations on the local storage.
@@ -180,6 +181,15 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
         if (command instanceof PurgeRepositoryCommand) {
             return (CompletableFuture<T>) purgeRepository((PurgeRepositoryCommand) command);
+        }
+
+        if (command instanceof MigrateToEncryptedRepositoryCommand) {
+            if (!encryptionStorageManager.enabled()) {
+                throw new IllegalStateException(
+                        "Encryption is not enabled. command: " + command);
+            }
+            return (CompletableFuture<T>) migrateToEncryptedRepository(
+                    (MigrateToEncryptedRepositoryCommand) command);
         }
 
         if (command instanceof NormalizingPushCommand) {
@@ -326,6 +336,30 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private CompletableFuture<Void> purgeRepository(PurgeRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos().markForPurge(c.repositoryName());
+            return null;
+        }, repositoryWorker);
+    }
+
+    private CompletableFuture<Void> migrateToEncryptedRepository(MigrateToEncryptedRepositoryCommand c) {
+        final RepositoryManager repositoryManager = projectManager.get(c.projectName()).repos();
+        final Repository repository = repositoryManager.get(c.repositoryName());
+        if (repository.isEncrypted()) {
+            throw new IllegalStateException(
+                    "The repository is already encrypted: " + c.projectName() + '/' + c.repositoryName());
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            encryptionStorageManager.storeWdek(c.projectName(), c.repositoryName(), c.wdek());
+            try {
+                repositoryManager.migrateToEncryptedRepository(c.repositoryName());
+            } catch (Throwable t) {
+                try {
+                    encryptionStorageManager.removeWdek(c.projectName(), c.repositoryName());
+                } catch (Throwable t2) {
+                    logger.warn("Failed to remove the WDEK of {}/{}",
+                                c.projectName(), c.repositoryName(), t2);
+                }
+                throw t;
+            }
             return null;
         }, repositoryWorker);
     }

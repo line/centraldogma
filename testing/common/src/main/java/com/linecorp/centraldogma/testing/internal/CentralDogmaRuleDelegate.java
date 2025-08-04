@@ -161,9 +161,7 @@ public class CentralDogmaRuleDelegate {
             final String protocol = serverPort.hasHttp() ? "h2c" : "h2";
             final String uri = protocol +  "://127.0.0.1:" + serverPort.localAddress().getPort();
             final WebClientBuilder webClientBuilder = WebClient.builder(uri);
-            if (accessToken != null) {
-                webClientBuilder.auth(AuthToken.ofOAuth2(accessToken));
-            }
+            webClientBuilder.auth(AuthToken.ofOAuth2(accessToken));
             configureHttpClient(webClientBuilder);
             webClient = webClientBuilder.build();
         });

@@ -29,6 +29,7 @@ public enum CommandType {
     RESET_META_REPOSITORY(Void.class),
     REMOVE_REPOSITORY(Void.class),
     UNREMOVE_REPOSITORY(Void.class),
+    MIGRATE_TO_ENCRYPTED_REPOSITORY(Void.class),
     NORMALIZING_PUSH(CommitResult.class),
     TRANSFORM(CommitResult.class),
     PUSH(Revision.class),

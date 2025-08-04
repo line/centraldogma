@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import static java.util.Objects.requireNonNull;
 
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -63,6 +64,11 @@ public class RepositoryWrapper implements Repository {
     @Override
     public Project parent() {
         return unwrap().parent();
+    }
+
+    @Override
+    public File repoDir() {
+        return unwrap().repoDir();
     }
 
     @Override
@@ -224,6 +230,11 @@ public class RepositoryWrapper implements Repository {
     @Override
     public void addListener(RepositoryListener listener) {
         unwrap().addListener(listener);
+    }
+
+    @Override
+    public boolean isEncrypted() {
+        return unwrap().isEncrypted();
     }
 
     @Override
