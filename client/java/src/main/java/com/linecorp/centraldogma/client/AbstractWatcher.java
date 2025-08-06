@@ -65,6 +65,8 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
             "centraldogma.client.watcher.latest.received.time";
     private static final AtomicLong WATCHER_ID = new AtomicLong();
 
+    private static final int MAX_INITIAL_FETCH_ATTEMPTS = 2;
+
     private enum State {
         INIT,
         STARTED,
@@ -329,20 +331,20 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                                      projectName, repositoryName);
                          logged = true;
                      }
-                 } else {
-                     if (cause instanceof CancellationException) {
-                         // Cancelled by close()
-                         return null;
-                     }
+                 }
 
-                     if (!initialValueFuture.isDone()) {
-                         // If the initial fetch failed with non-CentralDogmaException, it is likely that some
-                         // configuration is wrong or the file is malformed. So we complete the
-                         // initialValueFuture exceptionally rather than retrying indefinitely.
-                         initialValueFuture.completeExceptionally(thrown);
-                         close();
-                         return null;
-                     }
+                 if (cause instanceof CancellationException) {
+                     // Cancelled by close()
+                     return null;
+                 }
+
+                 if (!initialValueFuture.isDone() && numAttemptsSoFar >= MAX_INITIAL_FETCH_ATTEMPTS) {
+                     // If the initial fetch fails three times in a row, it is likely that some configuration is
+                     // wrong or the file is malformed. So we complete the initialValueFuture exceptionally
+                     // rather than retrying indefinitely.
+                     initialValueFuture.completeExceptionally(thrown);
+                     close();
+                     return null;
                  }
 
                  if (!logged) {
