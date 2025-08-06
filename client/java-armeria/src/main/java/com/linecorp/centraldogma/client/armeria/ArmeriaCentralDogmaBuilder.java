@@ -23,6 +23,8 @@ import com.linecorp.armeria.client.ClientRequestContext;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.encoding.DecodingClient;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
+import com.linecorp.armeria.client.retry.RetryRule;
+import com.linecorp.armeria.client.retry.RetryingClient;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
 import com.linecorp.centraldogma.internal.client.armeria.ArmeriaCentralDogma;
@@ -42,7 +44,10 @@ public final class ArmeriaCentralDogmaBuilder
         final EndpointGroup endpointGroup = endpointGroup();
         final String scheme = "none+" + (isUseTls() ? "https" : "http");
         final ClientBuilder builder =
-                newClientBuilder(scheme, endpointGroup, cb -> cb.decorator(DecodingClient.newDecorator()), "/");
+                newClientBuilder(scheme, endpointGroup, cb -> {
+                    cb.decorator(DecodingClient.newDecorator())
+                      .decorator(RetryingClient.newDecorator(RetryRule.failsafe()));
+                }, "/");
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
 
         // TODO(ikhoon): Apply ExecutorServiceMetrics for the 'blockingTaskExecutor' once
