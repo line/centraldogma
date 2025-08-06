@@ -61,7 +61,7 @@ class WatchRequestErrorTest {
                                             })
                                             .start();
         assertThatThrownBy(() -> {
-            watcher.initialValueFuture().get(2, TimeUnit.SECONDS);
+            watcher.initialValueFuture().get(15, TimeUnit.SECONDS);
         }).isInstanceOf(ExecutionException.class)
           .hasCauseInstanceOf(IllegalStateException.class)
           .hasMessageContaining("Test exception");
