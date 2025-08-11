@@ -19,7 +19,7 @@ includeWithFlags ':common-legacy',                          'java', 'publish', '
 includeWithFlags ':server',                                 'java', 'publish', 'relocate'
 includeWithFlags ':server-auth:saml',                       'java', 'publish', 'relocate'
 includeWithFlags ':server-auth:shiro',                      'java', 'publish', 'relocate'
-includeWithFlags ':server-mirror-git',                      'java11', 'publish', 'relocate'
+includeWithFlags ':server-mirror-git',                      'java', 'publish', 'relocate'
 includeWithFlags ':testing:testing-common',                 'java', 'publish', 'relocate'
 includeWithFlags ':testing:junit',                          'java', 'publish', 'relocate'
 includeWithFlags ':testing:junit4',                         'java', 'publish', 'relocate'
@@ -30,7 +30,7 @@ project(':testing:testing-common').projectDir = file('testing/common')
 // Unpublished Java projects
 includeWithFlags ':benchmarks:jmh',                         'java'
 
-includeWithFlags ':it:it-mirror',                           'java11', 'relocate'
+includeWithFlags ':it:it-mirror',                           'java', 'relocate'
 project(':it:it-mirror').projectDir = file('it/mirror')
 
 includeWithFlags ':it:it-server',                           'java', 'relocate'
@@ -43,10 +43,10 @@ includeWithFlags ':it:xds-member-permission',               'java', 'relocate'
 includeWithFlags ':testing-internal',                       'java', 'relocate'
 
 // Unpublished projects
-includeWithFlags ':webapp', 'java11'
+includeWithFlags ':webapp', 'java'
 
 // Site generation project
 includeWithFlags ':site'
 
 // Distribution
-includeWithFlags ':dist', 'java11'
+includeWithFlags ':dist', 'java'

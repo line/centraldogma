@@ -13,11 +13,6 @@ plugins {
     alias libs.plugins.download
 }
 
-if (JavaVersion.current() < JavaVersion.VERSION_11 || project.ext.testJavaVersion < 11) {
-    // Gradle Docker plugin requires Java >= 11
-    return
-}
-
 apply plugin: 'com.bmuschko.docker-remote-api'
 
 import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage

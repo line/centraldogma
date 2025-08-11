@@ -127,6 +127,16 @@ configure(projectsWithFlags('java')) {
         if (generateSourcesTask != null) {
             tasks.sourcesJar.dependsOn(generateSourcesTask)
         }
+
+        configurations.configureEach {
+            attributes {
+                // TARGET_JVM_VERSION_ATTRIBUTE (""org.gradle.jvm.version") should be set on the consume if
+                // a library (producer) that publishes Gradle modules metadata with a specific target JVM
+                // version.
+                // https://docs.gradle.org/current/userguide/variant_aware_resolution.html#a_complicated_example
+                attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, targetJavaVersion)
+            }
+        }
     }
 
     java {
