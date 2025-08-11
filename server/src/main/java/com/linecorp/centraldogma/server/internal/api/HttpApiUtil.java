@@ -214,8 +214,11 @@ public final class HttpApiUtil {
             ResponseHeadersBuilder headersBuilder,
             @Nullable Throwable cause, @Nullable String message) {
         final HttpStatus status = headersBuilder.status();
-        checkArgument(!status.isContentAlwaysEmpty(),
-                      "status: %s (expected: a status with non-empty content)", status);
+        if (status.isContentAlwaysEmpty()) {
+            checkArgument(message == null || message.isEmpty(),
+                          "message: %s (expected: null or empty for a status with empty content)", message);
+            return responseFactory.apply(headersBuilder.build(), HttpData.empty());
+        }
 
         final ObjectNode node = JsonNodeFactory.instance.objectNode();
         if (cause != null) {
