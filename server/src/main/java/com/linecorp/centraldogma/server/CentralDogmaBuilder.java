@@ -310,6 +310,7 @@ public final class CentralDogmaBuilder {
 
     /**
      * Sets the maximum allowed content length of an incoming request.
+     * If unspecified, 1 MiB is used as the default.
      */
     public CentralDogmaBuilder maxFrameLength(int maxFrameLength) {
         this.maxFrameLength = maxFrameLength;
