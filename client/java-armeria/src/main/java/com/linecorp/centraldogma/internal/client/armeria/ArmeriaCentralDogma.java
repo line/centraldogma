@@ -76,6 +76,7 @@ import com.linecorp.armeria.common.util.TimeoutMode;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
 import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.RepositoryInfo;
+import com.linecorp.centraldogma.common.ApiRequestTimeoutException;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.AuthorizationException;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -87,6 +88,7 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.InvalidPushException;
+import com.linecorp.centraldogma.common.LockAcquireTimeoutException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergedEntry;
@@ -144,6 +146,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                         .put(PermissionException.class.getName(), PermissionException::new)
                         .put(JsonPatchConflictException.class.getName(), JsonPatchConflictException::new)
                         .put(TextPatchConflictException.class.getName(), TextPatchConflictException::new)
+                        .put(ApiRequestTimeoutException.class.getName(), ApiRequestTimeoutException::new)
+                        .put(LockAcquireTimeoutException.class.getName(), LockAcquireTimeoutException::new)
                         .build();
 
     private final WebClient client;
