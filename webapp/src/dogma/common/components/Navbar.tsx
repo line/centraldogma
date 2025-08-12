@@ -124,6 +124,11 @@ export const Navbar = () => {
                 <MenuItem as={RouteLink} href="/app/settings/tokens">
                   Application tokens
                 </MenuItem>
+                {user.systemAdmin && (
+                  <MenuItem as={RouteLink} href="/app/settings/mirror-access">
+                    Mirror access control
+                  </MenuItem>
+                )}
                 <MenuDivider />
                 <MenuItem
                   onClick={async () => {
