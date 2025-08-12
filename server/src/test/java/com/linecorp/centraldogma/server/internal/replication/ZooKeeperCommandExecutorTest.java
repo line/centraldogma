@@ -62,6 +62,7 @@ import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.LockAcquireTimeoutException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.Revision;
@@ -489,7 +490,7 @@ class ZooKeeperCommandExecutorTest {
                 assertThat(result.isCompletedExceptionally()).isTrue();
                 final Throwable cause = catchThrowable(result::join);
                 assertThat(cause).isInstanceOf(CompletionException.class);
-                assertThat(cause.getCause()).isInstanceOf(ReplicationException.class)
+                assertThat(cause.getCause()).isInstanceOf(LockAcquireTimeoutException.class)
                                             .hasMessageContaining(
                                                     "failed to acquire a lock for /project in time");
             });

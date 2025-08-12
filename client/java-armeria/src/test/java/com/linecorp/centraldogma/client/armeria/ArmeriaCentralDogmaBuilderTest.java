@@ -21,11 +21,13 @@ import static io.netty.handler.codec.dns.DnsRecordType.A;
 import static io.netty.handler.codec.dns.DnsSection.ANSWER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -162,6 +164,7 @@ class ArmeriaCentralDogmaBuilderTest {
         final ClientFactory cf1 = mock(ClientFactory.class);
         final ClientFactory cf2 = mock(ClientFactory.class);
         final ClientFactory cf3 = mock(ClientFactory.class);
+        when(cf1.validateScheme(any())).thenAnswer(returnsFirstArg());
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
         final StringBuilder buf = new StringBuilder();
         b.clientFactory(cf1);
