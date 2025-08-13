@@ -508,9 +508,6 @@ class ZooKeeperCommandExecutorTest {
             assertThat(meters).containsKeys("executor#total{name=zkCommandExecutor}",
                                             "executor#total{name=zkLeaderSelector}",
                                             "executor#total{name=zkLogWatcher}",
-                                            "executor.pool.size#value{name=zkCommandExecutor}",
-                                            "executor.pool.size#value{name=zkLeaderSelector}",
-                                            "executor.pool.size#value{name=zkLogWatcher}",
                                             "replica.has.leadership#value",
                                             "replica.id#value",
                                             "replica.last.replayed.revision#value",
@@ -605,12 +602,14 @@ class ZooKeeperCommandExecutorTest {
         lenient().when(delegate.apply(argThat(x -> x == null || x.type().resultType() == Void.class)))
                  .thenReturn(completedFuture(null));
 
-        lenient().when(delegate.apply(argThat(x -> x != null && maybeUnwrapForcePush(x).type().resultType() ==
-                                                                Revision.class)))
+        lenient().when(
+                         delegate.apply(argThat(x -> x != null && maybeUnwrapForcePush(x).type().resultType() ==
+                                                                  Revision.class)))
                  .then(invocation -> completedFuture(new Revision(revisionCounter.incrementAndGet())));
 
-        lenient().when(delegate.apply(argThat(x -> x != null && maybeUnwrapForcePush(x).type().resultType() ==
-                                                                CommitResult.class)))
+        lenient().when(
+                         delegate.apply(argThat(x -> x != null && maybeUnwrapForcePush(x).type().resultType() ==
+                                                                  CommitResult.class)))
                  .then(invocation -> {
                      final Revision revision = new Revision(revisionCounter.incrementAndGet());
                      Object argument = invocation.getArgument(0);
