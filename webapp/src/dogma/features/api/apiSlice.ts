@@ -94,6 +94,15 @@ export type MirrorConfig = {
   zone: ZoneDto;
 };
 
+export type ServerStatusDto = 'READ_ONLY' | 'REPLICATION_ONLY' | 'WRITABLE';
+
+export type ServerStatusScope = 'ALL' | 'LOCAL';
+
+export type UpdateServerStatusRequest = {
+  serverStatus: ServerStatusDto;
+  scope: ServerStatusScope;
+};
+
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
@@ -107,7 +116,7 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  tagTypes: ['Project', 'Metadata', 'Repo', 'File', 'Token', 'Mirror'],
+  tagTypes: ['Project', 'Metadata', 'Repo', 'File', 'Token', 'Mirror', 'ServerStatus'],
   endpoints: (builder) => ({
     getProjects: builder.query<ProjectDto[], GetProjects>({
       async queryFn(arg, _queryApi, _extraOptions, fetchWithBQ) {
@@ -432,6 +441,18 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Mirror'],
     }),
+    getServerStatus: builder.query<ServerStatusDto, void>({
+      query: () => '/api/v1/status',
+      providesTags: ['ServerStatus'],
+    }),
+    updateServerStatus: builder.mutation<ServerStatusDto, UpdateServerStatusRequest>({
+      query: (body) => ({
+        url: '/api/v1/status',
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['ServerStatus'],
+    }),
     getProjectCredentials: builder.query<CredentialDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/credentials`,
       transformResponse: (response: CredentialDto[]) => addIdFromCredentialNames(response),
@@ -570,6 +591,9 @@ export const {
   useUpdateMirrorAccessControlMutation,
   useAddNewMirrorAccessControlMutation,
   useDeleteMirrorAccessControlMutation,
+  // Server Status
+  useGetServerStatusQuery,
+  useUpdateServerStatusMutation,
   // Credential
   useGetProjectCredentialsQuery,
   useGetCredentialQuery,
