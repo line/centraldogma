@@ -48,7 +48,7 @@ export const UpdateServerStatus = ({
   getStatusColorScheme,
 }: UpdateServerStatusProps) => {
   const dispatch = useAppDispatch();
-  const { isOpen, onToggle, onClose } = useDisclosure();
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const [updateServerStatus, { isLoading: isUpdating }] = useUpdateServerStatusMutation();
 
   const handleUpdate = async () => {
@@ -80,8 +80,7 @@ export const UpdateServerStatus = ({
     <>
       <Button
         colorScheme="blue"
-        onClick={onToggle}
-        loadingText="Updating..."
+        onClick={onOpen}
         isDisabled={
           !selectedStatus || (currentStatus && currentStatus === selectedStatus && selectedScope === 'ALL')
         }
