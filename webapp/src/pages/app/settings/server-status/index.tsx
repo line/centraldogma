@@ -15,74 +15,20 @@
  */
 
 import { useState } from 'react';
-import {
-  Badge,
-  Box,
-  Button,
-  Flex,
-  Radio,
-  RadioGroup,
-  Select,
-  Spacer,
-  Stack,
-  Text,
-  useToast,
-} from '@chakra-ui/react';
+import { Badge, Box, Code, Flex, Radio, RadioGroup, Select, Spacer, Stack, Text, } from '@chakra-ui/react';
 import SettingView from 'dogma/features/settings/SettingView';
 import { Deferred } from 'dogma/common/components/Deferred';
-import {
-  ServerStatusDto,
-  ServerStatusScope,
-  useGetServerStatusQuery,
-  useUpdateServerStatusMutation,
-} from 'dogma/features/api/apiSlice';
+import { useGetServerStatusQuery, } from 'dogma/features/api/apiSlice';
+import { ServerStatusScope, ServerStatusType, } from 'dogma/features/settings/server-status/ServerStatusDto';
+import { UpdateServerStatus } from 'dogma/features/settings/server-status/UpdateServerStatus';
 
 const ServerStatusPage = () => {
-  const toast = useToast();
-  const { data: currentStatus, error, isLoading, refetch } = useGetServerStatusQuery();
-  const [updateServerStatus, { isLoading: isUpdating }] = useUpdateServerStatusMutation();
+  const { data: currentStatus, error, isLoading } = useGetServerStatusQuery();
 
-  const [selectedStatus, setSelectedStatus] = useState<ServerStatusDto | undefined>(undefined);
+  const [selectedStatus, setSelectedStatus] = useState<ServerStatusType | undefined>(undefined);
   const [selectedScope, setSelectedScope] = useState<ServerStatusScope>('ALL');
 
-  const handleUpdate = async () => {
-    if (selectedStatus === undefined) {
-      toast({
-        title: 'No status selected',
-        description: 'Please select a new server status to apply.',
-        status: 'warning',
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-
-    try {
-      await updateServerStatus({
-        serverStatus: selectedStatus,
-        scope: selectedScope,
-      }).unwrap();
-      toast({
-        title: 'Server status updated!',
-        description: `Status changed to ${selectedStatus} with scope ${selectedScope}.`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-      refetch(); // Refetch the status to show the latest
-    } catch (err: any) {
-      const errorMessage = err.data?.message || err.error || 'An unknown error occurred.';
-      toast({
-        title: 'Failed to update server status.',
-        description: errorMessage,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const getStatusBadgeColor = (status: ServerStatusDto) => {
+  const getStatusColorScheme = (status: ServerStatusType) => {
     switch (status) {
       case 'WRITABLE':
         return 'green';
@@ -90,9 +36,19 @@ const ServerStatusPage = () => {
         return 'yellow';
       case 'READ_ONLY':
         return 'red';
-      default:
-        return 'gray';
     }
+  };
+
+  const getStatusBadge = (status: ServerStatusType | undefined) => {
+    if (!status) {
+      return <Text ml="4">Not available</Text>;
+    }
+
+    return (
+      <Badge ml="4" px="3" py="1" fontSize="md" colorScheme={getStatusColorScheme(status)} borderRadius="md">
+        {status}
+      </Badge>
+    );
   };
 
   return (
@@ -104,20 +60,7 @@ const ServerStatusPage = () => {
               <Text fontSize="lg" fontWeight="bold">
                 Current Server Status:
               </Text>
-              {currentStatus ? (
-                <Badge
-                  ml="4"
-                  px="3"
-                  py="1"
-                  fontSize="md"
-                  colorScheme={getStatusBadgeColor(currentStatus)}
-                  borderRadius="md"
-                >
-                  {currentStatus.replace(/_/g, ' ')}
-                </Badge>
-              ) : (
-                <Text ml="4">Not available</Text>
-              )}
+              {getStatusBadge(currentStatus)}
               <Spacer />
             </Flex>
 
@@ -125,7 +68,7 @@ const ServerStatusPage = () => {
               <Text fontSize="lg" fontWeight="bold" mb="3">
                 Select New Server Status:
               </Text>
-              <RadioGroup onChange={(val: ServerStatusDto) => setSelectedStatus(val)} value={selectedStatus}>
+              <RadioGroup onChange={(val: ServerStatusType) => setSelectedStatus(val)} value={selectedStatus}>
                 <Stack direction={{ base: 'column', md: 'row' }} spacing="4">
                   <Radio value="WRITABLE">Writable (Writable & Replicating)</Radio>
                   <Radio value="REPLICATION_ONLY">Replication Only (Not Writable & Replicating)</Radio>
@@ -147,24 +90,18 @@ const ServerStatusPage = () => {
                 <option value="LOCAL">LOCAL (Apply only to this server)</option>
               </Select>
               <Text fontSize="sm" color="gray.500" mt="1">
-                Note: Setting &#39;Replication Only&#39; or &#39;Writable&#39; with &#39;ALL&#39; scope is not
-                allowed if the cluster is currently not replicating. Use &#39;LOCAL&#39; scope for individual
-                instance changes.
+                Note: Setting &#39;Replication Only&#39; or &#39;Writable&#39; with{' '}
+                <Code variant="outline">ALL</Code> scope is not allowed if the cluster is currently not
+                replicating. Use <Code variant="outline">LOCAL</Code> scope for individual instance changes.
               </Text>
             </Box>
 
-            <Button
-              colorScheme="blue"
-              onClick={handleUpdate}
-              isLoading={isUpdating}
-              loadingText="Updating..."
-              isDisabled={
-                !selectedStatus ||
-                (currentStatus && currentStatus === selectedStatus && selectedScope === 'ALL')
-              }
-            >
-              Update Server Status
-            </Button>
+            <UpdateServerStatus
+              currentStatus={currentStatus}
+              selectedStatus={selectedStatus}
+              selectedScope={selectedScope}
+              getStatusColorScheme={getStatusColorScheme}
+            />
           </Box>
         )}
       </Deferred>

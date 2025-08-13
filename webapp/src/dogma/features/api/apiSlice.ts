@@ -40,6 +40,10 @@ import {
   MirrorAccessControl,
   MirrorAccessControlRequest,
 } from 'dogma/features/settings/mirror-access/MirrorAccessControl';
+import {
+  ServerStatusType,
+  UpdateServerStatusRequest
+} from 'dogma/features/settings/server-status/ServerStatusDto';
 
 export type ApiAction<Arg, Result> = {
   (arg: Arg): { unwrap: () => Promise<Result> };
@@ -92,15 +96,6 @@ export type ZoneDto = {
 export type MirrorConfig = {
   zonePinned: boolean;
   zone: ZoneDto;
-};
-
-export type ServerStatusDto = 'READ_ONLY' | 'REPLICATION_ONLY' | 'WRITABLE';
-
-export type ServerStatusScope = 'ALL' | 'LOCAL';
-
-export type UpdateServerStatusRequest = {
-  serverStatus: ServerStatusDto;
-  scope: ServerStatusScope;
 };
 
 export const apiSlice = createApi({
@@ -441,11 +436,11 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Mirror'],
     }),
-    getServerStatus: builder.query<ServerStatusDto, void>({
+    getServerStatus: builder.query<ServerStatusType, void>({
       query: () => '/api/v1/status',
       providesTags: ['ServerStatus'],
     }),
-    updateServerStatus: builder.mutation<ServerStatusDto, UpdateServerStatusRequest>({
+    updateServerStatus: builder.mutation<ServerStatusType, UpdateServerStatusRequest>({
       query: (body) => ({
         url: '/api/v1/status',
         method: 'PUT',
