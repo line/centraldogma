@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -31,18 +30,16 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.Any;
 
-import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.armeria.client.ClientRequestContext;
-import com.linecorp.armeria.client.Clients;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.encoding.DecodingClient;
-import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.annotation.UnstableApi;
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.xds.XdsBootstrap;
-import com.linecorp.armeria.xds.client.endpoint.XdsEndpointGroup;
+import com.linecorp.armeria.xds.client.endpoint.XdsHttpPreprocessor;
 import com.linecorp.centraldogma.client.AbstractCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaClientConfigurator;
@@ -106,7 +103,8 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
 
     private ScheduledExecutorService blockingTaskExecutor = CommonPools.blockingTaskExecutor();
     private ClientFactory clientFactory = ClientFactory.ofDefault();
-    private ArmeriaClientConfigurator clientConfigurator = cb -> {};
+    private ArmeriaClientConfigurator clientConfigurator = cb -> {
+    };
     private String listenerName = DEFAULT_LISTENER_NAME;
     private Locality locality = Locality.getDefaultInstance();
     // an empty string means no local cluster
@@ -199,24 +197,24 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
      */
     public CentralDogma build() {
         final XdsBootstrap xdsBootstrap = xdsBootstrap();
-        final EndpointGroup endpointGroup = XdsEndpointGroup.of(listenerName, xdsBootstrap);
-        final String scheme = "none+" + (isUseTls() ? "https" : "http");
-        final ClientBuilder builder =
-                newClientBuilder(scheme, endpointGroup, cb -> cb.decorator(DecodingClient.newDecorator()), "/");
+        final XdsHttpPreprocessor xdsPreprocessor = XdsHttpPreprocessor.ofListener(listenerName, xdsBootstrap);
+        final WebClient client = WebClient.builder(xdsPreprocessor)
+                                          .decorator(DecodingClient.newDecorator())
+                                          .build();
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
 
         // TODO(ikhoon): Apply ExecutorServiceMetrics for the 'blockingTaskExecutor' once
         //               https://github.com/line/centraldogma/pull/542 is merged.
         final ScheduledExecutorService blockingTaskExecutor = this.blockingTaskExecutor;
 
-        final CentralDogma dogma = new ArmeriaCentralDogma(blockingTaskExecutor,
-                                                           builder.build(WebClient.class),
-                                                           accessToken(),
-                                                           () -> {
-                                                               endpointGroup.close();
-                                                               xdsBootstrap.close();
-                                                           },
-                                                           meterRegistry());
+        final CentralDogma dogma = new ArmeriaCentralDogma(
+                blockingTaskExecutor, client, accessToken(), () -> {
+                    xdsPreprocessor.close();
+                    xdsBootstrap.close();
+                },
+                meterRegistry(),
+                // TODO(ikhoon): Fix XdsHttpPreprocessor to notify when the initial Listener is ready.
+                UnmodifiableFuture.completedFuture(null));
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;
         } else {
@@ -231,15 +229,6 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
                     },
                     meterRegistry());
         }
-    }
-
-    private ClientBuilder newClientBuilder(String scheme, EndpointGroup endpointGroup,
-                                           Consumer<ClientBuilder> customizer, String path) {
-        final ClientBuilder builder = Clients.builder(scheme, endpointGroup, path);
-        customizer.accept(builder);
-        clientConfigurator.configure(builder);
-        builder.factory(clientFactory);
-        return builder;
     }
 
     private boolean isUnresolved() {

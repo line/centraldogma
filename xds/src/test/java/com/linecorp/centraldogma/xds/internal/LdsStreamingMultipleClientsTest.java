@@ -41,6 +41,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import com.linecorp.armeria.xds.ClusterSnapshot;
 import com.linecorp.armeria.xds.ListenerRoot;
 import com.linecorp.armeria.xds.ListenerSnapshot;
+import com.linecorp.armeria.xds.RouteEntry;
 import com.linecorp.armeria.xds.RouteSnapshot;
 import com.linecorp.armeria.xds.XdsBootstrap;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -95,9 +96,9 @@ final class LdsStreamingMultipleClientsTest {
             assertThat(fooListenerSnapshot.xdsResource().resource()).isEqualTo(fooListener);
             final RouteSnapshot routeSnapshot = fooListenerSnapshot.routeSnapshot();
             assertThat(routeSnapshot.xdsResource().resource()).isEqualTo(fooRoute);
-            final List<ClusterSnapshot> clusterSnapshots = routeSnapshot.clusterSnapshots();
-            assertThat(clusterSnapshots.size()).isOne();
-            final ClusterSnapshot clusterSnapshot = clusterSnapshots.get(0);
+            final List<RouteEntry> routeEntries = routeSnapshot.virtualHostSnapshots().get(0).routeEntries();
+            assertThat(routeEntries.size()).isOne();
+            final ClusterSnapshot clusterSnapshot = routeEntries.get(0).clusterSnapshot();
             assertThat(clusterSnapshot.xdsResource().resource()).isEqualTo(fooCluster);
             assertThat(clusterSnapshot.endpointSnapshot().xdsResource().resource()).isEqualTo(fooEndpoint);
 

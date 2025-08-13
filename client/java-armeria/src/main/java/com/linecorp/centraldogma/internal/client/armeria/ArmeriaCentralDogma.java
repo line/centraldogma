@@ -153,18 +153,26 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     private final WebClient client;
     private final String authorization;
     private final SafeCloseable safeCloseable;
+    @Nullable
+    private final CompletableFuture<Void> whenReady;
 
     public ArmeriaCentralDogma(ScheduledExecutorService blockingTaskExecutor,
                                WebClient client, String accessToken, SafeCloseable safeCloseable,
-                               @Nullable MeterRegistry meterRegistry) {
+                               @Nullable MeterRegistry meterRegistry,
+                               @Nullable CompletableFuture<Void> whenReady) {
         super(blockingTaskExecutor, meterRegistry);
         this.client = requireNonNull(client, "client");
         authorization = "Bearer " + requireNonNull(accessToken, "accessToken");
         this.safeCloseable = safeCloseable;
+        this.whenReady = whenReady;
     }
 
     @Override
     public CompletableFuture<Void> whenEndpointReady() {
+        if (whenReady != null) {
+            return whenReady;
+        }
+
         return client.endpointGroup().whenReady().thenRun(() -> {});
     }
 
