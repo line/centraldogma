@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -30,8 +31,11 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.Any;
 
+import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientFactory;
+import com.linecorp.armeria.client.ClientPreprocessors;
 import com.linecorp.armeria.client.ClientRequestContext;
+import com.linecorp.armeria.client.Clients;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.encoding.DecodingClient;
 import com.linecorp.armeria.common.CommonPools;
@@ -107,8 +111,8 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     };
     private String listenerName = DEFAULT_LISTENER_NAME;
     private Locality locality = Locality.getDefaultInstance();
-    // an empty string means no local cluster
-    private String localClusterName = "";
+    // an default instance means no local cluster
+    private Cluster localCluster = Cluster.getDefaultInstance();
 
     // TODO: @jrhee17 remove this once xDS TLS is fully supported
     private Function<Bootstrap, XdsBootstrap> xdsBootstrapFactory = XdsBootstrap::of;
@@ -138,17 +142,18 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     }
 
     /**
-     * Sets the name of the local cluster name which this client will be located in.
+     * Sets the name of the local cluster name and the cluster which this client will be located in.
      * This may be used in applying
      * <a href="https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/zone_aware">zone aware routing</a>
      * and is analogous to
      * <a href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/bootstrap/v3/bootstrap.proto#envoy-v3-api-field-config-bootstrap-v3-clustermanager-local-cluster-name">service-cluster</a>.
-     * This value will be set to {@link ClusterManager#getLocalClusterName()} in the {@link Bootstrap}.
+     * This value will be set to {@link ClusterManager#getLocalClusterName()} and {@link StaticResources}
+     * in the {@link Bootstrap}.
      */
     @UnstableApi
-    public XdsCentralDogmaBuilder localClusterName(String localClusterName) {
-        requireNonNull(localClusterName, "localClusterName");
-        this.localClusterName = localClusterName;
+    public XdsCentralDogmaBuilder localCluster(Cluster localCluster) {
+        requireNonNull(localCluster, "localCluster");
+        this.localCluster = localCluster;
         return this;
     }
 
@@ -198,23 +203,21 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     public CentralDogma build() {
         final XdsBootstrap xdsBootstrap = xdsBootstrap();
         final XdsHttpPreprocessor xdsPreprocessor = XdsHttpPreprocessor.ofListener(listenerName, xdsBootstrap);
-        final WebClient client = WebClient.builder(xdsPreprocessor)
-                                          .decorator(DecodingClient.newDecorator())
-                                          .build();
+        final ClientBuilder builder =
+                newClientBuilder(xdsPreprocessor, cb -> cb.decorator(DecodingClient.newDecorator()));
+        final WebClient client = builder.build(WebClient.class);
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
 
         // TODO(ikhoon): Apply ExecutorServiceMetrics for the 'blockingTaskExecutor' once
         //               https://github.com/line/centraldogma/pull/542 is merged.
         final ScheduledExecutorService blockingTaskExecutor = this.blockingTaskExecutor;
 
-        final CentralDogma dogma = new ArmeriaCentralDogma(
-                blockingTaskExecutor, client, accessToken(), () -> {
+        // TODO(ikhoon): Fix XdsHttpPreprocessor to notify when the initial Listener is ready.
+        final CentralDogma dogma =
+                new ArmeriaCentralDogma(blockingTaskExecutor, client, accessToken(), () -> {
                     xdsPreprocessor.close();
                     xdsBootstrap.close();
-                },
-                meterRegistry(),
-                // TODO(ikhoon): Fix XdsHttpPreprocessor to notify when the initial Listener is ready.
-                UnmodifiableFuture.completedFuture(null));
+                }, meterRegistry(), UnmodifiableFuture.completedFuture(null));
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;
         } else {
@@ -229,6 +232,15 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
                     },
                     meterRegistry());
         }
+    }
+
+    private ClientBuilder newClientBuilder(XdsHttpPreprocessor preprocessor,
+                                           Consumer<ClientBuilder> customizer) {
+        final ClientBuilder builder = Clients.builder(ClientPreprocessors.of(preprocessor));
+        customizer.accept(builder);
+        clientConfigurator.configure(builder);
+        builder.factory(clientFactory);
+        return builder;
     }
 
     private boolean isUnresolved() {
@@ -247,8 +259,7 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
     private XdsBootstrap xdsBootstrap() {
         final GrpcService grpcService = GrpcService
                 .newBuilder()
-                .setEnvoyGrpc(EnvoyGrpc.newBuilder()
-                                       .setClusterName(BOOTSTRAP_CLUSTER_NAME))
+                .setEnvoyGrpc(EnvoyGrpc.newBuilder().setClusterName(BOOTSTRAP_CLUSTER_NAME))
                 .addInitialMetadata(HeaderValue.newBuilder()
                                                .setKey(HttpHeaderNames.AUTHORIZATION.toString())
                                                .setValue("Bearer " + accessToken()))
@@ -263,11 +274,12 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
         final Bootstrap bootstrap =
                 Bootstrap.newBuilder()
                          .setClusterManager(ClusterManager.newBuilder()
-                                                          .setLocalClusterName(localClusterName))
+                                                          .setLocalClusterName(localCluster.getName()))
                          .setDynamicResources(dynamicResources)
                          .setNode(Node.newBuilder()
                                       .setLocality(locality))
-                         .setStaticResources(StaticResources.newBuilder().addClusters(bootstrapCluster()))
+                         .setStaticResources(StaticResources.newBuilder().addClusters(bootstrapCluster())
+                                                            .addClusters(localCluster))
                          .build();
         return xdsBootstrapFactory.apply(bootstrap);
     }
