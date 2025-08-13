@@ -42,7 +42,7 @@ import {
 } from 'dogma/features/settings/mirror-access/MirrorAccessControl';
 import {
   ServerStatusType,
-  UpdateServerStatusRequest
+  UpdateServerStatusRequest,
 } from 'dogma/features/settings/server-status/ServerStatusDto';
 
 export type ApiAction<Arg, Result> = {

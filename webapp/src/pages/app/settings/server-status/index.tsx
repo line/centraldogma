@@ -15,11 +15,11 @@
  */
 
 import { useState } from 'react';
-import { Badge, Box, Code, Flex, Radio, RadioGroup, Select, Spacer, Stack, Text, } from '@chakra-ui/react';
+import { Badge, Box, Code, Flex, Radio, RadioGroup, Select, Spacer, Stack, Text } from '@chakra-ui/react';
 import SettingView from 'dogma/features/settings/SettingView';
 import { Deferred } from 'dogma/common/components/Deferred';
-import { useGetServerStatusQuery, } from 'dogma/features/api/apiSlice';
-import { ServerStatusScope, ServerStatusType, } from 'dogma/features/settings/server-status/ServerStatusDto';
+import { useGetServerStatusQuery } from 'dogma/features/api/apiSlice';
+import { ServerStatusScope, ServerStatusType } from 'dogma/features/settings/server-status/ServerStatusDto';
 import { UpdateServerStatus } from 'dogma/features/settings/server-status/UpdateServerStatus';
 
 const ServerStatusPage = () => {
