@@ -32,12 +32,12 @@ import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useUpdateServerStatusMutation } from 'dogma/features/api/apiSlice';
 import { useAppDispatch } from 'dogma/hooks';
-import { ServerStatusType } from 'dogma/features/settings/server-status/ServerStatusDto';
+import { ServerStatusScope, ServerStatusType } from 'dogma/features/settings/server-status/ServerStatusDto';
 
 interface UpdateServerStatusProps {
   currentStatus: ServerStatusType;
   selectedStatus: ServerStatusType;
-  selectedScope: 'ALL' | 'LOCAL';
+  selectedScope: ServerStatusScope;
   getStatusColorScheme: (status: ServerStatusType) => string;
 }
 
