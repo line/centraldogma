@@ -124,11 +124,6 @@ export const Navbar = () => {
                 <MenuItem as={RouteLink} href="/app/settings/tokens">
                   Application tokens
                 </MenuItem>
-                {user.systemAdmin && (
-                  <MenuItem as={RouteLink} href="/app/settings/server-status">
-                    Server status
-                  </MenuItem>
-                )}
                 <MenuDivider />
                 <MenuItem
                   onClick={async () => {
