@@ -53,7 +53,8 @@ public final class ArmeriaCentralDogmaBuilder
                                                            builder.build(WebClient.class),
                                                            accessToken(),
                                                            endpointGroup::close,
-                                                           meterRegistry());
+                                                           meterRegistry(),
+                                                           null);
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;
         } else {

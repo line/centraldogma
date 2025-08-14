@@ -35,6 +35,7 @@ import com.google.protobuf.util.JsonFormat.TypeRegistry;
 
 import io.envoyproxy.envoy.extensions.filters.http.router.v3.Router;
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager;
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext;
 
 public final class XdsResourceReader {
 
@@ -43,6 +44,7 @@ public final class XdsResourceReader {
             JsonFormat.parser().usingTypeRegistry(TypeRegistry.newBuilder()
                                                               .add(HttpConnectionManager.getDescriptor())
                                                               .add(Router.getDescriptor())
+                                                              .add(UpstreamTlsContext.getDescriptor())
                                                               .build());
 
     private XdsResourceReader() {}

@@ -62,6 +62,7 @@ import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.LockAcquireTimeoutException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.Revision;
@@ -489,7 +490,7 @@ class ZooKeeperCommandExecutorTest {
                 assertThat(result.isCompletedExceptionally()).isTrue();
                 final Throwable cause = catchThrowable(result::join);
                 assertThat(cause).isInstanceOf(CompletionException.class);
-                assertThat(cause.getCause()).isInstanceOf(ReplicationException.class)
+                assertThat(cause.getCause()).isInstanceOf(LockAcquireTimeoutException.class)
                                             .hasMessageContaining(
                                                     "failed to acquire a lock for /project in time");
             });
@@ -507,9 +508,6 @@ class ZooKeeperCommandExecutorTest {
             assertThat(meters).containsKeys("executor#total{name=zkCommandExecutor}",
                                             "executor#total{name=zkLeaderSelector}",
                                             "executor#total{name=zkLogWatcher}",
-                                            "executor.pool.size#value{name=zkCommandExecutor}",
-                                            "executor.pool.size#value{name=zkLeaderSelector}",
-                                            "executor.pool.size#value{name=zkLogWatcher}",
                                             "replica.has.leadership#value",
                                             "replica.id#value",
                                             "replica.last.replayed.revision#value",
@@ -604,12 +602,14 @@ class ZooKeeperCommandExecutorTest {
         lenient().when(delegate.apply(argThat(x -> x == null || x.type().resultType() == Void.class)))
                  .thenReturn(completedFuture(null));
 
-        lenient().when(delegate.apply(argThat(x -> x != null && maybeUnwrapForcePush(x).type().resultType() ==
-                                                                Revision.class)))
+        lenient().when(
+                         delegate.apply(argThat(x -> x != null && maybeUnwrapForcePush(x).type().resultType() ==
+                                                                  Revision.class)))
                  .then(invocation -> completedFuture(new Revision(revisionCounter.incrementAndGet())));
 
-        lenient().when(delegate.apply(argThat(x -> x != null && maybeUnwrapForcePush(x).type().resultType() ==
-                                                                CommitResult.class)))
+        lenient().when(
+                         delegate.apply(argThat(x -> x != null && maybeUnwrapForcePush(x).type().resultType() ==
+                                                                  CommitResult.class)))
                  .then(invocation -> {
                      final Revision revision = new Revision(revisionCounter.incrementAndGet());
                      Object argument = invocation.getArgument(0);

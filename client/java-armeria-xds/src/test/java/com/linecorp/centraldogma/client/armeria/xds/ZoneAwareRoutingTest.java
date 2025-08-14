@@ -18,7 +18,9 @@ package com.linecorp.centraldogma.client.armeria.xds;
 
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -130,11 +132,12 @@ class ZoneAwareRoutingTest {
                 "/test-cluster-multizone.yaml",
                 Cluster.newBuilder(),
                 ImmutableMap.of("<NAME>", "local-cluster", "<TYPE>", "STATIC",
-                                "<PORT1>", 1, "<PORT2>", 2, "<PORT3>", 3,
+                                "<PORT1>", dogmaPorts.get(0), "<PORT2>", dogmaPorts.get(1),
+                                "<PORT3>", dogmaPorts.get(2),
                                 "<ZONE1>", "Zone1", "<ZONE2>", "Zone2", "<ZONE3>", "Zone3"));
         cache.setSnapshot(
                 GROUP,
-                Snapshot.create(ImmutableList.of(cluster, localCluster), ImmutableList.of(),
+                Snapshot.create(ImmutableList.of(cluster), ImmutableList.of(),
                                 ImmutableList.of(listener), ImmutableList.of(), ImmutableList.of(),
                                 String.valueOf(VERSION_NUMBER.incrementAndGet())));
 
@@ -142,24 +145,28 @@ class ZoneAwareRoutingTest {
         try (CentralDogma client = new XdsCentralDogmaBuilder()
                 .host("127.0.0.1", server.httpPort())
                 .serviceZone("Zone1")
-                .localClusterName("local-cluster")
+                .localCluster(localCluster)
                 .build()) {
             client.whenEndpointReady().join();
             // wait a little to ensure the local cluster has also been fully fetched
             Thread.sleep(1000);
 
-            for (int i = 0; i < dogmaPorts.size() * 2; i++) {
-                try (ClientRequestContextCaptor captor = Clients.newContextCaptor()) {
-                    final Entry<JsonNode> entry = client.forRepo("foo", "bar")
-                                                        .file(Query.ofJsonPath("/foo.json"))
-                                                        .get()
-                                                        .get();
-                    assertThatJson(entry.content()).node("a").isStringEqualTo("bar");
-                    final ClientRequestContext ctx = captor.get();
-                    selectedPorts.add(ctx.endpoint().port());
-                }
-            }
+            await().pollDelay(Duration.ofSeconds(1))
+                   .pollInterval(Duration.ofSeconds(1))
+                   .untilAsserted(() -> {
+                       for (int i = 0; i < dogmaPorts.size() * 2; i++) {
+                           try (ClientRequestContextCaptor captor = Clients.newContextCaptor()) {
+                               final Entry<JsonNode> entry = client.forRepo("foo", "bar")
+                                                                   .file(Query.ofJsonPath("/foo.json"))
+                                                                   .get()
+                                                                   .get();
+                               assertThatJson(entry.content()).node("a").isStringEqualTo("bar");
+                               final ClientRequestContext ctx = captor.get();
+                               selectedPorts.add(ctx.endpoint().port());
+                           }
+                       }
+                       assertThat(selectedPorts).containsExactly(dogmaPorts.get(0));
+                   });
         }
-        assertThat(selectedPorts).containsExactly(dogmaPorts.get(0));
     }
 }
