@@ -19,8 +19,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.server.auth.saml.HtmlUtil.getHtmlWithOnload;
 import static java.util.Objects.requireNonNull;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -128,15 +126,12 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
 
         final String redirectionScript;
         if (!Strings.isNullOrEmpty(relayState)) {
-            final String decodedRelayState;
-            try {
-                // Decode first and then escape to prevent XSS.
-                decodedRelayState = URLDecoder.decode(relayState, "UTF-8");
-            } catch (UnsupportedEncodingException e) {
-                throw new IllegalArgumentException(
-                        "Failed to decode the relay state: " + relayState, e);
+            final String trimmed = relayState.trim();
+            if (!trimmed.startsWith("/") || trimmed.startsWith("//")) {
+                redirectionScript = "window.location.href='/'";
+            } else {
+                redirectionScript = "window.location.href='" + Encode.forJavaScript(trimmed) + '\'';
             }
-            redirectionScript = "window.location.href='" + Encode.forJavaScript(decodedRelayState) + '\'';
         } else {
             redirectionScript = "window.location.href='/'";
         }
