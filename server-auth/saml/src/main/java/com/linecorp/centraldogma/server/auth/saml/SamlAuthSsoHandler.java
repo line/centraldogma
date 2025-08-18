@@ -20,7 +20,7 @@ import static com.linecorp.centraldogma.server.auth.saml.HtmlUtil.getHtmlWithOnl
 import static java.util.Objects.requireNonNull;
 
 import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
+import java.net.URLDecoder;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +38,7 @@ import org.opensaml.saml.common.messaging.context.SAMLBindingContext;
 import org.opensaml.saml.saml2.core.AuthnRequest;
 import org.opensaml.saml.saml2.core.NameIDType;
 import org.opensaml.saml.saml2.core.Response;
+import org.owasp.encoder.Encode;
 
 import com.google.common.base.Strings;
 
@@ -127,12 +128,15 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
 
         final String redirectionScript;
         if (!Strings.isNullOrEmpty(relayState)) {
+            final String decodedRelayState;
             try {
-                redirectionScript = "window.location.href='/#" + URLEncoder.encode(relayState, "UTF-8") + '\'';
+                // Decode first and then escape to prevent XSS.
+                decodedRelayState = URLDecoder.decode(relayState, "UTF-8");
             } catch (UnsupportedEncodingException e) {
-                // Should never reach here.
-                throw new Error();
+                throw new IllegalArgumentException(
+                        "Failed to decode the relay state: " + relayState, e);
             }
+            redirectionScript = "window.location.href='" + Encode.forJavaScript(decodedRelayState) + '\'';
         } else {
             redirectionScript = "window.location.href='/'";
         }

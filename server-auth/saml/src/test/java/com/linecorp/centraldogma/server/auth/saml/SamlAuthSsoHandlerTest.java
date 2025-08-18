@@ -65,6 +65,6 @@ class SamlAuthSsoHandlerTest {
                 samlAuthSsoHandler.loginSucceeded(ctx, req, messageContext, null, relayState);
         assertThat(httpResponse.aggregate().join().contentUtf8()).isEqualTo(getHtmlWithOnload(
                 "localStorage.setItem('sessionId','id')",
-                "window.location.href='/#%27.substr%280.1%29%27%22%26%3C%3E'"));
+                "window.location.href='\\x27.substr(0.1)\\x27\\x22\\x26<>'"));
     }
 }
