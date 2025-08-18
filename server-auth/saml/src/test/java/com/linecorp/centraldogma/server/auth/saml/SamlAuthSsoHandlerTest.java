@@ -58,13 +58,22 @@ class SamlAuthSsoHandlerTest {
         final Response response = mock(Response.class);
         when(response.getAssertions()).thenReturn(ImmutableList.of(assertion));
 
-        final MessageContext<Response> messageContext = new MessageContext<>();
+        MessageContext<Response> messageContext = new MessageContext<>();
         messageContext.setMessage(response);
-        final String relayState = "'.substr(0.1)'\"&<>";
-        final HttpResponse httpResponse =
+        String relayState = "/'.substr(0.1)'\"&<>";
+        HttpResponse httpResponse =
                 samlAuthSsoHandler.loginSucceeded(ctx, req, messageContext, null, relayState);
         assertThat(httpResponse.aggregate().join().contentUtf8()).isEqualTo(getHtmlWithOnload(
                 "localStorage.setItem('sessionId','id')",
-                "window.location.href='\\x27.substr(0.1)\\x27\\x22\\x26<>'"));
+                "window.location.href='\\/\\x27.substr(0.1)\\x27\\x22\\x26<>'"));
+
+        messageContext = new MessageContext<>();
+        messageContext.setMessage(response);
+        // Does not start with '/'.
+        relayState = "'.substr(0.1)'\"&<>";
+        httpResponse = samlAuthSsoHandler.loginSucceeded(ctx, req, messageContext, null, relayState);
+        assertThat(httpResponse.aggregate().join().contentUtf8()).isEqualTo(getHtmlWithOnload(
+                "localStorage.setItem('sessionId','id')",
+                "window.location.href='/'"));
     }
 }
