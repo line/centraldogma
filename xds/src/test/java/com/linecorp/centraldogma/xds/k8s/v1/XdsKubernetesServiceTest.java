@@ -96,11 +96,11 @@ import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMixedDispatcher;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.fabric8.mockwebserver.Context;
+import io.fabric8.mockwebserver.MockWebServer;
 import io.fabric8.mockwebserver.ServerRequest;
 import io.fabric8.mockwebserver.ServerResponse;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
-import okhttp3.mockwebserver.RecordedRequest;
+import io.fabric8.mockwebserver.http.MockResponse;
+import io.fabric8.mockwebserver.http.RecordedRequest;
 
 class XdsKubernetesServiceTest {
 
@@ -490,7 +490,7 @@ class XdsKubernetesServiceTest {
         }
 
         @Override
-        public MockResponse dispatch(RecordedRequest request) throws InterruptedException {
+        public MockResponse dispatch(RecordedRequest request) {
             if ("OPTIONS".equals(request.getMethod())) {
                 // Mock server does not support OPTIONS.
                 return new MockResponse().setResponseCode(200);

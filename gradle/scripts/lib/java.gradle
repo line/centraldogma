@@ -89,6 +89,7 @@ configure(projectsWithFlags('java')) {
     // The default targetJavaVersion is 'javaTargetCompatibility'
     targetJavaVersion = Integer.valueOf(JavaVersion.toVersion(javaTargetCompatibility).majorVersion)
     project.ext.set('targetJavaVersion', targetJavaVersion)
+    logger.info("Using target Java version ${targetJavaVersion} for ${project.path}")
 
     def testJavaVersion = targetJavaVersion
     if (project.hasProperty('testJavaVersion')) {
