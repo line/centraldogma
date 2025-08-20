@@ -67,6 +67,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -467,6 +468,12 @@ public class CentralDogma implements AutoCloseable {
             }
         }
         return success;
+    }
+
+    @VisibleForTesting
+    @Nullable
+    CommandExecutor executor() {
+        return executor;
     }
 
     private CommandExecutor startCommandExecutor(

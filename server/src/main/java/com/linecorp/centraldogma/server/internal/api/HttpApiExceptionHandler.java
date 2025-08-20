@@ -29,14 +29,17 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.HttpStatusException;
+import com.linecorp.armeria.server.RequestTimeoutException;
 import com.linecorp.armeria.server.ServerErrorHandler;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ExceptionHandlerFunction;
+import com.linecorp.centraldogma.common.ApiRequestTimeoutException;
 import com.linecorp.centraldogma.common.AuthorizationException;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.EntryNoContentException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.InvalidPushException;
+import com.linecorp.centraldogma.common.LockAcquireTimeoutException;
 import com.linecorp.centraldogma.common.MirrorAccessException;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.common.PermissionException;
@@ -122,7 +125,9 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                .put(AuthorizationException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.UNAUTHORIZED, cause))
                .put(PermissionException.class,
-                    (ctx, cause) -> newResponse(ctx, HttpStatus.FORBIDDEN, cause));
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.FORBIDDEN, cause))
+               .put(LockAcquireTimeoutException.class,
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause));
 
         exceptionHandlers = builder.build();
     }
@@ -160,6 +165,12 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
         if (peeledCause instanceof RequestAlreadyTimedOutException) {
             ctx.setShouldReportUnloggedExceptions(false);
             return newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, peeledCause);
+        }
+
+        if (peeledCause instanceof RequestTimeoutException) {
+            ctx.setShouldReportUnloggedExceptions(false);
+            return newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE,
+                               new ApiRequestTimeoutException("Request timed out", peeledCause));
         }
 
         return newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, peeledCause);
