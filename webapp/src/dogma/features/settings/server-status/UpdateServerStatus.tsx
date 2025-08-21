@@ -79,15 +79,12 @@ export const UpdateServerStatus = ({
   const isUpdatingToSameStatusWithAllScope = currentStatus === selectedStatus && selectedScope === 'ALL';
   const isUpdatingReadOnlyToAllScope =
     currentStatus === 'READ_ONLY' && currentStatus !== selectedStatus && selectedScope === 'ALL';
-  const isUpdateDisabled = !selectedStatus || (currentStatus && (isUpdatingToSameStatusWithAllScope || isUpdatingReadOnlyToAllScope));
+  const isUpdateDisabled =
+    !selectedStatus || (currentStatus && (isUpdatingToSameStatusWithAllScope || isUpdatingReadOnlyToAllScope));
 
   return (
     <>
-      <Button
-        colorScheme="blue"
-        onClick={onOpen}
-        isDisabled={isUpdateDisabled}
-      >
+      <Button colorScheme="blue" onClick={onOpen} isDisabled={isUpdateDisabled}>
         Update Server Status
       </Button>
       <Modal isOpen={isOpen} onClose={onClose}>
