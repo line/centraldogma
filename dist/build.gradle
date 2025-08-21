@@ -67,15 +67,6 @@ task copyLib(group: 'Build',
     doLast {
         // Create an empty directory for keeping external JARs such as authentication module.
         project.mkdir("${libDir}/ext")
-
-        // Check if only JGit 6.x JARs are included.
-        FileCollection jgits = layout.files { libDir.listFiles() }.filter { File file ->
-            file.name.contains("jgit")
-        }
-        // org.eclipse.jgit-6.x is required.
-        if (jgits.size() != 1 || !jgits.first().name.startsWith("org.eclipse.jgit-6")) {
-            throw new IllegalStateException("Unexpected JGit JARs: $jgits.files")
-        }
     }
 }
 
