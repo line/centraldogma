@@ -49,14 +49,14 @@ const RepoMetaList = <Data extends object>({ data, projectName }: RepoListProps<
             <DeleteRepo
               projectName={projectName}
               repoName={info.getValue()}
-              hidden={info.row.original.removal !== undefined}
+              hidden={info.row.original.removal != null}
               buttonVariant={'solid'}
               buttonSize={'sm'}
             />
             <RestoreRepo
               projectName={projectName}
               repoName={info.getValue()}
-              hidden={info.row.original.removal === undefined}
+              hidden={info.row.original.removal == null}
             />
           </Wrap>
         ),

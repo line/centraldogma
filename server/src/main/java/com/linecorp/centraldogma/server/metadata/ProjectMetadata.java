@@ -240,15 +240,14 @@ public class ProjectMetadata implements Identifiable, HasWeight {
         if (!repos().containsKey(Project.REPO_DOGMA)) {
             return this;
         }
-        final Map<String, RepositoryMetadata> repos =
-                repos().entrySet().stream().filter(key -> !key.getKey().equals(Project.REPO_DOGMA))
+        final Map<String, RepositoryMetadata> filtered =
+                repos().entrySet().stream().filter(entry -> !Project.REPO_DOGMA.equals(entry.getKey()))
                        .collect(toImmutableMap(Entry::getKey, Entry::getValue));
         return new ProjectMetadata(name(),
-                                   repos,
+                                   filtered,
                                    members(),
                                    tokens(),
                                    creation(),
-                                   removal()) {
-        };
+                                   removal());
     }
 }
