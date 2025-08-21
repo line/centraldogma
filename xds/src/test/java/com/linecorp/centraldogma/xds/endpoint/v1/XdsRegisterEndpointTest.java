@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.xds.endpoint.v1;
 
 import static com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceTest.assertOk;
 import static com.linecorp.centraldogma.xds.endpoint.v1.XdsEndpointServiceTest.checkEndpointsViaDiscoveryRequest;
+import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENTRAL_DOGMA_PROJECT;
 import static com.linecorp.centraldogma.xds.internal.XdsResourceManager.JSON_MESSAGE_MARSHALLER;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createEndpoint;
 import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.createGroup;
@@ -24,6 +25,7 @@ import static com.linecorp.centraldogma.xds.internal.XdsTestUtil.endpoint;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -37,6 +39,8 @@ import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.envoyproxy.envoy.config.core.v3.Locality;
@@ -67,72 +71,121 @@ public class XdsRegisterEndpointTest {
         assertOk(response);
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), endpoint, clusterName);
 
-        // Register another endpoint to the same locality endpoint.
+        final Repository fooRepository =
+                dogma.projectManager().get(XDS_CENTRAL_DOGMA_PROJECT).repos().get("foo");
+        int prevMajor = fooRepository.normalizeNow(Revision.HEAD).major();
+
+        // Register endpoints to the same locality endpoint.
         final LocalityLbEndpoint localityLbEndpoint1 =
                 LocalityLbEndpoint.newBuilder().setLocality(locality1)
                                   .setLbEndpoint(endpoint("127.0.0.1", 8081))
                                   .build();
-        response = registerOrDeregister(endpointName, localityLbEndpoint1, true);
-        assertOk(response);
+        final LocalityLbEndpoint localityLbEndpoint2 =
+                LocalityLbEndpoint.newBuilder().setLocality(locality1)
+                                  .setLbEndpoint(endpoint("127.0.0.1", 8082))
+                                  .build();
+        final CompletableFuture<AggregatedHttpResponse> registerFuture1 =
+                registerOrDeregisterAsync(endpointName, localityLbEndpoint1, true);
+        // The service collects the request during 3 seconds.
+        Thread.sleep(1000);
+        final CompletableFuture<AggregatedHttpResponse> registerFuture2 =
+                registerOrDeregisterAsync(endpointName, localityLbEndpoint2, true);
+        final CompletableFuture<AggregatedHttpResponse> deregister =
+                registerOrDeregisterAsync(endpointName,
+                                          LocalityLbEndpoint.newBuilder().setLocality(locality1)
+                                                            .setLbEndpoint(endpoint("127.0.0.1", 8080))
+                                                            .build(), false);
+        assertOk(registerFuture1.join());
+        assertOk(registerFuture2.join());
+        assertOk(deregister.join());
+        // localityLbEndpoint1 and localityLbEndpoint2 are registered together so the major version should
+        // be incremented by 1.
+        assertThat(fooRepository.normalizeNow(Revision.HEAD).major()).isEqualTo(prevMajor + 1);
+
         endpoint = endpoint.toBuilder()
                            .removeEndpoints(0)
                            .addEndpoints(LocalityLbEndpoints.newBuilder()
                                                             .setLocality(locality1)
-                                                            .addLbEndpoints(endpoint("127.0.0.1", 8080))
-                                                            .addLbEndpoints(endpoint("127.0.0.1", 8081)))
+                                                            .addLbEndpoints(endpoint("127.0.0.1", 8081))
+                                                            .addLbEndpoints(endpoint("127.0.0.1", 8082)))
                            .build();
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), endpoint, clusterName);
 
+        prevMajor = fooRepository.normalizeNow(Revision.HEAD).major();
+
         // Register another endpoint with different priority.
-        final LocalityLbEndpoint localityLbEndpoint2 =
+        final LocalityLbEndpoint localityLbEndpoint3 =
                 LocalityLbEndpoint.newBuilder().setLocality(locality1)
                                   .setPriority(1)
-                                  .setLbEndpoint(endpoint("127.0.0.1", 8082))
+                                  .setLbEndpoint(endpoint("127.0.0.1", 8083))
                                   .build();
-        response = registerOrDeregister(endpointName, localityLbEndpoint2, true);
-        assertOk(response);
+
+        final CompletableFuture<AggregatedHttpResponse> registerFuture3 =
+                registerOrDeregisterAsync(endpointName, localityLbEndpoint3, true);
+
+        final LocalityLbEndpoint notRegistered =
+                LocalityLbEndpoint.newBuilder().setLocality(locality1)
+                                  .setPriority(1)
+                                  .setLbEndpoint(endpoint("127.0.0.1", 9000))
+                                  .build();
+
+        // Try to register and deregister the same endpoint.
+        final CompletableFuture<AggregatedHttpResponse> notRegisterFuture1 =
+                registerOrDeregisterAsync(endpointName, notRegistered, true);
+        // Sleep so that the next call is sent after the previous one.
+        Thread.sleep(500);
+        final CompletableFuture<AggregatedHttpResponse> notRegisterFuture2 =
+                registerOrDeregisterAsync(endpointName, notRegistered, false);
+
+        assertOk(registerFuture3.join());
+        // Aborted by the next call.
+        assertThat(notRegisterFuture1.join().status()).isSameAs(HttpStatus.CONFLICT);
+        assertThat(notRegisterFuture2.join().status()).isSameAs(HttpStatus.OK);
+
+        assertThat(fooRepository.normalizeNow(Revision.HEAD).major()).isEqualTo(prevMajor + 1);
+
         endpoint = endpoint.toBuilder()
                            .addEndpoints(LocalityLbEndpoints.newBuilder()
                                                             .setLocality(locality1)
                                                             .setPriority(1)
-                                                            .addLbEndpoints(endpoint("127.0.0.1", 8082)))
+                                                            .addLbEndpoints(endpoint("127.0.0.1", 8083)))
                            .build();
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), endpoint, clusterName);
 
         // Register another endpoint with different locality.
         final Locality locality2 = Locality.newBuilder().setRegion("region2").setZone("zone2").build();
-        LbEndpoint endpoint8083 = endpoint("127.0.0.1", 8083);
-        final LocalityLbEndpoint localityLbEndpoint3 =
+        LbEndpoint endpoint8084 = endpoint("127.0.0.1", 8084);
+        final LocalityLbEndpoint localityLbEndpoint4 =
                 LocalityLbEndpoint.newBuilder().setLocality(locality2)
-                                  .setLbEndpoint(endpoint8083)
+                                  .setLbEndpoint(endpoint8084)
                                   .build();
-        response = registerOrDeregister(endpointName, localityLbEndpoint3, true);
+        response = registerOrDeregister(endpointName, localityLbEndpoint4, true);
         assertOk(response);
         endpoint = endpoint.toBuilder()
                            .addEndpoints(LocalityLbEndpoints.newBuilder()
                                                             .setLocality(locality2)
-                                                            .addLbEndpoints(endpoint8083))
+                                                            .addLbEndpoints(endpoint8084))
                            .build();
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), endpoint, clusterName);
 
         // Register the same endpoint with different property. This will replace the existing one.
-        endpoint8083 = endpoint8083.toBuilder().setLoadBalancingWeight(UInt32Value.of(200)).build();
-        final LocalityLbEndpoint localityLbEndpoint4 =
+        endpoint8084 = endpoint8084.toBuilder().setLoadBalancingWeight(UInt32Value.of(200)).build();
+        final LocalityLbEndpoint localityLbEndpoint5 =
                 LocalityLbEndpoint.newBuilder().setLocality(locality2)
-                                  .setLbEndpoint(endpoint8083)
+                                  .setLbEndpoint(endpoint8084)
                                   .build();
-        response = registerOrDeregister(endpointName, localityLbEndpoint4, true);
+        response = registerOrDeregister(endpointName, localityLbEndpoint5, true);
         assertOk(response);
         endpoint = endpoint.toBuilder()
                            .removeEndpoints(2)
                            .addEndpoints(LocalityLbEndpoints.newBuilder()
                                                             .setLocality(locality2)
-                                                            .addLbEndpoints(endpoint8083))
+                                                            .addLbEndpoints(endpoint8084))
                            .build();
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), endpoint, clusterName);
 
         // Deregister the endpoint.
-        response = registerOrDeregister(endpointName, localityLbEndpoint3, false);
+        response = registerOrDeregister(endpointName, localityLbEndpoint4, false);
         assertOk(response);
         assertThat(response.contentUtf8()).isEqualTo("{}");
         endpoint = endpoint.toBuilder()
@@ -141,11 +194,10 @@ public class XdsRegisterEndpointTest {
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), endpoint, clusterName);
 
         // Try to deregister a non-existent endpoint.
-        response = registerOrDeregister(endpointName, localityLbEndpoint3, false);
-        assertThat(response.status()).isSameAs(HttpStatus.NOT_FOUND);
-        assertThat(response.contentUtf8()).contains("Locality LB endpoint does not exist");
+        response = registerOrDeregister(endpointName, localityLbEndpoint4, false);
+        assertThat(response.status()).isSameAs(HttpStatus.OK); // It's OK to deregister a non-existent endpoint.
 
-        response = registerOrDeregister(endpointName, localityLbEndpoint2, false);
+        response = registerOrDeregister(endpointName, localityLbEndpoint3, false);
         assertOk(response);
         assertThat(response.contentUtf8()).isEqualTo("{}");
         endpoint = endpoint.toBuilder()
@@ -153,28 +205,27 @@ public class XdsRegisterEndpointTest {
                            .build();
         checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), endpoint, clusterName);
 
-        response = registerOrDeregister(endpointName,
-                                        LocalityLbEndpoint.newBuilder().setLocality(locality1)
-                                                      .setLbEndpoint(endpoint("127.0.0.1", 8080))
-                                                      .build(),
-                                        false);
-        assertOk(response);
-        assertThat(response.contentUtf8()).isEqualTo("{}");
-        endpoint = endpoint.toBuilder()
-                           .removeEndpoints(0)
-                           .addEndpoints(LocalityLbEndpoints.newBuilder()
-                                                            .setLocality(locality1)
-                                                            .addLbEndpoints(endpoint("127.0.0.1", 8081)))
-                           .build();
-        checkEndpointsViaDiscoveryRequest(dogma.httpClient().uri(), endpoint, clusterName);
+        prevMajor = fooRepository.normalizeNow(Revision.HEAD).major();
+        final CompletableFuture<AggregatedHttpResponse> deregisterFuture1 =
+                registerOrDeregisterAsync(endpointName,
+                                          LocalityLbEndpoint.newBuilder().setLocality(locality1)
+                                                            .setLbEndpoint(endpoint("127.0.0.1", 8081))
+                                                            .build(),
+                                          false);
+        Thread.sleep(1000);
+        final CompletableFuture<AggregatedHttpResponse> deregisterFuture2 =
+                registerOrDeregisterAsync(endpointName,
+                                          LocalityLbEndpoint.newBuilder().setLocality(locality1)
+                                                            .setLbEndpoint(endpoint("127.0.0.1", 8082))
+                                                            .build(),
+                                          false);
+        assertOk(deregisterFuture1.join());
+        assertOk(deregisterFuture2.join());
 
-        response = registerOrDeregister(endpointName,
-                                        LocalityLbEndpoint.newBuilder().setLocality(locality1)
-                                                          .setLbEndpoint(endpoint("127.0.0.1", 8081))
-                                                          .build(),
-                                        false);
-        assertOk(response);
-        assertThat(response.contentUtf8()).isEqualTo("{}");
+        assertThat(fooRepository.normalizeNow(Revision.HEAD).major()).isEqualTo(prevMajor + 1);
+
+        assertThat(deregisterFuture1.join().contentUtf8()).isEqualTo("{}");
+        assertThat(deregisterFuture2.join().contentUtf8()).isEqualTo("{}");
         endpoint = endpoint.toBuilder()
                            .removeEndpoints(0)
                            .build();
@@ -182,6 +233,11 @@ public class XdsRegisterEndpointTest {
     }
 
     private static AggregatedHttpResponse registerOrDeregister(
+            String endpointName, LocalityLbEndpoint localityLbEndpoint, boolean register) throws IOException {
+        return registerOrDeregisterAsync(endpointName, localityLbEndpoint, register).join();
+    }
+
+    private static CompletableFuture<AggregatedHttpResponse> registerOrDeregisterAsync(
             String endpointName, LocalityLbEndpoint localityLbEndpoint, boolean register) throws IOException {
         final RequestHeaders headers =
                 RequestHeaders.builder(register ? HttpMethod.PATCH : HttpMethod.DELETE,
@@ -192,7 +248,7 @@ public class XdsRegisterEndpointTest {
                               .contentType(MediaType.JSON_UTF_8).build();
         return dogma.httpClient().execute(headers,
                                           JSON_MESSAGE_MARSHALLER.writeValueAsString(localityLbEndpoint))
-                    .aggregate().join();
+                    .aggregate();
     }
 
     private static ClusterLoadAssignment loadAssignment(String clusterName, Locality locality,
