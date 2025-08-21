@@ -45,10 +45,11 @@ export const Authorized = (props: { children: ReactNode }) => {
     return <>{props.children}</>;
   }
   if (typeof window !== 'undefined') {
+    const returnPath = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
     router.push(
       process.env.NEXT_PUBLIC_HOST
-        ? `${process.env.NEXT_PUBLIC_HOST}/link/auth/login?return_to=${window.location.origin}`
-        : `/link/auth/login`,
+        ? `${process.env.NEXT_PUBLIC_HOST}/link/auth/login?return_to=${window.location.origin}&ref=${returnPath}`
+        : `/link/auth/login?ref=${returnPath}`,
     );
   }
   return <></>;
