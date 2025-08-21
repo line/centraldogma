@@ -40,6 +40,10 @@ import {
   MirrorAccessControl,
   MirrorAccessControlRequest,
 } from 'dogma/features/settings/mirror-access/MirrorAccessControl';
+import {
+  ServerStatusType,
+  UpdateServerStatusRequest,
+} from 'dogma/features/settings/server-status/ServerStatusDto';
 
 export type ApiAction<Arg, Result> = {
   (arg: Arg): { unwrap: () => Promise<Result> };
@@ -107,7 +111,7 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  tagTypes: ['Project', 'Metadata', 'Repo', 'File', 'Token', 'Mirror'],
+  tagTypes: ['Project', 'Metadata', 'Repo', 'File', 'Token', 'Mirror', 'ServerStatus'],
   endpoints: (builder) => ({
     getProjects: builder.query<ProjectDto[], GetProjects>({
       async queryFn(arg, _queryApi, _extraOptions, fetchWithBQ) {
@@ -432,6 +436,18 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Mirror'],
     }),
+    getServerStatus: builder.query<ServerStatusType, void>({
+      query: () => '/api/v1/status',
+      providesTags: ['ServerStatus'],
+    }),
+    updateServerStatus: builder.mutation<ServerStatusType, UpdateServerStatusRequest>({
+      query: (body) => ({
+        url: '/api/v1/status',
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['ServerStatus'],
+    }),
     getProjectCredentials: builder.query<CredentialDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/credentials`,
       transformResponse: (response: CredentialDto[]) => addIdFromCredentialNames(response),
@@ -570,6 +586,9 @@ export const {
   useUpdateMirrorAccessControlMutation,
   useAddNewMirrorAccessControlMutation,
   useDeleteMirrorAccessControlMutation,
+  // Server Status
+  useGetServerStatusQuery,
+  useUpdateServerStatusMutation,
   // Credential
   useGetProjectCredentialsQuery,
   useGetCredentialQuery,
