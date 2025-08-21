@@ -165,72 +165,67 @@
 <a class="jxr_linenumber" name="L157" href="#L157">157</a>             <strong class="jxr_keyword">return</strong> toResolvedHostEndpoint(firstHost);
 <a class="jxr_linenumber" name="L158" href="#L158">158</a>         }
 <a class="jxr_linenumber" name="L159" href="#L159">159</a> 
-<a class="jxr_linenumber" name="L160" href="#L160">160</a>         <strong class="jxr_keyword">final</strong> List&lt;Endpoint&gt; staticEndpoints = <strong class="jxr_keyword">new</strong> ArrayList&lt;&gt;();
-<a class="jxr_linenumber" name="L161" href="#L161">161</a>         <strong class="jxr_keyword">final</strong> List&lt;EndpointGroup&gt; groups = <strong class="jxr_keyword">new</strong> ArrayList&lt;&gt;();
-<a class="jxr_linenumber" name="L162" href="#L162">162</a>         <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">final</strong> InetSocketAddress addr : hosts) {
-<a class="jxr_linenumber" name="L163" href="#L163">163</a>             <strong class="jxr_keyword">if</strong> (addr.isUnresolved()) {
-<a class="jxr_linenumber" name="L164" href="#L164">164</a>                 <strong class="jxr_keyword">final</strong> DnsAddressEndpointGroupBuilder dnsAddressEndpointGroup = DnsAddressEndpointGroup
-<a class="jxr_linenumber" name="L165" href="#L165">165</a>                         .builder(addr.getHostString())
-<a class="jxr_linenumber" name="L166" href="#L166">166</a>                         .eventLoop(clientFactory.eventLoopGroup().next());
-<a class="jxr_linenumber" name="L167" href="#L167">167</a>                 dnsAddressEndpointGroupConfigurator.configure(dnsAddressEndpointGroup);
-<a class="jxr_linenumber" name="L168" href="#L168">168</a>                 groups.add(dnsAddressEndpointGroup.port(addr.getPort()).build());
-<a class="jxr_linenumber" name="L169" href="#L169">169</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L170" href="#L170">170</a>                 staticEndpoints.add(toResolvedHostEndpoint(addr));
-<a class="jxr_linenumber" name="L171" href="#L171">171</a>             }
-<a class="jxr_linenumber" name="L172" href="#L172">172</a>         }
-<a class="jxr_linenumber" name="L173" href="#L173">173</a> 
-<a class="jxr_linenumber" name="L174" href="#L174">174</a>         <strong class="jxr_keyword">if</strong> (!staticEndpoints.isEmpty()) {
-<a class="jxr_linenumber" name="L175" href="#L175">175</a>             groups.add(EndpointGroup.of(staticEndpoints));
-<a class="jxr_linenumber" name="L176" href="#L176">176</a>         }
-<a class="jxr_linenumber" name="L177" href="#L177">177</a> 
-<a class="jxr_linenumber" name="L178" href="#L178">178</a>         <strong class="jxr_keyword">final</strong> EndpointGroup group;
-<a class="jxr_linenumber" name="L179" href="#L179">179</a>         <strong class="jxr_keyword">if</strong> (groups.size() == 1) {
-<a class="jxr_linenumber" name="L180" href="#L180">180</a>             group = groups.get(0);
-<a class="jxr_linenumber" name="L181" href="#L181">181</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L182" href="#L182">182</a>             group = <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/client/armeria/CompositeEndpointGroup.html">CompositeEndpointGroup</a>(groups, EndpointSelectionStrategy.roundRobin());
-<a class="jxr_linenumber" name="L183" href="#L183">183</a>         }
-<a class="jxr_linenumber" name="L184" href="#L184">184</a> 
-<a class="jxr_linenumber" name="L185" href="#L185">185</a>         <strong class="jxr_keyword">return</strong> group;
+<a class="jxr_linenumber" name="L160" href="#L160">160</a>         <strong class="jxr_keyword">final</strong> List&lt;EndpointGroup&gt; groups = <strong class="jxr_keyword">new</strong> ArrayList&lt;&gt;();
+<a class="jxr_linenumber" name="L161" href="#L161">161</a>         <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">final</strong> InetSocketAddress addr : hosts) {
+<a class="jxr_linenumber" name="L162" href="#L162">162</a>             <strong class="jxr_keyword">if</strong> (addr.isUnresolved()) {
+<a class="jxr_linenumber" name="L163" href="#L163">163</a>                 <strong class="jxr_keyword">final</strong> DnsAddressEndpointGroupBuilder dnsAddressEndpointGroup = DnsAddressEndpointGroup
+<a class="jxr_linenumber" name="L164" href="#L164">164</a>                         .builder(addr.getHostString())
+<a class="jxr_linenumber" name="L165" href="#L165">165</a>                         .eventLoop(clientFactory.eventLoopGroup().next());
+<a class="jxr_linenumber" name="L166" href="#L166">166</a>                 dnsAddressEndpointGroupConfigurator.configure(dnsAddressEndpointGroup);
+<a class="jxr_linenumber" name="L167" href="#L167">167</a>                 groups.add(dnsAddressEndpointGroup.port(addr.getPort()).build());
+<a class="jxr_linenumber" name="L168" href="#L168">168</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L169" href="#L169">169</a>                 groups.add(toResolvedHostEndpoint(addr));
+<a class="jxr_linenumber" name="L170" href="#L170">170</a>             }
+<a class="jxr_linenumber" name="L171" href="#L171">171</a>         }
+<a class="jxr_linenumber" name="L172" href="#L172">172</a> 
+<a class="jxr_linenumber" name="L173" href="#L173">173</a>         <strong class="jxr_keyword">final</strong> EndpointGroup group;
+<a class="jxr_linenumber" name="L174" href="#L174">174</a>         <strong class="jxr_keyword">if</strong> (groups.size() == 1) {
+<a class="jxr_linenumber" name="L175" href="#L175">175</a>             group = groups.get(0);
+<a class="jxr_linenumber" name="L176" href="#L176">176</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L177" href="#L177">177</a>             group = EndpointGroup.of(EndpointSelectionStrategy.roundRobin(), groups);
+<a class="jxr_linenumber" name="L178" href="#L178">178</a>         }
+<a class="jxr_linenumber" name="L179" href="#L179">179</a> 
+<a class="jxr_linenumber" name="L180" href="#L180">180</a>         <strong class="jxr_keyword">return</strong> group;
+<a class="jxr_linenumber" name="L181" href="#L181">181</a>     }
+<a class="jxr_linenumber" name="L182" href="#L182">182</a> 
+<a class="jxr_linenumber" name="L183" href="#L183">183</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> Endpoint toResolvedHostEndpoint(InetSocketAddress addr) {
+<a class="jxr_linenumber" name="L184" href="#L184">184</a>         <strong class="jxr_keyword">return</strong> Endpoint.of(addr.getHostString(), addr.getPort())
+<a class="jxr_linenumber" name="L185" href="#L185">185</a>                        .withIpAddr(addr.getAddress().getHostAddress());
 <a class="jxr_linenumber" name="L186" href="#L186">186</a>     }
 <a class="jxr_linenumber" name="L187" href="#L187">187</a> 
-<a class="jxr_linenumber" name="L188" href="#L188">188</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> Endpoint toResolvedHostEndpoint(InetSocketAddress addr) {
-<a class="jxr_linenumber" name="L189" href="#L189">189</a>         <strong class="jxr_keyword">return</strong> Endpoint.of(addr.getHostString(), addr.getPort())
-<a class="jxr_linenumber" name="L190" href="#L190">190</a>                        .withIpAddr(addr.getAddress().getHostAddress());
-<a class="jxr_linenumber" name="L191" href="#L191">191</a>     }
-<a class="jxr_linenumber" name="L192" href="#L192">192</a> 
-<a class="jxr_linenumber" name="L193" href="#L193">193</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L194" href="#L194">194</a> <em class="jxr_javadoccomment">     * Returns the {@link ScheduledExecutorService} dedicated to the execution of blocking tasks or invocations.</em>
-<a class="jxr_linenumber" name="L195" href="#L195">195</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L196" href="#L196">196</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> ScheduledExecutorService blockingTaskExecutor() {
-<a class="jxr_linenumber" name="L197" href="#L197">197</a>         <strong class="jxr_keyword">return</strong> blockingTaskExecutor;
-<a class="jxr_linenumber" name="L198" href="#L198">198</a>     }
-<a class="jxr_linenumber" name="L199" href="#L199">199</a> 
-<a class="jxr_linenumber" name="L200" href="#L200">200</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L201" href="#L201">201</a> <em class="jxr_javadoccomment">     * Sets the {@link ScheduledExecutorService} dedicated to the execution of blocking tasks or invocations.</em>
-<a class="jxr_linenumber" name="L202" href="#L202">202</a> <em class="jxr_javadoccomment">     * If not set, {@linkplain CommonPools#blockingTaskExecutor() the common pool} is used.</em>
-<a class="jxr_linenumber" name="L203" href="#L203">203</a> <em class="jxr_javadoccomment">     * The {@link ScheduledExecutorService} which will be used for scheduling the tasks related with</em>
-<a class="jxr_linenumber" name="L204" href="#L204">204</a> <em class="jxr_javadoccomment">     * automatic retries and invoking the callbacks for watched changes.</em>
-<a class="jxr_linenumber" name="L205" href="#L205">205</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L206" href="#L206">206</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> B blockingTaskExecutor(ScheduledExecutorService blockingTaskExecutor) {
-<a class="jxr_linenumber" name="L207" href="#L207">207</a>         requireNonNull(blockingTaskExecutor, <span class="jxr_string">"blockingTaskExecutor"</span>);
-<a class="jxr_linenumber" name="L208" href="#L208">208</a>         <strong class="jxr_keyword">this</strong>.blockingTaskExecutor = blockingTaskExecutor;
-<a class="jxr_linenumber" name="L209" href="#L209">209</a>         <strong class="jxr_keyword">return</strong> self();
-<a class="jxr_linenumber" name="L210" href="#L210">210</a>     }
-<a class="jxr_linenumber" name="L211" href="#L211">211</a> 
-<a class="jxr_linenumber" name="L212" href="#L212">212</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L213" href="#L213">213</a> <em class="jxr_javadoccomment">     * Returns a newly created {@link ClientBuilder} configured with the specified {@code customizer}</em>
-<a class="jxr_linenumber" name="L214" href="#L214">214</a> <em class="jxr_javadoccomment">     * and then with the {@link ArmeriaClientConfigurator} specified with</em>
-<a class="jxr_linenumber" name="L215" href="#L215">215</a> <em class="jxr_javadoccomment">     * {@link #clientConfigurator(ArmeriaClientConfigurator)}.</em>
-<a class="jxr_linenumber" name="L216" href="#L216">216</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L217" href="#L217">217</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> ClientBuilder newClientBuilder(String scheme, EndpointGroup endpointGroup,
-<a class="jxr_linenumber" name="L218" href="#L218">218</a>                                                    Consumer&lt;ClientBuilder&gt; customizer, String path) {
-<a class="jxr_linenumber" name="L219" href="#L219">219</a>         <strong class="jxr_keyword">final</strong> ClientBuilder builder = Clients.builder(scheme, endpointGroup, path);
-<a class="jxr_linenumber" name="L220" href="#L220">220</a>         customizer.accept(builder);
-<a class="jxr_linenumber" name="L221" href="#L221">221</a>         clientConfigurator.configure(builder);
-<a class="jxr_linenumber" name="L222" href="#L222">222</a>         builder.factory(clientFactory());
-<a class="jxr_linenumber" name="L223" href="#L223">223</a>         <strong class="jxr_keyword">return</strong> builder;
-<a class="jxr_linenumber" name="L224" href="#L224">224</a>     }
-<a class="jxr_linenumber" name="L225" href="#L225">225</a> }
+<a class="jxr_linenumber" name="L188" href="#L188">188</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L189" href="#L189">189</a> <em class="jxr_javadoccomment">     * Returns the {@link ScheduledExecutorService} dedicated to the execution of blocking tasks or invocations.</em>
+<a class="jxr_linenumber" name="L190" href="#L190">190</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L191" href="#L191">191</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> ScheduledExecutorService blockingTaskExecutor() {
+<a class="jxr_linenumber" name="L192" href="#L192">192</a>         <strong class="jxr_keyword">return</strong> blockingTaskExecutor;
+<a class="jxr_linenumber" name="L193" href="#L193">193</a>     }
+<a class="jxr_linenumber" name="L194" href="#L194">194</a> 
+<a class="jxr_linenumber" name="L195" href="#L195">195</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L196" href="#L196">196</a> <em class="jxr_javadoccomment">     * Sets the {@link ScheduledExecutorService} dedicated to the execution of blocking tasks or invocations.</em>
+<a class="jxr_linenumber" name="L197" href="#L197">197</a> <em class="jxr_javadoccomment">     * If not set, {@linkplain CommonPools#blockingTaskExecutor() the common pool} is used.</em>
+<a class="jxr_linenumber" name="L198" href="#L198">198</a> <em class="jxr_javadoccomment">     * The {@link ScheduledExecutorService} which will be used for scheduling the tasks related with</em>
+<a class="jxr_linenumber" name="L199" href="#L199">199</a> <em class="jxr_javadoccomment">     * automatic retries and invoking the callbacks for watched changes.</em>
+<a class="jxr_linenumber" name="L200" href="#L200">200</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L201" href="#L201">201</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> B blockingTaskExecutor(ScheduledExecutorService blockingTaskExecutor) {
+<a class="jxr_linenumber" name="L202" href="#L202">202</a>         requireNonNull(blockingTaskExecutor, <span class="jxr_string">"blockingTaskExecutor"</span>);
+<a class="jxr_linenumber" name="L203" href="#L203">203</a>         <strong class="jxr_keyword">this</strong>.blockingTaskExecutor = blockingTaskExecutor;
+<a class="jxr_linenumber" name="L204" href="#L204">204</a>         <strong class="jxr_keyword">return</strong> self();
+<a class="jxr_linenumber" name="L205" href="#L205">205</a>     }
+<a class="jxr_linenumber" name="L206" href="#L206">206</a> 
+<a class="jxr_linenumber" name="L207" href="#L207">207</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L208" href="#L208">208</a> <em class="jxr_javadoccomment">     * Returns a newly created {@link ClientBuilder} configured with the specified {@code customizer}</em>
+<a class="jxr_linenumber" name="L209" href="#L209">209</a> <em class="jxr_javadoccomment">     * and then with the {@link ArmeriaClientConfigurator} specified with</em>
+<a class="jxr_linenumber" name="L210" href="#L210">210</a> <em class="jxr_javadoccomment">     * {@link #clientConfigurator(ArmeriaClientConfigurator)}.</em>
+<a class="jxr_linenumber" name="L211" href="#L211">211</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L212" href="#L212">212</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> ClientBuilder newClientBuilder(String scheme, EndpointGroup endpointGroup,
+<a class="jxr_linenumber" name="L213" href="#L213">213</a>                                                    Consumer&lt;ClientBuilder&gt; customizer, String path) {
+<a class="jxr_linenumber" name="L214" href="#L214">214</a>         <strong class="jxr_keyword">final</strong> ClientBuilder builder = Clients.builder(scheme, endpointGroup, path);
+<a class="jxr_linenumber" name="L215" href="#L215">215</a>         customizer.accept(builder);
+<a class="jxr_linenumber" name="L216" href="#L216">216</a>         clientConfigurator.configure(builder);
+<a class="jxr_linenumber" name="L217" href="#L217">217</a>         builder.factory(clientFactory());
+<a class="jxr_linenumber" name="L218" href="#L218">218</a>         <strong class="jxr_keyword">return</strong> builder;
+<a class="jxr_linenumber" name="L219" href="#L219">219</a>     }
+<a class="jxr_linenumber" name="L220" href="#L220">220</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2025 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>

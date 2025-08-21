@@ -137,7 +137,7 @@ Core properties
 
   - the maximum length of request content. If a client sends a request whose content
     is longer than this, the server may respond with a ``413 Request Entity Too Large`` response.
-    If ``null``, the default value of '10485760 bytes' (10 MiB) is used.
+    If ``null``, the default value of '1048576 bytes' (1 MiB) is used.
 
 - ``numRepositoryWorkers`` (integer)
 

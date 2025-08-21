@@ -20,6 +20,7 @@ com.linecorp.centraldogma.server.mirror
 com.linecorp.centraldogma.server.mirror.git
 com.linecorp.centraldogma.server.plugin
 com.linecorp.centraldogma.server.storage
+com.linecorp.centraldogma.server.storage.encryption
 com.linecorp.centraldogma.server.storage.project
 com.linecorp.centraldogma.server.storage.repository
 com.linecorp.centraldogma.testing.junit

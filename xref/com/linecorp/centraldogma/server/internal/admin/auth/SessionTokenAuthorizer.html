@@ -27,58 +27,49 @@
 <a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.User.LEVEL_SYSTEM_ADMIN;
 <a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> com.linecorp.centraldogma.server.metadata.User.LEVEL_USER;
 <a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> java.util.Objects.requireNonNull;
-<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> java.util.concurrent.CompletableFuture.completedFuture;
-<a class="jxr_linenumber" name="L23" href="#L23">23</a>  
-<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> java.util.List;
-<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> java.util.Set;
-<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.CompletionStage;
-<a class="jxr_linenumber" name="L27" href="#L27">27</a>  
-<a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.common.HttpRequest;
-<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.common.auth.OAuth2Token;
-<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.ServiceRequestContext;
-<a class="jxr_linenumber" name="L31" href="#L31">31</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.auth.AuthTokenExtractors;
-<a class="jxr_linenumber" name="L32" href="#L32">32</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.auth.Authorizer;
-<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.auth.SessionManager;
-<a class="jxr_linenumber" name="L34" href="#L34">34</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
-<a class="jxr_linenumber" name="L35" href="#L35">35</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.User;
-<a class="jxr_linenumber" name="L36" href="#L36">36</a>  
-<a class="jxr_linenumber" name="L37" href="#L37">37</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L38" href="#L38">38</a>  <em class="jxr_javadoccomment"> * A decorator to check whether the request holds a valid token. If it holds a valid token, this</em>
-<a class="jxr_linenumber" name="L39" href="#L39">39</a>  <em class="jxr_javadoccomment"> * decorator would find a session belonging to the token and attach it to the service context attributes.</em>
-<a class="jxr_linenumber" name="L40" href="#L40">40</a>  <em class="jxr_javadoccomment"> */</em>
-<a class="jxr_linenumber" name="L41" href="#L41">41</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/auth/SessionTokenAuthorizer.html">SessionTokenAuthorizer</a> <strong class="jxr_keyword">implements</strong> Authorizer&lt;HttpRequest&gt; {
-<a class="jxr_linenumber" name="L42" href="#L42">42</a>  
-<a class="jxr_linenumber" name="L43" href="#L43">43</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/auth/SessionManager.html">SessionManager</a> sessionManager;
-<a class="jxr_linenumber" name="L44" href="#L44">44</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Set&lt;String&gt; systemAdministrators;
-<a class="jxr_linenumber" name="L45" href="#L45">45</a>  
-<a class="jxr_linenumber" name="L46" href="#L46">46</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/auth/SessionTokenAuthorizer.html">SessionTokenAuthorizer</a>(<a href="../../../../../../../com/linecorp/centraldogma/server/auth/SessionManager.html">SessionManager</a> sessionManager, Set&lt;String&gt; systemAdministrators) {
-<a class="jxr_linenumber" name="L47" href="#L47">47</a>          <strong class="jxr_keyword">this</strong>.sessionManager = requireNonNull(sessionManager, <span class="jxr_string">"sessionManager"</span>);
-<a class="jxr_linenumber" name="L48" href="#L48">48</a>          <strong class="jxr_keyword">this</strong>.systemAdministrators = requireNonNull(systemAdministrators, <span class="jxr_string">"systemAdministrators"</span>);
-<a class="jxr_linenumber" name="L49" href="#L49">49</a>      }
-<a class="jxr_linenumber" name="L50" href="#L50">50</a>  
-<a class="jxr_linenumber" name="L51" href="#L51">51</a>      @Override
-<a class="jxr_linenumber" name="L52" href="#L52">52</a>      <strong class="jxr_keyword">public</strong> CompletionStage&lt;Boolean&gt; authorize(ServiceRequestContext ctx, HttpRequest data) {
-<a class="jxr_linenumber" name="L53" href="#L53">53</a>          <strong class="jxr_keyword">final</strong> OAuth2Token token = AuthTokenExtractors.oAuth2().apply(data.headers());
-<a class="jxr_linenumber" name="L54" href="#L54">54</a>          <strong class="jxr_keyword">if</strong> (token == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L55" href="#L55">55</a>              <strong class="jxr_keyword">return</strong> completedFuture(false);
-<a class="jxr_linenumber" name="L56" href="#L56">56</a>          }
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>          <strong class="jxr_keyword">return</strong> sessionManager.get(token.accessToken())
-<a class="jxr_linenumber" name="L58" href="#L58">58</a>                               .thenApply(session -&gt; {
-<a class="jxr_linenumber" name="L59" href="#L59">59</a>                                   <strong class="jxr_keyword">if</strong> (session == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L60" href="#L60">60</a>                                       <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L61" href="#L61">61</a>                                   }
-<a class="jxr_linenumber" name="L62" href="#L62">62</a>                                   <strong class="jxr_keyword">final</strong> String username = session.username();
-<a class="jxr_linenumber" name="L63" href="#L63">63</a>                                   <strong class="jxr_keyword">final</strong> List&lt;String&gt; roles =
-<a class="jxr_linenumber" name="L64" href="#L64">64</a>                                           systemAdministrators.contains(username) ? LEVEL_SYSTEM_ADMIN
-<a class="jxr_linenumber" name="L65" href="#L65">65</a>                                                                                   : LEVEL_USER;
-<a class="jxr_linenumber" name="L66" href="#L66">66</a>                                   <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a> user = <strong class="jxr_keyword">new</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a>(username, roles);
-<a class="jxr_linenumber" name="L67" href="#L67">67</a>                                   ctx.logBuilder().authenticatedUser(<span class="jxr_string">"user/"</span> + username);
-<a class="jxr_linenumber" name="L68" href="#L68">68</a>                                   AuthUtil.setCurrentUser(ctx, user);
-<a class="jxr_linenumber" name="L69" href="#L69">69</a>                                   HttpApiUtil.setVerboseResponses(ctx, user);
-<a class="jxr_linenumber" name="L70" href="#L70">70</a>                                   <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="L71" href="#L71">71</a>                               });
-<a class="jxr_linenumber" name="L72" href="#L72">72</a>      }
-<a class="jxr_linenumber" name="L73" href="#L73">73</a>  }
+<a class="jxr_linenumber" name="L22" href="#L22">22</a>  
+<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> java.util.List;
+<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> java.util.Set;
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.CompletionStage;
+<a class="jxr_linenumber" name="L26" href="#L26">26</a>  
+<a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.common.HttpRequest;
+<a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> com.linecorp.armeria.server.ServiceRequestContext;
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.auth.SessionManager;
+<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
+<a class="jxr_linenumber" name="L31" href="#L31">31</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.User;
+<a class="jxr_linenumber" name="L32" href="#L32">32</a>  
+<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L34" href="#L34">34</a>  <em class="jxr_javadoccomment"> * A decorator to check whether the request holds a valid token. If it holds a valid token, this</em>
+<a class="jxr_linenumber" name="L35" href="#L35">35</a>  <em class="jxr_javadoccomment"> * decorator would find a session belonging to the token and attach it to the service context attributes.</em>
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="L37" href="#L37">37</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/auth/SessionTokenAuthorizer.html">SessionTokenAuthorizer</a> <strong class="jxr_keyword">extends</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/auth/AbstractAuthorizer.html">AbstractAuthorizer</a> {
+<a class="jxr_linenumber" name="L38" href="#L38">38</a>  
+<a class="jxr_linenumber" name="L39" href="#L39">39</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/auth/SessionManager.html">SessionManager</a> sessionManager;
+<a class="jxr_linenumber" name="L40" href="#L40">40</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Set&lt;String&gt; systemAdministrators;
+<a class="jxr_linenumber" name="L41" href="#L41">41</a>  
+<a class="jxr_linenumber" name="L42" href="#L42">42</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/auth/SessionTokenAuthorizer.html">SessionTokenAuthorizer</a>(<a href="../../../../../../../com/linecorp/centraldogma/server/auth/SessionManager.html">SessionManager</a> sessionManager, Set&lt;String&gt; systemAdministrators) {
+<a class="jxr_linenumber" name="L43" href="#L43">43</a>          <strong class="jxr_keyword">this</strong>.sessionManager = requireNonNull(sessionManager, <span class="jxr_string">"sessionManager"</span>);
+<a class="jxr_linenumber" name="L44" href="#L44">44</a>          <strong class="jxr_keyword">this</strong>.systemAdministrators = requireNonNull(systemAdministrators, <span class="jxr_string">"systemAdministrators"</span>);
+<a class="jxr_linenumber" name="L45" href="#L45">45</a>      }
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>  
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>      @Override
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>      <strong class="jxr_keyword">public</strong> CompletionStage&lt;Boolean&gt; authorize(ServiceRequestContext ctx, HttpRequest req, String accessToken) {
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>          <strong class="jxr_keyword">return</strong> sessionManager.get(accessToken).thenApply(session -&gt; {
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>              <strong class="jxr_keyword">if</strong> (session == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>                  <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>              }
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>              <strong class="jxr_keyword">final</strong> String username = session.username();
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>              <strong class="jxr_keyword">final</strong> List&lt;String&gt; roles =
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>                      systemAdministrators.contains(username) ? LEVEL_SYSTEM_ADMIN
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>                                                              : LEVEL_USER;
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>              <strong class="jxr_keyword">final</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a> user = <strong class="jxr_keyword">new</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/metadata/User.html">User</a>(username, roles);
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>              ctx.logBuilder().authenticatedUser(<span class="jxr_string">"user/"</span> + username);
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>              AuthUtil.setCurrentUser(ctx, user);
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>              HttpApiUtil.setVerboseResponses(ctx, user);
+<a class="jxr_linenumber" name="L61" href="#L61">61</a>              <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L62" href="#L62">62</a>          });
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>      }
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>  }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2025 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>
