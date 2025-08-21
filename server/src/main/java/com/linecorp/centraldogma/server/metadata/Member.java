@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.metadata;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
@@ -106,6 +108,25 @@ public class Member implements Identifiable, HasWeight {
     @JsonProperty
     public UserAndTimestamp creation() {
         return creation;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Member)) {
+            return false;
+        }
+        final Member that = (Member) o;
+        return login.equals(that.login) &&
+               role == that.role &&
+               creation.equals(that.creation);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(login, role, creation);
     }
 
     @Override

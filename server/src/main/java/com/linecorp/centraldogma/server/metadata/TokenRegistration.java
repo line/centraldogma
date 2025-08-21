@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.metadata;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -92,6 +94,25 @@ public class TokenRegistration implements Identifiable, HasWeight {
     @Override
     public int weight() {
         return appId.length() + role.name().length();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof TokenRegistration)) {
+            return false;
+        }
+        final TokenRegistration that = (TokenRegistration) o;
+        return appId.equals(that.appId) &&
+               role == that.role &&
+               creation.equals(that.creation);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(appId, role, creation);
     }
 
     @Override
