@@ -148,7 +148,9 @@ public class ProjectServiceV1 extends AbstractService {
     @Get("/projects/{projectName}")
     @RequiresProjectRole(ProjectRole.MEMBER)
     public CompletableFuture<ProjectMetadata> getProjectMetadata(@Param String projectName) {
-        return projectApiManager.getProjectMetadata(projectName);
+        // Remove the Dogma repository from the metadata to avoid exposing it to the user.
+        return projectApiManager.getProjectMetadata(projectName)
+                                .thenApply(ProjectMetadata::withoutDogmaRepo);
     }
 
     /**
