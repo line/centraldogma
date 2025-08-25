@@ -6,8 +6,6 @@ dependencies {
     implementation libs.bouncycastle.bcprov
     implementation libs.eddsa
     implementation libs.jgit6
-    // Declare explicitly to resolve the version conflict.
-    implementation libs.logback12
     implementation libs.mina.sshd.core
     implementation libs.mina.sshd.git
 

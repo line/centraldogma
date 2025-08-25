@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -29,6 +30,7 @@ import javax.annotation.Nullable;
 import org.assertj.core.api.AbstractThrowableAssert;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.slf4j.Marker;
+import org.slf4j.event.KeyValuePair;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -223,6 +225,21 @@ public class ExpectedExceptionAppender extends UnsynchronizedAppenderBase<ILoggi
         }
 
         @Override
+        public int getNanoseconds() {
+            return event.getNanoseconds();
+        }
+
+        @Override
+        public long getSequenceNumber() {
+            return event.getSequenceNumber();
+        }
+
+        @Override
+        public List<KeyValuePair> getKeyValuePairs() {
+            return event.getKeyValuePairs();
+        }
+
+        @Override
         public StackTraceElement[] getCallerData() {
             return event.getCallerData();
         }
@@ -233,8 +250,8 @@ public class ExpectedExceptionAppender extends UnsynchronizedAppenderBase<ILoggi
         }
 
         @Override
-        public Marker getMarker() {
-            return event.getMarker();
+        public List<Marker> getMarkerList() {
+            return event.getMarkerList();
         }
 
         @Override
