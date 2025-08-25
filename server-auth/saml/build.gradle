@@ -5,6 +5,4 @@ dependencies {
     }
 
     implementation libs.bouncycastle.bcprov
-    // Declare explicitly to resolve the version conflict.
-    implementation libs.logback12
 }

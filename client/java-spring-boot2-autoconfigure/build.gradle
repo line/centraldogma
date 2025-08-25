@@ -1,3 +1,10 @@
+configurations.configureEach {
+    resolutionStrategy {
+        force 'org.slf4j:slf4j-api:1.7.36'
+        force 'ch.qos.logback:logback-classic:1.2.13'
+    }
+}
+
 dependencies {
     api project(':client:java-armeria')
     compileOnly libs.javax.validation
@@ -6,6 +13,9 @@ dependencies {
 
     testImplementation libs.spring.boot2.starter.test
     testRuntimeOnly libs.hibernate.validator6
+
+    testImplementation 'org.slf4j:slf4j-api'
+    testImplementation 'ch.qos.logback:logback-classic'
 }
 
 // Use the sources from 'client-spring-boot3-autoconfigure'.

@@ -53,9 +53,7 @@ jmh-core = "1.37"
 jmh-gradle-plugin = "0.7.3"
 jxr = "0.2.1"
 kubernetes-client = "7.3.1"
-logback12 = { strictly = "1.2.13" }
-logback15 = { strictly = "1.5.7" }
-logback = "1.2.13"
+logback15 = "1.5.7"
 micrometer = "1.15.2"
 mina-sshd = "2.15.0"
 mockito = "5.18.0"
@@ -71,8 +69,7 @@ rocksdb = "10.2.1"
 shadow-gradle-plugin = "7.1.2"
 # Don't update `shiro` version
 shiro = "1.3.2"
-slf4j1 = { strictly = "1.7.36" }
-slf4j2 = { strictly = "2.0.17" }
+slf4j2 = "2.0.17"
 # Ensure that we use the same Snappy version as what Curator depends on.
 # See: https://github.com/apache/curator/blob/master/pom.xml
 snappy = "1.1.10.5"
@@ -323,10 +320,6 @@ module = "io.fabric8:kubernetes-junit-jupiter"
 version.ref = "kubernetes-client"
 exclusions = ["io.fabric8:kubernetes-httpclient-okhttp", "org.slf4j:slf4j-api"]
 
-[libraries.logback12]
-module = "ch.qos.logback:logback-classic"
-version.ref = "logback12"
-javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.13/"
 [libraries.logback15]
 module = "ch.qos.logback:logback-classic"
 version.ref = "logback15"
@@ -400,20 +393,6 @@ version.ref = "shadow-gradle-plugin"
 module = "org.apache.shiro:shiro-core"
 version.ref = "shiro"
 javadocs = "https://shiro.apache.org/static/1.3.2/apidocs/"
-
-[libraries.slf4j1-api]
-module = "org.slf4j:slf4j-api"
-version.ref = "slf4j1"
-javadocs = "https://www.javadoc.io/doc/org.slf4j/slf4j-api/1.7.36/"
-[libraries.slf4j1-jcl-over-slf4j]
-module = "org.slf4j:jcl-over-slf4j"
-version.ref = "slf4j1"
-[libraries.slf4j1-jul-to-slf4j]
-module = "org.slf4j:jul-to-slf4j"
-version.ref = "slf4j1"
-[libraries.slf4j1-log4j-over-slf4j]
-module = "org.slf4j:log4j-over-slf4j"
-version.ref = "slf4j1"
 
 [libraries.slf4j2-api]
 module = "org.slf4j:slf4j-api"

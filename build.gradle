@@ -78,28 +78,20 @@ configure(projectsWithFlags('java')) {
         // Jetty ALPN support
         compileOnly libs.jetty.alpn.api
 
-        // Logging
-        if (project.name.startsWith("java-spring-boot3")) {
-            implementation libs.slf4j2.api
-            testImplementation libs.slf4j2.jul.to.slf4j
-            testImplementation libs.slf4j2.jcl.over.slf4j
-            testImplementation libs.slf4j2.log4j.over.slf4j
-            testRuntimeOnly libs.logback15
-            configurations.configureEach {
-                resolutionStrategy {
-                    force libs.slf4j2.api.get()
-                    force libs.slf4j2.jul.to.slf4j.get()
-                    force libs.slf4j2.jcl.over.slf4j.get()
-                    force libs.slf4j2.log4j.over.slf4j.get()
-                    force libs.logback15.get()
-                }
+        // logging
+        implementation libs.slf4j2.api
+        testImplementation libs.slf4j2.jul.to.slf4j
+        testImplementation libs.slf4j2.jcl.over.slf4j
+        testImplementation libs.slf4j2.log4j.over.slf4j
+        testRuntimeOnly libs.logback15
+        configurations.configureEach {
+            resolutionStrategy {
+                force libs.slf4j2.api.get()
+                force libs.slf4j2.jul.to.slf4j.get()
+                force libs.slf4j2.jcl.over.slf4j.get()
+                force libs.slf4j2.log4j.over.slf4j.get()
+                force libs.logback15.get()
             }
-        } else {
-            implementation libs.slf4j1.api
-            testImplementation libs.slf4j1.jul.to.slf4j
-            testImplementation libs.slf4j1.jcl.over.slf4j
-            testImplementation libs.slf4j1.log4j.over.slf4j
-            testRuntimeOnly libs.logback12
         }
 
         // Test-time dependencies
