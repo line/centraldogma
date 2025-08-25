@@ -3,7 +3,6 @@ dependencies {
     testImplementation project(':server-auth:shiro')
 
     testImplementation libs.curator.test
-    testImplementation libs.logback15
 }
 
 // To use @SetEnvironmentVariable
