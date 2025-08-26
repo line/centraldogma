@@ -5,4 +5,5 @@ dependencies {
     }
 
     implementation libs.bouncycastle.bcprov
+    implementation libs.logback15
 }

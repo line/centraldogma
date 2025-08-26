@@ -48,9 +48,9 @@ dependencies {
     implementation libs.snappy
 
     // Logging
-    implementation libs.logback15
+    optionalImplementation libs.logback15
     // For Caffiene. See https://github.com/line/centraldogma/pull/499
-    implementation libs.slf4j2.jul.to.slf4j
+    optionalImplementation libs.slf4j2.jul.to.slf4j
 
     testImplementation libs.jackson.module.scala
 }

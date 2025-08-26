@@ -6,4 +6,6 @@ dependencies {
 
     // Shiro
     implementation libs.shiro.core
+
+    implementation libs.logback15
 }

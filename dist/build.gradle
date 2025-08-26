@@ -33,7 +33,9 @@ dependencies {
     runtimeOnly libs.jcommander
 
     // Logging
+    runtimeOnly libs.logback15
     runtimeOnly libs.slf4j2.jcl.over.slf4j
+    runtimeOnly libs.slf4j2.jul.to.slf4j
     runtimeOnly libs.slf4j2.log4j.over.slf4j
 }
 
