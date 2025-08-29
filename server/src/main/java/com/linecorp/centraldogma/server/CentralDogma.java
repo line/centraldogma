@@ -206,7 +206,7 @@ public class CentralDogma implements AutoCloseable {
 
     private static final boolean GIT_MIRROR_ENABLED;
 
-    private static final boolean LOGBACK_AVAILABLE;
+    private static final boolean LOGBACK_ENABLED;
 
     static {
         Jackson.registerModules(new SimpleModule().addSerializer(CacheStats.class, new CacheStatsSerializer()));
@@ -224,14 +224,18 @@ public class CentralDogma implements AutoCloseable {
                                      : "disabled ('centraldogma-server-mirror-git' module is not available)");
         GIT_MIRROR_ENABLED = gitMirrorEnabled;
 
-        boolean logbackAvailable = false;
+        boolean logbackEnabled = false;
         try {
-            Class.forName("ch.qos.logback.classic.LoggerContext", true, CentralDogma.class.getClassLoader());
-            logbackAvailable = true;
+            final Class<?> loggerContextClass = Class.forName("ch.qos.logback.classic.LoggerContext", true,
+                                                              CentralDogma.class.getClassLoader());
+            if (loggerContextClass.isInstance(LoggerFactory.getILoggerFactory())) {
+                logger.debug("Logback is used as the logging framework.");
+                logbackEnabled = true;
+            }
         } catch (ClassNotFoundException e) {
             // Logback is not available.
         }
-        LOGBACK_AVAILABLE = logbackAvailable;
+        LOGBACK_ENABLED = logbackEnabled;
     }
 
     private static final int DEFAULT_MAX_FRAME_LENGTH = 1024 * 1024; // 1 MiB
@@ -943,7 +947,7 @@ public class CentralDogma implements AutoCloseable {
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
                 .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor));
-        if (LOGBACK_AVAILABLE) {
+        if (LOGBACK_ENABLED) {
             apiV1ServiceBuilder.annotatedService(new LoggerService());
         }
 
