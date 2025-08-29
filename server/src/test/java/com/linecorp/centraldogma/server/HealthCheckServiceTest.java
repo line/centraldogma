@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
@@ -27,8 +28,11 @@ import org.junit.jupiter.api.io.TempDir;
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants;
+
+import io.netty.util.NetUtil;
 
 class HealthCheckServiceTest {
 
@@ -37,9 +41,13 @@ class HealthCheckServiceTest {
 
     @Test
     void healthCheck() {
-        try (CentralDogma dogma = new CentralDogmaBuilder(rootDir.toFile()).build()) {
+        final InetSocketAddress randomPort = new InetSocketAddress(NetUtil.LOCALHOST4, 0);
+
+        try (CentralDogma dogma = new CentralDogmaBuilder(rootDir.toFile())
+                .port(randomPort, SessionProtocol.HTTP)
+                .build()) {
             dogma.start().join();
-            final ServerPort serverPort = dogma.config().ports().get(0);
+            final ServerPort serverPort = dogma.activePort();
 
             final BlockingWebClient client =
                     BlockingWebClient.of("http://127.0.0.1:" + serverPort.localAddress().getPort());
