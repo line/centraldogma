@@ -66,7 +66,7 @@ task copyLib(group: 'Build',
     }
 }
 
-def cliVersion = "0.1.0"
+def cliVersion = "0.1.1"
 
 task downloadClientBinaries(group: 'Build',
         description: "Downloads client binaries into ${project.ext.cliDownloadDir}") {
@@ -74,23 +74,72 @@ task downloadClientBinaries(group: 'Build',
     outputs.dir("${project.ext.cliDownloadDir}/$cliVersion")
 
     doLast {
-        ["darwin-amd64", "darwin-arm64", "linux-amd64", "windows-amd64.exe"].each { platform ->
+        ["linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64", "windows_amd64"].each { platform ->
+            def baseFileName = "dogma_${cliVersion}_${platform}"
+            def fileExtension
+            def extractor
+
+            if (platform.startsWith("windows")) {
+                fileExtension = "zip"
+                extractor = { path -> zipTree(path) }
+            } else {
+                fileExtension = "tar.gz"
+                extractor = { path -> tarTree(path) }
+            }
+
+            def archiveFile = "${baseFileName}.${fileExtension}"
+
             download.run {
-                src "https://github.com/line/centraldogma-go/releases/download/$cliVersion/dogma.$platform"
-                dest "${project.ext.cliDownloadDir}/$cliVersion/dogma.$platform"
+                src "https://github.com/line/centraldogma-go/releases/download/$cliVersion/$archiveFile"
+                dest "${project.ext.cliDownloadDir}/$cliVersion/$archiveFile"
                 overwrite false
+            }
+
+            def archivePath = "${project.ext.cliDownloadDir}/$cliVersion/$archiveFile"
+            def extractDir = "${project.ext.cliDownloadDir}/$cliVersion/extracted_${platform}"
+
+            project.mkdir(extractDir)
+            copy {
+                from extractor(archivePath)
+                into extractDir
             }
         }
     }
 }
 
 task copyClientBinaries(group: 'Build',
-        description: "Copies client binaries into ${project.ext.relativeDistDir}/bin/native", type: Copy) {
+        description: "Copies client binaries into ${project.ext.relativeDistDir}/bin/native") {
     dependsOn tasks.downloadClientBinaries
 
-    from "${project.ext.cliDownloadDir}/$cliVersion"
-    into "${project.ext.distDir}/bin/native"
-    fileMode 0755
+    doLast {
+        def nativeDir = "${project.ext.distDir}/bin/native"
+        project.mkdir(nativeDir)
+
+        ["linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64", "windows_amd64"].each { platform ->
+            def extractDir = "${project.ext.cliDownloadDir}/$cliVersion/extracted_${platform}"
+            def sourceFile
+            def targetFileName
+
+            if (platform.startsWith("windows")) {
+                sourceFile = "${extractDir}/dogma.exe"
+                targetFileName = "dogma.${platform}.exe"
+            } else {
+                sourceFile = "${extractDir}/dogma"
+                targetFileName = "dogma.${platform}"
+            }
+
+            if (!file(sourceFile).exists()) {
+                throw new GradleException("Source binary not found: $sourceFile")
+            }
+
+            copy {
+                from sourceFile
+                into nativeDir
+                rename { targetFileName }
+                fileMode 0755
+            }
+        }
+    }
 }
 
 task distDirWithoutClientBinaries(group: 'Build',

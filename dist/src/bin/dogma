@@ -7,18 +7,20 @@ DOGMA_BIN="$(dirname "$0")/native"
 
 if [[ "${OS}" == 'Darwin' ]]; then
   if [[ "${MACH}" == 'x86_64' ]]; then
-    DOGMA_BIN="${DOGMA_BIN}/dogma.darwin-amd64"
+    DOGMA_BIN="${DOGMA_BIN}/dogma.darwin_amd64"
   elif [[ "${MACH}" == 'arm64' ]]; then
-    DOGMA_BIN="${DOGMA_BIN}/dogma.darwin-arm64"
+    DOGMA_BIN="${DOGMA_BIN}/dogma.darwin_arm64"
   else
-    echo "32-bit OS is not supported by default: ${OS}-${MACH}"
+    echo "Architecture not supported by default: ${OS}-${MACH}"
     exit 1
   fi
 elif [[ "${OS}" == 'Linux' ]]; then
   if [[ "${MACH}" == 'x86_64' ]]; then
-    DOGMA_BIN="${DOGMA_BIN}/dogma.linux-amd64"
+    DOGMA_BIN="${DOGMA_BIN}/dogma.linux_amd64"
+  elif [[ "${MACH}" == 'aarch64' ]]; then
+    DOGMA_BIN="${DOGMA_BIN}/dogma.linux_arm64"
   else
-    echo "32-bit OS is not supported by default: ${OS}-${MACH}"
+    echo "Architecture not supported by default: ${OS}-${MACH}"
     exit 1
   fi
 else
@@ -27,4 +29,3 @@ else
 fi
 
 exec "$DOGMA_BIN" "$@"
-
