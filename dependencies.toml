@@ -18,7 +18,6 @@ curator = "5.9.0"
 # Do not upgrade cron-utils until there's another CVE or Armeria's SLF4J and Logback are upgraded.
 cron-utils = "9.2.0"
 diffutils = "1.3.0"
-docker = "9.4.0"
 download = "5.6.0"
 dropwizard-metrics = "4.2.33"
 eddsa = "0.3.0"
@@ -462,7 +461,6 @@ exclusions = [
     "org.slf4j:slf4j-log4j12"]
 
 [plugins]
-docker = { id = "com.bmuschko.docker-remote-api", version.ref = "docker" }
 download = { id = "de.undercouch.download", version.ref = "download" }
 jmh = { id = "me.champeau.jmh", version.ref = "jmh-gradle-plugin" }
 jxr = { id = "net.davidecavestro.gradle.jxr", version.ref = "jxr" }
