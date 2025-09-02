@@ -353,7 +353,7 @@ public final class CentralDogmaRepository {
     }
 
     /**
-     * Returns a new {@link CompletableFuture} that imports the files in the specified.
+     * Returns a new {@code dir} that imports the files in the specified.
      */
     public CompletableFuture<PushResult> importDir(Path dir) {
         requireNonNull(dir, "dir");
