@@ -214,7 +214,7 @@ class CentralDogmaImportTest {
         testInstance.setUp();
 
         final Path nonExistentDir = Paths.get("non_existent_directory");
-        assertThrows(CompletionException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
             testInstance.dogma.importDir(testInstance.project, testInstance.repository, nonExistentDir, true)
                               .join();
         });
