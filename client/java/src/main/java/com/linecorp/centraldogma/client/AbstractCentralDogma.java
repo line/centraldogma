@@ -218,9 +218,10 @@ public abstract class AbstractCentralDogma implements CentralDogma {
         final CompletableFuture<Void> ensureProjectRepo = ensureProjectAndRepo(finalProjectName,
                                                                                finalRepositoryName,
                                                                                createIfMissing);
-        final CentralDogmaRepository repo = forRepo(finalProjectName, finalRepositoryName);
-
-        return ensureProjectRepo.thenCompose(unused -> repo.importDir(dir));
+        return ensureProjectRepo.thenCompose(unused -> {
+            final CentralDogmaRepository repo = forRepo(finalProjectName, finalRepositoryName);
+            return repo.importDir(dir);
+        });
     }
 
     /**
