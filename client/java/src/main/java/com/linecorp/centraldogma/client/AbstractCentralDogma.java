@@ -203,9 +203,7 @@ public abstract class AbstractCentralDogma implements CentralDogma {
         requireNonNull(dir, "dir");
 
         if (!dir.isAbsolute()) {
-            return exceptionallyCompletedFuture(
-                    new IllegalArgumentException("dir must be an absolute path: " + dir)
-            );
+            throw new IllegalArgumentException("dir must be an absolute path: " + dir);
         }
         if (!Files.exists(dir) || !Files.isDirectory(dir)) {
             return exceptionallyCompletedFuture(
