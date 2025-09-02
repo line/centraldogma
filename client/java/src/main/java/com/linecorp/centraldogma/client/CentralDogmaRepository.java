@@ -103,8 +103,8 @@ public final class CentralDogmaRepository {
             s.filter(Files::isRegularFile)
              .filter(p -> !p.getFileName().toString().startsWith("."))
              .forEach(p -> {
-                 final Path rel = path.relativize(p);
-                 final String repoPath = '/' + rel.toString().replace(File.separatorChar, '/');
+                 final Path filePath = path.relativize(p);
+                 final String repoPath = '/' + filePath.toString().replace(File.separatorChar, '/');
                  changes.add(toChange(repoPath, p));
              });
         } catch (IOException e) {
