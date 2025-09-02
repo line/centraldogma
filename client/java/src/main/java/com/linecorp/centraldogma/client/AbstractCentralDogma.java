@@ -289,7 +289,7 @@ public abstract class AbstractCentralDogma implements CentralDogma {
      * Extracts both project and repository names from the directory path.
      * Uses the second-to-last component as project name and the last component as repository name.
      */
-    private List<String> extractProjectAndRepoFromPath(Path dir) {
+    private static List<String> extractProjectAndRepoFromPath(Path dir) {
         if (dir.getNameCount() < 2) {
             throw new IllegalArgumentException(
                     "Directory path must have at least 2 components : " + dir);
@@ -303,7 +303,7 @@ public abstract class AbstractCentralDogma implements CentralDogma {
      * Extracts the repository name from the directory path.
      * Uses the last component as repository name.
      */
-    private String extractRepoNameFromPath(Path dir) {
+    private static String extractRepoNameFromPath(Path dir) {
         if (dir.getNameCount() < 1) {
             throw new IllegalArgumentException(
                     "Directory path must have at least 1 component when repositoryName is null: " + dir);
