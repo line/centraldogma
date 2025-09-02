@@ -73,7 +73,7 @@ public final class CentralDogmaRepository {
     private static Change<?> toChange(String repoPath, Path file) {
         try {
             final byte[] bytes = Files.readAllBytes(file);
-            final String lower = file.getFileName().toString().toLowerCase();
+            final String lower = file.getFileName().toString();
 
             if (lower.endsWith(".json")) {
                 final JsonNode node = Jackson.readValue(bytes, JsonNode.class);
