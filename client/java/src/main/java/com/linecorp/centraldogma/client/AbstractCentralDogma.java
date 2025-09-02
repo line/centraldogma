@@ -272,19 +272,17 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     private List<String> resolveProjectAndRepoNames(@Nullable String projectName,
                                                     @Nullable String repositoryName,
                                                     Path dir) {
-        if (projectName == null && repositoryName != null) {
-            throw new IllegalArgumentException("projectName cannot be null when repositoryName is not null");
-        }
-
-        if (projectName == null && repositoryName == null) {
+        if (projectName == null) {
+            if (repositoryName != null) {
+                throw new IllegalArgumentException(
+                        "projectName cannot be null when repositoryName is not null");
+            }
             return extractProjectAndRepoFromPath(dir);
         }
 
-        if (projectName != null && repositoryName == null) {
-            return Arrays.asList(projectName, extractRepoNameFromPath(dir));
-        }
-
-        return Arrays.asList(projectName, repositoryName);
+        final String repositoryName0 = repositoryName != null ? repositoryName
+                                                              : extractRepoNameFromPath(dir);
+        return Arrays.asList(projectName, repositoryName0);
     }
 
     /**
