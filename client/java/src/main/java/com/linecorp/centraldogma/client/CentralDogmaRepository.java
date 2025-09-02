@@ -357,6 +357,9 @@ public final class CentralDogmaRepository {
      */
     public CompletableFuture<PushResult> importDir(Path dir) {
         requireNonNull(dir, "dir");
+        if (!Files.isDirectory(dir)) {
+            throw new IllegalArgumentException("Path must be a directory: " + dir);
+        }
         final List<Change<?>> changes = toChanges(dir);
         if (changes.isEmpty()) {
             return CompletableFuture.completedFuture(null);
