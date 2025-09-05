@@ -18,16 +18,13 @@ package com.linecorp.centraldogma.server.test;
 
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
-import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD2;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
-import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME2;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import java.util.concurrent.CompletionException;
 
-import org.apache.shiro.config.Ini;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -44,10 +41,10 @@ import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.PermissionException;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory;
 import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.internal.credential.NoneCredential;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
+import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class XdsMemberPermissionTest {
@@ -59,24 +56,16 @@ class XdsMemberPermissionTest {
         protected void configure(CentralDogmaBuilder builder) {
             builder.systemAdministrators(USERNAME)
                    .cors("*")
-                   .authProviderFactory(new ShiroAuthProviderFactory(unused -> {
-                       final Ini iniConfig = new Ini();
-                       final Ini.Section users = iniConfig.addSection("users");
-                       users.put(USERNAME, PASSWORD);
-                       users.put(USERNAME2, PASSWORD2);
-                       return iniConfig;
-                   }));
-        }
-
-        @Override
-        protected void scaffold(CentralDogma client) {
+                   .authProviderFactory(new TestAuthProviderFactory());
         }
     };
 
     @Test
     void shouldAllowMembersToAccessInternalProjects() throws Exception {
-        final String adminToken = TestAuthMessageUtil.getAccessToken(dogma.httpClient(), USERNAME, PASSWORD);
-        final String userToken = TestAuthMessageUtil.getAccessToken(dogma.httpClient(), USERNAME2, PASSWORD2);
+        final String adminToken = TestAuthMessageUtil.getAccessToken(dogma.httpClient(), USERNAME, PASSWORD,
+                                                                     "testAppId", true);
+        final String nonAdminToken = TestAuthMessageUtil.getAccessToken(dogma.httpClient(), USERNAME, PASSWORD,
+                                                                        "testAppId2", false);
 
         final CentralDogma adminClient = new ArmeriaCentralDogmaBuilder()
                 .host("127.0.0.1", dogma.serverAddress().getPort())
@@ -90,21 +79,21 @@ class XdsMemberPermissionTest {
                          .build()
                          .blocking();
 
-        final CentralDogma userClient = new ArmeriaCentralDogmaBuilder()
+        final CentralDogma nonAdminClient = new ArmeriaCentralDogmaBuilder()
                 .host("127.0.0.1", dogma.serverAddress().getPort())
-                .accessToken(userToken)
+                .accessToken(nonAdminToken)
                 .build();
 
-        final BlockingWebClient userWebClient =
+        final BlockingWebClient nonAdminWebClient =
                 WebClient.builder("http://127.0.0.1:" + dogma.serverAddress().getPort())
                          .decorator(LoggingClient.newDecorator())
-                         .auth(AuthToken.ofOAuth2(userToken))
+                         .auth(AuthToken.ofOAuth2(nonAdminToken))
                          .build()
                          .blocking();
 
         assertThat(adminClient.listProjects().join()).containsOnly("dogma", "foo", "@xds");
         // Internal projects are not visible to the user by default.
-        assertThat(userClient.listProjects().join()).containsOnly("foo");
+        assertThat(nonAdminClient.listProjects().join()).containsOnly("foo");
 
         final CentralDogmaRepository adminRepo = adminClient.createRepository("@xds", "test").join();
         adminRepo.commit("Add test.txt", Change.ofTextUpsert("/text.txt", "foo"))
@@ -121,12 +110,12 @@ class XdsMemberPermissionTest {
 
         // All CRUD operations should be blocked.
         assertThatThrownBy(() -> {
-            userClient.createRepository("@xds", "test2").join();
+            nonAdminClient.createRepository("@xds", "test2").join();
         }).isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(PermissionException.class)
           .hasMessageContaining("You must have the MEMBER project role to access the project '@xds'.");
 
-        final CentralDogmaRepository userRepo = userClient.forRepo("@xds", "test");
+        final CentralDogmaRepository userRepo = nonAdminClient.forRepo("@xds", "test");
         assertThatThrownBy(() -> {
             userRepo.commit("Update test.txt", Change.ofTextUpsert("/text.txt", "bar"))
                     .push()
@@ -143,7 +132,7 @@ class XdsMemberPermissionTest {
           .hasCauseInstanceOf(PermissionException.class)
           .hasMessageContaining("You must have the READ repository role to access the '@xds/test'.");
 
-        assertThat(userWebClient.prepare()
+        assertThat(nonAdminWebClient.prepare()
                                 .get("/api/v1/projects/@xds/credentials/test")
                                 .execute().status())
                 .isEqualTo(HttpStatus.FORBIDDEN);
@@ -151,14 +140,14 @@ class XdsMemberPermissionTest {
         // Grant the user role to access the internal project.
         final AggregatedHttpResponse res =
                 adminWebClient.prepare()
-                              .post("/api/v1/metadata/@xds/members")
-                              .content(MediaType.JSON, "{\"id\":\"" + USERNAME2 + "\",\"role\":\"MEMBER\"}")
+                              .post("/api/v1/metadata/@xds/tokens")
+                              .content(MediaType.JSON, "{\"id\":\"" + "testAppId2" + "\",\"role\":\"MEMBER\"}")
                               .execute();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
 
-        // @xds project should be visible to member users.
+        // @xds project should be visible to member tokens.
         await().untilAsserted(
-                () -> assertThat(userClient.listProjects().join()).containsOnly("foo", "@xds")
+                () -> assertThat(nonAdminClient.listProjects().join()).containsOnly("foo", "@xds")
         );
         // Read and write should be granted as well.
         userRepo.commit("Update test.txt", Change.ofTextUpsert("/text.txt", "bar"))
@@ -168,9 +157,9 @@ class XdsMemberPermissionTest {
                 .isEqualTo("bar\n");
 
         // The user can read the credentials.
-        assertThat(userWebClient.prepare()
-                                .get("/api/v1/projects/@xds/credentials/test")
-                                .execute().status())
+        assertThat(nonAdminWebClient.prepare()
+                                    .get("/api/v1/projects/@xds/credentials/test")
+                                    .execute().status())
                 .isEqualTo(HttpStatus.OK);
     }
 }

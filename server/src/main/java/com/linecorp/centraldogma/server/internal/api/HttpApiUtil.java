@@ -280,6 +280,7 @@ public final class HttpApiUtil {
                 }
             }
         }
+        logger.info("request headers: {}", ctx.request().headers());
 
         return newResponseWithoutLogging(responseFactory, ctx, headersBuilder, cause, exceptionType, m);
     }

@@ -17,7 +17,7 @@
 package com.linecorp.centraldogma.testing.internal;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static org.assertj.core.api.Assertions.assertThat;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
@@ -35,18 +36,13 @@ import javax.annotation.Nullable;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableMap;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.logging.LoggingClient;
-import com.linecorp.armeria.common.AggregatedHttpResponse;
-import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
-import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
@@ -107,6 +103,7 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
 
         final Map<Integer, ZooKeeperServerConfig> zooKeeperServers = builder.build();
 
+        final AtomicReference<String> accessToken = new AtomicReference<>();
         return zooKeeperServers.keySet().stream().map(serverId -> {
             final int dogmaPort = unusedPorts[(serverId - 1) * 4 + 3];
             return new CentralDogmaRuleDelegate(useTls) {
@@ -132,25 +129,14 @@ public class CentralDogmaReplicationExtension extends AbstractAllOrEachExtension
                 @Override
                 protected String accessToken() {
                     // TODO(ikhoon): Add an option to disable the authentication.
-                    try {
+                    if (accessToken.get() == null) {
                         final WebClient client = WebClient.builder("http://127.0.0.1:" + dogmaPort)
                                                           .decorator(LoggingClient.newDecorator())
                                                           .build();
-                        final AggregatedHttpResponse response =
-                                TestAuthMessageUtil.login(client,
-                                                          TestAuthMessageUtil.USERNAME,
-                                                          TestAuthMessageUtil.PASSWORD);
-
-                        assertThat(response.status()).isEqualTo(HttpStatus.OK);
-                        try {
-                            return Jackson.readValue(response.content().array(), AccessToken.class)
-                                          .accessToken();
-                        } catch (JsonProcessingException e) {
-                            throw new IllegalStateException("Failed to parse the access token", e);
-                        }
-                    } catch (Exception e) {
-                        throw new IllegalStateException("Failed to get the access token", e);
+                        accessToken.set(getAccessToken(client, TestAuthMessageUtil.USERNAME,
+                                                       TestAuthMessageUtil.PASSWORD, true));
                     }
+                    return accessToken.get();
                 }
             };
         }).collect(toImmutableList());

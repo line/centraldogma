@@ -35,6 +35,7 @@ import com.linecorp.armeria.server.Service;
 /**
  * An interface which configures the authentication layer for the Central Dogma server.
  */
+@FunctionalInterface
 public interface AuthProvider {
     /**
      * A login page path for the web console. If a user, who has not logged into the web console yet,
@@ -142,4 +143,9 @@ public interface AuthProvider {
     default Iterable<HttpServiceWithRoutes> moreServices() {
         return ImmutableList.of();
     }
+
+    /**
+     * Returns the parameters which are necessary for this {@link AuthProvider}.
+     */
+    AuthProviderParameters parameters();
 }

@@ -36,6 +36,8 @@ public final class AuthProviderParameters {
     private final Supplier<String> sessionIdGenerator;
     private final Function<Session, CompletableFuture<Void>> loginSessionPropagator;
     private final Function<String, CompletableFuture<Void>> logoutSessionPropagator;
+    private final SessionManager sessionManager;
+    private final boolean tlsEnabled;
 
     /**
      * Creates a new instance.
@@ -47,18 +49,22 @@ public final class AuthProviderParameters {
      *                               to the other replicas
      * @param logoutSessionPropagator a function which propagates the logged out session ID to the other
      *                                replicas
+     * @param tlsEnabled {@code true} if TLS is enabled
      */
     public AuthProviderParameters(
             Authorizer<HttpRequest> authorizer,
             CentralDogmaConfig config,
             Supplier<String> sessionIdGenerator,
             Function<Session, CompletableFuture<Void>> loginSessionPropagator,
-            Function<String, CompletableFuture<Void>> logoutSessionPropagator) {
+            Function<String, CompletableFuture<Void>> logoutSessionPropagator,
+            SessionManager sessionManager, boolean tlsEnabled) {
         this.authorizer = requireNonNull(authorizer, "authorizer");
         this.config = requireNonNull(config, "config");
         this.sessionIdGenerator = requireNonNull(sessionIdGenerator, "sessionIdGenerator");
         this.loginSessionPropagator = requireNonNull(loginSessionPropagator, "loginSessionPropagator");
         this.logoutSessionPropagator = requireNonNull(logoutSessionPropagator, "logoutSessionPropagator");
+        this.sessionManager = sessionManager;
+        this.tlsEnabled = tlsEnabled;
         authConfig = requireNonNull(config.authConfig(), "authConfig");
     }
 
@@ -106,5 +112,19 @@ public final class AuthProviderParameters {
      */
     public Function<String, CompletableFuture<Void>> logoutSessionPropagator() {
         return logoutSessionPropagator;
+    }
+
+    /**
+     * Returns the session manager.
+     */
+    public SessionManager sessionManager() {
+        return sessionManager;
+    }
+
+    /**
+     * Returns {@code true} if TLS is enabled.
+     */
+    public boolean tlsEnabled() {
+        return tlsEnabled;
     }
 }

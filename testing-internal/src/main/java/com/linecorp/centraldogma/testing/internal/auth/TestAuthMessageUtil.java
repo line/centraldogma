@@ -21,17 +21,21 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Base64.Encoder;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.Cookie;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.QueryParams;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.api.v1.AccessToken;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
+import com.linecorp.centraldogma.server.metadata.Token;
 
 /**
  * A utility class which helps to create messages for authentication.
@@ -44,7 +48,6 @@ public final class TestAuthMessageUtil {
     public static final String PASSWORD2 = "bar2";
     public static final String WRONG_PASSWORD = "baz";
     public static final String WRONG_SESSION_ID = "00000000-0000-0000-0000-000000000000";
-    public static final String MALFORMED_SESSION_ID = "not_a_session_id";
 
     private static final Encoder encoder = Base64.getEncoder();
 
@@ -65,27 +68,61 @@ public final class TestAuthMessageUtil {
                      .aggregate().join();
     }
 
-    public static AggregatedHttpResponse logout(WebClient client, String sessionId) {
+    public static AggregatedHttpResponse logout(WebClient client, Cookie sessionCookie, String csrfToken) {
         return client.execute(
-                RequestHeaders.of(HttpMethod.POST, "/api/v1/logout",
-                                  HttpHeaderNames.AUTHORIZATION, "Bearer " + sessionId)).aggregate().join();
+                RequestHeaders.builder(HttpMethod.POST, "/api/v1/logout")
+                              .cookie(sessionCookie)
+                              .set(SessionUtil.X_CSRF_TOKEN, csrfToken).build()).aggregate().join();
     }
 
-    public static AggregatedHttpResponse usersMe(WebClient client, String sessionId) {
+    public static AggregatedHttpResponse usersMe(WebClient client, Cookie sessionCookie, String csrfToken) {
         return client.execute(
-                RequestHeaders.of(HttpMethod.GET, "/api/v0/users/me",
-                                  HttpHeaderNames.AUTHORIZATION, "Bearer " + sessionId)).aggregate().join();
+                RequestHeaders.builder(HttpMethod.GET, "/api/v0/users/me")
+                              .cookie(sessionCookie)
+                              .set(SessionUtil.X_CSRF_TOKEN, csrfToken).build()).aggregate().join();
     }
 
-    public static String getAccessToken(WebClient client, String username, String password) {
+    public static String getAccessToken(WebClient client, String username, String password,
+                                        boolean isSystemAdmin) {
+        return getAccessToken(client, username, password, "testId", isSystemAdmin);
+    }
+
+    public static String getAccessToken(WebClient client, String username, String password,
+                                        String appId, boolean isSystemAdmin) {
         final AggregatedHttpResponse response = login(client, username, password);
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
+        final Cookie sessionCookie = getSessionCookie(response);
+        final String csrfToken;
         try {
-            return Jackson.readValue(response.content().array(), AccessToken.class)
-                          .accessToken();
-        } catch (JsonProcessingException e) {
+            csrfToken = Jackson.readTree(response.contentUtf8()).get("csrf_token").asText();
+        } catch (JsonParseException e) {
             throw new RuntimeException(e);
         }
+
+        final QueryParams params = QueryParams.builder()
+                                              .add("appId", appId)
+                                              .add("isSystemAdmin", String.valueOf(isSystemAdmin))
+                                              .build();
+        final Token token =
+                client.blocking().prepare()
+                      .post("/api/v1/tokens")
+                      .cookie(sessionCookie)
+                      .header(SessionUtil.X_CSRF_TOKEN, csrfToken)
+                      .content(MediaType.FORM_DATA, params.toQueryString())
+                      .asJson(Token.class, new ObjectMapper())
+                      .execute()
+                      .content();
+        assertThat(token.secret()).isNotNull();
+        return token.secret();
+    }
+
+    public static Cookie getSessionCookie(AggregatedHttpResponse response) {
+        for (Cookie cookie : response.headers().cookies()) {
+            if (cookie.name().endsWith("session-id")) {
+                return cookie;
+            }
+        }
+        throw new IllegalStateException("session-id cookie not found");
     }
 
     private TestAuthMessageUtil() {}

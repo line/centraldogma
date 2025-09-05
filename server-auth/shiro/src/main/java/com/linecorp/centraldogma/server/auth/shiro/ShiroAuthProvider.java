@@ -18,8 +18,6 @@ package com.linecorp.centraldogma.server.auth.shiro;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.apache.shiro.config.Ini;
@@ -32,33 +30,32 @@ import org.apache.shiro.util.Factory;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
-import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
 
 /**
  * Apache Shiro based {@link AuthProvider} implementation.
  */
 public final class ShiroAuthProvider implements AuthProvider {
 
+    private final AuthProviderParameters parameters;
     private final HttpService loginApiService;
     private final HttpService logoutApiService;
 
-    ShiroAuthProvider(AuthConfig authConfig,
-                      Ini config,
-                      Supplier<String> sessionIdGenerator,
-                      Function<Session, CompletableFuture<Void>> loginSessionPropagator,
-                      Function<String, CompletableFuture<Void>> logoutSessionPropagator) {
-        requireNonNull(authConfig, "authConfig");
+    ShiroAuthProvider(AuthProviderParameters parameters, Ini config) {
+        this.parameters = requireNonNull(parameters, "parameters");
+        final AuthConfig authConfig = parameters.authConfig();
         requireNonNull(config, "config");
-        requireNonNull(sessionIdGenerator, "sessionIdGenerator");
-        requireNonNull(loginSessionPropagator, "loginSessionPropagator");
-        requireNonNull(logoutSessionPropagator, "logoutSessionPropagator");
 
-        final SecurityManager securityManager = createSecurityManager(config, sessionIdGenerator);
+        final SecurityManager securityManager = createSecurityManager(config, parameters.sessionIdGenerator());
         final Duration sessionValidDuration = Duration.ofMillis(authConfig.sessionTimeoutMillis());
 
-        loginApiService = new LoginService(securityManager, authConfig.loginNameNormalizer(),
-                                           loginSessionPropagator, sessionValidDuration);
-        logoutApiService = new LogoutService(securityManager, logoutSessionPropagator);
+        loginApiService = new ShiroLoginService(securityManager, authConfig.loginNameNormalizer(),
+                                                parameters.sessionIdGenerator(),
+                                                parameters.loginSessionPropagator(),
+                                                sessionValidDuration,
+                                                parameters.tlsEnabled());
+        logoutApiService = new ShiroLogoutService(securityManager, parameters.logoutSessionPropagator(),
+                                                  parameters.sessionManager(), parameters.tlsEnabled());
     }
 
     private static SecurityManager createSecurityManager(Ini config, Supplier<String> sessionIdGenerator) {
@@ -89,5 +86,10 @@ public final class ShiroAuthProvider implements AuthProvider {
     @Override
     public HttpService logoutApiService() {
         return logoutApiService;
+    }
+
+    @Override
+    public AuthProviderParameters parameters() {
+        return parameters;
     }
 }

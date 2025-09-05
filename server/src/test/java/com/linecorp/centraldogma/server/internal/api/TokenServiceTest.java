@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server.internal.api;
 
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
@@ -51,7 +52,6 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
@@ -106,19 +106,14 @@ class TokenServiceTest {
     private final ServiceRequestContext ctx =
             ServiceRequestContext.builder(HttpRequest.of(HttpMethod.GET, "/")).build();
 
-    static String sessionId(WebClient webClient, String username, String password)
-            throws JsonParseException, JsonMappingException {
-        return Jackson.readValue(TestAuthMessageUtil.login(webClient, username, password).content().array(),
-                                 AccessToken.class).accessToken();
-    }
-
     @BeforeAll
     static void setUp() throws JsonMappingException, JsonParseException {
         final URI uri = dogma.httpClient().uri();
         systemAdminClient = WebClient.builder(uri)
-                                     .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
-                                                                        TestAuthMessageUtil.USERNAME,
-                                                                        TestAuthMessageUtil.PASSWORD)))
+                                     .auth(AuthToken.ofOAuth2(getAccessToken(dogma.httpClient(),
+                                                                             TestAuthMessageUtil.USERNAME,
+                                                                             TestAuthMessageUtil.PASSWORD,
+                                                                             true)))
                                      .build();
         metadataService = new MetadataService(manager.projectManager(), manager.executor(),
                                               manager.internalProjectInitializer());

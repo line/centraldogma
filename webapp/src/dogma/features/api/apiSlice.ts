@@ -15,9 +15,9 @@
  */
 
 import { RepoDto } from 'dogma/features/repo/RepoDto';
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { BaseQueryFn, createApi, FetchArgs, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
-import { AuthState } from 'dogma/features/auth/authSlice';
+import { AuthState, clearAuth } from 'dogma/features/auth/authSlice';
 import { FileDto } from 'dogma/features/file/FileDto';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
 import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
@@ -98,19 +98,42 @@ export type MirrorConfig = {
   zone: ZoneDto;
 };
 
-export const apiSlice = createApi({
-  reducerPath: 'api',
-  baseQuery: fetchBaseQuery({
-    baseUrl: `${process.env.NEXT_PUBLIC_HOST || ''}/`,
-    prepareHeaders: (headers, { getState, type }) => {
+const baseQuery = fetchBaseQuery({
+  baseUrl: `${process.env.NEXT_PUBLIC_HOST || ''}/`,
+  credentials: 'include',
+  prepareHeaders: (headers, { getState, type }) => {
+    if (type === 'mutation') {
       const { auth } = getState() as { auth: AuthState };
-      headers.set('Authorization', `Bearer ${auth?.sessionId || 'anonymous'}`);
-      if (type === 'mutation' && !headers.has('Content-Type')) {
+      const csrfToken = auth.csrfToken;
+
+      if (csrfToken) {
+        headers.set('X-CSRF-Token', csrfToken);
+      }
+      if (!headers.has('Content-Type')) {
         headers.set('Content-Type', 'application/json; charset=UTF-8');
       }
-      return headers;
-    },
-  }),
+    }
+    return headers;
+  },
+});
+
+const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (
+  args,
+  api,
+  extraOptions,
+) => {
+  const result = await baseQuery(args, api, extraOptions);
+
+  if (result.error && result.error.status === 401) {
+    api.dispatch(clearAuth());
+    window.location.href = `/web/auth/login?return_to=${encodeURIComponent(window.location.pathname)}`;
+  }
+  return result;
+};
+
+export const apiSlice = createApi({
+  reducerPath: 'api',
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['Project', 'Metadata', 'Repo', 'File', 'Token', 'Mirror', 'ServerStatus'],
   endpoints: (builder) => ({
     getProjects: builder.query<ProjectDto[], GetProjects>({

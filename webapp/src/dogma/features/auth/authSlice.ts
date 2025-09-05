@@ -21,24 +21,36 @@ import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 
 axios.defaults.baseURL = process.env.NEXT_PUBLIC_HOST || '';
+axios.defaults.withCredentials = true;
 
-export const getUser = createAsyncThunk('/auth/user', async (_, { getState, dispatch, rejectWithValue }) => {
+const getCsrfTokenFromMeta = (): string | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  const element = document.querySelector('meta[name="csrf-token"]');
+  return element ? element.getAttribute('content') : null;
+};
+
+const updateCsrfTokenInMeta = (token: string) => {
+  if (typeof window === 'undefined' || !token) {
+    return;
+  }
+  const element = document.querySelector('meta[name="csrf-token"]');
+  if (element) {
+    element.setAttribute('content', token);
+  }
+};
+
+export const getUser = createAsyncThunk('/auth/user', async (_, { dispatch, rejectWithValue }) => {
   try {
-    const { auth } = getState() as { auth: AuthState };
-    if (!auth.sessionId) {
-      return rejectWithValue('Login required');
-    }
     // TODO(ikhoon): Replace axios with fetch
-    const { data } = await axios.get(`/api/v0/users/me`, {
-      headers: {
-        Authorization: `Bearer ${auth.sessionId}`,
-      },
-    });
-    return data as UserDto;
+    const response = await axios.get(`/api/v0/users/me`);
+    const csrfTokenFromHeader = response.headers['x-csrf-token'];
+    return {
+      user: response.data as UserDto,
+      csrfToken: csrfTokenFromHeader,
+    };
   } catch (err) {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('sessionId');
-    }
     const error: string = ErrorMessageParser.parse(err);
     dispatch(newNotification('', error, 'error'));
     return rejectWithValue(error);
@@ -59,14 +71,9 @@ export const login = createAsyncThunk(
           'Content-Type': 'application/x-www-form-urlencoded',
         },
       });
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('sessionId', data.access_token);
-      }
+      updateCsrfTokenInMeta(data.csrf_token);
       return data;
     } catch (err) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('sessionId');
-      }
       const error: string = ErrorMessageParser.parse(err);
       dispatch(newNotification('', error, 'error'));
       return rejectWithValue(error);
@@ -80,10 +87,6 @@ export const checkSecurityEnabled = createAsyncThunk(
     try {
       await axios.get(`/security_enabled`);
     } catch (err) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('sessionId');
-      }
-
       const error: string = ErrorMessageParser.parse(err);
       if (err.response && err.response.status === 404) {
         dispatch(newNotification('', 'Accessing Central Dogma in anonymous mode', 'info'));
@@ -99,12 +102,9 @@ export const logout = createAsyncThunk('/auth/logout', async (_, { getState, dis
     const { auth } = getState() as { auth: AuthState };
     await axios.post(`/api/v1/logout`, _, {
       headers: {
-        Authorization: `Bearer ${auth.sessionId}`,
+        'X-CSRF-Token': auth.csrfToken,
       },
     });
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('sessionId');
-    }
   } catch (err) {
     const error: string = ErrorMessageParser.parse(err);
     dispatch(newNotification('', error, 'error'));
@@ -112,18 +112,16 @@ export const logout = createAsyncThunk('/auth/logout', async (_, { getState, dis
   }
 });
 
-const sessionId = typeof window !== 'undefined' && localStorage.getItem('sessionId');
-
 export interface AuthState {
   isInAnonymousMode: boolean;
-  sessionId: string;
+  csrfToken: string;
   user: UserDto;
   isLoading: boolean;
 }
 
 const initialState: AuthState = {
   isInAnonymousMode: false,
-  sessionId,
+  csrfToken: getCsrfTokenFromMeta(),
   user: null,
   isLoading: true,
 };
@@ -139,35 +137,48 @@ const anonymousUser: UserDto = {
 export const authSlice = createSlice({
   name: 'auth',
   initialState,
-  reducers: {},
+  reducers: {
+    clearAuth: (state) => {
+      state.isInAnonymousMode = false;
+      state.user = null;
+      state.csrfToken = null;
+      state.isLoading = false;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(checkSecurityEnabled.rejected, (state) => {
         state.isInAnonymousMode = true;
-        state.sessionId = '';
+        state.csrfToken = null;
         state.isLoading = false;
         state.user = anonymousUser;
       })
       .addCase(login.fulfilled, (state, { payload }) => {
-        state.sessionId = payload.access_token;
+        state.csrfToken = payload.csrf_token;
       })
       .addCase(login.rejected, (state) => {
-        state.sessionId = '';
+        state.user = null;
+        state.csrfToken = getCsrfTokenFromMeta();
       })
       .addCase(logout.fulfilled, (state) => {
-        state.sessionId = '';
         state.user = null;
+        state.csrfToken = null;
       })
       .addCase(getUser.fulfilled, (state, { payload }) => {
-        state.user = payload;
+        state.user = payload.user;
+        if (payload.csrfToken) {
+          state.csrfToken = payload.csrfToken;
+        }
         state.isLoading = false;
       })
       .addCase(getUser.rejected, (state) => {
         state.user = null;
-        state.sessionId = '';
+        state.csrfToken = getCsrfTokenFromMeta();
         state.isLoading = false;
       });
   },
 });
+
+export const { clearAuth } = authSlice.actions;
 
 export const authReducer = authSlice.reducer;

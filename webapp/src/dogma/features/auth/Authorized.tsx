@@ -14,7 +14,7 @@
  * under the License.
  */
 
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { getUser, checkSecurityEnabled } from 'dogma/features/auth/authSlice';
 import { useRouter } from 'next/router';
 import { isFulfilled } from '@reduxjs/toolkit';
@@ -26,31 +26,47 @@ const WEB_AUTH_LOGIN = '/web/auth/login';
 export const Authorized = (props: { children: ReactNode }) => {
   const dispatch = useAppDispatch();
   const { isLoading, isInAnonymousMode, user } = useAppSelector((state) => state.auth);
+  const router = useRouter();
+
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    const validateSession = async () => {
-      const action = await dispatch(checkSecurityEnabled());
-      if (isFulfilled(action)) {
-        dispatch(getUser());
-      }
-    };
-    validateSession();
-  }, [dispatch]);
+    if (!isInitialized) {
+      const validateSession = async () => {
+        const action = await dispatch(checkSecurityEnabled());
+        if (isFulfilled(action)) {
+          dispatch(getUser());
+        }
+      };
+      validateSession();
+      setIsInitialized(true);
+    }
+  }, [dispatch, isInitialized]);
 
-  const router = useRouter();
-  if (isLoading) {
+  useEffect(() => {
+    // Need to use useEffect for the router.push which is a side effect.
+    if (isLoading) {
+      return;
+    }
+
+    const isAuthorized = isInAnonymousMode || user;
+    const isOnLoginPage = router.pathname === WEB_AUTH_LOGIN;
+
+    if (!isAuthorized && !isOnLoginPage) {
+      const returnPath = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+      const loginUrl = process.env.NEXT_PUBLIC_HOST
+        ? `${process.env.NEXT_PUBLIC_HOST}/link/auth/login?return_to=${window.location.origin}&ref=${returnPath}`
+        : `/link/auth/login?ref=${returnPath}`;
+      router.push(loginUrl);
+    }
+  }, [isLoading, isInAnonymousMode, user, router]);
+
+  const isAuthorized = isInAnonymousMode || user;
+  const isOnLoginPage = router.pathname === WEB_AUTH_LOGIN;
+
+  if (isLoading || (!isAuthorized && !isOnLoginPage)) {
     return <Loading />;
   }
-  if (isInAnonymousMode || router.pathname === WEB_AUTH_LOGIN || user) {
-    return <>{props.children}</>;
-  }
-  if (typeof window !== 'undefined') {
-    const returnPath = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
-    router.push(
-      process.env.NEXT_PUBLIC_HOST
-        ? `${process.env.NEXT_PUBLIC_HOST}/link/auth/login?return_to=${window.location.origin}&ref=${returnPath}`
-        : `/link/auth/login?ref=${returnPath}`,
-    );
-  }
-  return <></>;
+
+  return <>{props.children}</>;
 };

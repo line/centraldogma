@@ -33,6 +33,7 @@ import com.linecorp.armeria.common.annotation.UnstableApi;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
+import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -92,6 +93,11 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
             @Override
             protected void configureHttpClient(WebClientBuilder builder) {
                 CentralDogmaExtension.this.configureHttpClient(builder);
+            }
+
+            @Override
+            protected String accessToken() {
+                return CentralDogmaExtension.this.accessToken();
             }
 
             @Override
@@ -268,6 +274,13 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
      * Override this method to configure the {@link WebClient} builder.
      */
     protected void configureHttpClient(WebClientBuilder builder) {}
+
+    /**
+     * Override this method to inject an access token to the clients.
+     */
+    protected String accessToken() {
+        return CsrfToken.ANONYMOUS;
+    }
 
     /**
      * Override this method to perform the initial updates on the server,

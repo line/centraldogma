@@ -27,9 +27,11 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.annotation.AnnotatedService;
 import com.linecorp.armeria.server.auth.AuthFailureHandler;
 import com.linecorp.centraldogma.common.AuthorizationException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
+import com.linecorp.centraldogma.server.internal.api.GitHttpService;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
 final class CentralDogmaAuthFailureHandler implements AuthFailureHandler {
@@ -49,6 +51,7 @@ final class CentralDogmaAuthFailureHandler implements AuthFailureHandler {
     public HttpResponse authFailed(HttpService delegate,
                                    ServiceRequestContext ctx, HttpRequest req,
                                    @Nullable Throwable cause) throws Exception {
+        logger.info("11 headers: {}", ctx.request().headers());
         if (cause != null) {
             if (!(cause instanceof ShuttingDownException)) {
                 logger.warn("Unexpected exception during authorization:", cause);
@@ -56,12 +59,11 @@ final class CentralDogmaAuthFailureHandler implements AuthFailureHandler {
             return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause);
         }
 
-        if ("/api/v0/users/me".equals(ctx.path())) {
-            // Do not return the WWW-Authenticate header for the /api/v0/users/me to avoid triggering a sign-in
-            // prompt in browsers. It could interfere with the login flow.
-            return HttpApiUtil.newResponse(ctx, HttpStatus.UNAUTHORIZED, AUTHORIZATION_EXCEPTION);
-        } else {
+        final AnnotatedService annotatedService = ctx.config().service().as(AnnotatedService.class);
+        if (annotatedService != null && annotatedService.serviceClass() == GitHttpService.class) {
+            // Use 401 with WWW-Authenticate headers for Git over HTTP(S) clients.
             return HttpApiUtil.newResponse(ctx, UNAUTHORIZED_HEADERS, AUTHORIZATION_EXCEPTION);
         }
+        return HttpApiUtil.newResponse(ctx, HttpStatus.UNAUTHORIZED, AUTHORIZATION_EXCEPTION);
     }
 }

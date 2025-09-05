@@ -30,6 +30,7 @@ import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
+import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -86,6 +87,11 @@ public class CentralDogmaRule extends TemporaryFolder {
             @Override
             protected void configureHttpClient(WebClientBuilder builder) {
                 CentralDogmaRule.this.configureHttpClient(builder);
+            }
+
+            @Override
+            protected String accessToken() {
+                return CentralDogmaRule.this.accessToken();
             }
 
             @Override
@@ -245,6 +251,13 @@ public class CentralDogmaRule extends TemporaryFolder {
      * Override this method to configure the {@link WebClient} builder.
      */
     protected void configureHttpClient(WebClientBuilder builder) {}
+
+    /**
+     * Override this method to inject an access token to the clients.
+     */
+    protected String accessToken() {
+        return CsrfToken.ANONYMOUS;
+    }
 
     /**
      * Override this method to perform the initial updates on the server,

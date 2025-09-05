@@ -18,7 +18,8 @@ package com.linecorp.centraldogma.server.internal.api;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
 import static com.linecorp.centraldogma.server.internal.api.ProjectServiceV1Test.createProject;
-import static com.linecorp.centraldogma.server.internal.api.ProjectServiceV1Test.sessionId;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getSessionCookie;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.login;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -43,6 +44,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.Cookie;
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.auth.AuthToken;
@@ -51,6 +54,7 @@ import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService.IdAndProjectRole;
 import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
@@ -82,16 +86,22 @@ class ProjectServiceV1ListProjectTest {
     @BeforeEach
     void setUp() throws JsonProcessingException {
         final URI uri = dogma.httpClient().uri();
+        AggregatedHttpResponse response = login(dogma.httpClient(), TestAuthMessageUtil.USERNAME,
+                                                      TestAuthMessageUtil.PASSWORD);
+        Cookie sessionCookie = getSessionCookie(response);
+        String csrfToken = Jackson.readTree(response.contentUtf8()).get("csrf_token").asText();
         systemAdminClient = WebClient.builder(uri)
-                                     .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
-                                                                        TestAuthMessageUtil.USERNAME,
-                                                                        TestAuthMessageUtil.PASSWORD)))
+                                     .addHeader(SessionUtil.X_CSRF_TOKEN, csrfToken)
+                                     .addHeader(HttpHeaderNames.COOKIE, sessionCookie.toCookieHeader())
                                      .build()
                                      .blocking();
+        response = login(dogma.httpClient(), TestAuthMessageUtil.USERNAME2,
+                         TestAuthMessageUtil.PASSWORD2);
+        sessionCookie = getSessionCookie(response);
+        csrfToken = Jackson.readTree(response.contentUtf8()).get("csrf_token").asText();
         normalClient = WebClient.builder(uri)
-                                .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
-                                                                   TestAuthMessageUtil.USERNAME2,
-                                                                   TestAuthMessageUtil.PASSWORD2)))
+                                .addHeader(SessionUtil.X_CSRF_TOKEN, csrfToken)
+                                .addHeader(HttpHeaderNames.COOKIE, sessionCookie.toCookieHeader())
                                 .build()
                                 .blocking();
     }

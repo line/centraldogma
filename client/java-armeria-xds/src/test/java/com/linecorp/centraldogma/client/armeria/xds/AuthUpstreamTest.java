@@ -38,7 +38,6 @@ import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.grpc.GrpcService;
 import com.linecorp.armeria.testing.junit5.server.ServerExtension;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
@@ -69,11 +68,10 @@ class AuthUpstreamTest {
         }
 
         @Override
-        protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-            final String accessToken = getAccessToken(
+        protected String accessToken() {
+            return getAccessToken(
                     WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
-                    TestAuthMessageUtil.USERNAME, TestAuthMessageUtil.PASSWORD);
-            builder.accessToken(accessToken);
+                    TestAuthMessageUtil.USERNAME, TestAuthMessageUtil.PASSWORD, true);
         }
 
         @Override
@@ -110,7 +108,7 @@ class AuthUpstreamTest {
     @Test
     void basicAuthCase() throws Exception {
         final String accessToken = getAccessToken(dogma.httpClient(), TestAuthMessageUtil.USERNAME,
-                                                  TestAuthMessageUtil.PASSWORD);
+                                                  TestAuthMessageUtil.PASSWORD, "fooAppId", true);
         // so that the xds server can also verify the access token is correctly set
         accessTokenRef.set(accessToken);
 

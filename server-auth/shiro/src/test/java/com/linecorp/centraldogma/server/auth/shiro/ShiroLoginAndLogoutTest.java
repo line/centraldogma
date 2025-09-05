@@ -16,11 +16,10 @@
 
 package com.linecorp.centraldogma.server.auth.shiro;
 
-import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.MALFORMED_SESSION_ID;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionIdCookie;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.WRONG_PASSWORD;
-import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.WRONG_SESSION_ID;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.login;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.loginWithBasicAuth;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.logout;
@@ -32,12 +31,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.google.common.collect.Iterables;
+
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.Cookie;
+import com.linecorp.armeria.common.Cookies;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -78,14 +80,19 @@ class ShiroLoginAndLogoutTest {
         assertThat(loginRes.status()).isEqualTo(HttpStatus.OK);
 
         // Ensure authorization works.
-        final AccessToken accessToken = Jackson.readValue(loginRes.contentUtf8(), AccessToken.class);
-        final String sessionId = accessToken.accessToken();
+        final String csrfToken = Jackson.readTree(loginRes.contentUtf8()).get("csrf_token").asText();
+        assertThat(csrfToken).isNotNull();
 
-        assertThat(usersMe(client, sessionId).status()).isEqualTo(HttpStatus.OK);
+        final Cookies cookies = loginRes.headers().cookies();
+        assertThat(cookies.size()).isOne();
+
+        final Cookie sessionCookie = Iterables.getFirst(cookies, null);
+        assertThat(usersMe(client, sessionCookie, csrfToken).status())
+                .isEqualTo(HttpStatus.OK);
 
         // Log out.
-        assertThat(logout(client, sessionId).status()).isEqualTo(HttpStatus.OK);
-        assertThat(usersMe(client, sessionId).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(logout(client, sessionCookie, csrfToken).status()).isEqualTo(HttpStatus.OK);
+        assertThat(usersMe(client, sessionCookie, csrfToken).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
@@ -100,8 +107,8 @@ class ShiroLoginAndLogoutTest {
 
     @Test
     void incorrectLogout() {
-        assertThat(logout(client, WRONG_SESSION_ID).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(logout(client, MALFORMED_SESSION_ID).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        final Cookie sessionCookie = createSessionIdCookie("some-session-id", false, 60);
+        assertThat(logout(client, sessionCookie, "csrfToken").status()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
     @Test

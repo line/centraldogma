@@ -50,11 +50,7 @@ public final class ShiroAuthProviderFactory implements AuthProviderFactory {
     @Override
     public AuthProvider create(AuthProviderParameters parameters) {
         requireNonNull(parameters, "parameters");
-        return new ShiroAuthProvider(parameters.authConfig(),
-                                     iniConfigResolver.apply(parameters.authConfig()),
-                                     parameters.sessionIdGenerator(),
-                                     parameters.loginSessionPropagator(),
-                                     parameters.logoutSessionPropagator());
+        return new ShiroAuthProvider(parameters, iniConfigResolver.apply(parameters.authConfig()));
     }
 
     private static Ini fromConfig(AuthConfig cfg) {

@@ -21,7 +21,7 @@ import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUti
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD2;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME2;
-import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.login;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
@@ -36,11 +36,10 @@ import com.google.common.collect.ImmutableList;
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
-import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.ZoneConfig;
@@ -64,7 +63,7 @@ final class ShiroCentralDogmaTestServer {
                 // .webAppEnabled(true)
                 .port(PORT, SessionProtocol.HTTP)
                 .systemAdministrators(USERNAME)
-                .cors("*")
+                .cors("127.0.0.1", "localhost")
                 .authProviderFactory(new ShiroAuthProviderFactory(unused -> {
                     final Ini iniConfig = new Ini();
                     final Ini.Section users = iniConfig.addSection("users");
@@ -81,7 +80,8 @@ final class ShiroCentralDogmaTestServer {
     }
 
     private static void scaffold() throws UnknownHostException, JsonProcessingException {
-        final String token = getSessionToken();
+        final String token = getAccessToken(WebClient.of("http://127.0.0.1:" + PORT), USERNAME, PASSWORD,
+                                            "appId", true);
         final com.linecorp.centraldogma.client.CentralDogma client = new ArmeriaCentralDogmaBuilder()
                 .host("127.0.0.1", PORT)
                 .accessToken(token)
@@ -99,14 +99,7 @@ final class ShiroCentralDogmaTestServer {
                                                             "none",
                                                             new NoneCredential(credentialName("foo", "none"))))
                                                     .execute();
-    }
-
-    private static String getSessionToken() throws JsonProcessingException {
-        final WebClient client = WebClient.of("http://127.0.0.1:" + PORT);
-        final AggregatedHttpResponse response = login(client, USERNAME, PASSWORD);
-        // Ensure authorization works.
-        final AccessToken accessToken = Jackson.readValue(response.contentUtf8(), AccessToken.class);
-        return accessToken.accessToken();
+        assert res.status() == HttpStatus.OK : res.status();
     }
 
     private ShiroCentralDogmaTestServer() {}

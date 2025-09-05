@@ -21,6 +21,8 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJE
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
 import static com.linecorp.centraldogma.server.metadata.RepositoryMetadata.DEFAULT_PROJECT_ROLES;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getSessionCookie;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.login;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -46,12 +48,12 @@ import com.linecorp.armeria.client.InvalidHttpResponseException;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.Cookie;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
-import com.linecorp.armeria.common.QueryParams;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.ResponseHeaders;
@@ -73,11 +75,11 @@ import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService.IdAndProjectRole;
 import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.Roles;
-import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -107,24 +109,23 @@ class RepositoryServiceV1Test {
         systemAdminClient = WebClient.builder(uri)
                                      .auth(AuthToken.ofOAuth2(getAccessToken(dogma.httpClient(),
                                                                              TestAuthMessageUtil.USERNAME,
-                                                                             TestAuthMessageUtil.PASSWORD)))
+                                                                             TestAuthMessageUtil.PASSWORD,
+                                                                             "appId1", true)))
                                      .build();
         createProject(systemAdminClient);
+        final AggregatedHttpResponse response = login(dogma.httpClient(), TestAuthMessageUtil.USERNAME2,
+                                                      TestAuthMessageUtil.PASSWORD2);
+        final Cookie sessionCookie = getSessionCookie(response);
+        final String csrfToken = Jackson.readTree(response.contentUtf8()).get("csrf_token").asText();
         userClient = WebClient.builder(uri)
-                              .auth(AuthToken.ofOAuth2(getAccessToken(dogma.httpClient(),
-                                                                      TestAuthMessageUtil.USERNAME2,
-                                                                      TestAuthMessageUtil.PASSWORD2)))
+                              .addHeader(SessionUtil.X_CSRF_TOKEN, csrfToken)
+                              .addHeader(HttpHeaderNames.COOKIE, sessionCookie.toCookieHeader())
                               .build();
-        final QueryParams params = QueryParams.builder()
-                                              .add("appId", "appId1")
-                                              .add("isSystemAdmin", "false")
-                                              .build();
-        final String appToken = userClient.blocking().prepare()
-                                          .post("/api/v1/tokens")
-                                          .content(MediaType.FORM_DATA, params.toQueryString())
-                                          .asJson(Token.class, new ObjectMapper()).execute().content().secret();
         tokenClient = WebClient.builder(uri)
-                               .auth(AuthToken.ofOAuth2(appToken))
+                               .auth(AuthToken.ofOAuth2(getAccessToken(dogma.httpClient(),
+                                                                       TestAuthMessageUtil.USERNAME2,
+                                                                       TestAuthMessageUtil.PASSWORD2,
+                                                                       "appId2", false)))
                                .build();
     }
 
@@ -140,7 +141,7 @@ class RepositoryServiceV1Test {
         // Add a token as a member of the project.
         request = HttpRequest.builder()
                              .post("/api/v1/metadata/myPro/tokens")
-                             .contentJson(new IdAndProjectRole("appId1", ProjectRole.MEMBER))
+                             .contentJson(new IdAndProjectRole("appId2", ProjectRole.MEMBER))
                              .build();
         assertThat(systemAdminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
 
@@ -160,7 +161,7 @@ class RepositoryServiceV1Test {
         assertThat(projectMetadata.repo("myRepo2").roles()).isEqualTo(
                 new Roles(DEFAULT_PROJECT_ROLES,
                           ImmutableMap.of(),
-                          ImmutableMap.of("appId1", RepositoryRole.ADMIN)));
+                          ImmutableMap.of("appId2", RepositoryRole.ADMIN)));
     }
 
     private static AggregatedHttpResponse createRepository(WebClient client, String repoName) {
@@ -276,7 +277,7 @@ class RepositoryServiceV1Test {
                 .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
                 .accessToken(getAccessToken(dogma.httpClient(),
                                             TestAuthMessageUtil.USERNAME,
-                                            TestAuthMessageUtil.PASSWORD))
+                                            TestAuthMessageUtil.PASSWORD, "appId3", true))
                 .build();
 
         final CentralDogmaRepository centralDogmaRepository = dogmaClient.forRepo("myPro", "statusRepo");

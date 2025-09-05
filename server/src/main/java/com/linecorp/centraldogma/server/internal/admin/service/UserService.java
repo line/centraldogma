@@ -16,15 +16,26 @@
 
 package com.linecorp.centraldogma.server.internal.admin.service;
 
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getSessionIdFromCookie;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.sessionCookieName;
+
+import javax.annotation.Nullable;
+
+import org.slf4j.Logger;
+
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
 import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.metadata.User;
@@ -35,19 +46,48 @@ import com.linecorp.centraldogma.server.metadata.User;
 @ResponseConverter(RestfulJsonResponseConverter.class)
 public class UserService extends AbstractService {
 
-    public UserService(CommandExecutor executor) {
+    private static Logger logger = org.slf4j.LoggerFactory.getLogger(UserService.class);
+
+    @Nullable
+    private final SessionManager sessionManager;
+    private final String sessionCookieName;
+
+    public UserService(@Nullable SessionManager sessionManager, boolean tlsEnabled, CommandExecutor executor) {
         super(executor);
+        sessionCookieName = sessionCookieName(tlsEnabled);
+        this.sessionManager = sessionManager;
     }
 
     /**
      * GET /users/me
      * Returns a login {@link User} if the user is authorized. Otherwise, {@code 401 Unauthorized} HTTP
-     * response is sent.
+     * response is sent. If the user has a valid session, the CSRF token is included in the response
+     * header {@code X-CSRF-Token}.
      */
     @Get("/users/me")
-    public HttpResponse usersMe() throws Exception {
+    public HttpResponse usersMe(ServiceRequestContext ctx) throws Exception {
+        logger.info("headers: {}", ctx.request().headers());
         final User user = AuthUtil.currentUser();
-        return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
-                               HttpData.wrap(Jackson.writeValueAsBytes(user)));
+        final HttpData body = HttpData.wrap(Jackson.writeValueAsBytes(user));
+        if (sessionManager != null) {
+            logger.info("Looking for session cookie: {}", sessionCookieName);
+            final String sessionId = getSessionIdFromCookie(ctx, sessionCookieName);
+            logger.info("Found sessionId: {}", sessionId);
+            if (sessionId != null) {
+                return HttpResponse.of(sessionManager.get(sessionId).thenApply(session -> {
+                    if (session == null) {
+                        return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8, body);
+                    }
+                    final ResponseHeaders headers =
+                            ResponseHeaders.builder(HttpStatus.OK)
+                                           .contentType(MediaType.JSON_UTF_8)
+                                           .set(SessionUtil.X_CSRF_TOKEN, session.csrfToken())
+                                           .build();
+                    return HttpResponse.of(headers, body);
+                }));
+            }
+        }
+
+        return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8, body);
     }
 }

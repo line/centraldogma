@@ -19,9 +19,7 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
-import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD2;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
-import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME2;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,7 +44,6 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
@@ -78,11 +75,10 @@ class MirroringAndCredentialServiceV1Test {
         }
 
         @Override
-        protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-            final String accessToken = getAccessToken(
+        protected String accessToken() {
+            return getAccessToken(
                     WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
-                    USERNAME, PASSWORD);
-            builder.accessToken(accessToken);
+                    USERNAME, PASSWORD, true);
         }
 
         @Override
@@ -98,13 +94,13 @@ class MirroringAndCredentialServiceV1Test {
 
     @BeforeAll
     static void setUp() throws JsonProcessingException {
-        final String systemAdminToken = getAccessToken(dogma.httpClient(), USERNAME, PASSWORD);
+        final String systemAdminToken = getAccessToken(dogma.httpClient(), USERNAME, PASSWORD, "appId1", true);
         systemAdminClient = WebClient.builder(dogma.httpClient().uri())
                                      .auth(AuthToken.ofOAuth2(systemAdminToken))
                                      .build()
                                      .blocking();
 
-        final String userToken = getAccessToken(dogma.httpClient(), USERNAME2, PASSWORD2);
+        final String userToken = getAccessToken(dogma.httpClient(), USERNAME, PASSWORD, "appId2", false);
         userClient = WebClient.builder(dogma.httpClient().uri())
                               .auth(AuthToken.ofOAuth2(userToken))
                               .build()
@@ -229,9 +225,9 @@ class MirroringAndCredentialServiceV1Test {
     private static void setUpRole() {
         final ResponseEntity<Revision> res =
                 systemAdminClient.prepare()
-                                 .post("/api/v1/metadata/{proj}/members")
+                                 .post("/api/v1/metadata/{proj}/tokens")
                                  .pathParam("proj", FOO_PROJ)
-                                 .contentJson(ImmutableMap.of("id", USERNAME2, "role", "OWNER"))
+                                 .contentJson(ImmutableMap.of("id", "appId2", "role", "OWNER"))
                                  .asJson(Revision.class)
                                  .execute();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
