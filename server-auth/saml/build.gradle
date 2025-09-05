@@ -6,4 +6,5 @@ dependencies {
 
     implementation libs.bouncycastle.bcprov
     implementation libs.logback15
+    implementation libs.owasp
 }
