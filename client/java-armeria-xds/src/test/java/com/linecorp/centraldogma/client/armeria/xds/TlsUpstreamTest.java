@@ -97,7 +97,7 @@ class TlsUpstreamTest {
                 ImmutableMap.of("<LISTENER_NAME>", XdsCentralDogmaBuilder.DEFAULT_LISTENER_NAME,
                                 "<CLUSTER_NAME>", "my-cluster"));
         final Cluster cluster = XdsResourceReader.readResourcePath(
-                "/test-cluster.yaml",
+                "/test-tls-cluster.yaml",
                 Cluster.newBuilder(),
                 ImmutableMap.of("<NAME>", "my-cluster", "<TYPE>", "STATIC",
                                 "<PORT>", dogma.serverAddress().getPort()));

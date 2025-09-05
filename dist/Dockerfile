@@ -3,6 +3,9 @@
 #
 FROM openjdk:11-jre
 
+# Multi-platform build arguments (pre-defined by docker)
+ARG TARGETARCH
+
 # Environment variables.
 ENV CENTRALDOGMA_HOME "/opt/centraldogma"
 ENV CENTRALDOGMA_OPTS ""
@@ -21,11 +24,15 @@ RUN mkdir -p                      \
 COPY build/dist/LICENSE.txt  "$CENTRALDOGMA_HOME"/
 COPY build/dist/NOTICE.txt   "$CENTRALDOGMA_HOME"/
 COPY build/dist/README.md    "$CENTRALDOGMA_HOME"/
-COPY build/dist/bin/*        "$CENTRALDOGMA_HOME"/bin/
-COPY build/dist/bin/native/* "$CENTRALDOGMA_HOME"/bin/native/
+COPY build/dist/bin/common* build/dist/bin/dogma build/dist/bin/shutdown build/dist/bin/startup \
+  "$CENTRALDOGMA_HOME"/bin/
 COPY build/dist/conf/*       "$CENTRALDOGMA_HOME"/conf/
 COPY build/dist/lib/*        "$CENTRALDOGMA_HOME"/lib/
 COPY build/dist/licenses/*   "$CENTRALDOGMA_HOME"/licenses/
+
+COPY --chmod=755 \
+  build/dist/bin/native/dogma.linux_${TARGETARCH} \
+  "$CENTRALDOGMA_HOME"/bin/native/
 
 # Expose ports.
 EXPOSE 36462

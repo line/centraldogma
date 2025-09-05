@@ -33,14 +33,7 @@ dependencies {
     // jCommander. optionalImplementation must be also added to the :dist dependencies.
     optionalImplementation libs.jcommander
 
-    // Because the default targetJavaVersion is 8, jgit5 is chosen and published with the server artifact.
-    // It's inevitable because users who use JDK8 cannot use jgit6 when implementing IT tests.
-    // We will switch to jgit6 completely when we drop JDK8 support.
-    if (project.ext.targetJavaVersion >= 11) {
-        implementation libs.jgit6
-    } else {
-        implementation libs.jgit
-    }
+    implementation libs.jgit6
 
     // Micrometer
     implementation libs.micrometer.core
@@ -55,8 +48,9 @@ dependencies {
     implementation libs.snappy
 
     // Logging
-    optionalImplementation libs.logback12
-    optionalImplementation libs.slf4j1.jul.to.slf4j
+    optionalImplementation libs.logback15
+    // For Caffiene. See https://github.com/line/centraldogma/pull/499
+    optionalImplementation libs.slf4j2.jul.to.slf4j
 
     testImplementation libs.jackson.module.scala
 }

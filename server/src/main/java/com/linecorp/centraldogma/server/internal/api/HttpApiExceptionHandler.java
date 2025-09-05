@@ -17,20 +17,27 @@
 package com.linecorp.centraldogma.server.internal.api;
 
 import static com.linecorp.centraldogma.server.internal.api.ContentServiceV1.IS_WATCH_REQUEST;
+import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newAggregatedResponse;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newResponse;
 
 import java.util.Map;
 import java.util.function.BiFunction;
 
+import javax.annotation.Nonnull;
+
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.RequestTimeoutException;
 import com.linecorp.armeria.server.ServerErrorHandler;
+import com.linecorp.armeria.server.ServiceConfig;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ExceptionHandlerFunction;
 import com.linecorp.centraldogma.common.ApiRequestTimeoutException;
@@ -174,5 +181,14 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
         }
 
         return newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, peeledCause);
+    }
+
+    @Nonnull
+    @Override
+    public AggregatedHttpResponse renderStatus(@Nullable ServiceRequestContext ctx,
+                                               ServiceConfig config, @Nullable RequestHeaders headers,
+                                               HttpStatus status, @Nullable String description,
+                                               @Nullable Throwable cause) {
+        return newAggregatedResponse(ctx, status, cause, description);
     }
 }

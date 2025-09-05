@@ -206,6 +206,8 @@ public class CentralDogma implements AutoCloseable {
 
     private static final boolean GIT_MIRROR_ENABLED;
 
+    private static final boolean LOGBACK_ENABLED;
+
     static {
         Jackson.registerModules(new SimpleModule().addSerializer(CacheStats.class, new CacheStatsSerializer()));
 
@@ -221,7 +223,22 @@ public class CentralDogma implements AutoCloseable {
                     gitMirrorEnabled ? "enabled"
                                      : "disabled ('centraldogma-server-mirror-git' module is not available)");
         GIT_MIRROR_ENABLED = gitMirrorEnabled;
+
+        boolean logbackEnabled = false;
+        try {
+            final Class<?> loggerContextClass = Class.forName("ch.qos.logback.classic.LoggerContext", true,
+                                                              CentralDogma.class.getClassLoader());
+            if (loggerContextClass.isInstance(LoggerFactory.getILoggerFactory())) {
+                logger.debug("Logback is used as the logging framework.");
+                logbackEnabled = true;
+            }
+        } catch (ClassNotFoundException e) {
+            // Logback is not available.
+        }
+        LOGBACK_ENABLED = logbackEnabled;
     }
+
+    private static final int DEFAULT_MAX_FRAME_LENGTH = 1024 * 1024; // 1 MiB
 
     /**
      * Creates a new instance from the given configuration file.
@@ -694,7 +711,7 @@ public class CentralDogma implements AutoCloseable {
         cfg.maxNumConnections().ifPresent(sb::maxNumConnections);
         cfg.idleTimeoutMillis().ifPresent(sb::idleTimeoutMillis);
         cfg.requestTimeoutMillis().ifPresent(sb::requestTimeoutMillis);
-        cfg.maxFrameLength().ifPresent(sb::maxRequestLength);
+        sb.maxRequestLength(cfg.maxFrameLength().orElse(DEFAULT_MAX_FRAME_LENGTH));
         cfg.gracefulShutdownTimeout().ifPresent(t -> {
             final GracefulShutdown gracefulShutdown =
                     GracefulShutdown.builder()
@@ -929,8 +946,10 @@ public class CentralDogma implements AutoCloseable {
                 .annotatedService(new ServerStatusService(executor, statusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
                 .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager))
-                .annotatedService(new CredentialServiceV1(projectApiManager, executor))
-                .annotatedService(new LoggerService());
+                .annotatedService(new CredentialServiceV1(projectApiManager, executor));
+        if (LOGBACK_ENABLED) {
+            apiV1ServiceBuilder.annotatedService(new LoggerService());
+        }
 
         if (GIT_MIRROR_ENABLED) {
             mirrorRunner = new MirrorRunner(projectApiManager, executor, cfg, meterRegistry,

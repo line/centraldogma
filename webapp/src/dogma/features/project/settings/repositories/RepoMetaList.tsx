@@ -44,23 +44,22 @@ const RepoMetaList = <Data extends object>({ data, projectName }: RepoListProps<
         header: 'Created',
       }),
       columnHelper.accessor((row: RepositoryMetadataDto) => row.name, {
-        cell: (info) =>
-          info.getValue() !== 'meta' && (
-            <Wrap>
-              <DeleteRepo
-                projectName={projectName}
-                repoName={info.getValue()}
-                hidden={info.row.original.removal !== undefined}
-                buttonVariant={'solid'}
-                buttonSize={'sm'}
-              />
-              <RestoreRepo
-                projectName={projectName}
-                repoName={info.getValue()}
-                hidden={info.row.original.removal === undefined}
-              />
-            </Wrap>
-          ),
+        cell: (info) => (
+          <Wrap>
+            <DeleteRepo
+              projectName={projectName}
+              repoName={info.getValue()}
+              hidden={info.row.original.removal != null}
+              buttonVariant={'solid'}
+              buttonSize={'sm'}
+            />
+            <RestoreRepo
+              projectName={projectName}
+              repoName={info.getValue()}
+              hidden={info.row.original.removal == null}
+            />
+          </Wrap>
+        ),
         header: 'Actions',
         enableSorting: false,
       }),

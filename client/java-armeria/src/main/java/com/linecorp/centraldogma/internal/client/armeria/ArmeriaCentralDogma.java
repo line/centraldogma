@@ -105,6 +105,7 @@ import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
+import com.linecorp.centraldogma.common.RequestTooLargeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
@@ -153,18 +154,26 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     private final WebClient client;
     private final String authorization;
     private final SafeCloseable safeCloseable;
+    @Nullable
+    private final CompletableFuture<Void> whenReady;
 
     public ArmeriaCentralDogma(ScheduledExecutorService blockingTaskExecutor,
                                WebClient client, String accessToken, SafeCloseable safeCloseable,
-                               @Nullable MeterRegistry meterRegistry) {
+                               @Nullable MeterRegistry meterRegistry,
+                               @Nullable CompletableFuture<Void> whenReady) {
         super(blockingTaskExecutor, meterRegistry);
         this.client = requireNonNull(client, "client");
         authorization = "Bearer " + requireNonNull(accessToken, "accessToken");
         this.safeCloseable = safeCloseable;
+        this.whenReady = whenReady;
     }
 
     @Override
     public CompletableFuture<Void> whenEndpointReady() {
+        if (whenReady != null) {
+            return whenReady;
+        }
+
         return client.endpointGroup().whenReady().thenRun(() -> {});
     }
 
@@ -1159,6 +1168,13 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                     message = "Access denied";
                 }
                 throw new PermissionException(message);
+            }
+
+            if (status == HttpStatus.REQUEST_ENTITY_TOO_LARGE) {
+                if (Strings.isNullOrEmpty(message)) {
+                    message = "Request entity too large";
+                }
+                throw new RequestTooLargeException(message);
             }
         }
 
