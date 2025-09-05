@@ -45,6 +45,7 @@ class HealthCheckServiceTest {
 
         try (CentralDogma dogma = new CentralDogmaBuilder(rootDir.toFile())
                 .port(randomPort, SessionProtocol.HTTP)
+                .gracefulShutdownTimeout(new GracefulShutdownTimeout(1000, 1000))
                 .build()) {
             dogma.start().join();
             final ServerPort serverPort = dogma.activePort();
