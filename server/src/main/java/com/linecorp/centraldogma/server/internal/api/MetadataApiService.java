@@ -90,7 +90,7 @@ public class MetadataApiService extends AbstractService {
      * PATCH /metadata/{projectName}/members/{memberId}
      *
      * <p>Updates the {@link ProjectRole} of the specified {@code memberId} in the specified
-     * {@code projectName}.∂
+     * {@code projectName}.
      */
     @RequiresProjectRole(ProjectRole.OWNER)
     @Patch("/metadata/{projectName}/members/{memberId}")
