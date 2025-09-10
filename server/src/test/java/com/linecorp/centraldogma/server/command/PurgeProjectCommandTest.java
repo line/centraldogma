@@ -34,7 +34,7 @@ class PurgeProjectCommandTest {
                              "  \"type\": \"PURGE_PROJECT\"," +
                              "  \"timestamp\": 1234," +
                              "  \"author\": {" +
-                             "    \"name\": \"System\"," +
+                             "    \"name\": \"system\"," +
                              "    \"email\": \"system@localhost.localdomain\"" +
                              "  }," +
                              "  \"projectName\": \"foo\"" +

@@ -25,7 +25,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.UnknownHostException;
 
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -43,6 +43,7 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.QueryParams;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.ResponseHeaders;
@@ -50,9 +51,14 @@ import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.metadata.Member;
+import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
+import com.linecorp.centraldogma.server.metadata.Token;
+import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -71,11 +77,12 @@ class ProjectServiceV1Test {
 
     private static final ObjectMapper mapper = new ObjectMapper();
 
-    private BlockingWebClient systemAdminClient;
-    private BlockingWebClient normalClient;
+    private static BlockingWebClient systemAdminClient;
+    private static BlockingWebClient userClient;
+    private static BlockingWebClient tokenClient;
 
-    @BeforeEach
-    void setUp() throws JsonProcessingException, UnknownHostException {
+    @BeforeAll
+    static void setUp() throws JsonProcessingException, UnknownHostException {
         final URI uri = dogma.httpClient().uri();
         systemAdminClient = WebClient.builder(uri)
                                      .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
@@ -83,12 +90,24 @@ class ProjectServiceV1Test {
                                                                         TestAuthMessageUtil.PASSWORD)))
                                      .build()
                                      .blocking();
-        normalClient = WebClient.builder(uri)
-                                .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
-                                                                   TestAuthMessageUtil.USERNAME2,
-                                                                   TestAuthMessageUtil.PASSWORD2)))
-                                .build()
-                                .blocking();
+        userClient = WebClient.builder(uri)
+                              .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
+                                                                 TestAuthMessageUtil.USERNAME2,
+                                                                 TestAuthMessageUtil.PASSWORD2)))
+                              .build()
+                              .blocking();
+        final QueryParams params = QueryParams.builder()
+                                              .add("appId", "appId1")
+                                              .add("isSystemAdmin", "false")
+                                              .build();
+        final String appToken = userClient.prepare()
+                                          .post("/api/v1/tokens")
+                                          .content(MediaType.FORM_DATA, params.toQueryString())
+                                          .asJson(Token.class, new ObjectMapper()).execute().content().secret();
+        tokenClient = WebClient.builder(uri)
+                               .auth(AuthToken.ofOAuth2(appToken))
+                               .build()
+                               .blocking();
     }
 
     static String sessionId(WebClient webClient, String username, String password)
@@ -99,17 +118,20 @@ class ProjectServiceV1Test {
 
     @Test
     void createProject() {
-        final ResponseEntity<ProjectDto> response = createProject(normalClient, "myPro");
-        final ResponseHeaders headers = ResponseHeaders.of(response.headers());
-        assertThat(headers.status()).isEqualTo(HttpStatus.CREATED);
+        ProjectMetadata projectMetadata = createProjectAndReturnMetadata(userClient, "myPro");
+        assertThat(projectMetadata.tokens()).isEmpty();
+        assertThat(projectMetadata.members().size()).isOne();
+        final Member member =
+                projectMetadata.members().get(TestAuthMessageUtil.USERNAME2 + Util.USER_EMAIL_SUFFIX);
+        assertThat(member.login()).isEqualTo(TestAuthMessageUtil.USERNAME2 + Util.USER_EMAIL_SUFFIX);
+        assertThat(member.role()).isEqualTo(ProjectRole.OWNER);
 
-        final String location = headers.get(HttpHeaderNames.LOCATION);
-        assertThat(location).isEqualTo("/api/v1/projects/myPro");
-
-        final ProjectDto project = response.content();
-        assertThat(project.name()).isEqualTo("myPro");
-        assertThat(project.createdAt()).isNotNull();
-        assertThat(project.userRole()).isEqualTo(ProjectRole.OWNER);
+        projectMetadata = createProjectAndReturnMetadata(tokenClient, "myPro2");
+        assertThat(projectMetadata.members()).isEmpty();
+        assertThat(projectMetadata.tokens().size()).isOne();
+        final TokenRegistration tokenRegistration = projectMetadata.tokens().get("appId1");
+        assertThat(tokenRegistration.id()).isEqualTo("appId1");
+        assertThat(tokenRegistration.role()).isEqualTo(ProjectRole.OWNER);
     }
 
     static ResponseEntity<ProjectDto> createProject(BlockingWebClient client, String name) {
@@ -120,11 +142,30 @@ class ProjectServiceV1Test {
                      .execute();
     }
 
+    private static ProjectMetadata createProjectAndReturnMetadata(
+            BlockingWebClient client, String projectName) {
+        final ResponseEntity<ProjectDto> response = createProject(client, projectName);
+        final ResponseHeaders headers = ResponseHeaders.of(response.headers());
+        assertThat(headers.status()).isEqualTo(HttpStatus.CREATED);
+
+        final String location = headers.get(HttpHeaderNames.LOCATION);
+        assertThat(location).isEqualTo("/api/v1/projects/" + projectName);
+
+        final ProjectDto project = response.content();
+        assertThat(project.name()).isEqualTo(projectName);
+        assertThat(project.createdAt()).isNotNull();
+        assertThat(project.userRole()).isEqualTo(ProjectRole.OWNER);
+
+        return client.prepare().get(PROJECTS_PREFIX + '/' + projectName)
+                     .asJson(ProjectMetadata.class, mapper).execute()
+                     .content();
+    }
+
     @Test
     void createInvalidProject() throws IOException {
         // @ is only allowed for internal projects.
         assertThatThrownBy(() -> {
-            createProject(normalClient, "@myPro");
+            createProject(userClient, "@myPro");
         }).isInstanceOfSatisfying(InvalidHttpResponseException.class, cause -> {
             assertThat(cause.response().headers().status()).isEqualTo(HttpStatus.BAD_REQUEST);
         });
@@ -132,9 +173,9 @@ class ProjectServiceV1Test {
 
     @Test
     void createProjectWithSameName() {
-        createProject(normalClient, "myNewPro");
+        createProject(userClient, "myNewPro");
         assertThatThrownBy(() -> {
-            createProject(normalClient, "myNewPro");
+            createProject(userClient, "myNewPro");
         }).isInstanceOfSatisfying(InvalidHttpResponseException.class, cause -> {
             final AggregatedHttpResponse response = cause.response();
             assertThat(response.headers().status()).isEqualTo(HttpStatus.CONFLICT);
@@ -149,10 +190,10 @@ class ProjectServiceV1Test {
 
     @Test
     void removeProject() {
-        createProject(normalClient, "foo");
-        assertThat(normalClient.delete(PROJECTS_PREFIX + "/foo")
-                               .headers()
-                               .status()).isEqualTo(HttpStatus.NO_CONTENT);
+        createProject(userClient, "foo");
+        assertThat(userClient.delete(PROJECTS_PREFIX + "/foo")
+                             .headers()
+                             .status()).isEqualTo(HttpStatus.NO_CONTENT);
 
         // Cannot remove internal dogma project.
         assertThat(systemAdminClient.delete(PROJECTS_PREFIX + "/dogma")
@@ -162,7 +203,7 @@ class ProjectServiceV1Test {
 
     @Test
     void removeAbsentProject() {
-        final AggregatedHttpResponse aRes = normalClient.delete(PROJECTS_PREFIX + "/foo");
+        final AggregatedHttpResponse aRes = userClient.delete(PROJECTS_PREFIX + "/foo");
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
@@ -181,10 +222,10 @@ class ProjectServiceV1Test {
 
     @Test
     void unremoveProject() {
-        createProject(normalClient, "bar");
+        createProject(userClient, "bar");
 
         final String projectPath = PROJECTS_PREFIX + "/bar";
-        normalClient.delete(projectPath);
+        userClient.delete(projectPath);
 
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.PATCH, projectPath,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH);

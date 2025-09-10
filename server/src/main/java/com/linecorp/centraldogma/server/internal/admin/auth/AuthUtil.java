@@ -49,8 +49,14 @@ public final class AuthUtil {
     }
 
     public static Author getAuthor(User user) {
-        return user == User.DEFAULT ? Author.DEFAULT
-                                    : new Author(user.name(), user.email());
+        if (user == User.DEFAULT) {
+            return Author.DEFAULT;
+        }
+        if (user == User.SYSTEM) {
+            return Author.SYSTEM;
+        }
+
+        return new Author(user.name(), user.email());
     }
 
     public static User currentUser(ServiceRequestContext ctx) {

@@ -37,6 +37,17 @@ import com.jayway.jsonpath.JsonPath;
  */
 public final class Util {
 
+    /**
+     * The domain part when generating an email address for the token.
+     */
+    public static final String TOKEN_EMAIL_SUFFIX = "@dogma-token.local";
+
+    /**
+     * The domain part used when generating an email address for the user if the user did not provide
+     * an email address.
+     */
+    public static final String USER_EMAIL_SUFFIX = "@localhost.localdomain";
+
     private static final Pattern FILE_NAME_PATTERN = Pattern.compile(
             "^(?:[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$");
     private static final Pattern FILE_PATH_PATTERN = Pattern.compile(
@@ -223,7 +234,7 @@ public final class Util {
         if (isValidEmailAddress(emailAddr)) {
             return emailAddr;
         }
-        return emailAddr + "@localhost.localdomain";
+        return emailAddr + USER_EMAIL_SUFFIX;
     }
 
     public static String emailToUsername(String emailAddr, String paramName) {

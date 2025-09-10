@@ -349,21 +349,31 @@ public class MetadataService {
      */
     public CompletableFuture<Revision> addRepo(Author author, String projectName, String repoName,
                                                ProjectRoles projectRoles) {
+        return addRepo(author, projectName, repoName,
+                       RepositoryMetadata.of(repoName, UserAndTimestamp.of(author), projectRoles));
+    }
+
+    /**
+     * Adds a {@link RepositoryMetadata} of the specified {@code repoName} to the specified {@code projectName}
+     * with a default {@link RepositoryRole}. The member will have the {@link RepositoryRole#WRITE} role and
+     * the guest won't have any role.
+     */
+    public CompletableFuture<Revision> addRepo(Author author, String projectName,
+                                               String repoName, RepositoryMetadata repositoryMetadata) {
         // TODO(minwoox): Prohibit adding internal repositories after migration is done.
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
+        requireNonNull(repositoryMetadata, "repositoryMetadata");
 
         final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName));
-        final RepositoryMetadata newRepositoryMetadata =
-                RepositoryMetadata.of(repoName, UserAndTimestamp.of(author), projectRoles);
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
                                    asJsonArray(JsonPatchOperation.testAbsence(path),
                                                JsonPatchOperation.add(
-                                                       path, Jackson.valueToTree(newRepositoryMetadata))));
+                                                       path, Jackson.valueToTree(repositoryMetadata))));
         final String commitSummary =
-                "Add a repo '" + newRepositoryMetadata.id() + "' to the project '" + projectName + '\'';
+                "Add a repo '" + repositoryMetadata.id() + "' to the project '" + projectName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change)
                            .handle((revision, cause) -> {
                                if (cause != null) {

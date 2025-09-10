@@ -19,8 +19,6 @@ package com.linecorp.centraldogma.server.internal.api.auth;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
@@ -65,13 +63,8 @@ public class ApplicationTokenAuthorizer extends AbstractAuthorizer {
             final Token appToken = tokenLookupFunc.apply(accessToken);
             if (appToken != null && appToken.isActive()) {
                 final String appId = appToken.appId();
-                final StringBuilder login = new StringBuilder(appId);
-                final SocketAddress ra = ctx.remoteAddress();
-                if (ra instanceof InetSocketAddress) {
-                    login.append('@').append(((InetSocketAddress) ra).getHostString());
-                }
                 ctx.logBuilder().authenticatedUser("app/" + appId);
-                final UserWithToken user = new UserWithToken(login.toString(), appToken);
+                final UserWithToken user = new UserWithToken(appToken);
                 AuthUtil.setCurrentUser(ctx, user);
                 HttpApiUtil.setVerboseResponses(ctx, user);
                 return UnmodifiableFuture.completedFuture(true);

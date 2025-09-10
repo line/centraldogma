@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.storage.project;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.linecorp.centraldogma.internal.Util.TOKEN_EMAIL_SUFFIX;
 import static com.linecorp.centraldogma.server.internal.storage.MigratingMetaToDogmaRepositoryService.META_TO_DOGMA_MIGRATED;
 import static com.linecorp.centraldogma.server.internal.storage.MigratingMetaToDogmaRepositoryService.META_TO_DOGMA_MIGRATION_JOB;
 import static com.linecorp.centraldogma.server.metadata.MetadataService.METADATA_JSON;
@@ -24,6 +25,7 @@ import static com.linecorp.centraldogma.server.storage.project.InternalProjectIn
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -60,6 +62,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.cache.Cachin
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager;
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
+import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -229,11 +232,25 @@ public class DefaultProject implements Project {
             logger.info("Initializing metadata of project: {}", name);
 
             final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
-            final Member member = new Member(author, ProjectRole.OWNER, userAndTimestamp);
+            final Map<String, Member> members;
+            final Map<String, TokenRegistration> tokens;
+            if (author.email().endsWith(TOKEN_EMAIL_SUFFIX)) {
+                members = ImmutableMap.of();
+                // author.name() is the appId of the token.
+                final TokenRegistration tokenRegistration =
+                        new TokenRegistration(author.name(), ProjectRole.OWNER, userAndTimestamp);
+
+                tokens = ImmutableMap.of(tokenRegistration.id(), tokenRegistration);
+            } else {
+                final Member member = new Member(author, ProjectRole.OWNER, userAndTimestamp);
+                members = ImmutableMap.of(member.id(), member);
+                tokens = ImmutableMap.of();
+            }
+
             final ProjectMetadata metadata = new ProjectMetadata(name,
                                                                  ImmutableMap.of(),
-                                                                 ImmutableMap.of(member.id(), member),
-                                                                 ImmutableMap.of(),
+                                                                 members,
+                                                                 tokens,
                                                                  userAndTimestamp, null);
             final CommitResult result =
                     dogmaRepo.commit(headRev, creationTimeMillis, Author.SYSTEM,

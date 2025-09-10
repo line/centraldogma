@@ -16,14 +16,15 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
+import static com.linecorp.centraldogma.internal.Util.TOKEN_EMAIL_SUFFIX;
 import static java.util.Objects.requireNonNull;
 
 import com.google.common.base.MoreObjects;
 
 /**
- * A {@link User} which accesses the API with a secret.
+ * A {@link User} which accesses the API with a {@link Token}.
  */
-public class UserWithToken extends User {
+public final class UserWithToken extends User {
 
     private static final long serialVersionUID = 6021146546653491444L;
 
@@ -32,8 +33,8 @@ public class UserWithToken extends User {
     /**
      * Creates a new instance.
      */
-    public UserWithToken(String login, Token token) {
-        super(login);
+    public UserWithToken(Token token) {
+        super(token.appId(), token.appId() + TOKEN_EMAIL_SUFFIX);
         this.token = requireNonNull(token, "token");
     }
 
@@ -47,6 +48,27 @@ public class UserWithToken extends User {
     @Override
     public boolean isSystemAdmin() {
         return token.isSystemAdmin();
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode() * 31 + token.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof UserWithToken)) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+
+        final UserWithToken that = (UserWithToken) o;
+        return token.equals(that.token);
     }
 
     @Override

@@ -32,12 +32,12 @@ public class Author {
     /**
      * The system author.
      */
-    public static final Author SYSTEM = new Author("System", "system@localhost.localdomain");
+    public static final Author SYSTEM = new Author("system", "system@localhost.localdomain");
 
     /**
      * The default author which is used when security is disabled.
      */
-    public static final Author DEFAULT = new Author("User", "user@localhost.localdomain");
+    public static final Author DEFAULT = new Author("user", "user@localhost.localdomain");
 
     /**
      * An unknown author.

@@ -21,10 +21,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
@@ -58,9 +61,12 @@ class UserServiceTest {
                                 .get("/api/v0/users/me")
                                 .header(HttpHeaderNames.AUTHORIZATION,
                                         "Bearer " + accessToken)
-                                .asJson(User.class)
+                                // Use a new ObjectMapper because the configured object mapper fails
+                                // when the constructor property is missing.
+                                .asJson(User.class, new ObjectMapper())
                                 .execute()
                                 .content();
-        assertThat(user.login()).isEqualTo(TestAuthMessageUtil.USERNAME);
+        assertThat(user.name()).isEqualTo(TestAuthMessageUtil.USERNAME);
+        assertThat(user.email()).isEqualTo(TestAuthMessageUtil.USERNAME + Util.USER_EMAIL_SUFFIX);
     }
 }

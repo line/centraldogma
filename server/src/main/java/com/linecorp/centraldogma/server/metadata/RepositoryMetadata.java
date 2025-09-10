@@ -54,6 +54,16 @@ public final class RepositoryMetadata implements Identifiable, HasWeight {
     }
 
     /**
+     * Creates a new instance with default properties.
+     */
+    public static RepositoryMetadata of(String name, Roles roles, UserAndTimestamp creation) {
+        requireNonNull(name, "name");
+        requireNonNull(roles, "roles");
+        requireNonNull(creation, "creation");
+        return new RepositoryMetadata(name, roles, creation, null, RepositoryStatus.ACTIVE);
+    }
+
+    /**
      * Creates a new instance.
      */
     public static RepositoryMetadata of(String name, UserAndTimestamp creation, ProjectRoles projectRoles) {

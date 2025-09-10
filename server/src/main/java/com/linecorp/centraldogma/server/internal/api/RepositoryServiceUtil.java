@@ -15,15 +15,25 @@
  */
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.linecorp.centraldogma.internal.Util.TOKEN_EMAIL_SUFFIX;
+import static com.linecorp.centraldogma.server.metadata.RepositoryMetadata.DEFAULT_PROJECT_ROLES;
+
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nullable;
 
+import com.google.common.collect.ImmutableMap;
+
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
+import com.linecorp.centraldogma.server.metadata.Roles;
+import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
@@ -33,9 +43,25 @@ public final class RepositoryServiceUtil {
             CommandExecutor commandExecutor, MetadataService mds,
             Author author, String projectName, String repoName, boolean encrypt,
             @Nullable EncryptionStorageManager encryptionStorageManager) {
+        final Map<String, RepositoryRole> users;
+        final Map<String, RepositoryRole> tokens;
+        if (author.email().endsWith(TOKEN_EMAIL_SUFFIX)) {
+            users = ImmutableMap.of();
+            // author.name() is the appId of the token.
+            tokens = ImmutableMap.of(author.name(), RepositoryRole.ADMIN);
+        } else {
+            users = ImmutableMap.of(author.email(), RepositoryRole.ADMIN);
+            tokens = ImmutableMap.of();
+        }
+
+        final Roles roles = new Roles(DEFAULT_PROJECT_ROLES, users, tokens);
+        final RepositoryMetadata repositoryMetadata =
+                RepositoryMetadata.of(repoName, roles, UserAndTimestamp.of(author));
+
         if (!encrypt) {
             return commandExecutor.execute(Command.createRepository(author, projectName, repoName))
-                                  .thenCompose(unused -> mds.addRepo(author, projectName, repoName));
+                                  .thenCompose(unused -> mds.addRepo(
+                                          author, projectName, repoName, repositoryMetadata));
         }
 
         assert encryptionStorageManager != null;
@@ -43,7 +69,8 @@ public final class RepositoryServiceUtil {
         return encryptionStorageManager.generateWdek()
                                        .thenCompose(wdek -> commandExecutor.execute(Command.createRepository(
                                                author, projectName, repoName, wdek)))
-                                       .thenCompose(unused -> mds.addRepo(author, projectName, repoName))
+                                       .thenCompose(unused -> mds.addRepo(
+                                               author, projectName, repoName, repositoryMetadata))
                                        .exceptionally(cause -> {
                                            if (cause instanceof EncryptionStorageException) {
                                                throw (EncryptionStorageException) cause;
