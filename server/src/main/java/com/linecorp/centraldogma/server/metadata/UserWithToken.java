@@ -34,8 +34,8 @@ public final class UserWithToken extends User {
      * Creates a new instance.
      */
     public UserWithToken(Token token) {
-        super(token.appId(), token.appId() + TOKEN_EMAIL_SUFFIX);
-        this.token = requireNonNull(token, "token");
+        super(requireNonNull(token, "token").appId(), token.appId() + TOKEN_EMAIL_SUFFIX);
+        this.token = token;
     }
 
     /**
