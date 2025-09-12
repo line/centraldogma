@@ -45,7 +45,7 @@ public class TestMirrorRunnerListener implements MirrorListener {
     }
 
     private static String key(MirrorTask task) {
-        return task.project().name() + '/' + task.mirror().id() + '/' + task.triggeredBy().login();
+        return task.project().name() + '/' + task.mirror().id() + '/' + task.triggeredBy().name();
     }
 
     @Override

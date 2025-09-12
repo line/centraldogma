@@ -132,6 +132,7 @@ class UtilTest {
 
     @Test
     void testValidEmailAddress() {
+        testValidEmail("dogma@dogma-token.local");
         testValidEmail("dogma@github.com");
         testValidEmail("dogma@127.0.0.1");
         testValidEmail("dogma@10.1.1.1");

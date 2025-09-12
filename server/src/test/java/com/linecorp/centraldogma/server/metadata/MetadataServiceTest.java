@@ -219,7 +219,10 @@ class MetadataServiceTest {
     void userRepositoryRole() {
         final MetadataService mds = newMetadataService(manager);
 
-        mds.addRepo(author, project1, repo1, ProjectRoles.of(null, null)).join();
+        final RepositoryMetadata repositoryMetadata =
+                RepositoryMetadata.of(repo1, Roles.EMPTY, UserAndTimestamp.of(author));
+
+        mds.addRepo(author, project1, repo1, repositoryMetadata).join();
         await().until(() -> getRepo1(mds) != null);
 
         // Not a member yet.

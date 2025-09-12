@@ -28,6 +28,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.Util;
@@ -189,6 +190,31 @@ public final class Token implements Identifiable {
     @JsonIgnore
     public boolean isDeleted() {
         return deletion != null;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(appId, secret, isSystemAdmin, allowGuestAccess, creation, deactivation,
+                                deletion);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Token)) {
+            return false;
+        }
+
+        final Token that = (Token) o;
+        return appId.equals(that.appId) &&
+               Objects.equal(secret, that.secret) &&
+               isSystemAdmin == that.isSystemAdmin &&
+               allowGuestAccess == that.allowGuestAccess &&
+               creation.equals(that.creation) &&
+               Objects.equal(deactivation, that.deactivation) &&
+               Objects.equal(deletion, that.deletion);
     }
 
     @Override

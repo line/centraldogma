@@ -128,7 +128,7 @@ class MirrorAccessControlTest {
         assertThat(accessResponse.content().id()).isEqualTo("default");
 
         createMirror();
-        final String listenerKey = TEST_PROJ + '/' + TEST_MIRROR_ID + '/' + Author.SYSTEM.email();
+        final String listenerKey = TEST_PROJ + '/' + TEST_MIRROR_ID + '/' + Author.SYSTEM.name();
         await().untilAsserted(() -> {
             assertThat(creationCount.get("git+ssh://github.com/line/centraldogma-authtest.git"))
                     .isOne();
