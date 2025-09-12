@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -59,8 +60,10 @@ class RepositoryManagerWrapperTest {
     @BeforeEach
     void setUp() {
         purgeWorker = mock(Executor.class);
+        final Project mock = mock(Project.class);
+        lenient().when(mock.name()).thenReturn("test_project");
         m = new RepositoryManagerWrapper(
-                new GitRepositoryManager(mock(Project.class),
+                new GitRepositoryManager(mock,
                                          tempDir.toFile(),
                                          ForkJoinPool.commonPool(),
                                          purgeWorker, null, NoopEncryptionStorageManager.INSTANCE),

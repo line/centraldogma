@@ -368,7 +368,7 @@ public class MetadataService {
                            .handle((revision, cause) -> {
                                if (cause != null) {
                                    if (Exceptions.peel(cause) instanceof ChangeConflictException) {
-                                       throw new RepositoryExistsException(repoName);
+                                       throw RepositoryExistsException.of(projectName, repoName);
                                    } else {
                                        return Exceptions.throwUnsafely(cause);
                                    }

@@ -156,7 +156,7 @@ public class ProjectMetadata implements Identifiable, HasWeight {
         if (repositoryMetadata != null) {
             return repositoryMetadata;
         }
-        throw new RepositoryNotFoundException(repoName);
+        throw RepositoryNotFoundException.of(name, repoName);
     }
 
     /**

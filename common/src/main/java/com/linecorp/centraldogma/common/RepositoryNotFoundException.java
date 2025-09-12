@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.common;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * A {@link CentralDogmaException} that is raised when attempted to access a non-existent repository.
  */
@@ -26,7 +28,11 @@ public class RepositoryNotFoundException extends CentralDogmaException {
     /**
      * Creates a new instance.
      */
-    public RepositoryNotFoundException() {}
+    public static RepositoryNotFoundException of(String projectName, String repositoryName) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repositoryName, "repositoryName");
+        return new RepositoryNotFoundException("repository not found: " + projectName + '/' + repositoryName);
+    }
 
     /**
      * Creates a new instance.
@@ -37,33 +43,11 @@ public class RepositoryNotFoundException extends CentralDogmaException {
 
     /**
      * Creates a new instance.
-     */
-    public RepositoryNotFoundException(Throwable cause) {
-        super(cause);
-    }
-
-    /**
-     * Creates a new instance.
-     */
-    public RepositoryNotFoundException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    /**
-     * Creates a new instance.
      *
      * @param message the detail message
      * @param writableStackTrace whether or not the stack trace should be writable
      */
     public RepositoryNotFoundException(String message, boolean writableStackTrace) {
         super(message, writableStackTrace);
-    }
-
-    /**
-     * Creates a new instance.
-     */
-    protected RepositoryNotFoundException(String message, Throwable cause, boolean enableSuppression,
-                                          boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
     }
 }

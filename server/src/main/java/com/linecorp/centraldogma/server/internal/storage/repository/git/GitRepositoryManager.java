@@ -213,7 +213,7 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
         try {
             jGitRepository = new RepositoryBuilder().setGitDir(repoDir).setBare().build();
             if (!exist(repoDir)) {
-                throw new RepositoryNotFoundException(repoDir.toString());
+                throw RepositoryNotFoundException.of(parent.name(), repoDir.getName());
             }
 
             // Retrieve the repository format.
@@ -379,12 +379,12 @@ public final class GitRepositoryManager extends DirectoryBasedStorageManager<Rep
 
     @Override
     protected CentralDogmaException newStorageExistsException(String name) {
-        return new RepositoryExistsException(parent().name() + '/' + name);
+        return RepositoryExistsException.of(parent().name(), name);
     }
 
     @Override
     protected CentralDogmaException newStorageNotFoundException(String name) {
-        return new RepositoryNotFoundException(parent().name() + '/' + name);
+        return RepositoryNotFoundException.of(parent().name(), name);
     }
 
     @Override
