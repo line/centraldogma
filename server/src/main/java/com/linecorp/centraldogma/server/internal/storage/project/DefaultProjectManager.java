@@ -102,12 +102,12 @@ public final class DefaultProjectManager extends DirectoryBasedStorageManager<Pr
 
     @Override
     protected CentralDogmaException newStorageExistsException(String name) {
-        return new ProjectExistsException(name);
+        return ProjectExistsException.of(name);
     }
 
     @Override
     protected CentralDogmaException newStorageNotFoundException(String name) {
-        return new ProjectNotFoundException(name);
+        return ProjectNotFoundException.of(name);
     }
 
     @Override

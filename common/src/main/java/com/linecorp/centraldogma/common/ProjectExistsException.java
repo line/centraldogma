@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.common;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * A {@link CentralDogmaException} that is raised when attempted to create a project with an existing project
  * name.
@@ -27,7 +29,10 @@ public class ProjectExistsException extends CentralDogmaException {
     /**
      * Creates a new instance.
      */
-    public ProjectExistsException() {}
+    public static ProjectExistsException of(String projectName) {
+        requireNonNull(projectName, "projectName");
+        return new ProjectExistsException("project already exists: " + projectName);
+    }
 
     /**
      * Creates a new instance.
@@ -38,33 +43,11 @@ public class ProjectExistsException extends CentralDogmaException {
 
     /**
      * Creates a new instance.
-     */
-    public ProjectExistsException(Throwable cause) {
-        super(cause);
-    }
-
-    /**
-     * Creates a new instance.
-     */
-    public ProjectExistsException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    /**
-     * Creates a new instance.
      *
      * @param message the detail message
      * @param writableStackTrace whether or not the stack trace should be writable
      */
     public ProjectExistsException(String message, boolean writableStackTrace) {
         super(message, writableStackTrace);
-    }
-
-    /**
-     * Creates a new instance.
-     */
-    protected ProjectExistsException(String message, Throwable cause, boolean enableSuppression,
-                                     boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
     }
 }

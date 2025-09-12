@@ -95,7 +95,7 @@ public class DefaultProject implements Project {
         requireNonNull(encryptionStorageManager, "encryptionStorageManager");
 
         if (!rootDir.exists()) {
-            throw new ProjectNotFoundException(rootDir.toString());
+            throw ProjectNotFoundException.of(rootDir.getName());
         }
 
         name = rootDir.getName();
@@ -141,7 +141,7 @@ public class DefaultProject implements Project {
         requireNonNull(encryptionStorageManager, "encryptionStorageManager");
 
         if (rootDir.exists()) {
-            throw new ProjectExistsException(rootDir.getName());
+            throw ProjectExistsException.of(rootDir.getName());
         }
 
         name = rootDir.getName();

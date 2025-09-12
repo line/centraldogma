@@ -78,7 +78,7 @@ public class RepositoryManagerWrapper implements RepositoryManager {
         ensureOpen();
         final Repository r = repos.get(name);
         if (r == null) {
-            throw new RepositoryNotFoundException(name);
+            throw RepositoryNotFoundException.of(parent().name(), name);
         }
         return r;
     }

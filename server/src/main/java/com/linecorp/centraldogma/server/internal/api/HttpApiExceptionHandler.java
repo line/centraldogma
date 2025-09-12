@@ -90,17 +90,17 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                .put(EntryNoContentException.class,
                     (ctx, cause) -> HttpResponse.of(HttpStatus.NO_CONTENT))
                .put(ProjectExistsException.class,
-                    (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
-                                                "Project '%s' exists already.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(HttpStatus.CONFLICT,
+                                                cause.getClass().getName(), cause.getMessage()))
                .put(ProjectNotFoundException.class,
-                    (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
-                                                "Project '%s' does not exist.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(HttpStatus.NOT_FOUND, cause.getClass().getName(),
+                                                cause.getMessage()))
                .put(RedundantChangeException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
                                                 "The given changeset does not change anything."))
                .put(RepositoryExistsException.class,
-                    (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
-                                                "Repository '%s' exists already.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(HttpStatus.CONFLICT, cause.getClass().getName(),
+                                                cause.getMessage()))
                .put(JsonPatchConflictException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause))
                .put(TextPatchConflictException.class,
@@ -108,8 +108,8 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                .put(RepositoryMetadataException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause))
                .put(RepositoryNotFoundException.class,
-                    (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
-                                                "Repository '%s' does not exist.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(HttpStatus.NOT_FOUND, cause.getClass().getName(),
+                                                cause.getMessage()))
                .put(RevisionNotFoundException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
                                                 "Revision %s does not exist.", cause.getMessage()))

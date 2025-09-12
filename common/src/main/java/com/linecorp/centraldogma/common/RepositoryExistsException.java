@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.common;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * A {@link CentralDogmaException} that is raised when attempted to create a repository with an existing
  * repository name.
@@ -27,7 +29,12 @@ public class RepositoryExistsException extends CentralDogmaException {
     /**
      * Creates a new instance.
      */
-    public RepositoryExistsException() {}
+    public static RepositoryExistsException of(String projectName, String repositoryName) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repositoryName, "repositoryName");
+        return new RepositoryExistsException("repository already exists: " +
+                                             projectName + '/' + repositoryName);
+    }
 
     /**
      * Creates a new instance.
@@ -38,33 +45,11 @@ public class RepositoryExistsException extends CentralDogmaException {
 
     /**
      * Creates a new instance.
-     */
-    public RepositoryExistsException(Throwable cause) {
-        super(cause);
-    }
-
-    /**
-     * Creates a new instance.
-     */
-    public RepositoryExistsException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    /**
-     * Creates a new instance.
      *
      * @param message the detail message
      * @param writableStackTrace whether or not the stack trace should be writable
      */
     public RepositoryExistsException(String message, boolean writableStackTrace) {
         super(message, writableStackTrace);
-    }
-
-    /**
-     * Creates a new instance.
-     */
-    protected RepositoryExistsException(String message, Throwable cause, boolean enableSuppression,
-                                        boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
     }
 }

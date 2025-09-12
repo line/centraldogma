@@ -262,7 +262,7 @@ class ReplicationLagTolerantCentralDogmaTest {
     @Test
     void retryOnlyOnRevisionNotFoundException() {
         when(delegate.normalizeRevision(any(), any(), any()))
-                .thenReturn(exceptionallyCompletedFuture(new ProjectNotFoundException()));
+                .thenReturn(exceptionallyCompletedFuture(new ProjectNotFoundException("not found")));
 
         assertThatThrownBy(() -> dogma.normalizeRevision("foo", "bar", Revision.HEAD).join())
                 .isInstanceOf(CompletionException.class)

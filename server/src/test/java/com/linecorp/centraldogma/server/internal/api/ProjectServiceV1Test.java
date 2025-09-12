@@ -141,7 +141,7 @@ class ProjectServiceV1Test {
             final String expectedJson =
                     '{' +
                     "   \"exception\": \"" + ProjectExistsException.class.getName() + "\"," +
-                    "   \"message\": \"Project 'myNewPro' exists already.\"" +
+                    "   \"message\": \"project already exists: myNewPro\"" +
                     '}';
             assertThatJson(response.contentUtf8()).isEqualTo(expectedJson);
         });

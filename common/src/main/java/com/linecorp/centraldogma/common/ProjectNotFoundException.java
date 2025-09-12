@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.common;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * A {@link CentralDogmaException} that is raised when attempted to access a non-existent project.
  */
@@ -26,7 +28,10 @@ public class ProjectNotFoundException extends CentralDogmaException {
     /**
      * Creates a new instance.
      */
-    public ProjectNotFoundException() {}
+    public static ProjectNotFoundException of(String projectName) {
+        requireNonNull(projectName, "projectName");
+        return new ProjectNotFoundException("project not found: " + projectName);
+    }
 
     /**
      * Creates a new instance.
@@ -37,33 +42,11 @@ public class ProjectNotFoundException extends CentralDogmaException {
 
     /**
      * Creates a new instance.
-     */
-    public ProjectNotFoundException(Throwable cause) {
-        super(cause);
-    }
-
-    /**
-     * Creates a new instance.
-     */
-    public ProjectNotFoundException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    /**
-     * Creates a new instance.
      *
      * @param message the detail message
      * @param writableStackTrace whether or not the stack trace should be writable
      */
     public ProjectNotFoundException(String message, boolean writableStackTrace) {
         super(message, writableStackTrace);
-    }
-
-    /**
-     * Creates a new instance.
-     */
-    protected ProjectNotFoundException(String message, Throwable cause, boolean enableSuppression,
-                                       boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
     }
 }

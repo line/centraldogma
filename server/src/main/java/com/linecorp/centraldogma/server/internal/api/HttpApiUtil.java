@@ -184,6 +184,14 @@ public final class HttpApiUtil {
         return newResponse0(ctx, status, cause, message);
     }
 
+    public static HttpResponse newResponse(HttpStatus status, String exceptionType, String message) {
+        requireNonNull(status, "status");
+        requireNonNull(exceptionType, "exceptionType");
+        requireNonNull(message, "message");
+        return newResponseWithoutLogging(HttpResponse::of, null, ResponseHeaders.builder(status),
+                                         null, exceptionType, message);
+    }
+
     /**
      * Returns a newly created {@link AggregatedHttpResponse} with the specified {@link HttpStatus},
      * {@code cause} and {@code message}.
@@ -220,22 +228,6 @@ public final class HttpApiUtil {
             return responseFactory.apply(headersBuilder.build(), HttpData.empty());
         }
 
-        final ObjectNode node = JsonNodeFactory.instance.objectNode();
-        if (cause != null) {
-            cause = Exceptions.peel(cause);
-            node.put("exception", cause.getClass().getName());
-            if (message == null) {
-                message = cause.getMessage();
-            }
-        }
-
-        final String m = nullToEmpty(message);
-        node.put("message", m);
-
-        if (cause != null && isVerboseResponse(ctx)) {
-            node.put("detail", Exceptions.traceText(cause));
-        }
-
         final LogLevel logLevel;
         switch (status.codeClass()) {
             case SERVER_ERROR:
@@ -260,6 +252,17 @@ public final class HttpApiUtil {
                 logLevel = null;
         }
 
+        String exceptionType = null;
+        if (cause != null) {
+            cause = Exceptions.peel(cause);
+            exceptionType = cause.getClass().getName();
+            if (message == null) {
+                message = cause.getMessage();
+            }
+        }
+
+        final String m = nullToEmpty(message);
+
         // TODO(trustin): Use LogLevel.OFF instead of null and logLevel.log()
         //                once we add LogLevel.OFF and LogLevel.log() with more args.
         if (logLevel != null) {
@@ -276,6 +279,23 @@ public final class HttpApiUtil {
                     logger.debug(ERROR_MESSAGE_FORMAT, ctx, status, m);
                 }
             }
+        }
+
+        return newResponseWithoutLogging(responseFactory, ctx, headersBuilder, cause, exceptionType, m);
+    }
+
+    private static <O> O newResponseWithoutLogging(BiFunction<ResponseHeaders, HttpData, O> responseFactory,
+                                                   @Nullable ServiceRequestContext ctx,
+                                                   ResponseHeadersBuilder headersBuilder,
+                                                   @Nullable Throwable cause,
+                                                   @Nullable String exceptionType, String message) {
+        final ObjectNode node = JsonNodeFactory.instance.objectNode();
+        if (exceptionType != null) {
+            node.put("exception", exceptionType);
+        }
+        node.put("message", message);
+        if (cause != null && isVerboseResponse(ctx)) {
+            node.put("detail", Exceptions.traceText(cause));
         }
 
         // TODO(hyangtack) Need to introduce a new field such as 'stackTrace' in order to return

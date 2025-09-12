@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.HttpRequest;
-import com.linecorp.armeria.common.logging.LogLevel;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -79,15 +78,15 @@ public class ApplicationTokenAuthorizer extends AbstractAuthorizer {
             return UnmodifiableFuture.completedFuture(false);
         } catch (Throwable cause) {
             cause = Exceptions.peel(cause);
-            final LogLevel level;
             if (cause instanceof IllegalArgumentException ||
                 cause instanceof TokenNotFoundException) {
-                level = LogLevel.DEBUG;
+                // Do not log the cause.
+                logger.debug("Failed to authorize an application token: token={}, addr={}",
+                             maskToken(accessToken), ctx.clientAddress());
             } else {
-                level = LogLevel.WARN;
+                logger.warn("Failed to authorize an application token: token={}, addr={}",
+                             maskToken(accessToken), ctx.clientAddress(), cause);
             }
-            level.log(logger, "Failed to authorize an application token: token={}, addr={}",
-                      maskToken(accessToken), ctx.clientAddress(), cause);
             return UnmodifiableFuture.completedFuture(false);
         }
     }
