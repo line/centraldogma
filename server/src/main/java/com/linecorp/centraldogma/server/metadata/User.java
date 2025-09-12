@@ -23,8 +23,6 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
 
-import javax.annotation.Nullable;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -57,6 +55,7 @@ public class User implements Identifiable, Serializable {
     public static final User SYSTEM_ADMIN = new User("admin@localhost.localdomain", LEVEL_SYSTEM_ADMIN);
     public static final User SYSTEM = new User("system@localhost.localdomain", LEVEL_SYSTEM_ADMIN);
 
+    private final String login;
     private final String name;
     private final String email;
     private final List<String> roles;
@@ -67,10 +66,11 @@ public class User implements Identifiable, Serializable {
      * Creates a new instance.
      */
     @JsonCreator
-    public User(@JsonProperty("login") @Nullable String unused,
+    public User(@JsonProperty("login") String login,
                 @JsonProperty("name") String name,
                 @JsonProperty("email") String email,
                 @JsonProperty("roles") List<String> roles) {
+        this.login = requireNonNull(login, "login");
         this.name = requireNonNull(name, "name");
         this.email = validateEmailAddress(requireNonNull(email, "email"), "email");
         this.roles = ImmutableList.copyOf(requireNonNull(roles, "roles"));
@@ -81,7 +81,7 @@ public class User implements Identifiable, Serializable {
      * Creates a new instance.
      */
     public User(String name, String email) {
-        this(null, name, email, LEVEL_USER);
+        this(name, name, email, LEVEL_USER);
     }
 
     /**
@@ -123,10 +123,19 @@ public class User implements Identifiable, Serializable {
         }
         requireNonNull(roles, "roles");
 
+        this.login = login;
         email = Util.toEmailAddress(login, "login");
         name = Util.emailToUsername(email, "login");
         this.roles = ImmutableList.copyOf(roles);
         isSystemAdmin = roles.stream().anyMatch(LEVEL_SYSTEM_ADMIN_STR::equals);
+    }
+
+    /**
+     * Returns the login ID of the user.
+     */
+    @JsonProperty
+    public String login() {
+        return login;
     }
 
     /**
@@ -175,17 +184,21 @@ public class User implements Identifiable, Serializable {
         }
 
         final User user = (User) o;
-        return name.equals(user.name) && email.equals(user.email) && roles.equals(user.roles);
+        return login.equals(user.login) &&
+               name.equals(user.name) &&
+               email.equals(user.email) &&
+               roles.equals(user.roles);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, email, roles);
+        return Objects.hash(login, name, email, roles);
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                          .add("login", login())
                           .add("name", name())
                           .add("email", email())
                           .add("roles", roles())

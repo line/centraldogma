@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.server.internal.api;
 
-import static com.linecorp.centraldogma.internal.Util.TOKEN_EMAIL_SUFFIX;
 import static com.linecorp.centraldogma.server.metadata.RepositoryMetadata.DEFAULT_PROJECT_ROLES;
 
 import java.util.Map;
@@ -45,7 +44,7 @@ public final class RepositoryServiceUtil {
             @Nullable EncryptionStorageManager encryptionStorageManager) {
         final Map<String, RepositoryRole> users;
         final Map<String, RepositoryRole> tokens;
-        if (author.email().endsWith(TOKEN_EMAIL_SUFFIX)) {
+        if (author.isToken()) {
             users = ImmutableMap.of();
             // author.name() is the appId of the token.
             tokens = ImmutableMap.of(author.name(), RepositoryRole.ADMIN);

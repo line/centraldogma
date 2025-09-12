@@ -17,7 +17,6 @@
 package com.linecorp.centraldogma.server.internal.storage.project;
 
 import static com.google.common.base.Preconditions.checkState;
-import static com.linecorp.centraldogma.internal.Util.TOKEN_EMAIL_SUFFIX;
 import static com.linecorp.centraldogma.server.internal.storage.MigratingMetaToDogmaRepositoryService.META_TO_DOGMA_MIGRATED;
 import static com.linecorp.centraldogma.server.internal.storage.MigratingMetaToDogmaRepositoryService.META_TO_DOGMA_MIGRATION_JOB;
 import static com.linecorp.centraldogma.server.metadata.MetadataService.METADATA_JSON;
@@ -234,7 +233,7 @@ public class DefaultProject implements Project {
             final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
             final Map<String, Member> members;
             final Map<String, TokenRegistration> tokens;
-            if (author.email().endsWith(TOKEN_EMAIL_SUFFIX)) {
+            if (author.isToken()) {
                 members = ImmutableMap.of();
                 // author.name() is the appId of the token.
                 final TokenRegistration tokenRegistration =
