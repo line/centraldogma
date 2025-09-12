@@ -188,8 +188,8 @@ public final class HttpApiUtil {
         requireNonNull(status, "status");
         requireNonNull(exceptionType, "exceptionType");
         requireNonNull(message, "message");
-        return newResponse2(HttpResponse::of, null, ResponseHeaders.builder(status),
-                            null, exceptionType, message);
+        return newResponseWithoutLogging(HttpResponse::of, null, ResponseHeaders.builder(status),
+                                         null, exceptionType, message);
     }
 
     /**
@@ -281,14 +281,14 @@ public final class HttpApiUtil {
             }
         }
 
-        return newResponse2(responseFactory, ctx, headersBuilder, cause, exceptionType, m);
+        return newResponseWithoutLogging(responseFactory, ctx, headersBuilder, cause, exceptionType, m);
     }
 
-    private static <O> O newResponse2(BiFunction<ResponseHeaders, HttpData, O> responseFactory,
-                                      @Nullable ServiceRequestContext ctx,
-                                      ResponseHeadersBuilder headersBuilder,
-                                      @Nullable Throwable cause,
-                                      @Nullable String exceptionType, String message) {
+    private static <O> O newResponseWithoutLogging(BiFunction<ResponseHeaders, HttpData, O> responseFactory,
+                                                   @Nullable ServiceRequestContext ctx,
+                                                   ResponseHeadersBuilder headersBuilder,
+                                                   @Nullable Throwable cause,
+                                                   @Nullable String exceptionType, String message) {
         final ObjectNode node = JsonNodeFactory.instance.objectNode();
         if (exceptionType != null) {
             node.put("exception", exceptionType);

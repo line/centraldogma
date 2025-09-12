@@ -80,6 +80,7 @@ public class ApplicationTokenAuthorizer extends AbstractAuthorizer {
             cause = Exceptions.peel(cause);
             if (cause instanceof IllegalArgumentException ||
                 cause instanceof TokenNotFoundException) {
+                // Do not log the cause.
                 logger.debug("Failed to authorize an application token: token={}, addr={}",
                              maskToken(accessToken), ctx.clientAddress());
             } else {
