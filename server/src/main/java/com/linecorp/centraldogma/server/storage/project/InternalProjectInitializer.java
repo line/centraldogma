@@ -82,6 +82,33 @@ public final class InternalProjectInitializer {
     }
 
     /**
+     * Loads the tokens from {@code dogma/dogma/tokens.json} and sets up a listener to keep it updated.
+     */
+    public void initializeInReadOnlyMode() {
+        try {
+            if (!projectManager.exists(INTERNAL_PROJECT_DOGMA)) {
+                throw new IllegalStateException(
+                        INTERNAL_PROJECT_DOGMA + " project does not exists. " +
+                        "Cannot initialize in read-only mode.");
+            }
+            final Repository dogmaRepo = projectManager.get(INTERNAL_PROJECT_DOGMA)
+                                                       .repos()
+                                                       .get(Project.REPO_DOGMA);
+            final Entry<JsonNode> entry = dogmaRepo.getOrNull(Revision.HEAD, Query.ofJson(TOKEN_JSON)).join();
+            if (entry == null || !entry.hasContent()) {
+                throw new IllegalStateException(
+                        TOKEN_JSON + " file does not exist in " + INTERNAL_PROJECT_DOGMA +
+                        '/' + Project.REPO_DOGMA + ". Cannot initialize in read-only mode.");
+            }
+            setTokens(entry, dogmaRepo);
+            initialFuture.complete(null);
+        } catch (Throwable t) {
+            initialFuture.completeExceptionally(t);
+            Exceptions.throwUnsafely(t);
+        }
+    }
+
+    /**
      * Creates an internal project and repositories and a token storage to {@code dogma/dogma/tokens.json}.
      */
     public void initialize() {

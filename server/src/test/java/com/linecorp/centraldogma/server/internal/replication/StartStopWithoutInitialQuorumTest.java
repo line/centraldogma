@@ -15,21 +15,25 @@
  */
 package com.linecorp.centraldogma.server.internal.replication;
 
+import java.io.File;
+import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.curator.test.InstanceSpec;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.SessionProtocol;
+import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.testing.internal.FlakyTest;
-import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
+
+import io.netty.util.NetUtil;
 
 /**
  * Makes sure that we can stop a replica that's waiting for the initial quorum.
@@ -37,40 +41,36 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 @FlakyTest
 class StartStopWithoutInitialQuorumTest {
 
-    @RegisterExtension
-    final CentralDogmaExtension dogma = new CentralDogmaExtension() {
-        @Override
-        public void before(ExtensionContext context) throws Exception {
-            // Do not start yet.
-        }
-
-        @Override
-        protected void configure(CentralDogmaBuilder builder) {
-            // Set up a cluster of two replicas where the second replica is always unavailable,
-            final int quorumPort = InstanceSpec.getRandomPort();
-            final int electionPort = InstanceSpec.getRandomPort();
-            final int clientPort = InstanceSpec.getRandomPort();
-
-            final Map<Integer, ZooKeeperServerConfig> servers =
-                    ImmutableMap.of(1,
-                                    new ZooKeeperServerConfig("127.0.0.1", quorumPort, electionPort,
-                                                              clientPort, /* groupId */ null, /* weight */ 1),
-                                    2,
-                                    new ZooKeeperServerConfig("127.0.0.1", 1, 1,
-                                                              1, /* groupId */ null, /* weight */ 1));
-            builder.replication(new ZooKeeperReplicationConfig(1, servers));
-        }
-
-        @Override
-        protected boolean runForEachTest() {
-            return true;
-        }
-    };
+    @TempDir
+    static File tmpDir;
 
     @Test
     void test() {
-        final CompletableFuture<Void> startFuture = dogma.startAsync();
-        dogma.stopAsync().join();
-        startFuture.join();
+        final InetSocketAddress port = new InetSocketAddress(NetUtil.LOCALHOST4, 0);
+        final CentralDogma dogma = new CentralDogmaBuilder(tmpDir)
+                .port(port, SessionProtocol.HTTP)
+                .build();
+        // Start without any quorum first to create internal data structures.
+        dogma.start().join();
+        dogma.stop().join();
+
+        // Set up a cluster of two replicas where the second replica is always unavailable,
+        final int quorumPort = InstanceSpec.getRandomPort();
+        final int electionPort = InstanceSpec.getRandomPort();
+        final int clientPort = InstanceSpec.getRandomPort();
+        final Map<Integer, ZooKeeperServerConfig> servers =
+                ImmutableMap.of(1,
+                                new ZooKeeperServerConfig("127.0.0.1", quorumPort, electionPort,
+                                                          clientPort, /* groupId */ null, /* weight */ 1),
+                                2,
+                                new ZooKeeperServerConfig("127.0.0.1", 1, 1,
+                                                          1, /* groupId */ null, /* weight */ 1));
+        final CentralDogma dogma2 = new CentralDogmaBuilder(tmpDir)
+                .port(port, SessionProtocol.HTTP)
+                .replication(new ZooKeeperReplicationConfig(1, servers))
+                .build();
+        final CompletableFuture<Void> start = dogma2.start();
+        dogma2.stop().join();
+        start.join();
     }
 }

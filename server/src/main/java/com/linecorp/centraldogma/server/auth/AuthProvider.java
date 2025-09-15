@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.auth;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V0_PATH_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
 
+import java.net.URI;
 import java.util.Set;
 
 import javax.annotation.Nullable;
@@ -86,13 +87,25 @@ public interface AuthProvider {
     default HttpService webLoginService() {
         // Redirect to the default page: /link/auth/login -> /web/auth/login
         return (ctx, req) -> {
-            String returnTo = ctx.queryParam("return_to");
-            if (returnTo != null) {
-                returnTo += BUILTIN_WEB_LOGIN_PATH;
-            } else {
-                returnTo = BUILTIN_WEB_LOGIN_PATH;
+            final String returnTo = ctx.queryParam("return_to");
+            String finalRedirectPath = BUILTIN_WEB_LOGIN_PATH;
+
+            if (returnTo != null && !returnTo.trim().isEmpty()) {
+                try {
+                    final URI frontendOrigin = new URI(returnTo);
+                    final String host = frontendOrigin.getHost();
+
+                    // Allow only localhost for security reason.
+                    if ("127.0.0.1".equals(host) || "localhost".equals(host)) {
+                        // e.g. http://localhost:3000 + /web/auth/login -> http://localhost:3000/web/auth/login
+                        finalRedirectPath = frontendOrigin.resolve(BUILTIN_WEB_LOGIN_PATH).toString();
+                    }
+                } catch (Exception e) {
+                    // Ignore the invalid return_to parameter.
+                }
             }
-            return HttpResponse.ofRedirect(HttpStatus.MOVED_PERMANENTLY, returnTo);
+
+            return HttpResponse.ofRedirect(HttpStatus.MOVED_PERMANENTLY, finalRedirectPath);
         };
     }
 

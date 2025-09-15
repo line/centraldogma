@@ -609,7 +609,8 @@ public class CentralDogma implements AutoCloseable {
         final ServerStatus initialServerStatus = statusManager.serverStatus();
         executor.setWritable(initialServerStatus.writable());
         if (!initialServerStatus.replicating()) {
-            projectInitializer.whenInitialized().complete(null);
+            projectInitializer.initializeInReadOnlyMode();
+            setMirrorAccessControllerRepository(pm, executor);
             return executor;
         }
         try {
@@ -631,17 +632,20 @@ public class CentralDogma implements AutoCloseable {
             // Trigger the exception if any.
             startFuture.get();
             projectInitializer.initialize();
-            final CrudRepository<MirrorAccessControl> accessControlRepository =
-                    new GitCrudRepository<>(MirrorAccessControl.class, executor, pm,
-                                            INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
-                                            MIRROR_ACCESS_CONTROL_PATH);
-            mirrorAccessController.setRepository(accessControlRepository);
         } catch (Exception e) {
-            projectInitializer.whenInitialized().complete(null);
             logger.warn("Failed to start the command executor. Entering read-only.", e);
+            projectInitializer.initializeInReadOnlyMode();
         }
-
+        setMirrorAccessControllerRepository(pm, executor);
         return executor;
+    }
+
+    private void setMirrorAccessControllerRepository(ProjectManager pm, CommandExecutor executor) {
+        final CrudRepository<MirrorAccessControl> accessControlRepository =
+                new GitCrudRepository<>(MirrorAccessControl.class, executor, pm,
+                                        INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
+                                        MIRROR_ACCESS_CONTROL_PATH);
+        mirrorAccessController.setRepository(accessControlRepository);
     }
 
     @Nullable
