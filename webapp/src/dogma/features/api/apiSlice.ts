@@ -29,6 +29,7 @@ import { DeleteUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings
 import { AddUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings/AddUserOrTokenRepositoryRoleDto';
 import { DeleteMemberDto } from 'dogma/features/project/settings/members/DeleteMemberDto';
 import { MirrorDto, MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
+import { createLoginUrl } from 'dogma/util/auth';
 import {
   addIdFromCredentialName,
   addIdFromCredentialNames,
@@ -44,6 +45,7 @@ import {
   ServerStatusType,
   UpdateServerStatusRequest,
 } from 'dogma/features/settings/server-status/ServerStatusDto';
+import Router from 'next/router';
 
 export type ApiAction<Arg, Result> = {
   (arg: Arg): { unwrap: () => Promise<Result> };
@@ -126,11 +128,7 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
 
   if (result.error && result.error.status === 401) {
     api.dispatch(clearAuth());
-    if (typeof window !== 'undefined') {
-      const { pathname, search, hash } = window.location;
-      const returnTo = `${pathname}${search}${hash}`;
-      window.location.href = `/web/auth/login?return_to=${encodeURIComponent(returnTo)}`;
-    }
+    Router.push(createLoginUrl());
   }
   return result;
 };

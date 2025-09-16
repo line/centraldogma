@@ -6,7 +6,7 @@
     "test": "jest --watch",
     "test:ci": "jest --ci",
     "test:e2e": "npx playwright test",
-    "develop": "NEXT_PUBLIC_HOST=\"http://127.0.0.1:36462\" NEXT_ENV=\"development\" next dev",
+    "develop": "NEXT_PUBLIC_HOST=\"http://127.0.0.1:36462\" NEXT_ENV=\"development\" next dev --hostname 127.0.0.1",
     "backend": "../gradlew runTestShiroServer -PnoWeb",
     "mock": "NEXT_ENV=\"development\" next dev",
     "build": "next build",

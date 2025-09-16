@@ -20,6 +20,7 @@ import { useRouter } from 'next/router';
 import { isFulfilled } from '@reduxjs/toolkit';
 import { useAppDispatch, useAppSelector } from 'dogma/hooks';
 import { Loading } from '../../common/components/Loading';
+import { createLoginUrl } from 'dogma/util/auth';
 
 const WEB_AUTH_LOGIN = '/web/auth/login';
 
@@ -53,13 +54,9 @@ export const Authorized = (props: { children: ReactNode }) => {
     const isOnLoginPage = router.pathname === WEB_AUTH_LOGIN;
 
     if (!isAuthorized && !isOnLoginPage) {
-      const returnPath = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
-      const loginUrl = process.env.NEXT_PUBLIC_HOST
-        ? `${process.env.NEXT_PUBLIC_HOST}/link/auth/login?return_to=${window.location.origin}&ref=${returnPath}`
-        : `/link/auth/login?ref=${returnPath}`;
-      router.push(loginUrl);
+      router.push(createLoginUrl());
     }
-  }, [isLoading, isInAnonymousMode, user, router]);
+  }, [isLoading, isInAnonymousMode, user, router, isInitialized]);
 
   const isAuthorized = isInAnonymousMode || user;
   const isOnLoginPage = router.pathname === WEB_AUTH_LOGIN;
