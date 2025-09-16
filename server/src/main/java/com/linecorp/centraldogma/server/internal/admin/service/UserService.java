@@ -66,13 +66,10 @@ public class UserService extends AbstractService {
      */
     @Get("/users/me")
     public HttpResponse usersMe(ServiceRequestContext ctx) throws Exception {
-        logger.info("headers: {}", ctx.request().headers());
         final User user = AuthUtil.currentUser();
         final HttpData body = HttpData.wrap(Jackson.writeValueAsBytes(user));
         if (sessionManager != null) {
-            logger.info("Looking for session cookie: {}", sessionCookieName);
             final String sessionId = getSessionIdFromCookie(ctx, sessionCookieName);
-            logger.info("Found sessionId: {}", sessionId);
             if (sessionId != null) {
                 return HttpResponse.of(sessionManager.get(sessionId).thenApply(session -> {
                     if (session == null) {
