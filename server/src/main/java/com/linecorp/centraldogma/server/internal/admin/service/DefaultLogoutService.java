@@ -77,8 +77,7 @@ public class DefaultLogoutService extends AbstractHttpService {
 
             final String csrfToken = req.headers().get(X_CSRF_TOKEN);
             if (isNullOrEmpty(csrfToken) || !csrfToken.equals(session.csrfToken())) {
-                logger.trace("CSRF token mismatch: csrfToken={}, expectedCsrfToken={}, ctx={}",
-                             csrfToken, session.csrfToken(), ctx);
+                logger.trace("CSRF token mismatch: tokenPresent={}, ctx={}", !isNullOrEmpty(csrfToken), ctx);
                 return UnmodifiableFuture.completedFuture(
                         HttpResponse.of(HttpStatus.FORBIDDEN, MediaType.PLAIN_TEXT_UTF_8,
                                         "Invalid CSRF token"));

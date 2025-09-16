@@ -63,7 +63,7 @@ public final class AuthProviderParameters {
         this.sessionIdGenerator = requireNonNull(sessionIdGenerator, "sessionIdGenerator");
         this.loginSessionPropagator = requireNonNull(loginSessionPropagator, "loginSessionPropagator");
         this.logoutSessionPropagator = requireNonNull(logoutSessionPropagator, "logoutSessionPropagator");
-        this.sessionManager = sessionManager;
+        this.sessionManager = requireNonNull(sessionManager, "sessionManager");
         this.tlsEnabled = tlsEnabled;
         authConfig = requireNonNull(config.authConfig(), "authConfig");
     }

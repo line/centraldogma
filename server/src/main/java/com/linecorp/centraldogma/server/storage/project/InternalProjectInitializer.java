@@ -88,7 +88,7 @@ public final class InternalProjectInitializer {
         try {
             if (!projectManager.exists(INTERNAL_PROJECT_DOGMA)) {
                 throw new IllegalStateException(
-                        INTERNAL_PROJECT_DOGMA + " project does not exists. " +
+                        INTERNAL_PROJECT_DOGMA + " project does not exist. " +
                         "Cannot initialize in read-only mode.");
             }
             final Repository dogmaRepo = projectManager.get(INTERNAL_PROJECT_DOGMA)
@@ -177,7 +177,8 @@ public final class InternalProjectInitializer {
             }
         }
         final Entry<JsonNode> entry1 = dogmaRepo.getOrNull(Revision.HEAD, Query.ofJson(TOKEN_JSON)).join();
-        assert entry1 != null;
+        checkState(entry1 != null && entry1.hasContent(),
+                   "%s file does not exist in %s/%s", TOKEN_JSON,  INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA);
         setTokens(entry1, dogmaRepo);
     }
 

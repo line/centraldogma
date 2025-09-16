@@ -24,10 +24,12 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 
 import com.linecorp.armeria.common.HttpData;
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
@@ -79,6 +81,8 @@ public class UserService extends AbstractService {
                             ResponseHeaders.builder(HttpStatus.OK)
                                            .contentType(MediaType.JSON_UTF_8)
                                            .set(SessionUtil.X_CSRF_TOKEN, session.csrfToken())
+                                           .set(HttpHeaderNames.CACHE_CONTROL,
+                                                ServerCacheControl.DISABLED.asHeaderValue())
                                            .build();
                     return HttpResponse.of(headers, body);
                 }));

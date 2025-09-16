@@ -51,7 +51,7 @@ final class CentralDogmaAuthFailureHandler implements AuthFailureHandler {
     public HttpResponse authFailed(HttpService delegate,
                                    ServiceRequestContext ctx, HttpRequest req,
                                    @Nullable Throwable cause) throws Exception {
-        logger.info("11 headers: {}", ctx.request().headers());
+        logger.trace("Authorization failed. delegate: {}, ctx: {}", delegate, ctx);
         if (cause != null) {
             if (!(cause instanceof ShuttingDownException)) {
                 logger.warn("Unexpected exception during authorization:", cause);

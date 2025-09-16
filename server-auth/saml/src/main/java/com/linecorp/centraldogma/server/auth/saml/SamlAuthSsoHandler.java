@@ -44,11 +44,13 @@ import com.google.common.base.Strings;
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.Cookie;
 import com.linecorp.armeria.common.HttpData;
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.saml.InvalidSamlRequestException;
 import com.linecorp.armeria.server.saml.SamlBindingProtocol;
@@ -153,7 +155,10 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
                     final ResponseHeaders responseHeaders =
                             ResponseHeaders.builder(HttpStatus.OK)
                                            .contentType(MediaType.HTML_UTF_8)
-                                           .cookie(cookie).build();
+                                           .set(HttpHeaderNames.CACHE_CONTROL,
+                                                ServerCacheControl.DISABLED.asHeaderValue())
+                                           .cookie(cookie)
+                                           .build();
                     return HttpResponse.of(responseHeaders,
                                            HttpData.ofUtf8(
                                                    getHtmlWithCsrfAndRedirect(csrfToken, redirectionScript)));

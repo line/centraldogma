@@ -1065,11 +1065,11 @@ public class CentralDogma implements AutoCloseable {
         final CorsServiceBuilder builder = CorsService.builder(corsConfig.allowedOrigins())
                                                       .allowRequestMethods(HttpMethod.knownMethods())
                                                       .allowAllRequestHeaders(true)
-                                                      .allowCredentials()
                                                       .maxAge(corsConfig.maxAgeSeconds());
         if (!corsConfig.allowedOrigins().contains("*")) {
             // Expose the CSRF token header only when the allowed origins are restricted.
-            builder.exposeHeaders(SessionUtil.X_CSRF_TOKEN);
+            builder.exposeHeaders(SessionUtil.X_CSRF_TOKEN)
+                   .allowCredentials();
         }
 
         sb.decorator(builder.newDecorator());

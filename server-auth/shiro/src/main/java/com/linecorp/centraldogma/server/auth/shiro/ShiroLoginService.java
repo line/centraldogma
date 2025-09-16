@@ -39,20 +39,26 @@ import org.apache.shiro.util.ThreadContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.collect.ImmutableMap;
+
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.Cookie;
 import com.linecorp.armeria.common.HttpData;
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.common.auth.BasicToken;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
@@ -126,10 +132,19 @@ final class ShiroLoginService extends AbstractHttpService {
                                final ResponseHeaders responseHeaders =
                                        ResponseHeaders.builder(HttpStatus.OK)
                                                       .contentType(MediaType.JSON_UTF_8)
+                                                      .set(HttpHeaderNames.CACHE_CONTROL,
+                                                           ServerCacheControl.DISABLED.asHeaderValue())
                                                       .cookie(cookie).build();
+                               final String body;
+                               try {
+                                   body = Jackson.writeValueAsString(
+                                           ImmutableMap.of("csrf_token", csrfToken));
+                               } catch (JsonProcessingException e) {
+                                   // This should never happen.
+                                   throw new Error(e);
+                               }
 
-                               final String csrfTokenString = "{\"csrf_token\":\"" + csrfToken + "\"}";
-                               return HttpResponse.of(responseHeaders, HttpData.ofUtf8(csrfTokenString));
+                               return HttpResponse.of(responseHeaders, HttpData.ofUtf8(body));
                            });
                        } catch (IncorrectCredentialsException e) {
                            // Not authorized

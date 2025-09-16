@@ -126,7 +126,11 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
 
   if (result.error && result.error.status === 401) {
     api.dispatch(clearAuth());
-    window.location.href = `/web/auth/login?return_to=${encodeURIComponent(window.location.pathname)}`;
+    if (typeof window !== 'undefined') {
+      const { pathname, search, hash } = window.location;
+      const returnTo = `${pathname}${search}${hash}`;
+      window.location.href = `/web/auth/login?return_to=${encodeURIComponent(returnTo)}`;
+    }
   }
   return result;
 };
