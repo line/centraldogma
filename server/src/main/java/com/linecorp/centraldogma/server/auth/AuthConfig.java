@@ -44,8 +44,7 @@ public final class AuthConfig {
     /**
      * A default session timeout in milliseconds.
      */
-    //public static final long DEFAULT_SESSION_TIMEOUT_MILLIS = 604800000;   // 7 days
-    public static final long DEFAULT_SESSION_TIMEOUT_MILLIS = 120000;   // 2 minutes
+    public static final long DEFAULT_SESSION_TIMEOUT_MILLIS = 604800000;   // 7 days
 
     /**
      * A default specification for a session cache.
