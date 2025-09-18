@@ -59,6 +59,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 
+import com.linecorp.centraldogma.server.auth.SessionKey;
+import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 import com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.GitObjectMetadata;
 
@@ -87,8 +89,10 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
     private final Map<String, ColumnFamilyHandle> columnFamilyHandlesMap;
 
     private final BloomFilter bloomFilter;
+    private final boolean encryptSessionCookie;
 
-    DefaultEncryptionStorageManager(String rocksDbPath) {
+    DefaultEncryptionStorageManager(String rocksDbPath, boolean encryptSessionCookie) {
+        this.encryptSessionCookie = encryptSessionCookie;
         final List<KeyManagementService> keyManagementServices = ImmutableList.copyOf(ServiceLoader.load(
                 KeyManagementService.class, EncryptionStorageManager.class.getClassLoader()));
         if (keyManagementServices.size() != 1) {
@@ -172,9 +176,106 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
     }
 
     @Override
+    public boolean encryptSessionCookie() {
+        return encryptSessionCookie;
+    }
+
+    @Override
     public CompletableFuture<byte[]> generateWdek() {
         final byte[] dek = AesGcmSivCipher.generateAes256Key();
         return keyManagementService.wrap(dek);
+    }
+
+    @Override
+    public CompletableFuture<SessionMasterKey> generateSessionMasterKey() {
+        final byte[] masterKey = AesGcmSivCipher.generateAes256Key();
+        // Generate the same size of salt: https://datatracker.ietf.org/doc/html/rfc5869#section-3.1
+        // It doesn't have to be a secret value.
+        final byte[] salt = AesGcmSivCipher.generateAes256Key();
+        return keyManagementService.wrap(masterKey).thenApply(wrappedMasterKey -> {
+            // Currently, we only use version 1 of the session master key.
+            return new SessionMasterKey(wrappedMasterKey, salt, 1);
+        });
+    }
+
+    @Override
+    public void storeSessionMasterKey(SessionMasterKey sessionMasterKey) {
+        requireNonNull(sessionMasterKey, "sessionMasterKey");
+        final ColumnFamilyHandle wdekCf = columnFamilyHandlesMap.get(WDEK_COLUMN_FAMILY);
+        final int version = sessionMasterKey.version();
+        final byte[] masterKeyKey = sessionMasterKeyKey(version);
+        try {
+            final byte[] existing = rocksDb.get(wdekCf, masterKeyKey);
+            if (existing != null) {
+                throw new EncryptionEntryExistsException(
+                        "Session master key of version " + version + " already exists");
+            }
+        } catch (RocksDBException e) {
+            throw new EncryptionStorageException(
+                    "Failed to check the existence of session master key of version " +
+                    version, e);
+        }
+
+        try (WriteBatch writeBatch = new WriteBatch();
+             WriteOptions writeOptions = new WriteOptions()) {
+            writeOptions.setSync(true);
+            writeBatch.put(wdekCf, masterKeyKey, sessionMasterKey.wrappedMasterKey());
+            writeBatch.put(wdekCf, sessionMasterKeySaltKey(version),
+                           sessionMasterKey.salt());
+            writeBatch.put(wdekCf, currentSessionMasterKeyVersionKey(),
+                           Ints.toByteArray(version));
+            rocksDb.write(writeOptions, writeBatch);
+        } catch (RocksDBException e) {
+            throw new EncryptionStorageException(
+                    "Failed to store session master key of version " + version, e);
+        }
+    }
+
+    private static byte[] sessionMasterKeyKey(int version) {
+        return ("session/master/" + version).getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static byte[] sessionMasterKeySaltKey(int version) {
+        return ("session/master/" + version + "/salt").getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static byte[] currentSessionMasterKeyVersionKey() {
+        return "session/master/current".getBytes(StandardCharsets.UTF_8);
+    }
+
+    @Override
+    public CompletableFuture<SessionKey> getCurrentSessionKey() {
+        final ColumnFamilyHandle wdekCf = columnFamilyHandlesMap.get(WDEK_COLUMN_FAMILY);
+        final int version;
+        try {
+            final byte[] versionBytes = rocksDb.get(wdekCf, currentSessionMasterKeyVersionKey());
+            if (versionBytes == null) {
+                throw new EncryptionStorageException("Current session master key does not exist");
+            }
+            version = Ints.fromByteArray(versionBytes);
+        } catch (RocksDBException e) {
+            throw new EncryptionStorageException("Failed to get the current session master key", e);
+        }
+
+        final byte[] wrappedMasterKey;
+        final byte[] salt;
+        try {
+            wrappedMasterKey = rocksDb.get(wdekCf, sessionMasterKeyKey(version));
+            if (wrappedMasterKey == null) {
+                throw new EncryptionStorageException(
+                        "Session master key of version " + version + " does not exist");
+            }
+            salt = rocksDb.get(wdekCf, sessionMasterKeySaltKey(version));
+            if (salt == null) {
+                throw new EncryptionStorageException("Salt for session master key does not exist. version: " +
+                                                     version);
+            }
+        } catch (RocksDBException e) {
+            throw new EncryptionStorageException(
+                    "Failed to get the session master key of version " + version, e);
+        }
+        return keyManagementService.unwrap(wrappedMasterKey)
+                                   .thenApply(masterKey -> SessionKey.of(masterKey, salt, version));
     }
 
     @Override
@@ -244,7 +345,7 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
         try {
             final byte[] existingWdek = rocksDb.get(wdekCf, wdekKeyBytes);
             if (existingWdek != null) {
-                throw new EncryptionStorageException(
+                throw new EncryptionEntryExistsException(
                         "WDEK of " + projectRepoVersion(projectName, repoName, version) + " already exists");
             }
         } catch (RocksDBException e) {

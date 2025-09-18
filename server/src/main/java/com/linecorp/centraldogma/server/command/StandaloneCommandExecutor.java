@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.server.auth.Session;
@@ -211,6 +212,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
         if (command instanceof RemoveSessionCommand) {
             return (CompletableFuture<T>) removeSession((RemoveSessionCommand) command);
+        }
+
+        if (command instanceof CreateSessionMasterKeyCommand) {
+            return (CompletableFuture<T>) createSessionMasterKey((CreateSessionMasterKeyCommand) command);
         }
 
         if (command instanceof UpdateServerStatusCommand) {
@@ -406,6 +411,15 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             logger.warn("Failed to replicate a session removal: {}", sessionId, cause);
             return null;
         });
+    }
+
+    private CompletableFuture<Void> createSessionMasterKey(CreateSessionMasterKeyCommand c) {
+        if (!encryptionStorageManager.enabled()) {
+            throw new IllegalStateException("Encryption is not enabled. command: " + c);
+        }
+
+        encryptionStorageManager.storeSessionMasterKey(c.sessionMasterKey());
+        return UnmodifiableFuture.completedFuture(null);
     }
 
     private CompletableFuture<Void> updateServerStatus(UpdateServerStatusCommand c) {

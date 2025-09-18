@@ -52,6 +52,6 @@ class ExpiredSessionDeletingSessionManagerTest {
     }
 
     private static Session createSession(Instant expirationTime) {
-        return new Session("id", "username", Instant.EPOCH, expirationTime, null);
+        return new Session("id", null, "username", Instant.EPOCH, expirationTime, null);
     }
 }

@@ -23,6 +23,9 @@ import javax.crypto.SecretKey;
 
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.centraldogma.server.auth.SessionKey;
+import com.linecorp.centraldogma.server.auth.SessionMasterKey;
+
 /**
  * A no-operation implementation of {@link EncryptionStorageManager} that does not perform any encryption.
  */
@@ -39,8 +42,29 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     }
 
     @Override
+    public boolean encryptSessionCookie() {
+        return false;
+    }
+
+    @Override
     public CompletableFuture<byte[]> generateWdek() {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CompletableFuture<SessionMasterKey> generateSessionMasterKey() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void storeSessionMasterKey(SessionMasterKey sessionMasterKey) {
+        // No-op
+    }
+
+    @Nullable
+    @Override
+    public CompletableFuture<SessionKey> getCurrentSessionKey() {
+        return null;
     }
 
     @Nullable
