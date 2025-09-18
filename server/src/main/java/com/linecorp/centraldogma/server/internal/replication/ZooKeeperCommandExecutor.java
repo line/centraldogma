@@ -1267,5 +1267,23 @@ public final class ZooKeeperCommandExecutor
             this.projectName = projectName;
             this.lockAcquired = lockAcquired;
         }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(projectName, lockAcquired);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (!(obj instanceof ProjectNameAndAcquired)) {
+                return false;
+            }
+            final ProjectNameAndAcquired that = (ProjectNameAndAcquired) obj;
+            return lockAcquired == that.lockAcquired &&
+                   projectName.equals(that.projectName);
+        }
     }
 }
