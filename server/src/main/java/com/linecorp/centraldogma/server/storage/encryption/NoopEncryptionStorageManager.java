@@ -23,6 +23,7 @@ import javax.crypto.SecretKey;
 
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.auth.SessionKey;
 import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 
@@ -61,10 +62,9 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
         // No-op
     }
 
-    @Nullable
     @Override
     public CompletableFuture<SessionKey> getCurrentSessionKey() {
-        return null;
+        return UnmodifiableFuture.completedFuture(null);
     }
 
     @Nullable

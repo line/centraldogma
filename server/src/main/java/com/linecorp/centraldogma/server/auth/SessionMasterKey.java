@@ -36,8 +36,8 @@ public final class SessionMasterKey {
     public SessionMasterKey(@JsonProperty("wrappedMasterKey") byte[] wrappedMasterKey,
                             @JsonProperty("salt") byte[] salt,
                             @JsonProperty("version") int version) {
-        this.wrappedMasterKey = requireNonNull(wrappedMasterKey, "wrappedMasterKey");
-        this.salt = requireNonNull(salt, "salt");
+        this.wrappedMasterKey = requireNonNull(wrappedMasterKey, "wrappedMasterKey").clone();
+        this.salt = requireNonNull(salt, "salt").clone();
         this.version = version;
     }
 
@@ -46,7 +46,7 @@ public final class SessionMasterKey {
      */
     @JsonProperty
     public byte[] wrappedMasterKey() {
-        return wrappedMasterKey;
+        return wrappedMasterKey.clone();
     }
 
     /**
@@ -54,7 +54,7 @@ public final class SessionMasterKey {
      */
     @JsonProperty
     public byte[] salt() {
-        return salt;
+        return salt.clone();
     }
 
     /**
