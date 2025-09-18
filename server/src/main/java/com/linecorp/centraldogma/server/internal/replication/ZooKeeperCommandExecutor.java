@@ -1260,8 +1260,8 @@ public final class ZooKeeperCommandExecutor
     }
 
     private static class ProjectNameAndAcquired {
-        final String projectName;
-        final boolean lockAcquired;
+        private final String projectName;
+        private final boolean lockAcquired;
 
         ProjectNameAndAcquired(String projectName, boolean lockAcquired) {
             this.projectName = projectName;
