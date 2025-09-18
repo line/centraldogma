@@ -924,24 +924,17 @@ public final class ZooKeeperCommandExecutor
         final InterProcessMutex mtx = mutexMap.computeIfAbsent(
                 executionPath, k -> new InterProcessMutex(curator, absolutePath(LOCK_PATH, k)));
 
+        final long startTime = System.nanoTime();
         boolean lockAcquired = false;
         Throwable cause = null;
         try {
             // Retry up to 1 minute, to minimize the chance of going read-only.
             long remainingTimeNanos = lockTimeoutNanos;
-            final long startTime = System.nanoTime();
             final long deadlineNanos = startTime + remainingTimeNanos;
             for (;;) {
                 try {
                     if (mtx.acquire(remainingTimeNanos, TimeUnit.NANOSECONDS)) {
                         lockAcquired = true;
-                        if (command instanceof AbstractPushCommand) {
-                            final String projectName = ((AbstractPushCommand<?>) command).projectName();
-                            record(projectName, startTime);
-                        } else if (command instanceof TransformCommand) {
-                            final String projectName = ((TransformCommand) command).projectName();
-                            record(projectName, startTime);
-                        }
                         break;
                     }
                 } catch (NullPointerException e) {
@@ -963,6 +956,14 @@ public final class ZooKeeperCommandExecutor
             }
         } catch (Throwable e) {
             cause = e;
+        }
+
+        if (command instanceof AbstractPushCommand) {
+            final String projectName = ((AbstractPushCommand<?>) command).projectName();
+            record(projectName, startTime);
+        } else if (command instanceof TransformCommand) {
+            final String projectName = ((TransformCommand) command).projectName();
+            record(projectName, startTime);
         }
 
         if (!lockAcquired) {
