@@ -135,7 +135,7 @@ public final class ZooKeeperCommandExecutor
     private static final RetryPolicy RETRY_POLICY_NEVER = (retryCount, elapsedTimeMs, sleeper) -> false;
 
     private final ConcurrentMap<String, InterProcessMutex> mutexMap = new ConcurrentHashMap<>();
-    private final Map<String, Timer> lockAcquiredTimers = new ConcurrentHashMap<>();
+    private final Map<ProjectNameAndAcquired, Timer> lockAcquiredTimers = new ConcurrentHashMap<>();
 
     private final ZooKeeperReplicationConfig cfg;
     private final File revisionFile;
@@ -960,10 +960,10 @@ public final class ZooKeeperCommandExecutor
 
         if (command instanceof AbstractPushCommand) {
             final String projectName = ((AbstractPushCommand<?>) command).projectName();
-            record(projectName, startTime);
+            record(projectName, startTime, lockAcquired);
         } else if (command instanceof TransformCommand) {
             final String projectName = ((TransformCommand) command).projectName();
-            record(projectName, startTime);
+            record(projectName, startTime, lockAcquired);
         }
 
         if (!lockAcquired) {
@@ -982,11 +982,12 @@ public final class ZooKeeperCommandExecutor
         return () -> safeRelease(mtx);
     }
 
-    private void record(String projectName, long startTime) {
+    private void record(String projectName, long startTime, boolean lockAcquired) {
         final Timer timer = lockAcquiredTimers.computeIfAbsent(
-                projectName, key -> MoreMeters.newTimer(
+                new ProjectNameAndAcquired(projectName, lockAcquired), key -> MoreMeters.newTimer(
                         meterRegistry, "zookeeper.lock.acquired",
-                        ImmutableList.of(Tag.of("project", projectName))));
+                        ImmutableList.of(Tag.of("project", projectName),
+                                         Tag.of("acquired", String.valueOf(lockAcquired)))));
         timer.record(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
     }
 
@@ -1256,5 +1257,15 @@ public final class ZooKeeperCommandExecutor
     @VisibleForTesting
     public void setLockTimeoutMillis(long lockTimeoutMillis) {
         lockTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(lockTimeoutMillis);
+    }
+
+    private static class ProjectNameAndAcquired {
+        final String projectName;
+        final boolean lockAcquired;
+
+        ProjectNameAndAcquired(String projectName, boolean lockAcquired) {
+            this.projectName = projectName;
+            this.lockAcquired = lockAcquired;
+        }
     }
 }
