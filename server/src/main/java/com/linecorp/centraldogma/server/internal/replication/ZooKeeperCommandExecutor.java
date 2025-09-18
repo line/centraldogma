@@ -82,6 +82,7 @@ import com.google.common.escape.Escapers;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Uninterruptibles;
 
+import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.LockAcquireTimeoutException;
 import com.linecorp.centraldogma.common.Revision;
@@ -89,16 +90,20 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
+import com.linecorp.centraldogma.server.command.AbstractPushCommand;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizableCommit;
+import com.linecorp.centraldogma.server.command.TransformCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -130,6 +135,7 @@ public final class ZooKeeperCommandExecutor
     private static final RetryPolicy RETRY_POLICY_NEVER = (retryCount, elapsedTimeMs, sleeper) -> false;
 
     private final ConcurrentMap<String, InterProcessMutex> mutexMap = new ConcurrentHashMap<>();
+    private final Map<String, Timer> lockAcquiredTimers = new ConcurrentHashMap<>();
 
     private final ZooKeeperReplicationConfig cfg;
     private final File revisionFile;
@@ -923,11 +929,19 @@ public final class ZooKeeperCommandExecutor
         try {
             // Retry up to 1 minute, to minimize the chance of going read-only.
             long remainingTimeNanos = lockTimeoutNanos;
-            final long deadlineNanos = System.nanoTime() + remainingTimeNanos;
+            final long startTime = System.nanoTime();
+            final long deadlineNanos = startTime + remainingTimeNanos;
             for (;;) {
                 try {
                     if (mtx.acquire(remainingTimeNanos, TimeUnit.NANOSECONDS)) {
                         lockAcquired = true;
+                        if (command instanceof AbstractPushCommand) {
+                            final String projectName = ((AbstractPushCommand<?>) command).projectName();
+                            record(projectName, startTime);
+                        } else if (command instanceof TransformCommand) {
+                            final String projectName = ((TransformCommand) command).projectName();
+                            record(projectName, startTime);
+                        }
                         break;
                     }
                 } catch (NullPointerException e) {
@@ -965,6 +979,14 @@ public final class ZooKeeperCommandExecutor
         }
 
         return () -> safeRelease(mtx);
+    }
+
+    private void record(String projectName, long startTime) {
+        final Timer timer = lockAcquiredTimers.computeIfAbsent(
+                projectName, key -> MoreMeters.newTimer(
+                        meterRegistry, "zookeeper.lock.acquired",
+                        ImmutableList.of(Tag.of("project", projectName))));
+        timer.record(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
     }
 
     private static void safeRelease(InterProcessMutex mtx) {

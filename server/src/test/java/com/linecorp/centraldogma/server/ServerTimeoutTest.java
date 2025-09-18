@@ -72,6 +72,10 @@ class ServerTimeoutTest {
                 (ZooKeeperReplicationConfig) config.replicationConfig();
         final int clientPort = replicationConfig.serverConfig().clientPort();
 
+        // Because push isn't called yet, zookeeper_lock_acquired metric should not be present.
+        String metrics = delegate.httpClient().get("/monitor/metrics").aggregate().join().contentUtf8();
+        assertThat(metrics).doesNotContain("zookeeper_lock_acquired");
+
         final CuratorFramework curator = CuratorFrameworkFactory.newClient(
                 "127.0.0.1:" + clientPort, new RetryForever(100));
         curator.start();
@@ -105,5 +109,9 @@ class ServerTimeoutTest {
                                              .push()
                                              .join();
         assertThat(pushResult.revision().major()).isPositive();
+
+        // Because push is called, zookeeper_lock_acquired metric should be present.
+        metrics = delegate.httpClient().get("/monitor/metrics").aggregate().join().contentUtf8();
+        assertThat(metrics).contains("zookeeper_lock_acquired");
     }
 }
