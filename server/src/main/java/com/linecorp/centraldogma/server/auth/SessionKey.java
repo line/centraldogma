@@ -31,20 +31,20 @@ import org.bouncycastle.crypto.params.HKDFParameters;
  */
 public final class SessionKey {
 
+    private static final byte[] SIGNING_KEY_INFO = "session-signing-key".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] ENCRYPTION_KEY_INFO = "session-encryption-key".getBytes(StandardCharsets.UTF_8);
+
     /**
      * Derives a new {@link SessionKey} from the specified {@code masterKey} and {@code salt}.
      */
     public static SessionKey of(byte[] masterKey, byte[] salt, int version) {
         final HKDFBytesGenerator hkdfBytesGenerator = new HKDFBytesGenerator(new SHA256Digest());
-        final byte[] signingKeyInfo = "session-signing-key".getBytes(StandardCharsets.UTF_8);
         final byte[] signingKeyBytes = new byte[32];
-        hkdfBytesGenerator.init(new HKDFParameters(masterKey, salt, signingKeyInfo));
+        hkdfBytesGenerator.init(new HKDFParameters(masterKey, salt, SIGNING_KEY_INFO));
         hkdfBytesGenerator.generateBytes(signingKeyBytes, 0, 32);
 
-        final byte[] encryptionKeyInfo = "session-encryption-key".getBytes(StandardCharsets.UTF_8);
         final byte[] encryptionKeyBytes = new byte[32];
-
-        hkdfBytesGenerator.init(new HKDFParameters(masterKey, salt, encryptionKeyInfo));
+        hkdfBytesGenerator.init(new HKDFParameters(masterKey, salt, ENCRYPTION_KEY_INFO));
         hkdfBytesGenerator.generateBytes(encryptionKeyBytes, 0, 32);
 
         final SecretKey finalSigningKey = new SecretKeySpec(signingKeyBytes, "HmacSHA256");
