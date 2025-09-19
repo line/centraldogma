@@ -49,9 +49,13 @@ import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.auth.SessionKey;
+import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.Tokens;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionEntryExistsException;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryListener;
 
@@ -66,6 +70,7 @@ public final class InternalProjectInitializer {
 
     private final CommandExecutor executor;
     private final ProjectManager projectManager;
+    private final EncryptionStorageManager encryptionStorageManager;
     private final CompletableFuture<Void> initialFuture = new CompletableFuture<>();
 
     @Nullable
@@ -76,9 +81,45 @@ public final class InternalProjectInitializer {
     /**
      * Creates a new instance.
      */
-    public InternalProjectInitializer(CommandExecutor executor, ProjectManager projectManager) {
-        this.executor = executor;
-        this.projectManager = projectManager;
+    public InternalProjectInitializer(CommandExecutor executor, ProjectManager projectManager,
+                                      EncryptionStorageManager encryptionStorageManager) {
+        this.executor = requireNonNull(executor, "executor");
+        this.projectManager = requireNonNull(projectManager, "projectManager");
+        this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
+    }
+
+    /**
+     * Initializes the internal project and repositories in read-only mode.
+     */
+    public void initializeInReadOnlyMode() {
+        try {
+            if (!projectManager.exists(INTERNAL_PROJECT_DOGMA)) {
+                throw new IllegalStateException(
+                        INTERNAL_PROJECT_DOGMA + " project does not exist. " +
+                        "Cannot initialize in read-only mode.");
+            }
+            final Repository dogmaRepo = projectManager.get(INTERNAL_PROJECT_DOGMA)
+                                                       .repos()
+                                                       .get(Project.REPO_DOGMA);
+            final Entry<JsonNode> entry = dogmaRepo.getOrNull(Revision.HEAD, Query.ofJson(TOKEN_JSON)).join();
+            if (entry == null || !entry.hasContent()) {
+                throw new IllegalStateException(
+                        TOKEN_JSON + " file does not exist in " + INTERNAL_PROJECT_DOGMA +
+                        '/' + Project.REPO_DOGMA + ". Cannot initialize in read-only mode.");
+            }
+            setTokens(entry, dogmaRepo);
+            if (encryptionStorageManager.encryptSessionCookie()) {
+                if (encryptionStorageManager.getCurrentSessionKey().join() == null) {
+                    throw new IllegalStateException(
+                            "Session key does not exist. Cannot initialize in read-only mode.");
+                }
+            }
+
+            initialFuture.complete(null);
+        } catch (Throwable t) {
+            initialFuture.completeExceptionally(t);
+            Exceptions.throwUnsafely(t);
+        }
     }
 
     /**
@@ -88,6 +129,7 @@ public final class InternalProjectInitializer {
         try {
             initialize0(INTERNAL_PROJECT_DOGMA);
             initializeTokens();
+            initializeSessionKey();
             initialFuture.complete(null);
         } catch (Exception cause) {
             initialFuture.completeExceptionally(cause);
@@ -191,6 +233,28 @@ public final class InternalProjectInitializer {
                             Project.REPO_DOGMA, e);
             }
         }));
+    }
+
+    private void initializeSessionKey() {
+        if (!encryptionStorageManager.encryptSessionCookie()) {
+            return;
+        }
+        final SessionKey sessionKey = encryptionStorageManager.getCurrentSessionKey().join();
+        if (sessionKey != null) {
+            return;
+        }
+
+        final SessionMasterKey sessionMasterKey = encryptionStorageManager.generateSessionMasterKey().join();
+        try {
+            executor.execute(Command.createSessionMasterKey(sessionMasterKey))
+                    .get();
+        } catch (Throwable cause) {
+            final Throwable peeled = Exceptions.peel(cause);
+            if (peeled instanceof EncryptionEntryExistsException) {
+                return;
+            }
+            throw new Error("failed to initialize a session master key", peeled);
+        }
     }
 
     /**

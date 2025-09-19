@@ -453,7 +453,7 @@ public class CentralDogma implements AutoCloseable {
 
             logger.info("Current settings:\n{}", cfg);
 
-            sessionManager = initializeSessionManager();
+            sessionManager = initializeSessionManager(encryptionStorageManager);
 
             logger.info("Starting the command executor ..");
             executor = startCommandExecutor(pm, repositoryWorker, purgeWorker,
@@ -603,13 +603,14 @@ public class CentralDogma implements AutoCloseable {
             default:
                 throw new Error("unknown replication method: " + replicationMethod);
         }
-        projectInitializer = new InternalProjectInitializer(executor, pm);
+        projectInitializer = new InternalProjectInitializer(executor, pm, encryptionStorageManager);
         mirrorAccessController = new DefaultMirrorAccessController();
 
         final ServerStatus initialServerStatus = statusManager.serverStatus();
         executor.setWritable(initialServerStatus.writable());
         if (!initialServerStatus.replicating()) {
-            projectInitializer.whenInitialized().complete(null);
+            projectInitializer.initializeInReadOnlyMode();
+            setMirrorAccessControllerRepository(pm, executor);
             return executor;
         }
         try {
@@ -631,21 +632,26 @@ public class CentralDogma implements AutoCloseable {
             // Trigger the exception if any.
             startFuture.get();
             projectInitializer.initialize();
-            final CrudRepository<MirrorAccessControl> accessControlRepository =
-                    new GitCrudRepository<>(MirrorAccessControl.class, executor, pm,
-                                            INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
-                                            MIRROR_ACCESS_CONTROL_PATH);
-            mirrorAccessController.setRepository(accessControlRepository);
         } catch (Exception e) {
-            projectInitializer.whenInitialized().complete(null);
             logger.warn("Failed to start the command executor. Entering read-only.", e);
+            projectInitializer.initializeInReadOnlyMode();
         }
 
+        setMirrorAccessControllerRepository(pm, executor);
         return executor;
     }
 
+    private void setMirrorAccessControllerRepository(ProjectManager pm, CommandExecutor executor) {
+        final CrudRepository<MirrorAccessControl> accessControlRepository =
+                new GitCrudRepository<>(MirrorAccessControl.class, executor, pm,
+                                        INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
+                                        MIRROR_ACCESS_CONTROL_PATH);
+        mirrorAccessController.setRepository(accessControlRepository);
+    }
+
     @Nullable
-    private SessionManager initializeSessionManager() throws Exception {
+    private SessionManager initializeSessionManager(
+            EncryptionStorageManager encryptionStorageManager) throws Exception {
         final AuthConfig authCfg = cfg.authConfig();
         if (authCfg == null) {
             return null;

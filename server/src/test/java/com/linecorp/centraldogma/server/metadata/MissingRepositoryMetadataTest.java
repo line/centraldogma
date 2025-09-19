@@ -27,6 +27,7 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.storage.encryption.NoopEncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
@@ -60,7 +61,8 @@ class MissingRepositoryMetadataTest {
         final ProjectManager pm = manager.projectManager();
         final RepositoryManager rm = pm.get(PROJ).repos();
         final CommandExecutor executor = manager.executor();
-        final InternalProjectInitializer projectInitializer = new InternalProjectInitializer(executor, pm);
+        final InternalProjectInitializer projectInitializer =
+                new InternalProjectInitializer(executor, pm, NoopEncryptionStorageManager.INSTANCE);
 
         // Create a new repository without adding metadata.
         rm.create("repo", AUTHOR);

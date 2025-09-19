@@ -55,7 +55,7 @@ class MigrateToEncryptedRepositoryTest {
 
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.encryptionAtRest(new EncryptionAtRestConfig(true));
+            builder.encryptionAtRest(new EncryptionAtRestConfig(true, false));
         }
 
         @Override

@@ -29,13 +29,17 @@ import com.google.common.base.MoreObjects;
 public final class EncryptionAtRestConfig {
 
     private final boolean enabled;
+    private final boolean encryptSessionCookie;
 
     /**
      * Creates an instance.
      */
     @JsonCreator
-    public EncryptionAtRestConfig(@JsonProperty("enabled") @Nullable Boolean enabled) {
+    public EncryptionAtRestConfig(@JsonProperty("enabled") @Nullable Boolean enabled,
+                                  @JsonProperty("encryptSessionCookie")
+                                  @Nullable Boolean encryptSessionCookie) {
         this.enabled = firstNonNull(enabled, false);
+        this.encryptSessionCookie = this.enabled && firstNonNull(encryptSessionCookie, false);
     }
 
     /**
@@ -46,10 +50,19 @@ public final class EncryptionAtRestConfig {
         return enabled;
     }
 
+    /**
+     * Returns whether to encrypt session cookies.
+     */
+    @JsonProperty
+    public boolean encryptSessionCookie() {
+        return encryptSessionCookie;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("enabled", enabled)
+                          .add("encryptSessionCookie", encryptSessionCookie)
                           .toString();
     }
 }

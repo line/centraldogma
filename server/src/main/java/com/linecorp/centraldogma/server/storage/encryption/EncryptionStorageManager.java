@@ -30,6 +30,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.EncryptionAtRestConfig;
+import com.linecorp.centraldogma.server.auth.SessionKey;
+import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 
 /**
  * Manages the storage of encrypted data at rest.
@@ -51,16 +53,17 @@ public interface EncryptionStorageManager extends SafeCloseable {
             return NoopEncryptionStorageManager.INSTANCE;
         }
 
-        return new DefaultEncryptionStorageManager(rocksDbPath.toString());
+        return new DefaultEncryptionStorageManager(rocksDbPath.toString(),
+                                                   encryptionAtRestConfig.encryptSessionCookie());
     }
 
     /**
      * Creates a new {@link EncryptionStorageManager} instance.
      */
     @VisibleForTesting
-    static EncryptionStorageManager of(Path path) {
+    static EncryptionStorageManager of(Path path, boolean encryptSessionCookie) {
         requireNonNull(path, "path");
-        return new DefaultEncryptionStorageManager(path.toString());
+        return new DefaultEncryptionStorageManager(path.toString(), encryptSessionCookie);
     }
 
     /**
@@ -69,9 +72,29 @@ public interface EncryptionStorageManager extends SafeCloseable {
     boolean enabled();
 
     /**
+     * Returns {@code true} if the session cookie should be encrypted.
+     */
+    boolean encryptSessionCookie();
+
+    /**
      * Generates a new data encryption key (DEK) and wraps it.
      */
     CompletableFuture<byte[]> generateWdek();
+
+    /**
+     * Generates a new session master key.
+     */
+    CompletableFuture<SessionMasterKey> generateSessionMasterKey();
+
+    /**
+     * Stores the session master key.
+     */
+    void storeSessionMasterKey(SessionMasterKey sessionMasterKey);
+
+    /**
+     * Returns the current session master key.
+     */
+    CompletableFuture<SessionKey> getCurrentSessionKey();
 
     /**
      * Returns the data encryption key (DEK) for the specified project and repository.

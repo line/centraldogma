@@ -95,7 +95,7 @@ class RequiresRoleTest {
                     null, null, null, null);
             executor.start().join();
             final InternalProjectInitializer projectInitializer = new InternalProjectInitializer(
-                    executor, pm);
+                    executor, pm, NoopEncryptionStorageManager.INSTANCE);
             projectInitializer.initialize();
 
             executor.execute(Command.createProject(AUTHOR, "project1")).join();
