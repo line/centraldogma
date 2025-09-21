@@ -206,9 +206,7 @@ public abstract class AbstractCentralDogma implements CentralDogma {
             throw new IllegalArgumentException("dir must be an absolute path: " + dir);
         }
         if (!Files.exists(dir) || !Files.isDirectory(dir)) {
-            return exceptionallyCompletedFuture(
-                    new IllegalArgumentException("dir must be an existing directory: " + dir)
-            );
+            throw new IllegalArgumentException("dir must be an existing directory: " + dir);
         }
 
         final List<String> resolvedNames = resolveProjectAndRepoNames(projectName, repositoryName, dir);
