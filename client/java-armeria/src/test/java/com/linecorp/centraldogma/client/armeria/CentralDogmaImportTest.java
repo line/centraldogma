@@ -15,11 +15,11 @@
  */
 package com.linecorp.centraldogma.client.armeria;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,13 +28,12 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
@@ -43,10 +42,17 @@ import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class CentralDogmaImportTest {
 
-    ScheduledExecutorService scheduler;
+    @RegisterExtension
+    static CentralDogmaExtension dogmaExt = new CentralDogmaExtension() {
+        @Override
+        protected void scaffold(CentralDogma client) {
+        }
+    };
+
     Random random;
     String project;
     String repository;
@@ -73,49 +79,30 @@ class CentralDogmaImportTest {
         }
     }
 
-    private static void cleanProjectAndRepo(CentralDogma centralDogma, String project, String repository)
-            throws IOException {
-        centralDogma.removeRepository(project, repository).exceptionally(ex -> null);
-        centralDogma.purgeRepository(project, repository).exceptionally(ex -> null);
-
-        centralDogma.removeProject(project).exceptionally(ex -> null);
-        centralDogma.purgeProject(project).exceptionally(ex -> null);
-    }
-
     @BeforeEach
-    void setUp() throws IOException {
-        scheduler = Executors.newSingleThreadScheduledExecutor();
+    void setUp() throws UnknownHostException {
         random = new Random();
         project = "foo" + random.nextInt(1000);
         repository = "bar";
         dir = project + '/' + repository;
         dogma = new ArmeriaCentralDogmaBuilder()
-                .host("localhost", 36462)
+                .host(dogmaExt.serverAddress().getHostString(),
+                      dogmaExt.serverAddress().getPort())
                 .build();
-        cleanProjectAndRepo(dogma, project, repository);
     }
 
     @AfterEach
     void tearDown() throws Exception {
         try {
-            cleanProjectAndRepo(dogma, project, repository);
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
             dogma.close();
+        } finally {
+            removeCreatedDir(Paths.get(dir).toAbsolutePath());
+            removeCreatedDir(Paths.get(project).toAbsolutePath());
+            removeCreatedDir(Paths.get(project));
+            removeCreatedDir(Paths.get(dir));
         }
-        scheduler.shutdownNow();
-        removeCreatedDir(Paths.get(dir).toAbsolutePath());
-        removeCreatedDir(Paths.get(project).toAbsolutePath());
-        removeCreatedDir(Paths.get(project));
-        removeCreatedDir(Paths.get(dir));
     }
 
-    /**
-     * Tests that importDir only creates project and repository when no files exist in the directory.
-     * This test verifies that the method creates the project and repository structures
-     * but does not import any files when the specified directory is empty.
-     */
     @Test
     void importDir_shouldOnlyCreateProjectAndRepo_whenNoFiles() throws Exception {
         // given
@@ -125,9 +112,7 @@ class CentralDogmaImportTest {
         // when
         final PushResult result = dogma.importDir(project, repository, fooBar, true).join();
         final Map<String, EntryType> entries = dogma.listFiles(
-                project, repository, Revision.HEAD,
-                PathPattern.of("/**")).join();
-
+                project, repository, Revision.HEAD, PathPattern.of("/**")).join();
         final List<String> importedPaths = entries.entrySet().stream()
                                                   .filter(e -> e.getValue() == EntryType.TEXT)
                                                   .map(Map.Entry::getKey)
@@ -140,11 +125,6 @@ class CentralDogmaImportTest {
         assertThat(importedPaths).isEmpty();
     }
 
-    /**
-     * Tests that importDir ignores placeholder files (.gitkeep and .gitignore) when
-     * importing a directory with both project name and repository name as null.
-     * Verifies that only non-placeholder files are imported successfully.
-     */
     @Test
     void importDir_shouldIgnoresPlaceholders() throws Exception {
         // given
@@ -152,45 +132,40 @@ class CentralDogmaImportTest {
         Files.createDirectories(fooBar);
         final Path boundaryFile = fooBar.resolve("hello.txt").toAbsolutePath();
 
-        // setUp Test Directory
         Files.createDirectories(fooBar);
-        Files.write(fooBar.resolve(".gitkeep"), "".getBytes(StandardCharsets.UTF_8));
-        Files.write(fooBar.resolve(".gitignore"), "".getBytes(StandardCharsets.UTF_8));
+        Files.write(fooBar.resolve(".gitkeep"), new byte[0]);
+        Files.write(fooBar.resolve(".gitignore"), new byte[0]);
         Files.write(boundaryFile, "hello".getBytes(StandardCharsets.UTF_8));
 
         // when
         final PushResult result = dogma.importDir(project, repository, fooBar, true).join();
         final Map<String, EntryType> entries = dogma.listFiles(
-                project, repository, Revision.HEAD,
-                PathPattern.of("/**")).join();
-
+                project, repository, Revision.HEAD, PathPattern.of("/**")).join();
         final List<String> importedPaths = entries.entrySet().stream()
                                                   .filter(e -> e.getValue() == EntryType.TEXT)
                                                   .map(Map.Entry::getKey)
                                                   .collect(Collectors.toList());
 
         // then
-        // ImportDir() should ignore placeholders such as .gitkeep and .gitignore
         assertThat(result).isNotNull();
         assertThat(result.revision().major()).isPositive();
         assertThat(importedPaths).contains("/hello.txt");
         assertThat(importedPaths).doesNotContain("/.gitkeep", "/.gitignore");
     }
 
-    /**
-     * Tests that importDir creates a project repository and imports a file successfully.
-     * This test verifies the creation of the project, repository, and the successful import of a file,
-     * as well as the correct content and path of the imported file.
-     */
     @Test
     void importDir_createsProjectRepo_andImportsFile() throws IOException {
+        // given
         final String fileName = "hello.txt";
         final Path dirPath = Paths.get(dir).toAbsolutePath();
         Files.createDirectories(dirPath);
         final Path file = dirPath.resolve(fileName).toAbsolutePath();
         Files.write(file, "hello".getBytes(StandardCharsets.UTF_8));
 
+        // when
         final PushResult pushResult = dogma.importDir(project, repository, dirPath, true).join();
+
+        // then
         assertThat(pushResult).isNotNull();
         assertThat(pushResult.revision().major()).isPositive();
         assertThat(pushResult.revision().major()).isPositive();
@@ -203,26 +178,17 @@ class CentralDogmaImportTest {
         assertThat(diff.contentAsText()).isEqualTo("hello" + '\n');
     }
 
-    /**
-     * Tests the behavior of importDir when the directory to be imported does not exist.
-     * This test verifies that the method handles the case of a non-existent directory correctly.
-     */
     @Test
-    public void test_importDir_createsProjectRepo_andImportsFile_nonExistentDirectory() throws IOException {
-        final CentralDogmaImportTest testInstance = new CentralDogmaImportTest();
-        testInstance.setUp();
-
+    void test_importDir_createsProjectRepo_andImportsFile_nonExistentDirectory() {
+        // given
         final Path nonExistentDir = Paths.get("non_existent_directory");
-        assertThrows(IllegalArgumentException.class, () -> {
-            testInstance.dogma.importDir(testInstance.project, testInstance.repository, nonExistentDir, true)
-                              .join();
-        });
+
+        // when / then
+        assertThatThrownBy(() ->
+                                   dogma.importDir(project, repository, nonExistentDir, true).join())
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    /**
-     * Tests that importDir creates a project repository and pushes files when project name is provided but repository name is null.
-     * This test verifies the creation of the project, a default repository, and the successful import of a file.
-     */
     @Test
     public void importDir_createsProjectRepo_andPushes() throws Exception {
         // given
@@ -233,14 +199,13 @@ class CentralDogmaImportTest {
 
         // when
         final PushResult result = dogma.importDir(project, null, fooBar, true).join();
-
         final Map<String, EntryType> entries = dogma.listFiles(
-                project, repository, Revision.HEAD,
-                PathPattern.of("/**")).join();
+                project, repository, Revision.HEAD, PathPattern.of("/**")).join();
         final List<String> importedPaths = entries.entrySet().stream()
                                                   .filter(e -> e.getValue() == EntryType.TEXT)
                                                   .map(Map.Entry::getKey)
                                                   .collect(Collectors.toList());
+
         // then
         assertThat(result).isNotNull();
         assertThat(result.revision().major()).isPositive();
@@ -253,7 +218,7 @@ class CentralDogmaImportTest {
         final Path pathBased = Paths.get(dir).toAbsolutePath();
         Files.createDirectories(pathBased);
         final Path file = pathBased.resolve("hello.txt");
-        Files.write(file, "hello".getBytes(UTF_8));
+        Files.write(file, "hello".getBytes(StandardCharsets.UTF_8));
 
         // when
         final PushResult result = dogma.importDir(null, null, pathBased, true).join();
@@ -263,14 +228,12 @@ class CentralDogmaImportTest {
         assertThat(result.revision().major()).isPositive();
 
         final Map<String, EntryType> entries = dogma.listFiles(
-                project, repository, Revision.HEAD,
-                PathPattern.of("/**")).join();
-
+                project, repository, Revision.HEAD, PathPattern.of("/**")).join();
         final List<String> importedPaths = entries.entrySet().stream()
                                                   .filter(e -> e.getValue() == EntryType.TEXT)
                                                   .map(Map.Entry::getKey)
                                                   .collect(Collectors.toList());
-
         assertThat(importedPaths).contains("/hello.txt");
     }
 }
+
