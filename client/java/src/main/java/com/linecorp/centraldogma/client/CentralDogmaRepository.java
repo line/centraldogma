@@ -86,17 +86,6 @@ public final class CentralDogmaRepository {
         }
     }
 
-    private static List<Change<?>> toChanges(Path path) {
-        final List<Change<?>> changes = new ArrayList<>();
-        if (Files.isRegularFile(path)) {
-            final String repoPath = '/' + path.getFileName().toString().replace(File.separatorChar, '/');
-            changes.add(toChange(repoPath, path));
-        } else {
-            changes.addAll(collectImportFiles(path));
-        }
-        return changes;
-    }
-
     private static List<Change<?>> collectImportFiles(Path path) {
         final List<Change<?>> changes = new ArrayList<>();
         try (Stream<Path> s = Files.walk(path)) {
@@ -360,7 +349,7 @@ public final class CentralDogmaRepository {
         if (!Files.isDirectory(dir)) {
             throw new IllegalArgumentException("Path must be a directory: " + dir);
         }
-        final List<Change<?>> changes = toChanges(dir);
+        final List<Change<?>> changes = collectImportFiles(dir);
         if (changes.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
