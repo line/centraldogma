@@ -445,6 +445,7 @@ public interface CentralDogma extends AutoCloseable {
      * @param dir the directory to import
      * @param createIfMissing whether to create the project and repository if they don't exist
      * @return a {@link CompletableFuture} that completes with the {@link PushResult}
+     * @apiNote Callers should handle the {@code null} case (no files imported).
      */
     CompletableFuture<PushResult> importDir(@Nullable String projectName, @Nullable String repositoryName,
                                             Path dir, boolean createIfMissing);
