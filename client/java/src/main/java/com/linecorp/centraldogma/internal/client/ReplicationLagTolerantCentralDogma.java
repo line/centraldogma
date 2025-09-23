@@ -77,7 +77,9 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     private final int maxRetries;
     private final long retryIntervalMillis;
     private final Supplier<?> currentReplicaHintSupplier;
-    private final Map<RepoId, Revision> latestKnownRevisions = new LinkedHashMap<RepoId, Revision>() {
+
+    @VisibleForTesting
+    final Map<RepoId, Revision> latestKnownRevisions = new LinkedHashMap<RepoId, Revision>() {
         private static final long serialVersionUID = 3587793379404809027L;
 
         @Override
@@ -112,7 +114,11 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
 
     @Override
     public CompletableFuture<Void> removeProject(String projectName) {
-        return delegate.removeProject(projectName);
+        return delegate.removeProject(projectName).thenAccept(unused -> {
+            synchronized (latestKnownRevisions) {
+                latestKnownRevisions.entrySet().removeIf(e -> e.getKey().projectName.equals(projectName));
+            }
+        });
     }
 
     @Override
@@ -143,7 +149,11 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
 
     @Override
     public CompletableFuture<Void> removeRepository(String projectName, String repositoryName) {
-        return delegate.removeRepository(projectName, repositoryName);
+        return delegate.removeRepository(projectName, repositoryName).thenAccept(unused -> {
+            synchronized (latestKnownRevisions) {
+                latestKnownRevisions.remove(new RepoId(projectName, repositoryName));
+            }
+        });
     }
 
     @Override
@@ -805,9 +815,10 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
         delegate.close();
     }
 
-    private static final class RepoId {
-        private final String projectName;
-        private final String repositoryName;
+    @VisibleForTesting
+    static final class RepoId {
+        final String projectName;
+        final String repositoryName;
 
         RepoId(String projectName, String repositoryName) {
             this.projectName = projectName;
