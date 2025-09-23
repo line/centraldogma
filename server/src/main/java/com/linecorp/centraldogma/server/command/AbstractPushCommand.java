@@ -143,7 +143,6 @@ public abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
                     .add("summary", summary)
                     .add("detail", detail)
                     .add("markup", markup)
-                    .add("numChanges", changes.size())
                     .add("changes", changesBuilder.toString());
     }
 }
