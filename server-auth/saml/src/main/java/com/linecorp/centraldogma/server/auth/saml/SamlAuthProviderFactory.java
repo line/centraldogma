@@ -60,7 +60,8 @@ public final class SamlAuthProviderFactory implements AuthProviderFactory {
                            parameters.authConfig().loginNameNormalizer(),
                            properties.idp().subjectLoginNameIdFormat(),
                            properties.idp().attributeLoginName(),
-                           parameters.tlsEnabled()))
+                           parameters.tlsEnabled(),
+                           parameters.encryptionStorageManager()))
                    .credentialResolver(credentialResolver(ks))
                    .signatureAlgorithm(ks.signatureAlgorithm())
                    .idp()

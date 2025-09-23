@@ -60,7 +60,9 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.auth.SessionKey;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
 
@@ -77,12 +79,16 @@ final class ShiroLoginService extends AbstractHttpService {
     private final Duration sessionValidDuration;
     private final long cookieMaxAgeSecond;
     private final boolean tlsEnabled;
+    // TODO(minwoox): Use the sessionKey to encrypt the session cookie.
+    @Nullable
+    private final SessionKey sessionKey;
 
     ShiroLoginService(SecurityManager securityManager,
                       Function<String, String> loginNameNormalizer,
                       Supplier<String> csrfTokenGenerator,
                       Function<Session, CompletableFuture<Void>> loginSessionPropagator,
-                      Duration sessionValidDuration, boolean tlsEnabled) {
+                      Duration sessionValidDuration, boolean tlsEnabled,
+                      EncryptionStorageManager encryptionStorageManager) {
         this.securityManager = requireNonNull(securityManager, "securityManager");
         this.loginNameNormalizer = requireNonNull(loginNameNormalizer, "loginNameNormalizer");
         this.csrfTokenGenerator = requireNonNull(csrfTokenGenerator, "csrfTokenGenerator");
@@ -91,6 +97,12 @@ final class ShiroLoginService extends AbstractHttpService {
         // Make the cookie expire a bit earlier than the session itself.
         cookieMaxAgeSecond = sessionValidDuration.minusMinutes(1).getSeconds();
         this.tlsEnabled = tlsEnabled;
+        requireNonNull(encryptionStorageManager, "encryptionStorageManager");
+        if (encryptionStorageManager.encryptSessionCookie()) {
+            sessionKey = encryptionStorageManager.getCurrentSessionKey().join();
+        } else {
+            sessionKey = null;
+        }
     }
 
     @Override

@@ -40,9 +40,11 @@ import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthorizationStatus;
 import com.linecorp.armeria.server.auth.Authorizer;
+import com.linecorp.centraldogma.server.auth.SessionKey;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
 /**
  * A decorator to check whether the request holds a valid token. If it holds a valid token, this
@@ -56,10 +58,21 @@ public class SessionCookieAuthorizer implements Authorizer<HttpRequest> {
     private final String sessionCookieName;
     private final Set<String> systemAdministrators;
 
+    // TODO(minwoox): Use the sessionKey to validate the session cookie signature.
+    @Nullable
+    private final SessionKey sessionKey;
+
     public SessionCookieAuthorizer(SessionManager sessionManager, boolean tlsEnabled,
+                                   EncryptionStorageManager encryptionStorageManager,
                                    Set<String> systemAdministrators) {
         this.sessionManager = requireNonNull(sessionManager, "sessionManager");
         sessionCookieName = sessionCookieName(tlsEnabled);
+        requireNonNull(encryptionStorageManager, "encryptionStorageManager");
+        if (encryptionStorageManager.encryptSessionCookie()) {
+            sessionKey = encryptionStorageManager.getCurrentSessionKey().join();
+        } else {
+            sessionKey = null;
+        }
         this.systemAdministrators = requireNonNull(systemAdministrators, "systemAdministrators");
     }
 

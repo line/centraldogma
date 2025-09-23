@@ -43,6 +43,7 @@ import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.centraldogma.server.storage.encryption.NoopEncryptionStorageManager;
 
 class SamlAuthSsoHandlerTest {
 
@@ -53,7 +54,8 @@ class SamlAuthSsoHandlerTest {
         final Supplier<String> sessionIdGenerator = () -> Integer.toString(counter.incrementAndGet());
         final SamlAuthSsoHandler samlAuthSsoHandler =
                 new SamlAuthSsoHandler(sessionIdGenerator, session -> CompletableFuture.completedFuture(null),
-                                       Duration.ofDays(1), name -> "foo", "foo", null, tlsEnabled);
+                                       Duration.ofDays(1), name -> "foo", "foo", null, tlsEnabled,
+                                       NoopEncryptionStorageManager.INSTANCE);
 
         final AggregatedHttpRequest req = AggregatedHttpRequest.of(HttpMethod.GET, "/");
         final ServiceRequestContext ctx = ServiceRequestContext.of(req.toHttpRequest());

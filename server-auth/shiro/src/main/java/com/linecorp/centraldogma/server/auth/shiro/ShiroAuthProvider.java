@@ -53,7 +53,8 @@ public final class ShiroAuthProvider implements AuthProvider {
                                                 parameters.sessionIdGenerator(),
                                                 parameters.loginSessionPropagator(),
                                                 sessionValidDuration,
-                                                parameters.tlsEnabled());
+                                                parameters.tlsEnabled(),
+                                                parameters.encryptionStorageManager());
         logoutApiService = new ShiroLogoutService(securityManager, parameters.logoutSessionPropagator(),
                                                   parameters.sessionManager(), parameters.tlsEnabled());
     }

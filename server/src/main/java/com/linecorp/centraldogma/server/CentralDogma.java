@@ -741,7 +741,8 @@ public class CentralDogma implements AutoCloseable {
 
         final MetadataService mds = new MetadataService(pm, executor, projectInitializer);
         final WatchService watchService = new WatchService(meterRegistry);
-        final AuthProvider authProvider = createAuthProvider(executor, sessionManager, mds, needsTls);
+        final AuthProvider authProvider =
+                createAuthProvider(executor, sessionManager, mds, needsTls, encryptionStorageManager);
         final ProjectApiManager projectApiManager =
                 new ProjectApiManager(pm, executor, mds, encryptionStorageManager);
 
@@ -831,7 +832,7 @@ public class CentralDogma implements AutoCloseable {
     @Nullable
     private AuthProvider createAuthProvider(
             CommandExecutor commandExecutor, @Nullable SessionManager sessionManager, MetadataService mds,
-            boolean tlsEnabled) {
+            boolean tlsEnabled, EncryptionStorageManager encryptionStorageManager) {
         final AuthConfig authCfg = cfg.authConfig();
         if (authCfg == null) {
             return null;
@@ -841,14 +842,16 @@ public class CentralDogma implements AutoCloseable {
         final AuthProviderParameters parameters = new AuthProviderParameters(
                 // Find application first, then find the session token.
                 new ApplicationTokenAuthorizer(mds::findTokenBySecret)
-                        .orElse(new SessionCookieAuthorizer(sessionManager, tlsEnabled,
-                                                            authCfg.systemAdministrators())),
+                        .orElse(new SessionCookieAuthorizer(
+                                sessionManager, tlsEnabled, encryptionStorageManager,
+                                authCfg.systemAdministrators())),
                 cfg,
                 sessionManager::generateSessionId,
                 // Propagate login and logout events to the other replicas.
                 session -> commandExecutor.execute(Command.createSession(session)),
                 sessionId -> commandExecutor.execute(Command.removeSession(sessionId)),
-                sessionManager, tlsEnabled);
+                sessionManager, tlsEnabled,
+                encryptionStorageManager);
         return authCfg.factory().create(parameters);
     }
 
