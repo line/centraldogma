@@ -63,7 +63,7 @@ final class EncryptedGitRepositoryRemoveTest {
         final File projectDir = new File(rootDir, PROJECT_NAME);
 
         final EncryptionStorageManager encryptionStorageManager =
-                EncryptionStorageManager.of(new File(rootDir, "rocksdb").toPath());
+                EncryptionStorageManager.of(new File(rootDir, "rocksdb").toPath(), false);
         final GitRepositoryManager gitRepositoryManager =
                 new GitRepositoryManager(project, projectDir, commonPool(),
                                          MoreExecutors.directExecutor(), null, encryptionStorageManager);

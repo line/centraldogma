@@ -48,7 +48,7 @@ class DefaultEncryptionStorageManagerTest {
         // Ensure ServiceLoader can find our test KMS
         // This relies on the META-INF/services file being in the test classpath
         final String rocksDbPath = tempDir.resolve(DefaultEncryptionStorageManager.ROCKSDB_PATH).toString();
-        storageManager = new DefaultEncryptionStorageManager(rocksDbPath);
+        storageManager = new DefaultEncryptionStorageManager(rocksDbPath, false);
     }
 
     @AfterEach

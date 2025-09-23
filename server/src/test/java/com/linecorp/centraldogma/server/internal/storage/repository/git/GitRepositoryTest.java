@@ -107,7 +107,7 @@ class GitRepositoryTest {
         fileRepo = createFileRepository(project, new File(repoDir, "test_repo"), Author.SYSTEM,
                                         0L, commonPool(), null);
         encryptionStorageManager = EncryptionStorageManager.of(
-                new File(repoDir, "rocksdb").toPath());
+                new File(repoDir, "rocksdb").toPath(), false);
         encryptionStorageManager.storeWdek(project.name(), "test_repo2",
                                            encryptionStorageManager.generateWdek().join());
         encryptedRepo = createEncryptionRepository(project, new File(repoDir, "test_repo2"),

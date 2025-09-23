@@ -39,6 +39,7 @@ public enum CommandType {
     REMOVE_PLUGIN(Void.class),
     CREATE_SESSION(Void.class),
     REMOVE_SESSION(Void.class),
+    CREATE_SESSION_MASTER_KEY(Void.class),
     PURGE_PROJECT(Void.class),
     PURGE_REPOSITORY(Void.class),
     UPDATE_SERVER_STATUS(Void.class),

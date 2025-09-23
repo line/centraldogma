@@ -38,7 +38,7 @@ class CreateSessionCommandTest {
                             "csrf",
                             "foo",
                             Instant.EPOCH,
-                            Instant.EPOCH.plus(1, ChronoUnit.MINUTES));
+                            Instant.EPOCH.plus(1, ChronoUnit.MINUTES), null);
 
         // Convert the object with Jackson because a serializer and deserializer for Instant type are
         // added to Jackson.
@@ -46,7 +46,6 @@ class CreateSessionCommandTest {
                 new CreateSessionCommand(1234L,
                                          new Author("foo", "bar@baz.com"),
                                          session));
-
         assertThatJson(node)
                 .withTolerance(0.000000001)
                 .isEqualTo(

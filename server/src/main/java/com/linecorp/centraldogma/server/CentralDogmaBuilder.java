@@ -137,6 +137,7 @@ public final class CentralDogmaBuilder {
     private ManagementConfig managementConfig;
     @Nullable
     private ZoneConfig zoneConfig;
+    private boolean enableThriftService = true;
 
     /**
      * Creates a new builder with the specified data directory.
@@ -575,6 +576,19 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Enables or disables the Thrift service. The Thrift service is enabled by default.
+     * Note that if a Thrift dependency is not found on the classpath, the Thrift service will be
+     * disabled regardless of this setting.
+     *
+     * @deprecated Thrift service is deprecated and will be removed in a future release.
+     */
+    @Deprecated
+    public CentralDogmaBuilder enableThriftService(boolean enableThriftService) {
+        this.enableThriftService = enableThriftService;
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
@@ -605,6 +619,7 @@ public final class CentralDogmaBuilder {
                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
                                       webAppEnabled, webAppTitle, replicationConfig,
                                       null, accessLogFormat, authCfg,
-                                      corsConfig, pluginConfigs, managementConfig, zoneConfig);
+                                      corsConfig, pluginConfigs, managementConfig, zoneConfig,
+                                      enableThriftService);
     }
 }

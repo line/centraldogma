@@ -16,7 +16,6 @@
 package com.linecorp.centraldogma.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
@@ -24,19 +23,13 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.zip.InflaterInputStream;
 
-import org.apache.thrift.TException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
 import com.google.common.io.CharStreams;
 
-import com.linecorp.armeria.client.Clients;
-import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.WebClient;
-import com.linecorp.armeria.client.encoding.DecodingClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
@@ -45,10 +38,6 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants;
-import com.linecorp.centraldogma.internal.thrift.CentralDogmaService.Iface;
-import com.linecorp.centraldogma.internal.thrift.GetFileResult;
-import com.linecorp.centraldogma.internal.thrift.Query;
-import com.linecorp.centraldogma.internal.thrift.QueryType;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 /**
@@ -72,35 +61,6 @@ class ContentCompressionTest {
                   .push().join();
         }
     };
-
-    @Test
-    void thrift() throws Exception {
-        final com.linecorp.centraldogma.internal.thrift.Revision head =
-                new com.linecorp.centraldogma.internal.thrift.Revision(-1, 0);
-        final Query query = new Query(PATH, QueryType.IDENTITY, ImmutableList.of());
-
-        // Should fail to decode without the decompressor.
-        final Iface clientWithoutDecompressor = Clients
-                .builder("ttext+http", Endpoint.of("127.0.0.1", dogma.serverAddress().getPort()),
-                         "/cd/thrift/v1")
-                .setHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
-                .setHeader(HttpHeaderNames.ACCEPT_ENCODING, "deflate")
-                .build(Iface.class);
-
-        assertThatThrownBy(() -> clientWithoutDecompressor.getFile(PROJ, REPO, head, query))
-                .isInstanceOf(TException.class)
-                .hasCauseInstanceOf(JsonParseException.class);
-
-        // Should succeed to decode with the decompressor.
-        final Iface clientWithDecompressor = Clients.newDerivedClient(
-                clientWithoutDecompressor,
-                options -> options.toBuilder()
-                                  .decorator(DecodingClient.newDecorator())
-                                  .build());
-
-        final GetFileResult result = clientWithDecompressor.getFile(PROJ, REPO, head, query);
-        assertThat(result.getContent()).contains(CONTENT);
-    }
 
     @Test
     void http() throws Exception {

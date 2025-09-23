@@ -17,20 +17,27 @@ package com.linecorp.centraldogma.server.auth;
 
 import static java.util.Objects.requireNonNull;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.MoreObjects.ToStringHelper;
 
 /**
  * An authenticated session which can be replicated to the other Central Dogma replicas as a serialized form.
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public final class Session {
 
     private final String id;
+    @Nullable
     private final String csrfToken;
     private final String username;
     private final Instant creationTime;
@@ -62,12 +69,14 @@ public final class Session {
      */
     @JsonCreator
     public Session(@JsonProperty("id") String id,
-                   @JsonProperty("csrfToken") String csrfToken,
+                   @JsonProperty("csrfToken") @Nullable String csrfToken,
                    @JsonProperty("username") String username,
                    @JsonProperty("creationTime") Instant creationTime,
-                   @JsonProperty("expirationTime") Instant expirationTime) {
+                   @JsonProperty("expirationTime") Instant expirationTime,
+                   @JsonProperty("rawSession")
+                   @Nullable Serializable unused) {
         this.id = requireNonNull(id, "id");
-        this.csrfToken = requireNonNull(csrfToken, "csrfToken");
+        this.csrfToken = csrfToken;
         this.username = requireNonNull(username, "username");
         this.creationTime = requireNonNull(creationTime, "creationTime");
         this.expirationTime = requireNonNull(expirationTime, "expirationTime");
@@ -85,6 +94,7 @@ public final class Session {
      * Returns the CSRF token.
      */
     @JsonProperty
+    @Nullable
     public String csrfToken() {
         return csrfToken;
     }
@@ -128,7 +138,7 @@ public final class Session {
         }
         final Session that = (Session) obj;
         return id.equals(that.id) &&
-               csrfToken.equals(that.csrfToken) &&
+               Objects.equals(csrfToken, that.csrfToken) &&
                username.equals(that.username) &&
                creationTime.equals(that.creationTime) &&
                expirationTime.equals(that.expirationTime);
@@ -136,12 +146,14 @@ public final class Session {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
-                          .add("id", "****")
-                          .add("csrfToken", "****")
-                          .add("username", username)
-                          .add("creationTime", creationTime)
-                          .add("expirationTime", expirationTime)
-                          .toString();
+        final ToStringHelper toStringHelper = MoreObjects.toStringHelper(this)
+                                                         .add("id", "****")
+                                                         .add("username", username)
+                                                         .add("creationTime", creationTime)
+                                                         .add("expirationTime", expirationTime);
+        if (csrfToken != null) {
+            toStringHelper.add("csrfToken", "****");
+        }
+        return toStringHelper.toString();
     }
 }

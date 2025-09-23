@@ -47,7 +47,6 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
 import com.linecorp.centraldogma.client.Watcher;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
-import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
@@ -68,11 +67,6 @@ class WatchTest {
     static final CentralDogmaExtensionWithScaffolding dogma = new CentralDogmaExtensionWithScaffolding() {
         @Override
         protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-            builder.blockingTaskExecutor(blockingTaskExecutor);
-        }
-
-        @Override
-        protected void configureClient(LegacyCentralDogmaBuilder builder) {
             builder.blockingTaskExecutor(blockingTaskExecutor);
         }
     };
@@ -195,11 +189,6 @@ class WatchTest {
                                        1000, false);
         assertThat(future1.join()).isNull();
 
-        // Legacy client doesn't support this feature.
-        if (clientType == ClientType.LEGACY) {
-            return;
-        }
-
         final CompletableFuture<Revision> future2 =
                 client.watchRepository(dogma.project(), dogma.repo1(),
                                        Revision.HEAD, PathPattern.of("/test_not_found/**"),
@@ -315,11 +304,6 @@ class WatchTest {
                 dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test_not_found/test.json"),
                 1000, false);
         assertThat(future1.get()).isNull();
-
-        // Legacy client doesn't support this feature.
-        if (clientType == ClientType.LEGACY) {
-            return;
-        }
 
         final CompletableFuture<Entry<JsonNode>> future2 = client.watchFile(
                 dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test_not_found/test.json"),

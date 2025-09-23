@@ -17,19 +17,15 @@
 package com.linecorp.centraldogma.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 
-import org.apache.thrift.transport.TTransportException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-import com.linecorp.armeria.client.InvalidResponseHeadersException;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
@@ -58,8 +54,8 @@ class GracefulShutdownTest {
     void watchRepositoryGracefulShutdown(ClientType clientType) throws Exception {
         final CentralDogma client = clientType.client(dogma);
         testGracefulShutdown(client.watchRepository(
-                dogma.project(), dogma.repo1(), Revision.HEAD, PathPattern.all(), 60000, false),
-                             clientType);
+                dogma.project(), dogma.repo1(), Revision.HEAD, PathPattern.all(), 60000, false)
+        );
     }
 
     @ParameterizedTest
@@ -67,27 +63,17 @@ class GracefulShutdownTest {
     void watchFileGracefulShutdown(ClientType clientType) throws Exception {
         final CentralDogma client = clientType.client(dogma);
         testGracefulShutdown(client.watchFile(
-                dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test.json"), 60000, false),
-                             clientType);
+                dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test.json"), 60000, false)
+        );
     }
 
-    private static void testGracefulShutdown(CompletableFuture<?> future,
-                                             ClientType clientType) throws Exception {
+    private static void testGracefulShutdown(CompletableFuture<?> future) throws Exception {
         // Wait a little bit so that we do not start to stop the server before the watch operation is accepted.
         Thread.sleep(500);
         dogma.stopAsync();
 
         await().untilAsserted(() -> assertThat(future).isDone());
-        if (clientType == ClientType.LEGACY) {
-            // The Legacy Thrift client no longer propagates ShutdownException.
-            assertThatThrownBy(future::join)
-                    .isInstanceOf(CompletionException.class)
-                    .hasCauseInstanceOf(TTransportException.class)
-                    .hasRootCauseInstanceOf(InvalidResponseHeadersException.class)
-                    .hasMessageContaining("[:status=500,");
-        } else {
-            // the future is completed without an exception
-            assertThat(future).isCompleted();
-        }
+        // the future is completed without an exception
+        assertThat(future).isCompleted();
     }
 }

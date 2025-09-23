@@ -29,7 +29,6 @@ import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
-import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
@@ -76,11 +75,6 @@ public class CentralDogmaRule extends TemporaryFolder {
 
             @Override
             protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-                CentralDogmaRule.this.configureClient(builder);
-            }
-
-            @Override
-            protected void configureClient(LegacyCentralDogmaBuilder builder) {
                 CentralDogmaRule.this.configureClient(builder);
             }
 
@@ -206,15 +200,6 @@ public class CentralDogmaRule extends TemporaryFolder {
     }
 
     /**
-     * Returns the Thrift-based {@link CentralDogma} client.
-     *
-     * @throws IllegalStateException if Central Dogma did not start yet
-     */
-    public final CentralDogma legacyClient() {
-        return delegate.legacyClient();
-    }
-
-    /**
      * Returns the HTTP client.
      *
      * @throws IllegalStateException if Central Dogma did not start yet
@@ -241,11 +226,6 @@ public class CentralDogmaRule extends TemporaryFolder {
      * Override this method to configure the HTTP-based {@link CentralDogma} client builder.
      */
     protected void configureClient(ArmeriaCentralDogmaBuilder builder) {}
-
-    /**
-     * Override this method to configure the Thrift-based {@link CentralDogma} client builder.
-     */
-    protected void configureClient(LegacyCentralDogmaBuilder builder) {}
 
     /**
      * Override this method to configure the {@link WebClient} builder.
