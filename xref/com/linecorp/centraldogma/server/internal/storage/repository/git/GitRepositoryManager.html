@@ -221,7 +221,7 @@
 <a class="jxr_linenumber" name="L213" href="#L213">213</a>         <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="L214" href="#L214">214</a>             jGitRepository = <strong class="jxr_keyword">new</strong> RepositoryBuilder().setGitDir(repoDir).setBare().build();
 <a class="jxr_linenumber" name="L215" href="#L215">215</a>             <strong class="jxr_keyword">if</strong> (!exist(repoDir)) {
-<a class="jxr_linenumber" name="L216" href="#L216">216</a>                 <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../../../com/linecorp/centraldogma/common/RepositoryNotFoundException.html">RepositoryNotFoundException</a>(repoDir.toString());
+<a class="jxr_linenumber" name="L216" href="#L216">216</a>                 <strong class="jxr_keyword">throw</strong> RepositoryNotFoundException.of(parent.name(), repoDir.getName());
 <a class="jxr_linenumber" name="L217" href="#L217">217</a>             }
 <a class="jxr_linenumber" name="L218" href="#L218">218</a> 
 <a class="jxr_linenumber" name="L219" href="#L219">219</a>             <em class="jxr_comment">// Retrieve the repository format.</em>
@@ -387,12 +387,12 @@
 <a class="jxr_linenumber" name="L379" href="#L379">379</a> 
 <a class="jxr_linenumber" name="L380" href="#L380">380</a>     @Override
 <a class="jxr_linenumber" name="L381" href="#L381">381</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../../../../../../com/linecorp/centraldogma/common/CentralDogmaException.html">CentralDogmaException</a> newStorageExistsException(String name) {
-<a class="jxr_linenumber" name="L382" href="#L382">382</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../../../com/linecorp/centraldogma/common/RepositoryExistsException.html">RepositoryExistsException</a>(parent().name() + '/' + name);
+<a class="jxr_linenumber" name="L382" href="#L382">382</a>         <strong class="jxr_keyword">return</strong> RepositoryExistsException.of(parent().name(), name);
 <a class="jxr_linenumber" name="L383" href="#L383">383</a>     }
 <a class="jxr_linenumber" name="L384" href="#L384">384</a> 
 <a class="jxr_linenumber" name="L385" href="#L385">385</a>     @Override
 <a class="jxr_linenumber" name="L386" href="#L386">386</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../../../../../../com/linecorp/centraldogma/common/CentralDogmaException.html">CentralDogmaException</a> newStorageNotFoundException(String name) {
-<a class="jxr_linenumber" name="L387" href="#L387">387</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../../../com/linecorp/centraldogma/common/RepositoryNotFoundException.html">RepositoryNotFoundException</a>(parent().name() + '/' + name);
+<a class="jxr_linenumber" name="L387" href="#L387">387</a>         <strong class="jxr_keyword">return</strong> RepositoryNotFoundException.of(parent().name(), name);
 <a class="jxr_linenumber" name="L388" href="#L388">388</a>     }
 <a class="jxr_linenumber" name="L389" href="#L389">389</a> 
 <a class="jxr_linenumber" name="L390" href="#L390">390</a>     @Override
