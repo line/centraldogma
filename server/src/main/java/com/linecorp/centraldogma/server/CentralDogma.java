@@ -241,6 +241,7 @@ public class CentralDogma implements AutoCloseable {
             // Thrift is not available.
         }
         THRIFT_FOUND = thriftFound;
+        logger.debug("Thrift found: {}", THRIFT_FOUND);
     }
 
     private static final int DEFAULT_MAX_FRAME_LENGTH = 1024 * 1024; // 1 MiB
@@ -741,8 +742,13 @@ public class CentralDogma implements AutoCloseable {
         final ProjectApiManager projectApiManager =
                 new ProjectApiManager(pm, executor, mds, encryptionStorageManager);
 
-        if (THRIFT_FOUND && cfg.enableThriftService()) {
-            configureThriftService(cfg, sb, projectApiManager, executor, watchService, mds);
+        if (cfg.enableThriftService()) {
+            if (THRIFT_FOUND) {
+                configureThriftService(cfg, sb, projectApiManager, executor, watchService, mds);
+            } else {
+                logger.warn("Thrift service is enabled in the configuration, but the Thrift library " +
+                            "is not found. Skip enabling the Thrift service.");
+            }
         }
 
         sb.service("/title", webAppTitleFile(cfg.webAppTitle(), SystemInfo.hostname()).asService());
