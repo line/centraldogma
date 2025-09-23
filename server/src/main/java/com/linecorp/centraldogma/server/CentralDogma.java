@@ -23,6 +23,7 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.HEALTH_CHECK_PATH;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.METRICS_PATH;
+import static com.linecorp.centraldogma.server.ThriftServiceConfigurator.configureThriftService;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_API_ROUTES;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_PATH;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_API_ROUTES;
@@ -116,8 +117,6 @@ import com.linecorp.armeria.server.logging.AccessLogWriter;
 import com.linecorp.armeria.server.management.ManagementService;
 import com.linecorp.armeria.server.metric.MetricCollectingService;
 import com.linecorp.armeria.server.prometheus.PrometheusExpositionService;
-import com.linecorp.armeria.server.thrift.THttpService;
-import com.linecorp.armeria.server.thrift.ThriftCallService;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -163,10 +162,6 @@ import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectM
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.CrudRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitCrudRepository;
-import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTranslator;
-import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
-import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutScheduler;
-import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
@@ -205,8 +200,8 @@ public class CentralDogma implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(CentralDogma.class);
 
     private static final boolean GIT_MIRROR_ENABLED;
-
     private static final boolean LOGBACK_ENABLED;
+    private static final boolean THRIFT_FOUND;
 
     static {
         Jackson.registerModules(new SimpleModule().addSerializer(CacheStats.class, new CacheStatsSerializer()));
@@ -236,6 +231,16 @@ public class CentralDogma implements AutoCloseable {
             // Logback is not available.
         }
         LOGBACK_ENABLED = logbackEnabled;
+
+        boolean thriftFound = false;
+        try {
+            Class.forName("org.apache.thrift.TBase", true,
+                          CentralDogma.class.getClassLoader());
+            thriftFound = true;
+        } catch (ClassNotFoundException e) {
+            // Thrift is not available.
+        }
+        THRIFT_FOUND = thriftFound;
     }
 
     private static final int DEFAULT_MAX_FRAME_LENGTH = 1024 * 1024; // 1 MiB
@@ -736,7 +741,9 @@ public class CentralDogma implements AutoCloseable {
         final ProjectApiManager projectApiManager =
                 new ProjectApiManager(pm, executor, mds, encryptionStorageManager);
 
-        configureThriftService(sb, projectApiManager, executor, watchService, mds);
+        if (THRIFT_FOUND && cfg.enableThriftService()) {
+            configureThriftService(cfg, sb, projectApiManager, executor, watchService, mds);
+        }
 
         sb.service("/title", webAppTitleFile(cfg.webAppTitle(), SystemInfo.hostname()).asService());
 
@@ -864,30 +871,6 @@ public class CentralDogma implements AutoCloseable {
                 meterRegistry, zone,
                 onTakeLeadership, onReleaseLeadership,
                 onTakeZoneLeadership, onReleaseZoneLeadership);
-    }
-
-    private void configureThriftService(ServerBuilder sb, ProjectApiManager projectApiManager,
-                                        CommandExecutor executor,
-                                        WatchService watchService, MetadataService mds) {
-        final CentralDogmaServiceImpl service =
-                new CentralDogmaServiceImpl(projectApiManager, executor, watchService, mds);
-
-        HttpService thriftService =
-                ThriftCallService.of(service)
-                                 .decorate(CentralDogmaTimeoutScheduler::new)
-                                 .decorate(CentralDogmaExceptionTranslator::new)
-                                 .decorate(THttpService.newDecorator());
-
-        if (cfg.isCsrfTokenRequiredForThrift()) {
-            thriftService = thriftService.decorate(AuthService.newDecorator(new CsrfTokenAuthorizer()));
-        } else {
-            thriftService = thriftService.decorate(TokenlessClientLogger::new);
-        }
-
-        // Enable content compression for API responses.
-        thriftService = thriftService.decorate(contentEncodingDecorator());
-
-        sb.service("/cd/thrift/v1", thriftService);
     }
 
     private Function<? super HttpService, AuthService> authService(
@@ -1103,14 +1086,12 @@ public class CentralDogma implements AutoCloseable {
                         switch (subtype) {
                             case "json":
                             case "xml":
-                            case "x-thrift":
                             case "x-git-upload-pack-advertisement":
                             case "x-git-upload-pack-result":
                                 return true;
                             default:
                                 return subtype.endsWith("+json") ||
-                                       subtype.endsWith("+xml") ||
-                                       subtype.startsWith("vnd.apache.thrift.");
+                                       subtype.endsWith("+xml");
                         }
                     }
                     return false;

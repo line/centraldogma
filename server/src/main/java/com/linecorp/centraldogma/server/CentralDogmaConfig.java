@@ -271,6 +271,8 @@ public final class CentralDogmaConfig {
     @Nullable
     private final ZoneConfig zoneConfig;
 
+    private final boolean enableThriftService;
+
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
             @JsonProperty(value = "ports", required = true)
@@ -298,7 +300,8 @@ public final class CentralDogmaConfig {
             @JsonProperty("cors") @Nullable CorsConfig corsConfig,
             @JsonProperty("pluginConfigs") @Nullable List<PluginConfig> pluginConfigs,
             @JsonProperty("management") @Nullable ManagementConfig managementConfig,
-            @JsonProperty("zone") @Nullable ZoneConfig zoneConfig) {
+            @JsonProperty("zone") @Nullable ZoneConfig zoneConfig,
+            @JsonProperty("enableThriftService") @Nullable Boolean enableThriftService) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -347,6 +350,7 @@ public final class CentralDogmaConfig {
                 toImmutableMap(PluginConfig::getClass, Function.identity()));
         this.managementConfig = managementConfig;
         this.zoneConfig = zoneConfig;
+        this.enableThriftService = firstNonNull(true, enableThriftService);
     }
 
     /**
@@ -593,6 +597,14 @@ public final class CentralDogmaConfig {
     @JsonProperty("zone")
     public ZoneConfig zone() {
         return zoneConfig;
+    }
+
+    /**
+     * Returns whether to enable the Thrift service.
+     */
+    @JsonProperty
+    public boolean enableThriftService() {
+        return enableThriftService;
     }
 
     @Override
