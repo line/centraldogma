@@ -122,11 +122,28 @@ public abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
 
     @Override
     ToStringHelper toStringHelper() {
+        // Build a summary of changes to avoid overly long toString() result.
+        final StringBuilder changesBuilder = new StringBuilder("[");
+        for (int i = 0; i < changes.size(); i++) {
+            final Change<?> change = changes.get(i);
+            final String content = change.contentAsText();
+            changesBuilder.append("{type: ").append(change.type())
+                          .append(", path: ").append(change.path())
+                          .append(", contentLength: ")
+                          .append(content != null ? content.length() : 0)
+                          .append('}');
+            if (i != changes.size() - 1) {
+                changesBuilder.append(", ");
+            }
+        }
+        changesBuilder.append(']');
+
         return super.toStringHelper()
                     .add("baseRevision", baseRevision)
                     .add("summary", summary)
                     .add("detail", detail)
                     .add("markup", markup)
-                    .add("changes", changes);
+                    .add("numChanges", changes.size())
+                    .add("changes", changesBuilder.toString());
     }
 }
