@@ -350,7 +350,7 @@ public final class CentralDogmaConfig {
                 toImmutableMap(PluginConfig::getClass, Function.identity()));
         this.managementConfig = managementConfig;
         this.zoneConfig = zoneConfig;
-        this.enableThriftService = firstNonNull(true, enableThriftService);
+        this.enableThriftService = firstNonNull(enableThriftService, true);
     }
 
     /**
