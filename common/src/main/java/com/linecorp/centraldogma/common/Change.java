@@ -231,7 +231,7 @@ public interface Change<T> {
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
      *
      * @param path the path of the file
-     * @param jsonPatch the patch in <a href="https://tools.ietf.org/html/rfc6902">JSON patch format</a>
+     * @param jsonPatch the patch in <a href="https://datatracker.ietf.org/doc/html/rfc6902">JSON patch format</a>
      */
     static Change<JsonNode> ofJsonPatch(String path, JsonPatchOperation jsonPatch) {
         requireNonNull(path, "path");
@@ -243,7 +243,7 @@ public interface Change<T> {
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
      *
      * @param path the path of the file
-     * @param jsonPatches the list of patches in <a href="https://tools.ietf.org/html/rfc6902">JSON patch format</a>
+     * @param jsonPatches the list of patches in <a href="https://datatracker.ietf.org/doc/html/rfc6902">JSON patch format</a>
      */
     static Change<JsonNode> ofJsonPatch(String path, JsonPatchOperation... jsonPatches) {
         requireNonNull(jsonPatches, "jsonPatches");
@@ -254,7 +254,7 @@ public interface Change<T> {
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
      *
      * @param path the path of the file
-     * @param jsonPatches the list of patches in <a href="https://tools.ietf.org/html/rfc6902">JSON patch format</a>
+     * @param jsonPatches the list of patches in <a href="https://datatracker.ietf.org/doc/html/rfc6902">JSON patch format</a>
      */
     static Change<JsonNode> ofJsonPatch(String path, Iterable<? extends JsonPatchOperation> jsonPatches) {
         requireNonNull(path, "path");
@@ -268,7 +268,7 @@ public interface Change<T> {
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
      *
      * @param path the path of the file
-     * @param jsonPatchText the patch in <a href="https://tools.ietf.org/html/rfc6902">JSON patch format</a>
+     * @param jsonPatchText the patch in <a href="https://datatracker.ietf.org/doc/html/rfc6902">JSON patch format</a>
      *
      * @throws ChangeFormatException if the specified {@code jsonPatchText} is not a valid JSON
      */
@@ -289,7 +289,7 @@ public interface Change<T> {
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
      *
      * @param path the path of the file
-     * @param jsonPatchNode the patch in <a href="https://tools.ietf.org/html/rfc6902">JSON patch format</a>
+     * @param jsonPatchNode the patch in <a href="https://datatracker.ietf.org/doc/html/rfc6902">JSON patch format</a>
      */
     static Change<JsonNode> ofJsonPatch(String path, JsonNode jsonPatchNode) {
         requireNonNull(jsonPatchNode, "jsonPatchNode");

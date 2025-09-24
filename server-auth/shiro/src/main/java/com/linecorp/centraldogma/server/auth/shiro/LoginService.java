@@ -154,7 +154,7 @@ final class LoginService extends AbstractHttpService {
      * Returns {@link UsernamePasswordToken} which holds a username and a password.
      */
     private UsernamePasswordToken usernamePassword(ServiceRequestContext ctx, AggregatedHttpRequest req) {
-        // check the Basic HTTP authentication first (https://tools.ietf.org/html/rfc7617)
+        // check the Basic HTTP authentication first (https://datatracker.ietf.org/doc/html/rfc7617)
         final BasicToken basicToken = AuthTokenExtractors.basic().apply(RequestHeaders.of(req.headers()));
         if (basicToken != null) {
             return new UsernamePasswordToken(basicToken.username(), basicToken.password());
