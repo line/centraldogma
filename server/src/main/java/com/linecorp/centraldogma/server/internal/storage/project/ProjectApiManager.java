@@ -35,6 +35,8 @@ import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageException;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -47,12 +49,15 @@ public final class ProjectApiManager {
     private final ProjectManager projectManager;
     private final CommandExecutor commandExecutor;
     private final MetadataService metadataService;
+    private final EncryptionStorageManager encryptionStorageManager;
 
     public ProjectApiManager(ProjectManager projectManager, CommandExecutor commandExecutor,
-                             MetadataService metadataService) {
+                             MetadataService metadataService,
+                             EncryptionStorageManager encryptionStorageManager) {
         this.projectManager = projectManager;
         this.commandExecutor = commandExecutor;
         this.metadataService = metadataService;
+        this.encryptionStorageManager = encryptionStorageManager;
     }
 
     public Map<String, Project> listProjects(@Nullable User user) {
@@ -100,7 +105,16 @@ public final class ProjectApiManager {
 
     public CompletableFuture<Void> createProject(String projectName, Author author) {
         checkInternalProject(projectName, "create");
-        return commandExecutor.execute(Command.createProject(author, projectName));
+        if (!encryptionStorageManager.enabled()) {
+            return commandExecutor.execute(Command.createProject(author, projectName));
+        }
+        return encryptionStorageManager.generateWdek()
+                                       .thenCompose(wdek -> commandExecutor.execute(
+                                               Command.createProject(author, projectName, wdek)))
+                                       .exceptionally(cause -> {
+                                           throw new EncryptionStorageException(
+                                                   "Failed to create encrypted project " + projectName, cause);
+                                       });
     }
 
     private static void checkInternalProject(String projectName, String operation) {

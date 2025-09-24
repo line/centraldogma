@@ -84,6 +84,8 @@ public final class CentralDogmaBuilder {
     private final List<ServerPort> ports = new ArrayList<>(2);
     @Nullable
     private TlsConfig tls;
+    @Nullable
+    private EncryptionAtRestConfig encryptionAtRest;
     private final List<String> trustedProxyAddresses = new ArrayList<>();
     private final List<String> clientAddressSources = new ArrayList<>();
     @Nullable
@@ -135,6 +137,7 @@ public final class CentralDogmaBuilder {
     private ManagementConfig managementConfig;
     @Nullable
     private ZoneConfig zoneConfig;
+    private boolean enableThriftService = true;
 
     /**
      * Creates a new builder with the specified data directory.
@@ -179,6 +182,14 @@ public final class CentralDogmaBuilder {
      */
     public CentralDogmaBuilder tls(TlsConfig tls) {
         this.tls = requireNonNull(tls, "tls");
+        return this;
+    }
+
+    /**
+     * Sets whether encryption at rest is enabled or not.
+     */
+    public CentralDogmaBuilder encryptionAtRest(EncryptionAtRestConfig encryptionAtRest) {
+        this.encryptionAtRest = requireNonNull(encryptionAtRest, "encryptionAtRest");
         return this;
     }
 
@@ -300,6 +311,7 @@ public final class CentralDogmaBuilder {
 
     /**
      * Sets the maximum allowed content length of an incoming request.
+     * If unspecified, 1 MiB is used as the default.
      */
     public CentralDogmaBuilder maxFrameLength(int maxFrameLength) {
         this.maxFrameLength = maxFrameLength;
@@ -564,6 +576,19 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Enables or disables the Thrift service. The Thrift service is enabled by default.
+     * Note that if a Thrift dependency is not found on the classpath, the Thrift service will be
+     * disabled regardless of this setting.
+     *
+     * @deprecated Thrift service is deprecated and will be removed in a future release.
+     */
+    @Deprecated
+    public CentralDogmaBuilder enableThriftService(boolean enableThriftService) {
+        this.enableThriftService = enableThriftService;
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
@@ -587,13 +612,14 @@ public final class CentralDogmaBuilder {
                         AuthConfig.class.getSimpleName());
         }
 
-        return new CentralDogmaConfig(dataDir, ports, tls, trustedProxyAddresses, clientAddressSources,
-                                      numWorkers, maxNumConnections,
+        return new CentralDogmaConfig(dataDir, ports, tls, encryptionAtRest, trustedProxyAddresses,
+                                      clientAddressSources, numWorkers, maxNumConnections,
                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
                                       numRepositoryWorkers, repositoryCacheSpec,
                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
                                       webAppEnabled, webAppTitle, replicationConfig,
                                       null, accessLogFormat, authCfg,
-                                      corsConfig, pluginConfigs, managementConfig, zoneConfig);
+                                      corsConfig, pluginConfigs, managementConfig, zoneConfig,
+                                      enableThriftService);
     }
 }

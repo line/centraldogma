@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -41,6 +42,7 @@ import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager;
+import com.linecorp.centraldogma.server.storage.encryption.NoopEncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
@@ -58,11 +60,14 @@ class RepositoryManagerWrapperTest {
     @BeforeEach
     void setUp() {
         purgeWorker = mock(Executor.class);
-        m = new RepositoryManagerWrapper(new GitRepositoryManager(mock(Project.class),
-                                                                  tempDir.toFile(),
-                                                                  ForkJoinPool.commonPool(),
-                                                                  purgeWorker, null),
-                                         RepositoryWrapper::new);
+        final Project mock = mock(Project.class);
+        lenient().when(mock.name()).thenReturn("test_project");
+        m = new RepositoryManagerWrapper(
+                new GitRepositoryManager(mock,
+                                         tempDir.toFile(),
+                                         ForkJoinPool.commonPool(),
+                                         purgeWorker, null, NoopEncryptionStorageManager.INSTANCE),
+                RepositoryWrapper::new);
     }
 
     @AfterEach

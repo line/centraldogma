@@ -32,7 +32,6 @@ import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.annotation.UnstableApi;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
-import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -81,11 +80,6 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
 
             @Override
             protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-                CentralDogmaExtension.this.configureClient(builder);
-            }
-
-            @Override
-            protected void configureClient(LegacyCentralDogmaBuilder builder) {
                 CentralDogmaExtension.this.configureClient(builder);
             }
 
@@ -214,15 +208,6 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
     }
 
     /**
-     * Returns the Thrift-based {@link CentralDogma} client.
-     *
-     * @throws IllegalStateException if Central Dogma did not start yet
-     */
-    public final CentralDogma legacyClient() {
-        return delegate.legacyClient();
-    }
-
-    /**
      * Returns the HTTP client.
      *
      * @throws IllegalStateException if Central Dogma did not start yet
@@ -258,11 +243,6 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
      * Override this method to configure the HTTP-based {@link CentralDogma} client builder.
      */
     protected void configureClient(ArmeriaCentralDogmaBuilder builder) {}
-
-    /**
-     * Override this method to configure the Thrift-based {@link CentralDogma} client builder.
-     */
-    protected void configureClient(LegacyCentralDogmaBuilder builder) {}
 
     /**
      * Override this method to configure the {@link WebClient} builder.

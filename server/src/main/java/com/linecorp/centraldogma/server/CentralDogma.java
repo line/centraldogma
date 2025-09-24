@@ -23,6 +23,7 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.HEALTH_CHECK_PATH;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.METRICS_PATH;
+import static com.linecorp.centraldogma.server.ThriftServiceConfigurator.configureThriftService;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_API_ROUTES;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_PATH;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_API_ROUTES;
@@ -67,6 +68,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -115,8 +117,6 @@ import com.linecorp.armeria.server.logging.AccessLogWriter;
 import com.linecorp.armeria.server.management.ManagementService;
 import com.linecorp.armeria.server.metric.MetricCollectingService;
 import com.linecorp.armeria.server.prometheus.PrometheusExpositionService;
-import com.linecorp.armeria.server.thrift.THttpService;
-import com.linecorp.armeria.server.thrift.ThriftCallService;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -140,6 +140,7 @@ import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
 import com.linecorp.centraldogma.server.internal.api.CredentialServiceV1;
 import com.linecorp.centraldogma.server.internal.api.GitHttpService;
 import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
+import com.linecorp.centraldogma.server.internal.api.LoggerService;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService;
 import com.linecorp.centraldogma.server.internal.api.MirroringServiceV1;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
@@ -161,10 +162,6 @@ import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectM
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.CrudRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitCrudRepository;
-import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTranslator;
-import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
-import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutScheduler;
-import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
@@ -173,6 +170,7 @@ import com.linecorp.centraldogma.server.plugin.AllReplicasPlugin;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginInitContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -202,6 +200,8 @@ public class CentralDogma implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(CentralDogma.class);
 
     private static final boolean GIT_MIRROR_ENABLED;
+    private static final boolean LOGBACK_ENABLED;
+    private static final boolean THRIFT_FOUND;
 
     static {
         Jackson.registerModules(new SimpleModule().addSerializer(CacheStats.class, new CacheStatsSerializer()));
@@ -218,7 +218,33 @@ public class CentralDogma implements AutoCloseable {
                     gitMirrorEnabled ? "enabled"
                                      : "disabled ('centraldogma-server-mirror-git' module is not available)");
         GIT_MIRROR_ENABLED = gitMirrorEnabled;
+
+        boolean logbackEnabled = false;
+        try {
+            final Class<?> loggerContextClass = Class.forName("ch.qos.logback.classic.LoggerContext", true,
+                                                              CentralDogma.class.getClassLoader());
+            if (loggerContextClass.isInstance(LoggerFactory.getILoggerFactory())) {
+                logger.debug("Logback is used as the logging framework.");
+                logbackEnabled = true;
+            }
+        } catch (ClassNotFoundException e) {
+            // Logback is not available.
+        }
+        LOGBACK_ENABLED = logbackEnabled;
+
+        boolean thriftFound = false;
+        try {
+            Class.forName("org.apache.thrift.TBase", true,
+                          CentralDogma.class.getClassLoader());
+            thriftFound = true;
+        } catch (ClassNotFoundException e) {
+            // Thrift is not available.
+        }
+        THRIFT_FOUND = thriftFound;
+        logger.debug("Thrift found: {}", THRIFT_FOUND);
     }
+
+    private static final int DEFAULT_MAX_FRAME_LENGTH = 1024 * 1024; // 1 MiB
 
     /**
      * Creates a new instance from the given configuration file.
@@ -244,6 +270,8 @@ public class CentralDogma implements AutoCloseable {
     private final PluginGroup pluginsForZoneLeaderOnly;
 
     private final CentralDogmaConfig cfg;
+    @Nullable
+    private volatile EncryptionStorageManager encryptionStorageManager;
     @Nullable
     private volatile ProjectManager pm;
     @Nullable
@@ -400,6 +428,7 @@ public class CentralDogma implements AutoCloseable {
         boolean success = false;
         ExecutorService repositoryWorker = null;
         ScheduledExecutorService purgeWorker = null;
+        EncryptionStorageManager encryptionStorageManager = null;
         ProjectManager pm = null;
         CommandExecutor executor = null;
         Server server = null;
@@ -421,18 +450,20 @@ public class CentralDogma implements AutoCloseable {
             purgeWorker = Executors.newSingleThreadScheduledExecutor(
                     new DefaultThreadFactory("purge-worker", true));
 
+            encryptionStorageManager = EncryptionStorageManager.of(cfg);
+
             pm = new DefaultProjectManager(cfg.dataDir(), repositoryWorker, purgeWorker,
-                                           meterRegistry, cfg.repositoryCacheSpec());
+                                           meterRegistry, cfg.repositoryCacheSpec(), encryptionStorageManager);
 
             logger.info("Started the project manager: {}", pm);
 
             logger.info("Current settings:\n{}", cfg);
 
-            sessionManager = initializeSessionManager();
+            sessionManager = initializeSessionManager(encryptionStorageManager);
 
             logger.info("Starting the command executor ..");
             executor = startCommandExecutor(pm, repositoryWorker, purgeWorker,
-                                            meterRegistry, sessionManager);
+                                            meterRegistry, sessionManager, encryptionStorageManager);
             // The projectInitializer is set in startCommandExecutor.
             assert projectInitializer != null;
             if (executor.isWritable()) {
@@ -441,7 +472,7 @@ public class CentralDogma implements AutoCloseable {
 
             logger.info("Starting the RPC server.");
             server = startServer(pm, executor, purgeWorker, meterRegistry, sessionManager,
-                                 projectInitializer);
+                                 projectInitializer, encryptionStorageManager);
             logger.info("Started the RPC server at: {}", server.activePorts());
             logger.info("Started the Central Dogma successfully.");
             success = true;
@@ -449,21 +480,29 @@ public class CentralDogma implements AutoCloseable {
             if (success) {
                 this.repositoryWorker = repositoryWorker;
                 this.purgeWorker = purgeWorker;
+                this.encryptionStorageManager = encryptionStorageManager;
                 this.pm = pm;
                 this.executor = executor;
                 this.server = server;
                 this.sessionManager = sessionManager;
             } else {
-                doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager, mirrorRunner);
+                doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager, mirrorRunner,
+                       encryptionStorageManager);
             }
         }
         return success;
     }
 
+    @VisibleForTesting
+    @Nullable
+    CommandExecutor executor() {
+        return executor;
+    }
+
     private CommandExecutor startCommandExecutor(
             ProjectManager pm, Executor repositoryWorker,
             ScheduledExecutorService purgeWorker, MeterRegistry meterRegistry,
-            @Nullable SessionManager sessionManager) {
+            @Nullable SessionManager sessionManager, EncryptionStorageManager encryptionStorageManager) {
 
         final Consumer<CommandExecutor> onTakeLeadership = exec -> {
             if (pluginsForLeaderOnly != null) {
@@ -556,25 +595,28 @@ public class CentralDogma implements AutoCloseable {
         switch (replicationMethod) {
             case ZOOKEEPER:
                 executor = newZooKeeperCommandExecutor(pm, repositoryWorker, statusManager, meterRegistry,
-                                                       sessionManager, onTakeLeadership, onReleaseLeadership,
+                                                       sessionManager, encryptionStorageManager,
+                                                       onTakeLeadership, onReleaseLeadership,
                                                        onTakeZoneLeadership, onReleaseZoneLeadership);
                 break;
             case NONE:
                 logger.info("No replication mechanism specified; entering standalone");
                 executor = new StandaloneCommandExecutor(pm, repositoryWorker, statusManager, sessionManager,
+                                                         encryptionStorageManager,
                                                          onTakeLeadership, onReleaseLeadership,
                                                          onTakeZoneLeadership, onReleaseZoneLeadership);
                 break;
             default:
                 throw new Error("unknown replication method: " + replicationMethod);
         }
-        projectInitializer = new InternalProjectInitializer(executor, pm);
+        projectInitializer = new InternalProjectInitializer(executor, pm, encryptionStorageManager);
         mirrorAccessController = new DefaultMirrorAccessController();
 
         final ServerStatus initialServerStatus = statusManager.serverStatus();
         executor.setWritable(initialServerStatus.writable());
         if (!initialServerStatus.replicating()) {
-            projectInitializer.whenInitialized().complete(null);
+            projectInitializer.initializeInReadOnlyMode();
+            setMirrorAccessControllerRepository(pm, executor);
             return executor;
         }
         try {
@@ -596,21 +638,26 @@ public class CentralDogma implements AutoCloseable {
             // Trigger the exception if any.
             startFuture.get();
             projectInitializer.initialize();
-            final CrudRepository<MirrorAccessControl> accessControlRepository =
-                    new GitCrudRepository<>(MirrorAccessControl.class, executor, pm,
-                                            INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
-                                            MIRROR_ACCESS_CONTROL_PATH);
-            mirrorAccessController.setRepository(accessControlRepository);
         } catch (Exception e) {
-            projectInitializer.whenInitialized().complete(null);
             logger.warn("Failed to start the command executor. Entering read-only.", e);
+            projectInitializer.initializeInReadOnlyMode();
         }
 
+        setMirrorAccessControllerRepository(pm, executor);
         return executor;
     }
 
+    private void setMirrorAccessControllerRepository(ProjectManager pm, CommandExecutor executor) {
+        final CrudRepository<MirrorAccessControl> accessControlRepository =
+                new GitCrudRepository<>(MirrorAccessControl.class, executor, pm,
+                                        INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
+                                        MIRROR_ACCESS_CONTROL_PATH);
+        mirrorAccessController.setRepository(accessControlRepository);
+    }
+
     @Nullable
-    private SessionManager initializeSessionManager() throws Exception {
+    private SessionManager initializeSessionManager(
+            EncryptionStorageManager encryptionStorageManager) throws Exception {
         final AuthConfig authCfg = cfg.authConfig();
         if (authCfg == null) {
             return null;
@@ -641,7 +688,8 @@ public class CentralDogma implements AutoCloseable {
     private Server startServer(ProjectManager pm, CommandExecutor executor,
                                ScheduledExecutorService purgeWorker, MeterRegistry meterRegistry,
                                @Nullable SessionManager sessionManager,
-                               InternalProjectInitializer projectInitializer) {
+                               InternalProjectInitializer projectInitializer,
+                               EncryptionStorageManager encryptionStorageManager) {
         final ServerBuilder sb = Server.builder();
         cfg.ports().forEach(sb::port);
 
@@ -675,7 +723,7 @@ public class CentralDogma implements AutoCloseable {
         cfg.maxNumConnections().ifPresent(sb::maxNumConnections);
         cfg.idleTimeoutMillis().ifPresent(sb::idleTimeoutMillis);
         cfg.requestTimeoutMillis().ifPresent(sb::requestTimeoutMillis);
-        cfg.maxFrameLength().ifPresent(sb::maxRequestLength);
+        sb.maxRequestLength(cfg.maxFrameLength().orElse(DEFAULT_MAX_FRAME_LENGTH));
         cfg.gracefulShutdownTimeout().ifPresent(t -> {
             final GracefulShutdown gracefulShutdown =
                     GracefulShutdown.builder()
@@ -689,12 +737,19 @@ public class CentralDogma implements AutoCloseable {
         });
 
         final MetadataService mds = new MetadataService(pm, executor, projectInitializer);
-        executor.setRepositoryMetadataSupplier(mds::getRepo);
         final WatchService watchService = new WatchService(meterRegistry);
         final AuthProvider authProvider = createAuthProvider(executor, sessionManager, mds);
-        final ProjectApiManager projectApiManager = new ProjectApiManager(pm, executor, mds);
+        final ProjectApiManager projectApiManager =
+                new ProjectApiManager(pm, executor, mds, encryptionStorageManager);
 
-        configureThriftService(sb, projectApiManager, executor, watchService, mds);
+        if (cfg.enableThriftService()) {
+            if (THRIFT_FOUND) {
+                configureThriftService(cfg, sb, projectApiManager, executor, watchService, mds);
+            } else {
+                logger.warn("Thrift service is enabled in the configuration, but the Thrift library " +
+                            "is not found. Skip enabling the Thrift service.");
+            }
+        }
 
         sb.service("/title", webAppTitleFile(cfg.webAppTitle(), SystemInfo.hostname()).asService());
 
@@ -712,7 +767,7 @@ public class CentralDogma implements AutoCloseable {
         final Function<? super HttpService, AuthService> authService =
                 authService(mds, authProvider, sessionManager);
         configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, authService,
-                         meterRegistry);
+                         meterRegistry, encryptionStorageManager);
 
         configureMetrics(sb, meterRegistry);
         // Add the CORS service as the last decorator(executed first) so that the CORS service is applied
@@ -796,6 +851,7 @@ public class CentralDogma implements AutoCloseable {
             ServerStatusManager serverStatusManager,
             MeterRegistry meterRegistry,
             @Nullable SessionManager sessionManager,
+            EncryptionStorageManager encryptionStorageManager,
             @Nullable Consumer<CommandExecutor> onTakeLeadership,
             @Nullable Consumer<CommandExecutor> onReleaseLeadership,
             @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
@@ -815,6 +871,7 @@ public class CentralDogma implements AutoCloseable {
         return new ZooKeeperCommandExecutor(
                 zkCfg, dataDir,
                 new StandaloneCommandExecutor(pm, repositoryWorker, serverStatusManager, sessionManager,
+                                              encryptionStorageManager,
                         /* onTakeLeadership */ null, /* onReleaseLeadership */ null,
                         /* onTakeZoneLeadership */ null, /* onReleaseZoneLeadership */ null),
                 meterRegistry, zone,
@@ -822,34 +879,13 @@ public class CentralDogma implements AutoCloseable {
                 onTakeZoneLeadership, onReleaseZoneLeadership);
     }
 
-    private void configureThriftService(ServerBuilder sb, ProjectApiManager projectApiManager,
-                                        CommandExecutor executor,
-                                        WatchService watchService, MetadataService mds) {
-        final CentralDogmaServiceImpl service =
-                new CentralDogmaServiceImpl(projectApiManager, executor, watchService, mds);
-
-        HttpService thriftService =
-                ThriftCallService.of(service)
-                                 .decorate(CentralDogmaTimeoutScheduler::new)
-                                 .decorate(CentralDogmaExceptionTranslator::new)
-                                 .decorate(THttpService.newDecorator());
-
-        if (cfg.isCsrfTokenRequiredForThrift()) {
-            thriftService = thriftService.decorate(AuthService.newDecorator(new CsrfTokenAuthorizer()));
-        } else {
-            thriftService = thriftService.decorate(TokenlessClientLogger::new);
-        }
-
-        // Enable content compression for API responses.
-        thriftService = thriftService.decorate(contentEncodingDecorator());
-
-        sb.service("/cd/thrift/v1", thriftService);
-    }
-
     private Function<? super HttpService, AuthService> authService(
             MetadataService mds, @Nullable AuthProvider authProvider, @Nullable SessionManager sessionManager) {
         if (authProvider == null) {
-            return AuthService.newDecorator(new CsrfTokenAuthorizer());
+            return AuthService.builder()
+                              .add(new CsrfTokenAuthorizer())
+                              .onFailure(new CentralDogmaAuthFailureHandler())
+                              .newDecorator();
         }
         final AuthConfig authCfg = cfg.authConfig();
         assert authCfg != null : "authCfg";
@@ -869,7 +905,8 @@ public class CentralDogma implements AutoCloseable {
                                   WatchService watchService, MetadataService mds,
                                   @Nullable AuthProvider authProvider,
                                   Function<? super HttpService, AuthService> authService,
-                                  MeterRegistry meterRegistry) {
+                                  MeterRegistry meterRegistry,
+                                  EncryptionStorageManager encryptionStorageManager) {
         final DependencyInjector dependencyInjector = DependencyInjector.ofSingletons(
                 // Use the default ObjectMapper without any configuration.
                 // See JacksonRequestConverterFunctionTest
@@ -903,8 +940,11 @@ public class CentralDogma implements AutoCloseable {
         apiV1ServiceBuilder
                 .annotatedService(new ServerStatusService(executor, statusManager))
                 .annotatedService(new ProjectServiceV1(projectApiManager, executor))
-                .annotatedService(new RepositoryServiceV1(executor, mds))
+                .annotatedService(new RepositoryServiceV1(executor, mds, encryptionStorageManager))
                 .annotatedService(new CredentialServiceV1(projectApiManager, executor));
+        if (LOGBACK_ENABLED) {
+            apiV1ServiceBuilder.annotatedService(new LoggerService());
+        }
 
         if (GIT_MIRROR_ENABLED) {
             mirrorRunner = new MirrorRunner(projectApiManager, executor, cfg, meterRegistry,
@@ -1052,14 +1092,12 @@ public class CentralDogma implements AutoCloseable {
                         switch (subtype) {
                             case "json":
                             case "xml":
-                            case "x-thrift":
                             case "x-git-upload-pack-advertisement":
                             case "x-git-upload-pack-result":
                                 return true;
                             default:
                                 return subtype.endsWith("+json") ||
-                                       subtype.endsWith("+xml") ||
-                                       subtype.startsWith("vnd.apache.thrift.");
+                                       subtype.endsWith("+xml");
                         }
                     }
                     return false;
@@ -1110,6 +1148,7 @@ public class CentralDogma implements AutoCloseable {
         final Server server = this.server;
         final CommandExecutor executor = this.executor;
         final ProjectManager pm = this.pm;
+        final EncryptionStorageManager encryptionStorageManager = this.encryptionStorageManager;
         final ExecutorService repositoryWorker = this.repositoryWorker;
         final ExecutorService purgeWorker = this.purgeWorker;
         final SessionManager sessionManager = this.sessionManager;
@@ -1117,6 +1156,7 @@ public class CentralDogma implements AutoCloseable {
 
         this.server = null;
         this.executor = null;
+        this.encryptionStorageManager = null;
         this.pm = null;
         this.repositoryWorker = null;
         this.sessionManager = null;
@@ -1129,7 +1169,8 @@ public class CentralDogma implements AutoCloseable {
         }
 
         logger.info("Stopping the Central Dogma ..");
-        if (!doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager, mirrorRunner)) {
+        if (!doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager, mirrorRunner,
+                    encryptionStorageManager)) {
             logger.warn("Stopped the Central Dogma with failure.");
         } else {
             logger.info("Stopped the Central Dogma successfully.");
@@ -1140,7 +1181,8 @@ public class CentralDogma implements AutoCloseable {
             @Nullable Server server, @Nullable CommandExecutor executor,
             @Nullable ProjectManager pm,
             @Nullable ExecutorService repositoryWorker, @Nullable ExecutorService purgeWorker,
-            @Nullable SessionManager sessionManager, @Nullable MirrorRunner mirrorRunner) {
+            @Nullable SessionManager sessionManager, @Nullable MirrorRunner mirrorRunner,
+            @Nullable EncryptionStorageManager encryptionStorageManager) {
 
         boolean success = true;
 
@@ -1187,6 +1229,17 @@ public class CentralDogma implements AutoCloseable {
         } catch (Throwable t) {
             success = false;
             logger.warn("Failed to stop the command executor:", t);
+        }
+
+        try {
+            if (encryptionStorageManager != null) {
+                logger.info("Stopping the encryption storage manager ..");
+                encryptionStorageManager.close();
+                logger.info("Stopped the encryption storage manager.");
+            }
+        } catch (Throwable t) {
+            success = false;
+            logger.warn("Failed to stop the encryption storage manager:", t);
         }
 
         final BiFunction<ExecutorService, String, Boolean> stopWorker = (worker, name) -> {

@@ -58,6 +58,12 @@ public class RepositoryManagerWrapper implements RepositoryManager {
     }
 
     @Override
+    public void migrateToEncryptedRepository(String repositoryName) {
+        delegate.migrateToEncryptedRepository(repositoryName);
+        repos.replace(repositoryName, repoWrapper.apply(delegate.get(repositoryName)));
+    }
+
+    @Override
     public void close(Supplier<CentralDogmaException> failureCauseSupplier) {
         delegate.close(failureCauseSupplier);
     }
@@ -72,15 +78,15 @@ public class RepositoryManagerWrapper implements RepositoryManager {
         ensureOpen();
         final Repository r = repos.get(name);
         if (r == null) {
-            throw new RepositoryNotFoundException(name);
+            throw RepositoryNotFoundException.of(parent().name(), name);
         }
         return r;
     }
 
     @Override
-    public Repository create(String name, long creationTimeMillis, Author author) {
+    public Repository create(String name, long creationTimeMillis, Author author, boolean encrypt) {
         return repos.compute(
-                name, (n, v) -> repoWrapper.apply(delegate.create(name, creationTimeMillis, author)));
+                name, (n, v) -> repoWrapper.apply(delegate.create(name, creationTimeMillis, author, encrypt)));
     }
 
     @Override

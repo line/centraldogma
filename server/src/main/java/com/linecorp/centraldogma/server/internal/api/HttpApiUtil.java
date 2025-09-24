@@ -39,10 +39,15 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.Flags;
+import com.linecorp.armeria.common.HttpData;
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.common.ResponseHeadersBuilder;
 import com.linecorp.armeria.common.logging.LogLevel;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.HttpResponseException;
@@ -140,6 +145,18 @@ public final class HttpApiUtil {
     }
 
     /**
+     * Returns a newly created {@link HttpResponse} with the specified {@link ResponseHeaders} and
+     * {@code cause}.
+     */
+    public static HttpResponse newResponse(ServiceRequestContext ctx, ResponseHeaders headers,
+                                           Throwable cause) {
+        requireNonNull(ctx, "ctx");
+        requireNonNull(headers, "headers");
+        requireNonNull(cause, "cause");
+        return newResponse0(ctx, headers.toBuilder(), cause, null);
+    }
+
+    /**
      * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus}, {@code cause} and
      * the formatted message.
      */
@@ -164,29 +181,51 @@ public final class HttpApiUtil {
         requireNonNull(status, "status");
         requireNonNull(cause, "cause");
         requireNonNull(message, "message");
-
         return newResponse0(ctx, status, cause, message);
+    }
+
+    public static HttpResponse newResponse(HttpStatus status, String exceptionType, String message) {
+        requireNonNull(status, "status");
+        requireNonNull(exceptionType, "exceptionType");
+        requireNonNull(message, "message");
+        return newResponseWithoutLogging(HttpResponse::of, null, ResponseHeaders.builder(status),
+                                         null, exceptionType, message);
+    }
+
+    /**
+     * Returns a newly created {@link AggregatedHttpResponse} with the specified {@link HttpStatus},
+     * {@code cause} and {@code message}.
+     */
+    public static AggregatedHttpResponse newAggregatedResponse(@Nullable ServiceRequestContext ctx,
+                                                               HttpStatus status,
+                                                               @Nullable Throwable cause,
+                                                               @Nullable String message) {
+        requireNonNull(status, "status");
+        return newResponse1(AggregatedHttpResponse::of, ctx, ResponseHeaders.builder(status), cause, message);
     }
 
     private static HttpResponse newResponse0(ServiceRequestContext ctx, HttpStatus status,
                                              @Nullable Throwable cause, @Nullable String message) {
-        checkArgument(!status.isContentAlwaysEmpty(),
-                      "status: %s (expected: a status with non-empty content)", status);
+        final ResponseHeadersBuilder headersBuilder = ResponseHeaders.builder(status);
+        return newResponse1(HttpResponse::of, ctx, headersBuilder, cause, message);
+    }
 
-        final ObjectNode node = JsonNodeFactory.instance.objectNode();
-        if (cause != null) {
-            cause = Exceptions.peel(cause);
-            node.put("exception", cause.getClass().getName());
-            if (message == null) {
-                message = cause.getMessage();
-            }
-        }
+    private static HttpResponse newResponse0(ServiceRequestContext ctx,
+                                             ResponseHeadersBuilder headersBuilder,
+                                             @Nullable Throwable cause, @Nullable String message) {
+        return newResponse1(HttpResponse::of, ctx, headersBuilder, cause, message);
+    }
 
-        final String m = nullToEmpty(message);
-        node.put("message", m);
-
-        if (cause != null && isVerboseResponse(ctx)) {
-            node.put("detail", Exceptions.traceText(cause));
+    private static <O> O newResponse1(
+            BiFunction<ResponseHeaders, HttpData, O> responseFactory,
+            @Nullable ServiceRequestContext ctx,
+            ResponseHeadersBuilder headersBuilder,
+            @Nullable Throwable cause, @Nullable String message) {
+        final HttpStatus status = headersBuilder.status();
+        if (status.isContentAlwaysEmpty()) {
+            checkArgument(message == null || message.isEmpty(),
+                          "message: %s (expected: null or empty for a status with empty content)", message);
+            return responseFactory.apply(headersBuilder.build(), HttpData.empty());
         }
 
         final LogLevel logLevel;
@@ -213,6 +252,17 @@ public final class HttpApiUtil {
                 logLevel = null;
         }
 
+        String exceptionType = null;
+        if (cause != null) {
+            cause = Exceptions.peel(cause);
+            exceptionType = cause.getClass().getName();
+            if (message == null) {
+                message = cause.getMessage();
+            }
+        }
+
+        final String m = nullToEmpty(message);
+
         // TODO(trustin): Use LogLevel.OFF instead of null and logLevel.log()
         //                once we add LogLevel.OFF and LogLevel.log() with more args.
         if (logLevel != null) {
@@ -231,10 +281,32 @@ public final class HttpApiUtil {
             }
         }
 
+        return newResponseWithoutLogging(responseFactory, ctx, headersBuilder, cause, exceptionType, m);
+    }
+
+    private static <O> O newResponseWithoutLogging(BiFunction<ResponseHeaders, HttpData, O> responseFactory,
+                                                   @Nullable ServiceRequestContext ctx,
+                                                   ResponseHeadersBuilder headersBuilder,
+                                                   @Nullable Throwable cause,
+                                                   @Nullable String exceptionType, String message) {
+        final ObjectNode node = JsonNodeFactory.instance.objectNode();
+        if (exceptionType != null) {
+            node.put("exception", exceptionType);
+        }
+        node.put("message", message);
+        if (cause != null && isVerboseResponse(ctx)) {
+            node.put("detail", Exceptions.traceText(cause));
+        }
+
         // TODO(hyangtack) Need to introduce a new field such as 'stackTrace' in order to return
         //                 the stack trace of the cause to the trusted client.
         try {
-            return HttpResponse.of(status, MediaType.JSON_UTF_8, Jackson.writeValueAsBytes(node));
+            headersBuilder.remove(HttpHeaderNames.CONTENT_TYPE);
+            final ResponseHeaders headers = headersBuilder
+                    .contentType(MediaType.JSON_UTF_8)
+                    .build();
+
+            return responseFactory.apply(headers, HttpData.wrap(Jackson.writeValueAsBytes(node)));
         } catch (JsonProcessingException e) {
             // should not reach here
             throw new Error(e);
@@ -312,7 +384,11 @@ public final class HttpApiUtil {
         ctx.setAttr(VERBOSE_RESPONSES, Flags.verboseResponses() || user.isSystemAdmin());
     }
 
-    private static boolean isVerboseResponse(ServiceRequestContext ctx) {
+    private static boolean isVerboseResponse(@Nullable ServiceRequestContext ctx) {
+        if (ctx == null) {
+            // If the context is not available, we assume verbose responses are disabled.
+            return false;
+        }
         final Boolean verboseResponses = ctx.attr(VERBOSE_RESPONSES);
         return firstNonNull(verboseResponses, false);
     }

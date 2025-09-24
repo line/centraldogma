@@ -16,10 +16,12 @@
 
 package com.linecorp.centraldogma.common;
 
+import static com.linecorp.centraldogma.internal.Util.TOKEN_EMAIL_SUFFIX;
 import static com.linecorp.centraldogma.internal.Util.emailToUsername;
 import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import com.linecorp.centraldogma.internal.Util;
@@ -32,12 +34,12 @@ public class Author {
     /**
      * The system author.
      */
-    public static final Author SYSTEM = new Author("System", "system@localhost.localdomain");
+    public static final Author SYSTEM = new Author("system", "system@localhost.localdomain");
 
     /**
      * The default author which is used when security is disabled.
      */
-    public static final Author DEFAULT = new Author("User", "user@localhost.localdomain");
+    public static final Author DEFAULT = new Author("user", "user@localhost.localdomain");
 
     /**
      * An unknown author.
@@ -90,6 +92,14 @@ public class Author {
     @JsonProperty
     public String email() {
         return email;
+    }
+
+    /**
+     * Returns {@code true} if this author is a token.
+     */
+    @JsonIgnore
+    public boolean isToken() {
+        return email().endsWith(TOKEN_EMAIL_SUFFIX);
     }
 
     @Override

@@ -471,7 +471,7 @@ class GitMirrorIntegrationTest {
     void cannotMirrorToInternalRepositories(String localRepo) {
         assertThatThrownBy(() -> pushMirrorSettings(localRepo, "/", "/", null))
                 .hasCauseInstanceOf(CentralDogmaException.class)
-                .hasMessageContaining("invalid localRepo:");
+                .hasMessageContaining("invalid localRepo: " + localRepo);
     }
 
     private void pushMirrorSettings(@Nullable String localPath, @Nullable String remotePath,

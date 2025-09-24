@@ -89,6 +89,7 @@ configure(projectsWithFlags('java')) {
     // The default targetJavaVersion is 'javaTargetCompatibility'
     targetJavaVersion = Integer.valueOf(JavaVersion.toVersion(javaTargetCompatibility).majorVersion)
     project.ext.set('targetJavaVersion', targetJavaVersion)
+    logger.info("Using target Java version ${targetJavaVersion} for ${project.path}")
 
     def testJavaVersion = targetJavaVersion
     if (project.hasProperty('testJavaVersion')) {
@@ -126,6 +127,16 @@ configure(projectsWithFlags('java')) {
         Task generateSourcesTask = project.tasks.findByName('generateSources')
         if (generateSourcesTask != null) {
             tasks.sourcesJar.dependsOn(generateSourcesTask)
+        }
+
+        configurations.configureEach {
+            attributes {
+                // TARGET_JVM_VERSION_ATTRIBUTE (""org.gradle.jvm.version") should be set on the consume if
+                // a library (producer) that publishes Gradle modules metadata with a specific target JVM
+                // version.
+                // https://docs.gradle.org/current/userguide/variant_aware_resolution.html#a_complicated_example
+                attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, targetJavaVersion)
+            }
         }
     }
 

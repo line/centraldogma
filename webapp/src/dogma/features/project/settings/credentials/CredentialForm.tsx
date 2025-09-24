@@ -135,7 +135,7 @@ const CredentialForm = ({
               readOnly={!isNew}
               placeholder="The credential ID"
               defaultValue={defaultValue.id}
-              {...register('id', { required: true, pattern: /^[a-zA-Z0-9-_.]+$/ })}
+              {...register('id', { required: true, pattern: /^[a-z](?:[a-z0-9-_.]{0,61}[a-z0-9])?$/ })}
             />
             {errors.id ? (
               <FieldErrorMessage error={errors.id} fieldName="credential ID" />

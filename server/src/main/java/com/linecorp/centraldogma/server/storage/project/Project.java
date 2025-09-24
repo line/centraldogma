@@ -31,8 +31,8 @@ import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 /**
- * A top-level element in Central Dogma storage model. A project has {@code "dogma"} and {@code "meta"}
- * repositories by default which contain project configuration files accessible by system administrators
+ * A top-level element in Central Dogma storage model. A project has {@code "dogma"}
+ * repository by default which contain project configuration files accessible by system administrators
  * and project owners respectively.
  */
 public interface Project {

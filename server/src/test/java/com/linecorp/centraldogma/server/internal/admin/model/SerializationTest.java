@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.ProjectRole;
+import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
@@ -36,6 +37,7 @@ import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
+import com.linecorp.centraldogma.server.storage.project.Project;
 
 class SerializationTest {
 
@@ -67,9 +69,12 @@ class SerializationTest {
         final RepositoryMetadata repositoryMetadata = RepositoryMetadata.of("sample", newCreationTag());
         final Token token = new Token("testApp", "testSecret", false, false, true, newCreationTag(), null,
                                       null);
+
+        final RepositoryMetadata dogmaRepo = RepositoryMetadata.ofDogma(RepositoryStatus.ACTIVE);
         final ProjectMetadata metadata =
                 new ProjectMetadata("test",
-                                    ImmutableMap.of(repositoryMetadata.name(), repositoryMetadata),
+                                    ImmutableMap.of(repositoryMetadata.name(), repositoryMetadata,
+                                                    Project.REPO_DOGMA, dogmaRepo),
                                     ImmutableMap.of(member.id(), member),
                                     ImmutableMap.of(token.id(),
                                                     new TokenRegistration(token.id(),
@@ -77,56 +82,116 @@ class SerializationTest {
                                                                           newCreationTag())),
                                     newCreationTag(),
                                     null);
-        assertThatJson(metadata).isEqualTo("{\n" +
-                                           "  \"name\" : \"test\",\n" +
-                                           "  \"repos\" : {\n" +
-                                           "    \"sample\" : {\n" +
-                                           "      \"name\" : \"sample\",\n" +
-                                           "      \"roles\" : {\n" +
-                                           "        \"projects\": {" +
-                                           "           \"member\": \"WRITE\"," +
-                                           "           \"guest\": null" +
-                                           "        }," +
-                                           "        \"users\" : { },\n" +
-                                           "        \"tokens\" : { }\n" +
-                                           "      },\n" +
-                                           "      \"creation\" : {\n" +
-                                           "        \"user\" : \"editor@dogma.org\",\n" +
-                                           "        \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
-                                           "      },\n" +
-                                           "      \"status\" : \"ACTIVE\"\n" +
-                                           "    }\n" +
-                                           "  },\n" +
-                                           "  \"members\" : {\n" +
-                                           "    \"armeria@dogma.org\" : {\n" +
-                                           "      \"login\" : \"armeria@dogma.org\",\n" +
-                                           "      \"role\" : \"MEMBER\",\n" +
-                                           "      \"creation\" : {\n" +
-                                           "        \"user\" : \"editor@dogma.org\",\n" +
-                                           "        \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
-                                           "      }\n" +
-                                           "    }\n" +
-                                           "  },\n" +
-                                           "  \"tokens\" : {\n" +
-                                           "    \"testApp\" : {\n" +
-                                           "      \"appId\" : \"testApp\",\n" +
-                                           "      \"role\" : \"MEMBER\",\n" +
-                                           "      \"creation\" : {\n" +
-                                           "        \"user\" : \"editor@dogma.org\",\n" +
-                                           "        \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
-                                           "      }\n" +
-                                           "    }\n" +
-                                           "  },\n" +
-                                           "  \"creation\" : {\n" +
-                                           "    \"user\" : \"editor@dogma.org\",\n" +
-                                           "    \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
-                                           "  }\n" +
-                                           '}');
+        assertThatJson(metadata)
+                .isEqualTo("{\n" +
+                           "  \"name\" : \"test\",\n" +
+                           "  \"repos\" : {\n" +
+                           "    \"sample\" : {\n" +
+                           "      \"name\" : \"sample\",\n" +
+                           "      \"roles\" : {\n" +
+                           "        \"projects\": {" +
+                           "           \"member\": \"WRITE\"," +
+                           "           \"guest\": null" +
+                           "        }," +
+                           "        \"users\" : { },\n" +
+                           "        \"tokens\" : { }\n" +
+                           "      },\n" +
+                           "      \"creation\" : {\n" +
+                           "        \"user\" : \"editor@dogma.org\",\n" +
+                           "        \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
+                           "      },\n" +
+                           "      \"status\" : \"ACTIVE\"\n" +
+                           "    },\n" +
+                           "    \"dogma\" : {\n" +
+                           "      \"name\" : \"dogma\",\n" +
+                           "      \"roles\" : {\n" +
+                           "        \"projects\": {" +
+                           "           \"member\": null," +
+                           "           \"guest\": null" +
+                           "        }," +
+                           "        \"users\" : { },\n" +
+                           "        \"tokens\" : { }\n" +
+                           "      },\n" +
+                           "      \"status\" : \"ACTIVE\"\n" +
+                           "    }\n" +
+                           "  },\n" +
+                           "  \"members\" : {\n" +
+                           "    \"armeria@dogma.org\" : {\n" +
+                           "      \"login\" : \"armeria@dogma.org\",\n" +
+                           "      \"role\" : \"MEMBER\",\n" +
+                           "      \"creation\" : {\n" +
+                           "        \"user\" : \"editor@dogma.org\",\n" +
+                           "        \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
+                           "      }\n" +
+                           "    }\n" +
+                           "  },\n" +
+                           "  \"tokens\" : {\n" +
+                           "    \"testApp\" : {\n" +
+                           "      \"appId\" : \"testApp\",\n" +
+                           "      \"role\" : \"MEMBER\",\n" +
+                           "      \"creation\" : {\n" +
+                           "        \"user\" : \"editor@dogma.org\",\n" +
+                           "        \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
+                           "      }\n" +
+                           "    }\n" +
+                           "  },\n" +
+                           "  \"creation\" : {\n" +
+                           "    \"user\" : \"editor@dogma.org\",\n" +
+                           "    \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
+                           "  }\n" +
+                           '}');
+
+        assertThatJson(metadata.withoutDogmaRepo())
+                .isEqualTo("{\n" +
+                           "  \"name\" : \"test\",\n" +
+                           "  \"repos\" : {\n" +
+                           "    \"sample\" : {\n" +
+                           "      \"name\" : \"sample\",\n" +
+                           "      \"roles\" : {\n" +
+                           "        \"projects\": {" +
+                           "           \"member\": \"WRITE\"," +
+                           "           \"guest\": null" +
+                           "        }," +
+                           "        \"users\" : { },\n" +
+                           "        \"tokens\" : { }\n" +
+                           "      },\n" +
+                           "      \"creation\" : {\n" +
+                           "        \"user\" : \"editor@dogma.org\",\n" +
+                           "        \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
+                           "      },\n" +
+                           "      \"status\" : \"ACTIVE\"\n" +
+                           "    }\n" +
+                           "  },\n" +
+                           "  \"members\" : {\n" +
+                           "    \"armeria@dogma.org\" : {\n" +
+                           "      \"login\" : \"armeria@dogma.org\",\n" +
+                           "      \"role\" : \"MEMBER\",\n" +
+                           "      \"creation\" : {\n" +
+                           "        \"user\" : \"editor@dogma.org\",\n" +
+                           "        \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
+                           "      }\n" +
+                           "    }\n" +
+                           "  },\n" +
+                           "  \"tokens\" : {\n" +
+                           "    \"testApp\" : {\n" +
+                           "      \"appId\" : \"testApp\",\n" +
+                           "      \"role\" : \"MEMBER\",\n" +
+                           "      \"creation\" : {\n" +
+                           "        \"user\" : \"editor@dogma.org\",\n" +
+                           "        \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
+                           "      }\n" +
+                           "    }\n" +
+                           "  },\n" +
+                           "  \"creation\" : {\n" +
+                           "    \"user\" : \"editor@dogma.org\",\n" +
+                           "    \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
+                           "  }\n" +
+                           '}');
 
         final ProjectMetadata obj = Jackson.readValue(Jackson.writeValueAsString(metadata),
                                                       ProjectMetadata.class);
         assertThat(obj.name()).isEqualTo("test");
-        assertThat(obj.repos().size()).isOne();
+        assertThat(obj.repos().size()).isEqualTo(2);
         assertThat(obj.members().size()).isOne();
         assertThat(obj.members().get(userLogin).role()).isEqualTo(ProjectRole.MEMBER);
         assertThat(obj.tokens().size()).isOne();

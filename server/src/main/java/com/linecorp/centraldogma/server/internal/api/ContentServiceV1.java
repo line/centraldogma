@@ -25,8 +25,8 @@ import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1.increaseCounterIfOldRevisionUsed;
-import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMetaFile;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMirrorOrCredentialFile;
+import static com.linecorp.centraldogma.server.metadata.MetadataService.METADATA_JSON;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -192,7 +192,6 @@ public class ContentServiceV1 extends AbstractService {
     @ConsumesJson
     @RequiresRepositoryRole(RepositoryRole.WRITE)
     public CompletableFuture<PushResultDto> push(
-            ServiceRequestContext ctx,
             @Param @Default("-1") String revision,
             Repository repository,
             Author author,
@@ -442,12 +441,13 @@ public class ContentServiceV1 extends AbstractService {
     }
 
     public static void checkMetaRepoPush(String repoName, Iterable<Change<?>> changes) {
-        if (Project.REPO_META.equals(repoName)) {
+        if (Project.REPO_DOGMA.equals(repoName) || Project.REPO_META.equals(repoName)) {
             final boolean hasChangesOtherThanMetaRepoFiles =
-                    Streams.stream(changes).anyMatch(change -> !isMetaFile(change.path()));
+                    Streams.stream(changes).anyMatch(change -> !(METADATA_JSON.equals(change.path()) ||
+                                                                 isMirrorOrCredentialFile(change.path())));
             if (hasChangesOtherThanMetaRepoFiles) {
                 throw new InvalidPushException(
-                        "The " + Project.REPO_META + " repository is reserved for internal usage.");
+                        "The " + repoName + " repository is reserved for internal usage.");
             }
 
             // TODO(ikhoon): Disallow creating a mirror with the commit API. Mirroring REST API should be used

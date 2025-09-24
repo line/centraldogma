@@ -164,7 +164,7 @@ class ProjectServiceV1ListProjectTest {
                 "   {" +
                 "       \"name\": \"@foo\"," +
                 "       \"creator\": {" +
-                "           \"name\": \"System\"," +
+                "           \"name\": \"system\"," +
                 "           \"email\": \"system@localhost.localdomain\"" +
                 "        }," +
                 "        \"userRole\":\"OWNER\"," +
@@ -174,7 +174,7 @@ class ProjectServiceV1ListProjectTest {
                 "   {" +
                 "       \"name\": \"dogma\"," +
                 "       \"creator\": {" +
-                "           \"name\": \"System\"," +
+                "           \"name\": \"system\"," +
                 "           \"email\": \"system@localhost.localdomain\"" +
                 "        }," +
                 "        \"userRole\":\"OWNER\"," +

@@ -220,6 +220,8 @@ public final class CentralDogmaConfig {
     @Nullable
     private final TlsConfig tls;
     @Nullable
+    private final EncryptionAtRestConfig encryptionAtRest;
+    @Nullable
     private final List<String> trustedProxyAddresses;
     @Nullable
     private final List<String> clientAddressSources;
@@ -269,12 +271,15 @@ public final class CentralDogmaConfig {
     @Nullable
     private final ZoneConfig zoneConfig;
 
+    private final boolean enableThriftService;
+
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
             @JsonProperty(value = "ports", required = true)
             @JsonDeserialize(contentUsing = ServerPortDeserializer.class)
             List<ServerPort> ports,
             @JsonProperty("tls") @Nullable TlsConfig tls,
+            @JsonProperty("encryptionAtRest") @Nullable EncryptionAtRestConfig encryptionAtRest,
             @JsonProperty("trustedProxyAddresses") @Nullable List<String> trustedProxyAddresses,
             @JsonProperty("clientAddressSources") @Nullable List<String> clientAddressSources,
             @JsonProperty("numWorkers") @Nullable Integer numWorkers,
@@ -295,12 +300,14 @@ public final class CentralDogmaConfig {
             @JsonProperty("cors") @Nullable CorsConfig corsConfig,
             @JsonProperty("pluginConfigs") @Nullable List<PluginConfig> pluginConfigs,
             @JsonProperty("management") @Nullable ManagementConfig managementConfig,
-            @JsonProperty("zone") @Nullable ZoneConfig zoneConfig) {
+            @JsonProperty("zone") @Nullable ZoneConfig zoneConfig,
+            @JsonProperty("enableThriftService") @Nullable Boolean enableThriftService) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
         checkArgument(!ports.isEmpty(), "ports must have at least one port.");
         this.tls = tls;
+        this.encryptionAtRest = encryptionAtRest;
         this.trustedProxyAddresses = trustedProxyAddresses;
         this.clientAddressSources = clientAddressSources;
 
@@ -343,6 +350,7 @@ public final class CentralDogmaConfig {
                 toImmutableMap(PluginConfig::getClass, Function.identity()));
         this.managementConfig = managementConfig;
         this.zoneConfig = zoneConfig;
+        this.enableThriftService = firstNonNull(enableThriftService, true);
     }
 
     /**
@@ -369,6 +377,15 @@ public final class CentralDogmaConfig {
     @JsonProperty
     public TlsConfig tls() {
         return tls;
+    }
+
+    /**
+     * Returns the Encryption at Rest configuration.
+     */
+    @Nullable
+    @JsonProperty
+    public EncryptionAtRestConfig encryptionAtRest() {
+        return encryptionAtRest;
     }
 
     /**
@@ -580,6 +597,14 @@ public final class CentralDogmaConfig {
     @JsonProperty("zone")
     public ZoneConfig zone() {
         return zoneConfig;
+    }
+
+    /**
+     * Returns whether to enable the Thrift service.
+     */
+    @JsonProperty
+    public boolean enableThriftService() {
+        return enableThriftService;
     }
 
     @Override

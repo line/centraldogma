@@ -9,18 +9,9 @@ buildscript {
 }
 
 plugins {
-    alias libs.plugins.docker apply false
     alias libs.plugins.download
 }
 
-if (JavaVersion.current() < JavaVersion.VERSION_11 || project.ext.testJavaVersion < 11) {
-    // Gradle Docker plugin requires Java >= 11
-    return
-}
-
-apply plugin: 'com.bmuschko.docker-remote-api'
-
-import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
 import com.google.common.base.CaseFormat
 
 ext {
@@ -39,10 +30,10 @@ dependencies {
     runtimeOnly libs.jcommander
 
     // Logging
-    runtimeOnly libs.logback12
-    runtimeOnly libs.slf4j1.jcl.over.slf4j
-    runtimeOnly libs.slf4j1.jul.to.slf4j
-    runtimeOnly libs.slf4j1.log4j.over.slf4j
+    runtimeOnly libs.logback15
+    runtimeOnly libs.slf4j2.jcl.over.slf4j
+    runtimeOnly libs.slf4j2.jul.to.slf4j
+    runtimeOnly libs.slf4j2.log4j.over.slf4j
 }
 
 // Do not generate a JAR for this project.
@@ -72,19 +63,10 @@ task copyLib(group: 'Build',
     doLast {
         // Create an empty directory for keeping external JARs such as authentication module.
         project.mkdir("${libDir}/ext")
-
-        // Check if only JGit 6.x JARs are included.
-        FileCollection jgits = layout.files { libDir.listFiles() }.filter { File file ->
-            file.name.contains("jgit")
-        }
-        // org.eclipse.jgit-6.x is required.
-        if (jgits.size() != 1 || !jgits.first().name.startsWith("org.eclipse.jgit-6")) {
-            throw new IllegalStateException("Unexpected JGit JARs: $jgits.files")
-        }
     }
 }
 
-def cliVersion = "0.1.0"
+def cliVersion = "0.1.1"
 
 task downloadClientBinaries(group: 'Build',
         description: "Downloads client binaries into ${project.ext.cliDownloadDir}") {
@@ -92,23 +74,72 @@ task downloadClientBinaries(group: 'Build',
     outputs.dir("${project.ext.cliDownloadDir}/$cliVersion")
 
     doLast {
-        ["darwin-amd64", "darwin-arm64", "linux-amd64", "windows-amd64.exe"].each { platform ->
+        ["linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64", "windows_amd64"].each { platform ->
+            def baseFileName = "dogma_${cliVersion}_${platform}"
+            def fileExtension
+            def extractor
+
+            if (platform.startsWith("windows")) {
+                fileExtension = "zip"
+                extractor = { path -> zipTree(path) }
+            } else {
+                fileExtension = "tar.gz"
+                extractor = { path -> tarTree(path) }
+            }
+
+            def archiveFile = "${baseFileName}.${fileExtension}"
+
             download.run {
-                src "https://github.com/line/centraldogma-go/releases/download/$cliVersion/dogma.$platform"
-                dest "${project.ext.cliDownloadDir}/$cliVersion/dogma.$platform"
+                src "https://github.com/line/centraldogma-go/releases/download/$cliVersion/$archiveFile"
+                dest "${project.ext.cliDownloadDir}/$cliVersion/$archiveFile"
                 overwrite false
+            }
+
+            def archivePath = "${project.ext.cliDownloadDir}/$cliVersion/$archiveFile"
+            def extractDir = "${project.ext.cliDownloadDir}/$cliVersion/extracted_${platform}"
+
+            project.mkdir(extractDir)
+            copy {
+                from extractor(archivePath)
+                into extractDir
             }
         }
     }
 }
 
 task copyClientBinaries(group: 'Build',
-        description: "Copies client binaries into ${project.ext.relativeDistDir}/bin/native", type: Copy) {
+        description: "Copies client binaries into ${project.ext.relativeDistDir}/bin/native") {
     dependsOn tasks.downloadClientBinaries
 
-    from "${project.ext.cliDownloadDir}/$cliVersion"
-    into "${project.ext.distDir}/bin/native"
-    fileMode 0755
+    doLast {
+        def nativeDir = "${project.ext.distDir}/bin/native"
+        project.mkdir(nativeDir)
+
+        ["linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64", "windows_amd64"].each { platform ->
+            def extractDir = "${project.ext.cliDownloadDir}/$cliVersion/extracted_${platform}"
+            def sourceFile
+            def targetFileName
+
+            if (platform.startsWith("windows")) {
+                sourceFile = "${extractDir}/dogma.exe"
+                targetFileName = "dogma.${platform}.exe"
+            } else {
+                sourceFile = "${extractDir}/dogma"
+                targetFileName = "dogma.${platform}"
+            }
+
+            if (!file(sourceFile).exists()) {
+                throw new GradleException("Source binary not found: $sourceFile")
+            }
+
+            copy {
+                from sourceFile
+                into nativeDir
+                rename { targetFileName }
+                fileMode 0755
+            }
+        }
+    }
 }
 
 task distDirWithoutClientBinaries(group: 'Build',
@@ -165,15 +196,33 @@ tasks.assemble.dependsOn(tasks.tarball)
 
 // Tasks for building docker image
 task docker(group: 'Build',
-            description: "Builds a docker image from the distribution directory (${project.ext.relativeDistDir})",
+            description: "Builds multiplatform docker image from the distribution directory" +
+                    " (${project.ext.relativeDistDir})",
             dependsOn: tasks.distDir,
-            type: DockerBuildImage) {
-    inputDir = file('.')
-    def name = 'ghcr.io/line/centraldogma:'
-    images = [name + "${project.version}"]
+            type: Exec) {
+
+    workingDir = file('.')
+    executable 'docker'
+
+    def imageName = 'ghcr.io/line/centraldogma'
+    def imageVersion = project.hasProperty('version') ? project.getProperty('version') : project.version
+    def platforms = ['linux/amd64', 'linux/arm64']
+
+    def buildArgs = [
+        'buildx', 'build',
+        '--platform', platforms.join(','),
+        '--push'
+    ]
+
+    buildArgs.add("--tag")
+    buildArgs.add("${imageName}:${imageVersion}")
     if (!(project.version =~ /-SNAPSHOT$/)) {
-        images.add(name + "latest")
+        buildArgs.add("--tag")
+        buildArgs.add("${imageName}:latest")
     }
+    buildArgs.add('.')
+
+    args = buildArgs
 }
 
 // Tasks for running Central Dogma conveniently.

@@ -34,7 +34,7 @@ class UnremoveRepositoryCommandTest {
                              "  \"type\": \"UNREMOVE_REPOSITORY\"," +
                              "  \"timestamp\": 1234," +
                              "  \"author\": {" +
-                             "    \"name\": \"System\"," +
+                             "    \"name\": \"system\"," +
                              "    \"email\": \"system@localhost.localdomain\"" +
                              "  }," +
                              "  \"projectName\": \"foo\"," +

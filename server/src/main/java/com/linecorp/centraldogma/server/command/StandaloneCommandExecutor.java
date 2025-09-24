@@ -26,6 +26,8 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.server.auth.Session;
@@ -33,11 +35,13 @@ import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 /**
  * A {@link CommandExecutor} implementation which performs operations on the local storage.
@@ -50,6 +54,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private final Executor repositoryWorker;
     @Nullable
     private final SessionManager sessionManager;
+    private final EncryptionStorageManager encryptionStorageManager;
     private final ServerStatusManager serverStatusManager;
 
     /**
@@ -67,6 +72,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                                      Executor repositoryWorker,
                                      ServerStatusManager serverStatusManager,
                                      @Nullable SessionManager sessionManager,
+                                     EncryptionStorageManager encryptionStorageManager,
                                      @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                      @Nullable Consumer<CommandExecutor> onReleaseLeadership,
                                      @Nullable Consumer<CommandExecutor> onTakeZoneLeadership,
@@ -76,6 +82,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.serverStatusManager = requireNonNull(serverStatusManager, "serverStatusManager");
         this.sessionManager = sessionManager;
+        this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
     }
 
     @Override
@@ -177,6 +184,15 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return (CompletableFuture<T>) purgeRepository((PurgeRepositoryCommand) command);
         }
 
+        if (command instanceof MigrateToEncryptedRepositoryCommand) {
+            if (!encryptionStorageManager.enabled()) {
+                throw new IllegalStateException(
+                        "Encryption is not enabled. command: " + command);
+            }
+            return (CompletableFuture<T>) migrateToEncryptedRepository(
+                    (MigrateToEncryptedRepositoryCommand) command);
+        }
+
         if (command instanceof NormalizingPushCommand) {
             return (CompletableFuture<T>) push((NormalizingPushCommand) command, true);
         }
@@ -198,6 +214,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return (CompletableFuture<T>) removeSession((RemoveSessionCommand) command);
         }
 
+        if (command instanceof CreateSessionMasterKeyCommand) {
+            return (CompletableFuture<T>) createSessionMasterKey((CreateSessionMasterKeyCommand) command);
+        }
+
         if (command instanceof UpdateServerStatusCommand) {
             return (CompletableFuture<T>) updateServerStatus((UpdateServerStatusCommand) command);
         }
@@ -215,7 +235,26 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> createProject(CreateProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager.create(c.projectName(), c.timestamp(), c.author());
+            final byte[] wdek = c.wdek();
+            final boolean encrypt = wdek != null;
+            if (encrypt) {
+                encryptionStorageManager.storeWdek(c.projectName(), Project.REPO_DOGMA, wdek);
+            }
+
+            try {
+                projectManager.create(c.projectName(), c.timestamp(), c.author(), encrypt);
+            } catch (Throwable t) {
+                if (encrypt) {
+                    try {
+                        encryptionStorageManager.removeWdek(c.projectName(), Project.REPO_DOGMA);
+                    } catch (Throwable t2) {
+                        logger.warn("Failed to remove the WDEK of {}/{}",
+                                    c.projectName(), Project.REPO_DOGMA, t2);
+                    }
+                }
+                Exceptions.throwUnsafely(t);
+            }
+
             return null;
         }, repositoryWorker);
     }
@@ -260,7 +299,27 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> createRepository(CreateRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager.get(c.projectName()).repos().create(c.repositoryName(), c.timestamp(), c.author());
+            final byte[] wdek = c.wdek();
+            final boolean encrypt = wdek != null;
+            if (encrypt) {
+                encryptionStorageManager.storeWdek(c.projectName(), c.repositoryName(), wdek);
+            }
+
+            try {
+                projectManager.get(c.projectName()).repos().create(c.repositoryName(), c.timestamp(),
+                                                                   c.author(), encrypt);
+            } catch (Throwable t) {
+                if (encrypt) {
+                    try {
+                        encryptionStorageManager.removeWdek(c.projectName(), c.repositoryName());
+                    } catch (Throwable t2) {
+                        logger.warn("Failed to remove the WDEK of {}/{}",
+                                    c.projectName(), c.repositoryName(), t2);
+                    }
+                }
+                Exceptions.throwUnsafely(t);
+            }
+
             return null;
         }, repositoryWorker);
     }
@@ -282,6 +341,30 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private CompletableFuture<Void> purgeRepository(PurgeRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos().markForPurge(c.repositoryName());
+            return null;
+        }, repositoryWorker);
+    }
+
+    private CompletableFuture<Void> migrateToEncryptedRepository(MigrateToEncryptedRepositoryCommand c) {
+        final RepositoryManager repositoryManager = projectManager.get(c.projectName()).repos();
+        final Repository repository = repositoryManager.get(c.repositoryName());
+        if (repository.isEncrypted()) {
+            throw new IllegalStateException(
+                    "The repository is already encrypted: " + c.projectName() + '/' + c.repositoryName());
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            encryptionStorageManager.storeWdek(c.projectName(), c.repositoryName(), c.wdek());
+            try {
+                repositoryManager.migrateToEncryptedRepository(c.repositoryName());
+            } catch (Throwable t) {
+                try {
+                    encryptionStorageManager.removeWdek(c.projectName(), c.repositoryName());
+                } catch (Throwable t2) {
+                    logger.warn("Failed to remove the WDEK of {}/{}",
+                                c.projectName(), c.repositoryName(), t2);
+                }
+                throw t;
+            }
             return null;
         }, repositoryWorker);
     }
@@ -328,6 +411,15 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             logger.warn("Failed to replicate a session removal: {}", sessionId, cause);
             return null;
         });
+    }
+
+    private CompletableFuture<Void> createSessionMasterKey(CreateSessionMasterKeyCommand c) {
+        if (!encryptionStorageManager.enabled()) {
+            throw new IllegalStateException("Encryption is not enabled. command: " + c);
+        }
+
+        encryptionStorageManager.storeSessionMasterKey(c.sessionMasterKey());
+        return UnmodifiableFuture.completedFuture(null);
     }
 
     private CompletableFuture<Void> updateServerStatus(UpdateServerStatusCommand c) {

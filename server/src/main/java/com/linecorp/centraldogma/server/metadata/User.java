@@ -16,10 +16,12 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
+import static com.linecorp.centraldogma.internal.Util.validateEmailAddress;
 import static java.util.Objects.requireNonNull;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -70,9 +72,16 @@ public class User implements Identifiable, Serializable {
                 @JsonProperty("roles") List<String> roles) {
         this.login = requireNonNull(login, "login");
         this.name = requireNonNull(name, "name");
-        this.email = requireNonNull(email, "email");
+        this.email = validateEmailAddress(requireNonNull(email, "email"), "email");
         this.roles = ImmutableList.copyOf(requireNonNull(roles, "roles"));
         isSystemAdmin = roles.stream().anyMatch(LEVEL_SYSTEM_ADMIN_STR::equals);
+    }
+
+    /**
+     * Creates a new instance.
+     */
+    public User(String name, String email) {
+        this(name, name, email, LEVEL_USER);
     }
 
     /**
@@ -83,7 +92,30 @@ public class User implements Identifiable, Serializable {
     }
 
     /**
-     * Creates a new instance.
+     * Creates a new instance from a login string.
+     *
+     * <p>This constructor handles two cases for the provided {@code login}:
+     * <ul>
+     *   <li>If the {@code login} is a valid email address, the {@link #name()} is extracted
+     *       from the local part of the email.</li>
+     *   <li>If the {@code login} is not a valid email address, it is treated as a username.
+     *       The {@link Util#USER_EMAIL_SUFFIX} is appended to create a valid email address.</li>
+     * </ul>
+     *
+     * <p><b>Examples:</b>
+     * <pre>{@code
+     * // Example 1: Login is a valid email address
+     * User user1 = new User("john.doe@example.com", ...);
+     * // user1.email() will be "john.doe@example.com"
+     * // user1.name() will be "john.doe"
+     *
+     * // Example 2: Login is not an email address
+     * User user2 = new User("jane.doe", ...);
+     * // user2.email() will be "jane.doe@localhost.localdomain"
+     * // user2.name() will be "jane.doe"
+     * }</pre>
+     *
+     * @param login the user's login string, which can be a username or a full email address.
      */
     public User(String login, List<String> roles) {
         if (Strings.isNullOrEmpty(login)) {
@@ -94,7 +126,6 @@ public class User implements Identifiable, Serializable {
         this.login = login;
         email = Util.toEmailAddress(login, "login");
         name = Util.emailToUsername(email, "login");
-
         this.roles = ImmutableList.copyOf(roles);
         isSystemAdmin = roles.stream().anyMatch(LEVEL_SYSTEM_ADMIN_STR::equals);
     }
@@ -153,12 +184,15 @@ public class User implements Identifiable, Serializable {
         }
 
         final User user = (User) o;
-        return login.equals(user.login);
+        return login.equals(user.login) &&
+               name.equals(user.name) &&
+               email.equals(user.email) &&
+               roles.equals(user.roles);
     }
 
     @Override
     public int hashCode() {
-        return login.hashCode();
+        return Objects.hash(login, name, email, roles);
     }
 
     @Override

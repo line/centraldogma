@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager.createFileRepository;
 import static org.mockito.Mockito.mock;
 
 import java.io.File;
@@ -53,8 +54,8 @@ public class GitRepositoryBenchmark {
     @Setup
     public void init() throws Exception {
         repoDir = Files.createTempDirectory("jmh-gitrepository.").toFile();
-        repo = new GitRepository(mock(Project.class), repoDir, ForkJoinPool.commonPool(),
-                                 System.currentTimeMillis(), AUTHOR, null);
+        repo = createFileRepository(mock(Project.class), repoDir, AUTHOR,
+                                    System.currentTimeMillis(), ForkJoinPool.commonPool(), null);
         currentRevision = 1;
 
         for (int i = 0; i < previousCommits; i++) {

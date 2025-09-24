@@ -51,13 +51,14 @@ import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.StorageManager;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
 public abstract class DirectoryBasedStorageManager<T> implements StorageManager<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(DirectoryBasedStorageManager.class);
 
-    private static final String SUFFIX_REMOVED = ".removed";
-    private static final String SUFFIX_PURGED = ".purged";
+    public static final String SUFFIX_REMOVED = ".removed";
+    public static final String SUFFIX_PURGED = ".purged";
     private static final String GIT_EXTENSION = ".git";
 
     private final String childTypeName;
@@ -66,12 +67,15 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     private final ConcurrentMap<String, T> children = new ConcurrentHashMap<>();
     private final AtomicReference<Supplier<CentralDogmaException>> closed = new AtomicReference<>();
     private final Executor purgeWorker;
+    private final EncryptionStorageManager encryptionStorageManager;
     private boolean initialized;
 
     protected DirectoryBasedStorageManager(File rootDir, Class<? extends T> childType,
-                                           Executor purgeWorker) {
+                                           Executor purgeWorker,
+                                           EncryptionStorageManager encryptionStorageManager) {
         requireNonNull(rootDir, "rootDir");
         this.purgeWorker = requireNonNull(purgeWorker, "purgeWorker");
+        this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
 
         if (!rootDir.exists()) {
             if (!rootDir.mkdirs()) {
@@ -95,6 +99,10 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
     protected Executor purgeWorker() {
         return purgeWorker;
+    }
+
+    protected EncryptionStorageManager encryptionStorageManager() {
+        return encryptionStorageManager;
     }
 
     /**
@@ -153,9 +161,14 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         }
     }
 
+    protected boolean replaceChild(String name, T oldChild, T newChild) {
+        return children.replace(name, oldChild, newChild);
+    }
+
     protected abstract T openChild(File childDir) throws Exception;
 
-    protected abstract T createChild(File childDir, Author author, long creationTimeMillis) throws Exception;
+    protected abstract T createChild(
+            File childDir, Author author, long creationTimeMillis, boolean encrypt) throws Exception;
 
     private void closeChild(String name, T child, Supplier<CentralDogmaException> failureCauseSupplier) {
         closeChild(new File(rootDir, name), child, failureCauseSupplier);
@@ -166,6 +179,8 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     protected abstract CentralDogmaException newStorageExistsException(String name);
 
     protected abstract CentralDogmaException newStorageNotFoundException(String name);
+
+    protected abstract void deletePurged(File file);
 
     @Override
     public void close(Supplier<CentralDogmaException> failureCauseSupplier) {
@@ -198,14 +213,14 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     }
 
     @Override
-    public T create(String name, long creationTimeMillis, Author author) {
+    public T create(String name, long creationTimeMillis, Author author, boolean encrypt) {
         ensureOpen();
         requireNonNull(author, "author");
         validateChildName(name);
 
         final AtomicBoolean created = new AtomicBoolean();
         final T child = children.computeIfAbsent(name, n -> {
-            final T c = create0(author, n, creationTimeMillis);
+            final T c = create0(author, n, creationTimeMillis, encrypt);
             created.set(true);
             return c;
         });
@@ -217,7 +232,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         }
     }
 
-    private T create0(Author author, String name, long creationTimeMillis) {
+    private T create0(Author author, String name, long creationTimeMillis, boolean encrypt) {
         if (new File(rootDir, name + SUFFIX_REMOVED).exists()) {
             throw newStorageExistsException(name + " (removed)");
         }
@@ -225,7 +240,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         final File f = new File(rootDir, name);
         boolean success = false;
         try {
-            final T newChild = createChild(f, author, creationTimeMillis);
+            final T newChild = createChild(f, author, creationTimeMillis, encrypt);
             success = true;
             return newChild;
         } catch (RuntimeException e) {
@@ -373,7 +388,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         }
         final File purged = marked;
         try {
-            purgeWorker.execute(() -> deletePurgedFile(purged));
+            purgeWorker().execute(() -> deletePurged(purged));
         } catch (Exception e) {
             logger.warn("Failed to schedule a purge task for {}:", purged, e);
         }
@@ -392,18 +407,8 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
             }
             final String name = f.getName();
             if (name.endsWith(SUFFIX_PURGED)) {
-                deletePurgedFile(f);
+                deletePurged(f);
             }
-        }
-    }
-
-    private void deletePurgedFile(File file) {
-        try {
-            logger.info("Deleting a purged {}: {} ..", childTypeName, file);
-            Util.deleteFileTree(file);
-            logger.info("Deleted a purged {}: {}.", childTypeName, file);
-        } catch (IOException e) {
-            logger.warn("Failed to delete a purged {}: {}", childTypeName, file, e);
         }
     }
 

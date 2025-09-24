@@ -32,6 +32,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -51,10 +52,12 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = RemoveRepositoryCommand.class, name = "REMOVE_REPOSITORY"),
         @Type(value = PurgeRepositoryCommand.class, name = "PURGE_REPOSITORY"),
         @Type(value = UnremoveRepositoryCommand.class, name = "UNREMOVE_REPOSITORY"),
+        @Type(value = MigrateToEncryptedRepositoryCommand.class, name = "MIGRATE_TO_ENCRYPTED_REPOSITORY"),
         @Type(value = NormalizingPushCommand.class, name = "NORMALIZING_PUSH"),
         @Type(value = PushAsIsCommand.class, name = "PUSH"),
         @Type(value = CreateSessionCommand.class, name = "CREATE_SESSIONS"),
         @Type(value = RemoveSessionCommand.class, name = "REMOVE_SESSIONS"),
+        @Type(value = CreateSessionMasterKeyCommand.class, name = "CREATE_SESSION_MASTER_KEY"),
         @Type(value = UpdateServerStatusCommand.class, name = "UPDATE_SERVER_STATUS"),
         @Type(value = ForcePushCommand.class, name = "FORCE_PUSH_COMMAND"),
 })
@@ -73,13 +76,27 @@ public interface Command<T> {
     /**
      * Returns a new {@link Command} which is used to create a new project.
      *
+     * @param author the author who is creating the project
+     * @param name the name of the project which is supposed to be created
+     * @param wdek the wrapped data encryption key for the project
+     */
+    static Command<Void> createProject(Author author, String name, byte[] wdek) {
+        requireNonNull(author, "author");
+        requireNonNull(wdek, "wdek");
+        checkArgument(wdek.length > 0, "wdek must not be empty");
+        return new CreateProjectCommand(null, author, name, wdek);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to create a new project.
+     *
      * @param timestamp the creation time of the project, in milliseconds
      * @param author the author who is creating the project
      * @param name the name of the project which is supposed to be created
      */
     static Command<Void> createProject(@Nullable Long timestamp, Author author, String name) {
         requireNonNull(author, "author");
-        return new CreateProjectCommand(timestamp, author, name);
+        return new CreateProjectCommand(timestamp, author, name, null);
     }
 
     /**
@@ -171,6 +188,22 @@ public interface Command<T> {
     /**
      * Returns a new {@link Command} which is used to create a new repository.
      *
+     * @param author the author who is creating the repository
+     * @param projectName the name of the project that the new repository is supposed to belong to
+     * @param repositoryName the name of the repository which is supposed to be created
+     * @param wdek the wrapped data encryption key for the repository
+     */
+    static Command<Void> createRepository(Author author, String projectName, String repositoryName,
+                                          byte[] wdek) {
+        requireNonNull(author, "author");
+        requireNonNull(wdek, "wdek");
+        checkArgument(wdek.length > 0, "wdek must not be empty");
+        return new CreateRepositoryCommand(null, author, projectName, repositoryName, wdek);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to create a new repository.
+     *
      * @param timestamp the creation time of the repository, in milliseconds
      * @param author the author who is creating the repository
      * @param projectName the name of the project that the new repository is supposed to belong to
@@ -179,7 +212,7 @@ public interface Command<T> {
     static Command<Void> createRepository(@Nullable Long timestamp, Author author,
                                           String projectName, String repositoryName) {
         requireNonNull(author, "author");
-        return new CreateRepositoryCommand(timestamp, author, projectName, repositoryName);
+        return new CreateRepositoryCommand(timestamp, author, projectName, repositoryName, null);
     }
 
     /**
@@ -257,6 +290,15 @@ public interface Command<T> {
                                          String projectName, String repositoryName) {
         requireNonNull(author, "author");
         return new PurgeRepositoryCommand(timestamp, author, projectName, repositoryName);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to migrate a repository to an encrypted repository.
+     */
+    static Command<Void> migrateToEncryptedRepository(@Nullable Long timestamp, Author author,
+                                                      String projectName, String repositoryName, byte[] wdek) {
+        requireNonNull(author, "author");
+        return new MigrateToEncryptedRepositoryCommand(timestamp, author, projectName, repositoryName, wdek);
     }
 
     /**
@@ -380,6 +422,13 @@ public interface Command<T> {
      */
     static Command<Void> removeSession(String sessionId) {
         return new RemoveSessionCommand(null, null, sessionId);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to create a new session master key.
+     */
+    static Command<Void> createSessionMasterKey(SessionMasterKey sessionMasterKey) {
+        return new CreateSessionMasterKeyCommand(null, null, sessionMasterKey);
     }
 
     /**

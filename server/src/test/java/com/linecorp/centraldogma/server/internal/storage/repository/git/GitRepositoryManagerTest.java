@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 
 import java.io.File;
@@ -35,6 +36,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
+import com.linecorp.centraldogma.server.storage.encryption.NoopEncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -158,8 +160,10 @@ class GitRepositoryManagerTest {
     }
 
     private GitRepositoryManager newRepositoryManager() {
-        return new GitRepositoryManager(mock(Project.class), tempDir.toFile(),
+        final Project mock = mock(Project.class);
+        lenient().when(mock.name()).thenReturn("test_project");
+        return new GitRepositoryManager(mock, tempDir.toFile(),
                                         ForkJoinPool.commonPool(), MoreExecutors.directExecutor(),
-                                        null);
+                                        null, NoopEncryptionStorageManager.INSTANCE);
     }
 }

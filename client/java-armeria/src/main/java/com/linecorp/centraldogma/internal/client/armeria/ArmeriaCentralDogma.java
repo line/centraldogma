@@ -76,6 +76,7 @@ import com.linecorp.armeria.common.util.TimeoutMode;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
 import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.RepositoryInfo;
+import com.linecorp.centraldogma.common.ApiRequestTimeoutException;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.AuthorizationException;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -87,6 +88,7 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.InvalidPushException;
+import com.linecorp.centraldogma.common.LockAcquireTimeoutException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergedEntry;
@@ -103,6 +105,7 @@ import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
+import com.linecorp.centraldogma.common.RequestTooLargeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
@@ -144,23 +147,33 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                         .put(PermissionException.class.getName(), PermissionException::new)
                         .put(JsonPatchConflictException.class.getName(), JsonPatchConflictException::new)
                         .put(TextPatchConflictException.class.getName(), TextPatchConflictException::new)
+                        .put(ApiRequestTimeoutException.class.getName(), ApiRequestTimeoutException::new)
+                        .put(LockAcquireTimeoutException.class.getName(), LockAcquireTimeoutException::new)
                         .build();
 
     private final WebClient client;
     private final String authorization;
     private final SafeCloseable safeCloseable;
+    @Nullable
+    private final CompletableFuture<Void> whenReady;
 
     public ArmeriaCentralDogma(ScheduledExecutorService blockingTaskExecutor,
                                WebClient client, String accessToken, SafeCloseable safeCloseable,
-                               @Nullable MeterRegistry meterRegistry) {
+                               @Nullable MeterRegistry meterRegistry,
+                               @Nullable CompletableFuture<Void> whenReady) {
         super(blockingTaskExecutor, meterRegistry);
         this.client = requireNonNull(client, "client");
         authorization = "Bearer " + requireNonNull(accessToken, "accessToken");
         this.safeCloseable = safeCloseable;
+        this.whenReady = whenReady;
     }
 
     @Override
     public CompletableFuture<Void> whenEndpointReady() {
+        if (whenReady != null) {
+            return whenReady;
+        }
+
         return client.endpointGroup().whenReady().thenRun(() -> {});
     }
 
@@ -1155,6 +1168,13 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                     message = "Access denied";
                 }
                 throw new PermissionException(message);
+            }
+
+            if (status == HttpStatus.REQUEST_ENTITY_TOO_LARGE) {
+                if (Strings.isNullOrEmpty(message)) {
+                    message = "Request entity too large";
+                }
+                throw new RequestTooLargeException(message);
             }
         }
 

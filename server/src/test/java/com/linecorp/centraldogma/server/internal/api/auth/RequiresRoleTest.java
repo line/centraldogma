@@ -60,6 +60,7 @@ import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectM
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectRoles;
+import com.linecorp.centraldogma.server.storage.encryption.NoopEncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
@@ -86,13 +87,15 @@ class RequiresRoleTest {
             final File dataDir = rootDir.getRoot().toFile();
             final ProjectManager pm = new DefaultProjectManager(
                     dataDir, ForkJoinPool.commonPool(),
-                    MoreExecutors.directExecutor(), NoopMeterRegistry.get(), null);
+                    MoreExecutors.directExecutor(), NoopMeterRegistry.get(), null,
+                    NoopEncryptionStorageManager.INSTANCE);
             final ServerStatusManager statusManager = new ServerStatusManager(dataDir);
             final CommandExecutor executor = new StandaloneCommandExecutor(
-                    pm, ForkJoinPool.commonPool(), statusManager, null, null, null, null, null);
+                    pm, ForkJoinPool.commonPool(), statusManager, null, NoopEncryptionStorageManager.INSTANCE,
+                    null, null, null, null);
             executor.start().join();
             final InternalProjectInitializer projectInitializer = new InternalProjectInitializer(
-                    executor, pm);
+                    executor, pm, NoopEncryptionStorageManager.INSTANCE);
             projectInitializer.initialize();
 
             executor.execute(Command.createProject(AUTHOR, "project1")).join();

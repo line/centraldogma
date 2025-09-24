@@ -183,7 +183,6 @@ public class PurgeSchedulingService {
             requireNonNull(task, "task");
             final ListeningScheduledExecutorService scheduler = MoreExecutors.listeningDecorator(purgeWorker);
             this.scheduler = scheduler;
-            @SuppressWarnings("UnstableApiUsage")
             final ListenableScheduledFuture<?> future = scheduler.scheduleWithFixedDelay(
                     task,
                     TICK.getSeconds(), TICK.getSeconds(), TimeUnit.SECONDS);

@@ -16,9 +16,12 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
 
 import javax.annotation.Nullable;
 
@@ -28,6 +31,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -82,9 +86,9 @@ public class ProjectMetadata implements Identifiable, HasWeight {
                            @JsonProperty("creation") UserAndTimestamp creation,
                            @JsonProperty("removal") @Nullable UserAndTimestamp removal) {
         this.name = requireNonNull(name, "name");
-        this.repos = requireNonNull(repos, "repos");
-        this.members = requireNonNull(members, "members");
-        this.tokens = requireNonNull(tokens, "tokens");
+        this.repos = ImmutableMap.copyOf(requireNonNull(repos, "repos"));
+        this.members = ImmutableMap.copyOf(requireNonNull(members, "members"));
+        this.tokens = ImmutableMap.copyOf(requireNonNull(tokens, "tokens"));
         this.creation = requireNonNull(creation, "creation");
         this.removal = removal;
     }
@@ -152,7 +156,7 @@ public class ProjectMetadata implements Identifiable, HasWeight {
         if (repositoryMetadata != null) {
             return repositoryMetadata;
         }
-        throw new RepositoryNotFoundException(repoName);
+        throw RepositoryNotFoundException.of(name, repoName);
     }
 
     /**
@@ -196,6 +200,28 @@ public class ProjectMetadata implements Identifiable, HasWeight {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof ProjectMetadata)) {
+            return false;
+        }
+        final ProjectMetadata that = (ProjectMetadata) o;
+        return name.equals(that.name) &&
+               repos.equals(that.repos) &&
+               members.equals(that.members) &&
+               tokens.equals(that.tokens) &&
+               creation.equals(that.creation) &&
+               Objects.equals(removal, that.removal);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, repos, members, tokens, creation, removal);
+    }
+
+    @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("name", name())
@@ -205,5 +231,23 @@ public class ProjectMetadata implements Identifiable, HasWeight {
                           .add("creation", creation())
                           .add("removal", removal())
                           .toString();
+    }
+
+    /**
+     * Returns a new {@link ProjectMetadata} without the Dogma repository.
+     */
+    public ProjectMetadata withoutDogmaRepo() {
+        if (!repos().containsKey(Project.REPO_DOGMA)) {
+            return this;
+        }
+        final Map<String, RepositoryMetadata> filtered =
+                repos().entrySet().stream().filter(entry -> !Project.REPO_DOGMA.equals(entry.getKey()))
+                       .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+        return new ProjectMetadata(name(),
+                                   filtered,
+                                   members(),
+                                   tokens(),
+                                   creation(),
+                                   removal());
     }
 }

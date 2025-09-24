@@ -31,8 +31,6 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         java: [21]
         include:
-          - java: 8
-            os: ubuntu-latest
           - java: 11
             os: ubuntu-latest
           - java: 17
@@ -44,7 +42,15 @@ jobs:
           - java: 21
             snapshot: true
             os: ubuntu-latest
+
+    name: build-${{ matrix.os }}-jdk-${{ matrix.java }}${{ matrix.min-java && format('-min-java-{0}', matrix.min-java) || '' }}${{ matrix.coverage && '-coverage' || ''}}${{ matrix.snapshot && '-snapshot' || ''}}
+
     steps:
+    - name: Set job name
+      run: |
+        JOB_NAME="build-${{ matrix.os }}-jdk-${{ matrix.java }}${{ matrix.min-java && format('-min-java-{0}', matrix.min-java) || '' }}${{ matrix.coverage && '-coverage' || ''}}${{ matrix.snapshot && '-snapshot' || ''}}"
+        echo "JOB_NAME=$JOB_NAME" >> $GITHUB_ENV
+      shell: bash
     - uses: actions/checkout@v3
 
     - id: setup-build-jdk
@@ -110,28 +116,31 @@ jobs:
 
     - name: Dump stuck threads
       if: always()
-      run: jps | grep -vi "jps" | awk '{ print $1 }' | xargs -I'{}' jstack -l {} || true
+      run: jps | grep -iv "jps" | grep -v 'Daemon' | awk '{ print $1 }' | xargs -I'{}' jstack -l {} || true
       shell: bash
 
     - name: Upload coverage to Codecov
       if: ${{ matrix.coverage }}
       uses: codecov/codecov-action@v3
 
-    - name: Collect the test reports ..
+    - name: Collect the test reports
       if: failure()
       run: |
         find . '(' \
+        -name 'java_pid*.hprof' -or \
         -name 'hs_err_*.log' -or \
-        -path '*/build/reports/tests' ')' \
-        -exec tar rf "reports-JVM-${{ matrix.on }}-${{ matrix.java }}${{ matrix.min-java && format('-{0}', matrix.min-java) || '' }}.tar" {} ';'
+        -path '*/build/reports/tests' -or \
+        -path '*/build/test-results' -or \
+        -path '*/javadoc.options' ')' \
+        -exec tar rf "reports-${{ env.JOB_NAME }}.tar" {} ';'
       shell: bash
 
     - name: Upload Artifact
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: reports-JVM-${{ matrix.java }}
-        path: reports-JVM-${{ matrix.java }}.tar
+        name: reports-${{ env.JOB_NAME }}
+        path: reports-${{ env.JOB_NAME }}.tar
         retention-days: 3
 
   lint:

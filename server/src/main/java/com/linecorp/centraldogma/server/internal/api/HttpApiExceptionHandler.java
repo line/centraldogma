@@ -17,26 +17,36 @@
 package com.linecorp.centraldogma.server.internal.api;
 
 import static com.linecorp.centraldogma.server.internal.api.ContentServiceV1.IS_WATCH_REQUEST;
+import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newAggregatedResponse;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newResponse;
 
 import java.util.Map;
 import java.util.function.BiFunction;
 
+import javax.annotation.Nonnull;
+
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.HttpStatusException;
+import com.linecorp.armeria.server.RequestTimeoutException;
 import com.linecorp.armeria.server.ServerErrorHandler;
+import com.linecorp.armeria.server.ServiceConfig;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ExceptionHandlerFunction;
+import com.linecorp.centraldogma.common.ApiRequestTimeoutException;
 import com.linecorp.centraldogma.common.AuthorizationException;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.EntryNoContentException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.InvalidPushException;
+import com.linecorp.centraldogma.common.LockAcquireTimeoutException;
 import com.linecorp.centraldogma.common.MirrorAccessException;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.common.PermissionException;
@@ -80,17 +90,17 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                .put(EntryNoContentException.class,
                     (ctx, cause) -> HttpResponse.of(HttpStatus.NO_CONTENT))
                .put(ProjectExistsException.class,
-                    (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
-                                                "Project '%s' exists already.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(HttpStatus.CONFLICT,
+                                                cause.getClass().getName(), cause.getMessage()))
                .put(ProjectNotFoundException.class,
-                    (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
-                                                "Project '%s' does not exist.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(HttpStatus.NOT_FOUND, cause.getClass().getName(),
+                                                cause.getMessage()))
                .put(RedundantChangeException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
                                                 "The given changeset does not change anything."))
                .put(RepositoryExistsException.class,
-                    (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
-                                                "Repository '%s' exists already.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(HttpStatus.CONFLICT, cause.getClass().getName(),
+                                                cause.getMessage()))
                .put(JsonPatchConflictException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause))
                .put(TextPatchConflictException.class,
@@ -98,8 +108,8 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                .put(RepositoryMetadataException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause))
                .put(RepositoryNotFoundException.class,
-                    (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
-                                                "Repository '%s' does not exist.", cause.getMessage()))
+                    (ctx, cause) -> newResponse(HttpStatus.NOT_FOUND, cause.getClass().getName(),
+                                                cause.getMessage()))
                .put(RevisionNotFoundException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
                                                 "Revision %s does not exist.", cause.getMessage()))
@@ -122,7 +132,9 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
                .put(AuthorizationException.class,
                     (ctx, cause) -> newResponse(ctx, HttpStatus.UNAUTHORIZED, cause))
                .put(PermissionException.class,
-                    (ctx, cause) -> newResponse(ctx, HttpStatus.FORBIDDEN, cause));
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.FORBIDDEN, cause))
+               .put(LockAcquireTimeoutException.class,
+                    (ctx, cause) -> newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause));
 
         exceptionHandlers = builder.build();
     }
@@ -162,6 +174,21 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
             return newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, peeledCause);
         }
 
+        if (peeledCause instanceof RequestTimeoutException) {
+            ctx.setShouldReportUnloggedExceptions(false);
+            return newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE,
+                               new ApiRequestTimeoutException("Request timed out", peeledCause));
+        }
+
         return newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, peeledCause);
+    }
+
+    @Nonnull
+    @Override
+    public AggregatedHttpResponse renderStatus(@Nullable ServiceRequestContext ctx,
+                                               ServiceConfig config, @Nullable RequestHeaders headers,
+                                               HttpStatus status, @Nullable String description,
+                                               @Nullable Throwable cause) {
+        return newAggregatedResponse(ctx, status, cause, description);
     }
 }

@@ -40,7 +40,7 @@ import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.AbstractArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
-import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
+import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.MirroringService;
@@ -65,8 +65,6 @@ public class CentralDogmaRuleDelegate {
     @Nullable
     private volatile CentralDogma client;
     @Nullable
-    private volatile CentralDogma legacyClient;
-    @Nullable
     private volatile WebClient webClient;
     @Nullable
     private volatile ServerPort serverPort;
@@ -85,7 +83,6 @@ public class CentralDogmaRuleDelegate {
         startAsync(dataDir).join();
         final CentralDogma client = this.client;
         assert client != null;
-        assert legacyClient != null;
         scaffold(client);
     }
 
@@ -97,6 +94,7 @@ public class CentralDogmaRuleDelegate {
         final CentralDogmaBuilder builder = new CentralDogmaBuilder(dataDir)
                 .port(TEST_PORT, useTls ? SessionProtocol.HTTPS : SessionProtocol.HTTP)
                 .webAppEnabled(false)
+                .enableThriftService(false)
                 .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0));
 
         if (useTls) {
@@ -138,22 +136,15 @@ public class CentralDogmaRuleDelegate {
             this.serverPort = serverPort;
 
             final ArmeriaCentralDogmaBuilder clientBuilder = new ArmeriaCentralDogmaBuilder();
-            final LegacyCentralDogmaBuilder legacyClientBuilder = new LegacyCentralDogmaBuilder();
 
             final String accessToken = accessToken();
-            if (accessToken != null) {
-                clientBuilder.accessToken(accessToken);
-                legacyClientBuilder.accessToken(accessToken);
-            }
+            clientBuilder.accessToken(accessToken);
 
             configureClientCommon(clientBuilder);
-            configureClientCommon(legacyClientBuilder);
             configureClient(clientBuilder);
-            configureClient(legacyClientBuilder);
 
             try {
                 client = clientBuilder.build();
-                legacyClient = legacyClientBuilder.build();
             } catch (UnknownHostException e) {
                 // Should never reach here.
                 throw new IOError(e);
@@ -162,9 +153,7 @@ public class CentralDogmaRuleDelegate {
             final String protocol = serverPort.hasHttp() ? "h2c" : "h2";
             final String uri = protocol +  "://127.0.0.1:" + serverPort.localAddress().getPort();
             final WebClientBuilder webClientBuilder = WebClient.builder(uri);
-            if (accessToken != null) {
-                webClientBuilder.auth(AuthToken.ofOAuth2(accessToken));
-            }
+            webClientBuilder.auth(AuthToken.ofOAuth2(accessToken));
             configureHttpClient(webClientBuilder);
             webClient = webClientBuilder.build();
         });
@@ -238,19 +227,6 @@ public class CentralDogmaRuleDelegate {
     }
 
     /**
-     * Returns the Thrift-based {@link CentralDogma} client.
-     *
-     * @throws IllegalStateException if Central Dogma did not start yet
-     */
-    public final CentralDogma legacyClient() {
-        final CentralDogma legacyClient = this.legacyClient;
-        if (legacyClient == null) {
-            throw new IllegalStateException("Central Dogma not started");
-        }
-        return legacyClient;
-    }
-
-    /**
      * Returns the HTTP client.
      *
      * @throws IllegalStateException if Central Dogma did not start yet
@@ -296,11 +272,6 @@ public class CentralDogmaRuleDelegate {
     protected void configureClient(ArmeriaCentralDogmaBuilder builder) {}
 
     /**
-     * Override this method to configure the Thrift-based {@link CentralDogma} client builder.
-     */
-    protected void configureClient(LegacyCentralDogmaBuilder builder) {}
-
-    /**
      * Override this method to configure the {@link WebClient} builder.
      */
     protected void configureHttpClient(WebClientBuilder builder) {}
@@ -308,9 +279,8 @@ public class CentralDogmaRuleDelegate {
     /**
      * Override this method to inject an access token to the clients.
      */
-    @Nullable
     protected String accessToken() {
-        return null;
+        return CsrfToken.ANONYMOUS;
     }
 
     /**

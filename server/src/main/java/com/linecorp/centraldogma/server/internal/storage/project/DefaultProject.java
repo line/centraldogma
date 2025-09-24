@@ -17,11 +17,14 @@
 package com.linecorp.centraldogma.server.internal.storage.project;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.linecorp.centraldogma.server.internal.storage.MigratingMetaToDogmaRepositoryService.META_TO_DOGMA_MIGRATED;
+import static com.linecorp.centraldogma.server.internal.storage.MigratingMetaToDogmaRepositoryService.META_TO_DOGMA_MIGRATION_JOB;
 import static com.linecorp.centraldogma.server.metadata.MetadataService.METADATA_JSON;
 import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -58,7 +61,9 @@ import com.linecorp.centraldogma.server.internal.storage.repository.cache.Cachin
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager;
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
+import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -68,12 +73,6 @@ import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 public class DefaultProject implements Project {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultProject.class);
-
-    // Will be stored in dogma/dogma
-    public static final String META_TO_DOGMA_MIGRATION_JOB = "/meta-to-dogma-migration-job.json";
-
-    // Will be stored in {project}/dogma
-    public static final String META_TO_DOGMA_MIGRATED = "/meta-to-dogma-migrated.json";
 
     private final String name;
     private final long creationTimeMillis;
@@ -92,16 +91,17 @@ public class DefaultProject implements Project {
      * Opens an existing project.
      */
     DefaultProject(File rootDir, Executor repositoryWorker, Executor purgeWorker,
-                   @Nullable RepositoryCache cache) {
+                   @Nullable RepositoryCache cache, EncryptionStorageManager encryptionStorageManager) {
         requireNonNull(rootDir, "rootDir");
         requireNonNull(repositoryWorker, "repositoryWorker");
+        requireNonNull(encryptionStorageManager, "encryptionStorageManager");
 
         if (!rootDir.exists()) {
-            throw new ProjectNotFoundException(rootDir.toString());
+            throw ProjectNotFoundException.of(rootDir.getName());
         }
 
         name = rootDir.getName();
-        repos = newRepoManager(rootDir, repositoryWorker, purgeWorker, cache);
+        repos = newRepoManager(rootDir, repositoryWorker, purgeWorker, cache, encryptionStorageManager);
         if (!repos.exists(REPO_DOGMA)) {
             throw new IllegalStateException(
                     "The project does not have a dogma repository: " + rootDir);
@@ -136,16 +136,18 @@ public class DefaultProject implements Project {
      */
     DefaultProject(@Nullable Project dogmaProject, File rootDir,
                    Executor repositoryWorker, Executor purgeWorker,
-                   long creationTimeMillis, Author author, @Nullable RepositoryCache cache) {
+                   long creationTimeMillis, Author author, @Nullable RepositoryCache cache,
+                   EncryptionStorageManager encryptionStorageManager, boolean encryptDogmaRepo) {
         requireNonNull(rootDir, "rootDir");
         requireNonNull(repositoryWorker, "repositoryWorker");
+        requireNonNull(encryptionStorageManager, "encryptionStorageManager");
 
         if (rootDir.exists()) {
-            throw new ProjectExistsException(rootDir.getName());
+            throw ProjectExistsException.of(rootDir.getName());
         }
 
         name = rootDir.getName();
-        repos = newRepoManager(rootDir, repositoryWorker, purgeWorker, cache);
+        repos = newRepoManager(rootDir, repositoryWorker, purgeWorker, cache, encryptionStorageManager);
 
         final boolean useDogmaRepoAsMetaRepo;
         if (dogmaProject == null) {
@@ -159,7 +161,7 @@ public class DefaultProject implements Project {
 
         boolean success = false;
         try {
-            createReservedRepos(creationTimeMillis, useDogmaRepoAsMetaRepo);
+            createReservedRepos(creationTimeMillis, useDogmaRepoAsMetaRepo, encryptDogmaRepo);
             initializeMetadata(creationTimeMillis, author);
             this.creationTimeMillis = creationTimeMillis;
             this.author = author;
@@ -175,18 +177,21 @@ public class DefaultProject implements Project {
     }
 
     private RepositoryManager newRepoManager(File rootDir, Executor repositoryWorker, Executor purgeWorker,
-                                             @Nullable RepositoryCache cache) {
+                                             @Nullable RepositoryCache cache,
+                                             EncryptionStorageManager encryptionStorageManager) {
         // Enable caching if 'cache' is not null.
         final GitRepositoryManager gitRepos =
-                new GitRepositoryManager(this, rootDir, repositoryWorker, purgeWorker, cache);
+                new GitRepositoryManager(this, rootDir, repositoryWorker, purgeWorker, cache,
+                                         encryptionStorageManager);
         return cache == null ? gitRepos : new CachingRepositoryManager(gitRepos, cache);
     }
 
-    private void createReservedRepos(long creationTimeMillis, boolean useDogmaRepoAsMetaRepo) {
+    private void createReservedRepos(long creationTimeMillis, boolean useDogmaRepoAsMetaRepo,
+                                     boolean encryptDogmaRepo) {
         if (!repos.exists(REPO_DOGMA)) {
             try {
                 final Repository dogmaRepository =
-                        repos.create(REPO_DOGMA, creationTimeMillis, Author.SYSTEM);
+                        repos.create(REPO_DOGMA, creationTimeMillis, Author.SYSTEM, encryptDogmaRepo);
                 if (useDogmaRepoAsMetaRepo) {
                     dogmaRepository.commit(
                             Revision.HEAD, creationTimeMillis, Author.SYSTEM,
@@ -200,7 +205,7 @@ public class DefaultProject implements Project {
         }
         if (!useDogmaRepoAsMetaRepo && !repos.exists(REPO_META)) {
             try {
-                repos.create(REPO_META, creationTimeMillis, Author.SYSTEM);
+                repos.create(REPO_META, creationTimeMillis, Author.SYSTEM, encryptDogmaRepo);
             } catch (RepositoryExistsException ignored) {
                 // Just in case there's a race.
             }
@@ -226,11 +231,25 @@ public class DefaultProject implements Project {
             logger.info("Initializing metadata of project: {}", name);
 
             final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
-            final Member member = new Member(author, ProjectRole.OWNER, userAndTimestamp);
+            final Map<String, Member> members;
+            final Map<String, TokenRegistration> tokens;
+            if (author.isToken()) {
+                members = ImmutableMap.of();
+                // author.name() is the appId of the token.
+                final TokenRegistration tokenRegistration =
+                        new TokenRegistration(author.name(), ProjectRole.OWNER, userAndTimestamp);
+
+                tokens = ImmutableMap.of(tokenRegistration.id(), tokenRegistration);
+            } else {
+                final Member member = new Member(author, ProjectRole.OWNER, userAndTimestamp);
+                members = ImmutableMap.of(member.id(), member);
+                tokens = ImmutableMap.of();
+            }
+
             final ProjectMetadata metadata = new ProjectMetadata(name,
                                                                  ImmutableMap.of(),
-                                                                 ImmutableMap.of(member.id(), member),
-                                                                 ImmutableMap.of(),
+                                                                 members,
+                                                                 tokens,
                                                                  userAndTimestamp, null);
             final CommitResult result =
                     dogmaRepo.commit(headRev, creationTimeMillis, Author.SYSTEM,

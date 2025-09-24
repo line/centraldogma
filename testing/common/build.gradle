@@ -1,4 +1,7 @@
 dependencies {
-    api project(':client:java-armeria-legacy')
-    api project(':server')
+    api project(':client:java-armeria')
+    api(project(':server')) {
+        exclude group: 'org.apache.thrift', module: 'libthrift'
+        exclude group: 'com.linecorp.armeria', module: 'armeria-thrift0.9'
+    }
 }

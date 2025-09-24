@@ -95,7 +95,6 @@ public final class FileBasedSessionManager implements SessionManager {
     public FileBasedSessionManager(
             Path rootDir, @Nullable String cronExpr) throws IOException, SchedulerException {
         this.rootDir = requireNonNull(rootDir, "rootDir");
-
         tmpDir = rootDir.resolve("tmp");
         Files.createDirectories(tmpDir);
 

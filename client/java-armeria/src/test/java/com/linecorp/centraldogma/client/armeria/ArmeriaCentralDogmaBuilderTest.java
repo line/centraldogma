@@ -21,11 +21,13 @@ import static io.netty.handler.codec.dns.DnsRecordType.A;
 import static io.netty.handler.codec.dns.DnsSection.ANSWER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -74,17 +76,11 @@ class ArmeriaCentralDogmaBuilderTest {
         b.dnsAddressEndpointGroupConfigurator(
                 configurator -> configurator.serverAddressStreamProvider(dnsServer.dnsServerList()));
         b.healthCheckIntervalMillis(0);
-        // See src/test/resources/centraldogma-client-test.json
+        // See src/test/resources/centraldogma-profiles-test.json
         b.profile("foo");
 
         try (EndpointGroup group = b.endpointGroup()) {
             assertThat(group).isNotNull();
-            assertThat(group).isInstanceOf(CompositeEndpointGroup.class);
-            final CompositeEndpointGroup compositeGroup = (CompositeEndpointGroup) group;
-            final List<EndpointGroup> childGroups = compositeGroup.groups();
-            assertThat(childGroups).hasSize(2);
-            assertThat(childGroups.get(0)).isInstanceOf(DnsAddressEndpointGroup.class);
-            assertThat(childGroups.get(1)).isInstanceOf(DnsAddressEndpointGroup.class);
 
             await().untilAsserted(() -> {
                 final List<Endpoint> endpoints = group.endpoints();
@@ -142,13 +138,6 @@ class ArmeriaCentralDogmaBuilderTest {
 
         try (EndpointGroup endpointGroup = b.endpointGroup()) {
             assertThat(endpointGroup).isNotNull();
-            assertThat(endpointGroup).isInstanceOf(CompositeEndpointGroup.class);
-            final CompositeEndpointGroup compositeGroup = (CompositeEndpointGroup) endpointGroup;
-            final List<EndpointGroup> childGroups = compositeGroup.groups();
-            assertThat(childGroups).hasSize(3);
-            assertThat(childGroups.get(0)).isInstanceOf(DnsAddressEndpointGroup.class);
-            assertThat(childGroups.get(1)).isInstanceOf(DnsAddressEndpointGroup.class);
-            assertThat(childGroups.get(2).toString()).contains("StaticEndpointGroup");
 
             await().untilAsserted(() -> {
                 final List<Endpoint> endpoints = endpointGroup.endpoints();
@@ -175,6 +164,7 @@ class ArmeriaCentralDogmaBuilderTest {
         final ClientFactory cf1 = mock(ClientFactory.class);
         final ClientFactory cf2 = mock(ClientFactory.class);
         final ClientFactory cf3 = mock(ClientFactory.class);
+        when(cf1.validateScheme(any())).thenAnswer(returnsFirstArg());
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
         final StringBuilder buf = new StringBuilder();
         b.clientFactory(cf1);

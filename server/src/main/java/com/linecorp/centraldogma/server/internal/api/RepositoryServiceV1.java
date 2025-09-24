@@ -25,8 +25,13 @@ import static java.util.Objects.requireNonNull;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 
 import javax.annotation.Nullable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
@@ -34,6 +39,7 @@ import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.logging.RequestOnlyLog;
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
@@ -56,11 +62,13 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -73,11 +81,16 @@ import io.micrometer.core.instrument.Tag;
 @ProducesJson
 public class RepositoryServiceV1 extends AbstractService {
 
-    private final MetadataService mds;
+    private static final Logger logger = LoggerFactory.getLogger(RepositoryServiceV1.class);
 
-    public RepositoryServiceV1(CommandExecutor executor, MetadataService mds) {
+    private final MetadataService mds;
+    private final EncryptionStorageManager encryptionStorageManager;
+
+    public RepositoryServiceV1(CommandExecutor executor, MetadataService mds,
+                               EncryptionStorageManager encryptionStorageManager) {
         super(executor);
         this.mds = requireNonNull(mds, "mds");
+        this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
     }
 
     /**
@@ -178,9 +191,15 @@ public class RepositoryServiceV1 extends AbstractService {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
                                              "An internal repository cannot be created.");
         }
+        if (request.encrypt() && !encryptionStorageManager.enabled()) {
+            return HttpApiUtil.throwResponse(ctx, HttpStatus.BAD_REQUEST,
+                                             "Encryption is not enabled in the server.");
+        }
+
         final CommandExecutor commandExecutor = executor();
         final CompletableFuture<Revision> future =
-                RepositoryServiceUtil.createRepository(commandExecutor, mds, author, project.name(), repoName);
+                RepositoryServiceUtil.createRepository(commandExecutor, mds, author, project.name(), repoName,
+                                                       request.encrypt(), encryptionStorageManager);
         return future.handle(returnOrThrow(() -> {
             final Repository repository = project.repos().get(repoName);
             return DtoConverter.convert(repository, repositoryStatus(repository));
@@ -267,7 +286,7 @@ public class RepositoryServiceV1 extends AbstractService {
     @Get("/projects/{projectName}/repos/{repoName}")
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     public RepositoryDto status(Project project, Repository repository) {
-        validateDogmaProject(project);
+        rejectIfDogmaProject(project);
         return DtoConverter.convert(repository, repositoryStatus(repository));
     }
 
@@ -282,9 +301,8 @@ public class RepositoryServiceV1 extends AbstractService {
     public CompletableFuture<RepositoryDto> updateStatus(Project project,
                                                          Repository repository,
                                                          Author author,
-                                                         UpdateRepositoryStatusRequest statusRequest)
-            throws Exception {
-        validateDogmaProject(project);
+                                                         UpdateRepositoryStatusRequest statusRequest) {
+        rejectIfDogmaProject(project);
         final RepositoryStatus oldStatus = repositoryStatus(repository);
         final RepositoryStatus newStatus = statusRequest.status();
         if (oldStatus == newStatus) {
@@ -295,6 +313,117 @@ public class RepositoryServiceV1 extends AbstractService {
         return mds.updateRepositoryStatus(author, project.name(),
                                           normalizeRepositoryName(repository), newStatus)
                   .thenApply(unused -> DtoConverter.convert(repository, newStatus));
+    }
+
+    /**
+     * POST /projects/{projectName}/repos/{repoName}/migrate/encrypted
+     *
+     * <p>Migrates the repository to an encrypted repository.
+     */
+    @Post("/projects/{projectName}/repos/{repoName}/migrate/encrypted")
+    @RequiresSystemAdministrator
+    public CompletableFuture<RepositoryDto> migrateToEncryptedRepository(ServiceRequestContext ctx,
+                                                                         Project project,
+                                                                         Repository repository,
+                                                                         Author author) {
+        validateMigrationPrerequisites(ctx, project, repository);
+        ctx.setRequestTimeoutMillis(Long.MAX_VALUE); // Disable the request timeout for migration.
+
+        return encryptionStorageManager
+                .generateWdek()
+                .thenCompose(wdek -> setRepositoryStatus(author, project, repository,
+                                                         RepositoryStatus.READ_ONLY)
+                        .thenCompose(unused -> migrate(author, project, repository, wdek)));
+    }
+
+    private void validateMigrationPrerequisites(ServiceRequestContext ctx, Project project,
+                                                Repository repository) {
+        if (!encryptionStorageManager.enabled()) {
+            throw new IllegalArgumentException(
+                    "Encryption is not enabled in the server. Cannot migrate to an encrypted repository.");
+        }
+
+        // TODO(minwoox): Dogma project and dogma repository will be migrated one day later by a plugin.
+        if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name()) ||
+            project.name().startsWith("@") || Project.REPO_DOGMA.equals(repository.name())) {
+            throw new IllegalArgumentException(
+                    "Cannot migrate the internal project or repository to an encrypted repository. project: " +
+                    project.name() + ", repository: " + repository.name());
+        }
+
+        final RepositoryStatus currentStatus = repositoryStatus(repository);
+        if (repository.isEncrypted()) {
+            throw new IllegalArgumentException(
+                    "The repository is already encrypted. Cannot migrate to an encrypted repository again." +
+                    " project: " + project.name() + ", repository: " + repository.name());
+        }
+
+        final Revision normalizeNow = repository.normalizeNow(Revision.HEAD);
+        if (normalizeNow.major() > 1000) {
+            // Prohibit migration to an encrypted repository if the repository has more than 1000 revisions.
+            // After we implement the repository history rollover feature,
+            // the repository can be migrated to an encrypted repository.
+            throw new IllegalArgumentException(
+                    "Cannot migrate a repository with more than 1000 revisions to an encrypted repository.");
+        }
+
+        if (currentStatus == RepositoryStatus.READ_ONLY) {
+            HttpApiUtil.throwResponse(
+                    ctx, HttpStatus.CONFLICT,
+                    "Cannot migrate a read-only repository to an encrypted repository. " +
+                    "Please change the status to ACTIVE first.");
+        }
+    }
+
+    private CompletableFuture<Void> setRepositoryStatus(Author author, Project project, Repository repository,
+                                                        RepositoryStatus status) {
+        final String projectName = project.name();
+        final String repoName = repository.name();
+        logger.info("Changing repository status: project={}, repository={}, status={}",
+                    projectName, repoName, status);
+        return mds.updateRepositoryStatus(author, projectName, repoName, status)
+                  .handle((unused, cause) -> {
+                      if (cause != null) {
+                          logger.warn("Failed to change the repository status: project={}, repository={}, " +
+                                      "status={}", projectName, repoName, status, cause);
+                          Exceptions.throwUnsafely(cause);
+                      } else {
+                          logger.info("Changed repository status: project={}, repository={}, status={}",
+                                      projectName, repoName, status);
+                      }
+                      return null;
+                  });
+    }
+
+    private CompletionStage<RepositoryDto> migrate(Author author, Project project,
+                                                   Repository repository, byte[] wdek) {
+        final String projectName = project.name();
+        final String repoName = repository.name();
+        logger.info("Starting repository encryption migration: project={}, repository={}",
+                    projectName, repoName);
+
+        final Command<Void> command = Command.migrateToEncryptedRepository(
+                null, author, projectName, repoName, wdek);
+
+        return executor().execute(command)
+                         .handle((unused, cause) -> {
+                             if (cause != null) {
+                                 logger.warn("failed to migrate repository to an encrypted repository: " +
+                                             "project={}, repository={}", projectName, repoName, cause);
+                                 return setRepositoryStatus(author, project, repository,
+                                                            RepositoryStatus.ACTIVE)
+                                         .thenApply(unused1 -> (RepositoryDto) Exceptions.throwUnsafely(cause));
+                             }
+                             logger.info("Successfully migrated repository to an encrypted repository: " +
+                                         "project={}, repository={}", projectName, repoName);
+                             return setRepositoryStatus(author, project, repository, RepositoryStatus.ACTIVE)
+                                     .thenApply(unused1 -> {
+                                         final Repository updatedRepository =
+                                                 project.repos().get(repository.name());
+                                         return DtoConverter.convert(updatedRepository,
+                                                                     RepositoryStatus.ACTIVE);
+                                     });
+                         }).thenCompose(Function.identity());
     }
 
     static void increaseCounterIfOldRevisionUsed(ServiceRequestContext ctx, Repository repository,
@@ -334,7 +463,7 @@ public class RepositoryServiceV1 extends AbstractService {
                            Tag.of("method", log.name()));
     }
 
-    private static void validateDogmaProject(Project project) {
+    private static void rejectIfDogmaProject(Project project) {
         if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(project.name())) {
             throw new IllegalArgumentException(
                     "Cannot update the status of the internal project: " + project.name());
