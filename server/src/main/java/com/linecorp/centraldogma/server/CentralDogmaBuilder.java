@@ -194,7 +194,7 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Adds addresses or ranges of <a href="https://tools.ietf.org/html/rfc4632">
+     * Adds addresses or ranges of <a href="https://datatracker.ietf.org/doc/html/rfc4632">
      * Classless Inter-domain Routing (CIDR)</a> blocks of trusted proxy servers.
      *
      * @param exactOrCidrAddresses a list of addresses and CIDR blocks, e.g. {@code 10.0.0.1} for a single
@@ -207,7 +207,7 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Adds addresses or ranges of <a href="https://tools.ietf.org/html/rfc4632">
+     * Adds addresses or ranges of <a href="https://datatracker.ietf.org/doc/html/rfc4632">
      * Classless Inter-domain Routing (CIDR)</a> blocks of trusted proxy servers.
      *
      * @param exactOrCidrAddresses a list of addresses and CIDR blocks, e.g. {@code 10.0.0.1} for a single

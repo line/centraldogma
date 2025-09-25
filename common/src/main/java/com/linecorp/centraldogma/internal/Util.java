@@ -444,7 +444,7 @@ public final class Util {
 
                     // Verify this address is of the correct structure to contain an IPv4 address.
                     // It must be IPv4-Mapped or IPv4-Compatible
-                    // (see https://tools.ietf.org/html/rfc4291#section-2.5.5).
+                    // (see  https://datatracker.ietf.org/doc/html/rfc4291#section-2.5.5).
                     final int ipv4Start = i - wordLen;
                     int j = ipv4Start - 2; // index of character before the previous ':'.
                     if (isValidIPv4MappedChar(ip.charAt(j))) {
