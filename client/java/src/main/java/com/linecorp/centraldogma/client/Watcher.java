@@ -49,10 +49,10 @@ public interface Watcher<T> extends AutoCloseable {
     /**
      * Creates a forked {@link Watcher} based on an existing {@link JsonNode}-watching {@link Watcher}.
      *
-     * @param jsonPointer a <a href="https://tools.ietf.org/html/rfc6901">JSON pointer</a> that is encoded
+     * @param jsonPointer a <a href="https://datatracker.ietf.org/doc/html/rfc6901">JSON pointer</a> that is encoded
      *
      * @return A new child {@link Watcher}, whose transformation is a
-     *         <a href="https://tools.ietf.org/html/rfc6901">JSON pointer</a> query.
+     *         <a href="https://datatracker.ietf.org/doc/html/rfc6901">JSON pointer</a> query.
      */
     static Watcher<JsonNode> atJsonPointer(Watcher<JsonNode> watcher, String jsonPointer) {
         requireNonNull(watcher, "watcher");

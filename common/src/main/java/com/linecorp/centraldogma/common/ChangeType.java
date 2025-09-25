@@ -50,7 +50,7 @@ public enum ChangeType {
 
     /**
      * Applies a JSON patch to a JSON file. The {@link Change#content()} of this type is a JSON patch object,
-     * as defined in <a href="https://tools.ietf.org/html/rfc6902">RFC 6902</a>.
+     * as defined in <a href="https://datatracker.ietf.org/doc/html/rfc6902">RFC 6902</a>.
      */
     APPLY_JSON_PATCH(JsonNode.class),
 
