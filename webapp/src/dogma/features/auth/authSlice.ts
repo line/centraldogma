@@ -28,7 +28,7 @@ const getCsrfTokenFromMeta = (): string | null => {
     return null;
   }
   const element = document.querySelector('meta[name="csrf-token"]');
-  return element ? element.getAttribute('content') : null;
+  return element?.getAttribute('content') ?? null;
 };
 
 const updateCsrfTokenInMeta = (token: string) => {

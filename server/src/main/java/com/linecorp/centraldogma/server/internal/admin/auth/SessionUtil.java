@@ -16,8 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.admin.auth;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,14 +55,13 @@ public final class SessionUtil {
 
     @Nullable
     public static String getSessionIdFromCookie(ServiceRequestContext ctx, String sessionCookieName) {
-        final String cookieValue = ctx.request().headers().get(HttpHeaderNames.COOKIE);
-        if (isNullOrEmpty(cookieValue)) {
+        final Cookies cookies = ctx.request().headers().cookies();
+        if (cookies.isEmpty()) {
             logger.trace("Cookie header is missing. ctx={}", ctx);
             return null;
         }
 
-        final Cookie sessionCookie = findSessionCookie(Cookie.fromCookieHeader(cookieValue),
-                                                       sessionCookieName);
+        final Cookie sessionCookie = findSessionCookie(cookies, sessionCookieName);
         if (sessionCookie == null) {
             logger.trace("Session cookie is missing. ctx={}", ctx);
             return null;

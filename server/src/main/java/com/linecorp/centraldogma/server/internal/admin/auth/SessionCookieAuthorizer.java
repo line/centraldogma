@@ -101,7 +101,7 @@ public class SessionCookieAuthorizer implements Authorizer<HttpRequest> {
             // Check the token when the method is not safe:
             // https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#javascript-automatically-including-csrf-tokens-as-an-ajax-request-header
             if (!isSafeMethod(req)) {
-                final String csrfToken = req.headers().get(X_CSRF_TOKEN);
+                final String csrfToken = req.headers().get(X_CSRF_TOKEN, "");
                 if (isNullOrEmpty(csrfToken) || !csrfToken.equals(session.csrfToken())) {
                     logger.trace("CSRF token mismatch. ctx={}", ctx);
                     return AuthorizationStatus.ofFailure((delegate, ctx1, req1, cause) -> {

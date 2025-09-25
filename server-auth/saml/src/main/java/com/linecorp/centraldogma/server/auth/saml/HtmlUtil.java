@@ -42,16 +42,5 @@ final class HtmlUtil {
         return sb.toString();
     }
 
-    static String getHtmlWithOnload(String... statements) {
-        requireNonNull(statements, "statements");
-
-        final StringBuilder sb = new StringBuilder(HTML_HEAD_START);
-        for (String statement : statements) {
-            sb.append(statement).append(';');
-        }
-        sb.append(END);
-        return sb.toString();
-    }
-
     private HtmlUtil() {}
 }
