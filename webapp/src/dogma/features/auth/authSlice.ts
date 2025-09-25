@@ -115,7 +115,7 @@ export const logout = createAsyncThunk('/auth/logout', async (_, { getState, dis
 export interface AuthState {
   isInAnonymousMode: boolean;
   csrfToken: string | null;
-  user: UserDto;
+  user: UserDto | null;
   isLoading: boolean;
 }
 

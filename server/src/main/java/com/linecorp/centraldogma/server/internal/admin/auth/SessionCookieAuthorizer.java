@@ -103,8 +103,7 @@ public class SessionCookieAuthorizer implements Authorizer<HttpRequest> {
             if (!isSafeMethod(req)) {
                 final String csrfToken = req.headers().get(X_CSRF_TOKEN);
                 if (isNullOrEmpty(csrfToken) || !csrfToken.equals(session.csrfToken())) {
-                    logger.trace("CSRF token mismatch: csrfToken={}, expectedCsrfToken={}, ctx={}",
-                                 csrfToken, session.csrfToken(), ctx);
+                    logger.trace("CSRF token mismatch. ctx={}", ctx);
                     return AuthorizationStatus.ofFailure((delegate, ctx1, req1, cause) -> {
                         return HttpResponse.of(HttpStatus.FORBIDDEN, MediaType.PLAIN_TEXT_UTF_8,
                                                "Invalid CSRF token");
