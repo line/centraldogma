@@ -38,9 +38,7 @@ import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseEntity;
-import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
@@ -70,11 +68,14 @@ class MirrorRunnerTest {
         }
 
         @Override
-        protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-            final String accessToken = getAccessToken(
+        protected String accessToken() {
+            return getAccessToken0();
+        }
+
+        private String getAccessToken0() {
+            return getAccessToken(
                     WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
-                    USERNAME, PASSWORD);
-            builder.accessToken(accessToken);
+                    USERNAME, PASSWORD, true);
         }
 
         @Override
@@ -93,11 +94,7 @@ class MirrorRunnerTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        final String adminToken = getAccessToken(dogma.httpClient(), USERNAME, PASSWORD);
-        systemAdminClient = WebClient.builder(dogma.httpClient().uri())
-                                     .auth(AuthToken.ofOAuth2(adminToken))
-                                     .build()
-                                     .blocking();
+        systemAdminClient = dogma.blockingHttpClient();
         TestMirrorRunnerListener.reset();
     }
 
@@ -146,7 +143,7 @@ class MirrorRunnerTest {
             }
         }
 
-        final String listenerKey = FOO_PROJ + '/' + TEST_MIRROR_ID + '/' + USERNAME;
+        final String listenerKey = FOO_PROJ + '/' + TEST_MIRROR_ID + "/testId"; // test is the token appId
         assertThat(TestMirrorRunnerListener.startCount.get(listenerKey)).isEqualTo(3);
         final List<MirrorResult> results = TestMirrorRunnerListener.completions.get(listenerKey);
         final MirrorResult firstResult = results.get(0);

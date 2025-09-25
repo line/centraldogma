@@ -35,6 +35,7 @@ import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.User;
+import com.linecorp.centraldogma.server.metadata.UserWithToken;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -87,8 +88,15 @@ public final class ProjectApiManager {
                     final ProjectMetadata metadata = entry.getValue().metadata();
                     if (metadata != null) {
                         // Only show internal projects to the members of the project.
-                        if (metadata.memberOrDefault(user.id(), null) != null) {
-                            result.put(entry.getKey(), entry.getValue());
+                        if (user instanceof UserWithToken) {
+                            // TODO(minwoox): Add the type that distinguishes between users and tokens.
+                            if (metadata.tokenOrDefault(((UserWithToken) user).token().appId(), null) != null) {
+                                result.put(entry.getKey(), entry.getValue());
+                            }
+                        } else {
+                            if (metadata.memberOrDefault(user.id(), null) != null) {
+                                result.put(entry.getKey(), entry.getValue());
+                            }
                         }
                     }
                 }
@@ -168,7 +176,11 @@ public final class ProjectApiManager {
         final ProjectMetadata metadata = project.metadata();
         if (metadata != null) {
             // Only show internal projects to the members of the project.
-            if (metadata.memberOrDefault(user.id(), null) != null) {
+            if (user instanceof UserWithToken) {
+                if (metadata.tokenOrDefault(((UserWithToken) user).token().appId(), null) != null) {
+                    return project;
+                }
+            } else if (metadata.memberOrDefault(user.id(), null) != null) {
                 return project;
             }
         }

@@ -27,10 +27,10 @@ import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.User;
 
 /**
- * A decorator which checks whether CSRF token exists.
+ * A decorator which checks whether an anonymous token exists.
  * This should be used for {@link THttpService} and admin service without security.
  */
-public class CsrfTokenAuthorizer extends AbstractAuthorizer {
+public class AnonymousTokenAuthorizer extends AbstractAuthorizer {
 
     @Override
     public CompletionStage<Boolean> authorize(ServiceRequestContext ctx, HttpRequest req, String accessToken) {

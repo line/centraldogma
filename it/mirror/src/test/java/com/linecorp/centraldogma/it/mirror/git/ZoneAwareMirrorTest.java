@@ -90,15 +90,18 @@ class ZoneAwareMirrorTest {
     };
 
     private static int serverPort;
-    private static String accessToken;
+    @Nullable
+    private String accessToken;
 
     @BeforeEach
     void setUp() throws Exception {
         final CentralDogmaRuleDelegate server1 = cluster.servers().get(0);
         serverPort = server1.serverAddress().getPort();
-        accessToken = getAccessToken(
-                WebClient.of("http://127.0.0.1:" + serverPort),
-                USERNAME, PASSWORD);
+        if (accessToken == null) {
+            accessToken = getAccessToken(
+                    WebClient.of("http://127.0.0.1:" + serverPort),
+                    USERNAME, PASSWORD, "fooAppId", true);
+        }
 
         final CentralDogma client =
                 new ArmeriaCentralDogmaBuilder()
@@ -207,7 +210,7 @@ class ZoneAwareMirrorTest {
         });
     }
 
-    private static void createMirror(@Nullable String zone) throws Exception {
+    private void createMirror(@Nullable String zone) throws Exception {
         final BlockingWebClient client = WebClient.builder("http://127.0.0.1:" + serverPort)
                                                   .auth(AuthToken.ofOAuth2(accessToken))
                                                   .build()

@@ -79,12 +79,12 @@ class MetadataApiServiceTest {
 
     @BeforeAll
     static void setUp() throws JsonMappingException, JsonParseException {
-        final String sessionId = getAccessToken(dogma.httpClient(),
-                                                TestAuthMessageUtil.USERNAME,
-                                                TestAuthMessageUtil.PASSWORD);
+        final String accessToken = getAccessToken(dogma.httpClient(),
+                                                  TestAuthMessageUtil.USERNAME,
+                                                  TestAuthMessageUtil.PASSWORD, "appId1", true);
 
         systemAdminClient = WebClient.builder(dogma.httpClient().uri())
-                                     .auth(AuthToken.ofOAuth2(sessionId)).build()
+                                     .auth(AuthToken.ofOAuth2(accessToken)).build()
                                      .blocking();
         RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, PROJECTS_PREFIX,
                                                    HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
@@ -107,25 +107,16 @@ class MetadataApiServiceTest {
                                          .build();
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.CREATED);
 
-        final String memberToken = "appToken-secret-member";
-        // Create a token with a non-random secret.
-        request = HttpRequest.builder()
-                             .post("/api/v1/tokens")
-                             .content(MediaType.FORM_DATA,
-                                      "secret=" + memberToken + "&isSystemAdmin=false&appId=foo")
-                             .build();
-        AggregatedHttpResponse res = systemAdminClient.execute(request);
-        assertThat(res.status()).isEqualTo(HttpStatus.CREATED);
-        res = systemAdminClient.get("/api/v1/tokens");
-        assertThat(res.contentUtf8()).contains("\"secret\":\"" + memberToken + '"');
+        final String memberToken = getAccessToken(dogma.httpClient(),
+                                                  TestAuthMessageUtil.USERNAME,
+                                                  TestAuthMessageUtil.PASSWORD, MEMBER_APP_ID, false);
 
         // Add as a member to the project
         request = HttpRequest.builder()
                              .post("/api/v1/metadata/" + PROJECT_NAME + "/tokens")
                              .contentJson(new IdAndProjectRole(MEMBER_APP_ID, ProjectRole.MEMBER))
                              .build();
-        res = systemAdminClient.execute(request);
-        assertThat(res.status()).isSameAs(HttpStatus.OK);
+        assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.OK);
 
         memberTokenClient = WebClient.builder(dogma.httpClient().uri())
                                      .auth(AuthToken.ofOAuth2(memberToken)).build()

@@ -17,7 +17,6 @@
 package com.linecorp.centraldogma.server.command;
 
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
-import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -36,11 +35,10 @@ class CreateSessionCommandTest {
     void testJsonConversion() throws Exception {
         final Session session =
                 new Session("session-id-12345",
-                            null,
+                            "csrf",
                             "foo",
                             Instant.EPOCH,
-                            Instant.EPOCH.plus(1, ChronoUnit.MINUTES),
-                            "abc");
+                            Instant.EPOCH.plus(1, ChronoUnit.MINUTES), null);
 
         // Convert the object with Jackson because a serializer and deserializer for Instant type are
         // added to Jackson.
@@ -60,25 +58,11 @@ class CreateSessionCommandTest {
                         "  }," +
                         "  \"session\": {\n" +
                         "    \"id\": \"session-id-12345\"," +
+                        "    \"csrfToken\": \"csrf\"," +
                         "    \"username\": \"foo\"," +
                         "    \"creationTime\": 0," +
                         "    \"expirationTime\": 60" +
                         "  }" +
                         '}');
-    }
-
-    @Test
-    void testEquals() {
-        final Session session =
-                new Session("session-id-12345",
-                            null,
-                            "foo",
-                            Instant.EPOCH,
-                            Instant.EPOCH.plus(1, ChronoUnit.MINUTES),
-                            "abc");
-        final CreateSessionCommand command = new CreateSessionCommand(1234L,
-                                                                      new Author("foo", "bar@baz.com"),
-                                                                      session);
-        assertThat(command).isNotEqualTo("string");
     }
 }

@@ -25,6 +25,7 @@ import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.HttpServiceWithRoutes;
 import com.linecorp.armeria.server.saml.SamlServiceProvider;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
+import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
 
 /**
  * OpenSAML based {@link AuthProvider} implementation.
@@ -32,14 +33,16 @@ import com.linecorp.centraldogma.server.auth.AuthProvider;
 public class SamlAuthProvider implements AuthProvider {
 
     private final SamlServiceProvider sp;
+    private final AuthProviderParameters parameters;
 
-    SamlAuthProvider(SamlServiceProvider sp) {
+    SamlAuthProvider(SamlServiceProvider sp, AuthProviderParameters parameters) {
         this.sp = requireNonNull(sp, "sp");
+        this.parameters = requireNonNull(parameters, "parameters");
     }
 
     @Override
     public HttpService webLoginService() {
-        // Should always redirect to the IdP because the browser cannot set a token to the request.
+        // TODO(minwoox): Add SamlLoginInitiatingService to Armeria.
         final HttpService service = (ctx, req) -> HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR);
         return service.decorate(sp.newSamlDecorator());
     }
@@ -47,5 +50,10 @@ public class SamlAuthProvider implements AuthProvider {
     @Override
     public Iterable<HttpServiceWithRoutes> moreServices() {
         return ImmutableList.of(sp.newSamlService());
+    }
+
+    @Override
+    public AuthProviderParameters parameters() {
+        return parameters;
     }
 }

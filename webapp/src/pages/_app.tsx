@@ -9,6 +9,8 @@ import { NotificationWrapper } from 'dogma/common/components/NotificationWrapper
 import dynamic from 'next/dynamic';
 import StoreProvider from 'dogma/StoreProvider';
 import { Loading } from 'dogma/common/components/Loading';
+import Head from 'next/head';
+import { useAppSelector } from 'dogma/hooks';
 
 const WEB_AUTH_LOGIN = '/web/auth/login';
 
@@ -19,6 +21,12 @@ export type NextPageWithLayout = NextPage & {
 type AppPropsWithLayout = AppProps & {
   Component: NextPageWithLayout;
 };
+
+function GlobalCsrfMetaTag() {
+  const csrfToken = useAppSelector((state) => state.auth.csrfToken);
+
+  return <Head>{csrfToken && <meta name="csrf-token" content={csrfToken} />}</Head>;
+}
 
 let urlRewrite = false;
 const DogmaApp = ({ Component, pageProps }: AppPropsWithLayout) => {
@@ -47,6 +55,7 @@ const DogmaApp = ({ Component, pageProps }: AppPropsWithLayout) => {
 
   return (
     <StoreProvider>
+      <GlobalCsrfMetaTag />
       <ChakraProvider theme={theme}>
         <NotificationWrapper>
           <Authorized>{getLayout(<Component {...pageProps} />)}</Authorized>

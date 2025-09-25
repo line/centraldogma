@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.auth;
 
-import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.MALFORMED_SESSION_ID;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionIdCookie;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.WRONG_PASSWORD;
@@ -42,13 +42,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.Cookie;
+import com.linecorp.armeria.common.Cookies;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
@@ -151,17 +153,23 @@ class ReplicatedLoginAndLogoutTest {
         assertThat(replicationLogCount()).isEqualTo(baselineReplicationLogCount + 1);
 
         // Ensure authorization works at the 2nd replica.
-        final AccessToken accessToken = Jackson.readValue(loginRes.contentUtf8(), AccessToken.class);
-        final String sessionId = accessToken.accessToken();
+        final String csrfToken = Jackson.readTree(loginRes.contentUtf8()).get("csrf_token").asText();
+        assertThat(csrfToken).isNotNull();
+
+        final Cookies cookies = loginRes.headers().cookies();
+        assertThat(cookies.size()).isOne();
+
+        final Cookie sessionCookie = Iterables.getFirst(cookies, null);
         await().pollDelay(Durations.TWO_HUNDRED_MILLISECONDS)
                .pollInterval(Durations.ONE_SECOND)
-               .untilAsserted(() -> assertThat(usersMe(client2, sessionId).status()).isEqualTo(HttpStatus.OK));
+               .untilAsserted(() -> assertThat(usersMe(client2, sessionCookie, csrfToken).status())
+                       .isEqualTo(HttpStatus.OK));
 
         // Ensure that no replication log is produced.
         assertThat(replicationLogCount()).isEqualTo(baselineReplicationLogCount + 1);
 
         // Log out from the 1st replica.
-        assertThat(logout(client1, sessionId).status()).isEqualTo(HttpStatus.OK);
+        assertThat(logout(client1, sessionCookie, csrfToken).status()).isEqualTo(HttpStatus.OK);
 
         // Ensure that only one replication log is produced.
         assertThat(replicationLogCount()).isEqualTo(baselineReplicationLogCount + 2);
@@ -169,7 +177,7 @@ class ReplicatedLoginAndLogoutTest {
         // Ensure authorization fails at the 2nd replica.
         await().pollDelay(Durations.TWO_HUNDRED_MILLISECONDS)
                .pollInterval(Durations.ONE_SECOND)
-               .untilAsserted(() -> assertThat(usersMe(client2, sessionId).status())
+               .untilAsserted(() -> assertThat(usersMe(client2, sessionCookie, csrfToken).status())
                        .isEqualTo(HttpStatus.UNAUTHORIZED));
     }
 
@@ -185,8 +193,8 @@ class ReplicatedLoginAndLogoutTest {
     @Test
     void incorrectLogout() throws Exception {
         final int baselineReplicationLogCount = replicationLogCount();
-        assertThat(logout(client1, WRONG_SESSION_ID).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(logout(client1, MALFORMED_SESSION_ID).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        final Cookie sessionCookie = createSessionIdCookie(WRONG_SESSION_ID, false, 60);
+        assertThat(logout(client1, sessionCookie, "csrfToken").status()).isEqualTo(HttpStatus.NO_CONTENT);
 
         // Ensure that a failed logout attempt does not produce any replication logs.
         assertThat(replicationLogCount()).isEqualTo(baselineReplicationLogCount);

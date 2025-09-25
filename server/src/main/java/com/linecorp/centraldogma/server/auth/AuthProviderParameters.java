@@ -24,6 +24,7 @@ import java.util.function.Supplier;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
 /**
  * Parameters which are used to create a new {@link AuthProvider} instance.
@@ -36,6 +37,9 @@ public final class AuthProviderParameters {
     private final Supplier<String> sessionIdGenerator;
     private final Function<Session, CompletableFuture<Void>> loginSessionPropagator;
     private final Function<String, CompletableFuture<Void>> logoutSessionPropagator;
+    private final SessionManager sessionManager;
+    private final boolean tlsEnabled;
+    private final EncryptionStorageManager encryptionStorageManager;
 
     /**
      * Creates a new instance.
@@ -47,18 +51,24 @@ public final class AuthProviderParameters {
      *                               to the other replicas
      * @param logoutSessionPropagator a function which propagates the logged out session ID to the other
      *                                replicas
+     * @param tlsEnabled {@code true} if TLS is enabled
      */
     public AuthProviderParameters(
             Authorizer<HttpRequest> authorizer,
             CentralDogmaConfig config,
             Supplier<String> sessionIdGenerator,
             Function<Session, CompletableFuture<Void>> loginSessionPropagator,
-            Function<String, CompletableFuture<Void>> logoutSessionPropagator) {
+            Function<String, CompletableFuture<Void>> logoutSessionPropagator,
+            SessionManager sessionManager, boolean tlsEnabled,
+            EncryptionStorageManager encryptionStorageManager) {
         this.authorizer = requireNonNull(authorizer, "authorizer");
         this.config = requireNonNull(config, "config");
         this.sessionIdGenerator = requireNonNull(sessionIdGenerator, "sessionIdGenerator");
         this.loginSessionPropagator = requireNonNull(loginSessionPropagator, "loginSessionPropagator");
         this.logoutSessionPropagator = requireNonNull(logoutSessionPropagator, "logoutSessionPropagator");
+        this.sessionManager = requireNonNull(sessionManager, "sessionManager");
+        this.tlsEnabled = tlsEnabled;
+        this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
         authConfig = requireNonNull(config.authConfig(), "authConfig");
     }
 
@@ -106,5 +116,26 @@ public final class AuthProviderParameters {
      */
     public Function<String, CompletableFuture<Void>> logoutSessionPropagator() {
         return logoutSessionPropagator;
+    }
+
+    /**
+     * Returns the session manager.
+     */
+    public SessionManager sessionManager() {
+        return sessionManager;
+    }
+
+    /**
+     * Returns {@code true} if TLS is enabled.
+     */
+    public boolean tlsEnabled() {
+        return tlsEnabled;
+    }
+
+    /**
+     * Returns the encryption storage manager.
+     */
+    public EncryptionStorageManager encryptionStorageManager() {
+        return encryptionStorageManager;
     }
 }

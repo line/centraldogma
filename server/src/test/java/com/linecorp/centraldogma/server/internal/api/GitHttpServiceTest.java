@@ -37,7 +37,6 @@ import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.FetchResult;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.TreeWalk;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
@@ -58,7 +57,6 @@ import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.internal.api.GitHttpService.PacketLineFraming;
@@ -73,6 +71,9 @@ class GitHttpServiceTest {
     @TempDir
     static File temporaryFolder2;
 
+    private static String accessToken;
+    private static String basicAuthToken;
+
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
 
@@ -83,11 +84,12 @@ class GitHttpServiceTest {
         }
 
         @Override
-        protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-            final String accessToken = getAccessToken(
+        protected String accessToken() {
+            accessToken = getAccessToken(
                     WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
-                    USERNAME, PASSWORD);
-            builder.accessToken(accessToken);
+                    USERNAME, PASSWORD, true);
+            basicAuthToken = AuthToken.ofBasic("dogma", accessToken).asHeaderValue();
+            return accessToken;
         }
 
         @Override
@@ -98,17 +100,6 @@ class GitHttpServiceTest {
                   .join();
         }
     };
-
-    private String accessToken;
-    private String basicAuthToken;
-
-    @BeforeEach
-    void setUp() {
-        accessToken = getAccessToken(
-                WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
-                USERNAME, PASSWORD);
-        basicAuthToken = AuthToken.ofBasic("dogma", accessToken).asHeaderValue();
-    }
 
     @CsvSource({ "bar.git", "bar" })
     @ParameterizedTest

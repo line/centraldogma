@@ -37,12 +37,9 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
-import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseEntity;
-import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
@@ -72,19 +69,8 @@ class MirrorAccessControlTest {
         }
 
         @Override
-        protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-            builder.accessToken(getAccessToken0());
-        }
-
-        @Override
-        protected void configureHttpClient(WebClientBuilder builder) {
-            builder.auth(AuthToken.ofOAuth2(getAccessToken0()));
-        }
-
-        @Override
-        protected void scaffold(CentralDogma client) {
-            client.createProject(TEST_PROJ).join();
-            client.createRepository(TEST_PROJ, TEST_REPO).join();
+        protected String accessToken() {
+            return getAccessToken0();
         }
 
         private String getAccessToken0() {
@@ -93,8 +79,14 @@ class MirrorAccessControlTest {
             }
             accessToken = getAccessToken(
                     WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
-                    USERNAME, PASSWORD);
+                    USERNAME, PASSWORD, true);
             return accessToken;
+        }
+
+        @Override
+        protected void scaffold(CentralDogma client) {
+            client.createProject(TEST_PROJ).join();
+            client.createRepository(TEST_PROJ, TEST_REPO).join();
         }
 
         @Override

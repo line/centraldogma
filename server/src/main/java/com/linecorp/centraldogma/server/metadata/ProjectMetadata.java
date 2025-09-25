@@ -183,6 +183,18 @@ public class ProjectMetadata implements Identifiable, HasWeight {
         return defaultMember;
     }
 
+    /**
+     * Returns the {@link TokenRegistration} of the specified application ID in this project.
+     */
+    @Nullable
+    public TokenRegistration tokenOrDefault(String appId, @Nullable TokenRegistration defaultToken) {
+        final TokenRegistration token = tokens.get(requireNonNull(appId, "appId"));
+        if (token != null) {
+            return token;
+        }
+        return defaultToken;
+    }
+
     @Override
     public int weight() {
         int weight = name().length();

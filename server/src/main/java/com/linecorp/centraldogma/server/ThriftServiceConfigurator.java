@@ -21,7 +21,7 @@ import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.armeria.server.thrift.THttpService;
 import com.linecorp.armeria.server.thrift.ThriftCallService;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.admin.auth.CsrfTokenAuthorizer;
+import com.linecorp.centraldogma.server.internal.admin.auth.AnonymousTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTranslator;
@@ -45,7 +45,7 @@ final class ThriftServiceConfigurator {
                                  .decorate(THttpService.newDecorator());
 
         if (cfg.isCsrfTokenRequiredForThrift()) {
-            thriftService = thriftService.decorate(AuthService.newDecorator(new CsrfTokenAuthorizer()));
+            thriftService = thriftService.decorate(AuthService.newDecorator(new AnonymousTokenAuthorizer()));
         } else {
             thriftService = thriftService.decorate(TokenlessClientLogger::new);
         }

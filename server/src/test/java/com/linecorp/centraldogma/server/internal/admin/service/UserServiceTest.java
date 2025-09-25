@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.admin.service;
 
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getSessionCookie;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.login;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
@@ -24,11 +26,15 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.linecorp.armeria.client.BlockingWebClient;
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.Cookie;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -56,7 +62,7 @@ class UserServiceTest {
         final String accessToken =
                 TestAuthMessageUtil.getAccessToken(dogma.httpClient(),
                                                    TestAuthMessageUtil.USERNAME,
-                                                   TestAuthMessageUtil.PASSWORD);
+                                                   TestAuthMessageUtil.PASSWORD, "testAppId", false);
         final User user = client.prepare()
                                 .get("/api/v0/users/me")
                                 .header(HttpHeaderNames.AUTHORIZATION,
@@ -66,7 +72,24 @@ class UserServiceTest {
                                 .asJson(User.class, new ObjectMapper())
                                 .execute()
                                 .content();
-        assertThat(user.name()).isEqualTo(TestAuthMessageUtil.USERNAME);
-        assertThat(user.email()).isEqualTo(TestAuthMessageUtil.USERNAME + Util.USER_EMAIL_SUFFIX);
+        assertThat(user.name()).isEqualTo("testAppId");
+        assertThat(user.email()).isEqualTo("testAppId" + Util.TOKEN_EMAIL_SUFFIX);
+    }
+
+    @Test
+    void shouldReturnCsrfTokenInHeaderWhenSessionIsValid() throws Exception {
+        final AggregatedHttpResponse loginRes = login(dogma.httpClient(), TestAuthMessageUtil.USERNAME2,
+                                                      TestAuthMessageUtil.PASSWORD2);
+        final Cookie sessionCookie = getSessionCookie(loginRes);
+        final String csrfToken = Jackson.readTree(loginRes.contentUtf8()).get("csrf_token").asText();
+        final BlockingWebClient client = WebClient.builder(dogma.httpClient().uri())
+                                                  .addHeader(SessionUtil.X_CSRF_TOKEN, csrfToken)
+                                                  .addHeader(HttpHeaderNames.COOKIE,
+                                                             sessionCookie.toCookieHeader())
+                                                  .build()
+                                                  .blocking();
+        final AggregatedHttpResponse response = client.get("/api/v0/users/me");
+        assertThat(response.status()).isEqualTo(HttpStatus.OK);
+        assertThat(response.headers().get(SessionUtil.X_CSRF_TOKEN)).isNotNull();
     }
 }

@@ -185,16 +185,16 @@ public final class InternalProjectInitializer {
                                                     Revision.HEAD, commitSummary, "", Markup.PLAINTEXT,
                                                     ImmutableList.of(change))))
                     .get();
-            final Entry<JsonNode> entry1 = dogmaRepo.getOrNull(Revision.HEAD, Query.ofJson(TOKEN_JSON)).join();
-            assert entry1 != null;
-            setTokens(entry1, dogmaRepo);
         } catch (Throwable cause) {
             final Throwable peeled = Exceptions.peel(cause);
-            if (peeled instanceof ChangeConflictException) {
-                return;
+            if (!(peeled instanceof ChangeConflictException)) {
+                throw new Error("failed to initialize the token list file", peeled);
             }
-            throw new Error("failed to initialize the token list file", peeled);
         }
+        final Entry<JsonNode> entry1 = dogmaRepo.getOrNull(Revision.HEAD, Query.ofJson(TOKEN_JSON)).join();
+        checkState(entry1 != null && entry1.hasContent(),
+                   "%s file does not exist in %s/%s", TOKEN_JSON,  INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA);
+        setTokens(entry1, dogmaRepo);
     }
 
     private void setTokens(Entry<JsonNode> entry, Repository dogmaRepo) {
