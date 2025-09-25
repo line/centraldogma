@@ -15,8 +15,6 @@
  */
 package com.linecorp.centraldogma.server.auth.saml;
 
-import static java.util.Objects.requireNonNull;
-
 final class HtmlUtil {
 
     private static final String HTML_HEAD_START =
