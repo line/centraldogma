@@ -95,7 +95,7 @@ public class SessionCookieAuthorizer implements Authorizer<HttpRequest> {
         }
         return sessionManager.get(sessionId).thenApply(session -> {
             if (session == null) {
-                logger.trace("Session not found (or expired): {}, ctx={}", sessionId, ctx);
+                logger.trace("Session not found (or expired), ctx={}", ctx);
                 return AuthorizationStatus.of(false);
             }
             // Check the token when the method is not safe:
