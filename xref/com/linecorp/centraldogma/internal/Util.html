@@ -452,7 +452,7 @@
 <a class="jxr_linenumber" name="L444" href="#L444">444</a> 
 <a class="jxr_linenumber" name="L445" href="#L445">445</a>                     <em class="jxr_comment">// Verify this address is of the correct structure to contain an IPv4 address.</em>
 <a class="jxr_linenumber" name="L446" href="#L446">446</a>                     <em class="jxr_comment">// It must be IPv4-Mapped or IPv4-Compatible</em>
-<a class="jxr_linenumber" name="L447" href="#L447">447</a>                     <em class="jxr_comment">// (see https://tools.ietf.org/html/rfc4291#section-2.5.5).</em>
+<a class="jxr_linenumber" name="L447" href="#L447">447</a>                     <em class="jxr_comment">// (see  https://datatracker.ietf.org/doc/html/rfc4291#section-2.5.5).</em>
 <a class="jxr_linenumber" name="L448" href="#L448">448</a>                     <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> ipv4Start = i - wordLen;
 <a class="jxr_linenumber" name="L449" href="#L449">449</a>                     <strong class="jxr_keyword">int</strong> j = ipv4Start - 2; <em class="jxr_comment">// index of character before the previous ':'.</em>
 <a class="jxr_linenumber" name="L450" href="#L450">450</a>                     <strong class="jxr_keyword">if</strong> (isValidIPv4MappedChar(ip.charAt(j))) {

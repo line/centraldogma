@@ -162,7 +162,7 @@
 <a class="jxr_linenumber" name="L154" href="#L154">154</a> <em class="jxr_javadoccomment">     * Returns {@link UsernamePasswordToken} which holds a username and a password.</em>
 <a class="jxr_linenumber" name="L155" href="#L155">155</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L156" href="#L156">156</a>     <strong class="jxr_keyword">private</strong> UsernamePasswordToken usernamePassword(ServiceRequestContext ctx, AggregatedHttpRequest req) {
-<a class="jxr_linenumber" name="L157" href="#L157">157</a>         <em class="jxr_comment">// check the Basic HTTP authentication first (https://tools.ietf.org/html/rfc7617)</em>
+<a class="jxr_linenumber" name="L157" href="#L157">157</a>         <em class="jxr_comment">// check the Basic HTTP authentication first (https://datatracker.ietf.org/doc/html/rfc7617)</em>
 <a class="jxr_linenumber" name="L158" href="#L158">158</a>         <strong class="jxr_keyword">final</strong> BasicToken basicToken = AuthTokenExtractors.basic().apply(RequestHeaders.of(req.headers()));
 <a class="jxr_linenumber" name="L159" href="#L159">159</a>         <strong class="jxr_keyword">if</strong> (basicToken != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L160" href="#L160">160</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> UsernamePasswordToken(basicToken.username(), basicToken.password());

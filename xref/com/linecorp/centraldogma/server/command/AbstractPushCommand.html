@@ -130,14 +130,30 @@
 <a class="jxr_linenumber" name="L122" href="#L122">122</a> 
 <a class="jxr_linenumber" name="L123" href="#L123">123</a>     @Override
 <a class="jxr_linenumber" name="L124" href="#L124">124</a>     ToStringHelper toStringHelper() {
-<a class="jxr_linenumber" name="L125" href="#L125">125</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">super</strong>.toStringHelper()
-<a class="jxr_linenumber" name="L126" href="#L126">126</a>                     .add(<span class="jxr_string">"baseRevision"</span>, baseRevision)
-<a class="jxr_linenumber" name="L127" href="#L127">127</a>                     .add(<span class="jxr_string">"summary"</span>, summary)
-<a class="jxr_linenumber" name="L128" href="#L128">128</a>                     .add(<span class="jxr_string">"detail"</span>, detail)
-<a class="jxr_linenumber" name="L129" href="#L129">129</a>                     .add(<span class="jxr_string">"markup"</span>, markup)
-<a class="jxr_linenumber" name="L130" href="#L130">130</a>                     .add(<span class="jxr_string">"changes"</span>, changes);
-<a class="jxr_linenumber" name="L131" href="#L131">131</a>     }
-<a class="jxr_linenumber" name="L132" href="#L132">132</a> }
+<a class="jxr_linenumber" name="L125" href="#L125">125</a>         <em class="jxr_comment">// Build a summary of changes to avoid overly long toString() result.</em>
+<a class="jxr_linenumber" name="L126" href="#L126">126</a>         <strong class="jxr_keyword">final</strong> StringBuilder changesBuilder = <strong class="jxr_keyword">new</strong> StringBuilder(<span class="jxr_string">"["</span>);
+<a class="jxr_linenumber" name="L127" href="#L127">127</a>         <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">int</strong> i = 0; i &lt; changes.size(); i++) {
+<a class="jxr_linenumber" name="L128" href="#L128">128</a>             <strong class="jxr_keyword">final</strong> Change&lt;?&gt; change = changes.get(i);
+<a class="jxr_linenumber" name="L129" href="#L129">129</a>             <strong class="jxr_keyword">final</strong> String content = change.contentAsText();
+<a class="jxr_linenumber" name="L130" href="#L130">130</a>             changesBuilder.append(<span class="jxr_string">"{type: "</span>).append(change.type())
+<a class="jxr_linenumber" name="L131" href="#L131">131</a>                           .append(<span class="jxr_string">", path: "</span>).append(change.path())
+<a class="jxr_linenumber" name="L132" href="#L132">132</a>                           .append(<span class="jxr_string">", contentLength: "</span>)
+<a class="jxr_linenumber" name="L133" href="#L133">133</a>                           .append(content != <strong class="jxr_keyword">null</strong> ? content.length() : 0)
+<a class="jxr_linenumber" name="L134" href="#L134">134</a>                           .append('}');
+<a class="jxr_linenumber" name="L135" href="#L135">135</a>             <strong class="jxr_keyword">if</strong> (i != changes.size() - 1) {
+<a class="jxr_linenumber" name="L136" href="#L136">136</a>                 changesBuilder.append(<span class="jxr_string">", "</span>);
+<a class="jxr_linenumber" name="L137" href="#L137">137</a>             }
+<a class="jxr_linenumber" name="L138" href="#L138">138</a>         }
+<a class="jxr_linenumber" name="L139" href="#L139">139</a>         changesBuilder.append(']');
+<a class="jxr_linenumber" name="L140" href="#L140">140</a> 
+<a class="jxr_linenumber" name="L141" href="#L141">141</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">super</strong>.toStringHelper()
+<a class="jxr_linenumber" name="L142" href="#L142">142</a>                     .add(<span class="jxr_string">"baseRevision"</span>, baseRevision)
+<a class="jxr_linenumber" name="L143" href="#L143">143</a>                     .add(<span class="jxr_string">"summary"</span>, summary)
+<a class="jxr_linenumber" name="L144" href="#L144">144</a>                     .add(<span class="jxr_string">"detail"</span>, detail)
+<a class="jxr_linenumber" name="L145" href="#L145">145</a>                     .add(<span class="jxr_string">"markup"</span>, markup)
+<a class="jxr_linenumber" name="L146" href="#L146">146</a>                     .add(<span class="jxr_string">"changes"</span>, changesBuilder.toString());
+<a class="jxr_linenumber" name="L147" href="#L147">147</a>     }
+<a class="jxr_linenumber" name="L148" href="#L148">148</a> }
 </pre>
 <hr/>
 <div id="footer">&copy; Copyright 2017&ndash;2025 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>
