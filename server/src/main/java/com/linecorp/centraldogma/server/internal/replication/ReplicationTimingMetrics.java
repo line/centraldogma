@@ -1,0 +1,82 @@
+/*
+ * Copyright 2025 LY Corporation
+ *
+ * LY Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+
+package com.linecorp.centraldogma.server.internal.replication;
+
+import com.google.common.collect.ImmutableList;
+
+import com.linecorp.armeria.common.metric.MoreMeters;
+import com.linecorp.armeria.common.metric.NoopMeterRegistry;
+
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Timer;
+
+final class ReplicationTimingMetrics {
+
+    static final ReplicationTimingMetrics NOOP = new ReplicationTimingMetrics(NoopMeterRegistry.get(), "noop");
+
+    private final String projectName;
+    private final Timer lockAcquireSuccessTimer;
+    private final Timer lockAcquireFailureTimer;
+    private final Timer commandExecutionTimer;
+    private final Timer logStoreTimer;
+
+    ReplicationTimingMetrics(MeterRegistry registry, String projectName) {
+        this.projectName = projectName;
+        lockAcquireSuccessTimer = MoreMeters.newTimer(registry, "replication.lock.waiting",
+                                                      ImmutableList.of(Tag.of("project", projectName),
+                                                                       Tag.of("acquired", "true")));
+        lockAcquireFailureTimer = MoreMeters.newTimer(registry, "replication.lock.waiting",
+                                                      ImmutableList.of(Tag.of("project", projectName),
+                                                                       Tag.of("acquired", "false")));
+        commandExecutionTimer = MoreMeters.newTimer(registry, "replication.command.execution",
+                                                    ImmutableList.of(Tag.of("project", projectName)));
+        logStoreTimer = MoreMeters.newTimer(registry, "replication.log.store",
+                                            ImmutableList.of(Tag.of("project", projectName)));
+    }
+
+    Timer lockAcquireSuccessTimer() {
+        return lockAcquireSuccessTimer;
+    }
+
+    Timer lockAcquireFailureTimer() {
+        return lockAcquireFailureTimer;
+    }
+
+    Timer commandExecutionTimer() {
+        return commandExecutionTimer;
+    }
+
+
+    Timer logStoreTimer() {
+        return logStoreTimer;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof ReplicationTimingMetrics)) {
+            return false;
+        }
+        final ReplicationTimingMetrics that = (ReplicationTimingMetrics) o;
+        return projectName.equals(that.projectName);
+    }
+
+    @Override
+    public int hashCode() {
+        return projectName.hashCode();
+    }
+}

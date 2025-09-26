@@ -84,7 +84,6 @@ import com.google.common.escape.Escapers;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Uninterruptibles;
 
-import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.LockAcquireTimeoutException;
 import com.linecorp.centraldogma.common.Revision;
@@ -92,19 +91,17 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
-import com.linecorp.centraldogma.server.command.AbstractPushCommand;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizableCommit;
-import com.linecorp.centraldogma.server.command.TransformCommand;
+import com.linecorp.centraldogma.server.command.RepositoryCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -138,6 +135,7 @@ public final class ZooKeeperCommandExecutor
 
     private final ConcurrentMap<String, InterProcessMutex> mutexMap = new ConcurrentHashMap<>();
     private final Map<ProjectNameAndAcquired, Timer> lockAcquiredTimers = new ConcurrentHashMap<>();
+    private final Map<String, ReplicationTimingMetrics> replicationTimings = new ConcurrentHashMap<>();
 
     private final ZooKeeperReplicationConfig cfg;
     private final File revisionFile;
@@ -920,7 +918,7 @@ public final class ZooKeeperCommandExecutor
         oldLogRemover.touch();
     }
 
-    private SafeCloseable safeLock(Command<?> command) {
+    private SafeCloseable safeLock(Command<?> command, ReplicationTimingMetrics timingMetrics) {
         final long lockTimeoutNanos = this.lockTimeoutNanos;
         final String executionPath = command.executionPath();
         final InterProcessMutex mtx = mutexMap.computeIfAbsent(
@@ -960,13 +958,7 @@ public final class ZooKeeperCommandExecutor
             cause = e;
         }
 
-        if (command instanceof AbstractPushCommand) {
-            final String projectName = ((AbstractPushCommand<?>) command).projectName();
-            record(projectName, startTime, lockAcquired);
-        } else if (command instanceof TransformCommand) {
-            final String projectName = ((TransformCommand) command).projectName();
-            record(projectName, startTime, lockAcquired);
-        }
+        record(timingMetrics, startTime, lockAcquired);
 
         if (!lockAcquired) {
             if (cause != null) {
@@ -984,13 +976,15 @@ public final class ZooKeeperCommandExecutor
         return () -> safeRelease(mtx);
     }
 
-    private void record(String projectName, long startTime, boolean lockAcquired) {
-        final Timer timer = lockAcquiredTimers.computeIfAbsent(
-                new ProjectNameAndAcquired(projectName, lockAcquired), key -> MoreMeters.newTimer(
-                        meterRegistry, "zookeeper.lock.acquired",
-                        ImmutableList.of(Tag.of("project", projectName),
-                                         Tag.of("acquired", String.valueOf(lockAcquired)))));
-        timer.record(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+    private static void record(ReplicationTimingMetrics timingMetrics, long startTime,
+                               boolean lockAcquired) {
+        if (lockAcquired) {
+            timingMetrics.lockAcquireSuccessTimer()
+                         .record(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+        } else {
+            timingMetrics.lockAcquireFailureTimer()
+                         .record(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+        }
     }
 
     private static void safeRelease(InterProcessMutex mtx) {
@@ -1190,7 +1184,18 @@ public final class ZooKeeperCommandExecutor
     private <T> T blockingExecute(Command<T> command) throws Exception {
         createParentNodes();
 
-        try (SafeCloseable ignored = safeLock(command)) {
+        final ReplicationTimingMetrics timingMetrics;
+        if (command instanceof RepositoryCommand) {
+            final RepositoryCommand<?> repoCommand = (RepositoryCommand<?>) command;
+            final String projectName = repoCommand.projectName();
+            timingMetrics = replicationTimings.computeIfAbsent(projectName, key -> {
+                return new ReplicationTimingMetrics(meterRegistry, key);
+            });
+        } else {
+            timingMetrics = ReplicationTimingMetrics.NOOP;
+        }
+
+        try (SafeCloseable ignored = safeLock(command, timingMetrics)) {
 
             // NB: We are sure no other replicas will append the conflicting logs (the commands with the
             //     same execution path) while we hold the lock for the command's execution path.
@@ -1204,7 +1209,9 @@ public final class ZooKeeperCommandExecutor
                 replayLogs(lastRevision);
             }
 
-            final T result = delegate.execute(command).get();
+            final T result = timingMetrics.commandExecutionTimer().recordCallable(() -> {
+                return delegate.execute(command).get();
+            });
             final ReplicationLog<?> log;
             final Command<?> maybeUnwrapped = unwrapForcePush(command);
             if (maybeUnwrapped instanceof NormalizableCommit) {
@@ -1219,7 +1226,7 @@ public final class ZooKeeperCommandExecutor
             }
 
             // Store the command execution log to ZooKeeper.
-            final long revision = storeLog(log);
+            final long revision = timingMetrics.logStoreTimer().record(() -> storeLog(log));
 
             // Update the ServerStatus to the CommandExecutor after the log is stored.
             if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
