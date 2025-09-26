@@ -83,6 +83,7 @@ thrift09 = { strictly = "0.9.3-1" }
 # See: https://github.com/apache/curator/blob/master/pom.xml
 #      (Switch to the right tag to find out the right version.)
 zookeeper = "3.9.3"
+zstd = "1.5.7-4"
 
 [boms]
 armeria = { module = "com.linecorp.armeria:armeria-bom", version.ref = "armeria" }
@@ -464,6 +465,10 @@ exclusions = [
     "log4j:log4j",
     "org.apache.yetus:audience-annotations",
     "org.slf4j:slf4j-log4j12"]
+
+[libraries.zstd]
+module = "com.github.luben:zstd-jni"
+version.ref = "zstd"
 
 [plugins]
 download = { id = "de.undercouch.download", version.ref = "download" }

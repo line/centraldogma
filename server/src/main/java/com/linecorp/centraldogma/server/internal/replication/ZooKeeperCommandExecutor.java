@@ -1034,7 +1034,7 @@ public final class ZooKeeperCommandExecutor
         @JsonCreator
         LogMeta(@JsonProperty(value = "replicaId", required = true) int replicaId,
                 @JsonProperty(value = "timestamp", defaultValue = "0") Long timestamp,
-                @JsonProperty("size") int size) {
+                @JsonProperty("size") int size, @Nullable @JsonProperty("compressed") Boolean unused) {
             this.replicaId = replicaId;
             if (timestamp == null) {
                 timestamp = 0L;
@@ -1083,7 +1083,9 @@ public final class ZooKeeperCommandExecutor
             final byte[] bytes = Jackson.writeValueAsBytes(log);
             assert bytes.length > 0;
 
-            final LogMeta logMeta = new LogMeta(log.replicaId(), System.currentTimeMillis(), bytes.length);
+            // TODO(ikhoon): Enable compression once releasing decompression support for forward compatibility.
+            final LogMeta logMeta = new LogMeta(log.replicaId(), System.currentTimeMillis(), bytes.length,
+                                                false);
 
             final int count = (bytes.length + MAX_BYTES - 1) / MAX_BYTES;
             for (int i = 0; i < count; ++i) {
@@ -1131,7 +1133,6 @@ public final class ZooKeeperCommandExecutor
                 offset += b.length;
             }
             assert logMeta.size() == offset;
-
             final ReplicationLog<?> log = Jackson.readValue(bytes, ReplicationLog.class);
             return Optional.of(log);
         } catch (Exception e) {

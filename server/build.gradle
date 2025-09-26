@@ -47,6 +47,8 @@ dependencies {
     // Snappy
     implementation libs.snappy
 
+    implementation libs.zstd
+
     // Logging
     optionalImplementation libs.logback15
     // For Caffiene. See https://github.com/line/centraldogma/pull/499
