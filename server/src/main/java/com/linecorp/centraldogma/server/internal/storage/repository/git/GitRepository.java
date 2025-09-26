@@ -759,10 +759,8 @@ class GitRepository implements Repository {
         final CommitExecutor commitExecutor =
                 new CommitExecutor(this, commitTimeMillis, author, summary, detail, markup, false);
         return commit(baseRevision, commitExecutor, normBaseRevision -> {
-            if (!directExecution) {
-                return changes;
-            }
-            return blockingPreviewDiff(normBaseRevision, new DefaultChangesApplier(changes)).values();
+            // XXX(ikhoon) Don't create a diff but just return the changes directly for performance testing.
+            return changes;
         });
     }
 
