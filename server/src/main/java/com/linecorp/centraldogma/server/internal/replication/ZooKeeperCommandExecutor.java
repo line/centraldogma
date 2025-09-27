@@ -1184,18 +1184,18 @@ public final class ZooKeeperCommandExecutor
     private <T> T blockingExecute(Command<T> command) throws Exception {
         createParentNodes();
 
-        final ReplicationTimingMetrics timingMetrics;
+        final ReplicationTimingMetrics metrics;
         if (command instanceof RepositoryCommand) {
             final RepositoryCommand<?> repoCommand = (RepositoryCommand<?>) command;
             final String projectName = repoCommand.projectName();
-            timingMetrics = replicationTimings.computeIfAbsent(projectName, key -> {
+            metrics = replicationTimings.computeIfAbsent(projectName, key -> {
                 return new ReplicationTimingMetrics(meterRegistry, key);
             });
         } else {
-            timingMetrics = ReplicationTimingMetrics.NOOP;
+            metrics = ReplicationTimingMetrics.NOOP;
         }
 
-        try (SafeCloseable ignored = safeLock(command, timingMetrics)) {
+        try (SafeCloseable ignored = safeLock(command, metrics)) {
 
             // NB: We are sure no other replicas will append the conflicting logs (the commands with the
             //     same execution path) while we hold the lock for the command's execution path.
@@ -1206,10 +1206,10 @@ public final class ZooKeeperCommandExecutor
             final List<String> recentRevisions = curator.getChildren().forPath(absolutePath(LOG_PATH));
             if (!recentRevisions.isEmpty()) {
                 final long lastRevision = recentRevisions.stream().mapToLong(Long::parseLong).max().getAsLong();
-                replayLogs(lastRevision);
+                metrics.logReplayTimer().record(() -> replayLogs(lastRevision));
             }
 
-            final T result = timingMetrics.commandExecutionTimer().recordCallable(() -> {
+            final T result = metrics.commandExecutionTimer().recordCallable(() -> {
                 return delegate.execute(command).get();
             });
             final ReplicationLog<?> log;
@@ -1226,7 +1226,7 @@ public final class ZooKeeperCommandExecutor
             }
 
             // Store the command execution log to ZooKeeper.
-            final long revision = timingMetrics.logStoreTimer().record(() -> storeLog(log));
+            final long revision = metrics.logStoreTimer().record(() -> storeLog(log));
 
             // Update the ServerStatus to the CommandExecutor after the log is stored.
             if (command.type() == CommandType.UPDATE_SERVER_STATUS) {

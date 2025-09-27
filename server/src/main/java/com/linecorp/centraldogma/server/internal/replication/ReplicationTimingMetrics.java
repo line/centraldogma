@@ -33,6 +33,7 @@ final class ReplicationTimingMetrics {
     private final Timer lockAcquireSuccessTimer;
     private final Timer lockAcquireFailureTimer;
     private final Timer commandExecutionTimer;
+    private final Timer logReplayTimer;
     private final Timer logStoreTimer;
 
     ReplicationTimingMetrics(MeterRegistry registry, String projectName) {
@@ -45,6 +46,8 @@ final class ReplicationTimingMetrics {
                                                                        Tag.of("acquired", "false")));
         commandExecutionTimer = MoreMeters.newTimer(registry, "replication.command.execution",
                                                     ImmutableList.of(Tag.of("project", projectName)));
+        logReplayTimer = MoreMeters.newTimer(registry, "replication.log.replay",
+                                            ImmutableList.of(Tag.of("project", projectName)));
         logStoreTimer = MoreMeters.newTimer(registry, "replication.log.store",
                                             ImmutableList.of(Tag.of("project", projectName)));
     }
@@ -61,6 +64,9 @@ final class ReplicationTimingMetrics {
         return commandExecutionTimer;
     }
 
+    Timer logReplayTimer() {
+        return logReplayTimer;
+    }
 
     Timer logStoreTimer() {
         return logStoreTimer;
