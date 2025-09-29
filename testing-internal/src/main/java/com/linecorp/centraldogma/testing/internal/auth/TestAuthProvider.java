@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.testing.internal.auth;
 
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionIdCookie;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionCookie;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getSessionIdFromCookie;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.sessionCookieName;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
@@ -48,6 +48,8 @@ import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
 import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthSessionService;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthSessionService.LoginResult;
 import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
@@ -73,7 +75,7 @@ public class TestAuthProvider implements AuthProvider {
     @Nullable
     @Override
     public HttpService loginApiService() {
-        return new LoginService();
+        return new LoginService(parameters.tlsEnabled());
     }
 
     @Nullable
@@ -88,6 +90,18 @@ public class TestAuthProvider implements AuthProvider {
     }
 
     class LoginService implements HttpService {
+
+        private final boolean tlsEnabled;
+        private final AuthSessionService authSessionService;
+
+        LoginService(boolean tlsEnabled) {
+            this.tlsEnabled = tlsEnabled;
+            authSessionService = new AuthSessionService(loginSessionPropagator,
+                                                        parameters.sessionPropagatorWritableChecker(),
+                                                        Duration.ofMinutes(10),
+                                                        parameters.encryptionStorageManager());
+        }
+
         @Override
         public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
             return HttpResponse.of(CompletableFuture.supplyAsync(() -> {
@@ -106,11 +120,11 @@ public class TestAuthProvider implements AuthProvider {
                 }
                 if ((USERNAME.equals(username) && PASSWORD.equals(password)) ||
                     (USERNAME2.equals(username) && PASSWORD2.equals(password))) {
-                    final String sessionId = sessionIdGenerator.get();
-                    final Session session =
-                            new Session(sessionId, "csrfToken", username, Duration.ofSeconds(60));
-                    loginSessionPropagator.apply(session).join();
-                    final Cookie cookie = createSessionIdCookie(sessionId, parameters.tlsEnabled(), 60);
+                    final LoginResult loginResult = authSessionService.create(
+                            username, sessionIdGenerator, () -> "csrfToken").join();
+
+                    final Cookie cookie = createSessionCookie(
+                            loginResult.sessionCookieValue(), parameters.tlsEnabled(), 60);
                     final ResponseHeaders responseHeaders =
                             ResponseHeaders.builder(HttpStatus.OK)
                                            .contentType(MediaType.JSON_UTF_8)

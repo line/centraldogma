@@ -21,8 +21,6 @@ import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.s
 
 import javax.annotation.Nullable;
 
-import org.slf4j.Logger;
-
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpResponse;
@@ -47,8 +45,6 @@ import com.linecorp.centraldogma.server.metadata.User;
  */
 @ResponseConverter(RestfulJsonResponseConverter.class)
 public class UserService extends AbstractService {
-
-    private static Logger logger = org.slf4j.LoggerFactory.getLogger(UserService.class);
 
     @Nullable
     private final SessionManager sessionManager;

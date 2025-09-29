@@ -54,7 +54,7 @@ class SamlAuthSsoHandlerTest {
         final Supplier<String> sessionIdGenerator = () -> Integer.toString(counter.incrementAndGet());
         final SamlAuthSsoHandler samlAuthSsoHandler =
                 new SamlAuthSsoHandler(sessionIdGenerator, session -> CompletableFuture.completedFuture(null),
-                                       Duration.ofDays(1), name -> "foo", "foo", null, tlsEnabled,
+                                       () -> true, Duration.ofDays(1), name -> "foo", "foo", null, tlsEnabled,
                                        NoopEncryptionStorageManager.INSTANCE);
 
         final AggregatedHttpRequest req = AggregatedHttpRequest.of(HttpMethod.GET, "/");
@@ -97,7 +97,7 @@ class SamlAuthSsoHandlerTest {
         final Cookie setCookie = Cookie.fromSetCookieHeader(setCookieValue);
         assertThat(setCookie).isNotNull();
         if (tlsEnabled) {
-            assertThat(setCookie.name()).isEqualTo("__Host-Http-session-id");
+            assertThat(setCookie.name()).isEqualTo("__Host-Http-session-jwt");
             assertThat(setCookie.isSecure()).isTrue();
         } else {
             assertThat(setCookie.name()).isEqualTo("session-id");

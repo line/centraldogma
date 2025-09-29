@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.testing.internal.auth;
 
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.INSECURE_SESSION_COOKIE_NAME;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.SECURE_SESSION_COOKIE_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.charset.StandardCharsets;
@@ -117,12 +119,18 @@ public final class TestAuthMessageUtil {
     }
 
     public static Cookie getSessionCookie(AggregatedHttpResponse response) {
+        return getSessionCookie(response, false);
+    }
+
+    public static Cookie getSessionCookie(AggregatedHttpResponse response, boolean tlsEnabled) {
+        final String cookieName = tlsEnabled ? SECURE_SESSION_COOKIE_NAME
+                                             : INSECURE_SESSION_COOKIE_NAME;
         for (Cookie cookie : response.headers().cookies()) {
-            if (cookie.name().endsWith("session-id")) {
+            if (cookie.name().equals(cookieName)) {
                 return cookie;
             }
         }
-        throw new IllegalStateException("session-id cookie not found");
+        throw new IllegalStateException(cookieName + " cookie not found");
     }
 
     private TestAuthMessageUtil() {}

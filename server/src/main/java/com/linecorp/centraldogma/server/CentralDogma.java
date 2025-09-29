@@ -57,6 +57,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
@@ -839,17 +840,20 @@ public class CentralDogma implements AutoCloseable {
         }
 
         checkState(sessionManager != null, "SessionManager is null");
+        final Supplier<Boolean> sessionPropagatorWritableChecker = commandExecutor::isWritable;
         final AuthProviderParameters parameters = new AuthProviderParameters(
                 // Find application first, then find the session token.
                 new ApplicationTokenAuthorizer(mds::findTokenBySecret)
                         .orElse(new SessionCookieAuthorizer(
-                                sessionManager, tlsEnabled, encryptionStorageManager,
+                                sessionManager, sessionPropagatorWritableChecker,
+                                tlsEnabled, encryptionStorageManager,
                                 authCfg.systemAdministrators())),
                 cfg,
                 sessionManager::generateSessionId,
                 // Propagate login and logout events to the other replicas.
                 session -> commandExecutor.execute(Command.createSession(session)),
                 sessionId -> commandExecutor.execute(Command.removeSession(sessionId)),
+                sessionPropagatorWritableChecker,
                 sessionManager, tlsEnabled,
                 encryptionStorageManager);
         return authCfg.factory().create(parameters);
@@ -1002,7 +1006,8 @@ public class CentralDogma implements AutoCloseable {
                     Optional.ofNullable(authProvider.logoutApiService())
                             .orElseGet(() -> new DefaultLogoutService(
                                     authProvider.parameters().logoutSessionPropagator(),
-                                    sessionManager, needsTls));
+                                    authProvider.parameters().sessionPropagatorWritableChecker(),
+                                    sessionManager, needsTls, encryptionStorageManager));
             for (Route route : LOGOUT_API_ROUTES) {
                 sb.service(route, logout);
             }

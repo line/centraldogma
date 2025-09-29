@@ -56,6 +56,7 @@ logback15 = "1.5.7"
 micrometer = "1.15.2"
 mina-sshd = "2.15.0"
 mockito = "5.18.0"
+nimbus-jose-jwt = "10.5"
 nexus-publish-plugin = "2.0.0"
 node-gradle-plugin = "7.1.0"
 osdetector = "1.7.3"
@@ -357,6 +358,10 @@ version.ref = "mockito"
 [libraries.mockito-junit-jupiter]
 module = "org.mockito:mockito-junit-jupiter"
 version.ref = "mockito"
+
+[libraries.nimbus-jose-jwt]
+module = "com.nimbusds:nimbus-jose-jwt"
+version.ref = "nimbus-jose-jwt"
 
 [libraries.owasp]
 module = "org.owasp.encoder:encoder"

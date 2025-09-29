@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.auth.shiro;
 
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionIdCookie;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionCookie;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.throwResponse;
 import static java.util.Objects.requireNonNull;
 
@@ -58,9 +58,11 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
+import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.auth.Session;
-import com.linecorp.centraldogma.server.auth.SessionKey;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthSessionService;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthSessionService.LoginResult;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
@@ -75,34 +77,26 @@ final class ShiroLoginService extends AbstractHttpService {
     private final SecurityManager securityManager;
     private final Function<String, String> loginNameNormalizer;
     private final Supplier<String> csrfTokenGenerator;
-    private final Function<Session, CompletableFuture<Void>> loginSessionPropagator;
-    private final Duration sessionValidDuration;
     private final long cookieMaxAgeSecond;
     private final boolean tlsEnabled;
-    // TODO(minwoox): Use the sessionKey to encrypt the session cookie.
-    @Nullable
-    private final SessionKey sessionKey;
+    private final AuthSessionService authSessionService;
 
     ShiroLoginService(SecurityManager securityManager,
                       Function<String, String> loginNameNormalizer,
                       Supplier<String> csrfTokenGenerator,
                       Function<Session, CompletableFuture<Void>> loginSessionPropagator,
-                      Duration sessionValidDuration, boolean tlsEnabled,
-                      EncryptionStorageManager encryptionStorageManager) {
+                      Supplier<Boolean> sessionPropagatorWritableChecker, Duration sessionValidDuration,
+                      boolean tlsEnabled, EncryptionStorageManager encryptionStorageManager) {
         this.securityManager = requireNonNull(securityManager, "securityManager");
         this.loginNameNormalizer = requireNonNull(loginNameNormalizer, "loginNameNormalizer");
         this.csrfTokenGenerator = requireNonNull(csrfTokenGenerator, "csrfTokenGenerator");
-        this.loginSessionPropagator = requireNonNull(loginSessionPropagator, "loginSessionPropagator");
-        this.sessionValidDuration = requireNonNull(sessionValidDuration, "sessionValidDuration");
         // Make the cookie expire a bit earlier than the session itself.
         cookieMaxAgeSecond = sessionValidDuration.minusMinutes(1).getSeconds();
         this.tlsEnabled = tlsEnabled;
-        requireNonNull(encryptionStorageManager, "encryptionStorageManager");
-        if (encryptionStorageManager.encryptSessionCookie()) {
-            sessionKey = encryptionStorageManager.getCurrentSessionKey().join();
-        } else {
-            sessionKey = null;
-        }
+        authSessionService = new AuthSessionService(loginSessionPropagator,
+                                                    sessionPropagatorWritableChecker,
+                                                    sessionValidDuration,
+                                                    encryptionStorageManager);
     }
 
     @Override
@@ -118,46 +112,32 @@ final class ShiroLoginService extends AbstractHttpService {
                        try {
                            currentUser = new Builder(securityManager).buildSubject();
                            currentUser.login(usernamePassword);
-
-                           final org.apache.shiro.session.Session session = currentUser.getSession(false);
-                           final String sessionId = session.getId().toString();
-                           final String csrfToken = csrfTokenGenerator.get();
-                           final Session newSession =
-                                   new Session(sessionId, csrfToken, usernamePassword.getUsername(),
-                                               sessionValidDuration);
+                           final String username = usernamePassword.getUsername();
                            final Subject loginUser = currentUser;
-                           // loginSessionPropagator will propagate the authenticated session to all replicas
-                           // in the cluster.
-                           return loginSessionPropagator.apply(newSession).handle((unused, cause) -> {
-                               if (cause != null) {
-                                   ThreadContext.bind(securityManager);
-                                   logoutUserQuietly(ctx, loginUser);
-                                   ThreadContext.unbindSecurityManager();
-                                   return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR,
-                                                                  Exceptions.peel(cause));
-                               }
+                           final Supplier<String> sessionIdGenerator = () -> loginUser.getSession(false).getId()
+                                                                                      .toString();
+                           return authSessionService.create(username, sessionIdGenerator, csrfTokenGenerator)
+                                                    .handle((loginResult, cause) -> {
+                                                        if (cause != null) {
+                                                            ThreadContext.bind(securityManager);
+                                                            logoutUserQuietly(ctx, loginUser);
+                                                            ThreadContext.unbindSecurityManager();
 
-                               logger.debug("{} Logged in: {}", ctx, usernamePassword.getUsername());
+                                                            final Throwable peeled = Exceptions.peel(cause);
+                                                            if (peeled instanceof ReadOnlyException) {
+                                                                return HttpResponse.of(
+                                                                        HttpStatus.SERVICE_UNAVAILABLE,
+                                                                        MediaType.PLAIN_TEXT_UTF_8,
+                                                                        peeled.getMessage());
+                                                            }
+                                                            return HttpApiUtil.newResponse(
+                                                                    ctx, HttpStatus.INTERNAL_SERVER_ERROR,
+                                                                    peeled);
+                                                        }
 
-                               final Cookie cookie = createSessionIdCookie(sessionId, tlsEnabled,
-                                                                           cookieMaxAgeSecond);
-                               final ResponseHeaders responseHeaders =
-                                       ResponseHeaders.builder(HttpStatus.OK)
-                                                      .contentType(MediaType.JSON_UTF_8)
-                                                      .set(HttpHeaderNames.CACHE_CONTROL,
-                                                           ServerCacheControl.DISABLED.asHeaderValue())
-                                                      .cookie(cookie).build();
-                               final String body;
-                               try {
-                                   body = Jackson.writeValueAsString(
-                                           ImmutableMap.of("csrf_token", csrfToken));
-                               } catch (JsonProcessingException e) {
-                                   // This should never happen.
-                                   throw new Error(e);
-                               }
-
-                               return HttpResponse.of(responseHeaders, HttpData.ofUtf8(body));
-                           });
+                                                        logger.debug("{} Logged in: {}", ctx, username);
+                                                        return httpResponse(loginResult);
+                                                    });
                        } catch (IncorrectCredentialsException e) {
                            // Not authorized
                            logger.debug("{} Incorrect password: {}", ctx, usernamePassword.getUsername());
@@ -176,6 +156,27 @@ final class ShiroLoginService extends AbstractHttpService {
                            ThreadContext.unbindSecurityManager();
                        }
                    }, ctx.blockingTaskExecutor()));
+    }
+
+    private HttpResponse httpResponse(LoginResult loginResult) {
+        final Cookie cookie = createSessionCookie(loginResult.sessionCookieValue(), tlsEnabled,
+                                                  cookieMaxAgeSecond);
+        final ResponseHeaders responseHeaders =
+                ResponseHeaders.builder(HttpStatus.OK)
+                               .contentType(MediaType.JSON_UTF_8)
+                               .set(HttpHeaderNames.CACHE_CONTROL,
+                                    ServerCacheControl.DISABLED.asHeaderValue())
+                               .cookie(cookie).build();
+        final String body;
+        try {
+            body = Jackson.writeValueAsString(
+                    ImmutableMap.of("csrf_token", loginResult.csrfToken()));
+        } catch (JsonProcessingException e) {
+            // This should never happen.
+            throw new Error(e);
+        }
+
+        return HttpResponse.of(responseHeaders, HttpData.ofUtf8(body));
     }
 
     private static void logoutUserQuietly(ServiceRequestContext ctx, @Nullable Subject user) {

@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.auth.shiro;
 
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionIdCookie;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionCookie;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.WRONG_PASSWORD;
@@ -107,7 +107,7 @@ class ShiroLoginAndLogoutTest {
 
     @Test
     void incorrectLogout() {
-        final Cookie sessionCookie = createSessionIdCookie("some-session-id", false, 60);
+        final Cookie sessionCookie = createSessionCookie("some-session-id", false, 60);
         assertThat(logout(client, sessionCookie, "csrfToken").status()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
