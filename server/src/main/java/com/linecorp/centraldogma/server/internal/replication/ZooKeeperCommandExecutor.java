@@ -102,7 +102,6 @@ import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -134,8 +133,7 @@ public final class ZooKeeperCommandExecutor
     private static final RetryPolicy RETRY_POLICY_NEVER = (retryCount, elapsedTimeMs, sleeper) -> false;
 
     private final ConcurrentMap<String, InterProcessMutex> mutexMap = new ConcurrentHashMap<>();
-    private final Map<ProjectNameAndAcquired, Timer> lockAcquiredTimers = new ConcurrentHashMap<>();
-    private final Map<String, ReplicationTimingMetrics> replicationTimings = new ConcurrentHashMap<>();
+    private final Map<String, ReplicationMetrics> replicationTimings = new ConcurrentHashMap<>();
 
     private final ZooKeeperReplicationConfig cfg;
     private final File revisionFile;
@@ -918,13 +916,14 @@ public final class ZooKeeperCommandExecutor
         oldLogRemover.touch();
     }
 
-    private SafeCloseable safeLock(Command<?> command, ReplicationTimingMetrics timingMetrics) {
+    private SafeCloseable safeLock(Command<?> command, ReplicationTimings timings) {
         final long lockTimeoutNanos = this.lockTimeoutNanos;
         final String executionPath = command.executionPath();
         final InterProcessMutex mtx = mutexMap.computeIfAbsent(
                 executionPath, k -> new InterProcessMutex(curator, absolutePath(LOCK_PATH, k)));
 
         final long startTime = System.nanoTime();
+        timings.startLockAcquisition(startTime);
         boolean lockAcquired = false;
         Throwable cause = null;
         try {
@@ -958,7 +957,7 @@ public final class ZooKeeperCommandExecutor
             cause = e;
         }
 
-        record(timingMetrics, startTime, lockAcquired);
+        timings.endLockAcquisition(lockAcquired);
 
         if (!lockAcquired) {
             if (cause != null) {
@@ -974,17 +973,6 @@ public final class ZooKeeperCommandExecutor
         }
 
         return () -> safeRelease(mtx);
-    }
-
-    private static void record(ReplicationTimingMetrics timingMetrics, long startTime,
-                               boolean lockAcquired) {
-        if (lockAcquired) {
-            timingMetrics.lockAcquireSuccessTimer()
-                         .record(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-        } else {
-            timingMetrics.lockAcquireFailureTimer()
-                         .record(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-        }
     }
 
     private static void safeRelease(InterProcessMutex mtx) {
@@ -1159,6 +1147,18 @@ public final class ZooKeeperCommandExecutor
         return String.format("%010d", revision);
     }
 
+    private <T> ReplicationTimings newReplicationTimings(Command<T> command) {
+        ReplicationMetrics metrics = null;
+        if (command instanceof RepositoryCommand) {
+            final RepositoryCommand<?> repoCommand = (RepositoryCommand<?>) command;
+            final String projectName = repoCommand.projectName();
+            metrics = replicationTimings.computeIfAbsent(projectName, key -> {
+                return new ReplicationMetrics(meterRegistry, key);
+            });
+        }
+        return new ReplicationTimings(metrics);
+    }
+
     // Ensure that all logs are replayed, any other logs can not be added before end of this function.
     @Override
     protected <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception {
@@ -1172,30 +1172,23 @@ public final class ZooKeeperCommandExecutor
             }
         }
         executor.execute(() -> {
+            final ReplicationTimings timings = newReplicationTimings(command);
             try {
-                future.complete(blockingExecute(command));
+                future.complete(blockingExecute(command, timings));
             } catch (Throwable t) {
                 future.completeExceptionally(t);
+            } finally {
+                timings.record();
+                logger.debug("Elapsed times for {}: {}", command, timings.timingsString());
             }
         });
         return future;
     }
 
-    private <T> T blockingExecute(Command<T> command) throws Exception {
+    private <T> T blockingExecute(Command<T> command, ReplicationTimings timings) throws Exception {
         createParentNodes();
 
-        final ReplicationTimingMetrics metrics;
-        if (command instanceof RepositoryCommand) {
-            final RepositoryCommand<?> repoCommand = (RepositoryCommand<?>) command;
-            final String projectName = repoCommand.projectName();
-            metrics = replicationTimings.computeIfAbsent(projectName, key -> {
-                return new ReplicationTimingMetrics(meterRegistry, key);
-            });
-        } else {
-            metrics = ReplicationTimingMetrics.NOOP;
-        }
-
-        try (SafeCloseable ignored = safeLock(command, metrics)) {
+        try (SafeCloseable ignored = safeLock(command, timings)) {
 
             // NB: We are sure no other replicas will append the conflicting logs (the commands with the
             //     same execution path) while we hold the lock for the command's execution path.
@@ -1203,30 +1196,47 @@ public final class ZooKeeperCommandExecutor
             //     Other replicas may still append the logs with different execution paths, because, by design,
             //     two commands never conflict with each other if they have different execution paths.
 
-            final List<String> recentRevisions = curator.getChildren().forPath(absolutePath(LOG_PATH));
-            if (!recentRevisions.isEmpty()) {
-                final long lastRevision = recentRevisions.stream().mapToLong(Long::parseLong).max().getAsLong();
-                metrics.logReplayTimer().record(() -> replayLogs(lastRevision));
+            timings.startLogReplay();
+            try {
+                final List<String> recentRevisions = curator.getChildren().forPath(absolutePath(LOG_PATH));
+                if (!recentRevisions.isEmpty()) {
+                    final long lastRevision = recentRevisions.stream().mapToLong(Long::parseLong).max()
+                                                             .getAsLong();
+                    replayLogs(lastRevision);
+                }
+            } finally {
+                timings.endLogReplay();
             }
 
-            final T result = metrics.commandExecutionTimer().recordCallable(() -> {
-                return delegate.execute(command).get();
-            });
+            timings.startCommandExecution();
+            final T result;
+            try {
+                result = delegate.execute(command).get();
+            } finally {
+                timings.endCommandExecution();
+            }
+
+            timings.startLogStore();
+            final long revision;
             final ReplicationLog<?> log;
-            final Command<?> maybeUnwrapped = unwrapForcePush(command);
-            if (maybeUnwrapped instanceof NormalizableCommit) {
-                final NormalizableCommit normalizingPushCommand = (NormalizableCommit) maybeUnwrapped;
-                assert result instanceof CommitResult : result;
-                final CommitResult commitResult = (CommitResult) result;
-                final Command<Revision> pushAsIsCommand = normalizingPushCommand.asIs(commitResult);
-                log = new ReplicationLog<>(replicaId(),
-                                           maybeWrap(command, pushAsIsCommand), commitResult.revision());
-            } else {
-                log = new ReplicationLog<>(replicaId(), command, result);
-            }
+            try {
+                final Command<?> maybeUnwrapped = unwrapForcePush(command);
+                if (maybeUnwrapped instanceof NormalizableCommit) {
+                    final NormalizableCommit normalizingPushCommand = (NormalizableCommit) maybeUnwrapped;
+                    assert result instanceof CommitResult : result;
+                    final CommitResult commitResult = (CommitResult) result;
+                    final Command<Revision> pushAsIsCommand = normalizingPushCommand.asIs(commitResult);
+                    log = new ReplicationLog<>(replicaId(),
+                                               maybeWrap(command, pushAsIsCommand), commitResult.revision());
+                } else {
+                    log = new ReplicationLog<>(replicaId(), command, result);
+                }
 
-            // Store the command execution log to ZooKeeper.
-            final long revision = metrics.logStoreTimer().record(() -> storeLog(log));
+                // Store the command execution log to ZooKeeper.
+                revision = storeLog(log);
+            } finally {
+                timings.endLogStore();
+            }
 
             // Update the ServerStatus to the CommandExecutor after the log is stored.
             if (command.type() == CommandType.UPDATE_SERVER_STATUS) {

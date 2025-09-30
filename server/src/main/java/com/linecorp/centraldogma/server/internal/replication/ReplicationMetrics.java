@@ -19,15 +19,12 @@ package com.linecorp.centraldogma.server.internal.replication;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.metric.MoreMeters;
-import com.linecorp.armeria.common.metric.NoopMeterRegistry;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Timer;
 
-final class ReplicationTimingMetrics {
-
-    static final ReplicationTimingMetrics NOOP = new ReplicationTimingMetrics(NoopMeterRegistry.get(), "noop");
+final class ReplicationMetrics {
 
     private final String projectName;
     private final Timer lockAcquireSuccessTimer;
@@ -36,7 +33,7 @@ final class ReplicationTimingMetrics {
     private final Timer logReplayTimer;
     private final Timer logStoreTimer;
 
-    ReplicationTimingMetrics(MeterRegistry registry, String projectName) {
+    ReplicationMetrics(MeterRegistry registry, String projectName) {
         this.projectName = projectName;
         lockAcquireSuccessTimer = MoreMeters.newTimer(registry, "replication.lock.waiting",
                                                       ImmutableList.of(Tag.of("project", projectName),
@@ -74,10 +71,10 @@ final class ReplicationTimingMetrics {
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof ReplicationTimingMetrics)) {
+        if (!(o instanceof ReplicationMetrics)) {
             return false;
         }
-        final ReplicationTimingMetrics that = (ReplicationTimingMetrics) o;
+        final ReplicationMetrics that = (ReplicationMetrics) o;
         return projectName.equals(that.projectName);
     }
 
