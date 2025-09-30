@@ -69,8 +69,7 @@ public final class AuthSessionService {
                 signer = new MACSigner(sessionKey.signingKey());
                 encrypter = new DirectEncrypter(sessionKey.encryptionKey());
             } catch (Throwable t) {
-                // Should never reach here.
-                throw new Error(t);
+                throw new IllegalStateException("Failed to initialize AuthSessionService", t);
             }
         } else {
             sessionKey = null;

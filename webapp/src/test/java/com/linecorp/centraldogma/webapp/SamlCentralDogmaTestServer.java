@@ -47,8 +47,8 @@ final class SamlCentralDogmaTestServer {
         final Server samlIdpServer = SamlIdpServer.newServer();
         samlIdpServer.start().join();
 
-        final Path rooDir = Files.createTempDirectory("dogma-test");
-        final CentralDogma server = new CentralDogmaBuilder(rooDir.toFile())
+        final Path rootDir = Files.createTempDirectory("dogma-test");
+        final CentralDogma server = new CentralDogmaBuilder(rootDir.toFile())
                 .webAppEnabled(true)
                 .port(PORT, SessionProtocol.HTTP)
                 .systemAdministrators(USERNAME)
