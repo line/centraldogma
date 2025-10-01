@@ -23,8 +23,6 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -34,6 +32,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
@@ -50,38 +49,18 @@ class CentralDogmaImportTest {
     static CentralDogmaExtension dogmaExt = new CentralDogmaExtension() {
     };
 
-    Random random;
+    CentralDogma dogma;
     String project;
     String repository;
-    String dir;
-    CentralDogma dogma;
-
-    private static void removeCreatedDir(Path dir) throws IOException {
-        if (Files.exists(dir)) {
-            Files.walk(dir)
-                 .sorted(Comparator.reverseOrder())
-                 .forEach(p -> {
-                     try {
-                         Files.deleteIfExists(p);
-                     } catch (IOException ignored) {
-                     }
-                 });
-        }
-        final Path projectRoot = dir.getParent();
-        if (projectRoot != null && Files.exists(projectRoot)) {
-            try {
-                Files.deleteIfExists(projectRoot);
-            } catch (IOException ignored) {
-            }
-        }
-    }
+    Random random;
+    @TempDir
+    Path tempDir;
 
     @BeforeEach
     void setUp() throws UnknownHostException {
         random = new Random();
         project = "foo" + random.nextInt(1000);
         repository = "bar";
-        dir = project + '/' + repository;
         dogma = new ArmeriaCentralDogmaBuilder()
                 .host(dogmaExt.serverAddress().getHostString(),
                       dogmaExt.serverAddress().getPort())
@@ -90,20 +69,13 @@ class CentralDogmaImportTest {
 
     @AfterEach
     void tearDown() throws Exception {
-        try {
-            dogma.close();
-        } finally {
-            removeCreatedDir(Paths.get(dir).toAbsolutePath());
-            removeCreatedDir(Paths.get(project).toAbsolutePath());
-            removeCreatedDir(Paths.get(project));
-            removeCreatedDir(Paths.get(dir));
-        }
+        dogma.close();
     }
 
     @Test
     void importDir_shouldOnlyCreateProjectAndRepo_whenNoFiles() throws Exception {
         // given
-        final Path fooBar = Paths.get(dir).toAbsolutePath();
+        final Path fooBar = tempDir.resolve(project).resolve(repository);
         Files.createDirectories(fooBar);
 
         // when
@@ -125,9 +97,9 @@ class CentralDogmaImportTest {
     @Test
     void importDir_shouldIgnoresPlaceholders() throws Exception {
         // given
-        final Path fooBar = Paths.get(dir).toAbsolutePath();
+        final Path fooBar = tempDir.resolve(project).resolve(repository);
         Files.createDirectories(fooBar);
-        final Path boundaryFile = fooBar.resolve("hello.txt").toAbsolutePath();
+        final Path boundaryFile = fooBar.resolve("hello.txt");
 
         Files.createDirectories(fooBar);
         Files.write(fooBar.resolve(".gitkeep"), new byte[0]);
@@ -154,9 +126,9 @@ class CentralDogmaImportTest {
     void importDir_createsProjectRepo_andImportsFile() throws IOException {
         // given
         final String fileName = "hello.txt";
-        final Path dirPath = Paths.get(dir).toAbsolutePath();
+        final Path dirPath = tempDir.resolve(project).resolve(repository);
         Files.createDirectories(dirPath);
-        final Path file = dirPath.resolve(fileName).toAbsolutePath();
+        final Path file = dirPath.resolve(fileName);
         Files.write(file, "hello".getBytes(StandardCharsets.UTF_8));
 
         // when
@@ -178,7 +150,7 @@ class CentralDogmaImportTest {
     @Test
     void test_importDir_createsProjectRepo_andImportsFile_nonExistentDirectory() {
         // given
-        final Path nonExistentDir = Paths.get("non_existent_directory");
+        final Path nonExistentDir = tempDir.resolve("non_existent_directory");
 
         // when / then
         assertThatThrownBy(() ->
@@ -189,9 +161,9 @@ class CentralDogmaImportTest {
     @Test
     public void importDir_createsProjectRepo_andPushes() throws Exception {
         // given
-        final Path fooBar = Paths.get(dir).toAbsolutePath();
+        final Path fooBar = tempDir.resolve(project).resolve(repository);
         Files.createDirectories(fooBar);
-        final Path file = fooBar.resolve("hello.txt").toAbsolutePath();
+        final Path file = fooBar.resolve("hello.txt");
         Files.write(file, "hello".getBytes(StandardCharsets.UTF_8));
 
         // when
@@ -212,7 +184,7 @@ class CentralDogmaImportTest {
     @Test
     void importDir_shouldUsePathComponentsAsProjectAndRepo_whenProjectAndRepoAreNull() throws Exception {
         // given
-        final Path pathBased = Paths.get(dir).toAbsolutePath();
+        final Path pathBased = tempDir.resolve(project).resolve(repository);
         Files.createDirectories(pathBased);
         final Path file = pathBased.resolve("hello.txt");
         Files.write(file, "hello".getBytes(StandardCharsets.UTF_8));
