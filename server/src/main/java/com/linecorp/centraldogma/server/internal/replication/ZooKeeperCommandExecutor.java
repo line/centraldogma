@@ -1044,7 +1044,7 @@ public final class ZooKeeperCommandExecutor
             }
             this.timestamp = timestamp;
             this.size = size;
-            // Defaults to null for backward compatibility.
+            // Defaults to false for backward compatibility.
             this.compressed = firstNonNull(compressed, false);
         }
 
