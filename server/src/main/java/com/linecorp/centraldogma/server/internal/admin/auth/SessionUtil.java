@@ -242,8 +242,7 @@ public final class SessionUtil {
         try {
             signedJWT.sign(signer);
         } catch (JOSEException e) {
-            // This should never happen.
-            throw new Error();
+            throw new IllegalArgumentException("Failed to sign a JWT.", e);
         }
 
         return signedJWT;
@@ -272,8 +271,7 @@ public final class SessionUtil {
         try {
             jweObject.encrypt(encrypter);
         } catch (JOSEException e) {
-            // This should never happen.
-            throw new Error();
+            throw new IllegalArgumentException("Failed to encrypt a JWT.", e);
         }
         return jweObject.serialize();
     }

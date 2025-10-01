@@ -65,8 +65,7 @@ public final class SessionCookieHandler {
                                                           ImmutableSet.of("exp"));
                 decrypter = new DirectDecrypter(sessionKey.encryptionKey());
             } catch (Throwable t) {
-                // Should never reach here.
-                throw new Error(t);
+                throw new IllegalStateException("Failed to initialize SessionCookieHandler", t);
             }
         } else {
             sessionKey = null;
