@@ -14,6 +14,7 @@ dependencies {
     // Dependencies to run test servers for testing the web application
     testImplementation(project(":server"))
     testImplementation(project(":server-mirror-git"))
+    testImplementation(project(":server-auth:saml"))
     testImplementation(project(":server-auth:shiro"))
     testImplementation(project(":xds"))
     testImplementation libs.shiro.core

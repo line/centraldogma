@@ -44,6 +44,14 @@ import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 @JsonInclude(Include.NON_NULL)
 public class ProjectMetadata implements Identifiable, HasWeight {
 
+    public static final ProjectMetadata DOGMA_PROJECT_METADATA =
+            new ProjectMetadata("dogma",
+                                ImmutableMap.of(),
+                                ImmutableMap.of(),
+                                ImmutableMap.of(),
+                                new UserAndTimestamp(User.SYSTEM.id()),
+                                null);
+
     /**
      * A project name.
      */
