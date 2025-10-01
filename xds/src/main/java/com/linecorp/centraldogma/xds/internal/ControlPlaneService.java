@@ -83,6 +83,8 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
     private final ScheduledExecutorService controlPlaneExecutor;
     // Accessed only from controlPlaneExecutor.
     private final CentralDogmaXdsResources centralDogmaXdsResources = new CentralDogmaXdsResources();
+    @Nullable
+    private volatile XdsEndpointService xdsEndpointService;
     private volatile boolean stop;
 
     ControlPlaneService(Project xdsProject, MeterRegistry meterRegistry) {
@@ -108,6 +110,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                                                    .build();
         pluginInitContext.serverBuilder().route().build(grpcService);
         final XdsResourceManager xdsResourceManager = new XdsResourceManager(xdsProject(), commandExecutor);
+        xdsEndpointService = new XdsEndpointService(xdsResourceManager, controlPlaneExecutor);
         final GrpcService xdsApplicationService =
                 GrpcService.builder()
                            .addService(new XdsGroupService(pluginInitContext.projectManager(),
@@ -116,7 +119,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                            .addService(new XdsListenerService(xdsResourceManager))
                            .addService(new XdsRouteService(xdsResourceManager))
                            .addService(new XdsClusterService(xdsResourceManager))
-                           .addService(new XdsEndpointService(xdsResourceManager))
+                           .addService(xdsEndpointService)
                            .addService(new XdsKubernetesService(xdsResourceManager))
                            .exceptionHandler(new ControlPlaneExceptionHandlerFunction())
                            .jsonMarshallerFactory(
@@ -220,6 +223,25 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
 
     void stop() {
         stop = true;
+        final XdsEndpointService xdsEndpointService = this.xdsEndpointService;
+        if (xdsEndpointService != null) {
+            if (xdsEndpointService.batchUpdateTaskSize() > 0) {
+                logger.info("Waiting for {} xDS endpoint batch update tasks to finish up to 5 seconds...",
+                            xdsEndpointService.batchUpdateTaskSize());
+                for (int i = 0; i < 5; i++) {
+                    try {
+                        if (xdsEndpointService.batchUpdateTaskSize() == 0) {
+                            break;
+                        }
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+        }
+
         final boolean interrupted = terminate(controlPlaneExecutor);
         if (interrupted) {
             Thread.currentThread().interrupt();
