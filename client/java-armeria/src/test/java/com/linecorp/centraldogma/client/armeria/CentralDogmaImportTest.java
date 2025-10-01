@@ -48,9 +48,6 @@ class CentralDogmaImportTest {
 
     @RegisterExtension
     static CentralDogmaExtension dogmaExt = new CentralDogmaExtension() {
-        @Override
-        protected void scaffold(CentralDogma client) {
-        }
     };
 
     Random random;
