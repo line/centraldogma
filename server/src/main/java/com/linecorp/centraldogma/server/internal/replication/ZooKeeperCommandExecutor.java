@@ -915,13 +915,13 @@ public final class ZooKeeperCommandExecutor
     }
 
     private SafeCloseable safeLock(Command<?> command, ReplicationTimings timings) {
+        final long startTime = System.nanoTime();
+        timings.startLockAcquisition(startTime);
         final long lockTimeoutNanos = this.lockTimeoutNanos;
         final String executionPath = command.executionPath();
         final InterProcessMutex mtx = mutexMap.computeIfAbsent(
                 executionPath, k -> new InterProcessMutex(curator, absolutePath(LOCK_PATH, k)));
 
-        final long startTime = System.nanoTime();
-        timings.startLockAcquisition(startTime);
         boolean lockAcquired = false;
         Throwable cause = null;
         try {

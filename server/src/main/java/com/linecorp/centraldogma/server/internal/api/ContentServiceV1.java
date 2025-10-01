@@ -40,6 +40,9 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -100,6 +103,8 @@ import io.netty.util.AttributeKey;
 @RequiresRepositoryRole(RepositoryRole.READ)
 @RequestConverter(CommitMessageRequestConverter.class)
 public class ContentServiceV1 extends AbstractService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ContentServiceV1.class);
 
     static final AttributeKey<Boolean> IS_WATCH_REQUEST =
             AttributeKey.valueOf(ContentServiceV1.class, "IS_WATCH_REQUEST");
@@ -206,7 +211,13 @@ public class ContentServiceV1 extends AbstractService {
         final long commitTimeMillis = System.currentTimeMillis();
         return push(commitTimeMillis, author, repository, new Revision(revision), commitMessage, changes)
                 .toCompletableFuture()
-                .thenApply(rrev -> convert(rrev, commitTimeMillis));
+                .thenApply(rrev -> {
+                    // TODO(ikhoon): Remove this log after debugging.
+                    logger.debug("Pushing a commit took {} ms: project {}, repository {}, revision {}",
+                                 System.currentTimeMillis() - commitTimeMillis,
+                                 repository.parent().name(), repository.name(), rrev);
+                    return convert(rrev, commitTimeMillis);
+                });
     }
 
     private CompletableFuture<Revision> push(long commitTimeMills, Author author, Repository repository,

@@ -27,20 +27,26 @@ import io.micrometer.core.instrument.Timer;
 final class ReplicationMetrics {
 
     private final String projectName;
+    private final Timer executorQueueLatencyTimer;
     private final Timer lockAcquireSuccessTimer;
     private final Timer lockAcquireFailureTimer;
+    private final Timer lockReleaseTimer;
     private final Timer commandExecutionTimer;
     private final Timer logReplayTimer;
     private final Timer logStoreTimer;
 
     ReplicationMetrics(MeterRegistry registry, String projectName) {
         this.projectName = projectName;
-        lockAcquireSuccessTimer = MoreMeters.newTimer(registry, "replication.lock.waiting",
+        executorQueueLatencyTimer = MoreMeters.newTimer(registry, "replication.executor.queue.latency",
+                                               ImmutableList.of(Tag.of("project", projectName)));
+        lockAcquireSuccessTimer = MoreMeters.newTimer(registry, "replication.lock.acquisition",
                                                       ImmutableList.of(Tag.of("project", projectName),
                                                                        Tag.of("acquired", "true")));
-        lockAcquireFailureTimer = MoreMeters.newTimer(registry, "replication.lock.waiting",
+        lockAcquireFailureTimer = MoreMeters.newTimer(registry, "replication.lock.acquisition",
                                                       ImmutableList.of(Tag.of("project", projectName),
                                                                        Tag.of("acquired", "false")));
+        lockReleaseTimer = MoreMeters.newTimer(registry, "replication.lock.release",
+                                                      ImmutableList.of(Tag.of("project", projectName)));
         commandExecutionTimer = MoreMeters.newTimer(registry, "replication.command.execution",
                                                     ImmutableList.of(Tag.of("project", projectName)));
         logReplayTimer = MoreMeters.newTimer(registry, "replication.log.replay",
@@ -49,12 +55,20 @@ final class ReplicationMetrics {
                                             ImmutableList.of(Tag.of("project", projectName)));
     }
 
+    Timer executorQueueLatencyTimer() {
+        return executorQueueLatencyTimer;
+    }
+
     Timer lockAcquireSuccessTimer() {
         return lockAcquireSuccessTimer;
     }
 
     Timer lockAcquireFailureTimer() {
         return lockAcquireFailureTimer;
+    }
+
+    Timer lockReleaseTimer() {
+        return lockReleaseTimer;
     }
 
     Timer commandExecutionTimer() {

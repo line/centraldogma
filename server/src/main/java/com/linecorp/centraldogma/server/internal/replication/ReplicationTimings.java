@@ -27,18 +27,31 @@ final class ReplicationTimings {
     @Nullable
     private final ReplicationMetrics metrics;
 
+    private long executorSubmitStartNanos;
+    private long executorQueueLatencyNanos;
     private long lockAcquisitionStartNanos;
     private long lockAcquisitionDurationNanos;
     private boolean lockAcquired;
+    private long lockReleaseStartNanos;
+    private long lockReleaseDurationNanos;
     private long commandExecutionStartNanos;
     private long commandExecutionDurationNanos;
     private long logReplayStartNanos;
     private long logReplayDurationNanos;
     private long logStoreStartNanos;
     private long logStoreDurationNanos;
+    private long logStoreEndNanos;
 
     ReplicationTimings(@Nullable ReplicationMetrics metrics) {
         this.metrics = metrics;
+    }
+
+    void startExecutorSubmit() {
+        executorSubmitStartNanos = System.nanoTime();
+    }
+
+    void startExecutorExecution() {
+        executorQueueLatencyNanos = System.nanoTime() - executorSubmitStartNanos;
     }
 
     void startLockAcquisition(long startNanos) {
@@ -48,6 +61,14 @@ final class ReplicationTimings {
     void endLockAcquisition(boolean lockAcquired) {
         lockAcquisitionDurationNanos = System.nanoTime() - lockAcquisitionStartNanos;
         this.lockAcquired = lockAcquired;
+    }
+
+    void startLockRelease() {
+        lockReleaseStartNanos = System.nanoTime();
+    }
+
+    void endLockRelease() {
+        lockReleaseDurationNanos = System.nanoTime() - lockReleaseStartNanos;
     }
 
     void startCommandExecution() {
@@ -71,7 +92,8 @@ final class ReplicationTimings {
     }
 
     void endLogStore() {
-        logStoreDurationNanos = System.nanoTime() - logStoreStartNanos;
+        logStoreEndNanos = System.nanoTime();
+        logStoreDurationNanos = logStoreEndNanos - logStoreStartNanos;
     }
 
     void record() {
@@ -79,11 +101,13 @@ final class ReplicationTimings {
             return;
         }
 
+        metrics.executorQueueLatencyTimer().record(executorQueueLatencyNanos, TimeUnit.NANOSECONDS);
         if (lockAcquired) {
             metrics.lockAcquireSuccessTimer().record(lockAcquisitionDurationNanos, TimeUnit.NANOSECONDS);
         } else {
             metrics.lockAcquireFailureTimer().record(lockAcquisitionDurationNanos, TimeUnit.NANOSECONDS);
         }
+        metrics.lockReleaseTimer().record(lockReleaseDurationNanos, TimeUnit.NANOSECONDS);
         metrics.commandExecutionTimer().record(commandExecutionDurationNanos, TimeUnit.NANOSECONDS);
         metrics.logReplayTimer().record(logReplayDurationNanos, TimeUnit.NANOSECONDS);
         metrics.logStoreTimer().record(logStoreDurationNanos, TimeUnit.NANOSECONDS);
@@ -91,8 +115,14 @@ final class ReplicationTimings {
 
     String timingsString() {
         final StringBuilder sb = new StringBuilder();
-        sb.append("{lockAcquisition=");
+        sb.append("{ total=");
+        TextFormatter.appendElapsed(sb, logStoreEndNanos - executorSubmitStartNanos);
+        sb.append(", executorQueueLatency=");
+        TextFormatter.appendElapsed(sb, executorQueueLatencyNanos);
+        sb.append(", lockAcquisition=");
         TextFormatter.appendElapsed(sb, lockAcquisitionDurationNanos);
+        sb.append(", lockRelease=");
+        TextFormatter.appendElapsed(sb, lockReleaseDurationNanos);
         sb.append(", commandExecution=");
         TextFormatter.appendElapsed(sb, commandExecutionDurationNanos);
         sb.append(", logReplay=");
