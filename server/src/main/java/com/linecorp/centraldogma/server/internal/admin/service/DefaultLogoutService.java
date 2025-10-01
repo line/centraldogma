@@ -15,18 +15,13 @@
  */
 package com.linecorp.centraldogma.server.internal.admin.service;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.X_CSRF_TOKEN;
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.constantTimeEquals;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.sessionCookieName;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.validateCsrfToken;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.Cookie;
 import com.linecorp.armeria.common.CookieBuilder;
@@ -45,8 +40,6 @@ import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageMana
 
 public class DefaultLogoutService extends AbstractHttpService {
 
-    private static final Logger logger = LoggerFactory.getLogger(DefaultLogoutService.class);
-
     private final Function<String, CompletableFuture<Void>> logoutSessionPropagator;
     private final SessionManager sessionManager;
     private final SessionCookieHandler sessionCookieHandler;
@@ -64,7 +57,9 @@ public class DefaultLogoutService extends AbstractHttpService {
         requireNonNull(encryptionStorageManager, "encryptionStorageManager");
 
         // Create a cookie template for invalidation.
-        final CookieBuilder cookieBuilder = Cookie.secureBuilder(sessionCookieName(tlsEnabled), "")
+        final String sessionCookieName = sessionCookieName(tlsEnabled,
+                                                           encryptionStorageManager.encryptSessionCookie());
+        final CookieBuilder cookieBuilder = Cookie.secureBuilder(sessionCookieName, "")
                                                   .maxAge(0).path("/");
         if (!tlsEnabled) {
             cookieBuilder.secure(false);
@@ -82,7 +77,12 @@ public class DefaultLogoutService extends AbstractHttpService {
         final String sessionId = sessionInfo.sessionId();
         if (sessionId == null) {
             final String username = sessionInfo.username();
+            final String csrfTokenFromSignedJwt = sessionInfo.csrfTokenFromSignedJwt();
             assert username != null;
+            assert csrfTokenFromSignedJwt != null;
+            if (!validateCsrfToken(ctx, req, csrfTokenFromSignedJwt)) {
+                return invalidCsrfTokenResponse();
+            }
             return HttpResponse.of(ResponseHeaders.builder(HttpStatus.OK)
                                                   .cookie(invalidatingCookie)
                                                   .build());
@@ -93,12 +93,8 @@ public class DefaultLogoutService extends AbstractHttpService {
                 return UnmodifiableFuture.completedFuture(HttpResponse.of(HttpStatus.NO_CONTENT));
             }
 
-            final String csrfToken = req.headers().get(X_CSRF_TOKEN);
-            if (!constantTimeEquals(csrfToken, session.csrfToken())) {
-                logger.trace("CSRF token mismatch: tokenPresent={}, ctx={}", !isNullOrEmpty(csrfToken), ctx);
-                return UnmodifiableFuture.completedFuture(
-                        HttpResponse.of(HttpStatus.FORBIDDEN, MediaType.PLAIN_TEXT_UTF_8,
-                                        "Invalid CSRF token"));
+            if (!validateCsrfToken(ctx, req, session.csrfToken())) {
+                return UnmodifiableFuture.completedFuture(invalidCsrfTokenResponse());
             }
 
             return invalidateSession(ctx, sessionId).thenCompose(
@@ -108,6 +104,10 @@ public class DefaultLogoutService extends AbstractHttpService {
                                                               .build());
                     }));
         }));
+    }
+
+    private static HttpResponse invalidCsrfTokenResponse() {
+        return HttpResponse.of(HttpStatus.FORBIDDEN, MediaType.PLAIN_TEXT_UTF_8, "Invalid CSRF token");
     }
 
     protected CompletableFuture<Void> invalidateSession(ServiceRequestContext ctx, String sessionId) {

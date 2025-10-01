@@ -357,6 +357,17 @@ public class CentralDogma implements AutoCloseable {
     }
 
     /**
+     * Returns the {@link EncryptionStorageManager} of the server.
+     */
+    public EncryptionStorageManager encryptionStorageManager() {
+        final EncryptionStorageManager manager = encryptionStorageManager;
+        if (manager == null) {
+            throw new IllegalStateException("CentralDogma is not started yet.");
+        }
+        return manager;
+    }
+
+    /**
      * Returns the {@link MirroringService} of the server.
      *
      * @return the {@link MirroringService} if the server is started and mirroring is enabled.
@@ -1019,11 +1030,11 @@ public class CentralDogma implements AutoCloseable {
           .decorator(decorator)
           .decorator(DecodingService.newDecorator())
           .build(new GitHttpService(projectApiManager));
+        sb.annotatedService(API_V0_PATH_PREFIX, new UserService(sessionManager, needsTls, executor,
+                                                                authProvider, encryptionStorageManager));
 
         if (cfg.isWebAppEnabled()) {
-            sb.contextPath(API_V0_PATH_PREFIX)
-              .annotatedService(new UserService(sessionManager, needsTls, executor))
-              .annotatedService(new RepositoryService(projectApiManager, executor));
+            sb.annotatedService(API_V0_PATH_PREFIX, new RepositoryService(projectApiManager, executor));
 
             if (authProvider != null) {
                 // Will redirect to /web/auth/login by default.

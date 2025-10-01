@@ -107,7 +107,7 @@ class ShiroLoginAndLogoutTest {
 
     @Test
     void incorrectLogout() {
-        final Cookie sessionCookie = createSessionCookie("some-session-id", false, 60);
+        final Cookie sessionCookie = createSessionCookie("session-id", "some-session-id", false, 60);
         assertThat(logout(client, sessionCookie, "csrfToken").status()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 

@@ -97,7 +97,7 @@ class SamlAuthSsoHandlerTest {
         final Cookie setCookie = Cookie.fromSetCookieHeader(setCookieValue);
         assertThat(setCookie).isNotNull();
         if (tlsEnabled) {
-            assertThat(setCookie.name()).isEqualTo("__Host-Http-session-jwt");
+            assertThat(setCookie.name()).isEqualTo("__Host-Http-session-id");
             assertThat(setCookie.isSecure()).isTrue();
         } else {
             assertThat(setCookie.name()).isEqualTo("session-id");

@@ -193,7 +193,7 @@ class ReplicatedLoginAndLogoutTest {
     @Test
     void incorrectLogout() throws Exception {
         final int baselineReplicationLogCount = replicationLogCount();
-        final Cookie sessionCookie = createSessionCookie(WRONG_SESSION_ID, false, 60);
+        final Cookie sessionCookie = createSessionCookie("session-id", WRONG_SESSION_ID, false, 60);
         assertThat(logout(client1, sessionCookie, "csrfToken").status()).isEqualTo(HttpStatus.NO_CONTENT);
 
         // Ensure that a failed logout attempt does not produce any replication logs.

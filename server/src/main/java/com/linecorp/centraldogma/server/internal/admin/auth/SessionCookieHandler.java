@@ -16,8 +16,10 @@
 package com.linecorp.centraldogma.server.internal.admin.auth;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getJwtClaimsSetFromEncryptedCookie;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.csrfTokenFromSignedJwt;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getJwtClaimsSetFromSignedJwt;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getSessionIdFromCookie;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getSignedJwtFromEncryptedCookie;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.sessionCookieName;
 import static java.util.Objects.requireNonNull;
 
@@ -29,6 +31,7 @@ import com.google.common.collect.ImmutableSet;
 import com.nimbusds.jose.JWEDecrypter;
 import com.nimbusds.jose.crypto.DirectDecrypter;
 import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier;
 
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -51,7 +54,7 @@ public final class SessionCookieHandler {
                                 EncryptionStorageManager encryptionStorageManager) {
         this.sessionPropagatorWritableChecker =
                 requireNonNull(sessionPropagatorWritableChecker, "sessionPropagatorWritableChecker");
-        sessionCookieName = sessionCookieName(tlsEnabled);
+        sessionCookieName = sessionCookieName(tlsEnabled, encryptionStorageManager.encryptSessionCookie());
         requireNonNull(encryptionStorageManager, "encryptionStorageManager");
         if (encryptionStorageManager.encryptSessionCookie()) {
             sessionKey = encryptionStorageManager.getCurrentSessionKey().join();
@@ -77,14 +80,17 @@ public final class SessionCookieHandler {
         if (sessionKey != null) {
             assert verifier != null;
             assert decrypter != null;
-            final JWTClaimsSet jwtClaimsSet = getJwtClaimsSetFromEncryptedCookie(
-                    ctx, sessionCookieName, verifier, decrypter);
+            final SignedJWT signedJwt = getSignedJwtFromEncryptedCookie(ctx, sessionCookieName, decrypter);
+            if (signedJwt == null) {
+                return null;
+            }
+            final JWTClaimsSet jwtClaimsSet = getJwtClaimsSetFromSignedJwt(ctx, signedJwt, verifier);
             if (jwtClaimsSet == null) {
                 return null;
             }
             final Object objectSessionId = jwtClaimsSet.getClaim("sessionId");
             if (objectSessionId instanceof String) {
-                return new SessionInfo((String) objectSessionId, null);
+                return new SessionInfo((String) objectSessionId, null, null);
             } else {
                 if (sessionPropagatorWritableChecker.get()) {
                     return null;
@@ -94,11 +100,12 @@ public final class SessionCookieHandler {
                 if (isNullOrEmpty(subject)) {
                     return null;
                 }
-                return new SessionInfo(null, subject);
+                final String csrfTokenFromSignedJwt = csrfTokenFromSignedJwt(signedJwt);
+                return new SessionInfo(null, subject, csrfTokenFromSignedJwt);
             }
         }
         final String sessionId = getSessionIdFromCookie(ctx, sessionCookieName);
-        return sessionId != null ? new SessionInfo(sessionId, null) : null;
+        return sessionId != null ? new SessionInfo(sessionId, null, null) : null;
     }
 
     public static final class SessionInfo {
@@ -106,9 +113,13 @@ public final class SessionCookieHandler {
         private final String sessionId;
         @Nullable
         private final String username;
+        @Nullable
+        private final String csrfTokenFromSignedJwt;
 
-        SessionInfo(@Nullable String sessionId, @Nullable String username) {
-            assert sessionId != null || username != null;
+        SessionInfo(@Nullable String sessionId, @Nullable String username,
+                    @Nullable String csrfTokenFromSignedJwt) {
+            this.csrfTokenFromSignedJwt = csrfTokenFromSignedJwt;
+            assert sessionId != null || (username != null && csrfTokenFromSignedJwt != null);
             this.sessionId = sessionId;
             this.username = username;
         }
@@ -121,6 +132,11 @@ public final class SessionCookieHandler {
         @Nullable
         public String username() {
             return username;
+        }
+
+        @Nullable
+        public String csrfTokenFromSignedJwt() {
+            return csrfTokenFromSignedJwt;
         }
     }
 }

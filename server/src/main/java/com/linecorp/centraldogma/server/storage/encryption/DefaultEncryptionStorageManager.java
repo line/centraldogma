@@ -250,7 +250,7 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
         try {
             final byte[] versionBytes = rocksDb.get(wdekCf, currentSessionMasterKeyVersionKey());
             if (versionBytes == null) {
-                throw new EncryptionStorageException("Current session master key does not exist");
+                throw new EncryptionEntryNoExistException("Current session master key does not exist");
             }
             version = Ints.fromByteArray(versionBytes);
         } catch (RocksDBException e) {

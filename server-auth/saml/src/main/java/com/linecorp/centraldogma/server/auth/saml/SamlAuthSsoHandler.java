@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.auth.saml;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.server.auth.saml.HtmlUtil.getHtmlWithCsrfAndRedirect;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionCookie;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.sessionCookieName;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
@@ -79,6 +80,7 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
     @Nullable
     private final String attributeLoginName;
     private final boolean tlsEnabled;
+    private final String sessionCookieName;
     private final AuthSessionService authSessionService;
 
     SamlAuthSsoHandler(
@@ -99,6 +101,7 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
         this.subjectLoginNameIdFormat = subjectLoginNameIdFormat;
         this.attributeLoginName = attributeLoginName;
         this.tlsEnabled = tlsEnabled;
+        sessionCookieName = sessionCookieName(tlsEnabled, encryptionStorageManager.encryptSessionCookie());
         authSessionService = new AuthSessionService(loginSessionPropagator,
                                                     sessionPropagatorWritableChecker,
                                                     sessionValidDuration,
@@ -171,8 +174,8 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
     }
 
     private HttpResponse httpResponse(LoginResult loginResult, String redirectionScript) {
-        final Cookie cookie = createSessionCookie(loginResult.sessionCookieValue(), tlsEnabled,
-                                                  cookieMaxAgeSecond);
+        final Cookie cookie = createSessionCookie(sessionCookieName, loginResult.sessionCookieValue(),
+                                                  tlsEnabled, cookieMaxAgeSecond);
         final ResponseHeaders responseHeaders =
                 ResponseHeaders.builder(HttpStatus.OK)
                                .contentType(MediaType.HTML_UTF_8)

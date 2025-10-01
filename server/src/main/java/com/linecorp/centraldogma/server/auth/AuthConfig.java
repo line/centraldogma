@@ -68,7 +68,7 @@ public final class AuthConfig {
     private final String sessionValidationSchedule;
 
     @Nullable
-    private final JsonNode properties;
+    private final Object properties;
 
     /**
      * Creates a new instance.
@@ -123,7 +123,7 @@ public final class AuthConfig {
                       String sessionCacheSpec,
                       long sessionTimeoutMillis,
                       String sessionValidationSchedule,
-                      @Nullable JsonNode properties) {
+                      @Nullable Object properties) {
         this.factory = requireNonNull(factory, "factory");
         this.systemAdministrators = requireNonNull(systemAdministrators, "systemAdministrators");
         this.caseSensitiveLoginNames = caseSensitiveLoginNames;
@@ -197,7 +197,13 @@ public final class AuthConfig {
     @Nullable
     @JsonProperty
     public JsonNode properties() {
-        return properties;
+        if (properties instanceof JsonNode) {
+            return (JsonNode) properties;
+        }
+        if (properties != null) {
+            return Jackson.valueToTree(properties);
+        }
+        return null;
     }
 
     /**
@@ -205,7 +211,18 @@ public final class AuthConfig {
      */
     @Nullable
     public <T> T properties(Class<T> clazz) throws JsonProcessingException {
-        return properties != null ? Jackson.treeToValue(properties, clazz) : null;
+        if (properties instanceof JsonNode) {
+            return Jackson.treeToValue((JsonNode) properties, clazz);
+        }
+        if (properties == null) {
+            return null;
+        }
+        if (clazz.isAssignableFrom(properties.getClass())) {
+            //noinspection unchecked
+            return (T) properties;
+        }
+        throw new IllegalArgumentException(
+                "properties: " + properties + " (expected: " + clazz.getName() + ')');
     }
 
     /**

@@ -16,9 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.admin.auth;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.X_CSRF_TOKEN;
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.constantTimeEquals;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.validateCsrfToken;
 import static com.linecorp.centraldogma.server.metadata.User.LEVEL_SYSTEM_ADMIN;
 import static com.linecorp.centraldogma.server.metadata.User.LEVEL_USER;
 import static java.util.Objects.requireNonNull;
@@ -92,7 +90,12 @@ public class SessionCookieAuthorizer implements Authorizer<HttpRequest> {
         final String sessionId = sessionInfo.sessionId();
         if (sessionId == null)  {
             final String username = sessionInfo.username();
+            final String csrfTokenFromSignedJwt = sessionInfo.csrfTokenFromSignedJwt();
             assert username != null;
+            assert csrfTokenFromSignedJwt != null;
+            if (!validateCsrfToken(ctx, req, csrfTokenFromSignedJwt)) {
+                return UnmodifiableFuture.completedFuture(invalidCsrfToken());
+            }
             setCurrentUser(ctx, username);
             return UnmodifiableFuture.completedFuture(AuthorizationStatus.of(true));
         }
@@ -102,23 +105,20 @@ public class SessionCookieAuthorizer implements Authorizer<HttpRequest> {
                 logger.trace("Session not found (or expired), ctx={}", ctx);
                 return AuthorizationStatus.of(false);
             }
-            // Check the token when the method is not safe:
-            // https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#javascript-automatically-including-csrf-tokens-as-an-ajax-request-header
-            if (!isSafeMethod(req)) {
-                final String csrfToken = req.headers().get(X_CSRF_TOKEN, "");
-                if (!constantTimeEquals(csrfToken, session.csrfToken())) {
-                    logger.trace("CSRF token mismatch: tokenPresent={}, ctx={}",
-                                 !isNullOrEmpty(csrfToken), ctx);
-                    return AuthorizationStatus.ofFailure((delegate, ctx1, req1, cause) -> {
-                        return HttpResponse.of(HttpStatus.FORBIDDEN, MediaType.PLAIN_TEXT_UTF_8,
-                                               "Invalid CSRF token");
-                    });
-                }
-            }
 
+            if (!validateCsrfToken(ctx, req, session.csrfToken())) {
+                return invalidCsrfToken();
+            }
             setCurrentUser(ctx, session.username());
             return AuthorizationStatus.of(true);
         });
+    }
+
+    private static AuthorizationStatus invalidCsrfToken() {
+        return AuthorizationStatus.ofFailure(
+                (delegate, ctx1, req1, cause) -> HttpResponse.of(HttpStatus.FORBIDDEN,
+                                                                 MediaType.PLAIN_TEXT_UTF_8,
+                                                                 "Invalid CSRF token"));
     }
 
     private void setCurrentUser(ServiceRequestContext ctx, String username) {
@@ -129,16 +129,5 @@ public class SessionCookieAuthorizer implements Authorizer<HttpRequest> {
         ctx.logBuilder().authenticatedUser("user/" + username);
         AuthUtil.setCurrentUser(ctx, user);
         HttpApiUtil.setVerboseResponses(ctx, user);
-    }
-
-    private static boolean isSafeMethod(HttpRequest req) {
-        switch (req.method()) {
-            case GET:
-            case HEAD:
-            case OPTIONS:
-                return true;
-            default:
-                return false;
-        }
     }
 }

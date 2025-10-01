@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.server.internal.admin.auth;
 
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createJwe;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionJwe;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.csrfTokenFromSignedJwt;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
@@ -26,7 +27,6 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
-import com.google.common.hash.Hashing;
 import com.nimbusds.jose.JWEEncrypter;
 import com.nimbusds.jose.JWSSigner;
 import com.nimbusds.jose.crypto.DirectEncrypter;
@@ -100,7 +100,7 @@ public final class AuthSessionService {
             // - logout API
             // - server status API (that isn't working at the moment but probably will work in the future)
             // - other APIs that require CSRF token in the future.
-            final String csrfToken = Hashing.sha256().hashBytes(signedJwt.getSignature().decode()).toString();
+            final String csrfToken = csrfTokenFromSignedJwt(signedJwt);
             final String sessionCookieValue = createJwe(signedJwt.serialize(), sessionKeyVersion, encrypter);
             return CompletableFuture.completedFuture(new LoginResult(sessionCookieValue, csrfToken));
         }

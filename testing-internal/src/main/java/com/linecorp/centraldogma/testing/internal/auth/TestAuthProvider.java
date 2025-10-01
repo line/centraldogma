@@ -51,6 +51,7 @@ import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthSessionService;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthSessionService.LoginResult;
 import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
+import com.linecorp.centraldogma.server.internal.admin.service.DefaultLogoutService;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
 
@@ -63,6 +64,7 @@ public class TestAuthProvider implements AuthProvider {
     private final Supplier<String> sessionIdGenerator;
     private final Function<Session, CompletableFuture<Void>> loginSessionPropagator;
     private final Function<String, CompletableFuture<Void>> logoutSessionPropagator;
+    private final String sessionCookieName;
 
     public TestAuthProvider(AuthProviderParameters parameters) {
         this.parameters = parameters;
@@ -70,18 +72,22 @@ public class TestAuthProvider implements AuthProvider {
         sessionIdGenerator = parameters.sessionIdGenerator();
         loginSessionPropagator = parameters.loginSessionPropagator();
         logoutSessionPropagator = parameters.logoutSessionPropagator();
+        sessionCookieName = sessionCookieName(parameters.tlsEnabled(),
+                                              parameters.encryptionStorageManager().encryptSessionCookie());
     }
 
     @Nullable
     @Override
     public HttpService loginApiService() {
-        return new LoginService(parameters.tlsEnabled());
+        return new LoginService();
     }
 
     @Nullable
     @Override
     public HttpService logoutApiService() {
-        return new LogoutService();
+        return new DefaultLogoutService(logoutSessionPropagator, parameters.sessionPropagatorWritableChecker(),
+                                        parameters().sessionManager(), parameters.tlsEnabled(),
+                                        parameters.encryptionStorageManager());
     }
 
     @Override
@@ -91,11 +97,9 @@ public class TestAuthProvider implements AuthProvider {
 
     class LoginService implements HttpService {
 
-        private final boolean tlsEnabled;
         private final AuthSessionService authSessionService;
 
-        LoginService(boolean tlsEnabled) {
-            this.tlsEnabled = tlsEnabled;
+        LoginService() {
             authSessionService = new AuthSessionService(loginSessionPropagator,
                                                         parameters.sessionPropagatorWritableChecker(),
                                                         Duration.ofMinutes(10),
@@ -124,13 +128,13 @@ public class TestAuthProvider implements AuthProvider {
                             username, sessionIdGenerator, () -> "csrfToken").join();
 
                     final Cookie cookie = createSessionCookie(
-                            loginResult.sessionCookieValue(), parameters.tlsEnabled(), 60);
+                            sessionCookieName, loginResult.sessionCookieValue(), parameters.tlsEnabled(), 60);
                     final ResponseHeaders responseHeaders =
                             ResponseHeaders.builder(HttpStatus.OK)
                                            .contentType(MediaType.JSON_UTF_8)
                                            .cookie(cookie).build();
 
-                    final String csrfTokenString = "{\"csrf_token\":\"csrfToken\"}";
+                    final String csrfTokenString = "{\"csrf_token\":\"" + loginResult.csrfToken() + "\"}";
                     return HttpResponse.of(responseHeaders, HttpData.ofUtf8(csrfTokenString));
                 } else {
                     return HttpResponse.of(HttpStatus.UNAUTHORIZED);
@@ -140,10 +144,11 @@ public class TestAuthProvider implements AuthProvider {
     }
 
     class LogoutService implements HttpService {
+
         @Override
         public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
             final String sessionId =
-                    getSessionIdFromCookie(ctx, sessionCookieName(parameters.tlsEnabled()));
+                    getSessionIdFromCookie(ctx, sessionCookieName);
             if (sessionId != null && !WRONG_SESSION_ID.equals(sessionId)) {
                 if (!"csrfToken".equals(req.headers().get(SessionUtil.X_CSRF_TOKEN))) {
                     return HttpResponse.of(HttpStatus.FORBIDDEN, MediaType.PLAIN_TEXT_UTF_8,

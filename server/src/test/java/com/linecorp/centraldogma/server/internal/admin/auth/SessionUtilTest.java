@@ -19,7 +19,8 @@ import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_T
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.DEFAULT_READ_ONLY_MODE_SESSION_TIMEOUT_MILLIS;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSignedJwt;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSignedJwtInReadOnly;
-import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getJwtClaimsSetFromEncryptedCookie;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.decryptAndGetSignedJwt;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getJwtClaimsSetFromSignedJwt;
 import static com.nimbusds.jose.JOSEObjectType.JWT;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -93,10 +94,7 @@ class SessionUtilTest {
 
         final SignedJWT parsedJWT = SignedJWT.parse(signedJwt);
         final JWSHeader parsedHeader = parsedJWT.getHeader();
-        assertThat(parsedHeader.getAlgorithm().getName()).isEqualTo("HS256");
-        assertThat(parsedHeader.getType()).isEqualTo(JWT);
-        assertThat(parsedHeader.getKeyID()).isEqualTo("1");
-
+        verifyJwsHeader(parsedHeader);
         verifyJwtClaimsSet(parsedJWT.getJWTClaimsSet(), now, readOnly);
 
         final JWEEncrypter encrypter = new DirectEncrypter(sessionKey.encryptionKey());
@@ -108,11 +106,19 @@ class SessionUtilTest {
                                                        .build(),
                                                ImmutableSet.of("exp"));
         final JWEDecrypter decrypter = new DirectDecrypter(sessionKey.encryptionKey());
-        final JWTClaimsSet jwtClaimsSetFromEncryptedCookie = getJwtClaimsSetFromEncryptedCookie(
-                ServiceRequestContext.of(HttpRequest.of(HttpMethod.GET, "/")),
-                verifier, decrypter, jwe);
-        assertThat(jwtClaimsSetFromEncryptedCookie).isNotNull();
-        verifyJwtClaimsSet(jwtClaimsSetFromEncryptedCookie, now, readOnly);
+        final ServiceRequestContext ctx = ServiceRequestContext.of(HttpRequest.of(HttpMethod.GET, "/"));
+        final SignedJWT signedJWT = decryptAndGetSignedJwt(ctx, decrypter, jwe);
+        verifyJwsHeader(signedJWT.getHeader());
+
+        final JWTClaimsSet jwtClaimsSet = getJwtClaimsSetFromSignedJwt(ctx, signedJWT, verifier);
+        assertThat(jwtClaimsSet).isNotNull();
+        verifyJwtClaimsSet(jwtClaimsSet, now, readOnly);
+    }
+
+    private static void verifyJwsHeader(JWSHeader jwsHeader) {
+        assertThat(jwsHeader.getAlgorithm().getName()).isEqualTo("HS256");
+        assertThat(jwsHeader.getType()).isEqualTo(JWT);
+        assertThat(jwsHeader.getKeyID()).isEqualTo("1");
     }
 
     private static void verifyJwtClaimsSet(JWTClaimsSet jwtClaimsSet, Date now, boolean readOnly) {

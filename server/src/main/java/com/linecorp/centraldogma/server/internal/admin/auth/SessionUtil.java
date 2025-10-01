@@ -16,13 +16,15 @@
 
 package com.linecorp.centraldogma.server.internal.admin.auth;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+
 import java.time.Duration;
 import java.util.Date;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
+import com.google.common.hash.Hashing;
 import com.nimbusds.jose.EncryptionMethod;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObjectType;
@@ -45,6 +47,7 @@ import com.linecorp.armeria.common.Cookie;
 import com.linecorp.armeria.common.CookieBuilder;
 import com.linecorp.armeria.common.Cookies;
 import com.linecorp.armeria.common.HttpHeaderNames;
+import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.server.auth.Session;
@@ -57,10 +60,6 @@ public final class SessionUtil {
 
     // https://en.wikipedia.org/wiki/Cross-site_request_forgery#Cookie-to-header_token
     public static final AsciiString X_CSRF_TOKEN = HttpHeaderNames.of("X-CSRF-Token");
-
-    public static final String SECURE_SESSION_COOKIE_NAME = "__Host-Http-session-jwt";
-
-    public static final String INSECURE_SESSION_COOKIE_NAME = "session-id";
 
     public static final long DEFAULT_READ_ONLY_MODE_SESSION_TIMEOUT_MILLIS = Duration.ofMinutes(30).toMillis();
 
@@ -78,9 +77,8 @@ public final class SessionUtil {
         return result == 0;
     }
 
-    public static Cookie createSessionCookie(String sessionCookieValue, boolean tlsEnabled,
-                                             long cookieMaxAgeSecond) {
-        final String sessionCookieName = sessionCookieName(tlsEnabled);
+    public static Cookie createSessionCookie(String sessionCookieName, String sessionCookieValue,
+                                             boolean tlsEnabled, long cookieMaxAgeSecond) {
         final CookieBuilder cookieBuilder = Cookie.secureBuilder(sessionCookieName, sessionCookieValue)
                                                   .maxAge(cookieMaxAgeSecond).path("/");
         if (!tlsEnabled) {
@@ -89,33 +87,27 @@ public final class SessionUtil {
         return cookieBuilder.build();
     }
 
-    public static String sessionCookieName(boolean tlsEnabled) {
+    public static String sessionCookieName(boolean tlsEnabled, boolean encryptSessionCookie) {
         // Prefix the cookie name with "__Host-Http-".
         // https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies#cookie_prefixes
-        if (tlsEnabled) {
-            return SECURE_SESSION_COOKIE_NAME;
-        } else {
-            return INSECURE_SESSION_COOKIE_NAME;
-        }
+        final String prefix = tlsEnabled ? "__Host-Http-" : "";
+        return encryptSessionCookie ? prefix + "session-jwt" : prefix + "session-id";
     }
 
     @Nullable
-    public static JWTClaimsSet getJwtClaimsSetFromEncryptedCookie(
+    public static SignedJWT getSignedJwtFromEncryptedCookie(
             ServiceRequestContext ctx, String sessionCookieName,
-            DefaultJWTClaimsVerifier<?> verifier, JWEDecrypter decrypter) {
+            JWEDecrypter decrypter) {
         final Cookie sessionCookie = findSessionCookie(ctx, sessionCookieName);
         if (sessionCookie == null) {
             return null;
         }
-
-        return getJwtClaimsSetFromEncryptedCookie(ctx, verifier, decrypter, sessionCookie.value());
+        final String cookieValue = sessionCookie.value();
+        return decryptAndGetSignedJwt(ctx, decrypter, cookieValue);
     }
 
-    @Nullable
-    @VisibleForTesting
-    static JWTClaimsSet getJwtClaimsSetFromEncryptedCookie(ServiceRequestContext ctx,
-                                                           DefaultJWTClaimsVerifier<?> verifier,
-                                                           JWEDecrypter decrypter, String cookieValue) {
+    static SignedJWT decryptAndGetSignedJwt(ServiceRequestContext ctx, JWEDecrypter decrypter,
+                                            String cookieValue) {
         final JWEObject jweObject;
         try {
             jweObject = JWEObject.parse(cookieValue);
@@ -127,10 +119,20 @@ public final class SessionUtil {
 
         final Payload payload = jweObject.getPayload();
         final String jwsString = payload.toString();
-        final SignedJWT signedJWT;
+        try {
+            return SignedJWT.parse(jwsString);
+        } catch (Throwable t) {
+            logger.trace("Failed to parse the inner JWS. ctx={}", ctx, t);
+            return null;
+        }
+    }
+
+    @Nullable
+    static JWTClaimsSet getJwtClaimsSetFromSignedJwt(ServiceRequestContext ctx,
+                                                     SignedJWT signedJWT,
+                                                     DefaultJWTClaimsVerifier<?> verifier) {
         final JWTClaimsSet jwtClaimsSet;
         try {
-            signedJWT = SignedJWT.parse(jwsString);
             jwtClaimsSet = signedJWT.getJWTClaimsSet();
         } catch (Throwable t) {
             logger.trace("Failed to parse the inner JWS. ctx={}", ctx, t);
@@ -139,12 +141,41 @@ public final class SessionUtil {
 
         try {
             verifier.verify(jwtClaimsSet, null);
+            return jwtClaimsSet;
         } catch (BadJWTException e) {
             logger.trace("Invalid claim set in the inner JWS. ctx={}", ctx, e);
             return null;
         }
+    }
 
-        return jwtClaimsSet;
+    static String csrfTokenFromSignedJwt(SignedJWT signedJwt) {
+        return Hashing.sha256().hashBytes(signedJwt.getSignature().decode()).toString();
+    }
+
+    public static boolean validateCsrfToken(ServiceRequestContext ctx, HttpRequest req,
+                                            @javax.annotation.Nullable String expectedCsrfToken) {
+        // Check the token when the method is not safe:
+        // https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#javascript-automatically-including-csrf-tokens-as-an-ajax-request-header
+        if (isSafeMethod(req)) {
+            return true;
+        }
+        final String csrfToken = req.headers().get(X_CSRF_TOKEN, "");
+        if (!constantTimeEquals(csrfToken, expectedCsrfToken)) {
+            logger.trace("CSRF token mismatch: tokenPresent={}, ctx={}", !isNullOrEmpty(csrfToken), ctx);
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean isSafeMethod(HttpRequest req) {
+        switch (req.method()) {
+            case GET:
+            case HEAD:
+            case OPTIONS:
+                return true;
+            default:
+                return false;
+        }
     }
 
     @Nullable

@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.auth.shiro;
 
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionCookie;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.sessionCookieName;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.throwResponse;
 import static java.util.Objects.requireNonNull;
 
@@ -79,6 +80,7 @@ final class ShiroLoginService extends AbstractHttpService {
     private final Supplier<String> csrfTokenGenerator;
     private final long cookieMaxAgeSecond;
     private final boolean tlsEnabled;
+    private final String sessionCookieName;
     private final AuthSessionService authSessionService;
 
     ShiroLoginService(SecurityManager securityManager,
@@ -93,6 +95,7 @@ final class ShiroLoginService extends AbstractHttpService {
         // Make the cookie expire a bit earlier than the session itself.
         cookieMaxAgeSecond = sessionValidDuration.minusMinutes(1).getSeconds();
         this.tlsEnabled = tlsEnabled;
+        sessionCookieName = sessionCookieName(tlsEnabled, encryptionStorageManager.encryptSessionCookie());
         authSessionService = new AuthSessionService(loginSessionPropagator,
                                                     sessionPropagatorWritableChecker,
                                                     sessionValidDuration,
@@ -159,8 +162,8 @@ final class ShiroLoginService extends AbstractHttpService {
     }
 
     private HttpResponse httpResponse(LoginResult loginResult) {
-        final Cookie cookie = createSessionCookie(loginResult.sessionCookieValue(), tlsEnabled,
-                                                  cookieMaxAgeSecond);
+        final Cookie cookie = createSessionCookie(sessionCookieName, loginResult.sessionCookieValue(),
+                                                  tlsEnabled, cookieMaxAgeSecond);
         final ResponseHeaders responseHeaders =
                 ResponseHeaders.builder(HttpStatus.OK)
                                .contentType(MediaType.JSON_UTF_8)
