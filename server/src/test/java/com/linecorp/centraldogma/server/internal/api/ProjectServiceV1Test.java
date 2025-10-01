@@ -17,6 +17,9 @@
 package com.linecorp.centraldogma.server.internal.api;
 
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getSessionCookie;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.login;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,9 +32,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 
@@ -39,11 +40,11 @@ import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.InvalidHttpResponseException;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.Cookie;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
-import com.linecorp.armeria.common.QueryParams;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.common.ResponseHeaders;
@@ -52,12 +53,11 @@ import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
-import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -85,35 +85,30 @@ class ProjectServiceV1Test {
     static void setUp() throws JsonProcessingException, UnknownHostException {
         final URI uri = dogma.httpClient().uri();
         systemAdminClient = WebClient.builder(uri)
-                                     .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
-                                                                        TestAuthMessageUtil.USERNAME,
-                                                                        TestAuthMessageUtil.PASSWORD)))
+                                     .auth(AuthToken.ofOAuth2(getAccessToken(dogma.httpClient(),
+                                                                             TestAuthMessageUtil.USERNAME,
+                                                                             TestAuthMessageUtil.PASSWORD,
+                                                                             "appId1",
+                                                                             true)))
                                      .build()
                                      .blocking();
+        final AggregatedHttpResponse response = login(dogma.httpClient(), TestAuthMessageUtil.USERNAME2,
+                                                      TestAuthMessageUtil.PASSWORD2);
+        final Cookie sessionCookie = getSessionCookie(response);
+        final String csrfToken = Jackson.readTree(response.contentUtf8()).get("csrf_token").asText();
         userClient = WebClient.builder(uri)
-                              .auth(AuthToken.ofOAuth2(sessionId(dogma.httpClient(),
-                                                                 TestAuthMessageUtil.USERNAME2,
-                                                                 TestAuthMessageUtil.PASSWORD2)))
+                              .addHeader(SessionUtil.X_CSRF_TOKEN, csrfToken)
+                              .addHeader(HttpHeaderNames.COOKIE, sessionCookie.toCookieHeader())
                               .build()
                               .blocking();
-        final QueryParams params = QueryParams.builder()
-                                              .add("appId", "appId1")
-                                              .add("isSystemAdmin", "false")
-                                              .build();
-        final String appToken = userClient.prepare()
-                                          .post("/api/v1/tokens")
-                                          .content(MediaType.FORM_DATA, params.toQueryString())
-                                          .asJson(Token.class, new ObjectMapper()).execute().content().secret();
         tokenClient = WebClient.builder(uri)
-                               .auth(AuthToken.ofOAuth2(appToken))
+                               .auth(AuthToken.ofOAuth2(getAccessToken(dogma.httpClient(),
+                                                                       TestAuthMessageUtil.USERNAME2,
+                                                                       TestAuthMessageUtil.PASSWORD2,
+                                                                       "appId2",
+                                                                       false)))
                                .build()
                                .blocking();
-    }
-
-    static String sessionId(WebClient webClient, String username, String password)
-            throws JsonParseException, JsonMappingException {
-        return Jackson.readValue(TestAuthMessageUtil.login(webClient, username, password).content().array(),
-                                 AccessToken.class).accessToken();
     }
 
     @Test
@@ -129,8 +124,8 @@ class ProjectServiceV1Test {
         projectMetadata = createProjectAndReturnMetadata(tokenClient, "myPro2");
         assertThat(projectMetadata.members()).isEmpty();
         assertThat(projectMetadata.tokens().size()).isOne();
-        final TokenRegistration tokenRegistration = projectMetadata.tokens().get("appId1");
-        assertThat(tokenRegistration.id()).isEqualTo("appId1");
+        final TokenRegistration tokenRegistration = projectMetadata.tokens().get("appId2");
+        assertThat(tokenRegistration.id()).isEqualTo("appId2");
         assertThat(tokenRegistration.role()).isEqualTo(ProjectRole.OWNER);
     }
 

@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.it;
 
-import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.login;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
@@ -28,8 +28,6 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.auth.AuthToken;
-import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -49,15 +47,10 @@ class NonRandomTokenTest {
     @Test
     void createNonRandomToken() throws Exception {
         final WebClient client = dogma.httpClient();
-        final AggregatedHttpResponse response = login(client,
-                                                      TestAuthMessageUtil.USERNAME,
-                                                      TestAuthMessageUtil.PASSWORD);
-
-        assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        final String sessionId = Jackson.readValue(response.content().array(), AccessToken.class)
-                                        .accessToken();
+        final String accessToken = getAccessToken(client, TestAuthMessageUtil.USERNAME,
+                                                  TestAuthMessageUtil.PASSWORD, true);
         final WebClient systemAdminClient = WebClient.builder(client.uri())
-                                                     .auth(AuthToken.ofOAuth2(sessionId)).build();
+                                                     .auth(AuthToken.ofOAuth2(accessToken)).build();
 
         final HttpRequest request = HttpRequest.builder()
                                                .post("/api/v1/tokens")

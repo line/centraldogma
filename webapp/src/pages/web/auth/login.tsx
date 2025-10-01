@@ -5,12 +5,12 @@ import Router from 'next/router';
 import { useAppSelector } from 'dogma/hooks';
 
 const LoginPage = () => {
-  const { isInAnonymousMode, sessionId } = useAppSelector((state) => state.auth);
+  const { isInAnonymousMode, user } = useAppSelector((state) => state.auth);
   useEffect(() => {
-    if (isInAnonymousMode || sessionId) {
+    if (isInAnonymousMode || user) {
       Router.replace('/');
     }
-  }, [isInAnonymousMode, sessionId]);
+  }, [isInAnonymousMode, user]);
   return (
     <>
       <Head>

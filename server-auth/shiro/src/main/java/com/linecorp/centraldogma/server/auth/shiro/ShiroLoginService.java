@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.auth.shiro;
 
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionIdCookie;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.throwResponse;
 import static java.util.Objects.requireNonNull;
 
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
@@ -38,49 +40,76 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.AggregatedHttpRequest;
+import com.linecorp.armeria.common.Cookie;
+import com.linecorp.armeria.common.HttpData;
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.common.auth.BasicToken;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.auth.SessionKey;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
 
 /**
  * A service to handle a login request to Central Dogma Web admin service.
  */
-final class LoginService extends AbstractHttpService {
-    private static final Logger logger = LoggerFactory.getLogger(LoginService.class);
+final class ShiroLoginService extends AbstractHttpService {
+    private static final Logger logger = LoggerFactory.getLogger(ShiroLoginService.class);
 
     private final SecurityManager securityManager;
     private final Function<String, String> loginNameNormalizer;
+    private final Supplier<String> csrfTokenGenerator;
     private final Function<Session, CompletableFuture<Void>> loginSessionPropagator;
     private final Duration sessionValidDuration;
+    private final long cookieMaxAgeSecond;
+    private final boolean tlsEnabled;
+    // TODO(minwoox): Use the sessionKey to encrypt the session cookie.
+    @Nullable
+    private final SessionKey sessionKey;
 
-    LoginService(SecurityManager securityManager,
-                 Function<String, String> loginNameNormalizer,
-                 Function<Session, CompletableFuture<Void>> loginSessionPropagator,
-                 Duration sessionValidDuration) {
+    ShiroLoginService(SecurityManager securityManager,
+                      Function<String, String> loginNameNormalizer,
+                      Supplier<String> csrfTokenGenerator,
+                      Function<Session, CompletableFuture<Void>> loginSessionPropagator,
+                      Duration sessionValidDuration, boolean tlsEnabled,
+                      EncryptionStorageManager encryptionStorageManager) {
         this.securityManager = requireNonNull(securityManager, "securityManager");
         this.loginNameNormalizer = requireNonNull(loginNameNormalizer, "loginNameNormalizer");
+        this.csrfTokenGenerator = requireNonNull(csrfTokenGenerator, "csrfTokenGenerator");
         this.loginSessionPropagator = requireNonNull(loginSessionPropagator, "loginSessionPropagator");
         this.sessionValidDuration = requireNonNull(sessionValidDuration, "sessionValidDuration");
+        // Make the cookie expire a bit earlier than the session itself.
+        cookieMaxAgeSecond = sessionValidDuration.minusMinutes(1).getSeconds();
+        this.tlsEnabled = tlsEnabled;
+        requireNonNull(encryptionStorageManager, "encryptionStorageManager");
+        if (encryptionStorageManager.encryptSessionCookie()) {
+            sessionKey = encryptionStorageManager.getCurrentSessionKey().join();
+        } else {
+            sessionKey = null;
+        }
     }
 
     @Override
     protected HttpResponse doPost(ServiceRequestContext ctx, HttpRequest req) throws Exception {
-        return HttpResponse.from(
+        // TODO(minwoox): Apply login CSRF token.
+        // https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#possible-csrf-vulnerabilities-in-login-forms
+        return HttpResponse.of(
                 req.aggregate()
                    .thenApply(msg -> usernamePassword(ctx, msg))
                    .thenComposeAsync(usernamePassword -> {
@@ -92,8 +121,9 @@ final class LoginService extends AbstractHttpService {
 
                            final org.apache.shiro.session.Session session = currentUser.getSession(false);
                            final String sessionId = session.getId().toString();
+                           final String csrfToken = csrfTokenGenerator.get();
                            final Session newSession =
-                                   new Session(sessionId, usernamePassword.getUsername(),
+                                   new Session(sessionId, csrfToken, usernamePassword.getUsername(),
                                                sessionValidDuration);
                            final Subject loginUser = currentUser;
                            // loginSessionPropagator will propagate the authenticated session to all replicas
@@ -107,18 +137,26 @@ final class LoginService extends AbstractHttpService {
                                                                   Exceptions.peel(cause));
                                }
 
-                               logger.debug("{} Logged in: {} ({})",
-                                            ctx, usernamePassword.getUsername(), sessionId);
+                               logger.debug("{} Logged in: {}", ctx, usernamePassword.getUsername());
 
-                               // expires_in means valid seconds of the token from the creation.
-                               final AccessToken accessToken =
-                                       new AccessToken(sessionId, sessionValidDuration.getSeconds());
+                               final Cookie cookie = createSessionIdCookie(sessionId, tlsEnabled,
+                                                                           cookieMaxAgeSecond);
+                               final ResponseHeaders responseHeaders =
+                                       ResponseHeaders.builder(HttpStatus.OK)
+                                                      .contentType(MediaType.JSON_UTF_8)
+                                                      .set(HttpHeaderNames.CACHE_CONTROL,
+                                                           ServerCacheControl.DISABLED.asHeaderValue())
+                                                      .cookie(cookie).build();
+                               final String body;
                                try {
-                                   return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
-                                                          Jackson.writeValueAsBytes(accessToken));
+                                   body = Jackson.writeValueAsString(
+                                           ImmutableMap.of("csrf_token", csrfToken));
                                } catch (JsonProcessingException e) {
-                                   return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, e);
+                                   // This should never happen.
+                                   throw new Error(e);
                                }
+
+                               return HttpResponse.of(responseHeaders, HttpData.ofUtf8(body));
                            });
                        } catch (IncorrectCredentialsException e) {
                            // Not authorized
@@ -154,7 +192,7 @@ final class LoginService extends AbstractHttpService {
      * Returns {@link UsernamePasswordToken} which holds a username and a password.
      */
     private UsernamePasswordToken usernamePassword(ServiceRequestContext ctx, AggregatedHttpRequest req) {
-        // check the Basic HTTP authentication first (https://tools.ietf.org/html/rfc7617)
+        // check the Basic HTTP authentication first (https://datatracker.ietf.org/doc/html/rfc7617)
         final BasicToken basicToken = AuthTokenExtractors.basic().apply(RequestHeaders.of(req.headers()));
         if (basicToken != null) {
             return new UsernamePasswordToken(basicToken.username(), basicToken.password());

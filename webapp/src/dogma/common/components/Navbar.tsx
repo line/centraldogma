@@ -42,6 +42,7 @@ import { useAppDispatch, useAppSelector } from 'dogma/hooks';
 import { LabelledIcon } from 'dogma/common/components/LabelledIcon';
 import { FaUser } from 'react-icons/fa';
 import ProjectSearchBox from 'dogma/common/components/ProjectSearchBox';
+import { createLoginUrl } from 'dogma/util/auth';
 
 interface TopMenu {
   name: string;
@@ -78,6 +79,11 @@ export const Navbar = () => {
     { name: 'Projects', path: '/app/projects' },
     { name: 'Settings', path: '/app/settings' },
   ];
+
+  const handleLogout = async () => {
+    await dispatch(logout());
+    Router.push(createLoginUrl());
+  };
 
   return (
     <Box bg={useColorModeValue('gray.100', 'gray.900')} px={4}>
@@ -125,23 +131,7 @@ export const Navbar = () => {
                   Application tokens
                 </MenuItem>
                 <MenuDivider />
-                <MenuItem
-                  onClick={async () => {
-                    await dispatch(logout());
-                    if (typeof window !== 'undefined') {
-                      const returnPath = encodeURIComponent(
-                        `${window.location.pathname}${window.location.search}`,
-                      );
-                      Router.push(
-                        process.env.NEXT_PUBLIC_HOST
-                          ? `${process.env.NEXT_PUBLIC_HOST}/link/auth/login?return_to=${window.location.origin}&ref=${returnPath}`
-                          : `/link/auth/login?ref=${returnPath}`,
-                      );
-                    }
-                  }}
-                >
-                  Log out
-                </MenuItem>
+                <MenuItem onClick={handleLogout}>Log out</MenuItem>
               </MenuList>
             </Menu>
           ) : (

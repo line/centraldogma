@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -30,12 +31,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
-import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.QueryParams;
 import com.linecorp.armeria.common.ResponseEntity;
-import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
@@ -65,13 +64,11 @@ class TokenGuestPermissionTest {
         }
 
         @Override
-        protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-            builder.accessToken(getAccessToken());
-        }
-
-        @Override
-        protected void configureHttpClient(WebClientBuilder builder) {
-            builder.auth(AuthToken.ofOAuth2(getAccessToken()));
+        protected String accessToken() {
+            return getAccessToken(
+                    WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
+                    TestAuthMessageUtil.USERNAME,
+                    TestAuthMessageUtil.PASSWORD, true);
         }
 
         @Override
@@ -79,13 +76,6 @@ class TokenGuestPermissionTest {
             client.createProject(FOO_PROJ).join();
             final CentralDogmaRepository repo = client.createRepository(FOO_PROJ, BAR_REPO).join();
             repo.commit("test", Change.ofTextUpsert("/a.txt", "foo")).push().join();
-        }
-
-        private String getAccessToken() {
-            return TestAuthMessageUtil.getAccessToken(
-                    WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
-                    TestAuthMessageUtil.USERNAME,
-                    TestAuthMessageUtil.PASSWORD);
         }
     };
 

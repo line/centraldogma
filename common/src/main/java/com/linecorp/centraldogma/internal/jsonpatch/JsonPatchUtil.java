@@ -25,7 +25,7 @@ public final class JsonPatchUtil {
 
     /**
      * Adds a leading slash and replaces '/' and '~' with '~1' and '~0' respectively.
-     * See <a href="https://tools.ietf.org/html/rfc6901">rfc6901</a> for more information.
+     * See <a href="https://datatracker.ietf.org/doc/html/rfc6901">rfc6901</a> for more information.
      */
     public static String encodeSegment(String segment) {
         requireNonNull(segment, "segment");

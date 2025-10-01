@@ -104,8 +104,8 @@ import com.linecorp.armeria.server.ServiceNaming;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.JacksonRequestConverterFunction;
 import com.linecorp.armeria.server.auth.AuthService;
-import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.cors.CorsService;
+import com.linecorp.armeria.server.cors.CorsServiceBuilder;
 import com.linecorp.armeria.server.docs.DocService;
 import com.linecorp.armeria.server.encoding.DecodingService;
 import com.linecorp.armeria.server.encoding.EncodingService;
@@ -128,11 +128,12 @@ import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
+import com.linecorp.centraldogma.server.internal.admin.auth.AnonymousTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.auth.CachedSessionManager;
-import com.linecorp.centraldogma.server.internal.admin.auth.CsrfTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.auth.ExpiredSessionDeletingSessionManager;
 import com.linecorp.centraldogma.server.internal.admin.auth.FileBasedSessionManager;
-import com.linecorp.centraldogma.server.internal.admin.auth.SessionTokenAuthorizer;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionCookieAuthorizer;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
 import com.linecorp.centraldogma.server.internal.admin.service.DefaultLogoutService;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
 import com.linecorp.centraldogma.server.internal.admin.service.UserService;
@@ -459,7 +460,7 @@ public class CentralDogma implements AutoCloseable {
 
             logger.info("Current settings:\n{}", cfg);
 
-            sessionManager = initializeSessionManager(encryptionStorageManager);
+            sessionManager = initializeSessionManager();
 
             logger.info("Starting the command executor ..");
             executor = startCommandExecutor(pm, repositoryWorker, purgeWorker,
@@ -642,7 +643,6 @@ public class CentralDogma implements AutoCloseable {
             logger.warn("Failed to start the command executor. Entering read-only.", e);
             projectInitializer.initializeInReadOnlyMode();
         }
-
         setMirrorAccessControllerRepository(pm, executor);
         return executor;
     }
@@ -656,8 +656,7 @@ public class CentralDogma implements AutoCloseable {
     }
 
     @Nullable
-    private SessionManager initializeSessionManager(
-            EncryptionStorageManager encryptionStorageManager) throws Exception {
+    private SessionManager initializeSessionManager() throws Exception {
         final AuthConfig authCfg = cfg.authConfig();
         if (authCfg == null) {
             return null;
@@ -724,21 +723,26 @@ public class CentralDogma implements AutoCloseable {
         cfg.idleTimeoutMillis().ifPresent(sb::idleTimeoutMillis);
         cfg.requestTimeoutMillis().ifPresent(sb::requestTimeoutMillis);
         sb.maxRequestLength(cfg.maxFrameLength().orElse(DEFAULT_MAX_FRAME_LENGTH));
-        cfg.gracefulShutdownTimeout().ifPresent(t -> {
-            final GracefulShutdown gracefulShutdown =
+        final Optional<GracefulShutdownTimeout> gracefulShutdownTimeout = cfg.gracefulShutdownTimeout();
+        final GracefulShutdown gracefulShutdown;
+        if (gracefulShutdownTimeout.isPresent()) {
+            gracefulShutdown =
                     GracefulShutdown.builder()
-                                    .quietPeriodMillis(t.quietPeriodMillis())
-                                    .timeoutMillis(t.timeoutMillis())
-                                    .toExceptionFunction((ctx, req) -> {
-                                        return new ShuttingDownException();
-                                    })
+                                    .quietPeriodMillis(gracefulShutdownTimeout.get().quietPeriodMillis())
+                                    .timeoutMillis(gracefulShutdownTimeout.get().timeoutMillis())
+                                    .toExceptionFunction((ctx, req) -> new ShuttingDownException())
                                     .build();
-            sb.gracefulShutdown(gracefulShutdown);
-        });
+        } else {
+            gracefulShutdown = GracefulShutdown.builder()
+                                               .toExceptionFunction((ctx, req) -> new ShuttingDownException())
+                                               .build();
+        }
+        sb.gracefulShutdown(gracefulShutdown);
 
         final MetadataService mds = new MetadataService(pm, executor, projectInitializer);
         final WatchService watchService = new WatchService(meterRegistry);
-        final AuthProvider authProvider = createAuthProvider(executor, sessionManager, mds);
+        final AuthProvider authProvider =
+                createAuthProvider(executor, sessionManager, mds, needsTls, encryptionStorageManager);
         final ProjectApiManager projectApiManager =
                 new ProjectApiManager(pm, executor, mds, encryptionStorageManager);
 
@@ -765,9 +769,9 @@ public class CentralDogma implements AutoCloseable {
                                                                  "Bearer " + CsrfToken.ANONYMOUS))
                                   .build());
         final Function<? super HttpService, AuthService> authService =
-                authService(mds, authProvider, sessionManager);
+                authService(authProvider, sessionManager);
         configureHttpApi(sb, projectApiManager, executor, watchService, mds, authProvider, authService,
-                         meterRegistry, encryptionStorageManager);
+                         meterRegistry, encryptionStorageManager, sessionManager, needsTls);
 
         configureMetrics(sb, meterRegistry);
         // Add the CORS service as the last decorator(executed first) so that the CORS service is applied
@@ -827,7 +831,8 @@ public class CentralDogma implements AutoCloseable {
 
     @Nullable
     private AuthProvider createAuthProvider(
-            CommandExecutor commandExecutor, @Nullable SessionManager sessionManager, MetadataService mds) {
+            CommandExecutor commandExecutor, @Nullable SessionManager sessionManager, MetadataService mds,
+            boolean tlsEnabled, EncryptionStorageManager encryptionStorageManager) {
         final AuthConfig authCfg = cfg.authConfig();
         if (authCfg == null) {
             return null;
@@ -836,13 +841,17 @@ public class CentralDogma implements AutoCloseable {
         checkState(sessionManager != null, "SessionManager is null");
         final AuthProviderParameters parameters = new AuthProviderParameters(
                 // Find application first, then find the session token.
-                new ApplicationTokenAuthorizer(mds::findTokenBySecret).orElse(
-                        new SessionTokenAuthorizer(sessionManager, authCfg.systemAdministrators())),
+                new ApplicationTokenAuthorizer(mds::findTokenBySecret)
+                        .orElse(new SessionCookieAuthorizer(
+                                sessionManager, tlsEnabled, encryptionStorageManager,
+                                authCfg.systemAdministrators())),
                 cfg,
                 sessionManager::generateSessionId,
                 // Propagate login and logout events to the other replicas.
                 session -> commandExecutor.execute(Command.createSession(session)),
-                sessionId -> commandExecutor.execute(Command.removeSession(sessionId)));
+                sessionId -> commandExecutor.execute(Command.removeSession(sessionId)),
+                sessionManager, tlsEnabled,
+                encryptionStorageManager);
         return authCfg.factory().create(parameters);
     }
 
@@ -880,22 +889,18 @@ public class CentralDogma implements AutoCloseable {
     }
 
     private Function<? super HttpService, AuthService> authService(
-            MetadataService mds, @Nullable AuthProvider authProvider, @Nullable SessionManager sessionManager) {
+            @Nullable AuthProvider authProvider, @Nullable SessionManager sessionManager) {
         if (authProvider == null) {
             return AuthService.builder()
-                              .add(new CsrfTokenAuthorizer())
+                              .add(new AnonymousTokenAuthorizer())
                               .onFailure(new CentralDogmaAuthFailureHandler())
                               .newDecorator();
         }
         final AuthConfig authCfg = cfg.authConfig();
         assert authCfg != null : "authCfg";
         assert sessionManager != null : "sessionManager";
-        final Authorizer<HttpRequest> tokenAuthorizer =
-                new ApplicationTokenAuthorizer(mds::findTokenBySecret)
-                        .orElse(new SessionTokenAuthorizer(sessionManager,
-                                                           authCfg.systemAdministrators()));
         return AuthService.builder()
-                          .add(tokenAuthorizer)
+                          .add(authProvider.parameters().authorizer())
                           .onFailure(new CentralDogmaAuthFailureHandler())
                           .newDecorator();
     }
@@ -906,7 +911,8 @@ public class CentralDogma implements AutoCloseable {
                                   @Nullable AuthProvider authProvider,
                                   Function<? super HttpService, AuthService> authService,
                                   MeterRegistry meterRegistry,
-                                  EncryptionStorageManager encryptionStorageManager) {
+                                  EncryptionStorageManager encryptionStorageManager,
+                                  @Nullable SessionManager sessionManager, boolean needsTls) {
         final DependencyInjector dependencyInjector = DependencyInjector.ofSingletons(
                 // Use the default ObjectMapper without any configuration.
                 // See JacksonRequestConverterFunctionTest
@@ -982,6 +988,7 @@ public class CentralDogma implements AutoCloseable {
 
             final AuthConfig authCfg = cfg.authConfig();
             assert authCfg != null : "authCfg";
+            assert sessionManager != null : "sessionManager";
             apiV1ServiceBuilder
                     .annotatedService(new MetadataApiService(executor, mds, authCfg.loginNameNormalizer()))
                     .annotatedService(new TokenService(executor, mds));
@@ -993,9 +1000,11 @@ public class CentralDogma implements AutoCloseable {
             // Provide logout API by default.
             final HttpService logout =
                     Optional.ofNullable(authProvider.logoutApiService())
-                            .orElseGet(() -> new DefaultLogoutService(executor));
+                            .orElseGet(() -> new DefaultLogoutService(
+                                    authProvider.parameters().logoutSessionPropagator(),
+                                    sessionManager, needsTls));
             for (Route route : LOGOUT_API_ROUTES) {
-                sb.service(route, decorator.apply(logout));
+                sb.service(route, logout);
             }
 
             authProvider.moreServices().forEach(sb::service);
@@ -1008,7 +1017,7 @@ public class CentralDogma implements AutoCloseable {
 
         if (cfg.isWebAppEnabled()) {
             sb.contextPath(API_V0_PATH_PREFIX)
-              .annotatedService(new UserService(executor))
+              .annotatedService(new UserService(sessionManager, needsTls, executor))
               .annotatedService(new RepositoryService(projectApiManager, executor));
 
             if (authProvider != null) {
@@ -1045,12 +1054,17 @@ public class CentralDogma implements AutoCloseable {
             return;
         }
 
-        sb.decorator(CorsService.builder(corsConfig.allowedOrigins())
-                                .allowRequestMethods(HttpMethod.knownMethods())
-                                .allowAllRequestHeaders(true)
-                                .allowCredentials()
-                                .maxAge(corsConfig.maxAgeSeconds())
-                                .newDecorator());
+        final CorsServiceBuilder builder = CorsService.builder(corsConfig.allowedOrigins())
+                                                      .allowRequestMethods(HttpMethod.knownMethods())
+                                                      .allowAllRequestHeaders(true)
+                                                      .maxAge(corsConfig.maxAgeSeconds());
+        if (!corsConfig.allowedOrigins().contains("*")) {
+            // Expose the CSRF token header only when the allowed origins are restricted.
+            builder.exposeHeaders(SessionUtil.X_CSRF_TOKEN)
+                   .allowCredentials();
+        }
+
+        sb.decorator(builder.newDecorator());
     }
 
     private static void configManagement(ServerBuilder sb, @Nullable ManagementConfig managementConfig) {

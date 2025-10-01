@@ -81,6 +81,9 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
         return started;
     }
 
+    /**
+     * Returns {@code true} if the {@link CommandExecutor} is in the process of stopping.
+     */
     protected final boolean isStopping() {
         return numPendingStopRequests.get() > 0;
     }
@@ -95,6 +98,9 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
         });
     }
 
+    /**
+     * Starts the {@link CommandExecutor}.
+     */
     protected abstract void doStart(@Nullable Runnable onTakeLeadership,
                                     @Nullable Runnable onReleaseLeadership,
                                     @Nullable Runnable onTakeZoneLeadership,
@@ -107,6 +113,9 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
         return startStop.stop().thenRun(numPendingStopRequests::decrementAndGet);
     }
 
+    /**
+     * Stops the {@link CommandExecutor}.
+     */
     protected abstract void doStop(@Nullable Runnable onReleaseLeadership,
                                    @Nullable Runnable onReleaseZoneLeadership) throws Exception;
 
@@ -142,6 +151,9 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
         }
     }
 
+    /**
+     * Executes the specified {@link Command}.
+     */
     protected abstract <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception;
 
     @Override

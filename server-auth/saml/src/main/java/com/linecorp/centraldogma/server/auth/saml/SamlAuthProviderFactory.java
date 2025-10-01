@@ -59,7 +59,9 @@ public final class SamlAuthProviderFactory implements AuthProviderFactory {
                            Duration.ofMillis(parameters.authConfig().sessionTimeoutMillis()),
                            parameters.authConfig().loginNameNormalizer(),
                            properties.idp().subjectLoginNameIdFormat(),
-                           properties.idp().attributeLoginName()))
+                           properties.idp().attributeLoginName(),
+                           parameters.tlsEnabled(),
+                           parameters.encryptionStorageManager()))
                    .credentialResolver(credentialResolver(ks))
                    .signatureAlgorithm(ks.signatureAlgorithm())
                    .idp()
@@ -72,7 +74,7 @@ public final class SamlAuthProviderFactory implements AuthProviderFactory {
                 acs.endpoints().forEach(builder::acs);
             }
 
-            return new SamlAuthProvider(builder.build());
+            return new SamlAuthProvider(builder.build(), parameters);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to create " +
                                             SamlAuthProvider.class.getSimpleName(), e);

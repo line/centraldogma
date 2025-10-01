@@ -30,7 +30,7 @@ import com.google.common.base.MoreObjects;
 /**
  * An OAuth 2.0 access token.
  *
- * @see <a href="https://tools.ietf.org/html/rfc6749#section-4.2.2">Access Token Response</a>
+ * @see <a href="https://datatracker.ietf.org/doc/html/rfc6749#section-4.2.2">Access Token Response</a>
  */
 public class AccessToken {
 

@@ -27,7 +27,7 @@ import {
   Stack,
   VStack,
 } from '@chakra-ui/react';
-import { login } from 'dogma/features/auth/authSlice';
+import { login, getUser } from 'dogma/features/auth/authSlice';
 import { useAppDispatch } from 'dogma/hooks';
 import { useForm } from 'react-hook-form';
 import { useState } from 'react';
@@ -45,7 +45,15 @@ export const LoginForm = () => {
 
   const { register, handleSubmit } = useForm<FormData>();
   const dispatch = useAppDispatch();
-  const onSubmit = (data: FormData) => dispatch(login({ username: data.username, password: data.password }));
+
+  const onSubmit = async (data: FormData) => {
+    try {
+      await dispatch(login({ username: data.username, password: data.password })).unwrap();
+      dispatch(getUser());
+    } catch (error) {
+      console.error('Login failed:', error);
+    }
+  };
   const CFaUserAlt = chakra(FaUserAlt);
   const CFaLock = chakra(FaLock);
 

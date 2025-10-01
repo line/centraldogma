@@ -15,25 +15,26 @@
  */
 package com.linecorp.centraldogma.server.auth.saml;
 
-import static java.util.Objects.requireNonNull;
-
 final class HtmlUtil {
 
-    private static final String BEGIN =
+    private static final String HTML_HEAD_START =
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"DTD/xhtml1-strict.dtd\">" +
             "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">" +
-            "<head><meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\" /></head>" +
-            "<body onload=\"";
+            "<head><meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\" />";
+
+    private static final String HTML_HEAD_END_BODY_START = "</head><body onload=\"";
 
     private static final String END = "\"></body></html>";
 
-    static String getHtmlWithOnload(String... statements) {
-        requireNonNull(statements, "statements");
-
-        final StringBuilder sb = new StringBuilder(BEGIN);
-        for (String statement : statements) {
-            sb.append(statement).append(';');
+    static String getHtmlWithCsrfAndRedirect(String csrfToken, String redirectScript) {
+        final StringBuilder sb = new StringBuilder(HTML_HEAD_START);
+        // No need to escape csrfToken because it is UUID format. Will revisit if the format changes.
+        sb.append(String.format("<meta name=\"csrf-token\" content=\"%s\" />", csrfToken));
+        sb.append(HTML_HEAD_END_BODY_START);
+        sb.append(redirectScript);
+        if (!redirectScript.endsWith(";")) {
+            sb.append(';');
         }
         sb.append(END);
         return sb.toString();

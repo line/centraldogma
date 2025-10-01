@@ -16,7 +16,8 @@
 package com.linecorp.centraldogma.server.auth.saml;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.linecorp.centraldogma.server.auth.saml.HtmlUtil.getHtmlWithOnload;
+import static com.linecorp.centraldogma.server.auth.saml.HtmlUtil.getHtmlWithCsrfAndRedirect;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.createSessionIdCookie;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
@@ -41,17 +42,24 @@ import org.owasp.encoder.Encode;
 import com.google.common.base.Strings;
 
 import com.linecorp.armeria.common.AggregatedHttpRequest;
+import com.linecorp.armeria.common.Cookie;
+import com.linecorp.armeria.common.HttpData;
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.saml.InvalidSamlRequestException;
 import com.linecorp.armeria.server.saml.SamlBindingProtocol;
 import com.linecorp.armeria.server.saml.SamlIdentityProviderConfig;
 import com.linecorp.armeria.server.saml.SamlSingleSignOnHandler;
 import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.auth.SessionKey;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
 
@@ -63,20 +71,29 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
     private final Supplier<String> sessionIdGenerator;
     private final Function<Session, CompletableFuture<Void>> loginSessionPropagator;
     private final Duration sessionValidDuration;
+    private final long cookieMaxAgeSecond;
     private final Function<String, String> loginNameNormalizer;
     @Nullable
     private final String subjectLoginNameIdFormat;
     @Nullable
     private final String attributeLoginName;
+    private final boolean tlsEnabled;
+
+    // TODO(minwoox): Use the sessionKey to encrypt the session cookie.
+    @Nullable
+    private final SessionKey sessionKey;
 
     SamlAuthSsoHandler(
             Supplier<String> sessionIdGenerator,
             Function<Session, CompletableFuture<Void>> loginSessionPropagator,
             Duration sessionValidDuration, Function<String, String> loginNameNormalizer,
-            @Nullable String subjectLoginNameIdFormat, @Nullable String attributeLoginName) {
+            @Nullable String subjectLoginNameIdFormat, @Nullable String attributeLoginName,
+            boolean tlsEnabled, EncryptionStorageManager encryptionStorageManager) {
         this.sessionIdGenerator = requireNonNull(sessionIdGenerator, "sessionIdGenerator");
         this.loginSessionPropagator = requireNonNull(loginSessionPropagator, "loginSessionPropagator");
         this.sessionValidDuration = requireNonNull(sessionValidDuration, "sessionValidDuration");
+        // Make the cookie expire a bit earlier than the session itself.
+        cookieMaxAgeSecond = sessionValidDuration.minusMinutes(1).getSeconds();
         this.loginNameNormalizer = requireNonNull(loginNameNormalizer, "loginNameNormalizer");
         checkArgument(!Strings.isNullOrEmpty(subjectLoginNameIdFormat) ||
                       !Strings.isNullOrEmpty(attributeLoginName),
@@ -84,6 +101,13 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
                       "for finding a login name");
         this.subjectLoginNameIdFormat = subjectLoginNameIdFormat;
         this.attributeLoginName = attributeLoginName;
+        this.tlsEnabled = tlsEnabled;
+        requireNonNull(encryptionStorageManager, "encryptionStorageManager");
+        if (encryptionStorageManager.encryptSessionCookie()) {
+            sessionKey = encryptionStorageManager.getCurrentSessionKey().join();
+        } else {
+            sessionKey = null;
+        }
     }
 
     @Override
@@ -121,8 +145,10 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
         }
 
         final String sessionId = sessionIdGenerator.get();
+        // Call once more to generate a CSRF token.
+        final String csrfToken = sessionIdGenerator.get();
         final Session session =
-                new Session(sessionId, loginNameNormalizer.apply(username), sessionValidDuration);
+                new Session(sessionId, csrfToken, loginNameNormalizer.apply(username), sessionValidDuration);
 
         final String redirectionScript;
         if (!Strings.isNullOrEmpty(relayState)) {
@@ -136,9 +162,19 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
             redirectionScript = "window.location.href='/'";
         }
         return HttpResponse.of(loginSessionPropagator.apply(session).thenApply(
-                unused -> HttpResponse.of(HttpStatus.OK, MediaType.HTML_UTF_8, getHtmlWithOnload(
-                        "localStorage.setItem('sessionId','" + sessionId + "')",
-                        redirectionScript))));
+                unused -> {
+                    final Cookie cookie = createSessionIdCookie(sessionId, tlsEnabled, cookieMaxAgeSecond);
+                    final ResponseHeaders responseHeaders =
+                            ResponseHeaders.builder(HttpStatus.OK)
+                                           .contentType(MediaType.HTML_UTF_8)
+                                           .set(HttpHeaderNames.CACHE_CONTROL,
+                                                ServerCacheControl.DISABLED.asHeaderValue())
+                                           .cookie(cookie)
+                                           .build();
+                    return HttpResponse.of(responseHeaders,
+                                           HttpData.ofUtf8(
+                                                   getHtmlWithCsrfAndRedirect(csrfToken, redirectionScript)));
+                }));
     }
 
     @Nullable

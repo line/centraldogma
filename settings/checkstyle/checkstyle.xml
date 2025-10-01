@@ -31,7 +31,7 @@
   <!-- Copyright headers -->
   <module name="RegexpSingleline">
     <property name="id" value="CopyrightHeader"/>
-    <property name="format" value="^(?:\s|\*)*Copyright\s+[0-9]+\s+LINE Corporation\s*$"/>
+    <property name="format" value="^(?:\s|\*)*Copyright\s+[0-9]+\s+(LINE|LY) Corporation\s*$"/>
     <property name="minimum" value="1"/>
     <property name="maximum" value="1"/>
     <property name="message" value="missing copyright header"/>
@@ -60,6 +60,11 @@
   <module name="RegexpSingleline">
     <property name="format" value="File \| Settings \| File Templates"/>
     <property name="message" value="IDE-generated comment"/>
+  </module>
+  <!-- Use datatracker.ietf.org if possible. -->
+  <module name="RegexpSingleline">
+    <property name="format" value="(http://datatracker\.ietf\.org|tools\.ietf\.org|rfc-editor\.org|(www\.ietf\.org|httpwg\.org|w3\.org)/[^ ]+/rfc)"/>
+    <property name="message" value="Use https://datatracker.ietf.org/ instead."/>
   </module>
   <!-- Trailing spaces -->
   <module name="RegexpSingleline">
@@ -186,7 +191,9 @@
       <property name="allowMissingReturnTag" value="true"/>
       <property name="allowedAnnotations" value="Override, Test"/>
     </module>
-    <module name="MissingJavadocMethod"/>
+    <module name="MissingJavadocMethod">
+      <property name="scope" value="protected"/>
+    </module>
     <module name="MissingJavadocPackage"/>
     <module name="MissingJavadocType"/>
     <module name="JavadocParagraph"/>

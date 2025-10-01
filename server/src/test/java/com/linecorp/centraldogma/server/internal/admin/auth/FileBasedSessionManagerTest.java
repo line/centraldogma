@@ -38,16 +38,15 @@ class FileBasedSessionManagerTest {
     void shouldDoBasicOperations() throws Exception {
         final FileBasedSessionManager manager =
                 new FileBasedSessionManager(createTempDirectory(rootDir, ""), null);
-        final Session session = new Session(manager.generateSessionId(), "username", Duration.ofHours(1));
+        final Session session = new Session(manager.generateSessionId(), "csrf", "username",
+                                            Duration.ofHours(1));
         manager.create(session).join();
-        assertThat(manager.get(session.id()).join())
-                .isEqualToIgnoringGivenFields(session, "rawSession");
+        assertThat(manager.get(session.id()).join()).isEqualTo(session);
 
         final Session updatedSession =
-                new Session(session.id(), "username2", Duration.ofHours(2));
+                new Session(session.id(), "csrf", "username2", Duration.ofHours(2));
         manager.update(updatedSession).join();
-        assertThat(manager.get(updatedSession.id()).join())
-                .isEqualToIgnoringGivenFields(updatedSession, "rawSession");
+        assertThat(manager.get(updatedSession.id()).join()).isEqualTo(updatedSession);
 
         manager.delete(updatedSession.id()).join();
         assertThat(manager.get(updatedSession.id()).join()).isNull();
@@ -59,7 +58,7 @@ class FileBasedSessionManagerTest {
                 new FileBasedSessionManager(createTempDirectory(rootDir, ""), "*/2 * * ? * *");
 
         final Session session =
-                new Session(manager.generateSessionId(), "username", Duration.ofSeconds(5));
+                new Session(manager.generateSessionId(), "csrf", "username", Duration.ofSeconds(5));
         manager.create(session).join();
 
         await().untilAsserted(() -> assertThat(manager.get(session.id()).join()).isNull());
@@ -73,7 +72,7 @@ class FileBasedSessionManagerTest {
         assertThat(manager.exists("anonymous").join()).isFalse();
 
         // Other operations such as create, update and delete should fail.
-        final Session session = new Session("anonymous", "username", Duration.ofHours(1));
+        final Session session = new Session("anonymous", "csrf", "username", Duration.ofHours(1));
         assertThatThrownBy(() -> manager.create(session).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class)

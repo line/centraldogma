@@ -31,13 +31,10 @@ import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
-import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseEntity;
-import com.linecorp.armeria.common.auth.AuthToken;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
@@ -65,20 +62,9 @@ class CredentialServiceV1Test {
         }
 
         @Override
-        protected void configureHttpClient(WebClientBuilder builder) {
-            // TODO(minwoox): Override accessToken to provide token to both WebClient and CentralDogma client.
-            final String accessToken = getAccessToken(
-                    WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
-                    USERNAME, PASSWORD);
-            builder.auth(AuthToken.ofOAuth2(accessToken));
-        }
-
-        @Override
-        protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
-            final String accessToken = getAccessToken(
-                    WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
-                    USERNAME, PASSWORD);
-            builder.accessToken(accessToken);
+        protected String accessToken() {
+            return getAccessToken(WebClient.of("http://127.0.0.1:" + dogma.serverAddress().getPort()),
+                                  USERNAME, PASSWORD, true);
         }
 
         @Override

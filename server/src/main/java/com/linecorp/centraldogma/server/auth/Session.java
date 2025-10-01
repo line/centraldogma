@@ -20,13 +20,13 @@ import static java.util.Objects.requireNonNull;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Objects;
 
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
@@ -50,18 +50,19 @@ public final class Session {
      * @param username the name of the user which belongs to this session
      * @param sessionValidDuration the {@link Duration} that this session is valid
      */
-    public Session(String id, String username, Duration sessionValidDuration) {
+    public Session(String id, String csrfToken, String username, Duration sessionValidDuration) {
         this.id = requireNonNull(id, "id");
+        this.csrfToken = requireNonNull(csrfToken, "csrfToken");
         this.username = requireNonNull(username, "username");
         creationTime = Instant.now();
         expirationTime = creationTime.plus(requireNonNull(sessionValidDuration, "sessionValidDuration"));
-        csrfToken = null;
     }
 
     /**
      * Creates a new {@link Session} instance.
      *
      * @param id the session ID
+     * @param csrfToken the CSRF token
      * @param username the name of the user which belongs to this session
      * @param creationTime the created time {@link Instant}
      * @param expirationTime the time {@link Instant} that this session is to be expired at
@@ -73,7 +74,6 @@ public final class Session {
                    @JsonProperty("creationTime") Instant creationTime,
                    @JsonProperty("expirationTime") Instant expirationTime,
                    @JsonProperty("rawSession")
-                   @JsonDeserialize(using = RawSessionJsonDeserializer.class)
                    @Nullable Serializable unused) {
         this.id = requireNonNull(id, "id");
         this.csrfToken = csrfToken;
@@ -124,9 +124,30 @@ public final class Session {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hash(id, csrfToken, username, creationTime, expirationTime);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof Session)) {
+            return false;
+        }
+        final Session that = (Session) obj;
+        return id.equals(that.id) &&
+               Objects.equals(csrfToken, that.csrfToken) &&
+               username.equals(that.username) &&
+               creationTime.equals(that.creationTime) &&
+               expirationTime.equals(that.expirationTime);
+    }
+
+    @Override
     public String toString() {
         final ToStringHelper toStringHelper = MoreObjects.toStringHelper(this)
-                                                         .add("id", id)
+                                                         .add("id", "****")
                                                          .add("username", username)
                                                          .add("creationTime", creationTime)
                                                          .add("expirationTime", expirationTime);
