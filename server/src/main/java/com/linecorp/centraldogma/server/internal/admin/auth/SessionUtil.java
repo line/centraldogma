@@ -112,8 +112,8 @@ public final class SessionUtil {
         try {
             jweObject = JWEObject.parse(cookieValue);
             jweObject.decrypt(decrypter);
-        } catch (Throwable t) {
-            logger.trace("Failed to parse the session cookie. ctx={}", ctx, t);
+        } catch (Exception e) {
+            logger.trace("Failed to parse the session cookie. ctx={}", ctx, e);
             return null;
         }
 
@@ -121,8 +121,8 @@ public final class SessionUtil {
         final String jwsString = payload.toString();
         try {
             return SignedJWT.parse(jwsString);
-        } catch (Throwable t) {
-            logger.trace("Failed to parse the inner JWS. ctx={}", ctx, t);
+        } catch (Exception e) {
+            logger.trace("Failed to parse the inner JWS. ctx={}", ctx, e);
             return null;
         }
     }
@@ -134,8 +134,8 @@ public final class SessionUtil {
         final JWTClaimsSet jwtClaimsSet;
         try {
             jwtClaimsSet = signedJWT.getJWTClaimsSet();
-        } catch (Throwable t) {
-            logger.trace("Failed to parse the inner JWS. ctx={}", ctx, t);
+        } catch (Exception e) {
+            logger.trace("Failed to parse the inner JWS. ctx={}", ctx, e);
             return null;
         }
 
