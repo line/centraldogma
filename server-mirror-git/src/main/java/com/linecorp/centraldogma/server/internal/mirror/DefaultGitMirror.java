@@ -24,11 +24,10 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.function.Consumer;
 
-import org.jspecify.annotations.Nullable;
-
 import org.eclipse.jgit.api.TransportCommand;
 import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
+import org.jspecify.annotations.Nullable;
 
 import com.cronutils.model.Cron;
 

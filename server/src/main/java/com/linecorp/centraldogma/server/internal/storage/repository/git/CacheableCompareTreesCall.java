@@ -21,12 +21,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
-import org.jspecify.annotations.Nullable;
-
 import org.eclipse.jgit.attributes.Attribute;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.treewalk.filter.TreeFilter;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.base.MoreObjects.ToStringHelper;
 

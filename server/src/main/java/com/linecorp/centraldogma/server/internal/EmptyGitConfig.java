@@ -24,11 +24,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.jspecify.annotations.Nullable;
-
 import org.eclipse.jgit.storage.file.FileBasedConfig;
 import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.util.FS;
+import org.jspecify.annotations.Nullable;
 
 public final class EmptyGitConfig extends FileBasedConfig {
 

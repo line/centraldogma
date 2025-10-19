@@ -21,12 +21,13 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Objects;
 
+import org.jspecify.annotations.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.SessionProtocol;
-import org.jspecify.annotations.Nullable;
 import com.linecorp.armeria.server.management.ManagementService;
 
 /**
