@@ -77,8 +77,8 @@ public final class EntryConverter {
     /**
      * Converts {@link com.linecorp.centraldogma.common.EntryType} to {@link EntryType}.
      */
-    @Nullable
-    public static EntryType convertEntryType(com.linecorp.centraldogma.common.EntryType type) {
+    public static @Nullable EntryType convertEntryType(
+            com.linecorp.centraldogma.common.@Nullable EntryType type) {
         if (type == null) {
             return null;
         }
@@ -98,8 +98,8 @@ public final class EntryConverter {
     /**
      * Converts {@link EntryType} to {@link com.linecorp.centraldogma.common.EntryType}.
      */
-    @Nullable
-    public static com.linecorp.centraldogma.common.EntryType convertEntryType(EntryType type) {
+    public static com.linecorp.centraldogma.common.@Nullable EntryType convertEntryType(
+            @Nullable EntryType type) {
         if (type == null) {
             return null;
         }

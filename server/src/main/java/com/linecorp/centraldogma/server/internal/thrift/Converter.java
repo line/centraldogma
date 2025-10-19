@@ -143,7 +143,7 @@ final class Converter {
 
     ////// ChangeType
     @Nullable
-    static ChangeType convert(@Nullable com.linecorp.centraldogma.common.ChangeType type) {
+    static ChangeType convert(com.linecorp.centraldogma.common.@Nullable ChangeType type) {
         if (type == null) {
             return null;
         }
