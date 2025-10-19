@@ -16,7 +16,7 @@
 /**
  * Central Dogma internal auth testing.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.testing.internal.auth;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

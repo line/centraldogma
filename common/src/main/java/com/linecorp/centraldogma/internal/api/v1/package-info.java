@@ -16,7 +16,7 @@
 /**
  * Data objects for V1 API used internally.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.internal.api.v1;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

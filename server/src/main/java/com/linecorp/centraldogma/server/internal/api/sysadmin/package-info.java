@@ -16,7 +16,7 @@
 /**
  * System administrative API.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.internal.api.sysadmin;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

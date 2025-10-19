@@ -16,7 +16,7 @@
 /**
  * <a href="https://spring.io/">Spring framework</a> integration for Central Dogma client.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.client.spring;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

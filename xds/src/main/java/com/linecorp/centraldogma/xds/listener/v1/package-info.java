@@ -17,7 +17,7 @@
 /**
  * xDS listener service.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.xds.listener.v1;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

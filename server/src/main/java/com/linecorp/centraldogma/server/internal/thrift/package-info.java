@@ -16,7 +16,7 @@
 /**
  * Central Dogma Thrift service.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.internal.thrift;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

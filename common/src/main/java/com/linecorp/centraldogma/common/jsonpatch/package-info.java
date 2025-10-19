@@ -22,7 +22,7 @@
  * source JSON document until all operations are applied or an error has been
  * encountered.</p>
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.common.jsonpatch;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

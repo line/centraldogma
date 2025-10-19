@@ -16,7 +16,7 @@
 /**
  * Supports plug-ins which are running on the Central Dogma server.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.plugin;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

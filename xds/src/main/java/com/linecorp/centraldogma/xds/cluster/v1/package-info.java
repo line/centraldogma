@@ -17,7 +17,7 @@
 /**
  * xDS cluster service.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.xds.cluster.v1;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;
