@@ -680,8 +680,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    @Nullable
-    private static <T> Change<T> getDiff(AggregatedHttpResponse res) {
+    private static <T> @Nullable Change<T> getDiff(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
                 return toChange(toJson(res, JsonNodeType.OBJECT));
@@ -836,8 +835,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    @Nullable
-    private static Revision watchRepository(AggregatedHttpResponse res, QueryType unused) {
+    private static @Nullable Revision watchRepository(AggregatedHttpResponse res, QueryType unused) {
         switch (res.status().code()) {
             case 200: // OK
                 final JsonNode node = toJson(res, JsonNodeType.OBJECT);
@@ -877,8 +875,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    @Nullable
-    private static <T> Entry<T> watchFile(AggregatedHttpResponse res, QueryType queryType) {
+    private static <T> @Nullable Entry<T> watchFile(AggregatedHttpResponse res, QueryType queryType) {
         switch (res.status().code()) {
             case 200: // OK
                 final JsonNode node = toJson(res, JsonNodeType.OBJECT);
