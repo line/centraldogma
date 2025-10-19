@@ -25,7 +25,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 

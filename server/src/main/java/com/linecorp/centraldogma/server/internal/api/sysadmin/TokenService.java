@@ -22,7 +22,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
