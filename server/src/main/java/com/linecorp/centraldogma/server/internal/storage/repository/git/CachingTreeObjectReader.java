@@ -20,7 +20,7 @@ import static org.eclipse.jgit.lib.Constants.OBJ_TREE;
 
 import java.io.IOException;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.eclipse.jgit.lib.AnyObjectId;
 import org.eclipse.jgit.lib.ObjectLoader;

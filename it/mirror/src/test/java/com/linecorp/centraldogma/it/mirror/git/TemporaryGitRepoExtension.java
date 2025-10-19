@@ -28,7 +28,7 @@ import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
-import com.linecorp.armeria.common.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolder;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 import com.linecorp.centraldogma.testing.junit.AbstractAllOrEachExtension;

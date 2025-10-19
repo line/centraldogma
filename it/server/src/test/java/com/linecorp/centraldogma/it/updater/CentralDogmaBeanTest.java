@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.awaitility.core.ConditionTimeoutException;
 import org.hamcrest.Matchers;

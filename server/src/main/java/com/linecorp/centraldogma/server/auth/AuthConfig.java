@@ -24,7 +24,7 @@ import java.text.ParseException;
 import java.util.Set;
 import java.util.function.Function;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.quartz.CronExpression;
 

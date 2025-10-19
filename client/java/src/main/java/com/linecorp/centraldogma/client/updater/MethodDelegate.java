@@ -17,7 +17,7 @@ package com.linecorp.centraldogma.client.updater;
 
 import java.lang.reflect.Method;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 interface MethodDelegate {
 

@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.internal.thrift;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;

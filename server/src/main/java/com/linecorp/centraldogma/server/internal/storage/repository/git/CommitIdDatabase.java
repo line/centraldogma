@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;

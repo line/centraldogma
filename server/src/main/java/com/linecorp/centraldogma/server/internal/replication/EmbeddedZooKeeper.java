@@ -22,7 +22,7 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.function.ToDoubleFunction;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.apache.zookeeper.server.DataTree;
 import org.apache.zookeeper.server.DatadirCleanupManager;

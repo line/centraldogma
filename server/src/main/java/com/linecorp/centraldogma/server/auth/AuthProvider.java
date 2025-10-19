@@ -20,7 +20,7 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V
 
 import java.util.Set;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;

@@ -20,7 +20,7 @@ import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import java.util.Objects;
 import java.util.Optional;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;

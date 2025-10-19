@@ -39,7 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;

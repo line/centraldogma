@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.it.mirror.git;
 
 import java.io.IOException;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lib.FileMode;

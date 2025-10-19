@@ -17,7 +17,7 @@ package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.base.Ascii;
 

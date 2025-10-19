@@ -26,7 +26,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.Message;
 
-import com.linecorp.armeria.common.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.envoyproxy.controlplane.cache.ResourceVersionResolver;
 import io.envoyproxy.controlplane.cache.Resources;

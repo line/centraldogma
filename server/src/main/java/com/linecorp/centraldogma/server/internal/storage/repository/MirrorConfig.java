@@ -23,7 +23,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.cronutils.model.Cron;
 import com.cronutils.model.CronType;

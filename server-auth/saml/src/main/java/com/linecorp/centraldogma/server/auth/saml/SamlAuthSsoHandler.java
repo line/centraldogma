@@ -28,7 +28,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.schema.XSString;

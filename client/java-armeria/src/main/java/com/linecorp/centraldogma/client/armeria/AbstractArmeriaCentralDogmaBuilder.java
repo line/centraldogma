@@ -42,7 +42,7 @@ import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGro
 import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGroupBuilder;
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.SessionProtocol;
-import com.linecorp.armeria.common.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import com.linecorp.centraldogma.client.AbstractCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants;

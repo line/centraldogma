@@ -22,7 +22,7 @@ import static java.util.Objects.requireNonNull;
 import java.time.Duration;
 import java.util.regex.Pattern;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import javax.naming.AuthenticationException;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;

@@ -20,7 +20,7 @@ import static com.linecorp.centraldogma.server.metadata.RepositoryMetadata.DEFAU
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.collect.ImmutableMap;
 

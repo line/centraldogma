@@ -24,7 +24,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.function.Consumer;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.eclipse.jgit.api.TransportCommand;
 import org.eclipse.jgit.transport.URIish;

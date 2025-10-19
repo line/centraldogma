@@ -41,7 +41,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
@@ -247,7 +247,7 @@ class GitRepository implements Repository {
     }
 
     static void closeRepository(@Nullable CommitIdDatabase commitIdDatabase,
-                                @Nullable org.eclipse.jgit.lib.Repository jGitRepository) {
+                                org.eclipse.jgit.lib.@Nullable Repository jGitRepository) {
         if (commitIdDatabase != null) {
             try {
                 commitIdDatabase.close();

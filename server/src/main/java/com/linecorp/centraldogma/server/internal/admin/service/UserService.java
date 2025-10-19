@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.server.internal.admin.service;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getSessionIdFromCookie;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.sessionCookieName;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.slf4j.Logger;
 

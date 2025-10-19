@@ -23,7 +23,7 @@ import com.linecorp.armeria.common.Cookie;
 import com.linecorp.armeria.common.CookieBuilder;
 import com.linecorp.armeria.common.Cookies;
 import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.armeria.common.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import com.linecorp.armeria.server.ServiceRequestContext;
 
 import io.netty.util.AsciiString;

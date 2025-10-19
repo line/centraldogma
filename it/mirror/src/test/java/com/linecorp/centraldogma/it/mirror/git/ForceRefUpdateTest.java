@@ -46,7 +46,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.google.common.collect.ImmutableList;
 
-import com.linecorp.armeria.common.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.internal.Jackson;

@@ -46,7 +46,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.client.kubernetes.endpoints.KubernetesEndpointGroup;
-import com.linecorp.armeria.common.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;

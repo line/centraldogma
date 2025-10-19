@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.mirror;
 
-import com.linecorp.armeria.common.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Creates a new {@link Mirror} dynamically via Java SPI (Service Provider Interface).

@@ -33,7 +33,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.MergeCommand.FastForwardMode;

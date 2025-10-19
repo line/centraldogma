@@ -20,7 +20,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.ServiceLoader;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

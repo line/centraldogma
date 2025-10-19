@@ -17,7 +17,7 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import java.util.List;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.slf4j.LoggerFactory;
 

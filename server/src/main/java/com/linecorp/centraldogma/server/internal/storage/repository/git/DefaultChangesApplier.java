@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.StringJoiner;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.eclipse.jgit.dircache.DirCache;
 import org.eclipse.jgit.dircache.DirCacheEditor;

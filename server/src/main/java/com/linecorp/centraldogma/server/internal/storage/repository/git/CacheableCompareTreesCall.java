@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import org.eclipse.jgit.attributes.Attribute;
 import org.eclipse.jgit.diff.DiffEntry;
