@@ -18,14 +18,13 @@ package com.linecorp.centraldogma.it.mirror.git;
 
 import java.io.IOException;
 
-import org.jspecify.annotations.Nullable;
-
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.TreeWalk;
+import org.jspecify.annotations.Nullable;
 
 public final class GitTestUtil {
 

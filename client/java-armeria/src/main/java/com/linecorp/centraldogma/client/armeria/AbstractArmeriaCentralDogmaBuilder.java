@@ -28,6 +28,8 @@ import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
+
 import com.google.common.collect.Iterables;
 
 import com.linecorp.armeria.client.ClientBuilder;
@@ -42,7 +44,6 @@ import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGro
 import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGroupBuilder;
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.SessionProtocol;
-import org.jspecify.annotations.Nullable;
 import com.linecorp.centraldogma.client.AbstractCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants;

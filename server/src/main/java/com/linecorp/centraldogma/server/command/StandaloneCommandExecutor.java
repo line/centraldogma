@@ -22,7 +22,6 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

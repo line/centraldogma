@@ -20,7 +20,6 @@ import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.g
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.sessionCookieName;
 
 import org.jspecify.annotations.Nullable;
-
 import org.slf4j.Logger;
 
 import com.linecorp.armeria.common.HttpData;

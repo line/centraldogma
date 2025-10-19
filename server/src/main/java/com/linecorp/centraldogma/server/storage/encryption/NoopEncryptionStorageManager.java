@@ -18,8 +18,9 @@ package com.linecorp.centraldogma.server.storage.encryption;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import org.jspecify.annotations.Nullable;
 import javax.crypto.SecretKey;
+
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.collect.ImmutableMap;
 

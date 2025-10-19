@@ -25,7 +25,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 
 import org.jspecify.annotations.Nullable;
-
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
