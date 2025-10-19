@@ -29,7 +29,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.jspecify.annotations.Nullable;
-
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.schema.XSString;
 import org.opensaml.messaging.context.MessageContext;

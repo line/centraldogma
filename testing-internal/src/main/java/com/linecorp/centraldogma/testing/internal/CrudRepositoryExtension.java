@@ -19,7 +19,6 @@ package com.linecorp.centraldogma.testing.internal;
 import static com.google.common.base.Preconditions.checkState;
 
 import org.jspecify.annotations.Nullable;
-
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 import com.linecorp.centraldogma.common.Author;
