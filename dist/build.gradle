@@ -211,8 +211,11 @@ task docker(group: 'Build',
     def buildArgs = [
         'buildx', 'build',
         '--platform', platforms.join(','),
-        '--push'
     ]
+
+    if (imageVersion != 'test') {
+       buildArgs.add('--push')
+    }
 
     buildArgs.add("--tag")
     buildArgs.add("${imageName}:${imageVersion}")
