@@ -219,7 +219,7 @@ task docker(group: 'Build',
 
     buildArgs.add("--tag")
     buildArgs.add("${imageName}:${imageVersion}")
-    if (!(project.version =~ /-SNAPSHOT$/)) {
+    if (imageVersion != 'test' && !(project.version =~ /-SNAPSHOT$/)) {
         buildArgs.add("--tag")
         buildArgs.add("${imageName}:latest")
     }
