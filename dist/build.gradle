@@ -213,8 +213,10 @@ task docker(group: 'Build',
         '--platform', platforms.join(','),
     ]
 
-    if (imageVersion != 'test') {
-       buildArgs.add('--push')
+    if (imageVersion == 'test') {
+       buildArgs.add('--load')
+    } else {
+        buildArgs.add('--push')
     }
 
     buildArgs.add("--tag")
