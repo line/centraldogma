@@ -224,6 +224,6 @@ jobs:
       - name: Test DockerCompose
         # Make sure Central Dogma docker container can be started and healthy.
         run: |
-          docker compose -f dist/docker-compose-test.yml up --wait -d
+          docker compose -f dist/docker-compose-test.yml up --pull never --wait -d
           docker compose -f dist/docker-compose-test.yml down
         shell: bash
