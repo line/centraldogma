@@ -24,7 +24,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Supplier;
+import java.util.function.BooleanSupplier;
 
 import javax.annotation.Nullable;
 
@@ -58,7 +58,7 @@ public class SessionCookieAuthorizer implements Authorizer<HttpRequest> {
     private final SessionCookieHandler sessionCookieHandler;
 
     public SessionCookieAuthorizer(SessionManager sessionManager,
-                                   Supplier<Boolean> sessionPropagatorWritableChecker,
+                                   BooleanSupplier sessionPropagatorWritableChecker,
                                    boolean tlsEnabled,
                                    EncryptionStorageManager encryptionStorageManager,
                                    Set<String> systemAdministrators) {

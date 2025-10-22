@@ -23,7 +23,7 @@ import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.g
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.sessionCookieName;
 import static java.util.Objects.requireNonNull;
 
-import java.util.function.Supplier;
+import java.util.function.BooleanSupplier;
 
 import javax.annotation.Nullable;
 
@@ -40,7 +40,7 @@ import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageMana
 
 public final class SessionCookieHandler {
 
-    private final Supplier<Boolean> sessionPropagatorWritableChecker;
+    private final BooleanSupplier sessionPropagatorWritableChecker;
     private final String sessionCookieName;
 
     @Nullable
@@ -50,7 +50,7 @@ public final class SessionCookieHandler {
     @Nullable
     private final JWEDecrypter decrypter;
 
-    public SessionCookieHandler(Supplier<Boolean> sessionPropagatorWritableChecker, boolean tlsEnabled,
+    public SessionCookieHandler(BooleanSupplier sessionPropagatorWritableChecker, boolean tlsEnabled,
                                 EncryptionStorageManager encryptionStorageManager) {
         this.sessionPropagatorWritableChecker =
                 requireNonNull(sessionPropagatorWritableChecker, "sessionPropagatorWritableChecker");
@@ -91,7 +91,7 @@ public final class SessionCookieHandler {
             if (objectSessionId instanceof String) {
                 return new SessionInfo((String) objectSessionId, null, null);
             } else {
-                if (sessionPropagatorWritableChecker.get()) {
+                if (sessionPropagatorWritableChecker.getAsBoolean()) {
                     return null;
                 }
                 // In read-only mode, we support authentication using only the username claim.

@@ -25,6 +25,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -87,7 +88,7 @@ final class ShiroLoginService extends AbstractHttpService {
                       Function<String, String> loginNameNormalizer,
                       Supplier<String> csrfTokenGenerator,
                       Function<Session, CompletableFuture<Void>> loginSessionPropagator,
-                      Supplier<Boolean> sessionPropagatorWritableChecker, Duration sessionValidDuration,
+                      BooleanSupplier sessionPropagatorWritableChecker, Duration sessionValidDuration,
                       boolean tlsEnabled, EncryptionStorageManager encryptionStorageManager) {
         this.securityManager = requireNonNull(securityManager, "securityManager");
         this.loginNameNormalizer = requireNonNull(loginNameNormalizer, "loginNameNormalizer");

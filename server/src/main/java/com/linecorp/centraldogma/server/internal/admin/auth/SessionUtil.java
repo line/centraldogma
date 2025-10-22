@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.admin.auth;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Date;
 
@@ -149,7 +150,8 @@ public final class SessionUtil {
     }
 
     static String csrfTokenFromSignedJwt(SignedJWT signedJwt) {
-        return Hashing.sha256().hashBytes(signedJwt.getSignature().decode()).toString();
+        return Hashing.sha256().hashString(signedJwt.getSignature().toString(), StandardCharsets.UTF_8)
+                      .toString();
     }
 
     public static boolean validateCsrfToken(ServiceRequestContext ctx, HttpRequest req,

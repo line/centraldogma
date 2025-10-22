@@ -55,9 +55,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
@@ -851,7 +851,7 @@ public class CentralDogma implements AutoCloseable {
         }
 
         checkState(sessionManager != null, "SessionManager is null");
-        final Supplier<Boolean> sessionPropagatorWritableChecker = commandExecutor::isWritable;
+        final BooleanSupplier sessionPropagatorWritableChecker = commandExecutor::isWritable;
         final AuthProviderParameters parameters = new AuthProviderParameters(
                 // Find application first, then find the session token.
                 new ApplicationTokenAuthorizer(mds::findTokenBySecret)

@@ -19,8 +19,8 @@ package com.linecorp.centraldogma.server.auth.shiro;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import org.apache.shiro.mgt.SecurityManager;
 import org.apache.shiro.session.Session;
@@ -46,7 +46,7 @@ final class ShiroLogoutService extends DefaultLogoutService {
 
     ShiroLogoutService(SecurityManager securityManager,
                        Function<String, CompletableFuture<Void>> logoutSessionPropagator,
-                       Supplier<Boolean> sessionPropagatorWritableChecker, SessionManager sessionManager,
+                       BooleanSupplier sessionPropagatorWritableChecker, SessionManager sessionManager,
                        boolean tlsEnabled, EncryptionStorageManager encryptionStorageManager) {
         super(logoutSessionPropagator, sessionPropagatorWritableChecker,
               sessionManager, tlsEnabled, encryptionStorageManager);

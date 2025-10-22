@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.auth;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -37,7 +38,7 @@ public final class AuthProviderParameters {
     private final Supplier<String> sessionIdGenerator;
     private final Function<Session, CompletableFuture<Void>> loginSessionPropagator;
     private final Function<String, CompletableFuture<Void>> logoutSessionPropagator;
-    private final Supplier<Boolean> sessionPropagatorWritableChecker;
+    private final BooleanSupplier sessionPropagatorWritableChecker;
     private final SessionManager sessionManager;
     private final boolean tlsEnabled;
     private final EncryptionStorageManager encryptionStorageManager;
@@ -51,7 +52,7 @@ public final class AuthProviderParameters {
             Supplier<String> sessionIdGenerator,
             Function<Session, CompletableFuture<Void>> loginSessionPropagator,
             Function<String, CompletableFuture<Void>> logoutSessionPropagator,
-            Supplier<Boolean> sessionPropagatorWritableChecker,
+            BooleanSupplier sessionPropagatorWritableChecker,
             SessionManager sessionManager, boolean tlsEnabled,
             EncryptionStorageManager encryptionStorageManager) {
         this.authorizer = requireNonNull(authorizer, "authorizer");
@@ -116,7 +117,7 @@ public final class AuthProviderParameters {
     /**
      * Returns a supplier which checks whether the session propagator is writable or not.
      */
-    public Supplier<Boolean> sessionPropagatorWritableChecker() {
+    public BooleanSupplier sessionPropagatorWritableChecker() {
         return sessionPropagatorWritableChecker;
     }
 

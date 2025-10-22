@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -86,7 +87,7 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
     SamlAuthSsoHandler(
             Supplier<String> sessionIdGenerator,
             Function<Session, CompletableFuture<Void>> loginSessionPropagator,
-            Supplier<Boolean> sessionPropagatorWritableChecker,
+            BooleanSupplier sessionPropagatorWritableChecker,
             Duration sessionValidDuration, Function<String, String> loginNameNormalizer,
             @Nullable String subjectLoginNameIdFormat, @Nullable String attributeLoginName,
             boolean tlsEnabled, EncryptionStorageManager encryptionStorageManager) {

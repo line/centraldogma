@@ -20,8 +20,8 @@ import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.v
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import com.linecorp.armeria.common.Cookie;
 import com.linecorp.armeria.common.CookieBuilder;
@@ -47,7 +47,7 @@ public class DefaultLogoutService extends AbstractHttpService {
     private final Cookie invalidatingCookie;
 
     public DefaultLogoutService(Function<String, CompletableFuture<Void>> logoutSessionPropagator,
-                                Supplier<Boolean> sessionPropagatorWritableChecker,
+                                BooleanSupplier sessionPropagatorWritableChecker,
                                 SessionManager sessionManager, boolean tlsEnabled,
                                 EncryptionStorageManager encryptionStorageManager) {
         this.logoutSessionPropagator = requireNonNull(logoutSessionPropagator, "logoutSessionPropagator");

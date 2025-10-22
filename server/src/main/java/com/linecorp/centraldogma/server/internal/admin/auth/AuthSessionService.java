@@ -22,6 +22,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -42,7 +43,7 @@ import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageMana
 public final class AuthSessionService {
 
     private final Function<Session, CompletableFuture<Void>> loginSessionPropagator;
-    private final Supplier<Boolean> sessionPropagatorWritableChecker;
+    private final BooleanSupplier sessionPropagatorWritableChecker;
     private final Duration sessionValidDuration;
 
     @Nullable
@@ -54,7 +55,7 @@ public final class AuthSessionService {
 
     public AuthSessionService(
             Function<Session, CompletableFuture<Void>> loginSessionPropagator,
-            Supplier<Boolean> sessionPropagatorWritableChecker,
+            BooleanSupplier sessionPropagatorWritableChecker,
             Duration sessionValidDuration,
             EncryptionStorageManager encryptionStorageManager) {
         this.loginSessionPropagator = requireNonNull(loginSessionPropagator, "loginSessionPropagator");
@@ -83,7 +84,7 @@ public final class AuthSessionService {
      */
     public CompletableFuture<LoginResult> create(String username, Supplier<String> sessionIdGenerator,
                                                  Supplier<String> csrfTokenGenerator) {
-        if (!sessionPropagatorWritableChecker.get()) {
+        if (!sessionPropagatorWritableChecker.getAsBoolean()) {
             // Read-only mode
             if (sessionKey == null) {
                 return CompletableFutures.exceptionallyCompletedFuture(
