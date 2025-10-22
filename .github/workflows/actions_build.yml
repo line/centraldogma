@@ -217,7 +217,9 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker Image
-        run: ./gradlew :dist:docker --stacktrace -Pversion=test
+        run: |
+          ./gradlew :dist:docker --stacktrace -Pversion=test
+          docker images
 
       - name: Test DockerCompose
         # Make sure Central Dogma docker container can be started and healthy.
