@@ -53,7 +53,7 @@ jobs:
         JOB_NAME="build-${{ matrix.os }}-jdk-${{ matrix.java }}${{ matrix.min-java && format('-min-java-{0}', matrix.min-java) || '' }}${{ matrix.coverage && '-coverage' || ''}}${{ matrix.snapshot && '-snapshot' || ''}}"
         echo "JOB_NAME=$JOB_NAME" >> $GITHUB_ENV
       shell: bash
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - id: setup-build-jdk
       name: Set up build JDK ${{ env.BUILD_JDK_VERSION }}
@@ -71,7 +71,7 @@ jobs:
         java-version: ${{ matrix.java }}
 
     - name: Setup Gradle
-      uses: gradle/gradle-build-action@v2
+      uses: gradle/actions/setup-gradle@v3
 
     - name: Build with Gradle
       run: |
@@ -152,17 +152,17 @@ jobs:
     env:
       GRADLE_OPTS: -Xmx1280m
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - id: setup-jdk
         name: Set up JDK ${{ env.BUILD_JDK_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ env.BUILD_JDK_VERSION }}
 
       - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/actions/setup-gradle@v3
 
       - name: Build with Gradle
         run: |
@@ -176,17 +176,17 @@ jobs:
     env:
       GRADLE_OPTS: -Xmx1280m
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - id: setup-jdk
         name: Set up JDK ${{ env.BUILD_JDK_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ env.BUILD_JDK_VERSION }}
 
       - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/actions/setup-gradle@v3
 
       - name: Run flaky tests
         run: |
