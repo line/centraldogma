@@ -42,6 +42,11 @@ export const NewRepo = ({ projectName }: { projectName: string }) => {
   } = useForm<FormData>();
   const { isOpen, onToggle, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
+
+  if (projectName === 'dogma') {
+    return null;
+  }
+
   const onSubmit = async (data: FormData) => {
     try {
       const response = await addNewRepo({ projectName, data }).unwrap();
