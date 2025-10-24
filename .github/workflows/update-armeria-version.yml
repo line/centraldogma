@@ -25,7 +25,7 @@ jobs:
           - armeria-xds
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Wait for Armeria artifacts to be available
         uses: nev7n/wait_for_response@v1
@@ -39,7 +39,7 @@ jobs:
     needs: [ wait-for-armeria-artifacts ]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Update Armeria version to ${{ inputs.armeria_version }}
         run: |
