@@ -16,7 +16,7 @@
 /**
  * Mirroring support.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.server.mirror;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

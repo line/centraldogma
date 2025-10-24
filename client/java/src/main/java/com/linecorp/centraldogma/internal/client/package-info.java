@@ -16,7 +16,7 @@
 /**
  * Central Dogma internal client.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.internal.client;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

@@ -30,7 +30,6 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -44,6 +43,7 @@ import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Ref.Storage;
 import org.eclipse.jgit.lib.RefUpdate.Result;
 import org.eclipse.jgit.lib.SymbolicRef;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;

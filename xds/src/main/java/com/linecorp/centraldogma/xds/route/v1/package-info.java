@@ -17,7 +17,7 @@
 /**
  * xDS route service.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.xds.route.v1;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;

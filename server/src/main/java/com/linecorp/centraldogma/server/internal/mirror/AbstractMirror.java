@@ -27,7 +27,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.cronutils.descriptor.CronDescriptor;
 import com.cronutils.model.Cron;

@@ -26,6 +26,8 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+import javax.annotation.Nullable;
+
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.UploadPack;
 import org.slf4j.Logger;
@@ -42,7 +44,6 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.common.ServerCacheControl;
-import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.stream.ByteStreamMessage;
 import com.linecorp.armeria.common.stream.StreamMessage;
 import com.linecorp.armeria.server.annotation.Get;

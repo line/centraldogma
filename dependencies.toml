@@ -48,6 +48,7 @@ json-path = "2.2.0"
 # 3.0.0 requires java 17
 json-unit = "2.38.0"
 jsoup = "1.21.1" # JSoup is only used for Gradle script.
+jspecify = "1.0.0"
 jmh-core = "1.37"
 jmh-gradle-plugin = "0.7.3"
 jxr = "0.2.1"
@@ -278,6 +279,10 @@ version.ref = "json-unit"
 [libraries.jsoup]
 module = "org.jsoup:jsoup"
 version.ref = "jsoup"
+
+[libraries.jspecify]
+module = "org.jspecify:jspecify"
+version.ref = "jspecify"
 
 [libraries.junit4]
 module = "junit:junit"

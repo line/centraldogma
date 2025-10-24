@@ -21,7 +21,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;

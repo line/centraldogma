@@ -22,7 +22,7 @@ import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 import java.lang.reflect.ParameterizedType;
 import java.util.List;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.collect.ImmutableList;
 

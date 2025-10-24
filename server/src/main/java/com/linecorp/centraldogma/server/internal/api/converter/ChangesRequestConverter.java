@@ -21,7 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.lang.reflect.ParameterizedType;
 import java.util.List;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;

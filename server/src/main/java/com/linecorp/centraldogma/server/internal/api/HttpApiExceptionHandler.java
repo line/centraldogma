@@ -23,7 +23,7 @@ import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newRespo
 import java.util.Map;
 import java.util.function.BiFunction;
 
-import javax.annotation.Nonnull;
+import org.jspecify.annotations.Nullable;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -31,7 +31,6 @@ import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.RequestHeaders;
-import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.HttpStatusException;
@@ -139,6 +138,7 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
         exceptionHandlers = builder.build();
     }
 
+    @Nullable
     @Override
     public HttpResponse onServiceException(ServiceRequestContext ctx, Throwable cause) {
         final Throwable peeledCause = Exceptions.peel(cause);
@@ -183,7 +183,6 @@ public final class HttpApiExceptionHandler implements ServerErrorHandler {
         return newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, peeledCause);
     }
 
-    @Nonnull
     @Override
     public AggregatedHttpResponse renderStatus(@Nullable ServiceRequestContext ctx,
                                                ServiceConfig config, @Nullable RequestHeaders headers,

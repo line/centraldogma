@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.internal.api.v1;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.internal.Util.validateRepositoryName;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

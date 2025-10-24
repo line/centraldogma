@@ -17,7 +17,7 @@ package com.linecorp.centraldogma.common;
 
 import java.io.IOException;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;

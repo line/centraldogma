@@ -17,7 +17,7 @@ package com.linecorp.centraldogma.server.command;
 
 import static java.util.Objects.requireNonNull;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

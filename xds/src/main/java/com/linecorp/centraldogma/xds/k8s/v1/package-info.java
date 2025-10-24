@@ -17,7 +17,7 @@
 /**
  * Fetches Kubernetes endpoints information.
  */
-@NonNullByDefault
+@NullMarked
 package com.linecorp.centraldogma.xds.k8s.v1;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+import org.jspecify.annotations.NullMarked;
