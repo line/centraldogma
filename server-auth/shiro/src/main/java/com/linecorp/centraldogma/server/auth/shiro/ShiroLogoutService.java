@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.auth.shiro;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
 import org.apache.shiro.mgt.SecurityManager;
@@ -32,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.internal.admin.service.DefaultLogoutService;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
 /**
  * A service to handle a logout request to Central Dogma Web admin service.
@@ -44,8 +46,10 @@ final class ShiroLogoutService extends DefaultLogoutService {
 
     ShiroLogoutService(SecurityManager securityManager,
                        Function<String, CompletableFuture<Void>> logoutSessionPropagator,
-                       SessionManager sessionManager, boolean tlsEnabled) {
-        super(logoutSessionPropagator, sessionManager, tlsEnabled);
+                       BooleanSupplier sessionPropagatorWritableChecker, SessionManager sessionManager,
+                       boolean tlsEnabled, EncryptionStorageManager encryptionStorageManager) {
+        super(logoutSessionPropagator, sessionPropagatorWritableChecker,
+              sessionManager, tlsEnabled, encryptionStorageManager);
         this.securityManager = requireNonNull(securityManager, "securityManager");
     }
 

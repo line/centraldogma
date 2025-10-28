@@ -83,13 +83,12 @@ class UserServiceTest {
         final Cookie sessionCookie = getSessionCookie(loginRes);
         final String csrfToken = Jackson.readTree(loginRes.contentUtf8()).get("csrf_token").asText();
         final BlockingWebClient client = WebClient.builder(dogma.httpClient().uri())
-                                                  .addHeader(SessionUtil.X_CSRF_TOKEN, csrfToken)
                                                   .addHeader(HttpHeaderNames.COOKIE,
                                                              sessionCookie.toCookieHeader())
                                                   .build()
                                                   .blocking();
         final AggregatedHttpResponse response = client.get("/api/v0/users/me");
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        assertThat(response.headers().get(SessionUtil.X_CSRF_TOKEN)).isNotNull();
+        assertThat(response.headers().get(SessionUtil.X_CSRF_TOKEN)).isEqualTo(csrfToken);
     }
 }
