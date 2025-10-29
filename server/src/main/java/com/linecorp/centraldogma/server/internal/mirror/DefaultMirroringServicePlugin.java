@@ -18,14 +18,10 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import javax.annotation.Nullable;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.base.MoreObjects;
 
@@ -37,8 +33,6 @@ import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 
 public final class DefaultMirroringServicePlugin implements Plugin {
-
-    private static final Logger logger = LoggerFactory.getLogger(DefaultMirroringServicePlugin.class);
 
     @Nullable
     public static MirroringServicePluginConfig mirrorConfig(CentralDogmaConfig config) {
@@ -114,14 +108,10 @@ public final class DefaultMirroringServicePlugin implements Plugin {
 
     @Override
     public synchronized CompletionStage<Void> stop(PluginContext context) {
-        logger.info("Stopping the mirroring service...");
-        final long start = System.nanoTime();
         final MirrorSchedulingService mirroringService = this.mirroringService;
         if (mirroringService != null && mirroringService.isStarted()) {
             mirroringService.stop();
         }
-        logger.info("Mirroring service stopped in {} seconds.",
-                    Duration.ofNanos(System.nanoTime() - start).getSeconds());
         return CompletableFuture.completedFuture(null);
     }
 

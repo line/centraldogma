@@ -19,6 +19,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.Objects.requireNonNull;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -187,12 +188,18 @@ final class PluginGroup {
             // Wait until the internal project is initialized.
             arg.internalProjectInitializer().whenInitialized().get();
             final List<CompletionStage<Void>> futures = plugins.stream().map(
-                    plugin -> plugin.start(arg)
-                                    .thenAccept(unused -> logger.info("Plugin started: {}", plugin))
-                                    .exceptionally(cause -> {
-                                        logger.info("Failed to start plugin: {}", plugin, cause);
-                                        return null;
-                                    })).collect(toImmutableList());
+                    plugin -> {
+                        logger.info("Starting plugin: {}", plugin);
+                        final long start = System.nanoTime();
+                        plugin.start(arg)
+                              .thenAccept(unused -> logger.info(
+                                      "Plugin started: {} in {} seconds", plugin,
+                                      Duration.ofNanos(System.nanoTime() - start).getSeconds()))
+                              .exceptionally(cause -> {
+                                  logger.info("Failed to start plugin: {}", plugin, cause);
+                                  return null;
+                              })
+                    }).collect(toImmutableList());
             return CompletableFutures.allAsList(futures).thenApply(unused -> null);
         }
 
@@ -200,12 +207,18 @@ final class PluginGroup {
         protected CompletionStage<Void> doStop(@Nullable PluginContext arg) throws Exception {
             assert arg != null;
             final List<CompletionStage<Void>> futures = plugins.stream().map(
-                    plugin -> plugin.stop(arg)
-                                    .thenAccept(unused -> logger.info("Plugin stopped: {}", plugin))
-                                    .exceptionally(cause -> {
-                                        logger.info("Failed to stop plugin: {}", plugin, cause);
-                                        return null;
-                                    })).collect(toImmutableList());
+                    plugin -> {
+                        logger.info("Stopping plugin: {}", plugin);
+                        final long start = System.nanoTime();
+                        return plugin.stop(arg)
+                              .thenAccept(unused -> logger.info(
+                                      "Stopped plugin: {} in {} seconds.", plugin,
+                                      Duration.ofNanos(System.nanoTime() - start).getSeconds()))
+                              .exceptionally(cause -> {
+                                  logger.info("Failed to stop plugin: {}", plugin, cause);
+                                  return null;
+                              });
+                    }).collect(toImmutableList());
             return CompletableFutures.allAsList(futures).thenApply(unused -> null);
         }
     }
