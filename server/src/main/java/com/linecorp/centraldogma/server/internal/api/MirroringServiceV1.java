@@ -20,6 +20,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin.mirrorConfig;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.mirrorFile;
+import static com.linecorp.centraldogma.server.mirror.MirrorUtil.validateMirrorId;
 
 import java.net.URI;
 import java.util.List;
@@ -170,6 +171,7 @@ public class MirroringServiceV1 extends AbstractService {
                                                          Repository repository,
                                                          MirrorRequest newMirror,
                                                          Author author, User user) {
+        validateMirrorId(newMirror.id());
         return createOrUpdate(projectName, repository.name(), newMirror, author, user, false);
     }
 
@@ -215,6 +217,7 @@ public class MirroringServiceV1 extends AbstractService {
             String projectName, String repoName, MirrorRequest newMirror,
             Author author, User user, boolean update) {
         final MetaRepository metaRepo = metaRepo(projectName);
+
         return metaRepo.createMirrorPushCommand(repoName, newMirror, author, zoneConfig, update).thenCompose(
                 command -> {
                     return executor().execute(command).thenApply(result -> {
