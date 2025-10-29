@@ -191,14 +191,14 @@ final class PluginGroup {
                     plugin -> {
                         logger.info("Starting plugin: {}", plugin);
                         final long start = System.nanoTime();
-                        plugin.start(arg)
-                              .thenAccept(unused -> logger.info(
-                                      "Plugin started: {} in {} seconds", plugin,
-                                      Duration.ofNanos(System.nanoTime() - start).getSeconds()))
-                              .exceptionally(cause -> {
-                                  logger.info("Failed to start plugin: {}", plugin, cause);
-                                  return null;
-                              })
+                        return plugin.start(arg)
+                                     .thenAccept(unused -> logger.info(
+                                             "Plugin started: {} in {} seconds", plugin,
+                                             Duration.ofNanos(System.nanoTime() - start).getSeconds()))
+                                     .exceptionally(cause -> {
+                                         logger.info("Failed to start plugin: {}", plugin, cause);
+                                         return null;
+                                     });
                     }).collect(toImmutableList());
             return CompletableFutures.allAsList(futures).thenApply(unused -> null);
         }
