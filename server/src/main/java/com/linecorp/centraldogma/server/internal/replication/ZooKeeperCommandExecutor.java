@@ -363,9 +363,7 @@ public final class ZooKeeperCommandExecutor
 
         ListenerInfo(long lastReplayedRevision,
                      @Nullable Runnable onTakeLeadership, @Nullable Runnable onReleaseLeadership,
-                     @Nullable Runnable onTakeZoneLeadership, @Nullable Runnable onReleaseZoneLeadership
-        ) {
-
+                     @Nullable Runnable onTakeZoneLeadership, @Nullable Runnable onReleaseZoneLeadership) {
             this.lastReplayedRevision = lastReplayedRevision;
             this.onReleaseLeadership = onReleaseLeadership;
             this.onTakeLeadership = onTakeLeadership;

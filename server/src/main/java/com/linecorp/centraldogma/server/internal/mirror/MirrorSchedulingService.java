@@ -265,6 +265,10 @@ public final class MirrorSchedulingService implements MirroringService {
                                   continue;
                               }
 
+                              if (closing) {
+                                  return;
+                              }
+
                               try {
                                   final boolean allowed = mirrorAccessController.isAllowed(m)
                                                                                 .get(5, TimeUnit.SECONDS);

@@ -537,9 +537,9 @@ public class CentralDogma implements AutoCloseable {
                                     return null;
                                 });
                 try {
-                    future.get(10, TimeUnit.SECONDS);
+                    future.get(60, TimeUnit.SECONDS);
                 } catch (Exception e) {
-                    logger.warn("Failed to stop plugins on the leader replica in 10 seconds.", e);
+                    logger.warn("Failed to stop plugins on the leader replica in 60 seconds.", e);
                 }
             }
         };
