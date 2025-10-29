@@ -74,6 +74,8 @@ public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
         logger.info("Stopping XdsKubernetesEndpointFetchingService...");
         final long start = System.nanoTime();
         if (fetchingService == null) {
+            logger.info("Stopped XdsKubernetesEndpointFetchingService in {} seconds.",
+                        Duration.ofNanos(System.nanoTime() - start).getSeconds());
             return UnmodifiableFuture.completedFuture(null);
         }
         fetchingService.stop();
