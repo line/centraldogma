@@ -211,13 +211,13 @@ final class PluginGroup {
                         logger.info("Stopping plugin: {}", plugin);
                         final long start = System.nanoTime();
                         return plugin.stop(arg)
-                              .thenAccept(unused -> logger.info(
-                                      "Stopped plugin: {} in {} seconds.", plugin,
-                                      Duration.ofNanos(System.nanoTime() - start).getSeconds()))
-                              .exceptionally(cause -> {
-                                  logger.info("Failed to stop plugin: {}", plugin, cause);
-                                  return null;
-                              });
+                                     .thenAccept(unused -> logger.info(
+                                             "Stopped plugin: {} in {} seconds.", plugin,
+                                             Duration.ofNanos(System.nanoTime() - start).getSeconds()))
+                                     .exceptionally(cause -> {
+                                         logger.info("Failed to stop plugin: {}", plugin, cause);
+                                         return null;
+                                     });
                     }).collect(toImmutableList());
             return CompletableFutures.allAsList(futures).thenApply(unused -> null);
         }
