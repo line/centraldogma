@@ -17,10 +17,14 @@ package com.linecorp.centraldogma.server.internal.storage;
 
 import static java.util.Objects.requireNonNull;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import javax.annotation.Nullable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.MoreObjects;
 
@@ -31,6 +35,8 @@ import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 
 public final class PurgeSchedulingServicePlugin implements Plugin {
+
+    private static final Logger logger = LoggerFactory.getLogger(PurgeSchedulingServicePlugin.class);
 
     @Nullable
     private volatile PurgeSchedulingService purgeSchedulingService;
@@ -61,10 +67,14 @@ public final class PurgeSchedulingServicePlugin implements Plugin {
 
     @Override
     public synchronized CompletionStage<Void> stop(PluginContext context) {
+        logger.info("Stopping PurgeSchedulingService...");
+        final long start = System.nanoTime();
         final PurgeSchedulingService purgeSchedulingService = this.purgeSchedulingService;
         if (purgeSchedulingService != null && purgeSchedulingService.isStarted()) {
             purgeSchedulingService.stop();
         }
+        logger.info("Stopped PurgeSchedulingService in {} seconds.",
+                    Duration.ofNanos(System.nanoTime() - start).getSeconds());
         return CompletableFuture.completedFuture(null);
     }
 

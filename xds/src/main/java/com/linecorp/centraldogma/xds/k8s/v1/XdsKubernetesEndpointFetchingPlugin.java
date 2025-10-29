@@ -19,9 +19,13 @@ import static com.linecorp.centraldogma.xds.internal.ControlPlanePlugin.XDS_CENT
 import static io.fabric8.kubernetes.client.Config.KUBERNETES_DISABLE_AUTO_CONFIG_SYSTEM_PROPERTY;
 import static java.util.Objects.requireNonNull;
 
+import java.time.Duration;
 import java.util.concurrent.CompletionStage;
 
 import javax.annotation.Nullable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.MoreObjects;
 
@@ -35,6 +39,8 @@ import com.linecorp.centraldogma.server.plugin.PluginTarget;
  * A plugin that fetches Kubernetes endpoints from Central Dogma and provides them to the control plane.
  */
 public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
+
+    private static final Logger logger = LoggerFactory.getLogger(XdsKubernetesEndpointFetchingPlugin.class);
 
     static {
         System.setProperty(KUBERNETES_DISABLE_AUTO_CONFIG_SYSTEM_PROPERTY, "true");
@@ -65,11 +71,15 @@ public final class XdsKubernetesEndpointFetchingPlugin implements Plugin {
 
     @Override
     public synchronized CompletionStage<Void> stop(PluginContext context) {
+        logger.info("Stopping XdsKubernetesEndpointFetchingService...");
+        final long start = System.nanoTime();
         if (fetchingService == null) {
             return UnmodifiableFuture.completedFuture(null);
         }
         fetchingService.stop();
         fetchingService = null;
+        logger.info("Stopped XdsKubernetesEndpointFetchingService in {} seconds.",
+                    Duration.ofNanos(System.nanoTime() - start).getSeconds());
         return UnmodifiableFuture.completedFuture(null);
     }
 
