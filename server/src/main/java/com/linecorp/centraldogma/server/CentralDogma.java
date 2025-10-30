@@ -524,18 +524,24 @@ public class CentralDogma implements AutoCloseable {
         final Consumer<CommandExecutor> onReleaseLeadership = exec -> {
             if (pluginsForLeaderOnly != null) {
                 logger.info("Stopping plugins on the leader replica ..");
-                final CompletableFuture<?> future =
-                        pluginsForLeaderOnly
-                                .stop(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer,
-                                      mirrorAccessController)
-                                .handle((unused, cause) -> {
-                                    if (cause == null) {
-                                        logger.info("Stopped plugins on the leader replica.");
-                                    } else {
-                                        logger.error("Failed to stop plugins on the leader replica.", cause);
-                                    }
-                                    return null;
-                                });
+                final CompletableFuture<?> future;
+                try {
+                    future =
+                            pluginsForLeaderOnly
+                                    .stop(cfg, pm, exec, meterRegistry, purgeWorker, projectInitializer,
+                                          mirrorAccessController)
+                                    .handle((unused, cause) -> {
+                                        if (cause == null) {
+                                            logger.info("Stopped plugins on the leader replica.");
+                                        } else {
+                                            logger.error("Failed to stop plugins on the leader replica.", cause);
+                                        }
+                                        return null;
+                                    });
+                } catch (Throwable t) {
+                    logger.warn("Failed to stop plugins on the leader replica.", t);
+                    return;
+                }
                 try {
                     future.get(60, TimeUnit.SECONDS);
                 } catch (Exception e) {
