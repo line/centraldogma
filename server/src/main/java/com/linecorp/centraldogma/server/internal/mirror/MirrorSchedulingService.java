@@ -210,6 +210,13 @@ public final class MirrorSchedulingService implements MirroringService {
                     break;
                 }
             }
+
+            final int numActive = this.numActiveMirrors.get();
+            if (numActive > 0) {
+                logger.warn("{} mirrors are still active. Proceeding to shut down anyway.", numActive);
+            } else {
+                logger.info("All active mirrors have finished.");
+            }
         }
         final ExecutorService scheduler = this.scheduler;
         final ExecutorService worker = this.worker;

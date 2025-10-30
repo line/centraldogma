@@ -534,7 +534,8 @@ public class CentralDogma implements AutoCloseable {
                                         if (cause == null) {
                                             logger.info("Stopped plugins on the leader replica.");
                                         } else {
-                                            logger.error("Failed to stop plugins on the leader replica.", cause);
+                                            logger.error("Failed to stop plugins on the leader replica.",
+                                                         cause);
                                         }
                                         return null;
                                     });
@@ -1229,9 +1230,12 @@ public class CentralDogma implements AutoCloseable {
         try {
             if (executor != null) {
                 logger.info("Stopping the command executor ..");
-                executor.stop();
+                executor.stop().get(60, TimeUnit.SECONDS);
                 logger.info("Stopped the command executor.");
             }
+        } catch (TimeoutException e) {
+            success = false;
+            logger.warn("Failed to stop the command executor in 60 seconds.");
         } catch (Throwable t) {
             success = false;
             logger.warn("Failed to stop the command executor:", t);

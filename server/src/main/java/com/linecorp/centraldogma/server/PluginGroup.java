@@ -212,9 +212,11 @@ final class PluginGroup {
                         final long start = System.nanoTime();
                         try {
                             return plugin.stop(arg)
-                                         .thenAccept(unused -> logger.info(
-                                                 "Stopped plugin: {} in {} seconds.", plugin,
-                                                 Duration.ofNanos(System.nanoTime() - start).getSeconds()))
+                                         .thenAccept(unused -> {
+                                             logger.info(
+                                                     "Stopped plugin: {} in {} seconds.", plugin,
+                                                     Duration.ofNanos(System.nanoTime() - start).getSeconds());
+                                         })
                                          .exceptionally(cause -> {
                                              logger.info("Failed to stop plugin: {}", plugin, cause);
                                              return null;
