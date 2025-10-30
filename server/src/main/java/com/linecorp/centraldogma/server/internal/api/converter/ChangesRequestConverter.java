@@ -80,28 +80,34 @@ public final class ChangesRequestConverter implements RequestConverterFunction {
         checkArgument(node.get("path") != null && node.get("type") != null,
                       "a change should have a path and a type");
         final ChangeType changeType = ChangeType.parse(node.get("type").textValue());
+        final JsonNode content = node.get("content");
         if (changeType != ChangeType.REMOVE) {
-            checkArgument(node.get("content") != null, "a change should have a content.");
+            checkArgument(content != null, "a change should have a content.");
         }
 
         final String path = node.get("path").textValue();
         if (changeType == ChangeType.UPSERT_TEXT) {
-            return Change.ofTextUpsert(path, node.get("content").textValue());
+            return Change.ofTextUpsert(path, content.textValue());
         }
         if (changeType == ChangeType.UPSERT_JSON) {
-            return Change.ofJsonUpsert(path, node.get("content"));
+            if (content.isTextual()) {
+                // A content can be a serialized JSON so the text value needs to be parsed as JSON.
+                return Change.ofJsonUpsert(path, content.textValue());
+            } else {
+                return Change.ofJsonUpsert(path, content);
+            }
         }
         if (changeType == ChangeType.REMOVE) {
             return Change.ofRemoval(path);
         }
         if (changeType == ChangeType.RENAME) {
-            return Change.ofRename(path, node.get("content").textValue());
+            return Change.ofRename(path, content.textValue());
         }
         if (changeType == ChangeType.APPLY_TEXT_PATCH) {
-            return Change.ofTextPatch(path, node.get("content").textValue());
+            return Change.ofTextPatch(path, content.textValue());
         }
         if (changeType == ChangeType.APPLY_JSON_PATCH) {
-            return Change.ofJsonPatch(path, node.get("content"));
+            return Change.ofJsonPatch(path, content);
         }
 
         // Should never reach here.
