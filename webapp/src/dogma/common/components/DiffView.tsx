@@ -8,9 +8,15 @@ import { extensionToLanguageMap } from 'dogma/common/components/editor/FileEdito
 import Prism from 'prismjs';
 // Load the language needed
 import 'prismjs/components/prism-json';
+import 'prismjs/components/prism-json5';
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-yaml';
 import 'prismjs/components/prism-toml';
+import 'prismjs/components/prism-markdown';
+import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-sass';
+import 'prismjs/components/prism-xml-doc';
+import 'prismjs/components/prism-docker';
 import 'prismjs/themes/prism.css';
 
 function normalize(file: FileDto[]): [string, string][] {
@@ -60,12 +66,16 @@ function highlightSyntax(path: string, str: string): React.JSX.Element {
     return <pre style={{ display: 'inline' }}>{str}</pre>;
   }
 
-  return (
-    <pre
-      style={{ display: 'inline' }}
-      dangerouslySetInnerHTML={{ __html: Prism.highlight(str, Prism.languages[language], language) }}
-    />
-  );
+  try {
+    return (
+      <pre
+        style={{ display: 'inline' }}
+        dangerouslySetInnerHTML={{ __html: Prism.highlight(str, Prism.languages[language], language) }}
+      />
+    );
+  } catch (e) {
+    return <pre style={{ display: 'inline' }}>{str}</pre>;
+  }
 }
 
 export type DiffMode = 'Split' | 'Unified';
