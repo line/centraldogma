@@ -15,12 +15,29 @@
  */
 package com.linecorp.centraldogma.server.mirror;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A utility class for creating a mirroring task.
  */
 public final class MirrorUtil {
+
+    private static final Pattern MIRROR_ID_PATTERN =
+            Pattern.compile("^[a-zA-Z](?:[a-zA-Z0-9-_.]{0,61}[a-zA-Z0-9])?$");
+
+    /**
+     * Validates the specified {@code id} as a mirror ID.
+     */
+    public static void validateMirrorId(String id) {
+        final Matcher matcher = MIRROR_ID_PATTERN.matcher(id);
+        checkArgument(matcher.matches(),
+                      "invalid mirror ID: %s (expected: %s)",
+                      id, MIRROR_ID_PATTERN.pattern());
+    }
 
     /**
      * Normalizes the specified {@code path}. A path which starts and ends with {@code /} would be returned.
