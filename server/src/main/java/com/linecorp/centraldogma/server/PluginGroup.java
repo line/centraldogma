@@ -210,14 +210,21 @@ final class PluginGroup {
                     plugin -> {
                         logger.info("Stopping plugin: {}", plugin);
                         final long start = System.nanoTime();
-                        return plugin.stop(arg)
-                                     .thenAccept(unused -> logger.info(
-                                             "Stopped plugin: {} in {} seconds.", plugin,
-                                             Duration.ofNanos(System.nanoTime() - start).getSeconds()))
-                                     .exceptionally(cause -> {
-                                         logger.info("Failed to stop plugin: {}", plugin, cause);
-                                         return null;
-                                     });
+                        try {
+                            return plugin.stop(arg)
+                                         .thenAccept(unused -> logger.info(
+                                                 "Stopped plugin: {} in {} seconds.", plugin,
+                                                 Duration.ofNanos(System.nanoTime() - start).getSeconds()))
+                                         .exceptionally(cause -> {
+                                             logger.info("Failed to stop plugin: {}", plugin, cause);
+                                             return null;
+                                         });
+                        } catch (Throwable t) {
+                            logger.info("Exception occurred while stopping plugin: {}", plugin, t);
+                            final CompletableFuture<Void> future = new CompletableFuture<>();
+                            future.complete(null);
+                            return future;
+                        }
                     }).collect(toImmutableList());
             return CompletableFutures.allAsList(futures).thenApply(unused -> null);
         }
