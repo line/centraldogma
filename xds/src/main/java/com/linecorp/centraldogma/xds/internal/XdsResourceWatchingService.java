@@ -35,6 +35,7 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
@@ -162,6 +163,11 @@ public abstract class XdsResourceWatchingService {
                     onGroupRemoved(repository.name());
                     return null;
                 }
+                if (cause instanceof ShuttingDownException) {
+                    // Server is shutting down.
+                    return null;
+                }
+
                 logger.warn("Unexpected exception while watching {} at {}. Try watching after {} seconds.",
                             repository.name(), lastKnownRevision, BACKOFF_SECONDS, cause);
                 executor().schedule(() -> watchRepository(repository, lastKnownRevision),
