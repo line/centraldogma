@@ -39,6 +39,7 @@ import com.fasterxml.jackson.core.io.SegmentedStringWriter;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.core.util.DefaultIndenter;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.Module;
@@ -77,6 +78,8 @@ public final class Jackson {
         // Sort the attributes when serialized via the mapper.
         compactMapper.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
         prettyMapper.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+        compactMapper.enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+        prettyMapper.enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
         registerModules(new SimpleModule().addSerializer(Instant.class, InstantSerializer.INSTANCE)
                                           .addDeserializer(Instant.class, InstantDeserializer.INSTANT));
