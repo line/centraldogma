@@ -1253,9 +1253,12 @@ public class CentralDogma implements AutoCloseable {
         try {
             if (executor != null) {
                 logger.info("Stopping the command executor ..");
-                executor.stop();
+                executor.stop().get(60, TimeUnit.SECONDS);
                 logger.info("Stopped the command executor.");
             }
+        } catch (TimeoutException unused) {
+            success = false;
+            logger.warn("Failed to stop the command executor in 60 seconds.");
         } catch (Throwable t) {
             success = false;
             logger.warn("Failed to stop the command executor:", t);
