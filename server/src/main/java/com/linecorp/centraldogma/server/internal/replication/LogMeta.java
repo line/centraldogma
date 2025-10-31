@@ -60,7 +60,7 @@ class LogMeta {
         this.blocks = blocks;
     }
 
-    LogMeta(int replicaId, Long timestamp, int size, Boolean compressed, Boolean encrypted) {
+    LogMeta(int replicaId, Long timestamp, int size, boolean compressed, boolean encrypted) {
         this(replicaId, timestamp, size, new ArrayList<>(4), compressed, encrypted);
     }
 
