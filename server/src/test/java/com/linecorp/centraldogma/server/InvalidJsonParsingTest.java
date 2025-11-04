@@ -31,12 +31,13 @@ import com.linecorp.centraldogma.internal.Jackson;
 class InvalidJsonParsingTest {
 
     @Test
-    void shouldFailOnInvalidJsonAfterTailingComma() throws IOException {
-        final InputStream is = InvalidJsonParsingTest.class.getResourceAsStream(
-                "/invalid-content-after-trailing-comma.json");
-        final byte[] bytes = is.readAllBytes();
-        assertThatThrownBy(() -> Jackson.readTree(bytes))
-                .isInstanceOf(IOError.class)
-                .hasCauseInstanceOf(MismatchedInputException.class);
+    void shouldFailOnInvalidJsonAfterTrailingComma() throws IOException {
+        try(final InputStream is = InvalidJsonParsingTest.class.getResourceAsStream(
+                "/invalid-content-after-trailing-comma.json")) {
+            final byte[] bytes = is.readAllBytes();
+            assertThatThrownBy(() -> Jackson.readTree(bytes))
+                    .isInstanceOf(IOError.class)
+                    .hasCauseInstanceOf(MismatchedInputException.class);
+        }
     }
 }
