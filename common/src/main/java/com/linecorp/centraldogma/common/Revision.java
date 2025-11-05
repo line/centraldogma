@@ -120,16 +120,6 @@ public class Revision implements Comparable<Revision> {
     }
 
     /**
-     * Returns {@code 0}.
-     *
-     * @deprecated Do not use. Minor revisions are not used anymore.
-     */
-    @Deprecated
-    public int minor() {
-        return 0;
-    }
-
-    /**
      * Returns the textual representation of the revision. e.g. {@code "42", "-1"}.
      */
     public String text() {
