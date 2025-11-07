@@ -241,6 +241,6 @@ public class Revision implements Comparable<Revision> {
     private static IllegalArgumentException illegalRevisionArgumentException(String revisionStr) {
         return new IllegalArgumentException(
                 "revisionStr: " + revisionStr +
-                " (expected: \"major\" or \"major.0\" where major is non-zero integer)");
+                " (expected: a integer in string form, e.g., \"1\", \"42\", \"-1\")");
     }
 }
