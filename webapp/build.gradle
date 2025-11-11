@@ -20,6 +20,17 @@ dependencies {
     testImplementation libs.shiro.core
 }
 
+sourceSets {
+    test {
+        java {
+            srcDir 'javaTest/java'
+        }
+        resources {
+            srcDir 'javaTest/resources'
+        }
+    }
+}
+
 task installPlayWright(type: NpmTask) {
     dependsOn tasks.npmInstall
     args = ['run', 'playwright:install']
