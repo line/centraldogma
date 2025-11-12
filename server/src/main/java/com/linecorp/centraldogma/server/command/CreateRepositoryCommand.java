@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.command;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Arrays;
+import java.util.Objects;
 
 import javax.annotation.Nullable;
 
@@ -29,6 +29,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 
 /**
  * A {@link Command} which is used for creating a new repository.
@@ -38,17 +39,17 @@ public final class CreateRepositoryCommand extends ProjectCommand<Void> {
 
     private final String repositoryName;
     @Nullable
-    private final byte[] wdek;
+    private final WrappedDekDetails wdekDetails;
 
     @JsonCreator
     CreateRepositoryCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
                             @JsonProperty("author") @Nullable Author author,
                             @JsonProperty("projectName") String projectName,
                             @JsonProperty("repositoryName") String repositoryName,
-                            @JsonProperty("wdek") @Nullable byte[] wdek) {
+                            @JsonProperty("wdek") @Nullable WrappedDekDetails wdekDetails) {
         super(CommandType.CREATE_REPOSITORY, timestamp, author, projectName);
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
-        this.wdek = wdek != null ? wdek.clone() : null;
+        this.wdekDetails = wdekDetails;
     }
 
     /**
@@ -64,8 +65,8 @@ public final class CreateRepositoryCommand extends ProjectCommand<Void> {
      */
     @JsonProperty
     @Nullable
-    public byte[] wdek() {
-        return wdek != null ? wdek.clone() : null;
+    public WrappedDekDetails wdekDetails() {
+        return wdekDetails;
     }
 
     @Override
@@ -81,20 +82,20 @@ public final class CreateRepositoryCommand extends ProjectCommand<Void> {
         final CreateRepositoryCommand that = (CreateRepositoryCommand) obj;
         return super.equals(obj) &&
                repositoryName.equals(that.repositoryName) &&
-               Arrays.equals(wdek, that.wdek);
+               Objects.equals(wdekDetails, that.wdekDetails);
     }
 
     @Override
     public int hashCode() {
-        return (repositoryName.hashCode() * 31 + Arrays.hashCode(wdek)) * 31 + super.hashCode();
+        return (repositoryName.hashCode() * 31 + Objects.hashCode(wdekDetails)) * 31 + super.hashCode();
     }
 
     @Override
     ToStringHelper toStringHelper() {
         final ToStringHelper toStringHelper = super.toStringHelper()
                                                    .add("repositoryName", repositoryName);
-        if (wdek != null) {
-            toStringHelper.add("wdek", "[***]");
+        if (wdekDetails != null) {
+            toStringHelper.add("wdekDetails", wdekDetails);
         }
         return toStringHelper;
     }

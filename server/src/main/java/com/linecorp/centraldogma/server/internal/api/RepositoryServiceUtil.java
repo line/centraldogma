@@ -35,6 +35,7 @@ import com.linecorp.centraldogma.server.metadata.Roles;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
+import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 
 public final class RepositoryServiceUtil {
 
@@ -66,8 +67,13 @@ public final class RepositoryServiceUtil {
         assert encryptionStorageManager != null;
 
         return encryptionStorageManager.generateWdek()
-                                       .thenCompose(wdek -> commandExecutor.execute(Command.createRepository(
-                                               author, projectName, repoName, wdek)))
+                                       .thenCompose(wdek -> {
+                                           final WrappedDekDetails wrappedDekDetails = new WrappedDekDetails(
+                                                   wdek, 1, encryptionStorageManager.kekId(),
+                                                   projectName, repoName);
+                                           return commandExecutor.execute(Command.createRepository(
+                                                   author, projectName, repoName, wrappedDekDetails));
+                                       })
                                        .thenCompose(unused -> mds.addRepo(
                                                author, projectName, repoName, repositoryMetadata))
                                        .exceptionally(cause -> {

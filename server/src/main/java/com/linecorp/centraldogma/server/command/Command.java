@@ -34,6 +34,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -55,6 +56,8 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = MigrateToEncryptedRepositoryCommand.class, name = "MIGRATE_TO_ENCRYPTED_REPOSITORY"),
         @Type(value = NormalizingPushCommand.class, name = "NORMALIZING_PUSH"),
         @Type(value = PushAsIsCommand.class, name = "PUSH"),
+        @Type(value = RotateWdekCommand.class, name = "ROTATE_WDEK"),
+        @Type(value = RotateSessionMasterKeyCommand.class, name = "ROTATE_SESSION_MASTER_KEY"),
         @Type(value = CreateSessionCommand.class, name = "CREATE_SESSIONS"),
         @Type(value = RemoveSessionCommand.class, name = "REMOVE_SESSIONS"),
         @Type(value = CreateSessionMasterKeyCommand.class, name = "CREATE_SESSION_MASTER_KEY"),
@@ -78,13 +81,12 @@ public interface Command<T> {
      *
      * @param author the author who is creating the project
      * @param name the name of the project which is supposed to be created
-     * @param wdek the wrapped data encryption key for the project
+     * @param wdekDetails the wrapped data encryption key for the project
      */
-    static Command<Void> createProject(Author author, String name, byte[] wdek) {
+    static Command<Void> createProject(Author author, String name, WrappedDekDetails wdekDetails) {
         requireNonNull(author, "author");
-        requireNonNull(wdek, "wdek");
-        checkArgument(wdek.length > 0, "wdek must not be empty");
-        return new CreateProjectCommand(null, author, name, wdek);
+        requireNonNull(wdekDetails, "wdekDetails");
+        return new CreateProjectCommand(null, author, name, wdekDetails);
     }
 
     /**
@@ -191,14 +193,13 @@ public interface Command<T> {
      * @param author the author who is creating the repository
      * @param projectName the name of the project that the new repository is supposed to belong to
      * @param repositoryName the name of the repository which is supposed to be created
-     * @param wdek the wrapped data encryption key for the repository
+     * @param wdekDetails the wrapped data encryption key for the repository
      */
     static Command<Void> createRepository(Author author, String projectName, String repositoryName,
-                                          byte[] wdek) {
+                                          WrappedDekDetails wdekDetails) {
         requireNonNull(author, "author");
-        requireNonNull(wdek, "wdek");
-        checkArgument(wdek.length > 0, "wdek must not be empty");
-        return new CreateRepositoryCommand(null, author, projectName, repositoryName, wdek);
+        requireNonNull(wdekDetails, "wdekDetails");
+        return new CreateRepositoryCommand(null, author, projectName, repositoryName, wdekDetails);
     }
 
     /**
@@ -296,9 +297,11 @@ public interface Command<T> {
      * Returns a new {@link Command} which is used to migrate a repository to an encrypted repository.
      */
     static Command<Void> migrateToEncryptedRepository(@Nullable Long timestamp, Author author,
-                                                      String projectName, String repositoryName, byte[] wdek) {
+                                                      String projectName, String repositoryName,
+                                                      WrappedDekDetails wdekDetails) {
         requireNonNull(author, "author");
-        return new MigrateToEncryptedRepositoryCommand(timestamp, author, projectName, repositoryName, wdek);
+        return new MigrateToEncryptedRepositoryCommand(timestamp, author, projectName,
+                                                       repositoryName, wdekDetails);
     }
 
     /**
@@ -404,6 +407,20 @@ public interface Command<T> {
                                            ContentTransformer<?> transformer) {
         return TransformCommand.of(timestamp, author, projectName, repositoryName,
                                    baseRevision, summary, detail, markup, transformer);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to rotate the wrapped data encryption key (WDEK).
+     */
+    static Command<Void> rotateWdek(String projectName, String repoName, WrappedDekDetails wdekDetails) {
+        return new RotateWdekCommand(projectName, repoName, wdekDetails);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to rotate the session master key.
+     */
+    static Command<Void> rotateSessionMasterKey(SessionMasterKey sessionMasterKey) {
+        return new RotateSessionMasterKeyCommand(sessionMasterKey);
     }
 
     /**

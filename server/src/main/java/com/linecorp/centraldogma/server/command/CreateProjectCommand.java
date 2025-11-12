@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.command;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Arrays;
+import java.util.Objects;
 
 import javax.annotation.Nullable;
 
@@ -29,6 +29,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 
 /**
  * A {@link Command} which is used for creating a new project.
@@ -38,16 +39,16 @@ public final class CreateProjectCommand extends RootCommand<Void> {
 
     private final String projectName;
     @Nullable
-    private final byte[] wdek;
+    private final WrappedDekDetails wdekDetails;
 
     @JsonCreator
     CreateProjectCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
                          @JsonProperty("author") @Nullable Author author,
                          @JsonProperty("projectName") String projectName,
-                         @JsonProperty("wdek") @Nullable byte[] wdek) {
+                         @JsonProperty("wdekDetails") @Nullable WrappedDekDetails wdekDetails) {
         super(CommandType.CREATE_PROJECT, timestamp, author);
         this.projectName = requireNonNull(projectName, "projectName");
-        this.wdek = wdek != null ? wdek.clone() : null;
+        this.wdekDetails = wdekDetails;
     }
 
     /**
@@ -63,8 +64,8 @@ public final class CreateProjectCommand extends RootCommand<Void> {
      */
     @Nullable
     @JsonProperty
-    public byte[] wdek() {
-        return wdek != null ? wdek.clone() : null;
+    public WrappedDekDetails wdekDetails() {
+        return wdekDetails;
     }
 
     @Override
@@ -80,20 +81,20 @@ public final class CreateProjectCommand extends RootCommand<Void> {
         final CreateProjectCommand that = (CreateProjectCommand) obj;
         return super.equals(obj) &&
                projectName.equals(that.projectName) &&
-               Arrays.equals(wdek, that.wdek);
+               Objects.equals(wdekDetails, that.wdekDetails);
     }
 
     @Override
     public int hashCode() {
-        return (projectName.hashCode() * 31 + Arrays.hashCode(wdek)) * 31 + super.hashCode();
+        return (projectName.hashCode() * 31 + Objects.hashCode(wdekDetails)) * 31 + super.hashCode();
     }
 
     @Override
     ToStringHelper toStringHelper() {
         final ToStringHelper toStringHelper = super.toStringHelper()
                                                    .add("projectName", projectName);
-        if (wdek != null) {
-            toStringHelper.add("wdek", "[***]");
+        if (wdekDetails != null) {
+            toStringHelper.add("wdekDetails", wdekDetails);
         }
         return toStringHelper;
     }

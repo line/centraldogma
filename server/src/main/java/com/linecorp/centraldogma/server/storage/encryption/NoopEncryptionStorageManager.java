@@ -15,12 +15,15 @@
  */
 package com.linecorp.centraldogma.server.storage.encryption;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
@@ -48,13 +51,18 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     }
 
     @Override
-    public CompletableFuture<byte[]> generateWdek() {
-        throw new UnsupportedOperationException();
+    public String kekId() {
+        return "";
     }
 
     @Override
-    public CompletableFuture<SessionMasterKey> generateSessionMasterKey() {
-        throw new UnsupportedOperationException();
+    public CompletableFuture<String> generateWdek() {
+        return UnmodifiableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<SessionMasterKey> generateSessionMasterKey(int version) {
+        return UnmodifiableFuture.completedFuture(null);
     }
 
     @Override
@@ -62,9 +70,30 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
         // No-op
     }
 
+    @Nullable
+    @Override
+    public SessionMasterKey getCurrentSessionMasterKey() {
+        return null;
+    }
+
     @Override
     public CompletableFuture<SessionKey> getCurrentSessionKey() {
         return UnmodifiableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<SessionKey> getSessionKey(int version) {
+        return UnmodifiableFuture.completedFuture(null);
+    }
+
+    @Override
+    public void rotateSessionMasterKey(SessionMasterKey sessionMasterKey) {
+        // No-op
+    }
+
+    @Override
+    public List<WrappedDekDetails> wdeks() {
+        return ImmutableList.of();
     }
 
     @Nullable
@@ -80,13 +109,15 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     }
 
     @Override
-    public void storeWdek(String projectName, String repoName, byte[] wdek) {
-        // No-op
+    public void storeWdek(String projectName, String repoName, WrappedDekDetails wdekDetails) {
     }
 
     @Override
-    public void removeWdek(String projectName, String repoName) {
-        // No-op
+    public void rotateWdek(WrappedDekDetails wdekDetails) {
+    }
+
+    @Override
+    public void removeWdek(String projectName, String repoName, int version) {
     }
 
     @Override
@@ -133,6 +164,11 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     @Override
     public Map<String, Map<String, byte[]>> getAllData() {
         return ImmutableMap.of();
+    }
+
+    @Override
+    public void addSessionKeyListener(Consumer<SessionKey> listener) {
+        // No-op
     }
 
     @Override

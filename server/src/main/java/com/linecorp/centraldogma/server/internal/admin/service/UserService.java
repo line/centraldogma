@@ -35,7 +35,6 @@ import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.admin.auth.SessionCookieHandler;
-import com.linecorp.centraldogma.server.internal.admin.auth.SessionCookieHandler.SessionInfo;
 import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
 import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
@@ -79,25 +78,26 @@ public class UserService extends AbstractService {
         final HttpData body = HttpData.wrap(Jackson.writeValueAsBytes(user));
         if (sessionManager != null) {
             assert sessionCookieHandler != null;
-            final SessionInfo sessionInfo = sessionCookieHandler.getSessionInfo(ctx);
-            if (sessionInfo == null) {
-                return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8, body);
-            }
-            final String sessionId = sessionInfo.sessionId();
-            if (sessionId == null)  {
-                final String username = sessionInfo.username();
-                final String csrfTokenFromSignedJwt = sessionInfo.csrfTokenFromSignedJwt();
-                assert username != null;
-                assert csrfTokenFromSignedJwt != null;
-                return httpResponse(csrfTokenFromSignedJwt, body);
-            }
-
-            return HttpResponse.of(sessionManager.get(sessionId).thenApply(session -> {
-                if (session == null) {
+            return HttpResponse.of(sessionCookieHandler.getSessionInfo(ctx).thenApply(sessionInfo -> {
+                if (sessionInfo == null) {
                     return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8, body);
                 }
-                final String csrfToken = session.csrfToken();
-                return httpResponse(csrfToken, body);
+                final String sessionId = sessionInfo.sessionId();
+                if (sessionId == null)  {
+                    final String username = sessionInfo.username();
+                    final String csrfTokenFromSignedJwt = sessionInfo.csrfTokenFromSignedJwt();
+                    assert username != null;
+                    assert csrfTokenFromSignedJwt != null;
+                    return httpResponse(csrfTokenFromSignedJwt, body);
+                }
+
+                return HttpResponse.of(sessionManager.get(sessionId).thenApply(session -> {
+                    if (session == null) {
+                        return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8, body);
+                    }
+                    final String csrfToken = session.csrfToken();
+                    return httpResponse(csrfToken, body);
+                }));
             }));
         }
 

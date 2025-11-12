@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.auth;
 import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.aesSecretKey;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -25,6 +26,14 @@ import javax.crypto.spec.SecretKeySpec;
 import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.bouncycastle.crypto.generators.HKDFBytesGenerator;
 import org.bouncycastle.crypto.params.HKDFParameters;
+
+import com.nimbusds.jose.JWEDecrypter;
+import com.nimbusds.jose.JWEEncrypter;
+import com.nimbusds.jose.JWSSigner;
+import com.nimbusds.jose.crypto.DirectDecrypter;
+import com.nimbusds.jose.crypto.DirectEncrypter;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jose.crypto.MACVerifier;
 
 /**
  * A session key used to sign and encrypt session cookies.
@@ -35,11 +44,13 @@ public final class SessionKey {
     private static final byte[] ENCRYPTION_KEY_INFO = "session-encryption-key".getBytes(StandardCharsets.UTF_8);
 
     /**
-     * Derives a new {@link SessionKey} from the specified {@code masterKey} and {@code salt}.
+     * Derives a new {@link SessionKey}.
      */
-    public static SessionKey of(byte[] masterKey, byte[] salt, int version) {
+    public static SessionKey of(byte[] masterKey, SessionMasterKey sessionMasterKey) {
         final HKDFBytesGenerator hkdfBytesGenerator = new HKDFBytesGenerator(new SHA256Digest());
         final byte[] signingKeyBytes = new byte[32];
+
+        final byte[] salt = Base64.getDecoder().decode(sessionMasterKey.salt());
         hkdfBytesGenerator.init(new HKDFParameters(masterKey, salt, SIGNING_KEY_INFO));
         hkdfBytesGenerator.generateBytes(signingKeyBytes, 0, 32);
 
@@ -49,17 +60,29 @@ public final class SessionKey {
 
         final SecretKey finalSigningKey = new SecretKeySpec(signingKeyBytes, "HmacSHA256");
         final SecretKey finalEncryptionKey = aesSecretKey(encryptionKeyBytes);
-        return new SessionKey(finalSigningKey, finalEncryptionKey, version);
+        return new SessionKey(finalSigningKey, finalEncryptionKey, sessionMasterKey.version());
     }
 
     private final SecretKey signingKey;
     private final SecretKey encryptionKey;
     private final int version;
+    private final JWSSigner signer;
+    private final MACVerifier verifier;
+    private final JWEEncrypter encrypter;
+    private final JWEDecrypter decrypter;
 
     private SessionKey(SecretKey signingKey, SecretKey encryptionKey, int version) {
         this.signingKey = signingKey;
         this.encryptionKey = encryptionKey;
         this.version = version;
+        try {
+            signer = new MACSigner(signingKey);
+            verifier = new MACVerifier(signingKey);
+            encrypter = new DirectEncrypter(encryptionKey);
+            decrypter = new DirectDecrypter(encryptionKey);
+        } catch (Throwable t) {
+            throw new IllegalStateException("Failed to initialize SessionKey", t);
+        }
     }
 
     /**
@@ -81,5 +104,33 @@ public final class SessionKey {
      */
     public int version() {
         return version;
+    }
+
+    /**
+     * Returns the {@link JWSSigner} for signing session tokens.
+     */
+    public JWSSigner signer() {
+        return signer;
+    }
+
+    /**
+     * Returns the {@link MACVerifier} for verifying session tokens.
+     */
+    public MACVerifier verifier() {
+        return verifier;
+    }
+
+    /**
+     * Returns the {@link JWEEncrypter} for encrypting session tokens.
+     */
+    public JWEEncrypter encrypter() {
+        return encrypter;
+    }
+
+    /**
+     * Returns the {@link JWEDecrypter} for decrypting session tokens.
+     */
+    public JWEDecrypter decrypter() {
+        return decrypter;
     }
 }

@@ -35,6 +35,7 @@ import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaRuleDelegate;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolder;
@@ -193,6 +194,13 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
      */
     public ProjectManager projectManager() {
         return delegate.projectManager();
+    }
+
+    /**
+     * Returns the {@link EncryptionStorageManager} of the server.
+     */
+    public final EncryptionStorageManager encryptionStorageManager() {
+        return delegate.encryptionStorageManager();
     }
 
     /**
