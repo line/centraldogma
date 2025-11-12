@@ -114,7 +114,8 @@ final class SamlIdpServer {
                 final String samlRequest = params.get("SAMLRequest");
                 final String relayState = params.get("RelayState");
 
-                if (!("foo".equals(username) && "bar".equals(password))) {
+                if (!("foo".equals(username) && "bar".equals(password)) &&
+                    !("foo2".equals(username) && "bar2".equals(password))) {
                     final String loginFailedHtml =
                             "<html><body><h1>Login Failed</h1><p>Invalid username or password.</p>" +
                             "<a href='javascript:history.back()'>Go Back</a></body></html>";
