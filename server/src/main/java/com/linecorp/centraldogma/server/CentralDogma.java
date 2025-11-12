@@ -55,6 +55,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -356,6 +357,17 @@ public class CentralDogma implements AutoCloseable {
     }
 
     /**
+     * Returns the {@link EncryptionStorageManager} of the server.
+     */
+    public EncryptionStorageManager encryptionStorageManager() {
+        final EncryptionStorageManager manager = encryptionStorageManager;
+        if (manager == null) {
+            throw new IllegalStateException("CentralDogma is not started yet.");
+        }
+        return manager;
+    }
+
+    /**
      * Returns the {@link MirroringService} of the server.
      *
      * @return the {@link MirroringService} if the server is started and mirroring is enabled.
@@ -538,9 +550,9 @@ public class CentralDogma implements AutoCloseable {
                                     return null;
                                 });
                 try {
-                    future.get(10, TimeUnit.SECONDS);
+                    future.get(60, TimeUnit.SECONDS);
                 } catch (Exception e) {
-                    logger.warn("Failed to stop plugins on the leader replica in 10 seconds.", e);
+                    logger.warn("Failed to stop plugins on the leader replica in 60 seconds.", e);
                 }
             }
         };
@@ -839,17 +851,20 @@ public class CentralDogma implements AutoCloseable {
         }
 
         checkState(sessionManager != null, "SessionManager is null");
+        final BooleanSupplier sessionPropagatorWritableChecker = commandExecutor::isWritable;
         final AuthProviderParameters parameters = new AuthProviderParameters(
                 // Find application first, then find the session token.
                 new ApplicationTokenAuthorizer(mds::findTokenBySecret)
                         .orElse(new SessionCookieAuthorizer(
-                                sessionManager, tlsEnabled, encryptionStorageManager,
+                                sessionManager, sessionPropagatorWritableChecker,
+                                tlsEnabled, encryptionStorageManager,
                                 authCfg.systemAdministrators())),
                 cfg,
                 sessionManager::generateSessionId,
                 // Propagate login and logout events to the other replicas.
                 session -> commandExecutor.execute(Command.createSession(session)),
                 sessionId -> commandExecutor.execute(Command.removeSession(sessionId)),
+                sessionPropagatorWritableChecker,
                 sessionManager, tlsEnabled,
                 encryptionStorageManager);
         return authCfg.factory().create(parameters);
@@ -1002,7 +1017,8 @@ public class CentralDogma implements AutoCloseable {
                     Optional.ofNullable(authProvider.logoutApiService())
                             .orElseGet(() -> new DefaultLogoutService(
                                     authProvider.parameters().logoutSessionPropagator(),
-                                    sessionManager, needsTls));
+                                    authProvider.parameters().sessionPropagatorWritableChecker(),
+                                    sessionManager, needsTls, encryptionStorageManager));
             for (Route route : LOGOUT_API_ROUTES) {
                 sb.service(route, logout);
             }
@@ -1014,11 +1030,11 @@ public class CentralDogma implements AutoCloseable {
           .decorator(decorator)
           .decorator(DecodingService.newDecorator())
           .build(new GitHttpService(projectApiManager));
+        sb.annotatedService(API_V0_PATH_PREFIX, new UserService(sessionManager, needsTls, executor,
+                                                                authProvider, encryptionStorageManager));
 
         if (cfg.isWebAppEnabled()) {
-            sb.contextPath(API_V0_PATH_PREFIX)
-              .annotatedService(new UserService(sessionManager, needsTls, executor))
-              .annotatedService(new RepositoryService(projectApiManager, executor));
+            sb.annotatedService(API_V0_PATH_PREFIX, new RepositoryService(projectApiManager, executor));
 
             if (authProvider != null) {
                 // Will redirect to /web/auth/login by default.
@@ -1237,9 +1253,16 @@ public class CentralDogma implements AutoCloseable {
         try {
             if (executor != null) {
                 logger.info("Stopping the command executor ..");
-                executor.stop();
+                executor.stop().get(60, TimeUnit.SECONDS);
                 logger.info("Stopped the command executor.");
             }
+        } catch (TimeoutException unused) {
+            success = false;
+            logger.warn("Failed to stop the command executor in 60 seconds.");
+        } catch (InterruptedException unused) {
+            success = false;
+            Thread.currentThread().interrupt();
+            logger.warn("Interrupted while stopping the command executor.");
         } catch (Throwable t) {
             success = false;
             logger.warn("Failed to stop the command executor:", t);

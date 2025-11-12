@@ -56,6 +56,7 @@ logback15 = "1.5.7"
 micrometer = "1.15.2"
 mina-sshd = "2.15.0"
 mockito = "5.18.0"
+nimbus-jose-jwt = "10.5"
 nexus-publish-plugin = "2.0.0"
 node-gradle-plugin = "7.1.0"
 osdetector = "1.7.3"
@@ -83,6 +84,7 @@ thrift09 = { strictly = "0.9.3-1" }
 # See: https://github.com/apache/curator/blob/master/pom.xml
 #      (Switch to the right tag to find out the right version.)
 zookeeper = "3.9.3"
+zstd = "1.5.7-4"
 
 [boms]
 armeria = { module = "com.linecorp.armeria:armeria-bom", version.ref = "armeria" }
@@ -358,6 +360,10 @@ version.ref = "mockito"
 module = "org.mockito:mockito-junit-jupiter"
 version.ref = "mockito"
 
+[libraries.nimbus-jose-jwt]
+module = "com.nimbusds:nimbus-jose-jwt"
+version.ref = "nimbus-jose-jwt"
+
 [libraries.owasp]
 module = "org.owasp.encoder:encoder"
 version.ref = "owasp"
@@ -464,6 +470,10 @@ exclusions = [
     "log4j:log4j",
     "org.apache.yetus:audience-annotations",
     "org.slf4j:slf4j-log4j12"]
+
+[libraries.zstd]
+module = "com.github.luben:zstd-jni"
+version.ref = "zstd"
 
 [plugins]
 download = { id = "de.undercouch.download", version.ref = "download" }

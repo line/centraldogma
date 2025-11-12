@@ -17,12 +17,9 @@ package com.linecorp.centraldogma.common;
 
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 /**
@@ -43,61 +40,22 @@ public class RevisionJsonDeserializer extends StdDeserializer<Revision> {
 
     @Override
     public Revision deserialize(JsonParser p, DeserializationContext ctx) throws IOException {
-        final JsonNode node = p.readValueAsTree();
-        if (node.isNumber()) {
-            validateRevisionNumber(ctx, node, "major", false);
-            return new Revision(node.intValue());
-        }
-
-        if (node.isTextual()) {
-            try {
-                return new Revision(node.textValue());
-            } catch (IllegalArgumentException e) {
-                ctx.reportInputMismatch(Revision.class, e.getMessage());
-                // Should never reach here.
-                throw new Error();
+        final JsonToken token = p.getCurrentToken();
+        try {
+            if (token.isNumeric()) {
+                return new Revision(p.getIntValue());
+            } else if (token == JsonToken.VALUE_STRING) {
+                final String text = p.getText().trim();
+                return new Revision(text);
             }
-        }
-
-        if (!node.isObject()) {
-            ctx.reportInputMismatch(Revision.class,
-                                    "A revision must be a non-zero integer or " +
-                                    "an object that contains \"major\" and \"minor\" properties.");
+        } catch (IllegalArgumentException e) {
+            ctx.reportInputMismatch(Revision.class, e.getMessage());
             // Should never reach here.
             throw new Error();
         }
 
-        final JsonNode majorNode = node.get("major");
-        final JsonNode minorNode = node.get("minor");
-        final int major;
-
-        validateRevisionNumber(ctx, majorNode, "major", false);
-        major = majorNode.intValue();
-        if (minorNode != null) {
-            validateRevisionNumber(ctx, minorNode, "minor", true);
-            if (minorNode.intValue() != 0) {
-                ctx.reportInputMismatch(Revision.class,
-                                        "A revision must not have a non-zero \"minor\" property.");
-            }
-        }
-
-        return new Revision(major);
-    }
-
-    private static void validateRevisionNumber(DeserializationContext ctx, @Nullable JsonNode node,
-                                               String type, boolean zeroAllowed) throws JsonMappingException {
-        if (node == null) {
-            ctx.reportInputMismatch(Revision.class, "missing %s revision number", type);
-            // Should never reach here.
-            throw new Error();
-        }
-
-        if (!node.canConvertToInt() || !zeroAllowed && node.intValue() == 0) {
-            ctx.reportInputMismatch(Revision.class,
-                                    "A %s revision number must be %s integer.",
-                                    type, zeroAllowed ? "an" : "a non-zero");
-            // Should never reach here.
-            throw new Error();
-        }
+        ctx.reportInputMismatch(Revision.class, "A revision must be a non-zero integer or a textual form.");
+        // Should never reach here.
+        throw new Error();
     }
 }

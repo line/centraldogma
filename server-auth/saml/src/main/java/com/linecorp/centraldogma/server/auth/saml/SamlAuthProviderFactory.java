@@ -23,6 +23,8 @@ import java.security.GeneralSecurityException;
 import java.time.Duration;
 
 import org.opensaml.security.credential.CredentialResolver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
@@ -41,6 +43,9 @@ import com.linecorp.centraldogma.server.auth.saml.SamlAuthProperties.KeyStore;
  * A factory for creating an OpenSAML based {@link AuthProvider}.
  */
 public final class SamlAuthProviderFactory implements AuthProviderFactory {
+
+    private static final Logger logger = LoggerFactory.getLogger(SamlAuthProviderFactory.class);
+
     @Override
     public AuthProvider create(AuthProviderParameters parameters) {
         final SamlAuthProperties properties = getProperties(parameters.authConfig());
@@ -48,6 +53,10 @@ public final class SamlAuthProviderFactory implements AuthProviderFactory {
             final KeyStore ks = properties.keyStore();
             final Idp idp = properties.idp();
             final SamlServiceProviderBuilder builder = SamlServiceProvider.builder();
+            if (!properties.signatureRequired()) {
+                logger.warn("Signature verification is disabled. This is NOT RECOMMENDED for production use.");
+                builder.signatureRequired(false);
+            }
             builder.entityId(properties.entityId())
                    .hostname(properties.hostname())
                    .signingKey(properties.signingKey())
@@ -56,6 +65,7 @@ public final class SamlAuthProviderFactory implements AuthProviderFactory {
                    .ssoHandler(new SamlAuthSsoHandler(
                            parameters.sessionIdGenerator(),
                            parameters.loginSessionPropagator(),
+                           parameters.sessionPropagatorWritableChecker(),
                            Duration.ofMillis(parameters.authConfig().sessionTimeoutMillis()),
                            parameters.authConfig().loginNameNormalizer(),
                            properties.idp().subjectLoginNameIdFormat(),
