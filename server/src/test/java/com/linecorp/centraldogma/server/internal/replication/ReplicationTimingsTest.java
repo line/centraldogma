@@ -69,13 +69,14 @@ class ReplicationTimingsTest {
 
         final SimpleMeterRegistry meterRegistry1 = meterRegistryMap.get(2);
         final Map<String, Double> metrics1 = MoreMeters.measureAll(meterRegistry1);
-        assertThat(metrics1).noneSatisfy((key, value) -> {
-            assertThat(key).startsWith("replication.");
+        assertThat(metrics1).allSatisfy((key, value) -> {
+            assertThat(key).doesNotStartWith("replication.");
         });
         final SimpleMeterRegistry meterRegistry2 = meterRegistryMap.get(3);
         final Map<String, Double> metrics2 = MoreMeters.measureAll(meterRegistry2);
-        assertThat(metrics2).noneSatisfy((key, value) -> {
-            assertThat(key).startsWith("replication.");
+
+        assertThat(metrics2).allSatisfy((key, value) -> {
+            assertThat(key).doesNotStartWith("replication.");
         });
     }
 
