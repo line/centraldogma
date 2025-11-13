@@ -1075,7 +1075,8 @@ public final class ZooKeeperCommandExecutor
             }
             assert logMeta.size() == offset;
 
-            if (logMeta.compressed()) {
+            final Boolean compressed = logMeta.compressed();
+            if (compressed != null && compressed) {
                 bytes = Zstd.decompress(bytes);
             }
             final ReplicationLog<?> log = Jackson.readValue(bytes, ReplicationLog.class);
