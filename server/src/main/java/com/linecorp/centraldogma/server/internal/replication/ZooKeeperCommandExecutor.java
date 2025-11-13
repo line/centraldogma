@@ -1026,7 +1026,7 @@ public final class ZooKeeperCommandExecutor
 
             // TODO(ikhoon): Enable compression once releasing decompression support for forward compatibility.
             final LogMeta logMeta = new LogMeta(log.replicaId(), System.currentTimeMillis(), bytes.length,
-                                                false, false);
+                                                null, null);
 
             final int count = (bytes.length + MAX_BYTES - 1) / MAX_BYTES;
             for (int i = 0; i < count; ++i) {
@@ -1075,7 +1075,8 @@ public final class ZooKeeperCommandExecutor
             }
             assert logMeta.size() == offset;
 
-            if (logMeta.compressed()) {
+            final Boolean compressed = logMeta.compressed();
+            if (compressed != null && compressed) {
                 bytes = Zstd.decompress(bytes);
             }
             final ReplicationLog<?> log = Jackson.readValue(bytes, ReplicationLog.class);

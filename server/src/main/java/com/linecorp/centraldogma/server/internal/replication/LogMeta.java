@@ -16,8 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.replication;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -27,22 +25,26 @@ import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 class LogMeta {
 
     private final int replicaId;
     private final long timestamp;
     private final int size;
-    private final boolean compressed;
-    private final boolean encrypted;
+    @Nullable
+    private final Boolean compressed;
+    @Nullable
+    private final Boolean encrypted;
     private final List<Long> blocks;
 
     @JsonCreator
     LogMeta(@JsonProperty(value = "replicaId", required = true) int replicaId,
-            @JsonProperty(value = "timestamp", defaultValue = "0") Long timestamp,
+            @JsonProperty(value = "timestamp", defaultValue = "0") @Nullable Long timestamp,
             @JsonProperty("size") int size,
             @JsonProperty("blocks") List<Long> blocks,
             @Nullable @JsonProperty("compressed") Boolean compressed,
@@ -54,13 +56,13 @@ class LogMeta {
         }
         this.timestamp = timestamp;
         this.size = size;
-        // Defaults to false for backward compatibility.
-        this.compressed = firstNonNull(compressed, false);
-        this.encrypted = firstNonNull(encrypted, false);
+        this.compressed = compressed;
+        this.encrypted = encrypted;
         this.blocks = blocks;
     }
 
-    LogMeta(int replicaId, Long timestamp, int size, boolean compressed, boolean encrypted) {
+    LogMeta(int replicaId, Long timestamp, int size,
+            @Nullable Boolean compressed, @Nullable Boolean encrypted) {
         this(replicaId, timestamp, size, new ArrayList<>(4), compressed, encrypted);
     }
 
@@ -79,13 +81,15 @@ class LogMeta {
         return size;
     }
 
+    @Nullable
     @JsonProperty("compressed")
-    boolean compressed() {
+    Boolean compressed() {
         return compressed;
     }
 
+    @Nullable
     @JsonProperty("encrypted")
-    boolean encrypted() {
+    Boolean encrypted() {
         return encrypted;
     }
 
@@ -107,8 +111,8 @@ class LogMeta {
         return replicaId == logMeta.replicaId &&
                timestamp == logMeta.timestamp &&
                size == logMeta.size &&
-               compressed == logMeta.compressed &&
-               encrypted == logMeta.encrypted &&
+               Objects.equals(compressed, logMeta.compressed) &&
+               Objects.equals(encrypted, logMeta.encrypted) &&
                Objects.equals(blocks, logMeta.blocks);
     }
 
@@ -120,6 +124,7 @@ class LogMeta {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                          .omitNullValues()
                           .add("replicaId", replicaId)
                           .add("timestamp", timestamp)
                           .add("size", size)
