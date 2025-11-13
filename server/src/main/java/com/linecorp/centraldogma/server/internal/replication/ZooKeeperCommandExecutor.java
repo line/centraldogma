@@ -965,14 +965,17 @@ public final class ZooKeeperCommandExecutor
             }
         }
 
-        return () -> safeRelease(mtx);
+        return () -> safeRelease(mtx, timings);
     }
 
-    private static void safeRelease(InterProcessMutex mtx) {
+    private static void safeRelease(InterProcessMutex mtx, ReplicationTimings timings) {
         try {
+            timings.startLockRelease();
             mtx.release();
         } catch (Exception ignored) {
             // Ignore.
+        } finally {
+            timings.endLockRelease();
         }
     }
 
@@ -1088,7 +1091,7 @@ public final class ZooKeeperCommandExecutor
                 return new ReplicationMetrics(meterRegistry, key);
             });
         }
-        return new ReplicationTimings(metrics);
+        return ReplicationTimings.of(metrics);
     }
 
     // Ensure that all logs are replayed, any other logs can not be added before end of this function.
@@ -1103,15 +1106,19 @@ public final class ZooKeeperCommandExecutor
                 executor = ForkJoinPool.commonPool();
             }
         }
+        final ReplicationTimings timings = newReplicationTimings(command);
+        timings.startExecutorSubmit();
         executor.execute(() -> {
-            final ReplicationTimings timings = newReplicationTimings(command);
             try {
+                timings.startExecutorExecution();
                 future.complete(blockingExecute(command, timings));
             } catch (Throwable t) {
                 future.completeExceptionally(t);
             } finally {
                 timings.record();
-                logger.debug("Elapsed times for {}: {}", command, timings.timingsString());
+                if (logger.isDebugEnabled() && timings != NoopReplicationTimings.INSTANCE) {
+                    logger.debug("Elapsed times for {}: {}", command, timings.toText());
+                }
             }
         });
         return future;
@@ -1221,33 +1228,5 @@ public final class ZooKeeperCommandExecutor
     @VisibleForTesting
     public void setLockTimeoutMillis(long lockTimeoutMillis) {
         lockTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(lockTimeoutMillis);
-    }
-
-    private static class ProjectNameAndAcquired {
-        private final String projectName;
-        private final boolean lockAcquired;
-
-        ProjectNameAndAcquired(String projectName, boolean lockAcquired) {
-            this.projectName = projectName;
-            this.lockAcquired = lockAcquired;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(projectName, lockAcquired);
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (!(obj instanceof ProjectNameAndAcquired)) {
-                return false;
-            }
-            final ProjectNameAndAcquired that = (ProjectNameAndAcquired) obj;
-            return lockAcquired == that.lockAcquired &&
-                   projectName.equals(that.projectName);
-        }
     }
 }
