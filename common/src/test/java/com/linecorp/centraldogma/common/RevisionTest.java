@@ -31,20 +31,14 @@ class RevisionTest {
         assertThat(toRevision("2")).isEqualTo(new Revision(2));
         assertThat(toRevision("\"3\"")).isEqualTo(new Revision(3));
         assertThat(toRevision("\"4.0\"")).isEqualTo(new Revision(4));
-        assertThat(toRevision("{ \"major\": 6 }")).isEqualTo(new Revision(6));
-        assertThat(toRevision("{ \"major\": 7, \"minor\": 0 }")).isEqualTo(new Revision(7));
 
         // Special revisions:
         assertThat(toRevision("1")).isEqualTo(Revision.INIT);
         assertThat(toRevision("\"1\"")).isEqualTo(Revision.INIT);
         assertThat(toRevision("\"1.0\"")).isEqualTo(Revision.INIT);
-        assertThat(toRevision("{ \"major\": 1 }")).isEqualTo(Revision.INIT);
-        assertThat(toRevision("{ \"major\": 1, \"minor\": 0 }")).isEqualTo(Revision.INIT);
         assertThat(toRevision("-1")).isEqualTo(Revision.HEAD);
         assertThat(toRevision("\"-1\"")).isEqualTo(Revision.HEAD);
         assertThat(toRevision("\"-1.0\"")).isEqualTo(Revision.HEAD);
-        assertThat(toRevision("{ \"major\": -1 }")).isEqualTo(Revision.HEAD);
-        assertThat(toRevision("{ \"major\": -1, \"minor\": 0 }")).isEqualTo(Revision.HEAD);
 
         assertThat(toRevision("\"head\"")).isEqualTo(Revision.HEAD);
         assertThat(toRevision("\"HEAD\"")).isEqualTo(Revision.HEAD);

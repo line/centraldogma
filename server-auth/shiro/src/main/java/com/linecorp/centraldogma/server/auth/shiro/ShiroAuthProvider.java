@@ -52,11 +52,14 @@ public final class ShiroAuthProvider implements AuthProvider {
         loginApiService = new ShiroLoginService(securityManager, authConfig.loginNameNormalizer(),
                                                 parameters.sessionIdGenerator(),
                                                 parameters.loginSessionPropagator(),
+                                                parameters.sessionPropagatorWritableChecker(),
                                                 sessionValidDuration,
                                                 parameters.tlsEnabled(),
                                                 parameters.encryptionStorageManager());
         logoutApiService = new ShiroLogoutService(securityManager, parameters.logoutSessionPropagator(),
-                                                  parameters.sessionManager(), parameters.tlsEnabled());
+                                                  parameters.sessionPropagatorWritableChecker(),
+                                                  parameters.sessionManager(), parameters.tlsEnabled(),
+                                                  parameters.encryptionStorageManager());
     }
 
     private static SecurityManager createSecurityManager(Ini config, Supplier<String> sessionIdGenerator) {

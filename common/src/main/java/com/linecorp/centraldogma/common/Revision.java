@@ -120,16 +120,6 @@ public class Revision implements Comparable<Revision> {
     }
 
     /**
-     * Returns {@code 0}.
-     *
-     * @deprecated Do not use. Minor revisions are not used anymore.
-     */
-    @Deprecated
-    public int minor() {
-        return 0;
-    }
-
-    /**
      * Returns the textual representation of the revision. e.g. {@code "42", "-1"}.
      */
     public String text() {
@@ -251,6 +241,6 @@ public class Revision implements Comparable<Revision> {
     private static IllegalArgumentException illegalRevisionArgumentException(String revisionStr) {
         return new IllegalArgumentException(
                 "revisionStr: " + revisionStr +
-                " (expected: \"major\" or \"major.0\" where major is non-zero integer)");
+                " (expected: a integer in string form, e.g., \"1\", \"42\", \"-1\")");
     }
 }

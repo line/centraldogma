@@ -1,7 +1,7 @@
 #
 # CentralDogma Dockerfile
 #
-FROM openjdk:11-jre
+FROM eclipse-temurin:17-jre
 
 # Multi-platform build arguments (pre-defined by docker)
 ARG TARGETARCH
@@ -36,6 +36,10 @@ COPY --chmod=755 \
 
 # Expose ports.
 EXPOSE 36462
+
+# Healthcheck – waits for the HTTP API to respond
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=10 \
+  CMD curl -f http://127.0.0.1:36462/monitor/l7check || exit 1
 
 # Entrypoint doesn't allow an environment variable.
 ENTRYPOINT ["/opt/centraldogma/bin/startup", "-nodetach"]
