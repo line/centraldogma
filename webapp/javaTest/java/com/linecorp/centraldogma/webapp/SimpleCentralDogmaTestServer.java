@@ -35,8 +35,8 @@ final class SimpleCentralDogmaTestServer {
      */
     @SuppressWarnings("UncommentedMain")
     public static void main(String[] args) throws IOException {
-        final Path rooDir = Files.createTempDirectory("dogma-test");
-        final CentralDogma server = new CentralDogmaBuilder(rooDir.toFile())
+        final Path rootDir = Files.createTempDirectory("dogma-test");
+        final CentralDogma server = new CentralDogmaBuilder(rootDir.toFile())
                 // Enable the legacy webapp
                 // .webAppEnabled(true)
                 .cors("*")

@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.auth;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -37,21 +38,13 @@ public final class AuthProviderParameters {
     private final Supplier<String> sessionIdGenerator;
     private final Function<Session, CompletableFuture<Void>> loginSessionPropagator;
     private final Function<String, CompletableFuture<Void>> logoutSessionPropagator;
+    private final BooleanSupplier sessionPropagatorWritableChecker;
     private final SessionManager sessionManager;
     private final boolean tlsEnabled;
     private final EncryptionStorageManager encryptionStorageManager;
 
     /**
      * Creates a new instance.
-     *
-     * @param authorizer the {@link Authorizer} which is used to authenticate a session token
-     * @param config the configuration for the Central Dogma server
-     * @param sessionIdGenerator the session ID generator which must be used when generating a new session ID
-     * @param loginSessionPropagator the function which propagates the {@link Session}
-     *                               to the other replicas
-     * @param logoutSessionPropagator a function which propagates the logged out session ID to the other
-     *                                replicas
-     * @param tlsEnabled {@code true} if TLS is enabled
      */
     public AuthProviderParameters(
             Authorizer<HttpRequest> authorizer,
@@ -59,6 +52,7 @@ public final class AuthProviderParameters {
             Supplier<String> sessionIdGenerator,
             Function<Session, CompletableFuture<Void>> loginSessionPropagator,
             Function<String, CompletableFuture<Void>> logoutSessionPropagator,
+            BooleanSupplier sessionPropagatorWritableChecker,
             SessionManager sessionManager, boolean tlsEnabled,
             EncryptionStorageManager encryptionStorageManager) {
         this.authorizer = requireNonNull(authorizer, "authorizer");
@@ -66,6 +60,8 @@ public final class AuthProviderParameters {
         this.sessionIdGenerator = requireNonNull(sessionIdGenerator, "sessionIdGenerator");
         this.loginSessionPropagator = requireNonNull(loginSessionPropagator, "loginSessionPropagator");
         this.logoutSessionPropagator = requireNonNull(logoutSessionPropagator, "logoutSessionPropagator");
+        this.sessionPropagatorWritableChecker =
+                requireNonNull(sessionPropagatorWritableChecker, "sessionPropagatorWritableChecker");
         this.sessionManager = requireNonNull(sessionManager, "sessionManager");
         this.tlsEnabled = tlsEnabled;
         this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
@@ -116,6 +112,13 @@ public final class AuthProviderParameters {
      */
     public Function<String, CompletableFuture<Void>> logoutSessionPropagator() {
         return logoutSessionPropagator;
+    }
+
+    /**
+     * Returns a supplier which checks whether the session propagator is writable or not.
+     */
+    public BooleanSupplier sessionPropagatorWritableChecker() {
+        return sessionPropagatorWritableChecker;
     }
 
     /**

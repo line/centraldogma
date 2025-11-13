@@ -28,7 +28,6 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -70,11 +69,9 @@ import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.luben.zstd.Zstd;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
-import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.escape.Escaper;
@@ -359,9 +356,7 @@ public final class ZooKeeperCommandExecutor
 
         ListenerInfo(long lastReplayedRevision,
                      @Nullable Runnable onTakeLeadership, @Nullable Runnable onReleaseLeadership,
-                     @Nullable Runnable onTakeZoneLeadership, @Nullable Runnable onReleaseZoneLeadership
-        ) {
-
+                     @Nullable Runnable onTakeZoneLeadership, @Nullable Runnable onReleaseZoneLeadership) {
             this.lastReplayedRevision = lastReplayedRevision;
             this.onReleaseLeadership = onReleaseLeadership;
             this.onTakeLeadership = onTakeLeadership;
@@ -1006,66 +1001,14 @@ public final class ZooKeeperCommandExecutor
         return path(PATH_PREFIX, path(pathElements));
     }
 
-    private static class LogMeta {
-
-        private final int replicaId;
-        private final long timestamp;
-        private final int size;
-        private final List<Long> blocks = new ArrayList<>();
-
-        @JsonCreator
-        LogMeta(@JsonProperty(value = "replicaId", required = true) int replicaId,
-                @JsonProperty(value = "timestamp", defaultValue = "0") Long timestamp,
-                @JsonProperty("size") int size) {
-            this.replicaId = replicaId;
-            if (timestamp == null) {
-                timestamp = 0L;
-            }
-            this.timestamp = timestamp;
-            this.size = size;
-        }
-
-        @JsonProperty
-        int replicaId() {
-            return replicaId;
-        }
-
-        @JsonProperty
-        long timestamp() {
-            return timestamp;
-        }
-
-        @JsonProperty
-        int size() {
-            return size;
-        }
-
-        @JsonProperty
-        List<Long> blocks() {
-            return Collections.unmodifiableList(blocks);
-        }
-
-        public void appendBlock(long blockId) {
-            blocks.add(blockId);
-        }
-
-        @Override
-        public String toString() {
-            return MoreObjects.toStringHelper(this)
-                              .add("replicaId", replicaId)
-                              .add("timestamp", timestamp)
-                              .add("size", size)
-                              .add("blocks", blocks)
-                              .toString();
-        }
-    }
-
     private long storeLog(ReplicationLog<?> log) {
         try {
             final byte[] bytes = Jackson.writeValueAsBytes(log);
             assert bytes.length > 0;
 
-            final LogMeta logMeta = new LogMeta(log.replicaId(), System.currentTimeMillis(), bytes.length);
+            // TODO(ikhoon): Enable compression once releasing decompression support for forward compatibility.
+            final LogMeta logMeta = new LogMeta(log.replicaId(), System.currentTimeMillis(), bytes.length,
+                                                null, null);
 
             final int count = (bytes.length + MAX_BYTES - 1) / MAX_BYTES;
             for (int i = 0; i < count; ++i) {
@@ -1104,7 +1047,7 @@ public final class ZooKeeperCommandExecutor
                 return Optional.empty();
             }
 
-            final byte[] bytes = new byte[logMeta.size()];
+            byte[] bytes = new byte[logMeta.size()];
             int offset = 0;
             for (long blockId : logMeta.blocks()) {
                 final String blockPath = absolutePath(LOG_BLOCK_PATH) + '/' + pathFromRevision(blockId);
@@ -1114,6 +1057,10 @@ public final class ZooKeeperCommandExecutor
             }
             assert logMeta.size() == offset;
 
+            final Boolean compressed = logMeta.compressed();
+            if (compressed != null && compressed) {
+                bytes = Zstd.decompress(bytes);
+            }
             final ReplicationLog<?> log = Jackson.readValue(bytes, ReplicationLog.class);
             return Optional.of(log);
         } catch (Exception e) {

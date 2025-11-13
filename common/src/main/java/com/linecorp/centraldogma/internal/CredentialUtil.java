@@ -26,12 +26,12 @@ public final class CredentialUtil {
 
     // TODO(minwoox): remove ._ from the ID which violates Google AIP.
     public static final Pattern PROJECT_CREDENTIAL_ID_PATTERN =
-            Pattern.compile("^projects/([^/]+)/credentials/([a-z](?:[a-z0-9-_.]{0,61}[a-z0-9])?)$");
+            Pattern.compile("^projects/([^/]+)/credentials/([a-zA-Z](?:[a-zA-Z0-9-_.]{0,61}[a-zA-Z0-9])?)$");
 
     // TODO(minwoox): remove ._ from the ID.
     public static final Pattern REPO_CREDENTIAL_ID_PATTERN =
-            Pattern.compile(
-                    "^projects/([^/]+)/repos/([^/]+)/credentials/([a-z](?:[a-z0-9-_.]{0,61}[a-z0-9])?)$");
+            Pattern.compile("^projects/([^/]+)/repos/([^/]+)/credentials/" +
+                            "([a-zA-Z](?:[a-zA-Z0-9-_.]{0,61}[a-zA-Z0-9])?)$");
 
     public static String validateCredentialName(String projectName, String repoName,
                                                 String credentialName) {

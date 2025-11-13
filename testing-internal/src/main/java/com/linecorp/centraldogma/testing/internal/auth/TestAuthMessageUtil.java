@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.testing.internal.auth;
 
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.sessionCookieName;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.charset.StandardCharsets;
@@ -89,9 +90,15 @@ public final class TestAuthMessageUtil {
 
     public static String getAccessToken(WebClient client, String username, String password,
                                         String appId, boolean isSystemAdmin) {
+        return getAccessToken(client, username, password, appId, isSystemAdmin, false, false);
+    }
+
+    public static String getAccessToken(WebClient client, String username, String password,
+                                        String appId, boolean isSystemAdmin,
+                                        boolean tlsEnabled, boolean encryptSessionCookie) {
         final AggregatedHttpResponse response = login(client, username, password);
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        final Cookie sessionCookie = getSessionCookie(response);
+        final Cookie sessionCookie = getSessionCookie(response, tlsEnabled, encryptSessionCookie);
         final String csrfToken;
         try {
             csrfToken = Jackson.readTree(response.contentUtf8()).get("csrf_token").asText();
@@ -117,12 +124,22 @@ public final class TestAuthMessageUtil {
     }
 
     public static Cookie getSessionCookie(AggregatedHttpResponse response) {
+        return getSessionCookie(response, false);
+    }
+
+    public static Cookie getSessionCookie(AggregatedHttpResponse response, boolean tlsEnabled) {
+        return getSessionCookie(response, tlsEnabled, false);
+    }
+
+    public static Cookie getSessionCookie(AggregatedHttpResponse response, boolean tlsEnabled,
+                                          boolean encryptSessionCookie) {
+        final String cookieName = sessionCookieName(tlsEnabled, encryptSessionCookie);
         for (Cookie cookie : response.headers().cookies()) {
-            if (cookie.name().endsWith("session-id")) {
+            if (cookie.name().equals(cookieName)) {
                 return cookie;
             }
         }
-        throw new IllegalStateException("session-id cookie not found");
+        throw new IllegalStateException(cookieName + " cookie not found");
     }
 
     private TestAuthMessageUtil() {}

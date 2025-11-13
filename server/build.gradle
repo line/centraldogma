@@ -33,6 +33,8 @@ dependencies {
     // jCommander. optionalImplementation must be also added to the :dist dependencies.
     optionalImplementation libs.jcommander
 
+    api libs.nimbus.jose.jwt
+
     implementation libs.jgit6
 
     // Micrometer
@@ -46,6 +48,8 @@ dependencies {
 
     // Snappy
     implementation libs.snappy
+
+    implementation libs.zstd
 
     // Logging
     optionalImplementation libs.logback15

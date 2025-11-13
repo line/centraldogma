@@ -19,8 +19,11 @@ import static java.util.Objects.requireNonNull;
 
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.HttpServiceWithRoutes;
 import com.linecorp.armeria.server.saml.SamlServiceProvider;
@@ -42,8 +45,14 @@ public class SamlAuthProvider implements AuthProvider {
 
     @Override
     public HttpService webLoginService() {
-        // TODO(minwoox): Add SamlLoginInitiatingService to Armeria.
-        final HttpService service = (ctx, req) -> HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR);
+        // TODO(minwoox): Redirect using return_to and ref parameters.
+        final HttpService service = (ctx, req) -> {
+            return HttpResponse.of(ResponseHeaders.builder(HttpStatus.FOUND)
+                                                  .set(HttpHeaderNames.LOCATION, "/")
+                                                  .set(HttpHeaderNames.CACHE_CONTROL,
+                                                       ServerCacheControl.DISABLED.asHeaderValue())
+                                                  .build());
+        };
         return service.decorate(sp.newSamlDecorator());
     }
 

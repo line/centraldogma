@@ -437,6 +437,7 @@ class WatchTest {
                                     .join()
                                     .revision();
 
+        await().untilAsserted(() -> assertThat(heavyWatcher.latest().revision()).isEqualTo(rev3));
         Thread.sleep(1100); // DELAY_ON_SUCCESS_MILLIS + epsilon
         assertThat(forExisting.latest()).isEqualTo(new Latest<>(rev2, new TextNode("artichoke")));
         assertThat(watchResult.get()).isEqualTo(forExisting.latest());

@@ -158,8 +158,8 @@ class MirroringAndCredentialServiceV1Test {
         assertThat(response.status()).isSameAs(HttpStatus.NO_CONTENT);
 
         final CreateCredentialRequest repoCredentialRequest = new CreateCredentialRequest(
-                "repo-credential", new AccessTokenCredential(
-                        credentialName(FOO_PROJ, BAR_REPO, "repo-credential"), "secret-repo-token")
+                "REPO_CREDENTIAL", new AccessTokenCredential(
+                        credentialName(FOO_PROJ, BAR_REPO, "REPO_CREDENTIAL"), "secret-repo-token")
         );
         final ResponseEntity<PushResultDto> creationResponse =
                 userClient.prepare()
@@ -171,27 +171,26 @@ class MirroringAndCredentialServiceV1Test {
                           .execute();
         assertThat(creationResponse.status()).isEqualTo(HttpStatus.CREATED);
         final CreateCredentialRequest projectCredentialRequest = new CreateCredentialRequest(
-                "project-credential", new AccessTokenCredential(
-                credentialName(FOO_PROJ, "project-credential"), "secret-repo-token")
+                "PROJECT_CREDENTIAL", new AccessTokenCredential(
+                credentialName(FOO_PROJ, "PROJECT_CREDENTIAL"), "secret-repo-token")
         );
         createProjectCredential(projectCredentialRequest);
 
         // Create mirrors.
         final MirrorRequest newMirror1 =
-                newMirror(BAR_REPO, "mirror-1", credentialName(FOO_PROJ, BAR_REPO,
-                                                                              "repo-credential"));
+                newMirror(BAR_REPO, "mirror-1", credentialName(FOO_PROJ, BAR_REPO, "REPO_CREDENTIAL"));
         createMirror(BAR_REPO, newMirror1);
         final MirrorRequest newMirror2 =
-                newMirror(BAR_REPO, "mirror-2", credentialName(FOO_PROJ, "project-credential"));
+                newMirror(BAR_REPO, "mirror-2", credentialName(FOO_PROJ, "PROJECT_CREDENTIAL"));
         createMirror(BAR_REPO, newMirror2);
 
         // Read mirrors.
         final MirrorDto mirror1 = getMirror(BAR_REPO, newMirror1.id());
         assertThat(mirror1.credentialName()).isEqualTo(
-                credentialName(FOO_PROJ, BAR_REPO, "repo-credential"));
+                credentialName(FOO_PROJ, BAR_REPO, "REPO_CREDENTIAL"));
         final MirrorDto mirror2 = getMirror(BAR_REPO, newMirror2.id());
         assertThat(mirror2.credentialName()).isEqualTo(
-                credentialName(FOO_PROJ, "project-credential"));
+                credentialName(FOO_PROJ, "PROJECT_CREDENTIAL"));
     }
 
     private static void rejectInvalidRepositoryUri() {
