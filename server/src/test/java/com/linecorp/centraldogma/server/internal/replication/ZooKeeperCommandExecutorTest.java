@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server.internal.replication;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -52,6 +53,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -66,6 +68,7 @@ import com.linecorp.centraldogma.common.LockAcquireTimeoutException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.CommitResult;
@@ -586,6 +589,31 @@ class ZooKeeperCommandExecutorTest {
                 await().untilAsserted(() -> verify(replica.delegate()).apply(eq(forceAsIsCommand)));
             }
         }
+    }
+
+    @Test
+    void testLogMetaSerde() throws JsonProcessingException {
+        final LogMeta logMeta = new LogMeta(1, 1L, 10, false, false);
+        logMeta.appendBlock(1);
+        logMeta.appendBlock(2);
+        logMeta.appendBlock(3);
+        assertThat(logMeta.blocks()).containsExactly(1L, 2L, 3L);
+        final String jsonStr = Jackson.writeValueAsString(logMeta);
+        final LogMeta deserialized = Jackson.readValue(jsonStr, LogMeta.class);
+        assertThat(deserialized).isEqualTo(logMeta);
+    }
+
+    @Test
+    void testLogMetaSerde_excludeNull() throws JsonProcessingException {
+        final LogMeta logMeta = new LogMeta(1, 1L, 10, null, null);
+        logMeta.appendBlock(1);
+        logMeta.appendBlock(2);
+        logMeta.appendBlock(3);
+        assertThat(logMeta.blocks()).containsExactly(1L, 2L, 3L);
+        final String jsonStr = Jackson.writeValueAsString(logMeta);
+        assertThatJson(jsonStr).isEqualTo("{\"replicaId\":1,\"timestamp\":1,\"size\":10,\"blocks\":[1,2,3]}");
+        final LogMeta deserialized = Jackson.readValue(jsonStr, LogMeta.class);
+        assertThat(deserialized).isEqualTo(logMeta);
     }
 
     private static <T> void awaitUntilReplicated(Cluster cluster, Command<T> command) {
