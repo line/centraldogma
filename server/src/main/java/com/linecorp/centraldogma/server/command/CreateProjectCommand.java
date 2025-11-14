@@ -31,7 +31,6 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
-import com.linecorp.centraldogma.server.storage.project.Project;
 
 /**
  * A {@link Command} which is used for creating a new project.

@@ -136,7 +136,8 @@ public interface EncryptionStorageManager extends SafeCloseable {
     SecretKeyWithVersion getCurrentDek(String projectName, String repoName);
 
     /**
-     * Stores the wrapped data encryption key (WDEK) for the specified project and repository.
+     * Stores the wrapped data encryption key (WDEK) for the {@link WrappedDekDetails#projectName()} and
+     * {@link WrappedDekDetails#repoName()}.
      * This raises an exception if the WDEK already exists.
      */
     void storeWdek(WrappedDekDetails wdekDetails);
