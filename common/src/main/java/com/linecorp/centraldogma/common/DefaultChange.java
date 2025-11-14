@@ -177,10 +177,19 @@ final class DefaultChange<T> implements Change<T> {
 
     @Override
     public String toString() {
+        String contentString;
+        if (content == null) {
+            contentString = "null";
+        } else {
+            contentString = content.toString();
+            if (contentString.length() > 128) {
+                contentString = contentString.substring(0, 128) + "...(length: " + contentString.length() + ')';
+            }
+        }
         return MoreObjects.toStringHelper(Change.class)
                           .add("type", type)
                           .add("path", path)
-                          .add("content", content)
+                          .add("content", contentString)
                           .toString();
     }
 }
