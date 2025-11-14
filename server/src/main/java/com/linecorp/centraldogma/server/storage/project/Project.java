@@ -42,8 +42,12 @@ public interface Project {
     String REPO_DOGMA = "dogma";
 
     /**
-     * The repository that contains project configuration files, which are accessible by project owners.
+     * The meta repository was used to store metadata, but it's no longer used anymore.
+     * We still keep this constant to prevent creating a repository with this name.
+     *
+     * @deprecated meta repository is not used anymore.
      */
+    @Deprecated
     String REPO_META = "meta";
 
     /**
@@ -103,12 +107,4 @@ public interface Project {
     static boolean isReservedRepoName(String repoName) {
         return isInternalRepo(repoName);
     }
-
-    /**
-     * Resets the {@link MetaRepository} of this project.
-     *
-     * @deprecated This will be removed after migrating the content in meta repository to dogma repository.
-     */
-    @Deprecated
-    MetaRepository resetMetaRepository();
 }

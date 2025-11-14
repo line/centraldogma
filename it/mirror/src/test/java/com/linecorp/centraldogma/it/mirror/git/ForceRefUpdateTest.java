@@ -106,7 +106,7 @@ class ForceRefUpdateTest {
     @AfterEach
     void afterEach() {
         dogma.client()
-             .forRepo(projName, Project.REPO_META)
+             .forRepo(projName, Project.REPO_DOGMA)
              .commit("cleanup",
                      Change.ofRemoval(projectCredentialFile("ssh-key-id")),
                      Change.ofRemoval("/repos/" + REPO_FOO + "/mirrors/foo.json"))
@@ -203,7 +203,7 @@ class ForceRefUpdateTest {
 
     private void pushCredentials(String pubKey, String privKey) {
         final String name = credentialName(projName, "ssh-key-id");
-        dogma.client().forRepo(projName, Project.REPO_META)
+        dogma.client().forRepo(projName, Project.REPO_DOGMA)
              .commit("Add a mirror",
                      Change.ofJsonUpsert(credentialFile(name),
                                          '{' +
@@ -217,7 +217,7 @@ class ForceRefUpdateTest {
     }
 
     private void pushMirror(String gitUri, MirrorDirection mirrorDirection) {
-        dogma.client().forRepo(projName, Project.REPO_META)
+        dogma.client().forRepo(projName, Project.REPO_DOGMA)
              .commit("Add a mirror",
                      Change.ofJsonUpsert("/repos/" + REPO_FOO + "/mirrors/foo.json",
                                          '{' +

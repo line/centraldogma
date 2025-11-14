@@ -111,8 +111,7 @@ class RepositoryManagementTest {
         final Map<String, RepositoryInfo> repos = client.listRepositories(dogma.project()).join();
 
         // Should contain 2 "rNNN"s
-        assertThat(repos.keySet()).containsExactlyInAnyOrder(Project.REPO_DOGMA, Project.REPO_META,
-                                                             dogma.repo1(), dogma.repo2());
+        assertThat(repos.keySet()).containsExactlyInAnyOrder(Project.REPO_DOGMA, dogma.repo1(), dogma.repo2());
 
         for (RepositoryInfo r : repos.values()) {
             final Revision headRev = r.headRevision();

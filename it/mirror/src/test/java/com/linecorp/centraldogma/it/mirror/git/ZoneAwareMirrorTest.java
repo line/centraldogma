@@ -171,7 +171,7 @@ class ZoneAwareMirrorTest {
     @Test
     void shouldWarnUnknownZoneForScheduledJob() throws Exception {
         final CentralDogma client = cluster.servers().get(0).client();
-        final CentralDogmaRepository repo = client.forRepo(FOO_PROJ, Project.REPO_META);
+        final CentralDogmaRepository repo = client.forRepo(FOO_PROJ, Project.REPO_DOGMA);
         final String mirrorId = TEST_MIRROR_ID + "-unknown-zone";
         final String unknownZone = "unknown-zone";
         final MirrorConfig mirrorConfig =

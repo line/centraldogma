@@ -367,7 +367,7 @@ class LocalToRemoteGitMirrorTest {
         final String remoteUri = gitUri + firstNonNull(remotePath, "");
         try {
             final String credentialName = credentialName(projName, "none");
-            client.forRepo(projName, Project.REPO_META)
+            client.forRepo(projName, Project.REPO_DOGMA)
                   .commit("Add /credentials/none",
                           Change.ofJsonUpsert(credentialFile(credentialName),
                                               "{ " +
@@ -382,7 +382,7 @@ class LocalToRemoteGitMirrorTest {
                 throw e;
             }
         }
-        client.forRepo(projName, Project.REPO_META)
+        client.forRepo(projName, Project.REPO_DOGMA)
               .commit("Add /repos/" + localRepo + "/mirrors/foo.json",
                       Change.ofJsonUpsert("/repos/" + localRepo + "/mirrors/foo.json",
                                           '{' +

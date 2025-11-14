@@ -47,7 +47,7 @@ class ArmeriaCentralDogmaTest {
                 .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
                 .build();
 
-        assertThatThrownBy(() -> client.forRepo("foo", Project.REPO_META)
+        assertThatThrownBy(() -> client.forRepo("foo", Project.REPO_DOGMA)
                                        .commit("summary", Change.ofJsonUpsert("/bar.json", "{ \"a\": \"b\" }"))
                                        .push()
                                        .join())
@@ -61,7 +61,7 @@ class ArmeriaCentralDogmaTest {
                 .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
                 .build();
 
-        final PushResult result = client.forRepo("foo", Project.REPO_META)
+        final PushResult result = client.forRepo("foo", Project.REPO_DOGMA)
                                         .commit("summary",
                                                 Change.ofJsonUpsert("/repos/foo/mirrors/foo.json", "{}"))
                                         .push()
