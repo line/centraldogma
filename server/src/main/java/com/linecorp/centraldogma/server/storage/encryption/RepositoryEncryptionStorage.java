@@ -151,6 +151,7 @@ final class RepositoryEncryptionStorage {
         return aesSecretKey(key);
     }
 
+    // TODO(minwoox): Use listener instead of caching current DEK.
     SecretKeyWithVersion getCurrentDek(String projectName, String repoName) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -179,14 +180,14 @@ final class RepositoryEncryptionStorage {
         return new SecretKeyWithVersion(getDek(projectName, repoName, version), version);
     }
 
-    void storeWdek(String projectName, String repoName, WrappedDekDetails wdekDetails) {
-        storeWdek(projectName, repoName, wdekDetails, false);
+    void storeWdek(WrappedDekDetails wdekDetails) {
+        storeWdek(wdekDetails, false);
     }
 
-    private void storeWdek(String projectName, String repoName, WrappedDekDetails wdekDetails, boolean rotate) {
-        requireNonNull(projectName, "projectName");
-        requireNonNull(repoName, "repoName");
+    private void storeWdek(WrappedDekDetails wdekDetails, boolean rotate) {
         requireNonNull(wdekDetails, "wdekDetails");
+        final String projectName = wdekDetails.projectName();
+        final String repoName = wdekDetails.repoName();
         final int version = wdekDetails.dekVersion();
         if (rotate) {
             final SecretKeyWithVersion currentDek = getCurrentDek(projectName, repoName);
@@ -238,7 +239,7 @@ final class RepositoryEncryptionStorage {
 
     void rotateWdek(WrappedDekDetails wdekDetails) {
         requireNonNull(wdekDetails, "wdekDetails");
-        storeWdek(wdekDetails.projectName(), wdekDetails.repoName(), wdekDetails, true);
+        storeWdek(wdekDetails, true);
     }
 
     void removeWdek(String projectName, String repoName, int version) {

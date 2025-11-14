@@ -112,6 +112,34 @@ public final class WrappedDekDetails {
     }
 
     @Override
+    public int hashCode() {
+        int result = wrappedDek.hashCode();
+        result = 31 * result + dekVersion;
+        result = 31 * result + kekId.hashCode();
+        result = 31 * result + creation.hashCode();
+        result = 31 * result + projectName.hashCode();
+        result = 31 * result + repoName.hashCode();
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof WrappedDekDetails)) {
+            return false;
+        }
+        final WrappedDekDetails that = (WrappedDekDetails) obj;
+        return dekVersion == that.dekVersion &&
+               wrappedDek.equals(that.wrappedDek) &&
+               kekId.equals(that.kekId) &&
+               creation.equals(that.creation) &&
+               projectName.equals(that.projectName) &&
+               repoName.equals(that.repoName);
+    }
+
+    @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("wrappedDek", "****")

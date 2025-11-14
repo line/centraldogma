@@ -109,7 +109,7 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     }
 
     @Override
-    public void storeWdek(String projectName, String repoName, WrappedDekDetails wdekDetails) {
+    public void storeWdek(WrappedDekDetails wdekDetails) {
     }
 
     @Override

@@ -26,19 +26,12 @@ import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.server.auth.SessionKey;
 import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 
 final class DefaultEncryptionStorageManager implements EncryptionStorageManager {
-
-    private static final Logger logger = LoggerFactory.getLogger(DefaultEncryptionStorageManager.class);
-
-    private static final int BATCH_WRITE_SIZE = 1000;
 
     static final String ROCKSDB_PATH = "_rocks";
 
@@ -132,8 +125,8 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
     }
 
     @Override
-    public void storeWdek(String projectName, String repoName, WrappedDekDetails wdekDetails) {
-        repositoryEncryptionStorage.storeWdek(projectName, repoName, wdekDetails);
+    public void storeWdek(WrappedDekDetails wdekDetails) {
+        repositoryEncryptionStorage.storeWdek(wdekDetails);
     }
 
     @Override

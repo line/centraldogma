@@ -96,7 +96,6 @@ public final class SessionUtil {
         return encryptSessionCookie ? prefix + "session-jwt" : prefix + "session-id";
     }
 
-    @Nullable
     public static int getSessionKeyVersion(ServiceRequestContext ctx, String cookieValue) {
         final String keyVersion;
         try {

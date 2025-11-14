@@ -88,7 +88,7 @@ class DefaultEncryptionStorageManagerTest {
                 .isInstanceOf(EncryptionStorageException.class)
                 .hasMessageContaining("WDEK of " + PROJECT_NAME + '/' + REPO_NAME + " does not exist");
 
-        storageManager.storeWdek(PROJECT_NAME, REPO_NAME, wdekDetails);
+        storageManager.storeWdek(wdekDetails);
         final SecretKey dek = storageManager.getDek(PROJECT_NAME, REPO_NAME, 1);
 
         // 4. Verify
@@ -97,7 +97,7 @@ class DefaultEncryptionStorageManagerTest {
         assertThat(dek.getEncoded()).hasSize(32); // AES-256 key size
 
         // Try storing again
-        assertThatThrownBy(() -> storageManager.storeWdek(PROJECT_NAME, REPO_NAME, wdekDetails))
+        assertThatThrownBy(() -> storageManager.storeWdek(wdekDetails))
                 .isInstanceOf(EncryptionStorageException.class)
                 .hasMessageContaining("WDEK of " + PROJECT_NAME + '/' + REPO_NAME + "/1 already exists");
 

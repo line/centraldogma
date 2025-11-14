@@ -46,7 +46,7 @@ import com.google.common.collect.ImmutableMap;
 
 final class RocksDBStorage {
 
-    private static final Logger logger = LoggerFactory.getLogger(DefaultEncryptionStorageManager.class);
+    private static final Logger logger = LoggerFactory.getLogger(RocksDBStorage.class);
 
     static final String WDEK_COLUMN_FAMILY = "wdek";
     static final String ENCRYPTION_METADATA_COLUMN_FAMILY = "encryption_metadata";
@@ -86,6 +86,7 @@ final class RocksDBStorage {
         try {
             rocksDb = RocksDB.open(dbOptions, rocksDbPath, cfDescriptors, openedHandlesList);
         } catch (RocksDBException e) {
+            bloomFilter.close();
             cfNameToOptions.values().forEach(ColumnFamilyOptions::close);
             dbOptions.close();
             throw new EncryptionStorageException("Failed to open RocksDB with column families at " +
@@ -97,6 +98,7 @@ final class RocksDBStorage {
             try {
                 handlesMapBuilder.put(new String(handle.getName(), StandardCharsets.UTF_8), handle);
             } catch (RocksDBException e) {
+                bloomFilter.close();
                 openedHandlesList.forEach(RocksDBStorage::closeSilently);
                 closeSilently(rocksDb);
                 cfNameToOptions.values().forEach(ColumnFamilyOptions::close);

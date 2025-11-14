@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.command;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -30,6 +31,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
+import com.linecorp.centraldogma.server.storage.project.Project;
 
 /**
  * A {@link Command} which is used for creating a new project.
@@ -49,6 +51,10 @@ public final class CreateProjectCommand extends RootCommand<Void> {
         super(CommandType.CREATE_PROJECT, timestamp, author);
         this.projectName = requireNonNull(projectName, "projectName");
         this.wdekDetails = wdekDetails;
+        if (wdekDetails != null) {
+            checkArgument(wdekDetails.projectName().equals(projectName),
+                          "projectName: %s, (expected: %s", projectName, wdekDetails.projectName());
+        }
     }
 
     /**

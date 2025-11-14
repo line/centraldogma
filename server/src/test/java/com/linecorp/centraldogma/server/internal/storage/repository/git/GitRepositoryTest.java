@@ -112,7 +112,7 @@ class GitRepositoryTest {
         final WrappedDekDetails wrappedDekDetails =
                 new WrappedDekDetails(encryptionStorageManager.generateWdek().join(), 1,
                                       encryptionStorageManager.kekId(), project.name(), "test_repo2");
-        encryptionStorageManager.storeWdek(project.name(), "test_repo2", wrappedDekDetails);
+        encryptionStorageManager.storeWdek(wrappedDekDetails);
         encryptedRepo = createEncryptionRepository(project, new File(repoDir, "test_repo2"),
                                                    Author.SYSTEM, 0L, commonPool(), null,
                                                    encryptionStorageManager);

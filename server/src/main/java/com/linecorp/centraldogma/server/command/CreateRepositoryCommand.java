@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.command;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -46,10 +47,17 @@ public final class CreateRepositoryCommand extends ProjectCommand<Void> {
                             @JsonProperty("author") @Nullable Author author,
                             @JsonProperty("projectName") String projectName,
                             @JsonProperty("repositoryName") String repositoryName,
-                            @JsonProperty("wdek") @Nullable WrappedDekDetails wdekDetails) {
+                            @JsonProperty("wdekDetails") @Nullable WrappedDekDetails wdekDetails) {
         super(CommandType.CREATE_REPOSITORY, timestamp, author, projectName);
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
         this.wdekDetails = wdekDetails;
+        if (wdekDetails != null) {
+            checkArgument(wdekDetails.projectName().equals(projectName) &&
+                          wdekDetails.repoName().equals(repositoryName),
+                          "projectName: %s and repositoryName: %s, " +
+                          "(expected projectName: %s and repositoryName: %s in wdekDetails)",
+                          projectName, repositoryName, wdekDetails.projectName(), wdekDetails.repoName());
+        }
     }
 
     /**

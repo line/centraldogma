@@ -247,7 +247,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             final WrappedDekDetails wdekDetails = c.wdekDetails();
             final boolean encrypt = wdekDetails != null;
             if (encrypt) {
-                encryptionStorageManager.storeWdek(c.projectName(), Project.REPO_DOGMA, wdekDetails);
+                encryptionStorageManager.storeWdek(wdekDetails);
             }
 
             try {
@@ -312,7 +312,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             final WrappedDekDetails wdekDetails = c.wdekDetails();
             final boolean encrypt = wdekDetails != null;
             if (encrypt) {
-                encryptionStorageManager.storeWdek(c.projectName(), c.repositoryName(), wdekDetails);
+                encryptionStorageManager.storeWdek(wdekDetails);
             }
 
             try {
@@ -364,7 +364,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                     "The repository is already encrypted: " + c.projectName() + '/' + c.repositoryName());
         }
         return CompletableFuture.supplyAsync(() -> {
-            encryptionStorageManager.storeWdek(c.projectName(), c.repositoryName(), c.wdekDetails());
+            encryptionStorageManager.storeWdek(c.wdekDetails());
             try {
                 repositoryManager.migrateToEncryptedRepository(c.repositoryName());
             } catch (Throwable t) {

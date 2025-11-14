@@ -86,8 +86,7 @@ public interface EncryptionStorageManager extends SafeCloseable {
     String kekId();
 
     /**
-     * Generates a new data encryption key (DEK) and wraps it. The specified key version is included in
-     * the returned {@link WrappedDekDetails#dekVersion()}.
+     * Generates a new data encryption key (DEK) and wraps it.
      */
     CompletableFuture<String> generateWdek();
 
@@ -140,7 +139,7 @@ public interface EncryptionStorageManager extends SafeCloseable {
      * Stores the wrapped data encryption key (WDEK) for the specified project and repository.
      * This raises an exception if the WDEK already exists.
      */
-    void storeWdek(String projectName, String repoName, WrappedDekDetails wdekDetails);
+    void storeWdek(WrappedDekDetails wdekDetails);
 
     /**
      * Rotates the wrapped data encryption key (WDEK) for the {@link WrappedDekDetails#projectName()} and

@@ -74,7 +74,7 @@ final class EncryptedGitRepositoryRemoveTest {
         final WrappedDekDetails wrappedDekDetails =
                 new WrappedDekDetails(wdek, 1, encryptionStorageManager.kekId(),
                                       PROJECT_NAME, REPO_NAME);
-        encryptionStorageManager.storeWdek(PROJECT_NAME, REPO_NAME, wrappedDekDetails);
+        encryptionStorageManager.storeWdek(wrappedDekDetails);
         final Repository repo =
                 gitRepositoryManager.create(REPO_NAME, 0, Author.SYSTEM, true);
         final org.eclipse.jgit.lib.Repository repository = repo.jGitRepository();
@@ -127,7 +127,7 @@ final class EncryptedGitRepositoryRemoveTest {
                 new WrappedDekDetails(wdek2, 1, encryptionStorageManager.kekId(),
                                       PROJECT_NAME, "bar2");
         // Create another repository.
-        encryptionStorageManager.storeWdek(PROJECT_NAME, "bar2", wrappedDekDetails2);
+        encryptionStorageManager.storeWdek(wrappedDekDetails2);
         gitRepositoryManager.create("bar2", 0, Author.SYSTEM, true);
 
         wdekSize = 2 + 2;

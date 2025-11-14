@@ -68,27 +68,31 @@ public class DefaultLogoutService extends AbstractHttpService {
 
     @Override
     protected HttpResponse doPost(ServiceRequestContext ctx, HttpRequest req) throws Exception {
-        return HttpResponse.of(sessionCookieHandler.getSessionInfo(ctx).thenApply(sessionInfo -> {
+        return HttpResponse.of(sessionCookieHandler.getSessionInfo(ctx).thenCompose(sessionInfo -> {
             if (sessionInfo == null) {
                 // Return 204 https://stackoverflow.com/questions/36220029/http-status-to-return-after-trying-to-logout-without-being-logged-in
-                return HttpResponse.of(HttpStatus.NO_CONTENT);
+                return UnmodifiableFuture.completedFuture(HttpResponse.of(HttpStatus.NO_CONTENT));
             }
 
             final String sessionId = sessionInfo.sessionId();
             if (sessionId == null) {
                 final String username = sessionInfo.username();
                 final String csrfTokenFromSignedJwt = sessionInfo.csrfTokenFromSignedJwt();
-                assert username != null;
-                assert csrfTokenFromSignedJwt != null;
-                if (!validateCsrfToken(ctx, req, csrfTokenFromSignedJwt)) {
-                    return invalidCsrfTokenResponse();
+                if (username == null || csrfTokenFromSignedJwt == null) {
+                    return UnmodifiableFuture.completedFuture(
+                            HttpResponse.of(HttpStatus.UNAUTHORIZED, MediaType.PLAIN_TEXT_UTF_8,
+                                            "Invalid session"));
                 }
-                return HttpResponse.of(ResponseHeaders.builder(HttpStatus.OK)
-                                                      .cookie(invalidatingCookie)
-                                                      .build());
+                if (!validateCsrfToken(ctx, req, csrfTokenFromSignedJwt)) {
+                    return UnmodifiableFuture.completedFuture(invalidCsrfTokenResponse());
+                }
+                return UnmodifiableFuture.completedFuture(
+                        HttpResponse.of(ResponseHeaders.builder(HttpStatus.OK)
+                                                       .cookie(invalidatingCookie)
+                                                       .build()));
             }
 
-            return HttpResponse.of(sessionManager.get(sessionId).thenCompose(session -> {
+            return sessionManager.get(sessionId).thenCompose(session -> {
                 if (session == null) {
                     return UnmodifiableFuture.completedFuture(HttpResponse.of(HttpStatus.NO_CONTENT));
                 }
@@ -103,7 +107,7 @@ public class DefaultLogoutService extends AbstractHttpService {
                                                                   .cookie(invalidatingCookie)
                                                                   .build());
                         }));
-            }));
+            });
         }));
     }
 
