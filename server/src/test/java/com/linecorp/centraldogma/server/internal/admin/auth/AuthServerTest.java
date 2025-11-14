@@ -78,7 +78,7 @@ final class AuthServerTest {
         protected void configure(CentralDogmaBuilder builder) {
             builder.authProviderFactory(new TestAuthProviderFactory());
             builder.port(0, SessionProtocol.HTTPS);
-            builder.encryptionAtRest(new EncryptionAtRestConfig(true, true));
+            builder.encryptionAtRest(new EncryptionAtRestConfig(true, true, "kekId"));
             builder.systemAdministrators(USERNAME);
         }
     };
@@ -90,7 +90,7 @@ final class AuthServerTest {
         protected void configure(CentralDogmaBuilder builder) {
             builder.authProviderFactory(new TestAuthProviderFactory());
             builder.port(0, SessionProtocol.HTTPS);
-            builder.encryptionAtRest(new EncryptionAtRestConfig(true, true));
+            builder.encryptionAtRest(new EncryptionAtRestConfig(true, true, "kekId"));
             builder.systemAdministrators(USERNAME);
         }
 

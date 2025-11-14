@@ -55,7 +55,7 @@ class MigrateToEncryptedRepositoryTest {
 
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.encryptionAtRest(new EncryptionAtRestConfig(true, false));
+            builder.encryptionAtRest(new EncryptionAtRestConfig(true, false, "kekId"));
         }
 
         @Override

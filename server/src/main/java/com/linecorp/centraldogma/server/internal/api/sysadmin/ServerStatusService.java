@@ -33,6 +33,7 @@ import com.linecorp.centraldogma.server.management.ServerStatus;
 import com.linecorp.centraldogma.server.management.ServerStatusManager;
 
 @ProducesJson
+@RequiresSystemAdministrator
 public final class ServerStatusService extends AbstractService {
 
     private final ServerStatusManager serverStatusManager;
@@ -63,7 +64,6 @@ public final class ServerStatusService extends AbstractService {
      */
     @Put("/status")
     @Consumes("application/json")
-    @RequiresSystemAdministrator
     public CompletableFuture<ServerStatus> updateStatus(UpdateServerStatusRequest statusRequest)
             throws Exception {
         // TODO(trustin): Consider extracting this into common utility or Armeria.

@@ -15,29 +15,41 @@
  */
 package com.linecorp.centraldogma.webapp;
 
+import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 
-import com.linecorp.centraldogma.server.storage.encryption.KeyManagementService;
+import com.linecorp.centraldogma.server.storage.encryption.KeyWrapper;
 
-public final class TestKeyManagementService implements KeyManagementService {
+public final class TestKeyWrapper implements KeyWrapper {
 
     @Override
-    public CompletableFuture<byte[]> wrap(byte[] dek) {
+    public CompletableFuture<String> wrap(byte[] dek, String kekId) {
         final byte[] prefix = "wrapped-".getBytes();
         final byte[] wdek = new byte[prefix.length + dek.length];
         System.arraycopy(prefix, 0, wdek, 0, prefix.length);
         System.arraycopy(dek, 0, wdek, prefix.length, dek.length);
-        return CompletableFuture.completedFuture(wdek);
+        return CompletableFuture.completedFuture(Base64.getEncoder().encodeToString(wdek));
     }
 
     @Override
-    public CompletableFuture<byte[]> unwrap(byte[] wdek) {
+    public CompletableFuture<byte[]> unwrap(String wdek, String kekId) {
+        final byte[] decoded = Base64.getDecoder().decode(wdek);
         final int prefixLength = "wrapped-".length();
-        if (wdek.length <= prefixLength) {
-            throw new IllegalArgumentException("Invalid wrapped DEK length: " + wdek.length);
+        if (decoded.length <= prefixLength) {
+            throw new IllegalArgumentException("Invalid wrapped DEK length: " + decoded.length);
         }
-        final byte[] dek = new byte[wdek.length - prefixLength];
-        System.arraycopy(wdek, prefixLength, dek, 0, dek.length);
+
+        final byte[] prefix = new byte[prefixLength];
+        System.arraycopy(decoded, 0, prefix, 0, prefixLength);
+        assert "wrapped-".equals(new String(prefix));
+
+        final byte[] dek = new byte[decoded.length - prefixLength];
+        System.arraycopy(decoded, prefixLength, dek, 0, dek.length);
         return CompletableFuture.completedFuture(dek);
+    }
+
+    @Override
+    public CompletableFuture<String> rewrap(String wdek, String oldKekId, String newKekId) {
+        return unwrap(wdek, oldKekId).thenCompose(dek -> wrap(dek, newKekId));
     }
 }

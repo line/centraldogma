@@ -40,7 +40,6 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthorizationStatus;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.centraldogma.server.auth.SessionManager;
-import com.linecorp.centraldogma.server.internal.admin.auth.SessionCookieHandler.SessionInfo;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
@@ -82,35 +81,34 @@ public class SessionCookieAuthorizer implements Authorizer<HttpRequest> {
             return UnmodifiableFuture.completedFuture(AuthorizationStatus.of(false));
         }
 
-        final SessionInfo sessionInfo = sessionCookieHandler.getSessionInfo(ctx);
-        if (sessionInfo == null) {
-            return UnmodifiableFuture.completedFuture(AuthorizationStatus.of(false));
-        }
-
-        final String sessionId = sessionInfo.sessionId();
-        if (sessionId == null)  {
-            final String username = sessionInfo.username();
-            final String csrfTokenFromSignedJwt = sessionInfo.csrfTokenFromSignedJwt();
-            assert username != null;
-            assert csrfTokenFromSignedJwt != null;
-            if (!validateCsrfToken(ctx, req, csrfTokenFromSignedJwt)) {
-                return UnmodifiableFuture.completedFuture(invalidCsrfToken());
+        return sessionCookieHandler.getSessionInfo(ctx).thenCompose(sessionInfo -> {
+            if (sessionInfo == null) {
+                return UnmodifiableFuture.completedFuture(AuthorizationStatus.of(false));
             }
-            setCurrentUser(ctx, username);
-            return UnmodifiableFuture.completedFuture(AuthorizationStatus.of(true));
-        }
-
-        return sessionManager.get(sessionId).thenApply(session -> {
-            if (session == null) {
-                logger.trace("Session not found (or expired), ctx={}", ctx);
-                return AuthorizationStatus.of(false);
+            final String sessionId = sessionInfo.sessionId();
+            if (sessionId == null)  {
+                final String username = sessionInfo.username();
+                final String csrfTokenFromSignedJwt = sessionInfo.csrfTokenFromSignedJwt();
+                assert username != null;
+                assert csrfTokenFromSignedJwt != null;
+                if (!validateCsrfToken(ctx, req, csrfTokenFromSignedJwt)) {
+                    return UnmodifiableFuture.completedFuture(invalidCsrfToken());
+                }
+                setCurrentUser(ctx, username);
+                return UnmodifiableFuture.completedFuture(AuthorizationStatus.of(true));
             }
+            return sessionManager.get(sessionId).thenApply(session -> {
+                if (session == null) {
+                    logger.trace("Session not found (or expired), ctx={}", ctx);
+                    return AuthorizationStatus.of(false);
+                }
 
-            if (!validateCsrfToken(ctx, req, session.csrfToken())) {
-                return invalidCsrfToken();
-            }
-            setCurrentUser(ctx, session.username());
-            return AuthorizationStatus.of(true);
+                if (!validateCsrfToken(ctx, req, session.csrfToken())) {
+                    return invalidCsrfToken();
+                }
+                setCurrentUser(ctx, session.username());
+                return AuthorizationStatus.of(true);
+            });
         });
     }
 

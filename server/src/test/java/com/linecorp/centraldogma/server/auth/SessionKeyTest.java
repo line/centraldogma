@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
+import java.util.Base64;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -32,9 +33,9 @@ class SessionKeyTest {
     @Test
     void test() {
         final EncryptionStorageManager encryptionStorageManager =
-                EncryptionStorageManager.of(new File(rootDir, "rocksdb").toPath(), true);
-        final SessionMasterKey sessionMasterKey = encryptionStorageManager.generateSessionMasterKey().join();
-        assertThat(sessionMasterKey.salt().length).isEqualTo(32);
+                EncryptionStorageManager.of(new File(rootDir, "rocksdb").toPath(), true, "kekId");
+        final SessionMasterKey sessionMasterKey = encryptionStorageManager.generateSessionMasterKey(1).join();
+        assertThat(Base64.getDecoder().decode(sessionMasterKey.salt()).length).isEqualTo(32);
 
         encryptionStorageManager.storeSessionMasterKey(sessionMasterKey);
         final SessionKey sessionKey = encryptionStorageManager.getCurrentSessionKey().join();

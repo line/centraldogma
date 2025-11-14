@@ -17,23 +17,28 @@ package com.linecorp.centraldogma.server.internal.admin.auth;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.csrfTokenFromSignedJwt;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.findSessionCookie;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getJwtClaimsSetFromSignedJwt;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getSessionIdFromCookie;
+import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getSessionKeyVersion;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getSignedJwtFromEncryptedCookie;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.sessionCookieName;
 import static java.util.Objects.requireNonNull;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BooleanSupplier;
 
 import javax.annotation.Nullable;
 
 import com.google.common.collect.ImmutableSet;
-import com.nimbusds.jose.JWEDecrypter;
-import com.nimbusds.jose.crypto.DirectDecrypter;
+import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.JWTClaimsSet.Builder;
 import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier;
 
+import com.linecorp.armeria.common.Cookie;
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.server.auth.SessionKey;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
@@ -41,70 +46,86 @@ import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageMana
 public final class SessionCookieHandler {
 
     private final BooleanSupplier sessionPropagatorWritableChecker;
+    private final EncryptionStorageManager encryptionStorageManager;
     private final String sessionCookieName;
 
     @Nullable
-    private final SessionKey sessionKey;
+    private volatile SessionKey sessionKey;
     @Nullable
-    private final DefaultJWTClaimsVerifier<?> verifier;
-    @Nullable
-    private final JWEDecrypter decrypter;
+    private final DefaultJWTClaimsVerifier<SecurityContext> jwtClaimsVerifier;
 
     public SessionCookieHandler(BooleanSupplier sessionPropagatorWritableChecker, boolean tlsEnabled,
                                 EncryptionStorageManager encryptionStorageManager) {
         this.sessionPropagatorWritableChecker =
                 requireNonNull(sessionPropagatorWritableChecker, "sessionPropagatorWritableChecker");
+        this.encryptionStorageManager = requireNonNull(encryptionStorageManager, "encryptionStorageManager");
         sessionCookieName = sessionCookieName(tlsEnabled, encryptionStorageManager.encryptSessionCookie());
-        requireNonNull(encryptionStorageManager, "encryptionStorageManager");
         if (encryptionStorageManager.encryptSessionCookie()) {
             sessionKey = encryptionStorageManager.getCurrentSessionKey().join();
-            try {
-                verifier = new DefaultJWTClaimsVerifier<>(new JWTClaimsSet.Builder()
-                                                                  .issuer("dogma")
-                                                                  .build(),
-                                                          ImmutableSet.of("exp"));
-                decrypter = new DirectDecrypter(sessionKey.encryptionKey());
-            } catch (Throwable t) {
-                throw new IllegalStateException("Failed to initialize SessionCookieHandler", t);
-            }
+            encryptionStorageManager.addSessionKeyListener(sessionKey -> this.sessionKey = sessionKey);
+            jwtClaimsVerifier = new DefaultJWTClaimsVerifier<>(new Builder()
+                                                                       .issuer("dogma")
+                                                                       .build(),
+                                                               ImmutableSet.of("exp"));
         } else {
             sessionKey = null;
-            verifier = null;
-            decrypter = null;
+            jwtClaimsVerifier = null;
         }
     }
 
-    @Nullable
-    public SessionInfo getSessionInfo(ServiceRequestContext ctx) {
-        if (sessionKey != null) {
-            assert verifier != null;
-            assert decrypter != null;
-            final SignedJWT signedJwt = getSignedJwtFromEncryptedCookie(ctx, sessionCookieName, decrypter);
-            if (signedJwt == null) {
-                return null;
+    public CompletableFuture<SessionInfo> getSessionInfo(ServiceRequestContext ctx) {
+        if (encryptionStorageManager.encryptSessionCookie()) {
+            final SessionKey sessionKey = this.sessionKey;
+            assert sessionKey != null;
+            final Cookie sessionCookie = findSessionCookie(ctx, sessionCookieName);
+            if (sessionCookie == null) {
+                return UnmodifiableFuture.completedFuture(null);
             }
-            final JWTClaimsSet jwtClaimsSet = getJwtClaimsSetFromSignedJwt(ctx, signedJwt, verifier);
-            if (jwtClaimsSet == null) {
-                return null;
+            final int sessionKeyVersion = getSessionKeyVersion(ctx, sessionCookie.value());
+            if (sessionKeyVersion <= 0) {
+                return UnmodifiableFuture.completedFuture(null);
             }
-            final Object objectSessionId = jwtClaimsSet.getClaim("sessionId");
-            if (objectSessionId instanceof String) {
-                return new SessionInfo((String) objectSessionId, null, null);
-            } else {
-                if (sessionPropagatorWritableChecker.getAsBoolean()) {
-                    return null;
-                }
-                // In read-only mode, we support authentication using only the username claim.
-                final String subject = jwtClaimsSet.getSubject();
-                if (isNullOrEmpty(subject)) {
-                    return null;
-                }
-                final String csrfTokenFromSignedJwt = csrfTokenFromSignedJwt(signedJwt);
-                return new SessionInfo(null, subject, csrfTokenFromSignedJwt);
+
+            if (sessionKeyVersion == sessionKey.version()) {
+                return CompletableFuture.completedFuture(getSessionInfo(ctx, sessionKey));
             }
+
+            return encryptionStorageManager.getSessionKey(sessionKeyVersion).thenApply(fetchedSessionKey -> {
+                return getSessionInfo(ctx, fetchedSessionKey);
+            });
         }
         final String sessionId = getSessionIdFromCookie(ctx, sessionCookieName);
-        return sessionId != null ? new SessionInfo(sessionId, null, null) : null;
+        return sessionId != null ? CompletableFuture.completedFuture(new SessionInfo(sessionId, null, null))
+                                 : UnmodifiableFuture.completedFuture(null);
+    }
+
+    @Nullable
+    private SessionInfo getSessionInfo(ServiceRequestContext ctx, SessionKey sessionKey) {
+        final SignedJWT signedJwt =
+                getSignedJwtFromEncryptedCookie(ctx, sessionCookieName, sessionKey.decrypter());
+        if (signedJwt == null) {
+            return null;
+        }
+        assert jwtClaimsVerifier != null;
+        final JWTClaimsSet jwtClaimsSet =
+                getJwtClaimsSetFromSignedJwt(ctx, signedJwt, sessionKey, jwtClaimsVerifier);
+        if (jwtClaimsSet == null) {
+            return null;
+        }
+        final Object objectSessionId = jwtClaimsSet.getClaim("sessionId");
+        if (objectSessionId instanceof String) {
+            return new SessionInfo((String) objectSessionId, null, null);
+        }
+        if (sessionPropagatorWritableChecker.getAsBoolean()) {
+            return null;
+        }
+        // In read-only mode, we support authentication using only the username claim.
+        final String subject = jwtClaimsSet.getSubject();
+        if (isNullOrEmpty(subject)) {
+            return null;
+        }
+        final String csrfTokenFromSignedJwt = csrfTokenFromSignedJwt(signedJwt);
+        return new SessionInfo(null, subject, csrfTokenFromSignedJwt);
     }
 
     public static final class SessionInfo {

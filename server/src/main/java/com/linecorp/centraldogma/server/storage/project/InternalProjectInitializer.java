@@ -252,7 +252,7 @@ public final class InternalProjectInitializer {
             }
         }
 
-        final SessionMasterKey sessionMasterKey = encryptionStorageManager.generateSessionMasterKey().join();
+        final SessionMasterKey sessionMasterKey = encryptionStorageManager.generateSessionMasterKey(1).join();
         try {
             executor.execute(Command.createSessionMasterKey(sessionMasterKey))
                     .get();

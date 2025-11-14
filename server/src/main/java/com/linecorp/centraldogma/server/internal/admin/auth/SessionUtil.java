@@ -52,6 +52,7 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.auth.SessionKey;
 
 import io.netty.util.AsciiString;
 
@@ -95,6 +96,25 @@ public final class SessionUtil {
         return encryptSessionCookie ? prefix + "session-jwt" : prefix + "session-id";
     }
 
+    public static int getSessionKeyVersion(ServiceRequestContext ctx, String cookieValue) {
+        final String keyVersion;
+        try {
+            final JWEObject jweObject = JWEObject.parse(cookieValue);
+            final JWEHeader header = jweObject.getHeader();
+            keyVersion = header.getKeyID();
+        } catch (Exception e) {
+            logger.trace("Failed to parse the session cookie for getting key ID. cookieValue={}, ctx={}",
+                         cookieValue, ctx, e);
+            return -1;
+        }
+        try {
+            return Integer.parseInt(keyVersion);
+        } catch (Exception e) {
+            logger.trace("Failed to parse the key ID to integer. keyID={}, ctx={}", keyVersion, ctx, e);
+            return -1;
+        }
+    }
+
     @Nullable
     public static SignedJWT getSignedJwtFromEncryptedCookie(
             ServiceRequestContext ctx, String sessionCookieName,
@@ -131,7 +151,18 @@ public final class SessionUtil {
     @Nullable
     static JWTClaimsSet getJwtClaimsSetFromSignedJwt(ServiceRequestContext ctx,
                                                      SignedJWT signedJWT,
+                                                     SessionKey sessionKey,
                                                      DefaultJWTClaimsVerifier<?> verifier) {
+        try {
+            if (!signedJWT.verify(sessionKey.verifier())) {
+                logger.trace("Invalid JWS signature. ctx={}", ctx);
+                return null;
+            }
+        } catch (JOSEException e) {
+            logger.trace("Failed to verify the JWS signature. ctx={}", ctx, e);
+            return null;
+        }
+
         final JWTClaimsSet jwtClaimsSet;
         try {
             jwtClaimsSet = signedJWT.getJWTClaimsSet();
@@ -191,7 +222,7 @@ public final class SessionUtil {
     }
 
     @Nullable
-    private static Cookie findSessionCookie(ServiceRequestContext ctx, String sessionCookieName) {
+    public static Cookie findSessionCookie(ServiceRequestContext ctx, String sessionCookieName) {
         final Cookies cookies = ctx.request().headers().cookies();
         if (cookies.isEmpty()) {
             logger.trace("Cookie header is missing. ctx={}", ctx);

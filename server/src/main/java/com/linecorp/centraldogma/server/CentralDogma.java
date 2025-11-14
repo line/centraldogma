@@ -152,6 +152,7 @@ import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthor
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRoleDecorator.RequiresProjectRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRoleDecorator.RequiresRepositoryRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.KeyManagementService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.ServerStatusService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.TokenService;
@@ -1024,6 +1025,10 @@ public class CentralDogma implements AutoCloseable {
             }
 
             authProvider.moreServices().forEach(sb::service);
+        }
+
+        if (encryptionStorageManager.enabled()) {
+            apiV1ServiceBuilder.annotatedService(new KeyManagementService(executor, encryptionStorageManager));
         }
 
         sb.annotatedService()
