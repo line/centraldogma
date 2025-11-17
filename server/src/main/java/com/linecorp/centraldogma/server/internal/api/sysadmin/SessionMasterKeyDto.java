@@ -23,10 +23,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Provides the details of a session master key for administrative purposes.
+ * Data transfer object (DTO) for a session master key.
  * Sensitive information such as the key material or salt is not included.
  */
-public final class SessionMasterKeyDetails {
+public final class SessionMasterKeyDto {
 
     private final int version;
     private final String kekId;
@@ -36,9 +36,9 @@ public final class SessionMasterKeyDetails {
      * Creates a new instance.
      */
     @JsonCreator
-    public SessionMasterKeyDetails(@JsonProperty("version") int version,
-                                   @JsonProperty("kekId") String kekId,
-                                   @JsonProperty("creation") String creation) {
+    public SessionMasterKeyDto(@JsonProperty("version") int version,
+                               @JsonProperty("kekId") String kekId,
+                               @JsonProperty("creation") String creation) {
         checkArgument(version > 0, "version must be positive: %s", version);
         this.version = version;
         this.kekId = requireNonNull(kekId, "kekId");

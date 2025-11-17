@@ -170,12 +170,12 @@ class KeyManagementServiceTest {
         final ServiceRequestContext ctx = ServiceRequestContext.of(HttpRequest.of(HttpMethod.GET, "/"));
 
         // Get the initial session master key details
-        final ResponseEntity<SessionMasterKeyDetails> response1 =
+        final ResponseEntity<SessionMasterKeyDto> response1 =
                 dogma.httpClient().blocking().prepare().get(API_V1_PATH_PREFIX + "/masterkeys/session")
-                     .asJson(SessionMasterKeyDetails.class)
+                     .asJson(SessionMasterKeyDto.class)
                      .execute();
         assertThat(response1.status()).isSameAs(HttpStatus.OK);
-        final SessionMasterKeyDetails initialDetails = response1.content();
+        final SessionMasterKeyDto initialDetails = response1.content();
         assertThat(initialDetails.version()).isEqualTo(1);
         assertThat(initialDetails.kekId()).isEqualTo("kekId");
         assertThat(initialDetails.creation()).isNotNull();
@@ -197,12 +197,12 @@ class KeyManagementServiceTest {
         assertThat(rotateResponse.status()).isSameAs(HttpStatus.NO_CONTENT);
 
         // Get the session master key details after rotation
-        final ResponseEntity<SessionMasterKeyDetails> response2 =
+        final ResponseEntity<SessionMasterKeyDto> response2 =
                 dogma.httpClient().blocking().prepare().get(API_V1_PATH_PREFIX + "/masterkeys/session")
-                     .asJson(SessionMasterKeyDetails.class)
+                     .asJson(SessionMasterKeyDto.class)
                      .execute();
         assertThat(response2.status()).isSameAs(HttpStatus.OK);
-        final SessionMasterKeyDetails rotatedDetails = response2.content();
+        final SessionMasterKeyDto rotatedDetails = response2.content();
 
         // Verify the version has been incremented
         assertThat(rotatedDetails.version()).isEqualTo(2);
@@ -229,9 +229,9 @@ class KeyManagementServiceTest {
         assertThat(rotateResponse2.status()).isSameAs(HttpStatus.NO_CONTENT);
 
         // Verify version 3
-        final ResponseEntity<SessionMasterKeyDetails> response3 =
+        final ResponseEntity<SessionMasterKeyDto> response3 =
                 dogma.httpClient().blocking().prepare().get(API_V1_PATH_PREFIX + "/masterkeys/session")
-                     .asJson(SessionMasterKeyDetails.class)
+                     .asJson(SessionMasterKeyDto.class)
                      .execute();
         assertThat(response3.status()).isSameAs(HttpStatus.OK);
         assertThat(response3.content().version()).isEqualTo(3);

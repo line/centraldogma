@@ -63,9 +63,7 @@ public final class SessionCookieHandler {
         if (encryptionStorageManager.encryptSessionCookie()) {
             sessionKey = encryptionStorageManager.getCurrentSessionKey().join();
             encryptionStorageManager.addSessionKeyListener(sessionKey -> this.sessionKey = sessionKey);
-            jwtClaimsVerifier = new DefaultJWTClaimsVerifier<>(new Builder()
-                                                                       .issuer("dogma")
-                                                                       .build(),
+            jwtClaimsVerifier = new DefaultJWTClaimsVerifier<>(new Builder().issuer("dogma").build(),
                                                                ImmutableSet.of("exp"));
         } else {
             sessionKey = null;

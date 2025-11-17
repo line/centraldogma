@@ -411,7 +411,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> rotateSessionMasterKey(RotateSessionMasterKeyCommand c) {
         if (!encryptionStorageManager.encryptSessionCookie()) {
-            throw new IllegalStateException("Session cookie encryption is disabled.");
+            throw new IllegalStateException("Session cookie encryption is not enabled. command: " + c);
         }
 
         encryptionStorageManager.rotateSessionMasterKey(c.sessionMasterKey());

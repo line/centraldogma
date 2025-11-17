@@ -88,14 +88,14 @@ public final class KeyManagementService extends AbstractService {
      */
     @Get("/masterkeys/session")
     @Blocking
-    public SessionMasterKeyDetails getSessionMasterKeyDetails() {
+    public SessionMasterKeyDto getSessionMasterKeyDetails() {
         if (!encryptionStorageManager.encryptSessionCookie()) {
             throw new IllegalStateException("Session cookie encryption is disabled.");
         }
         final SessionMasterKey sessionMasterKey = encryptionStorageManager.getCurrentSessionMasterKey();
-        return new SessionMasterKeyDetails(sessionMasterKey.version(),
-                                           sessionMasterKey.kekId(),
-                                           sessionMasterKey.creation());
+        return new SessionMasterKeyDto(sessionMasterKey.version(),
+                                       sessionMasterKey.kekId(),
+                                       sessionMasterKey.creation());
     }
 
     /**
