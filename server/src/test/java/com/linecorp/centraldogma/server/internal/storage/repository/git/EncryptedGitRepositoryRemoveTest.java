@@ -122,6 +122,18 @@ final class EncryptedGitRepositoryRemoveTest {
         assertEntrySize(encryptionStorageManager, wdekSize,
                         encryptionMetadataSize, encryptedObjectIdSize, encryptedObjectSize);
 
+        // Rotate the WDEK for the first repository.
+        final String rotatedWdek = encryptionStorageManager.generateWdek().join();
+        final WrappedDekDetails rotatedWdekDetails =
+                new WrappedDekDetails(rotatedWdek, 2, encryptionStorageManager.kekId(),
+                                      PROJECT_NAME, REPO_NAME);
+        encryptionStorageManager.rotateWdek(rotatedWdekDetails);
+
+        wdekSize = 3; // version 1, version 2, and current
+        // encryptionMetadataSize, encryptedObjectIdSize, encryptedObjectSize remain the same
+        assertEntrySize(encryptionStorageManager, wdekSize,
+                        encryptionMetadataSize, encryptedObjectIdSize, encryptedObjectSize);
+
         final String wdek2 = encryptionStorageManager.generateWdek().join();
         final WrappedDekDetails wrappedDekDetails2 =
                 new WrappedDekDetails(wdek2, 1, encryptionStorageManager.kekId(),
@@ -130,7 +142,7 @@ final class EncryptedGitRepositoryRemoveTest {
         encryptionStorageManager.storeWdek(wrappedDekDetails2);
         gitRepositoryManager.create("bar2", 0, Author.SYSTEM, true);
 
-        wdekSize = 2 + 2;
+        wdekSize = 3 + 2; // first repo has 3 keys (v1, v2, current), second repo has 2 keys (v1, current)
         encryptionMetadataSize = 5 + 9;
         encryptedObjectIdSize = 3 + 4;
         encryptedObjectSize = 2 + 5;
