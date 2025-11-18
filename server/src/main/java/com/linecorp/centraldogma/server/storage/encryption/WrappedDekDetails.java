@@ -19,6 +19,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -35,6 +36,7 @@ public final class WrappedDekDetails {
     private final String projectName;
     private final String repoName;
     private final String creation;
+    private final Instant creationInstant;
 
     /**
      * Creates a new instance.
@@ -61,6 +63,7 @@ public final class WrappedDekDetails {
         this.creation = requireNonNull(creation, "creation");
         this.projectName = requireNonNull(projectName, "projectName");
         this.repoName = requireNonNull(repoName, "repoName");
+        creationInstant = Instant.from(DateTimeFormatter.ISO_INSTANT.parse(creation));
     }
 
     /**
@@ -93,6 +96,13 @@ public final class WrappedDekDetails {
     @JsonProperty
     public String creation() {
         return creation;
+    }
+
+    /**
+     * Returns the creation time of the wrapped DEK as an {@link Instant}.
+     */
+    public Instant creationInstant() {
+        return creationInstant;
     }
 
     /**

@@ -19,6 +19,9 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -32,14 +35,10 @@ public final class SessionMasterKey {
     private final String salt;
     private final String kekId;
     private final String creation;
+    private final Instant creationInstant;
 
     /**
      * Creates a new instance.
-     *
-     * @param wrappedMasterKey the wrapped session master key
-     * @param version the version of the session master key
-     * @param salt the salt used to derive session keys from the master key. It's encoded in base64.
-     * @param kekId the key encryption key (KEK) ID used to wrap the
      */
     @JsonCreator
     public SessionMasterKey(@JsonProperty("wrappedMasterKey") String wrappedMasterKey,
@@ -53,6 +52,7 @@ public final class SessionMasterKey {
         this.salt = requireNonNull(salt, "salt");
         this.kekId = requireNonNull(kekId, "kekId");
         this.creation = requireNonNull(creation, "creation");
+        creationInstant = Instant.from(DateTimeFormatter.ISO_INSTANT.parse(creation));
     }
 
     /**
@@ -93,6 +93,13 @@ public final class SessionMasterKey {
     @JsonProperty
     public String creation() {
         return creation;
+    }
+
+    /**
+     * Returns the creation timestamp of the session master key as an {@link Instant}.
+     */
+    public Instant creationInstant() {
+        return creationInstant;
     }
 
     @Override
