@@ -100,11 +100,8 @@ public final class CreateRepositoryCommand extends ProjectCommand<Void> {
 
     @Override
     ToStringHelper toStringHelper() {
-        final ToStringHelper toStringHelper = super.toStringHelper()
-                                                   .add("repositoryName", repositoryName);
-        if (wdekDetails != null) {
-            toStringHelper.add("wdekDetails", wdekDetails);
-        }
-        return toStringHelper;
+        return super.toStringHelper().omitNullValues()
+                    .add("repositoryName", repositoryName)
+                    .add("wdekDetails", wdekDetails);
     }
 }

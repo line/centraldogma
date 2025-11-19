@@ -96,11 +96,8 @@ public final class CreateProjectCommand extends RootCommand<Void> {
 
     @Override
     ToStringHelper toStringHelper() {
-        final ToStringHelper toStringHelper = super.toStringHelper()
-                                                   .add("projectName", projectName);
-        if (wdekDetails != null) {
-            toStringHelper.add("wdekDetails", wdekDetails);
-        }
-        return toStringHelper;
+        return super.toStringHelper().omitNullValues()
+                    .add("projectName", projectName)
+                    .add("wdekDetails", wdekDetails);
     }
 }
