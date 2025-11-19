@@ -73,7 +73,7 @@ final class SessionKeyStorage {
             // It doesn't have to be a secret value.
             final byte[] salt = AesGcmSivCipher.generateAes256Key();
             return new SessionMasterKey(wrappedMasterKey, version, Base64.getEncoder().encodeToString(salt),
-                                        kekId, Instant.now().toString());
+                                        kekId, Instant.now());
         });
     }
 

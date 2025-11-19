@@ -95,7 +95,7 @@ public final class KeyManagementService extends AbstractService {
         final SessionMasterKey sessionMasterKey = encryptionStorageManager.getCurrentSessionMasterKey();
         return new SessionMasterKeyDto(sessionMasterKey.version(),
                                        sessionMasterKey.kekId(),
-                                       sessionMasterKey.creation());
+                                       sessionMasterKey.creationInstant());
     }
 
     /**

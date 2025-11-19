@@ -17,10 +17,10 @@ package com.linecorp.centraldogma.server.auth;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.time.format.DateTimeFormatter.ISO_INSTANT;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -45,14 +45,14 @@ public final class SessionMasterKey {
                             @JsonProperty("version") int version,
                             @JsonProperty("salt") String salt,
                             @JsonProperty("kekId") String kekId,
-                            @JsonProperty("creation") String creation) {
+                            @JsonProperty("creation") Instant creationInstant) {
         this.wrappedMasterKey = requireNonNull(wrappedMasterKey, "wrappedMasterKey");
         checkArgument(version > 0, "version must be positive: %s", version);
         this.version = version;
         this.salt = requireNonNull(salt, "salt");
         this.kekId = requireNonNull(kekId, "kekId");
-        this.creation = requireNonNull(creation, "creation");
-        creationInstant = Instant.from(DateTimeFormatter.ISO_INSTANT.parse(creation));
+        this.creationInstant = creationInstant;
+        creation = ISO_INSTANT.format(requireNonNull(creationInstant, "creation"));
     }
 
     /**
@@ -96,7 +96,7 @@ public final class SessionMasterKey {
     }
 
     /**
-     * Returns the creation timestamp of the session master key as an {@link Instant}.
+     * Returns the creation instant of the session master key.
      */
     public Instant creationInstant() {
         return creationInstant;

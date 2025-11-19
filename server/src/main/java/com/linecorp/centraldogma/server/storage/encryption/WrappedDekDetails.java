@@ -16,10 +16,10 @@
 package com.linecorp.centraldogma.server.storage.encryption;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.time.format.DateTimeFormatter.ISO_INSTANT;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -36,14 +36,13 @@ public final class WrappedDekDetails {
     private final String projectName;
     private final String repoName;
     private final String creation;
-    private final Instant creationInstant;
 
     /**
      * Creates a new instance.
      */
     public WrappedDekDetails(String wrappedDek, int dekVersion, String kekId,
                              String projectName, String repoName) {
-        this(wrappedDek, dekVersion, kekId, Instant.now().toString(), projectName, repoName);
+        this(wrappedDek, dekVersion, kekId, Instant.now(), projectName, repoName);
     }
 
     /**
@@ -53,17 +52,16 @@ public final class WrappedDekDetails {
     public WrappedDekDetails(@JsonProperty("wrappedDek") String wrappedDek,
                              @JsonProperty("dekVersion") int dekVersion,
                              @JsonProperty("kekId") String kekId,
-                             @JsonProperty("creation") String creation,
+                             @JsonProperty("creation") Instant creation,
                              @JsonProperty("projectName") String projectName,
                              @JsonProperty("repoName") String repoName) {
         this.wrappedDek = requireNonNull(wrappedDek, "wrappedDek");
         this.kekId = requireNonNull(kekId, "kekId");
         checkArgument(dekVersion > 0, "dekVersion must be positive: %s", dekVersion);
         this.dekVersion = dekVersion;
-        this.creation = requireNonNull(creation, "creation");
+        this.creation = ISO_INSTANT.format(requireNonNull(creation, "creation"));
         this.projectName = requireNonNull(projectName, "projectName");
         this.repoName = requireNonNull(repoName, "repoName");
-        creationInstant = Instant.from(DateTimeFormatter.ISO_INSTANT.parse(creation));
     }
 
     /**
@@ -96,13 +94,6 @@ public final class WrappedDekDetails {
     @JsonProperty
     public String creation() {
         return creation;
-    }
-
-    /**
-     * Returns the creation time of the wrapped DEK as an {@link Instant}.
-     */
-    public Instant creationInstant() {
-        return creationInstant;
     }
 
     /**

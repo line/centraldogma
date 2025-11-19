@@ -17,7 +17,10 @@ package com.linecorp.centraldogma.server.internal.api.sysadmin;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.time.format.DateTimeFormatter.ISO_INSTANT;
 import static java.util.Objects.requireNonNull;
+
+import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -38,11 +41,11 @@ public final class SessionMasterKeyDto {
     @JsonCreator
     public SessionMasterKeyDto(@JsonProperty("version") int version,
                                @JsonProperty("kekId") String kekId,
-                               @JsonProperty("creation") String creation) {
+                               @JsonProperty("creation") Instant creation) {
         checkArgument(version > 0, "version must be positive: %s", version);
         this.version = version;
         this.kekId = requireNonNull(kekId, "kekId");
-        this.creation = requireNonNull(creation, "creation");
+        this.creation = ISO_INSTANT.format(requireNonNull(creation, "creation"));
     }
 
     /**
