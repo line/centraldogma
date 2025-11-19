@@ -108,15 +108,6 @@ configure(projectsWithFlags('java')) {
         testRuntimeOnly libs.junit5.vintage.engine
     }
 
-    // Target Java 8 except for spring-boot3
-    if (!project.name.startsWith("java-spring-boot3")) {
-        tasks.withType(JavaCompile) {
-            if (JavaVersion.current() >= JavaVersion.VERSION_1_9) {
-                options.release = 8
-            }
-        }
-    }
-
     // Add common JVM options such as max memory and leak detection.
     tasks.withType(JavaForkOptions) {
         // Use larger heap when test coverage is enabled.
