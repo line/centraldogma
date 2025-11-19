@@ -117,7 +117,7 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     }
 
     @Override
-    public void removeWdek(String projectName, String repoName, int version) {
+    public void removeWdek(String projectName, String repoName, int version, boolean removeCurrent) {
     }
 
     @Override
@@ -169,6 +169,22 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     @Override
     public void addSessionKeyListener(Consumer<SessionKey> listener) {
         // No-op
+    }
+
+    @Override
+    public void addCurrentDekListener(String projectName, String repoName,
+                                      Consumer<SecretKeyWithVersion> listener) {
+        // No-op
+    }
+
+    @Override
+    public void removeCurrentDekListener(String projectName, String repoName) {
+        // No-op
+    }
+
+    @Override
+    public CompletableFuture<Void> rewrapAllKeys() {
+        return UnmodifiableFuture.completedFuture(null);
     }
 
     @Override

@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.server.storage.encryption;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.server.storage.encryption.RocksDBStorage.WDEK_COLUMN_FAMILY;
 import static java.util.Objects.requireNonNull;
 
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -32,8 +34,11 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import org.rocksdb.RocksDBException;
+import org.rocksdb.RocksIterator;
 import org.rocksdb.WriteBatch;
 import org.rocksdb.WriteOptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -47,6 +52,8 @@ import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 import com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher;
 
 final class SessionKeyStorage {
+
+    private static final Logger logger = LoggerFactory.getLogger(SessionKeyStorage.class);
 
     private final RocksDBStorage rocksDbStorage;
     private final KeyWrapper keyWrapper;
@@ -179,7 +186,7 @@ final class SessionKeyStorage {
     }
 
     private CompletableFuture<SessionKey> maybeSetCurrentSessionKey(SessionMasterKey sessionMasterKey) {
-        return keyWrapper.unwrap(sessionMasterKey.wrappedMasterKey(), kekId)
+        return keyWrapper.unwrap(sessionMasterKey.wrappedMasterKey(), sessionMasterKey.kekId())
                          .thenApply(unwrapped -> {
                              final SessionKey sessionKey = SessionKey.of(unwrapped, sessionMasterKey);
                              lock.lock();
@@ -204,7 +211,7 @@ final class SessionKeyStorage {
         final CompletableFuture<SessionKey> result = sessionKeys.computeIfAbsent(version, v -> {
             final SessionMasterKey sessionMasterKey = getSessionMasterKey(v);
             final CompletableFuture<SessionKey> future = new CompletableFuture<>();
-            keyWrapper.unwrap(sessionMasterKey.wrappedMasterKey(), kekId)
+            keyWrapper.unwrap(sessionMasterKey.wrappedMasterKey(), sessionMasterKey.kekId())
                       .handle((unwrapped, cause) -> {
                           if (cause != null) {
                               future.completeExceptionally(cause);
@@ -246,5 +253,103 @@ final class SessionKeyStorage {
         } finally {
             lock.unlock();
         }
+    }
+
+    CompletableFuture<Void> rewrapAllSessionMasterKeys() {
+        final List<SessionMasterKey> allSessionMasterKeys = new ArrayList<>();
+        final byte[] prefix = "session/master/".getBytes(StandardCharsets.UTF_8);
+        try (RocksIterator iterator = rocksDbStorage.newIterator(
+                rocksDbStorage.getColumnFamilyHandle(WDEK_COLUMN_FAMILY))) {
+            iterator.seek(prefix);
+            while (iterator.isValid()) {
+                final byte[] key = iterator.key();
+                final String keyStr = new String(key, StandardCharsets.UTF_8);
+
+                if (!keyStr.startsWith("session/master/")) {
+                    break;
+                }
+
+                if ("session/master/current".equals(keyStr)) {
+                    iterator.next();
+                    continue;
+                }
+
+                try {
+                    final SessionMasterKey sessionMasterKey =
+                            Jackson.readValue(iterator.value(), SessionMasterKey.class);
+                    allSessionMasterKeys.add(sessionMasterKey);
+                } catch (JsonParseException | JsonMappingException e) {
+                    throw new EncryptionStorageException(
+                            "Failed to read session master key: " + keyStr, e);
+                }
+
+                iterator.next();
+            }
+        }
+
+        final List<CompletableFuture<SessionMasterKey>> rewrapFutures = new ArrayList<>();
+        for (SessionMasterKey sessionMasterKey : allSessionMasterKeys) {
+            final String oldKekId = sessionMasterKey.kekId();
+            final CompletableFuture<SessionMasterKey> rewrapFuture =
+                    keyWrapper.rewrap(sessionMasterKey.wrappedMasterKey(), oldKekId, kekId)
+                              .handle((newWrappedKey, cause) -> {
+                                  if (cause != null) {
+                                      logger.warn("Failed to rewrap session master key. version: {}",
+                                                  sessionMasterKey.version(), cause);
+                                      return null;
+                                  }
+                                  if (oldKekId.equals(kekId) &&
+                                      sessionMasterKey.wrappedMasterKey().equals(newWrappedKey)) {
+                                      return null;
+                                  }
+
+                                  return new SessionMasterKey(newWrappedKey,
+                                                              sessionMasterKey.version(),
+                                                              sessionMasterKey.salt(),
+                                                              kekId,
+                                                              sessionMasterKey.creationInstant());
+                              });
+            rewrapFutures.add(rewrapFuture);
+        }
+
+        return CompletableFuture.allOf(rewrapFutures.toArray(new CompletableFuture[0]))
+                                .thenAccept(unused -> {
+                                    final List<SessionMasterKey> collected = rewrapFutures.stream().map(
+                                            CompletableFuture::join).filter(Objects::nonNull).collect(
+                                            toImmutableList());
+                                    if (collected.isEmpty()) {
+                                        logger.info("All session master keys are already wrapped " +
+                                                    "with the current KEK. {}", kekId);
+                                        return;
+                                    }
+
+                                    try (WriteBatch writeBatch = new WriteBatch();
+                                         WriteOptions writeOptions = new WriteOptions()) {
+                                        writeOptions.setSync(true);
+
+                                        for (SessionMasterKey newSessionMasterKey : collected) {
+                                            final byte[] sessionMasterKeyBytes;
+                                            try {
+                                                sessionMasterKeyBytes =
+                                                        Jackson.writeValueAsBytes(newSessionMasterKey);
+                                            } catch (JsonProcessingException e) {
+                                                logger.warn("Failed to serialize re-wrapped " +
+                                                            "session master key. version: {}",
+                                                            newSessionMasterKey.version(), e);
+                                                continue;
+                                            }
+                                            final byte[] keyBytes =
+                                                    sessionMasterKeyKey(newSessionMasterKey.version());
+                                            writeBatch.put(
+                                                    rocksDbStorage.getColumnFamilyHandle(WDEK_COLUMN_FAMILY),
+                                                    keyBytes, sessionMasterKeyBytes);
+                                        }
+
+                                        rocksDbStorage.write(writeOptions, writeBatch);
+                                    } catch (RocksDBException e) {
+                                        throw new EncryptionStorageException(
+                                                "Failed to store re-wrapped session master keys", e);
+                                    }
+                                });
     }
 }

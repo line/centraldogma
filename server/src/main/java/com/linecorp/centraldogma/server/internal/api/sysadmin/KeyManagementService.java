@@ -27,6 +27,8 @@ import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.ProducesJson;
+import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.server.EncryptionAtRestConfig;
 import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -61,7 +63,8 @@ public final class KeyManagementService extends AbstractService {
     @Post("/projects/{projectName}/repos/{repoName}/wdeks/rotate")
     @Blocking
     public CompletableFuture<Void> rotateWdek(@Param String projectName, @Param String repoName,
-                                              @Param @Default("false") boolean reencrypt) {
+                                              @Param @Default("false") boolean reencrypt,
+                                              Author author) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         if (reencrypt) {
@@ -77,7 +80,7 @@ public final class KeyManagementService extends AbstractService {
                 final WrappedDekDetails wdekDetails = new WrappedDekDetails(
                         wdek, newVersion, encryptionStorageManager.kekId(),
                         projectName, repoName);
-                return execute(Command.rotateWdek(projectName, repoName, wdekDetails));
+                return execute(Command.rotateWdek(author, projectName, repoName, wdekDetails));
             });
         }
     }
@@ -103,7 +106,7 @@ public final class KeyManagementService extends AbstractService {
      */
     @Post("/masterkeys/session/rotate")
     @Blocking
-    public CompletableFuture<Void> rotateSessionMasterKey() {
+    public CompletableFuture<Void> rotateSessionMasterKey(Author author) {
         if (!encryptionStorageManager.encryptSessionCookie()) {
             throw new IllegalStateException("Session cookie encryption is disabled.");
         }
@@ -112,6 +115,21 @@ public final class KeyManagementService extends AbstractService {
         // because the storage manager accepts only the key with the version which is exactly one greater.
         final SessionMasterKey newSessionMasterKey =
                 encryptionStorageManager.generateSessionMasterKey(currentSessionMasterKey.version() + 1).join();
-        return execute(Command.rotateSessionMasterKey(newSessionMasterKey));
+        return execute(Command.rotateSessionMasterKey(author, newSessionMasterKey));
+    }
+
+    /**
+     * Rewraps all wrapped data encryption keys (WDEKs) and session master keys
+     * with the {@link EncryptionAtRestConfig#kekId()} specified in the configuration.
+     * If the Key Management System does not support automatic key rotation, you should this API
+     * after updating the KEK ID in the configuration and restarting the server.
+     * For automatic key rotation,
+     * please refer to <a href="https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html">
+     * Rotate AWS KMS keys</a>.
+     */
+    @Post("/keys/rewrap")
+    @Blocking
+    public CompletableFuture<Void> rewrapAllKeys(Author author) {
+        return execute(Command.rewrapAllKeys(author));
     }
 }

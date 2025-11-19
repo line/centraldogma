@@ -28,6 +28,7 @@ import javax.crypto.SecretKey;
 
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.server.auth.SessionKey;
 import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 
@@ -135,8 +136,8 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
     }
 
     @Override
-    public void removeWdek(String projectName, String repoName, int version) {
-        repositoryEncryptionStorage.removeWdek(projectName, repoName, version);
+    public void removeWdek(String projectName, String repoName, int version, boolean removeCurrent) {
+        repositoryEncryptionStorage.removeWdek(projectName, repoName, version, true);
     }
 
     @Override
@@ -188,6 +189,31 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
     @Override
     public void addSessionKeyListener(Consumer<SessionKey> listener) {
         sessionKeyStorage.addSessionKeyListener(listener);
+    }
+
+    @Override
+    public void addCurrentDekListener(String projectName, String repoName,
+                                      Consumer<SecretKeyWithVersion> listener) {
+        repositoryEncryptionStorage.addCurrentDekListener(projectName, repoName, listener);
+    }
+
+    @Override
+    public void removeCurrentDekListener(String projectName, String repoName) {
+        repositoryEncryptionStorage.removeCurrentDekListener(projectName, repoName);
+    }
+
+    @Override
+    public CompletableFuture<Void> rewrapAllKeys() {
+        // Re-wrap WDEKs first, then session master keys
+        return repositoryEncryptionStorage.rewrapAllWdeks()
+                .thenCompose(unused -> {
+                    // TODO(minwoox): Split repository encryption with session key encryption.
+                    if (encryptSessionCookie) {
+                        return sessionKeyStorage.rewrapAllSessionMasterKeys();
+                    } else {
+                        return UnmodifiableFuture.completedFuture(null);
+                    }
+                });
     }
 
     @Override

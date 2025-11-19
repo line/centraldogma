@@ -73,9 +73,9 @@ class DefaultEncryptionStorageManagerTest {
         assertThat(wdekDetails).isNotNull();
         final String wrappedDek = wdekDetails.wrappedDek();
         final byte[] decoded = Base64.getDecoder().decode(wrappedDek);
-        assertThat(decoded).startsWith("wrapped-".getBytes());
+        assertThat(decoded).startsWith("kekId-wrapped-".getBytes());
         // Check DEK length (AES-256 = 32 bytes)
-        assertThat(decoded.length).isEqualTo("wrapped-".length() + 32);
+        assertThat(decoded.length).isEqualTo("kekId-wrapped-".length() + 32);
     }
 
     @Test
@@ -103,7 +103,7 @@ class DefaultEncryptionStorageManagerTest {
 
         assertThat(storageManager.getDek(PROJECT_NAME, REPO_NAME, 1)).isNotNull();
 
-        storageManager.removeWdek(PROJECT_NAME, REPO_NAME, 1);
+        storageManager.removeWdek(PROJECT_NAME, REPO_NAME, 1, true);
 
         // Verify it's gone
         assertThatThrownBy(() -> storageManager.getDek(PROJECT_NAME, REPO_NAME, 1))
@@ -112,7 +112,7 @@ class DefaultEncryptionStorageManagerTest {
 
     @Test
     void removeWdek_whenNotExists_shouldNotFail() {
-        storageManager.removeWdek(PROJECT_NAME, "nonExistentRepo", 1);
+        storageManager.removeWdek(PROJECT_NAME, "nonExistentRepo", 1, true);
     }
 
     @Test

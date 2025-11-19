@@ -27,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.server.auth.Session;
@@ -202,6 +201,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return (CompletableFuture<T>) push((TransformCommand) command, true);
         }
 
+        if (command instanceof RewrapAllKeysCommand) {
+            return (CompletableFuture<T>) rewrapAllKeys();
+        }
+
         if (command instanceof RotateWdekCommand) {
             return (CompletableFuture<T>) rotateWdek((RotateWdekCommand) command);
         }
@@ -251,7 +254,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                 if (encrypt) {
                     try {
                         encryptionStorageManager.removeWdek(c.projectName(), Project.REPO_DOGMA,
-                                                            c.wdekDetails().dekVersion());
+                                                            c.wdekDetails().dekVersion(), true);
                     } catch (Throwable t2) {
                         logger.warn("Failed to remove the WDEK of {}/{}",
                                     c.projectName(), Project.REPO_DOGMA, t2);
@@ -302,7 +305,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                 if (encrypt) {
                     try {
                         encryptionStorageManager.removeWdek(c.projectName(), c.repositoryName(),
-                                                            c.wdekDetails().dekVersion());
+                                                            c.wdekDetails().dekVersion(), true);
                     } catch (Throwable t2) {
                         logger.warn("Failed to remove the WDEK of {}/{}",
                                     c.projectName(), c.repositoryName(), t2);
@@ -350,7 +353,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             } catch (Throwable t) {
                 try {
                     encryptionStorageManager.removeWdek(c.projectName(), c.repositoryName(),
-                                                        c.wdekDetails().dekVersion());
+                                                        c.wdekDetails().dekVersion(), true);
                 } catch (Throwable t2) {
                     logger.warn("Failed to remove the WDEK of {}/{}",
                                 c.projectName(), c.repositoryName(), t2);
@@ -380,13 +383,42 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         return projectManager.get(c.projectName()).repos().get(c.repositoryName());
     }
 
+    private CompletableFuture<Void> rewrapAllKeys() {
+        if (!encryptionStorageManager.enabled()) {
+            throw new IllegalStateException("Encryption is not enabled.");
+        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            logger.info("Rewrapping all keys with kek: {}", encryptionStorageManager.kekId());
+            try {
+                encryptionStorageManager.rewrapAllKeys();
+                logger.info("All keys rewrapped.");
+            } catch (Throwable t) {
+                logger.warn("Failed to rewrap all keys with kek: {}", encryptionStorageManager.kekId());
+                Exceptions.throwUnsafely(t);
+            }
+            return null;
+        }, repositoryWorker);
+    }
+
     private CompletableFuture<Void> rotateWdek(RotateWdekCommand c) {
         if (!encryptionStorageManager.enabled()) {
             throw new IllegalStateException("Encryption is not enabled. command: " + c);
         }
 
-        encryptionStorageManager.rotateWdek(c.wdekDetails());
-        return UnmodifiableFuture.completedFuture(null);
+        return CompletableFuture.supplyAsync(() -> {
+            logger.info("Rotating WDEK for {}/{} to version {}",
+                        c.projectName(), c.repositoryName(), c.wdekDetails().dekVersion());
+            try {
+                encryptionStorageManager.rotateWdek(c.wdekDetails());
+                logger.info("WDEK rotated for {}/{}.", c.projectName(), c.repositoryName());
+            } catch (Throwable t) {
+                logger.warn("Failed to rotate WDEK for {}/{} to version {}",
+                            c.projectName(), c.repositoryName(), c.wdekDetails().dekVersion(), t);
+                Exceptions.throwUnsafely(t);
+            }
+            return null;
+        }, repositoryWorker);
     }
 
     private CompletableFuture<Void> rotateSessionMasterKey(RotateSessionMasterKeyCommand c) {
@@ -394,8 +426,19 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             throw new IllegalStateException("Session cookie encryption is not enabled. command: " + c);
         }
 
-        encryptionStorageManager.rotateSessionMasterKey(c.sessionMasterKey());
-        return UnmodifiableFuture.completedFuture(null);
+        return CompletableFuture.supplyAsync(() -> {
+            final int version = c.sessionMasterKey().version();
+            logger.info("Rotating session master key to version {}", version);
+            try {
+                encryptionStorageManager.rotateSessionMasterKey(c.sessionMasterKey());
+                logger.info("Session master key rotated.");
+            } catch (Throwable t) {
+                logger.warn("Failed to rotate session master key to version {}",
+                            version, t);
+                Exceptions.throwUnsafely(t);
+            }
+            return null;
+        }, repositoryWorker);
     }
 
     private CompletableFuture<Void> createSession(CreateSessionCommand c) {
@@ -428,8 +471,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             throw new IllegalStateException("Encryption is not enabled. command: " + c);
         }
 
-        encryptionStorageManager.storeSessionMasterKey(c.sessionMasterKey());
-        return UnmodifiableFuture.completedFuture(null);
+        return CompletableFuture.supplyAsync(() -> {
+            encryptionStorageManager.storeSessionMasterKey(c.sessionMasterKey());
+            return null;
+        }, repositoryWorker);
     }
 
     private CompletableFuture<Void> updateServerStatus(UpdateServerStatusCommand c) {
