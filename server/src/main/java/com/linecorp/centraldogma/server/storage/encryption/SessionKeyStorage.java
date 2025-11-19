@@ -201,11 +201,26 @@ final class SessionKeyStorage {
     }
 
     public CompletableFuture<SessionKey> getSessionKey(int version) {
-        return sessionKeys.computeIfAbsent(version, v -> {
+        final CompletableFuture<SessionKey> result = sessionKeys.computeIfAbsent(version, v -> {
             final SessionMasterKey sessionMasterKey = getSessionMasterKey(v);
-            return keyWrapper.unwrap(sessionMasterKey.wrappedMasterKey(), kekId)
-                             .thenApply(unwrapped -> SessionKey.of(unwrapped, sessionMasterKey));
+            final CompletableFuture<SessionKey> future = new CompletableFuture<>();
+            keyWrapper.unwrap(sessionMasterKey.wrappedMasterKey(), kekId)
+                      .handle((unwrapped, cause) -> {
+                          if (cause != null) {
+                              future.completeExceptionally(cause);
+                              return null;
+                          } else {
+                              future.complete(SessionKey.of(unwrapped, sessionMasterKey));
+                              return null;
+                          }
+                      });
+            return future;
         });
+        result.exceptionally(unused -> {
+            sessionKeys.remove(version);
+            return null;
+        });
+        return result;
     }
 
     void rotateSessionMasterKey(SessionMasterKey sessionMasterKey) {
