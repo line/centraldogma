@@ -17,18 +17,14 @@
 package com.linecorp.centraldogma.server.internal.storage.project;
 
 import static com.google.common.base.Preconditions.checkState;
-import static com.linecorp.centraldogma.server.internal.storage.MigratingMetaToDogmaRepositoryService.META_TO_DOGMA_MIGRATED;
-import static com.linecorp.centraldogma.server.internal.storage.MigratingMetaToDogmaRepositoryService.META_TO_DOGMA_MIGRATION_JOB;
 import static com.linecorp.centraldogma.server.metadata.MetadataService.METADATA_JSON;
 import static com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -109,13 +105,13 @@ public class DefaultProject implements Project {
 
         boolean success = false;
         try {
-            final ProjectMetadata projectedMetadata = initialMetadata();
-            if (projectedMetadata != null) {
+            if (!name.equals(INTERNAL_PROJECT_DOGMA)) {
+                final ProjectMetadata projectedMetadata = initialMetadata();
                 final UserAndTimestamp creation = projectedMetadata.creation();
                 creationTimeMillis = creation.timestampMillis();
                 author = Author.ofEmail(creation.user());
                 attachMetadataListener();
-                resetMetaRepository();
+                metaRepo = new DefaultMetaRepository(repos.get(REPO_DOGMA));
             } else {
                 creationTimeMillis = repos.get(REPO_DOGMA).creationTimeMillis();
                 author = repos.get(REPO_DOGMA).author();
@@ -134,8 +130,7 @@ public class DefaultProject implements Project {
     /**
      * Creates a new project.
      */
-    DefaultProject(@Nullable Project dogmaProject, File rootDir,
-                   Executor repositoryWorker, Executor purgeWorker,
+    DefaultProject(File rootDir, Executor repositoryWorker, Executor purgeWorker,
                    long creationTimeMillis, Author author, @Nullable RepositoryCache cache,
                    EncryptionStorageManager encryptionStorageManager, boolean encryptDogmaRepo) {
         requireNonNull(rootDir, "rootDir");
@@ -149,24 +144,16 @@ public class DefaultProject implements Project {
         name = rootDir.getName();
         repos = newRepoManager(rootDir, repositoryWorker, purgeWorker, cache, encryptionStorageManager);
 
-        final boolean useDogmaRepoAsMetaRepo;
-        if (dogmaProject == null) {
-            useDogmaRepoAsMetaRepo = false;
-        } else {
-            final Repository dogmaProjectDogmaRepository = dogmaProject.repos().get(REPO_DOGMA);
-            final Entry<JsonNode> entry = dogmaProjectDogmaRepository.getOrNull(
-                    Revision.HEAD, Query.ofJson(META_TO_DOGMA_MIGRATION_JOB)).join();
-            useDogmaRepoAsMetaRepo = entry != null;
-        }
-
         boolean success = false;
         try {
-            createReservedRepos(creationTimeMillis, useDogmaRepoAsMetaRepo, encryptDogmaRepo);
-            initializeMetadata(creationTimeMillis, author);
+            createReservedRepos(creationTimeMillis, encryptDogmaRepo);
+            if (!name.equals(INTERNAL_PROJECT_DOGMA)) {
+                initializeMetadata(creationTimeMillis, author);
+                attachMetadataListener();
+                metaRepo = new DefaultMetaRepository(repos.get(REPO_DOGMA));
+            }
             this.creationTimeMillis = creationTimeMillis;
             this.author = author;
-            attachMetadataListener();
-            setMetaRepository(useDogmaRepoAsMetaRepo);
             success = true;
         } finally {
             if (!success) {
@@ -186,26 +173,10 @@ public class DefaultProject implements Project {
         return cache == null ? gitRepos : new CachingRepositoryManager(gitRepos, cache);
     }
 
-    private void createReservedRepos(long creationTimeMillis, boolean useDogmaRepoAsMetaRepo,
-                                     boolean encryptDogmaRepo) {
+    private void createReservedRepos(long creationTimeMillis, boolean encryptDogmaRepo) {
         if (!repos.exists(REPO_DOGMA)) {
             try {
-                final Repository dogmaRepository =
-                        repos.create(REPO_DOGMA, creationTimeMillis, Author.SYSTEM, encryptDogmaRepo);
-                if (useDogmaRepoAsMetaRepo) {
-                    dogmaRepository.commit(
-                            Revision.HEAD, creationTimeMillis, Author.SYSTEM,
-                            "Add " + META_TO_DOGMA_MIGRATED + " file to dogma repository", "", Markup.PLAINTEXT,
-                            Change.ofJsonUpsert(META_TO_DOGMA_MIGRATED, "{}"))
-                                   .join();
-                }
-            } catch (RepositoryExistsException ignored) {
-                // Just in case there's a race.
-            }
-        }
-        if (!useDogmaRepoAsMetaRepo && !repos.exists(REPO_META)) {
-            try {
-                repos.create(REPO_META, creationTimeMillis, Author.SYSTEM, encryptDogmaRepo);
+                repos.create(REPO_DOGMA, creationTimeMillis, Author.SYSTEM, encryptDogmaRepo);
             } catch (RepositoryExistsException ignored) {
                 // Just in case there's a race.
             }
@@ -262,12 +233,9 @@ public class DefaultProject implements Project {
         }
     }
 
-    @Nullable
     private ProjectMetadata initialMetadata()
             throws ExecutionException, InterruptedException, JsonProcessingException {
-        if (name.equals(INTERNAL_PROJECT_DOGMA)) {
-            return null;
-        }
+        assert !name.equals(INTERNAL_PROJECT_DOGMA);
         final Entry<JsonNode> metadata = repos.get(REPO_DOGMA).get(Revision.HEAD, Query.ofJson(METADATA_JSON))
                                               .get();
         final ProjectMetadata projectMetadata = Jackson.treeToValue(metadata.content(),
@@ -282,10 +250,7 @@ public class DefaultProject implements Project {
      * and {@link #projectMetadata}.
      */
     private void attachMetadataListener() {
-        if (name.equals(INTERNAL_PROJECT_DOGMA)) {
-            return;
-        }
-
+        assert !name.equals(INTERNAL_PROJECT_DOGMA);
         final Repository dogmaRepo = repos.get(REPO_DOGMA);
         dogmaRepo.addListener(RepositoryListener.of(Query.ofJson(METADATA_JSON), entry -> {
             if (entry == null) {
@@ -325,28 +290,6 @@ public class DefaultProject implements Project {
     @Override
     public Author author() {
         return author;
-    }
-
-    @Override
-    public MetaRepository resetMetaRepository() {
-        final Repository repository = repos.get(REPO_DOGMA);
-        final CompletableFuture<Entry<JsonNode>> future = repository.getOrNull(Revision.HEAD, Query.ofJson(
-                META_TO_DOGMA_MIGRATED));
-        final Entry<JsonNode> entry;
-        try {
-            // Will be executed by the ZooKeeper command executor during migration.
-            entry = future.get(10, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            throw new IllegalStateException("failed to get the migration entry in 10 seconds. ", e);
-        }
-        return setMetaRepository(entry != null);
-    }
-
-    private MetaRepository setMetaRepository(boolean useDogmaRepoAsMetaRepo) {
-        final String repoName = useDogmaRepoAsMetaRepo ? REPO_DOGMA : REPO_META;
-        final DefaultMetaRepository metaRepo = new DefaultMetaRepository(repos.get(repoName));
-        this.metaRepo = metaRepo;
-        return metaRepo;
     }
 
     @Override

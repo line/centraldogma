@@ -19,7 +19,6 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
 import static com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil.getSessionKeyVersion;
-import static com.linecorp.centraldogma.server.internal.storage.MigratingMetaToDogmaRepositoryService.META_TO_DOGMA_MIGRATION_JOB;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
@@ -49,7 +48,6 @@ import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseEntity;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Revision;
@@ -59,7 +57,6 @@ import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.
 import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.GitObjectMetadata;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.RocksDbRepository;
 import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
-import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -84,13 +81,6 @@ class KeyManagementServiceTest {
 
         @Override
         protected void scaffold(CentralDogma client) {
-            // Commit the META_TO_DOGMA_MIGRATION_JOB file to the dogma/dogma repository so that
-            // a meta repository is not created when creating a project.
-            // This will be removed once meta repository migration is done.
-            final Project project = projectManager().get(InternalProjectInitializer.INTERNAL_PROJECT_DOGMA);
-            project.repos().get(Project.REPO_DOGMA).commit(
-                    Revision.HEAD, 0, Author.SYSTEM, "Add",
-                    Change.ofJsonUpsert(META_TO_DOGMA_MIGRATION_JOB, "{ \"a\": \"b\" }")).join();
             client.createProject("foo").join();
             client.createRepository("foo", "bar") // non-encrypted repo
                   .join();

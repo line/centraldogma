@@ -45,7 +45,6 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
         @Type(value = CreateProjectCommand.class, name = "CREATE_PROJECT"),
-        @Type(value = ResetMetaRepositoryCommand.class, name = "RESET_META_REPOSITORY"),
         @Type(value = RemoveProjectCommand.class, name = "REMOVE_PROJECT"),
         @Type(value = PurgeProjectCommand.class, name = "PURGE_PROJECT"),
         @Type(value = UnremoveProjectCommand.class, name = "UNREMOVE_PROJECT"),

@@ -108,7 +108,7 @@ class GitMirrorAuthTest {
 
         // Add /credentials/{id}.json and /mirrors/{id}.json
         final String credentialName = credential.get("name").asText();
-        client.forRepo(projName, Project.REPO_META)
+        client.forRepo(projName, Project.REPO_DOGMA)
               .commit("Add a mirror",
                       Change.ofJsonUpsert(credentialFile(credentialName), credential),
                       Change.ofJsonUpsert("/repos/main/mirrors/main.json",
