@@ -34,6 +34,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.client.WebClient;
@@ -46,6 +47,8 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.ChangeFormatException;
+import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -155,6 +158,85 @@ class ContentServiceV1Test {
         final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(res.contentUtf8()).contains(InvalidPushException.class.getName());
+    }
+
+    @Test
+    void pushEmbeddedJsonString() throws JsonParseException {
+        final WebClient client = dogma.httpClient();
+
+        final String body =
+                '{' +
+                "   \"path\" : \"/embedded-string.json\"," +
+                "   \"type\" : \"UPSERT_JSON\"," +
+                "   \"content\" : \"\\\"json string\\\"\"," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Add embedded string.json\"," +
+                "       \"detail\": \"An embedded JSON string.\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }" +
+                '}';
+        final RequestHeaders headers =
+                RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos/myRepo/contents",
+                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+
+        final Entry<?> entry = dogma.client().forRepo("myPro", "myRepo")
+                                    .file("/embedded-string.json")
+                                    .get().join();
+        assertThat(entry.contentAsText()).isEqualTo("\"json string\"");
+        final JsonNode content = entry.contentAsJson();
+        assertThat(content.isTextual()).isTrue();
+        assertThat(content.asText()).isEqualTo("json string");
+    }
+
+    @Test
+    void pushUnquoteJsonString() throws JsonParseException {
+        final WebClient client = dogma.httpClient();
+
+        final String body =
+                '{' +
+                "   \"path\" : \"/string.json\"," +
+                "   \"type\" : \"UPSERT_JSON\"," +
+                "   \"content\" : \"json string\"," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Add string.json\"," +
+                "       \"detail\": \"An JSON string.\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }" +
+                '}';
+        final RequestHeaders headers =
+                RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos/myRepo/contents",
+                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
+        assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        // Rejected by ChangesRequestConverter
+        assertThat(res.contentUtf8()).contains(ChangeFormatException.class.getName());
+    }
+
+    @Test
+    void pushInvalidEmbeddedJson() {
+        final WebClient client = dogma.httpClient();
+
+        // An invalid JSON containing a trailing comma.
+        final String body =
+                '{' +
+                "   \"path\" : \"/invalid.json\"," +
+                "   \"type\" : \"UPSERT_JSON\"," +
+                "   \"content\" : \"{\\\"trailing\\\": \\\"comma\\\", }\"," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Add invalid.json\"," +
+                "       \"detail\": \"An invalid JSON must be rejected.\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }" +
+                '}';
+        final RequestHeaders headers =
+                RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos/myRepo/contents",
+                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
+        assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        // Rejected by ChangesRequestConverter
+        assertThat(res.contentUtf8()).contains(ChangeFormatException.class.getName());
     }
 
     @Nested
