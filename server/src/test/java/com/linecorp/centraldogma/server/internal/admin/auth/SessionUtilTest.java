@@ -35,11 +35,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import com.google.common.collect.ImmutableSet;
-import com.nimbusds.jose.JWEDecrypter;
-import com.nimbusds.jose.JWEEncrypter;
 import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.crypto.DirectDecrypter;
-import com.nimbusds.jose.crypto.DirectEncrypter;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -65,9 +61,10 @@ class SessionUtilTest {
 
     @BeforeAll
     static void setup() {
-        encryptionStorageManager = EncryptionStorageManager.of(new File(rootDir, "rocksdb").toPath(), true);
+        encryptionStorageManager = EncryptionStorageManager.of(new File(rootDir, "rocksdb").toPath(), true,
+                                                               "kekId");
         final SessionMasterKey sessionMasterKey =
-                encryptionStorageManager.generateSessionMasterKey().join();
+                encryptionStorageManager.generateSessionMasterKey(1).join();
         encryptionStorageManager.storeSessionMasterKey(sessionMasterKey);
     }
 
@@ -97,20 +94,16 @@ class SessionUtilTest {
         verifyJwsHeader(parsedHeader);
         verifyJwtClaimsSet(parsedJWT.getJWTClaimsSet(), now, readOnly);
 
-        final JWEEncrypter encrypter = new DirectEncrypter(sessionKey.encryptionKey());
-        final String jwe = SessionUtil.createJwe(signedJwt, version, encrypter);
+        final String jwe = SessionUtil.createJwe(signedJwt, version, sessionKey.encrypter());
 
         final DefaultJWTClaimsVerifier<SecurityContext> verifier =
-                new DefaultJWTClaimsVerifier<>(new Builder()
-                                                       .issuer("dogma")
-                                                       .build(),
+                new DefaultJWTClaimsVerifier<>(new Builder().issuer("dogma").build(),
                                                ImmutableSet.of("exp"));
-        final JWEDecrypter decrypter = new DirectDecrypter(sessionKey.encryptionKey());
         final ServiceRequestContext ctx = ServiceRequestContext.of(HttpRequest.of(HttpMethod.GET, "/"));
-        final SignedJWT signedJWT = decryptAndGetSignedJwt(ctx, decrypter, jwe);
+        final SignedJWT signedJWT = decryptAndGetSignedJwt(ctx, sessionKey.decrypter(), jwe);
         verifyJwsHeader(signedJWT.getHeader());
 
-        final JWTClaimsSet jwtClaimsSet = getJwtClaimsSetFromSignedJwt(ctx, signedJWT, verifier);
+        final JWTClaimsSet jwtClaimsSet = getJwtClaimsSetFromSignedJwt(ctx, signedJWT, sessionKey, verifier);
         assertThat(jwtClaimsSet).isNotNull();
         verifyJwtClaimsSet(jwtClaimsSet, now, readOnly);
     }

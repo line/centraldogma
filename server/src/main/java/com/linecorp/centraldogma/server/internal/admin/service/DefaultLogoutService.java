@@ -35,7 +35,6 @@ import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.internal.admin.auth.SessionCookieHandler;
-import com.linecorp.centraldogma.server.internal.admin.auth.SessionCookieHandler.SessionInfo;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 
 public class DefaultLogoutService extends AbstractHttpService {
@@ -69,40 +68,46 @@ public class DefaultLogoutService extends AbstractHttpService {
 
     @Override
     protected HttpResponse doPost(ServiceRequestContext ctx, HttpRequest req) throws Exception {
-        final SessionInfo sessionInfo = sessionCookieHandler.getSessionInfo(ctx);
-        if (sessionInfo == null) {
-            // Return 204 https://stackoverflow.com/questions/36220029/http-status-to-return-after-trying-to-logout-without-being-logged-in
-            return HttpResponse.of(HttpStatus.NO_CONTENT);
-        }
-        final String sessionId = sessionInfo.sessionId();
-        if (sessionId == null) {
-            final String username = sessionInfo.username();
-            final String csrfTokenFromSignedJwt = sessionInfo.csrfTokenFromSignedJwt();
-            assert username != null;
-            assert csrfTokenFromSignedJwt != null;
-            if (!validateCsrfToken(ctx, req, csrfTokenFromSignedJwt)) {
-                return invalidCsrfTokenResponse();
-            }
-            return HttpResponse.of(ResponseHeaders.builder(HttpStatus.OK)
-                                                  .cookie(invalidatingCookie)
-                                                  .build());
-        }
-
-        return HttpResponse.of(sessionManager.get(sessionId).thenCompose(session -> {
-            if (session == null) {
+        return HttpResponse.of(sessionCookieHandler.getSessionInfo(ctx).thenCompose(sessionInfo -> {
+            if (sessionInfo == null) {
+                // Return 204 https://stackoverflow.com/questions/36220029/http-status-to-return-after-trying-to-logout-without-being-logged-in
                 return UnmodifiableFuture.completedFuture(HttpResponse.of(HttpStatus.NO_CONTENT));
             }
 
-            if (!validateCsrfToken(ctx, req, session.csrfToken())) {
-                return UnmodifiableFuture.completedFuture(invalidCsrfTokenResponse());
+            final String sessionId = sessionInfo.sessionId();
+            if (sessionId == null) {
+                final String username = sessionInfo.username();
+                final String csrfTokenFromSignedJwt = sessionInfo.csrfTokenFromSignedJwt();
+                if (username == null || csrfTokenFromSignedJwt == null) {
+                    return UnmodifiableFuture.completedFuture(
+                            HttpResponse.of(HttpStatus.UNAUTHORIZED, MediaType.PLAIN_TEXT_UTF_8,
+                                            "Invalid session"));
+                }
+                if (!validateCsrfToken(ctx, req, csrfTokenFromSignedJwt)) {
+                    return UnmodifiableFuture.completedFuture(invalidCsrfTokenResponse());
+                }
+                return UnmodifiableFuture.completedFuture(
+                        HttpResponse.of(ResponseHeaders.builder(HttpStatus.OK)
+                                                       .cookie(invalidatingCookie)
+                                                       .build()));
             }
 
-            return invalidateSession(ctx, sessionId).thenCompose(
-                    unused -> logoutSessionPropagator.apply(sessionId).thenApply(unused2 -> {
-                        return HttpResponse.of(ResponseHeaders.builder(HttpStatus.OK)
-                                                              .cookie(invalidatingCookie)
-                                                              .build());
-                    }));
+            return sessionManager.get(sessionId).thenCompose(session -> {
+                if (session == null) {
+                    return UnmodifiableFuture.completedFuture(HttpResponse.of(HttpStatus.NO_CONTENT));
+                }
+
+                if (!validateCsrfToken(ctx, req, session.csrfToken())) {
+                    return UnmodifiableFuture.completedFuture(invalidCsrfTokenResponse());
+                }
+
+                return invalidateSession(ctx, sessionId).thenCompose(
+                        unused -> logoutSessionPropagator.apply(sessionId).thenApply(unused2 -> {
+                            return HttpResponse.of(ResponseHeaders.builder(HttpStatus.OK)
+                                                                  .cookie(invalidatingCookie)
+                                                                  .build());
+                        }));
+            });
         }));
     }
 

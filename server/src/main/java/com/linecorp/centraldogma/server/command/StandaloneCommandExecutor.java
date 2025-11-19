@@ -36,6 +36,7 @@ import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
+import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -201,6 +202,14 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return (CompletableFuture<T>) push((TransformCommand) command, true);
         }
 
+        if (command instanceof RotateWdekCommand) {
+            return (CompletableFuture<T>) rotateWdek((RotateWdekCommand) command);
+        }
+
+        if (command instanceof RotateSessionMasterKeyCommand) {
+            return (CompletableFuture<T>) rotateSessionMasterKey((RotateSessionMasterKeyCommand) command);
+        }
+
         if (command instanceof CreateSessionCommand) {
             return (CompletableFuture<T>) createSession((CreateSessionCommand) command);
         }
@@ -230,10 +239,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> createProject(CreateProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            final byte[] wdek = c.wdek();
-            final boolean encrypt = wdek != null;
+            final WrappedDekDetails wdekDetails = c.wdekDetails();
+            final boolean encrypt = wdekDetails != null;
             if (encrypt) {
-                encryptionStorageManager.storeWdek(c.projectName(), Project.REPO_DOGMA, wdek);
+                encryptionStorageManager.storeWdek(wdekDetails);
             }
 
             try {
@@ -241,7 +250,8 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             } catch (Throwable t) {
                 if (encrypt) {
                     try {
-                        encryptionStorageManager.removeWdek(c.projectName(), Project.REPO_DOGMA);
+                        encryptionStorageManager.removeWdek(c.projectName(), Project.REPO_DOGMA,
+                                                            c.wdekDetails().dekVersion());
                     } catch (Throwable t2) {
                         logger.warn("Failed to remove the WDEK of {}/{}",
                                     c.projectName(), Project.REPO_DOGMA, t2);
@@ -279,10 +289,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> createRepository(CreateRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            final byte[] wdek = c.wdek();
-            final boolean encrypt = wdek != null;
+            final WrappedDekDetails wdekDetails = c.wdekDetails();
+            final boolean encrypt = wdekDetails != null;
             if (encrypt) {
-                encryptionStorageManager.storeWdek(c.projectName(), c.repositoryName(), wdek);
+                encryptionStorageManager.storeWdek(wdekDetails);
             }
 
             try {
@@ -291,7 +301,8 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             } catch (Throwable t) {
                 if (encrypt) {
                     try {
-                        encryptionStorageManager.removeWdek(c.projectName(), c.repositoryName());
+                        encryptionStorageManager.removeWdek(c.projectName(), c.repositoryName(),
+                                                            c.wdekDetails().dekVersion());
                     } catch (Throwable t2) {
                         logger.warn("Failed to remove the WDEK of {}/{}",
                                     c.projectName(), c.repositoryName(), t2);
@@ -333,12 +344,13 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                     "The repository is already encrypted: " + c.projectName() + '/' + c.repositoryName());
         }
         return CompletableFuture.supplyAsync(() -> {
-            encryptionStorageManager.storeWdek(c.projectName(), c.repositoryName(), c.wdek());
+            encryptionStorageManager.storeWdek(c.wdekDetails());
             try {
                 repositoryManager.migrateToEncryptedRepository(c.repositoryName());
             } catch (Throwable t) {
                 try {
-                    encryptionStorageManager.removeWdek(c.projectName(), c.repositoryName());
+                    encryptionStorageManager.removeWdek(c.projectName(), c.repositoryName(),
+                                                        c.wdekDetails().dekVersion());
                 } catch (Throwable t2) {
                     logger.warn("Failed to remove the WDEK of {}/{}",
                                 c.projectName(), c.repositoryName(), t2);
@@ -366,6 +378,24 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private Repository repo(RepositoryCommand<?> c) {
         return projectManager.get(c.projectName()).repos().get(c.repositoryName());
+    }
+
+    private CompletableFuture<Void> rotateWdek(RotateWdekCommand c) {
+        if (!encryptionStorageManager.enabled()) {
+            throw new IllegalStateException("Encryption is not enabled. command: " + c);
+        }
+
+        encryptionStorageManager.rotateWdek(c.wdekDetails());
+        return UnmodifiableFuture.completedFuture(null);
+    }
+
+    private CompletableFuture<Void> rotateSessionMasterKey(RotateSessionMasterKeyCommand c) {
+        if (!encryptionStorageManager.encryptSessionCookie()) {
+            throw new IllegalStateException("Session cookie encryption is not enabled. command: " + c);
+        }
+
+        encryptionStorageManager.rotateSessionMasterKey(c.sessionMasterKey());
+        return UnmodifiableFuture.completedFuture(null);
     }
 
     private CompletableFuture<Void> createSession(CreateSessionCommand c) {

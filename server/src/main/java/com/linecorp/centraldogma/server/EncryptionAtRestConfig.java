@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;
 
@@ -30,6 +31,8 @@ public final class EncryptionAtRestConfig {
 
     private final boolean enabled;
     private final boolean encryptSessionCookie;
+    @Nullable
+    private final String kekId;
 
     /**
      * Creates an instance.
@@ -37,9 +40,14 @@ public final class EncryptionAtRestConfig {
     @JsonCreator
     public EncryptionAtRestConfig(@JsonProperty("enabled") @Nullable Boolean enabled,
                                   @JsonProperty("encryptSessionCookie")
-                                  @Nullable Boolean encryptSessionCookie) {
+                                  @Nullable Boolean encryptSessionCookie,
+                                  @JsonProperty("kekId") @Nullable String kekId) {
         this.enabled = firstNonNull(enabled, false);
         this.encryptSessionCookie = this.enabled && firstNonNull(encryptSessionCookie, false);
+        if (this.enabled) {
+            requireNonNull(kekId, "kekId");
+        }
+        this.kekId = kekId;
     }
 
     /**
@@ -58,11 +66,21 @@ public final class EncryptionAtRestConfig {
         return encryptSessionCookie;
     }
 
+    /**
+     * Returns the Key Encryption Key (KEK) ID.
+     */
+    @JsonProperty
+    @Nullable
+    public String kekId() {
+        return kekId;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("enabled", enabled)
                           .add("encryptSessionCookie", encryptSessionCookie)
+                          .add("kekId", kekId)
                           .toString();
     }
 }

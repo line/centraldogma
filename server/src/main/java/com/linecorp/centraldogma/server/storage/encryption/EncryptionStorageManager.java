@@ -19,8 +19,10 @@ import static com.linecorp.centraldogma.server.storage.encryption.DefaultEncrypt
 import static java.util.Objects.requireNonNull;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
@@ -53,17 +55,19 @@ public interface EncryptionStorageManager extends SafeCloseable {
             return NoopEncryptionStorageManager.INSTANCE;
         }
 
+        final String kekId = encryptionAtRestConfig.kekId();
+        assert kekId != null;
         return new DefaultEncryptionStorageManager(rocksDbPath.toString(),
-                                                   encryptionAtRestConfig.encryptSessionCookie());
+                                                   encryptionAtRestConfig.encryptSessionCookie(), kekId);
     }
 
     /**
      * Creates a new {@link EncryptionStorageManager} instance.
      */
     @VisibleForTesting
-    static EncryptionStorageManager of(Path path, boolean encryptSessionCookie) {
+    static EncryptionStorageManager of(Path path, boolean encryptSessionCookie, String kekId) {
         requireNonNull(path, "path");
-        return new DefaultEncryptionStorageManager(path.toString(), encryptSessionCookie);
+        return new DefaultEncryptionStorageManager(path.toString(), encryptSessionCookie, kekId);
     }
 
     /**
@@ -77,14 +81,19 @@ public interface EncryptionStorageManager extends SafeCloseable {
     boolean encryptSessionCookie();
 
     /**
+     * Returns the ID of the key encryption key (KEK).
+     */
+    String kekId();
+
+    /**
      * Generates a new data encryption key (DEK) and wraps it.
      */
-    CompletableFuture<byte[]> generateWdek();
+    CompletableFuture<String> generateWdek();
 
     /**
      * Generates a new session master key.
      */
-    CompletableFuture<SessionMasterKey> generateSessionMasterKey();
+    CompletableFuture<SessionMasterKey> generateSessionMasterKey(int version);
 
     /**
      * Stores the session master key.
@@ -94,7 +103,27 @@ public interface EncryptionStorageManager extends SafeCloseable {
     /**
      * Returns the current session master key.
      */
+    SessionMasterKey getCurrentSessionMasterKey();
+
+    /**
+     * Returns the current session key that is derived from the current session master key.
+     */
     CompletableFuture<SessionKey> getCurrentSessionKey();
+
+    /**
+     * Returns the session key for the specified version.
+     */
+    CompletableFuture<SessionKey> getSessionKey(int version);
+
+    /**
+     * Rotates the session master key.
+     */
+    void rotateSessionMasterKey(SessionMasterKey sessionMasterKey);
+
+    /**
+     * Returns all wrapped data encryption keys (WDEKs).
+     */
+    List<WrappedDekDetails> wdeks();
 
     /**
      * Returns the data encryption key (DEK) for the specified project and repository.
@@ -107,15 +136,22 @@ public interface EncryptionStorageManager extends SafeCloseable {
     SecretKeyWithVersion getCurrentDek(String projectName, String repoName);
 
     /**
-     * Stores the wrapped data encryption key (WDEK) for the specified project and repository.
+     * Stores the wrapped data encryption key (WDEK) for the {@link WrappedDekDetails#projectName()} and
+     * {@link WrappedDekDetails#repoName()}.
      * This raises an exception if the WDEK already exists.
      */
-    void storeWdek(String projectName, String repoName, byte[] wdek);
+    void storeWdek(WrappedDekDetails wdekDetails);
+
+    /**
+     * Rotates the wrapped data encryption key (WDEK) for the {@link WrappedDekDetails#projectName()} and
+     * {@link WrappedDekDetails#repoName()}.
+     */
+    void rotateWdek(WrappedDekDetails wdekDetails);
 
     /**
      * Removes the wrapped data encryption key (WDEK) for the specified project and repository.
      */
-    void removeWdek(String projectName, String repoName);
+    void removeWdek(String projectName, String repoName, int version);
 
     /**
      * Returns the object associated with the specified key.
@@ -168,4 +204,9 @@ public interface EncryptionStorageManager extends SafeCloseable {
      */
     @Deprecated
     Map<String, Map<String, byte[]>> getAllData();
+
+    /**
+     * Adds a listener that is called when a new session key is stored.
+     */
+    void addSessionKeyListener(Consumer<SessionKey> listener);
 }

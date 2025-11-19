@@ -47,6 +47,7 @@ import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.TlsConfig;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.plugin.PluginConfig;
+import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
@@ -200,6 +201,13 @@ public class CentralDogmaRuleDelegate {
      */
     public ProjectManager projectManager() {
         return dogma().projectManager();
+    }
+
+    /**
+     * Returns the {@link EncryptionStorageManager} of the server.
+     */
+    public EncryptionStorageManager encryptionStorageManager() {
+        return dogma().encryptionStorageManager();
     }
 
     /**

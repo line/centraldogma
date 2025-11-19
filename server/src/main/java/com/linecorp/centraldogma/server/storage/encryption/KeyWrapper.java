@@ -20,15 +20,23 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Manages the encryption keys used for encrypting and decrypting data at rest.
  */
-public interface KeyManagementService {
+public interface KeyWrapper {
 
     /**
      * Wraps the given data encryption key (DEK) using the key management service.
+     *
+     * @param dek the data encryption key to be wrapped.
+     * @param kekId the key encryption key (KEK) identifier to be used for wrapping.
      */
-    CompletableFuture<byte[]> wrap(byte[] dek);
+    CompletableFuture<String> wrap(byte[] dek, String kekId);
 
     /**
      * Unwraps the given wrapped data encryption key (WDEK) using the key management service.
      */
-    CompletableFuture<byte[]> unwrap(byte[] wdek);
+    CompletableFuture<byte[]> unwrap(String wdek, String kekId);
+
+    /**
+     * Re-wraps the given wrapped data encryption key (WDEK).
+     */
+    CompletableFuture<String> rewrap(String wdek, String oldKekId, String newKekId);
 }

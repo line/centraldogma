@@ -28,7 +28,6 @@ import static org.eclipse.jgit.lib.Ref.Storage.NEW;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
@@ -68,8 +67,6 @@ public final class EncryptionGitStorage {
     private final byte[] refsKeyPrefix;
     private final byte[] rev2ShaPrefix;
     private final EncryptionStorageManager encryptionStorageManager;
-    private final SecretKeyWithVersion currentDek;
-    private final ConcurrentHashMap<Integer, SecretKey> deks = new ConcurrentHashMap<>();
 
     public EncryptionGitStorage(String projectName, String repoName,
                                 EncryptionStorageManager encryptionStorageManager) {
@@ -81,8 +78,6 @@ public final class EncryptionGitStorage {
         refsKeyPrefix = projectRepoPrefix.getBytes(StandardCharsets.UTF_8);
         rev2ShaPrefix = (projectRepoPrefix + REV2SHA).getBytes(StandardCharsets.UTF_8);
         this.encryptionStorageManager = encryptionStorageManager;
-        currentDek = encryptionStorageManager.getCurrentDek(projectName, repoName);
-        deks.put(currentDek.version(), currentDek.secretKey());
     }
 
     String projectName() {
@@ -91,11 +86,6 @@ public final class EncryptionGitStorage {
 
     String repoName() {
         return repoName;
-    }
-
-    private SecretKey dek(int version) {
-        return deks.computeIfAbsent(version, key -> encryptionStorageManager.getDek(
-                projectName, repoName, version));
     }
 
     ObjectId insertObject(ObjectId objectId, int type, byte[] data, int off, int len) throws IOException {
@@ -107,7 +97,7 @@ public final class EncryptionGitStorage {
             return objectId;
         }
 
-        final SecretKeyWithVersion currentDek = this.currentDek;
+        final SecretKeyWithVersion currentDek = encryptionStorageManager.getCurrentDek(projectName, repoName);
 
         final byte[] nonce = AesGcmSivCipher.generateNonce();
         // Generate a new DEK for the data so that we don't decrypt and encrypt the data again when the
@@ -175,7 +165,7 @@ public final class EncryptionGitStorage {
         }
 
         final int keyVersion = getInt(metadata, 0);
-        final SecretKey dek = dek(keyVersion);
+        final SecretKey dek = encryptionStorageManager.getDek(projectName, repoName, keyVersion);
 
         final GitObjectMetadata gitObjectMetadata = GitObjectMetadata.fromBytes(metadata);
         final SecretKeySpec objectDek;
@@ -209,7 +199,7 @@ public final class EncryptionGitStorage {
         final byte[] nonce = new byte[NONCE_SIZE_BYTES];
         System.arraycopy(metadata, 4, nonce, 0, NONCE_SIZE_BYTES);
         final int keyVersion = getInt(metadata, 0);
-        final SecretKey dek = dek(keyVersion);
+        final SecretKey dek = encryptionStorageManager.getDek(projectName, repoName, keyVersion);
 
         final byte[] encryptedRefName = encrypt(dek, nonce, refNameBytes, 0, refNameBytes.length);
         final byte[] encryptedRefValue = encryptionStorageManager.getObjectId(encryptedRefName, metadataKey);
@@ -244,7 +234,7 @@ public final class EncryptionGitStorage {
     Result updateRef(String refName, ObjectId objectId, Result desiredResult) {
         final byte[] refNameBytes = refName.getBytes(StandardCharsets.UTF_8);
 
-        final SecretKeyWithVersion currentDek = this.currentDek;
+        final SecretKeyWithVersion currentDek = encryptionStorageManager.getCurrentDek(projectName, repoName);
         final byte[] metadataKey = refMetadataKey(refNameBytes);
         final byte[] metadata = new byte[4 + NONCE_SIZE_BYTES];
         putInt(metadata, 0, currentDek.version());
@@ -264,7 +254,8 @@ public final class EncryptionGitStorage {
         } else {
             final byte[] previousNonce = new byte[NONCE_SIZE_BYTES];
             System.arraycopy(previousMetadata, 4, previousNonce, 0, NONCE_SIZE_BYTES);
-            final SecretKey previousDek = dek(getInt(previousMetadata, 0));
+            final SecretKey previousDek = encryptionStorageManager.getDek(projectName, repoName,
+                                                                          getInt(previousMetadata, 0));
             previousEncryptedRefName =
                     encrypt(previousDek, previousNonce, refNameBytes, 0, refNameBytes.length);
         }
@@ -292,7 +283,7 @@ public final class EncryptionGitStorage {
         final byte[] nonce = new byte[NONCE_SIZE_BYTES];
         System.arraycopy(metadata, 4, nonce, 0, NONCE_SIZE_BYTES);
         final int keyVersion = getInt(metadata, 0);
-        final SecretKey dek = dek(keyVersion);
+        final SecretKey dek = encryptionStorageManager.getDek(projectName, repoName, keyVersion);
 
         final byte[] encryptedRefName = encrypt(dek, nonce, refNameBytes, 0, refNameBytes.length);
         encryptionStorageManager.deleteObjectId(metadataKey, encryptedRefName);
@@ -303,7 +294,7 @@ public final class EncryptionGitStorage {
         final byte[] metadataKey = refMetadataKey(refNameBytes);
         final byte[] nonce = AesGcmSivCipher.generateNonce();
         final byte[] metadata = new byte[4 + NONCE_SIZE_BYTES];
-        final SecretKeyWithVersion currentDek = this.currentDek;
+        final SecretKeyWithVersion currentDek = encryptionStorageManager.getCurrentDek(projectName, repoName);
         putInt(metadata, 0, currentDek.version());
         System.arraycopy(nonce, 0, metadata, 4, NONCE_SIZE_BYTES);
 
@@ -322,7 +313,7 @@ public final class EncryptionGitStorage {
             throw new RevisionNotFoundException(revision);
         }
         final int keyVersion = getInt(metadata, 0);
-        final SecretKey dek = dek(keyVersion);
+        final SecretKey dek = encryptionStorageManager.getDek(projectName, repoName, keyVersion);
 
         final byte[] nonce = new byte[NONCE_SIZE_BYTES];
         System.arraycopy(metadata, 4, nonce, 0, NONCE_SIZE_BYTES);
@@ -355,7 +346,7 @@ public final class EncryptionGitStorage {
             throw new EncryptionStorageException(
                     "Revision already exists: " + revision + " in " + projectName + '/' + repoName);
         }
-        final SecretKeyWithVersion currentDek = this.currentDek;
+        final SecretKeyWithVersion currentDek = encryptionStorageManager.getCurrentDek(projectName, repoName);
         final byte[] metadata = new byte[4 + NONCE_SIZE_BYTES];
         final byte[] nonce = AesGcmSivCipher.generateNonce();
         putInt(metadata, 0, currentDek.version());

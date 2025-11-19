@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.server.auth;
+package com.linecorp.centraldogma.server.internal.api.sysadmin;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -26,41 +26,26 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * A session master key used to derive session keys.
+ * Data transfer object (DTO) for a session master key.
+ * Sensitive information such as the key material or salt is not included.
  */
-public final class SessionMasterKey {
+public final class SessionMasterKeyDto {
 
-    private final String wrappedMasterKey;
     private final int version;
-    private final String salt;
     private final String kekId;
     private final String creation;
-    private final Instant creationInstant;
 
     /**
      * Creates a new instance.
      */
     @JsonCreator
-    public SessionMasterKey(@JsonProperty("wrappedMasterKey") String wrappedMasterKey,
-                            @JsonProperty("version") int version,
-                            @JsonProperty("salt") String salt,
-                            @JsonProperty("kekId") String kekId,
-                            @JsonProperty("creation") Instant creationInstant) {
-        this.wrappedMasterKey = requireNonNull(wrappedMasterKey, "wrappedMasterKey");
+    public SessionMasterKeyDto(@JsonProperty("version") int version,
+                               @JsonProperty("kekId") String kekId,
+                               @JsonProperty("creation") Instant creation) {
         checkArgument(version > 0, "version must be positive: %s", version);
         this.version = version;
-        this.salt = requireNonNull(salt, "salt");
         this.kekId = requireNonNull(kekId, "kekId");
-        this.creationInstant = creationInstant;
-        creation = ISO_INSTANT.format(requireNonNull(creationInstant, "creation"));
-    }
-
-    /**
-     * Returns a wrapped session master key.
-     */
-    @JsonProperty
-    public String wrappedMasterKey() {
-        return wrappedMasterKey;
+        this.creation = ISO_INSTANT.format(requireNonNull(creation, "creation"));
     }
 
     /**
@@ -69,14 +54,6 @@ public final class SessionMasterKey {
     @JsonProperty
     public int version() {
         return version;
-    }
-
-    /**
-     * Returns a salt used to derive session keys from the master key. It's encoded in base64.
-     */
-    @JsonProperty
-    public String salt() {
-        return salt;
     }
 
     /**
@@ -95,18 +72,9 @@ public final class SessionMasterKey {
         return creation;
     }
 
-    /**
-     * Returns the creation instant of the session master key.
-     */
-    public Instant creationInstant() {
-        return creationInstant;
-    }
-
     @Override
     public String toString() {
-        return toStringHelper(this).add("wrappedMasterKey", "****")
-                                   .add("version", version)
-                                   .add("salt", "****")
+        return toStringHelper(this).add("version", version)
                                    .add("kekId", kekId)
                                    .add("creation", creation)
                                    .toString();
