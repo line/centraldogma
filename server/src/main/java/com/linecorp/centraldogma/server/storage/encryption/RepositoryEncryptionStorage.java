@@ -140,11 +140,11 @@ final class RepositoryEncryptionStorage {
                     "Failed to read WDEK of " + projectRepoVersion(projectName, repoName, version), e);
         }
 
-        return unwrap(projectName, repoName, version, wdekDetails);
+        return blockingUnwrap(projectName, repoName, version, wdekDetails);
     }
 
-    private SecretKeySpec unwrap(String projectName, String repoName,
-                                 int version, WrappedDekDetails wdekDetails) {
+    private SecretKeySpec blockingUnwrap(String projectName, String repoName,
+                                         int version, WrappedDekDetails wdekDetails) {
         final byte[] key;
         try {
             key = keyWrapper.unwrap(wdekDetails.wrappedDek(), wdekDetails.kekId()).get(10, TimeUnit.SECONDS);
@@ -214,7 +214,7 @@ final class RepositoryEncryptionStorage {
                                                  projectRepoVersion(projectName, repoName, version), e);
         }
 
-        final SecretKeySpec unwrap = unwrap(projectName, repoName, version, wdekDetails);
+        final SecretKeySpec unwrap = blockingUnwrap(projectName, repoName, version, wdekDetails);
 
         final byte[] wdekBytes;
         try {
@@ -680,6 +680,7 @@ final class RepositoryEncryptionStorage {
                                     final ColumnFamilyHandle wdekCf =
                                             rocksDbStorage.getColumnFamilyHandle(WDEK_COLUMN_FAMILY);
 
+                                    int failedCount = 0;
                                     try (WriteBatch writeBatch = new WriteBatch();
                                          WriteOptions writeOptions = new WriteOptions()) {
                                         writeOptions.setSync(true);
@@ -689,6 +690,7 @@ final class RepositoryEncryptionStorage {
                                             try {
                                                 wdekBytes = Jackson.writeValueAsBytes(newWdekDetails);
                                             } catch (JsonProcessingException e) {
+                                                failedCount++;
                                                 logger.warn("Failed to serialize re-wrapped WDEK for {}",
                                                             projectRepoVersion(newWdekDetails.projectName(),
                                                                                newWdekDetails.repoName(),
@@ -704,7 +706,8 @@ final class RepositoryEncryptionStorage {
                                         }
 
                                         rocksDbStorage.write(writeOptions, writeBatch);
-                                        logger.info("Successfully re-wrapped {} WDEKs", rewrapFutures.size());
+                                        logger.info("Successfully re-wrapped {} WDEKs",
+                                                    collected.size() - failedCount);
                                     } catch (RocksDBException e) {
                                         throw new EncryptionStorageException(
                                                 "Failed to store re-wrapped WDEKs", e);

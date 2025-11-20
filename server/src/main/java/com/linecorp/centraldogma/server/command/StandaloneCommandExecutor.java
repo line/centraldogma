@@ -388,17 +388,19 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             throw new IllegalStateException("Encryption is not enabled.");
         }
 
-        return CompletableFuture.supplyAsync(() -> {
-            logger.info("Rewrapping all keys with kek: {}", encryptionStorageManager.kekId());
-            try {
-                encryptionStorageManager.rewrapAllKeys();
-                logger.info("All keys rewrapped.");
-            } catch (Throwable t) {
-                logger.warn("Failed to rewrap all keys with kek: {}", encryptionStorageManager.kekId());
-                Exceptions.throwUnsafely(t);
-            }
-            return null;
-        }, repositoryWorker);
+        logger.info("Rewrapping all keys with kek: {}", encryptionStorageManager.kekId());
+        return CompletableFuture.supplyAsync(encryptionStorageManager::rewrapAllKeys, repositoryWorker)
+                .thenCompose(future -> future)
+                .handle((unused, cause) -> {
+                    if (cause != null) {
+                        logger.warn("Failed to rewrap all keys with kek: {}",
+                                    encryptionStorageManager.kekId(), cause);
+                        Exceptions.throwUnsafely(cause);
+                    } else {
+                        logger.info("All keys rewrapped.");
+                    }
+                    return null;
+                });
     }
 
     private CompletableFuture<Void> rotateWdek(RotateWdekCommand c) {
