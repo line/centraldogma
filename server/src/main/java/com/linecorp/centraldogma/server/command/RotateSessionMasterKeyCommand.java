@@ -19,10 +19,13 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 
 /**
@@ -33,8 +36,10 @@ public final class RotateSessionMasterKeyCommand extends SessionCommand {
     private final SessionMasterKey sessionMasterKey;
 
     @JsonCreator
-    RotateSessionMasterKeyCommand(@JsonProperty("sessionMasterKey") SessionMasterKey sessionMasterKey) {
-        super(CommandType.ROTATE_SESSION_MASTER_KEY, null, null);
+    RotateSessionMasterKeyCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                                  @JsonProperty("author") @Nullable Author author,
+                                  @JsonProperty("sessionMasterKey") SessionMasterKey sessionMasterKey) {
+        super(CommandType.ROTATE_SESSION_MASTER_KEY, timestamp, author);
         this.sessionMasterKey = requireNonNull(sessionMasterKey, "sessionMasterKey");
     }
 

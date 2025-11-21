@@ -37,6 +37,7 @@ public enum CommandType {
     REMOVE_NAMED_QUERY(Void.class),
     SAVE_PLUGIN(Void.class),
     REMOVE_PLUGIN(Void.class),
+    REWRAP_ALL_KEYS(Void.class),
     ROTATE_WDEK(Void.class),
     ROTATE_SESSION_MASTER_KEY(Void.class),
     CREATE_SESSION(Void.class),

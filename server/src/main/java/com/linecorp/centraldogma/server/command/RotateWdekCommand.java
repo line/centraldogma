@@ -19,10 +19,13 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 
 /**
@@ -33,10 +36,12 @@ public final class RotateWdekCommand extends RepositoryCommand<Void> {
     private final WrappedDekDetails wdekDetails;
 
     @JsonCreator
-    RotateWdekCommand(@JsonProperty("projectName") String projectName,
+    RotateWdekCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                      @JsonProperty("author") @Nullable Author author,
+                      @JsonProperty("projectName") String projectName,
                       @JsonProperty("repositoryName") String repositoryName,
                       @JsonProperty("wdekDetails") WrappedDekDetails wdekDetails) {
-        super(CommandType.ROTATE_WDEK, null, null, projectName, repositoryName);
+        super(CommandType.ROTATE_WDEK, timestamp, author, projectName, repositoryName);
         this.wdekDetails = requireNonNull(wdekDetails, "wdekDetails");
     }
 

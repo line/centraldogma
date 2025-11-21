@@ -36,6 +36,7 @@ public final class WrappedDekDetails {
     private final String projectName;
     private final String repoName;
     private final String creation;
+    private final Instant creationInstant;
 
     /**
      * Creates a new instance.
@@ -59,6 +60,7 @@ public final class WrappedDekDetails {
         this.kekId = requireNonNull(kekId, "kekId");
         checkArgument(dekVersion > 0, "dekVersion must be positive: %s", dekVersion);
         this.dekVersion = dekVersion;
+        creationInstant = creation;
         this.creation = ISO_INSTANT.format(requireNonNull(creation, "creation"));
         this.projectName = requireNonNull(projectName, "projectName");
         this.repoName = requireNonNull(repoName, "repoName");
@@ -94,6 +96,13 @@ public final class WrappedDekDetails {
     @JsonProperty
     public String creation() {
         return creation;
+    }
+
+    /**
+     * Returns the creation {@link Instant} of the wrapped DEK.
+     */
+    public Instant creationInstant() {
+        return creationInstant;
     }
 
     /**
@@ -143,7 +152,7 @@ public final class WrappedDekDetails {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("wrappedDek", "****")
+                          .add("wrappedDek", "*****")
                           .add("dekVersion", dekVersion)
                           .add("kekId", kekId)
                           .add("creation", creation)

@@ -89,10 +89,10 @@ class KeyManagementServiceTest {
 
     @BeforeAll
     static void setUp() {
-        createRepository(dogma.httpClient(), "encryptedRepo");
+        createEncryptedRepository(dogma.httpClient(), "encryptedRepo");
     }
 
-    private static AggregatedHttpResponse createRepository(WebClient client, String repoName) {
+    static AggregatedHttpResponse createEncryptedRepository(WebClient client, String repoName) {
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, PROJECTS_PREFIX + "/foo" + REPOS,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final String body = "{\"name\": \"" + repoName + "\"," +
@@ -264,7 +264,7 @@ class KeyManagementServiceTest {
         return metadata.keyVersion();
     }
 
-    private static final class WrappedDek {
+    static final class WrappedDek {
 
         static WrappedDek of(WrappedDekDetails dekDetails) {
             return new WrappedDek(dekDetails.projectName(), dekDetails.repoName(), dekDetails.dekVersion(),
