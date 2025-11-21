@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.storage.encryption;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -183,7 +184,7 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     }
 
     @Override
-    public CompletableFuture<Void> rewrapAllKeys() {
+    public CompletableFuture<Void> rewrapAllKeys(Executor executor) {
         return UnmodifiableFuture.completedFuture(null);
     }
 

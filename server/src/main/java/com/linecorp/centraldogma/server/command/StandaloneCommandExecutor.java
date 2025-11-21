@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
@@ -389,18 +390,20 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         }
 
         logger.info("Rewrapping all keys with kek: {}", encryptionStorageManager.kekId());
-        return CompletableFuture.supplyAsync(encryptionStorageManager::rewrapAllKeys, repositoryWorker)
-                .thenCompose(future -> future)
-                .handle((unused, cause) -> {
-                    if (cause != null) {
-                        logger.warn("Failed to rewrap all keys with kek: {}",
-                                    encryptionStorageManager.kekId(), cause);
-                        Exceptions.throwUnsafely(cause);
-                    } else {
-                        logger.info("All keys rewrapped.");
-                    }
-                    return null;
-                });
+        return CompletableFuture.supplyAsync(() -> encryptionStorageManager.rewrapAllKeys(repositoryWorker),
+                                             repositoryWorker)
+                                .thenCompose(Function.identity())
+                                .handle((unused, cause) -> {
+                                    if (cause != null) {
+                                        logger.warn("Failed to rewrap all keys with kek: {}",
+                                                    encryptionStorageManager.kekId(),
+                                                    cause);
+                                        Exceptions.throwUnsafely(cause);
+                                    } else {
+                                        logger.info("All keys rewrapped.");
+                                    }
+                                    return null;
+                                });
     }
 
     private CompletableFuture<Void> rotateWdek(RotateWdekCommand c) {

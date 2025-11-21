@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -203,13 +204,14 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
     }
 
     @Override
-    public CompletableFuture<Void> rewrapAllKeys() {
+    public CompletableFuture<Void> rewrapAllKeys(Executor executor) {
         // Re-wrap WDEKs first, then session master keys
-        return repositoryEncryptionStorage.rewrapAllWdeks()
+        return repositoryEncryptionStorage
+                .rewrapAllWdeks(executor)
                 .thenCompose(unused -> {
                     // TODO(minwoox): Split repository encryption with session key encryption.
                     if (encryptSessionCookie) {
-                        return sessionKeyStorage.rewrapAllSessionMasterKeys();
+                        return sessionKeyStorage.rewrapAllSessionMasterKeys(executor);
                     } else {
                         return UnmodifiableFuture.completedFuture(null);
                     }

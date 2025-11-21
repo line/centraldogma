@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -225,6 +226,8 @@ public interface EncryptionStorageManager extends SafeCloseable {
     /**
      * Rewraps all wrapped data encryption keys (WDEKs) and session master keys
      * with the {@link EncryptionAtRestConfig#kekId()} specified in the configuration.
+     *
+     * @param executor the {@link Executor} to use for storing re-wrapped keys.
      */
-    CompletableFuture<Void> rewrapAllKeys();
+    CompletableFuture<Void> rewrapAllKeys(Executor executor);
 }

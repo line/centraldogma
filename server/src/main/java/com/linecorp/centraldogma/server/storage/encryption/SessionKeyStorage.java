@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -255,7 +256,7 @@ final class SessionKeyStorage {
         }
     }
 
-    CompletableFuture<Void> rewrapAllSessionMasterKeys() {
+    CompletableFuture<Void> rewrapAllSessionMasterKeys(Executor executor) {
         final List<SessionMasterKey> allSessionMasterKeys = new ArrayList<>();
         final byte[] prefix = "session/master/".getBytes(StandardCharsets.UTF_8);
         try (RocksIterator iterator = rocksDbStorage.newIterator(
@@ -313,7 +314,7 @@ final class SessionKeyStorage {
         }
 
         return CompletableFuture.allOf(rewrapFutures.toArray(new CompletableFuture[0]))
-                                .thenAccept(unused -> {
+                                .thenAcceptAsync(unused -> {
                                     final List<SessionMasterKey> collected = rewrapFutures.stream().map(
                                             CompletableFuture::join).filter(Objects::nonNull).collect(
                                             toImmutableList());
@@ -350,6 +351,6 @@ final class SessionKeyStorage {
                                         throw new EncryptionStorageException(
                                                 "Failed to store re-wrapped session master keys", e);
                                     }
-                                });
+                                }, executor);
     }
 }

@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -623,7 +624,7 @@ final class RepositoryEncryptionStorage {
         return ("wdeks/" + projectName + '/' + repoName + "/current").getBytes(StandardCharsets.UTF_8);
     }
 
-    CompletableFuture<Void> rewrapAllWdeks() {
+    CompletableFuture<Void> rewrapAllWdeks(Executor executor) {
         final List<WrappedDekDetails> allWdeks = wdeks();
         if (allWdeks.isEmpty()) {
             logger.info("No WDEKs to rewrap");
@@ -670,7 +671,7 @@ final class RepositoryEncryptionStorage {
         }
 
         return CompletableFuture.allOf(rewrapFutures.toArray(new CompletableFuture[0]))
-                                .thenAccept(unused -> {
+                                .thenAcceptAsync(unused -> {
                                     final List<WrappedDekDetails> collected =
                                             rewrapFutures.stream().map(CompletableFuture::join)
                                                          .filter(Objects::nonNull)
@@ -712,7 +713,7 @@ final class RepositoryEncryptionStorage {
                                         throw new EncryptionStorageException(
                                                 "Failed to store re-wrapped WDEKs", e);
                                     }
-                                });
+                                }, executor);
     }
 
     private static boolean startsWith(byte[] array, byte[] prefix) {
