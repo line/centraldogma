@@ -31,7 +31,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.EncryptionAtRestConfig;
+import com.linecorp.centraldogma.server.EncryptionConfig;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 import com.linecorp.centraldogma.server.management.ServerStatus;
@@ -412,7 +412,7 @@ public interface Command<T> {
 
     /**
      * Returns a new {@link Command} which is used to re-wrap all existing keys
-     * with the {@link EncryptionAtRestConfig#kekId()} specified in the configuration.
+     * with the {@link EncryptionConfig#kekId()} specified in the configuration.
      */
     static Command<Void> rewrapAllKeys(Author author) {
         requireNonNull(author, "author");

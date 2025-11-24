@@ -29,7 +29,7 @@ import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.EncryptionAtRestConfig;
+import com.linecorp.centraldogma.server.EncryptionConfig;
 import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.auth.saml.SamlAuthProperties;
 import com.linecorp.centraldogma.server.auth.saml.SamlAuthProperties.Idp;
@@ -52,7 +52,7 @@ final class SamlCentralDogmaTestServer {
         final Path rootDir = Files.createTempDirectory("dogma-test");
         final CentralDogma server = new CentralDogmaBuilder(rootDir.toFile())
                 .webAppEnabled(true)
-                .encryptionAtRest(new EncryptionAtRestConfig(true, true, "kekId"))
+                .encryption(new EncryptionConfig(true, true, "kekId"))
                 .port(PORT, SessionProtocol.HTTP)
                 .systemAdministrators(USERNAME)
                 .cors("http://127.0.0.1:36462", "http://127.0.0.1:3000", "http://localhost:36462",

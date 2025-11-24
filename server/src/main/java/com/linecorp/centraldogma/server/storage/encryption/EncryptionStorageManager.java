@@ -32,7 +32,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
-import com.linecorp.centraldogma.server.EncryptionAtRestConfig;
+import com.linecorp.centraldogma.server.EncryptionConfig;
 import com.linecorp.centraldogma.server.auth.SessionKey;
 import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 
@@ -46,20 +46,20 @@ public interface EncryptionStorageManager extends SafeCloseable {
      */
     static EncryptionStorageManager of(CentralDogmaConfig cfg) {
         requireNonNull(cfg, "cfg");
-        final EncryptionAtRestConfig encryptionAtRestConfig = cfg.encryptionAtRest();
-        final boolean enabled = encryptionAtRestConfig != null && encryptionAtRestConfig.enabled();
+        final EncryptionConfig encryptionConfig = cfg.encryption();
+        final boolean enabled = encryptionConfig != null && encryptionConfig.enabled();
         final Path rocksDbPath = cfg.dataDir().toPath().resolve(ROCKSDB_PATH);
         if (!enabled) {
             if (rocksDbPath.toFile().exists()) {
-                throw new IllegalArgumentException("RocksDB path exists but encryption at rest is disabled.");
+                throw new IllegalArgumentException("RocksDB path exists but encryption is disabled.");
             }
             return NoopEncryptionStorageManager.INSTANCE;
         }
 
-        final String kekId = encryptionAtRestConfig.kekId();
+        final String kekId = encryptionConfig.kekId();
         assert kekId != null;
         return new DefaultEncryptionStorageManager(rocksDbPath.toString(),
-                                                   encryptionAtRestConfig.encryptSessionCookie(), kekId);
+                                                   encryptionConfig.encryptSessionCookie(), kekId);
     }
 
     /**
@@ -72,7 +72,7 @@ public interface EncryptionStorageManager extends SafeCloseable {
     }
 
     /**
-     * Returns {@code true} if the encryption at rest is enabled.
+     * Returns {@code true} if the encryption is enabled.
      */
     boolean enabled();
 
@@ -225,7 +225,7 @@ public interface EncryptionStorageManager extends SafeCloseable {
 
     /**
      * Rewraps all wrapped data encryption keys (WDEKs) and session master keys
-     * with the {@link EncryptionAtRestConfig#kekId()} specified in the configuration.
+     * with the {@link EncryptionConfig#kekId()} specified in the configuration.
      *
      * @param executor the {@link Executor} to use for storing re-wrapped keys.
      */

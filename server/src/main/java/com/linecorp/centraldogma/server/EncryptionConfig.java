@@ -18,6 +18,11 @@ package com.linecorp.centraldogma.server;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.util.Objects.requireNonNull;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -25,9 +30,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
 /**
- * Encryption at Rest configuration.
+ * Encryption configuration.
  */
-public final class EncryptionAtRestConfig {
+public final class EncryptionConfig {
+
+    private static final String ENCRYPTION_MARKER_FILE_NAME = ".encryption-enabled";
 
     private final boolean enabled;
     private final boolean encryptSessionCookie;
@@ -38,10 +45,10 @@ public final class EncryptionAtRestConfig {
      * Creates an instance.
      */
     @JsonCreator
-    public EncryptionAtRestConfig(@JsonProperty("enabled") @Nullable Boolean enabled,
-                                  @JsonProperty("encryptSessionCookie")
-                                  @Nullable Boolean encryptSessionCookie,
-                                  @JsonProperty("kekId") @Nullable String kekId) {
+    public EncryptionConfig(@JsonProperty("enabled") @Nullable Boolean enabled,
+                            @JsonProperty("encryptSessionCookie")
+                            @Nullable Boolean encryptSessionCookie,
+                            @JsonProperty("kekId") @Nullable String kekId) {
         this.enabled = firstNonNull(enabled, false);
         this.encryptSessionCookie = this.enabled && firstNonNull(encryptSessionCookie, false);
         if (this.enabled) {
@@ -51,7 +58,37 @@ public final class EncryptionAtRestConfig {
     }
 
     /**
-     * Returns whether encryption at rest is enabled.
+     * Validates the encryption state with the data directory.
+     * This method checks if encryption was previously enabled and prevents disabling it.
+     *
+     * @param dataDir the data directory where the marker file is stored
+     * @throws IllegalStateException if encryption was previously enabled but is now disabled
+     */
+    void validateEncryptionState(File dataDir) {
+        requireNonNull(dataDir, "dataDir");
+        final Path markerFilePath = dataDir.toPath().resolve(ENCRYPTION_MARKER_FILE_NAME);
+        final boolean wasEncryptionEnabled = Files.exists(markerFilePath);
+
+        if (wasEncryptionEnabled && !enabled) {
+            throw new IllegalStateException(
+                    "Cannot disable encryption after it has been enabled. " +
+                    "Encryption was previously enabled. To proceed, you must keep encryption enabled.");
+        }
+
+        if (enabled && !wasEncryptionEnabled) {
+            // Create the marker file to indicate encryption has been enabled
+            try {
+                Files.createDirectories(dataDir.toPath());
+                Files.createFile(markerFilePath);
+            } catch (IOException e) {
+                throw new IllegalStateException(
+                        "Failed to create encryption marker file: " + markerFilePath, e);
+            }
+        }
+    }
+
+    /**
+     * Returns whether encryption is enabled.
      */
     @JsonProperty
     public boolean enabled() {
@@ -84,3 +121,4 @@ public final class EncryptionAtRestConfig {
                           .toString();
     }
 }
+

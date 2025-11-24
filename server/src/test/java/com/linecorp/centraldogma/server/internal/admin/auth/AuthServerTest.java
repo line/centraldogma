@@ -51,7 +51,7 @@ import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.EncryptionAtRestConfig;
+import com.linecorp.centraldogma.server.EncryptionConfig;
 import com.linecorp.centraldogma.server.auth.SessionKey;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.UpdateServerStatusRequest.Scope;
@@ -78,7 +78,7 @@ final class AuthServerTest {
         protected void configure(CentralDogmaBuilder builder) {
             builder.authProviderFactory(new TestAuthProviderFactory());
             builder.port(0, SessionProtocol.HTTPS);
-            builder.encryptionAtRest(new EncryptionAtRestConfig(true, true, "kekId"));
+            builder.encryption(new EncryptionConfig(true, true, "kekId"));
             builder.systemAdministrators(USERNAME);
         }
     };
@@ -90,7 +90,7 @@ final class AuthServerTest {
         protected void configure(CentralDogmaBuilder builder) {
             builder.authProviderFactory(new TestAuthProviderFactory());
             builder.port(0, SessionProtocol.HTTPS);
-            builder.encryptionAtRest(new EncryptionAtRestConfig(true, true, "kekId"));
+            builder.encryption(new EncryptionConfig(true, true, "kekId"));
             builder.systemAdministrators(USERNAME);
         }
 
