@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.storage.encryption;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -117,7 +118,7 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     }
 
     @Override
-    public void removeWdek(String projectName, String repoName, int version) {
+    public void removeWdek(String projectName, String repoName, int version, boolean removeCurrent) {
     }
 
     @Override
@@ -169,6 +170,22 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     @Override
     public void addSessionKeyListener(Consumer<SessionKey> listener) {
         // No-op
+    }
+
+    @Override
+    public void addCurrentDekListener(String projectName, String repoName,
+                                      Consumer<SecretKeyWithVersion> listener) {
+        // No-op
+    }
+
+    @Override
+    public void removeCurrentDekListener(String projectName, String repoName) {
+        // No-op
+    }
+
+    @Override
+    public CompletableFuture<Void> rewrapAllKeys(Executor executor) {
+        return UnmodifiableFuture.completedFuture(null);
     }
 
     @Override

@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.server.storage.encryption;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.NONCE_SIZE_BYTES;
 import static com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher.aesSecretKey;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.EncryptionGitStorage.OBJS;
@@ -28,15 +29,19 @@ import static java.util.Objects.requireNonNull;
 import static org.eclipse.jgit.lib.Constants.HEAD;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -56,6 +61,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
 
+import com.linecorp.armeria.internal.common.util.ReentrantShortLock;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.GitObjectMetadata;
@@ -69,8 +75,9 @@ final class RepositoryEncryptionStorage {
     private final KeyWrapper keyWrapper;
     private final String kekId;
 
-    private final ConcurrentHashMap<String, SecretKeyWithVersion> currentDeks = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, SecretKey> dekWithVersion = new ConcurrentHashMap<>();
+    private final ReentrantShortLock lock = new ReentrantShortLock();
+    @GuardedBy("lock")
+    private final Map<String, Consumer<SecretKeyWithVersion>> currentDekListeners = new HashMap<>();
 
     RepositoryEncryptionStorage(RocksDBStorage rocksDbStorage, KeyWrapper keyWrapper, String kekId) {
         this.rocksDbStorage = requireNonNull(rocksDbStorage, "rocksDbStorage");
@@ -108,9 +115,7 @@ final class RepositoryEncryptionStorage {
     SecretKey getDek(String projectName, String repoName, int version) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
-        return dekWithVersion.computeIfAbsent(
-                projectRepoVersion(projectName, repoName, version),
-                k -> getDek0(projectName, repoName, version));
+        return getDek0(projectName, repoName, version);
     }
 
     private SecretKeySpec getDek0(String projectName, String repoName, int version) {
@@ -136,14 +141,14 @@ final class RepositoryEncryptionStorage {
                     "Failed to read WDEK of " + projectRepoVersion(projectName, repoName, version), e);
         }
 
-        return unwrap(projectName, repoName, version, wdekDetails);
+        return blockingUnwrap(projectName, repoName, version, wdekDetails);
     }
 
-    private SecretKeySpec unwrap(String projectName, String repoName,
-                                 int version, WrappedDekDetails wdekDetails) {
+    private SecretKeySpec blockingUnwrap(String projectName, String repoName,
+                                         int version, WrappedDekDetails wdekDetails) {
         final byte[] key;
         try {
-            key = keyWrapper.unwrap(wdekDetails.wrappedDek(), kekId).get(10, TimeUnit.SECONDS);
+            key = keyWrapper.unwrap(wdekDetails.wrappedDek(), wdekDetails.kekId()).get(10, TimeUnit.SECONDS);
         } catch (Throwable t) {
             throw new EncryptionStorageException(
                     "Failed to unwrap WDEK of " + projectRepoVersion(projectName, repoName, version), t);
@@ -151,12 +156,10 @@ final class RepositoryEncryptionStorage {
         return aesSecretKey(key);
     }
 
-    // TODO(minwoox): Use listener instead of caching current DEK.
     SecretKeyWithVersion getCurrentDek(String projectName, String repoName) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
-        return currentDeks.computeIfAbsent(projectRepo(projectName, repoName),
-                                           k -> getCurrentDek0(projectName, repoName));
+        return getCurrentDek0(projectName, repoName);
     }
 
     private SecretKeyWithVersion getCurrentDek0(String projectName, String repoName) {
@@ -212,7 +215,7 @@ final class RepositoryEncryptionStorage {
                                                  projectRepoVersion(projectName, repoName, version), e);
         }
 
-        final SecretKeySpec unwrap = unwrap(projectName, repoName, version, wdekDetails);
+        final SecretKeySpec unwrap = blockingUnwrap(projectName, repoName, version, wdekDetails);
 
         final byte[] wdekBytes;
         try {
@@ -233,8 +236,7 @@ final class RepositoryEncryptionStorage {
             throw new EncryptionStorageException(
                     "Failed to store WDEK of " + projectRepoVersion(projectName, repoName, version), e);
         }
-        dekWithVersion.put(projectRepoVersion(projectName, repoName, version), unwrap);
-        currentDeks.put(projectRepo(projectName, repoName), new SecretKeyWithVersion(unwrap, version));
+        notifyCurrentDekListener(projectName, repoName, new SecretKeyWithVersion(unwrap, version));
     }
 
     void rotateWdek(WrappedDekDetails wdekDetails) {
@@ -242,7 +244,7 @@ final class RepositoryEncryptionStorage {
         storeWdek(wdekDetails, true);
     }
 
-    void removeWdek(String projectName, String repoName, int version) {
+    void removeWdek(String projectName, String repoName, int version, boolean removeCurrent) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         try {
@@ -251,15 +253,18 @@ final class RepositoryEncryptionStorage {
                 writeOptions.setSync(true);
                 final ColumnFamilyHandle wdekCf = rocksDbStorage.getColumnFamilyHandle(WDEK_COLUMN_FAMILY);
                 writeBatch.delete(wdekCf, repoWdekDbKey(projectName, repoName, version));
-                writeBatch.delete(wdekCf, repoCurrentWdekDbKey(projectName, repoName));
+                if (removeCurrent) {
+                    writeBatch.delete(wdekCf, repoCurrentWdekDbKey(projectName, repoName));
+                }
                 rocksDbStorage.write(writeOptions, writeBatch);
             }
         } catch (RocksDBException e) {
             throw new EncryptionStorageException(
                     "Failed to remove WDEK of " + projectRepoVersion(projectName, repoName, version), e);
         }
-        dekWithVersion.remove(projectRepoVersion(projectName, repoName, version));
-        currentDeks.remove(projectRepo(projectName, repoName));
+        if (removeCurrent) {
+            removeCurrentDekListener(projectName, repoName);
+        }
     }
 
     @Nullable
@@ -553,12 +558,53 @@ final class RepositoryEncryptionStorage {
             throw new EncryptionStorageException(
                     "Failed to remove WDEKs for repository " + projectRepo(projectName, repoName), e);
         }
-        // Remove from caches.
-        final SecretKeyWithVersion removed = currentDeks.remove(projectRepo(projectName, repoName));
-        if (removed != null) {
-            for (int i = 1; i <= removed.version(); i++) {
-                dekWithVersion.remove(projectRepoVersion(projectName, repoName, i));
+        removeCurrentDekListener(projectName, repoName);
+    }
+
+    void addCurrentDekListener(String projectName, String repoName,
+                               Consumer<SecretKeyWithVersion> listener) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repoName, "repoName");
+        requireNonNull(listener, "listener");
+        final String projectRepoKey = projectRepo(projectName, repoName);
+        lock.lock();
+        try {
+            if (currentDekListeners.containsKey(projectRepoKey)) {
+                throw new IllegalStateException(
+                        "A current DEK listener is already registered for " + projectRepoKey);
             }
+
+            currentDekListeners.put(projectRepoKey, listener);
+            final SecretKeyWithVersion currentDek = getCurrentDek0(projectName, repoName);
+            listener.accept(currentDek);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    void removeCurrentDekListener(String projectName, String repoName) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repoName, "repoName");
+        final String projectRepoKey = projectRepo(projectName, repoName);
+        lock.lock();
+        try {
+            currentDekListeners.remove(projectRepoKey);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private void notifyCurrentDekListener(String projectName, String repoName, SecretKeyWithVersion newDek) {
+        final String projectRepoKey = projectRepo(projectName, repoName);
+        lock.lock();
+        try {
+            final Consumer<SecretKeyWithVersion> listener = currentDekListeners.get(projectRepoKey);
+            // listener can be null because storeWdek() is called before a repository is created.
+            if (listener != null) {
+                listener.accept(newDek);
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -576,6 +622,98 @@ final class RepositoryEncryptionStorage {
 
     private static byte[] repoCurrentWdekDbKey(String projectName, String repoName) {
         return ("wdeks/" + projectName + '/' + repoName + "/current").getBytes(StandardCharsets.UTF_8);
+    }
+
+    CompletableFuture<Void> rewrapAllWdeks(Executor executor) {
+        final List<WrappedDekDetails> allWdeks = wdeks();
+        if (allWdeks.isEmpty()) {
+            logger.info("No WDEKs to rewrap");
+            return CompletableFuture.completedFuture(null);
+        }
+
+        logger.info("Starting to rewrap WDEKs...");
+
+        final List<CompletableFuture<WrappedDekDetails>> rewrapFutures = new ArrayList<>();
+        for (WrappedDekDetails wdekDetails : allWdeks) {
+            final String oldKekId = wdekDetails.kekId();
+            logger.info("Re-wrapping WDEK for {}/{} version {} from KEK {} to {}",
+                       wdekDetails.projectName(), wdekDetails.repoName(),
+                       wdekDetails.dekVersion(), oldKekId, kekId);
+
+            final CompletableFuture<WrappedDekDetails> rewrapFuture =
+                    keyWrapper.rewrap(wdekDetails.wrappedDek(), oldKekId, kekId)
+                              .handle((wrappedDek, cause) -> {
+                                  if (cause != null) {
+                                      logger.warn("Failed to rewrap WDEK for {}",
+                                                  projectRepoVersion(wdekDetails.projectName(),
+                                                                     wdekDetails.repoName(),
+                                                                     wdekDetails.dekVersion()), cause);
+                                      return null;
+                                  }
+                                  if (oldKekId.equals(kekId) && wdekDetails.wrappedDek().equals(wrappedDek)) {
+                                      logger.info("WDEK for {} is already wrapped with the target KEK {}. " +
+                                                  "Skipping rewrap.",
+                                                  projectRepoVersion(wdekDetails.projectName(),
+                                                                     wdekDetails.repoName(),
+                                                                     wdekDetails.dekVersion()),
+                                                  kekId);
+                                      return null;
+                                  }
+
+                                  return new WrappedDekDetails(wrappedDek,
+                                                               wdekDetails.dekVersion(),
+                                                               kekId,
+                                                               wdekDetails.creationInstant(),
+                                                               wdekDetails.projectName(),
+                                                               wdekDetails.repoName());
+                              });
+            rewrapFutures.add(rewrapFuture);
+        }
+
+        return CompletableFuture.allOf(rewrapFutures.toArray(new CompletableFuture[0]))
+                                .thenAcceptAsync(unused -> {
+                                    final List<WrappedDekDetails> collected =
+                                            rewrapFutures.stream().map(CompletableFuture::join)
+                                                         .filter(Objects::nonNull)
+                                                         .collect(toImmutableList());
+
+                                    logger.info("Storing {} re-wrapped WDEKs", collected.size());
+                                    final ColumnFamilyHandle wdekCf =
+                                            rocksDbStorage.getColumnFamilyHandle(WDEK_COLUMN_FAMILY);
+
+                                    int failedCount = 0;
+                                    try (WriteBatch writeBatch = new WriteBatch();
+                                         WriteOptions writeOptions = new WriteOptions()) {
+                                        writeOptions.setSync(true);
+
+                                        for (WrappedDekDetails newWdekDetails : collected) {
+                                            final byte[] wdekBytes;
+                                            try {
+                                                wdekBytes = Jackson.writeValueAsBytes(newWdekDetails);
+                                            } catch (JsonProcessingException e) {
+                                                failedCount++;
+                                                logger.warn("Failed to serialize re-wrapped WDEK for {}",
+                                                            projectRepoVersion(newWdekDetails.projectName(),
+                                                                               newWdekDetails.repoName(),
+                                                                               newWdekDetails.dekVersion()),
+                                                            e);
+                                                continue;
+                                            }
+                                            final byte[] wdekKeyBytes = repoWdekDbKey(
+                                                    newWdekDetails.projectName(),
+                                                    newWdekDetails.repoName(),
+                                                    newWdekDetails.dekVersion());
+                                            writeBatch.put(wdekCf, wdekKeyBytes, wdekBytes);
+                                        }
+
+                                        rocksDbStorage.write(writeOptions, writeBatch);
+                                        logger.info("Successfully re-wrapped {} WDEKs",
+                                                    collected.size() - failedCount);
+                                    } catch (RocksDBException e) {
+                                        throw new EncryptionStorageException(
+                                                "Failed to store re-wrapped WDEKs", e);
+                                    }
+                                }, executor);
     }
 
     private static boolean startsWith(byte[] array, byte[] prefix) {

@@ -24,7 +24,7 @@ public final class TestKeyWrapper implements KeyWrapper {
 
     @Override
     public CompletableFuture<String> wrap(byte[] dek, String kekId) {
-        final byte[] prefix = "wrapped-".getBytes();
+        final byte[] prefix = (kekId + "-wrapped-").getBytes();
         final byte[] wdek = new byte[prefix.length + dek.length];
         System.arraycopy(prefix, 0, wdek, 0, prefix.length);
         System.arraycopy(dek, 0, wdek, prefix.length, dek.length);
@@ -34,14 +34,18 @@ public final class TestKeyWrapper implements KeyWrapper {
     @Override
     public CompletableFuture<byte[]> unwrap(String wdek, String kekId) {
         final byte[] decoded = Base64.getDecoder().decode(wdek);
-        final int prefixLength = "wrapped-".length();
+        final String prefixWithKekId = kekId + "-wrapped-";
+        final int prefixLength = prefixWithKekId.length();
         if (decoded.length <= prefixLength) {
             throw new IllegalArgumentException("Invalid wrapped DEK length: " + decoded.length);
         }
 
         final byte[] prefix = new byte[prefixLength];
         System.arraycopy(decoded, 0, prefix, 0, prefixLength);
-        assert "wrapped-".equals(new String(prefix));
+        if (!prefixWithKekId.equals(new String(prefix))) {
+            throw new IllegalArgumentException("KEK ID mismatch: expected=" + prefixWithKekId +
+                                               ", actual=" + new String(prefix));
+        }
 
         final byte[] dek = new byte[decoded.length - prefixLength];
         System.arraycopy(decoded, prefixLength, dek, 0, dek.length);

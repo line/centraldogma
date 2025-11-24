@@ -31,6 +31,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.EncryptionAtRestConfig;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 import com.linecorp.centraldogma.server.management.ServerStatus;
@@ -55,6 +56,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = MigrateToEncryptedRepositoryCommand.class, name = "MIGRATE_TO_ENCRYPTED_REPOSITORY"),
         @Type(value = NormalizingPushCommand.class, name = "NORMALIZING_PUSH"),
         @Type(value = PushAsIsCommand.class, name = "PUSH"),
+        @Type(value = RewrapAllKeysCommand.class, name = "REWRAP_ALL_KEYS"),
         @Type(value = RotateWdekCommand.class, name = "ROTATE_WDEK"),
         @Type(value = RotateSessionMasterKeyCommand.class, name = "ROTATE_SESSION_MASTER_KEY"),
         @Type(value = CreateSessionCommand.class, name = "CREATE_SESSIONS"),
@@ -409,17 +411,36 @@ public interface Command<T> {
     }
 
     /**
+     * Returns a new {@link Command} which is used to re-wrap all existing keys
+     * with the {@link EncryptionAtRestConfig#kekId()} specified in the configuration.
+     */
+    static Command<Void> rewrapAllKeys(Author author) {
+        requireNonNull(author, "author");
+        return new RewrapAllKeysCommand(null, author);
+    }
+
+    /**
      * Returns a new {@link Command} which is used to rotate the wrapped data encryption key (WDEK).
      */
-    static Command<Void> rotateWdek(String projectName, String repoName, WrappedDekDetails wdekDetails) {
-        return new RotateWdekCommand(projectName, repoName, wdekDetails);
+    static Command<Void> rotateWdek(Author author, String projectName, String repoName,
+                                    WrappedDekDetails wdekDetails) {
+        requireNonNull(author, "author");
+        return new RotateWdekCommand(null, author, projectName, repoName, wdekDetails);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to create a new session master key.
+     */
+    static Command<Void> createSessionMasterKey(SessionMasterKey sessionMasterKey) {
+        return new CreateSessionMasterKeyCommand(null, null, sessionMasterKey);
     }
 
     /**
      * Returns a new {@link Command} which is used to rotate the session master key.
      */
-    static Command<Void> rotateSessionMasterKey(SessionMasterKey sessionMasterKey) {
-        return new RotateSessionMasterKeyCommand(sessionMasterKey);
+    static Command<Void> rotateSessionMasterKey(Author author, SessionMasterKey sessionMasterKey) {
+        requireNonNull(author, "author");
+        return new RotateSessionMasterKeyCommand(null, author, sessionMasterKey);
     }
 
     /**
@@ -438,13 +459,6 @@ public interface Command<T> {
      */
     static Command<Void> removeSession(String sessionId) {
         return new RemoveSessionCommand(null, null, sessionId);
-    }
-
-    /**
-     * Returns a new {@link Command} which is used to create a new session master key.
-     */
-    static Command<Void> createSessionMasterKey(SessionMasterKey sessionMasterKey) {
-        return new CreateSessionMasterKeyCommand(null, null, sessionMasterKey);
     }
 
     /**

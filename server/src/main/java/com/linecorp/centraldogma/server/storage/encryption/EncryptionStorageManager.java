@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -151,7 +152,7 @@ public interface EncryptionStorageManager extends SafeCloseable {
     /**
      * Removes the wrapped data encryption key (WDEK) for the specified project and repository.
      */
-    void removeWdek(String projectName, String repoName, int version);
+    void removeWdek(String projectName, String repoName, int version, boolean removeCurrent);
 
     /**
      * Returns the object associated with the specified key.
@@ -209,4 +210,24 @@ public interface EncryptionStorageManager extends SafeCloseable {
      * Adds a listener that is called when a new session key is stored.
      */
     void addSessionKeyListener(Consumer<SessionKey> listener);
+
+    /**
+     * Adds a listener that is called when the current DEK for a repository is updated or removed.
+     * The listener receives the project/repo key and the new DEK (or null if removed).
+     */
+    void addCurrentDekListener(String projectName, String repoName,
+                               Consumer<SecretKeyWithVersion> listener);
+
+    /**
+     * Removes a previously registered current DEK listener.
+     */
+    void removeCurrentDekListener(String projectName, String repoName);
+
+    /**
+     * Rewraps all wrapped data encryption keys (WDEKs) and session master keys
+     * with the {@link EncryptionAtRestConfig#kekId()} specified in the configuration.
+     *
+     * @param executor the {@link Executor} to use for storing re-wrapped keys.
+     */
+    CompletableFuture<Void> rewrapAllKeys(Executor executor);
 }
