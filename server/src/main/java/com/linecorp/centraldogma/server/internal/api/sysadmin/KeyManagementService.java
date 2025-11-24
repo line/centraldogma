@@ -121,7 +121,7 @@ public final class KeyManagementService extends AbstractService {
     /**
      * Rewraps all wrapped data encryption keys (WDEKs) and session master keys
      * with the {@link EncryptionConfig#kekId()} specified in the configuration.
-     * If the Key Management System does not support automatic key rotation, you should this API
+     * If the Key Management System does not support automatic key rotation, you should use this API
      * after updating the KEK ID in the configuration and restarting the server.
      * For automatic key rotation,
      * please refer to <a href="https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html">
