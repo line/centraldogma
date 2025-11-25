@@ -52,7 +52,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.EncryptionAtRestConfig;
+import com.linecorp.centraldogma.server.EncryptionConfig;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.EncryptionGitStorage;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.GitObjectMetadata;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.RocksDbRepository;
@@ -68,7 +68,7 @@ class KeyManagementServiceTest {
 
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.encryptionAtRest(new EncryptionAtRestConfig(true, true, "kekId"))
+            builder.encryption(new EncryptionConfig(true, true, "kekId"))
                    .systemAdministrators(USERNAME)
                    .authProviderFactory(new TestAuthProviderFactory());
         }

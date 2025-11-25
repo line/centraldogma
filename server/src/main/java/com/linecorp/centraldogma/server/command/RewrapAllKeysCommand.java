@@ -21,11 +21,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.server.EncryptionAtRestConfig;
+import com.linecorp.centraldogma.server.EncryptionConfig;
 
 /**
  * A {@link Command} that rewraps all wrapped data encryption keys (WDEKs) and session master keys
- * with the {@link EncryptionAtRestConfig#kekId()} specified in the configuration.
+ * with the {@link EncryptionConfig#kekId()} specified in the configuration.
  */
 public final class RewrapAllKeysCommand extends RootCommand<Void> {
 

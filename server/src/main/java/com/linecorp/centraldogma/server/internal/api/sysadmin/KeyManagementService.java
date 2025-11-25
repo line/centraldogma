@@ -28,7 +28,7 @@ import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.server.EncryptionAtRestConfig;
+import com.linecorp.centraldogma.server.EncryptionConfig;
 import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -120,8 +120,8 @@ public final class KeyManagementService extends AbstractService {
 
     /**
      * Rewraps all wrapped data encryption keys (WDEKs) and session master keys
-     * with the {@link EncryptionAtRestConfig#kekId()} specified in the configuration.
-     * If the Key Management System does not support automatic key rotation, you should this API
+     * with the {@link EncryptionConfig#kekId()} specified in the configuration.
+     * If the Key Management System does not support automatic key rotation, you should use this API
      * after updating the KEK ID in the configuration and restarting the server.
      * For automatic key rotation,
      * please refer to <a href="https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html">

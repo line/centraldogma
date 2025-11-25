@@ -43,7 +43,7 @@ import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.EncryptionAtRestConfig;
+import com.linecorp.centraldogma.server.EncryptionConfig;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.KeyManagementServiceTest.WrappedDek;
 import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -147,7 +147,7 @@ class RewrapAllKeysTest {
                 .port(0, SessionProtocol.HTTP)
                 .systemAdministrators(USERNAME)
                 .authProviderFactory(new TestAuthProviderFactory())
-                .encryptionAtRest(new EncryptionAtRestConfig(true, true, kekId))
+                .encryption(new EncryptionConfig(true, true, kekId))
                 .build();
         server.start().join();
         return server;
