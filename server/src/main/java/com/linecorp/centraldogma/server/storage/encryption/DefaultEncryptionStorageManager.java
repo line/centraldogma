@@ -183,6 +183,11 @@ final class DefaultEncryptionStorageManager implements EncryptionStorageManager 
     }
 
     @Override
+    public void reencryptRepositoryData(String projectName, String repoName) {
+        repositoryEncryptionStorage.reencryptRepositoryData(projectName, repoName);
+    }
+
+    @Override
     public Map<String, Map<String, byte[]>> getAllData() {
         return repositoryEncryptionStorage.getAllData();
     }

@@ -34,15 +34,18 @@ import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 public final class RotateWdekCommand extends RepositoryCommand<Void> {
 
     private final WrappedDekDetails wdekDetails;
+    private final boolean reencrypt;
 
     @JsonCreator
     RotateWdekCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
                       @JsonProperty("author") @Nullable Author author,
                       @JsonProperty("projectName") String projectName,
                       @JsonProperty("repositoryName") String repositoryName,
-                      @JsonProperty("wdekDetails") WrappedDekDetails wdekDetails) {
+                      @JsonProperty("wdekDetails") WrappedDekDetails wdekDetails,
+                      @JsonProperty("reencrypt") boolean reencrypt) {
         super(CommandType.ROTATE_WDEK, timestamp, author, projectName, repositoryName);
         this.wdekDetails = requireNonNull(wdekDetails, "wdekDetails");
+        this.reencrypt = reencrypt;
     }
 
     /**
@@ -51,6 +54,14 @@ public final class RotateWdekCommand extends RepositoryCommand<Void> {
     @JsonProperty
     public WrappedDekDetails wdekDetails() {
         return wdekDetails;
+    }
+
+    /**
+     * Returns whether to re-encrypt all existing data with the new WDEK.
+     */
+    @JsonProperty
+    public boolean reencrypt() {
+        return reencrypt;
     }
 
     @Override
@@ -65,17 +76,19 @@ public final class RotateWdekCommand extends RepositoryCommand<Void> {
 
         final RotateWdekCommand that = (RotateWdekCommand) obj;
         return super.equals(that) &&
+               reencrypt == that.reencrypt &&
                wdekDetails.equals(that.wdekDetails);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(wdekDetails) * 31 + super.hashCode();
+        return Objects.hash(wdekDetails, reencrypt) * 31 + super.hashCode();
     }
 
     @Override
     ToStringHelper toStringHelper() {
         return super.toStringHelper()
-                    .add("wdekDetails", wdekDetails);
+                    .add("wdekDetails", wdekDetails)
+                    .add("reencrypt", reencrypt);
     }
 }

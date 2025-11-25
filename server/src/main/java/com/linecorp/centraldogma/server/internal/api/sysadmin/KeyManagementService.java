@@ -18,15 +18,18 @@ package com.linecorp.centraldogma.server.internal.api.sysadmin;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Blocking;
 import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.ProducesJson;
+import com.linecorp.armeria.server.annotation.decorator.RequestTimeout;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.EncryptionConfig;
 import com.linecorp.centraldogma.server.auth.SessionMasterKey;
@@ -64,25 +67,24 @@ public final class KeyManagementService extends AbstractService {
     @Blocking
     public CompletableFuture<Void> rotateWdek(@Param String projectName, @Param String repoName,
                                               @Param @Default("false") boolean reencrypt,
-                                              Author author) {
+                                              Author author, ServiceRequestContext ctx) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         if (reencrypt) {
-            // TODO(minwoox): Implement re-encryption logic.
-            throw new UnsupportedOperationException();
-        } else {
-            final SecretKeyWithVersion currentDek =
-                    encryptionStorageManager.getCurrentDek(projectName, repoName);
-            return encryptionStorageManager.generateWdek().thenCompose(wdek -> {
-                // If concurrent rotation happened, only one of them will succeed to create a new WDEK because
-                // the storage manager accepts only the WDEK with the version which is exactly one greater.
-                final int newVersion = currentDek.version() + 1;
-                final WrappedDekDetails wdekDetails = new WrappedDekDetails(
-                        wdek, newVersion, encryptionStorageManager.kekId(),
-                        projectName, repoName);
-                return execute(Command.rotateWdek(author, projectName, repoName, wdekDetails));
-            });
+            ctx.setRequestTimeout(Duration.ofSeconds(60));
         }
+
+        final SecretKeyWithVersion currentDek =
+                encryptionStorageManager.getCurrentDek(projectName, repoName);
+        return encryptionStorageManager.generateWdek().thenCompose(wdek -> {
+            // If concurrent rotation happened, only one of them will succeed to create a new WDEK because
+            // the storage manager accepts only the WDEK with the version which is exactly one greater.
+            final int newVersion = currentDek.version() + 1;
+            final WrappedDekDetails wdekDetails = new WrappedDekDetails(
+                    wdek, newVersion, encryptionStorageManager.kekId(),
+                    projectName, repoName);
+            return execute(Command.rotateWdek(author, projectName, repoName, wdekDetails, reencrypt));
+        });
     }
 
     /**
@@ -129,6 +131,7 @@ public final class KeyManagementService extends AbstractService {
      */
     @Post("/keys/rewrap")
     @Blocking
+    @RequestTimeout(60000)
     public CompletableFuture<Void> rewrapAllKeys(Author author) {
         return execute(Command.rewrapAllKeys(author));
     }
