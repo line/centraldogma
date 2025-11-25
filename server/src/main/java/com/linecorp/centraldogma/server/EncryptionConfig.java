@@ -79,7 +79,15 @@ public final class EncryptionConfig {
             // Create the marker file to indicate encryption has been enabled
             try {
                 Files.createDirectories(dataDir.toPath());
-                Files.createFile(markerFilePath);
+                final String markerContent =
+                        "# DO NOT DELETE THIS FILE\n" +
+                        "#\n" +
+                        "# This file indicates that encryption has been enabled for this " +
+                        "Central Dogma server.\n" +
+                        "# Once encryption is enabled, it cannot be disabled.\n" +
+                        "#\n" +
+                        "# Deleting this file may cause the server to malfunction or fail to start.\n";
+                Files.write(markerFilePath, markerContent.getBytes());
             } catch (IOException e) {
                 throw new IllegalStateException(
                         "Failed to create encryption marker file: " + markerFilePath, e);
