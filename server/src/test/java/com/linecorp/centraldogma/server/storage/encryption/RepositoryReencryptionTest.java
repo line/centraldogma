@@ -409,9 +409,9 @@ class RepositoryReencryptionTest {
         // Re-encrypt (should handle batching internally)
         encryptionStorageManager.reencryptRepositoryData(PROJECT_NAME, REPO_NAME);
 
-        // Verify ALL revisions are updated to version 2 (not just samples)
-        // This ensures batching works correctly for all 1501 revisions (including INIT)
-        for (int i = 1; i <= 41; i++) {
+        // Verify ALL revisions are updated to version 2
+        // This ensures batching works correctly for all 401 revisions (including INIT)
+        for (int i = 1; i <= 401; i++) {
             final byte[] revKey = encryptionGitStorage.rev2ShaMetadataKey(new Revision(i));
             final byte[] metadata = encryptionStorageManager.getMetadata(revKey);
             assertThat(metadata).isNotNull();
