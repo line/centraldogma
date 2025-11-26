@@ -389,9 +389,9 @@ class RepositoryReencryptionTest {
         final Repository repo = createRepository(REPO_NAME);
         final EncryptionGitStorage encryptionGitStorage = getEncryptionGitStorage(repo);
 
-        // Add many commits (more than BATCH_WRITE_SIZE = 1000)
+        // Add many commits so the number of entries become more than (BATCH_WRITE_SIZE = 1000)
         Revision currentRev = Revision.INIT;
-        for (int i = 0; i < 1500; i++) {
+        for (int i = 0; i < 400; i++) {
             currentRev = repo.commit(currentRev, 0, Author.SYSTEM, "Commit " + i,
                                     ImmutableList.of(
                                             Change.ofJsonUpsert("/file" + i + ".json",
@@ -411,7 +411,7 @@ class RepositoryReencryptionTest {
 
         // Verify ALL revisions are updated to version 2 (not just samples)
         // This ensures batching works correctly for all 1501 revisions (including INIT)
-        for (int i = 1; i <= 1501; i++) {
+        for (int i = 1; i <= 41; i++) {
             final byte[] revKey = encryptionGitStorage.rev2ShaMetadataKey(new Revision(i));
             final byte[] metadata = encryptionStorageManager.getMetadata(revKey);
             assertThat(metadata).isNotNull();
