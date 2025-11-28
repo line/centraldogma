@@ -45,7 +45,6 @@ import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
 class MetadataServiceTest {
@@ -504,10 +503,10 @@ class MetadataServiceTest {
         revision = mds.updateRepositoryStatus(author, project1, repo1, RepositoryStatus.ACTIVE).join();
         assertThat(revision).isEqualTo(new Revision(6));
         // Able to push again.
-        final CommitResult commitResult = manager.executor().execute(Command.push(
+        revision = manager.executor().execute(Command.push(
                 author, project1, repo1, Revision.HEAD,
                 "foo", "bar", Markup.PLAINTEXT, Change.ofTextUpsert("/a.txt", "1"))).join();
-        assertThat(commitResult.revision()).isEqualTo(new Revision(2)); // Revision of repo1.
+        assertThat(revision).isEqualTo(new Revision(2)); // Revision of repo1.
 
         // REPO_META
         revision = mds.updateRepositoryStatus(author, project1, REPO_META, RepositoryStatus.READ_ONLY).join();

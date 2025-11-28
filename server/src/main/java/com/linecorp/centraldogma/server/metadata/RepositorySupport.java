@@ -103,8 +103,7 @@ final class RepositorySupport<T> {
         requireNonNull(changes, "changes");
 
         return executor.execute(Command.push(author, projectName, repoName, revision, commitSummary, "",
-                                             Markup.PLAINTEXT, changes))
-                       .thenApply(CommitResult::revision);
+                                             Markup.PLAINTEXT, changes));
     }
 
     CompletableFuture<Revision> push(String projectName, String repoName,

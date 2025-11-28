@@ -60,6 +60,7 @@ public final class WatcherRequest<T> extends WatchOptions {
     private long maxDelayMillis = DEFAULT_MAX_DELAY_MILLIS;
     private double multiplier = DEFAULT_MULTIPLIER;
     private double jitterRate = DEFAULT_JITTER_RATE;
+    private boolean viewRaw;
 
     WatcherRequest(CentralDogmaRepository centralDogmaRepo, Query<T> query,
                    ScheduledExecutorService blockingTaskExecutor, @Nullable MeterRegistry meterRegistry) {

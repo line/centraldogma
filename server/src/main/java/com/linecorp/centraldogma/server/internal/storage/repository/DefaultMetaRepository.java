@@ -51,7 +51,6 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
@@ -285,7 +284,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     @Override
-    public CompletableFuture<Command<CommitResult>> createMirrorPushCommand(
+    public CompletableFuture<Command<Revision>> createMirrorPushCommand(
             String repoName, MirrorRequest mirrorRequest, Author author,
             @Nullable ZoneConfig zoneConfig, boolean update) {
         validateMirror(mirrorRequest, zoneConfig);
@@ -309,7 +308,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     @Override
-    public CompletableFuture<Command<CommitResult>> createCredentialPushCommand(Credential credential,
+    public CompletableFuture<Command<Revision>> createCredentialPushCommand(Credential credential,
                                                                                 Author author, boolean update) {
         final String credentialName = credential.name();
         if (update) {
@@ -324,9 +323,9 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     @Override
-    public CompletableFuture<Command<CommitResult>> createCredentialPushCommand(String repoName,
-                                                                                Credential credential,
-                                                                                Author author, boolean update) {
+    public CompletableFuture<Command<Revision>> createCredentialPushCommand(String repoName,
+                                                                            Credential credential,
+                                                                            Author author, boolean update) {
         final String credentialName = credential.name();
         if (update) {
             return credential(credentialName).thenApply(c -> {
@@ -341,15 +340,15 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
                 newCredentialCommand(credentialFile(credentialName), credential, author, summary));
     }
 
-    private Command<CommitResult> newCredentialCommand(String credentialFile, Credential credential,
-                                                       Author author, String summary) {
+    private Command<Revision> newCredentialCommand(String credentialFile, Credential credential,
+                                                   Author author, String summary) {
         final JsonNode jsonNode = Jackson.valueToTree(credential);
         final Change<JsonNode> change = Change.ofJsonUpsert(credentialFile, jsonNode);
         return Command.push(author, parent().name(), name(), Revision.HEAD, summary, "", Markup.PLAINTEXT,
                             change);
     }
 
-    private Command<CommitResult> newMirrorCommand(String repoName, MirrorRequest mirrorRequest,
+    private Command<Revision> newMirrorCommand(String repoName, MirrorRequest mirrorRequest,
                                                    Author author, String summary) {
         final MirrorConfig mirrorConfig = converterToMirrorConfig(mirrorRequest);
         final JsonNode jsonNode = Jackson.valueToTree(mirrorConfig);

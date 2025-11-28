@@ -14,7 +14,7 @@ export const JsonPath = ({
       if (value) {
         setFileContent(JSON.stringify(jp.query(jsonContent, value), null, 2));
       } else if (value === '') {
-        setFileContent(JSON.stringify(jsonContent, null, 2));
+        setFileContent(jsonContent);
       }
     } catch (err) {
       setFileContent('Invalid JSONPath.');

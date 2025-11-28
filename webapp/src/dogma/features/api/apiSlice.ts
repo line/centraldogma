@@ -287,7 +287,7 @@ export const apiSlice = createApi({
     getFiles: builder.query<FileDto[] | FileDto, GetFilesByProjectAndRepoName>({
       query: ({ projectName, repoName, revision, filePath, withContent }) => {
         if (withContent) {
-          return `/api/v1/projects/${projectName}/repos/${repoName}/contents${filePath || ''}?revision=${revision || 'head'}`;
+          return `/api/v1/projects/${projectName}/repos/${repoName}/contents${filePath || ''}?revision=${revision || 'head'}&viewRaw=true`;
         } else {
           return `/api/v1/projects/${projectName}/repos/${repoName}/list${filePath || ''}?revision=${revision || 'head'}`;
         }
@@ -296,7 +296,7 @@ export const apiSlice = createApi({
     }),
     getFileContent: builder.query<FileContentDto, GetFileContent>({
       query: ({ projectName, repoName, filePath, revision }) =>
-        `/api/v1/projects/${projectName}/repos/${repoName}/contents${filePath}?revision=${revision}`,
+        `/api/v1/projects/${projectName}/repos/${repoName}/contents${filePath}?revision=${revision}&viewRaw=true`,
       providesTags: ['File'],
     }),
     pushFileChanges: builder.mutation({

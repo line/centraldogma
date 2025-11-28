@@ -44,8 +44,12 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -82,7 +86,6 @@ import com.linecorp.centraldogma.common.AuthorizationException;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
-import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
@@ -119,6 +122,8 @@ import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 import io.micrometer.core.instrument.MeterRegistry;
 
 public final class ArmeriaCentralDogma extends AbstractCentralDogma {
+
+    private static final Logger logger = LoggerFactory.getLogger(ArmeriaCentralDogma.class);
 
     private static final MediaType JSON_PATCH_UTF8 = MediaType.JSON_PATCH.withCharset(StandardCharsets.UTF_8);
 
@@ -174,7 +179,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             return whenReady;
         }
 
-        return client.endpointGroup().whenReady().thenRun(() -> {});
+        return client.endpointGroup().whenReady().thenRun(() -> {
+        });
     }
 
     @Override
@@ -462,7 +468,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     @Override
     public <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName, Revision revision,
-                                                   Query<T> query) {
+                                                   Query<T> query, boolean viewRaw) {
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(revision, "revision");
         requireNonNull(query, "query");
@@ -472,21 +478,25 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 final StringBuilder path = pathBuilder(projectName, repositoryName);
                 path.append("/contents").append(query.path());
                 path.append("?revision=").append(normRev.text());
+                if (viewRaw) {
+                    path.append("&viewRaw=true");
+                }
                 appendJsonPaths(path, query.type(), query.expressions());
 
                 return client.execute(headers(HttpMethod.GET, path.toString()))
                              .aggregate()
-                             .thenApply(res -> getFile(normRev, res, query));
+                             .thenApply(res -> getFile(normRev, res, query, viewRaw));
             });
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
     }
 
-    private static <T> Entry<T> getFile(Revision normRev, AggregatedHttpResponse res, Query<T> query) {
+    private static <T> Entry<T> getFile(Revision normRev, AggregatedHttpResponse res, Query<T> query,
+                                        boolean viewRaw) {
         if (res.status().code() == 200) {
             final JsonNode node = toJson(res, JsonNodeType.OBJECT);
-            return toEntry(normRev, node, query.type());
+            return toEntry(normRev, node, query.type(), viewRaw);
         }
 
         return handleErrorResponse(res);
@@ -494,7 +504,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
-                                                             Revision revision, PathPattern pathPattern) {
+                                                             Revision revision, PathPattern pathPattern,
+                                                             boolean viewRaw) {
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(revision, "revision");
         requireNonNull(pathPattern, "pathPattern");
@@ -506,27 +517,31 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                     .append(pathPattern.encoded())
                     .append("?revision=")
                     .append(normRev.major());
+                if (viewRaw) {
+                    path.append("&viewRaw=true");
+                }
 
                 return client.execute(headers(HttpMethod.GET, path.toString()))
                              .aggregate()
-                             .thenApply(res -> getFiles(normRev, res));
+                             .thenApply(res -> getFiles(normRev, res, viewRaw));
             });
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
     }
 
-    private static Map<String, Entry<?>> getFiles(Revision normRev, AggregatedHttpResponse res) {
+    private static Map<String, Entry<?>> getFiles(Revision normRev, AggregatedHttpResponse res,
+                                                  boolean viewRaw) {
         switch (res.status().code()) {
             case 200:
                 final JsonNode node = toJson(res, null);
                 final ImmutableMap.Builder<String, Entry<?>> builder = ImmutableMap.builder();
                 if (node.isObject()) { // Single entry
-                    final Entry<?> entry = toEntry(normRev, node, QueryType.IDENTITY);
+                    final Entry<?> entry = toEntry(normRev, node, QueryType.IDENTITY, viewRaw);
                     builder.put(entry.path(), entry);
                 } else if (node.isArray()) { // Multiple entries
                     node.forEach(e -> {
-                        final Entry<?> entry = toEntry(normRev, e, QueryType.IDENTITY);
+                        final Entry<?> entry = toEntry(normRev, e, QueryType.IDENTITY, viewRaw);
                         builder.put(entry.path(), entry);
                     });
                 } else {
@@ -852,11 +867,15 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                                      Revision lastKnownRevision, Query<T> query,
-                                                     long timeoutMillis, boolean errorOnEntryNotFound) {
+                                                     long timeoutMillis, boolean errorOnEntryNotFound,
+                                                     boolean viewRaw) {
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(query, "query");
         checkArgument(timeoutMillis > 0, "timeoutMillis: %s (expected: > 0)", timeoutMillis);
+        if (viewRaw && query.type() == QueryType.JSON_PATH) {
+            throw new IllegalArgumentException("JSON_PATH query cannot be used with raw view");
+        }
         try {
 
             final StringBuilder path = pathBuilder(projectName, repositoryName);
@@ -869,21 +888,24 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 // Remove the trailing '?' or '&'.
                 path.setLength(path.length() - 1);
             }
+            if (viewRaw) {
+                path.append(path.indexOf("?") >= 0 ? "&" : "?").append("viewRaw=true");
+            }
 
             return watch(lastKnownRevision, timeoutMillis, path.toString(), query.type(),
-                         ArmeriaCentralDogma::watchFile, errorOnEntryNotFound);
+                         (res, queryType) -> watchFile(res, queryType, viewRaw), errorOnEntryNotFound);
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
     }
 
     @Nullable
-    private static <T> Entry<T> watchFile(AggregatedHttpResponse res, QueryType queryType) {
+    private static <T> Entry<T> watchFile(AggregatedHttpResponse res, QueryType queryType, boolean viewRaw) {
         switch (res.status().code()) {
             case 200: // OK
                 final JsonNode node = toJson(res, JsonNodeType.OBJECT);
                 final Revision revision = new Revision(getField(node, "revision").asInt());
-                return toEntry(revision, getField(node, "entry"), queryType);
+                return toEntry(revision, getField(node, "entry"), queryType, viewRaw);
             case 304: // Not Modified
                 return null;
         }
@@ -1000,20 +1022,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
      * Encodes a list of {@link Change}s into a JSON array.
      */
     private static ArrayNode toJson(Iterable<? extends Change<?>> changes) {
-        final ArrayNode changesNode = JsonNodeFactory.instance.arrayNode();
-        changes.forEach(c -> {
-            final ObjectNode changeNode = JsonNodeFactory.instance.objectNode();
-            changeNode.put("path", c.path());
-            changeNode.put("type", c.type().name());
-            final Class<?> contentType = c.type().contentType();
-            if (contentType == JsonNode.class) {
-                changeNode.set("content", (JsonNode) c.content());
-            } else if (contentType == String.class) {
-                changeNode.put("content", (String) c.content());
-            }
-            changesNode.add(changeNode);
-        });
-        return changesNode;
+        return Jackson.valueToTree(changes);
     }
 
     /**
@@ -1048,25 +1057,26 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         return res.content(charset);
     }
 
-    private static <T> Entry<T> toEntry(Revision revision, JsonNode node, QueryType queryType) {
+    private static <T> Entry<T> toEntry(Revision revision, JsonNode node, QueryType queryType,
+                                        boolean viewRaw) {
         final String entryPath = getField(node, "path").asText();
         final EntryType receivedEntryType = EntryType.valueOf(getField(node, "type").asText());
         switch (queryType) {
             case IDENTITY_TEXT:
-                return entryAsText(revision, node, entryPath);
+                return entryAsText(revision, node, entryPath, viewRaw);
             case IDENTITY_JSON:
             case JSON_PATH:
                 if (receivedEntryType != EntryType.JSON) {
                     throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
                                                     " (expected: " + queryType + ')');
                 }
-                return entryAsJson(revision, node, entryPath);
+                return entryAsJson(revision, node, entryPath, viewRaw);
             case IDENTITY:
                 switch (receivedEntryType) {
                     case JSON:
-                        return entryAsJson(revision, node, entryPath);
+                        return entryAsJson(revision, node, entryPath, viewRaw);
                     case TEXT:
-                        return entryAsText(revision, node, entryPath);
+                        return entryAsText(revision, node, entryPath, viewRaw);
                     case DIRECTORY:
                         return unsafeCast(Entry.ofDirectory(revision, entryPath));
                 }
@@ -1074,7 +1084,16 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         throw new Error(); // Should never reach here.
     }
 
-    private static <T> Entry<T> entryAsText(Revision revision, JsonNode node, String entryPath) {
+    private static <T> Entry<T> entryAsText(Revision revision, JsonNode node, String entryPath,
+                                            boolean viewRaw) {
+        if (viewRaw) {
+            final JsonNode rawContent = node.get("rawContent");
+            if (rawContent != null) {
+                return unsafeCast(Entry.ofText(revision, entryPath, rawContent.asText()));
+            }
+            logger.warn("The server does not support raw content. Using Entry#content() instead. path: {}",
+                        entryPath);
+        }
         final JsonNode content = getField(node, "content");
         final String content0;
         if (content.isContainerNode()) {
@@ -1085,7 +1104,22 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         return unsafeCast(Entry.ofText(revision, entryPath, content0));
     }
 
-    private static <T> Entry<T> entryAsJson(Revision revision, JsonNode node, String entryPath) {
+    private static <T> Entry<T> entryAsJson(Revision revision, JsonNode node, String entryPath,
+                                            boolean viewRaw) {
+        if (viewRaw) {
+            final JsonNode rawContent = node.get("rawContent");
+            if (rawContent != null) {
+                try {
+                    return unsafeCast(Entry.ofJson(revision, entryPath, rawContent.asText()));
+                } catch (JsonParseException e) {
+                    // Should never reach here as the raw JSON text was already validated by the server.
+                    throw new IllegalStateException(e);
+                }
+            }
+            logger.warn("The server does not support raw content. Using Entry#content() instead. path: {}",
+                        entryPath);
+            // The server version may be old so fall back to normal content.
+        }
         return unsafeCast(Entry.ofJson(revision, entryPath, getField(node, "content")));
     }
 
@@ -1104,24 +1138,12 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static <T> Change<T> toChange(JsonNode node) {
-        final String actualPath = getField(node, "path").asText();
-        final ChangeType type = ChangeType.valueOf(getField(node, "type").asText());
-        switch (type) {
-            case UPSERT_JSON:
-                return unsafeCast(Change.ofJsonUpsert(actualPath, getField(node, "content")));
-            case UPSERT_TEXT:
-                return unsafeCast(Change.ofTextUpsert(actualPath, getField(node, "content").asText()));
-            case REMOVE:
-                return unsafeCast(Change.ofRemoval(actualPath));
-            case RENAME:
-                return unsafeCast(Change.ofRename(actualPath, getField(node, "content").asText()));
-            case APPLY_JSON_PATCH:
-                return unsafeCast(Change.ofJsonPatch(actualPath, getField(node, "content")));
-            case APPLY_TEXT_PATCH:
-                return unsafeCast(Change.ofTextPatch(actualPath, getField(node, "content").asText()));
+        try {
+            //noinspection unchecked
+            return Jackson.treeToValue(node, Change.class);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw new IllegalStateException("fail to parse a JSON node into Change.", e);
         }
-
-        throw new Error(); // Never reaches here.
     }
 
     private static Set<String> handleNameList(AggregatedHttpResponse res) {

@@ -43,7 +43,6 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
@@ -161,7 +160,7 @@ public class CredentialServiceV1 extends AbstractService {
                                                      String credentialName) {
         return metaRepository.credential(credentialName).thenCompose(credential -> {
             // credential exists.
-            final Command<CommitResult> command =
+            final Command<Revision> command =
                     Command.push(author, projectName, metaRepository.name(),
                                  Revision.HEAD, "Delete credential: " + credentialName, "",
                                  Markup.PLAINTEXT, Change.ofRemoval(credentialFile(credentialName)));
@@ -172,16 +171,16 @@ public class CredentialServiceV1 extends AbstractService {
     private CompletableFuture<PushResultDto> createOrUpdate(String projectName, Credential credential,
                                                             Author author, User user, boolean update) {
         validateProjectCredentialName(projectName, credential.name());
-        final CompletableFuture<Command<CommitResult>> future =
+        final CompletableFuture<Command<Revision>> future =
                 metaRepo(projectName, user).createCredentialPushCommand(credential, author, update);
         return push(future);
     }
 
     private CompletableFuture<PushResultDto> push(
-            CompletableFuture<Command<CommitResult>> future) {
+            CompletableFuture<Command<Revision>> future) {
         return future.thenCompose(
                 command -> executor().execute(command).thenApply(
-                        result -> new PushResultDto(result.revision(), command.timestamp())));
+                        revision -> new PushResultDto(revision, command.timestamp())));
     }
 
     private MetaRepository metaRepo(String projectName, User user) {
@@ -269,7 +268,7 @@ public class CredentialServiceV1 extends AbstractService {
             String projectName, String repoName, Credential credential,
             Author author, User user, boolean update) {
         validateRepoCredentialName(projectName, repoName, credential.name());
-        final CompletableFuture<Command<CommitResult>> future =
+        final CompletableFuture<Command<Revision>> future =
                 metaRepo(projectName, user).createCredentialPushCommand(repoName, credential, author, update);
         return push(future);
     }

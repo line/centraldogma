@@ -114,14 +114,15 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     @Override
-    protected <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception {
-        throwExceptionIfRepositoryNotWritable(command);
-        return doExecute0(command);
+    protected <T> CompletableFuture<T> doExecute(ExecutionContext ctx, Command<T> command) throws Exception {
+        throwExceptionIfRepositoryNotWritable(ctx, command);
+        return doExecute0(ctx, command);
     }
 
-    private void throwExceptionIfRepositoryNotWritable(Command<?> command) throws Exception {
-        if (command instanceof NormalizableCommit) {
-            assert command instanceof RepositoryCommand;
+    private void throwExceptionIfRepositoryNotWritable(ExecutionContext ctx, Command<?> command)
+            throws Exception {
+        if (!ctx.isReplication() &&
+            (command instanceof NormalizableCommit || command instanceof PushAsIsCommand)) {
             final RepositoryCommand<?> repositoryCommand = (RepositoryCommand<?>) command;
             if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(repositoryCommand.projectName())) {
                 return;
@@ -147,7 +148,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> CompletableFuture<T> doExecute0(Command<T> command) throws Exception {
+    private <T> CompletableFuture<T> doExecute0(ExecutionContext ctx, Command<T> command) throws Exception {
         if (command instanceof CreateProjectCommand) {
             return (CompletableFuture<T>) createProject((CreateProjectCommand) command);
         }
@@ -233,7 +234,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         if (command instanceof ForcePushCommand) {
             // TODO(minwoox): Should we prevent executing when the replication status is READ_ONLY?
             //noinspection TailRecursion
-            return doExecute0(((ForcePushCommand<T>) command).delegate());
+            return doExecute0(ctx, ((ForcePushCommand<T>) command).delegate());
         }
 
         throw new UnsupportedOperationException(command.toString());

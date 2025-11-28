@@ -59,7 +59,6 @@ import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorRunner;
@@ -205,7 +204,7 @@ public class MirroringServiceV1 extends AbstractService {
         final String repoName = repository.name();
         return metaRepository.mirror(repoName, id).thenCompose(mirror -> {
             // mirror exists.
-            final Command<CommitResult> command =
+            final Command<Revision> command =
                     Command.push(author, projectName, metaRepository.name(),
                                  Revision.HEAD, "Delete mirror: " + id + " in " + repoName, "",
                                  Markup.PLAINTEXT, Change.ofRemoval(mirrorFile(repoName, id)));
@@ -220,8 +219,8 @@ public class MirroringServiceV1 extends AbstractService {
 
         return metaRepo.createMirrorPushCommand(repoName, newMirror, author, zoneConfig, update).thenCompose(
                 command -> {
-                    return executor().execute(command).thenApply(result -> {
-                        metaRepo.mirror(repoName, newMirror.id(), result.revision())
+                    return executor().execute(command).thenApply(revision -> {
+                        metaRepo.mirror(repoName, newMirror.id(), revision)
                                 .handle((mirror, cause) -> {
                                     if (cause != null) {
                                         // This should not happen in normal cases.
@@ -230,7 +229,7 @@ public class MirroringServiceV1 extends AbstractService {
                                     }
                                     return notifyMirrorEvent(mirror, user, update);
                                 });
-                        return new PushResultDto(result.revision(), command.timestamp());
+                        return new PushResultDto(revision, command.timestamp());
                     });
                 });
     }
