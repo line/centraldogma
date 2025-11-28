@@ -174,4 +174,8 @@ final class RocksDBStorage {
             logger.warn("Failed to close RocksObject silently", e);
         }
     }
+
+    void releaseSnapshot(Snapshot snapshot) {
+        rocksDb.releaseSnapshot(snapshot);
+    }
 }

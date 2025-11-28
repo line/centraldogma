@@ -422,6 +422,19 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                             c.projectName(), c.repositoryName(), c.wdekDetails().dekVersion(), t);
                 Exceptions.throwUnsafely(t);
             }
+            if (c.reencrypt()) {
+                try {
+                    logger.info("Re-encrypting all data in {}/{} with the new WDEK.",
+                                c.projectName(), c.repositoryName());
+                    encryptionStorageManager.reencryptRepositoryData(c.projectName(), c.repositoryName());
+                    logger.info("All data re-encrypted in {}/{}.", c.projectName(), c.repositoryName());
+                } catch (Throwable t) {
+                    logger.warn("Failed to re-encrypt all data in {}/{} with the new WDEK.",
+                                c.projectName(), c.repositoryName(), t);
+                    Exceptions.throwUnsafely(t);
+                }
+            }
+
             return null;
         }, repositoryWorker);
     }

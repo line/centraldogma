@@ -423,9 +423,9 @@ public interface Command<T> {
      * Returns a new {@link Command} which is used to rotate the wrapped data encryption key (WDEK).
      */
     static Command<Void> rotateWdek(Author author, String projectName, String repoName,
-                                    WrappedDekDetails wdekDetails) {
+                                    WrappedDekDetails wdekDetails, boolean reencrypt) {
         requireNonNull(author, "author");
-        return new RotateWdekCommand(null, author, projectName, repoName, wdekDetails);
+        return new RotateWdekCommand(null, author, projectName, repoName, wdekDetails, reencrypt);
     }
 
     /**
