@@ -16,7 +16,8 @@
 
 package com.linecorp.centraldogma.common;
 
-import static com.linecorp.centraldogma.internal.Util.TOKEN_EMAIL_SUFFIX;
+import static com.linecorp.centraldogma.internal.Util.APPLICATION_EMAIL_SUFFIX;
+import static com.linecorp.centraldogma.internal.Util.LEGACY_APPLICATION_EMAIL_SUFFIX;
 import static com.linecorp.centraldogma.internal.Util.emailToUsername;
 import static java.util.Objects.requireNonNull;
 
@@ -95,11 +96,11 @@ public class Author {
     }
 
     /**
-     * Returns {@code true} if this author is a token.
+     * Returns {@code true} if this author is an application.
      */
     @JsonIgnore
-    public boolean isToken() {
-        return email().endsWith(TOKEN_EMAIL_SUFFIX);
+    public boolean isApplication() {
+        return email().endsWith(APPLICATION_EMAIL_SUFFIX) || name().endsWith(LEGACY_APPLICATION_EMAIL_SUFFIX);
     }
 
     @Override

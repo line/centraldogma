@@ -31,11 +31,11 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.metadata.ApplicationRegistration;
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.metadata.Token;
-import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
@@ -67,7 +67,7 @@ class SerializationTest {
         final String userLogin = "armeria@dogma.org";
         final Member member = new Member(userLogin, ProjectRole.MEMBER, newCreationTag());
         final RepositoryMetadata repositoryMetadata = RepositoryMetadata.of("sample", newCreationTag());
-        final Token token = new Token("testApp", "testSecret", false, false, true, newCreationTag(), null,
+        final Token token = new Token("testApp", "testSecret", false, true, newCreationTag(), null,
                                       null);
 
         final RepositoryMetadata dogmaRepo = RepositoryMetadata.ofDogma(RepositoryStatus.ACTIVE);
@@ -77,9 +77,9 @@ class SerializationTest {
                                                     Project.REPO_DOGMA, dogmaRepo),
                                     ImmutableMap.of(member.id(), member),
                                     ImmutableMap.of(token.id(),
-                                                    new TokenRegistration(token.id(),
-                                                                          ProjectRole.MEMBER,
-                                                                          newCreationTag())),
+                                                    new ApplicationRegistration(token.id(),
+                                                                                ProjectRole.MEMBER,
+                                                                                newCreationTag())),
                                     newCreationTag(),
                                     null);
         assertThatJson(metadata)
@@ -94,7 +94,7 @@ class SerializationTest {
                            "           \"guest\": null" +
                            "        }," +
                            "        \"users\" : { },\n" +
-                           "        \"tokens\" : { }\n" +
+                           "        \"applications\" : { }\n" +
                            "      },\n" +
                            "      \"creation\" : {\n" +
                            "        \"user\" : \"editor@dogma.org\",\n" +
@@ -110,7 +110,7 @@ class SerializationTest {
                            "           \"guest\": null" +
                            "        }," +
                            "        \"users\" : { },\n" +
-                           "        \"tokens\" : { }\n" +
+                           "        \"applications\" : { }\n" +
                            "      },\n" +
                            "      \"status\" : \"ACTIVE\"\n" +
                            "    }\n" +
@@ -125,7 +125,7 @@ class SerializationTest {
                            "      }\n" +
                            "    }\n" +
                            "  },\n" +
-                           "  \"tokens\" : {\n" +
+                           "  \"applications\" : {\n" +
                            "    \"testApp\" : {\n" +
                            "      \"appId\" : \"testApp\",\n" +
                            "      \"role\" : \"MEMBER\",\n" +
@@ -153,7 +153,7 @@ class SerializationTest {
                            "           \"guest\": null" +
                            "        }," +
                            "        \"users\" : { },\n" +
-                           "        \"tokens\" : { }\n" +
+                           "        \"applications\" : { }\n" +
                            "      },\n" +
                            "      \"creation\" : {\n" +
                            "        \"user\" : \"editor@dogma.org\",\n" +
@@ -172,7 +172,7 @@ class SerializationTest {
                            "      }\n" +
                            "    }\n" +
                            "  },\n" +
-                           "  \"tokens\" : {\n" +
+                           "  \"applications\" : {\n" +
                            "    \"testApp\" : {\n" +
                            "      \"appId\" : \"testApp\",\n" +
                            "      \"role\" : \"MEMBER\",\n" +
@@ -194,7 +194,7 @@ class SerializationTest {
         assertThat(obj.repos().size()).isEqualTo(2);
         assertThat(obj.members().size()).isOne();
         assertThat(obj.members().get(userLogin).role()).isEqualTo(ProjectRole.MEMBER);
-        assertThat(obj.tokens().size()).isOne();
+        assertThat(obj.applications().size()).isOne();
         assertThat(obj.creation()).isNotNull();
         assertThat(obj.creation().user()).isEqualTo("editor@dogma.org");
         assertThat(obj.creation().timestamp()).isEqualTo("2017-01-01T00:00:00Z");
@@ -206,16 +206,16 @@ class SerializationTest {
         final Member member = new Member("armeria@dogma.org", ProjectRole.MEMBER,
                                          newCreationTag());
         final RepositoryMetadata repositoryMetadata = RepositoryMetadata.of("sample", newCreationTag());
-        final Token token = new Token("testApp", "testSecret", false, false, true, newCreationTag(), null,
+        final Token token = new Token("testApp", "testSecret", false, true, newCreationTag(), null,
                                       null);
         final ProjectMetadata metadata =
                 new ProjectMetadata("test",
                                     ImmutableMap.of(repositoryMetadata.name(), repositoryMetadata),
                                     ImmutableMap.of(member.id(), member),
                                     ImmutableMap.of(token.id(),
-                                                    new TokenRegistration(token.id(),
-                                                                          ProjectRole.MEMBER,
-                                                                          newCreationTag())),
+                                                    new ApplicationRegistration(token.id(),
+                                                                                ProjectRole.MEMBER,
+                                                                                newCreationTag())),
                                     newCreationTag(),
                                     newRemovalTag());
 
@@ -230,7 +230,7 @@ class SerializationTest {
                                            "           \"guest\": null" +
                                            "        }," +
                                            "        \"users\" : { },\n" +
-                                           "        \"tokens\" : { }\n" +
+                                           "        \"applications\" : { }\n" +
                                            "      },\n" +
                                            "      \"creation\" : {\n" +
                                            "        \"user\" : \"editor@dogma.org\",\n" +
@@ -249,7 +249,7 @@ class SerializationTest {
                                            "      }\n" +
                                            "    }\n" +
                                            "  },\n" +
-                                           "  \"tokens\" : {\n" +
+                                           "  \"applications\" : {\n" +
                                            "    \"testApp\" : {\n" +
                                            "      \"appId\" : \"testApp\",\n" +
                                            "      \"role\" : \"MEMBER\",\n" +
@@ -276,7 +276,7 @@ class SerializationTest {
         assertThat(obj.members().size()).isOne();
         assertThatJson(Jackson.writeValueAsString(obj.members().get("armeria@dogma.org")))
                 .isEqualTo(Jackson.writeValueAsString(member));
-        assertThat(obj.tokens().size()).isOne();
+        assertThat(obj.applications().size()).isOne();
         assertThat(obj.creation()).isNotNull();
         assertThat(obj.creation().user()).isEqualTo("editor@dogma.org");
         assertThat(obj.creation().timestamp()).isEqualTo("2017-01-01T00:00:00Z");

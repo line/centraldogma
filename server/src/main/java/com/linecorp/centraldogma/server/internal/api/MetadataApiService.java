@@ -19,9 +19,6 @@ package com.linecorp.centraldogma.server.internal.api;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -33,7 +30,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.Param;
@@ -51,6 +47,8 @@ import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
+import com.linecorp.centraldogma.server.metadata.Application;
+import com.linecorp.centraldogma.server.metadata.ApplicationType;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectRoles;
 import com.linecorp.centraldogma.server.metadata.Token;
@@ -101,7 +99,7 @@ public class MetadataApiService extends AbstractService {
                                                     Author author) {
         final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/role");
         final ProjectRole role = ProjectRole.of(operation.value());
-        final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
+        final User member = new User(loginNameNormalizer.apply(memberId));
         return mds.getMember(projectName, member)
                   .thenCompose(unused -> mds.updateMemberRole(author, projectName, member, role));
     }
@@ -116,56 +114,9 @@ public class MetadataApiService extends AbstractService {
     public CompletableFuture<Revision> removeMember(@Param String projectName,
                                                     @Param String memberId,
                                                     Author author) {
-        final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
+        final User member = new User(loginNameNormalizer.apply(memberId));
         return mds.getMember(projectName, member)
                   .thenCompose(unused -> mds.removeMember(author, projectName, member));
-    }
-
-    /**
-     * POST /metadata/{projectName}/tokens
-     *
-     * <p>Adds a {@link Token} to the specified {@code projectName}.
-     */
-    @RequiresProjectRole(ProjectRole.OWNER)
-    @Post("/metadata/{projectName}/tokens")
-    public CompletableFuture<Revision> addToken(@Param String projectName,
-                                                IdAndProjectRole request,
-                                                Author author) {
-        final Token token = mds.findTokenByAppId(request.id());
-        return mds.addToken(author, projectName, token.appId(), request.role());
-    }
-
-    /**
-     * PATCH /metadata/{projectName}/tokens/{appId}
-     *
-     * <p>Updates the {@link ProjectRole} of the {@link Token} of the specified {@code appId}
-     * in the specified {@code projectName}.
-     */
-    @RequiresProjectRole(ProjectRole.OWNER)
-    @Patch("/metadata/{projectName}/tokens/{appId}")
-    @Consumes("application/json-patch+json")
-    public CompletableFuture<Revision> updateTokenRole(@Param String projectName,
-                                                       @Param String appId,
-                                                       JsonPatch jsonPatch,
-                                                       Author author) {
-        final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/role");
-        final ProjectRole role = ProjectRole.of(operation.value());
-        final Token token = mds.findTokenByAppId(appId);
-        return mds.updateTokenRole(author, projectName, token, role);
-    }
-
-    /**
-     * DELETE /metadata/{projectName}/tokens/{appId}
-     *
-     * <p>Removes the {@link Token} of the specified {@code appId} from the specified {@code projectName}.
-     */
-    @RequiresProjectRole(ProjectRole.OWNER)
-    @Delete("/metadata/{projectName}/tokens/{appId}")
-    public CompletableFuture<Revision> removeToken(@Param String projectName,
-                                                   @Param String appId,
-                                                   Author author) {
-        final Token token = mds.findTokenByAppId(appId);
-        return mds.removeToken(author, projectName, token.appId());
     }
 
     /**
@@ -230,10 +181,166 @@ public class MetadataApiService extends AbstractService {
                                                                 @Param String repoName,
                                                                 @Param String memberId,
                                                                 Author author) {
-        final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
+        final User member = new User(loginNameNormalizer.apply(memberId));
         return mds.findRepositoryRole(projectName, repoName, member)
                   .thenCompose(unused -> mds.removeUserRepositoryRole(author, projectName,
                                                                       repoName, member));
+    }
+
+    /**
+     * POST /metadata/{projectName}/applications
+     *
+     * <p>Adds an {@link Application} to the specified {@code projectName}.
+     */
+    @RequiresProjectRole(ProjectRole.OWNER)
+    @Post("/metadata/{projectName}/applications")
+    public CompletableFuture<Revision> addApplication(@Param String projectName,
+                                                      IdAndProjectRole request,
+                                                      Author author) {
+        final Application application = mds.findApplicationByAppId(request.id());
+        return mds.addApplication(author, projectName, application.appId(), request.role());
+    }
+
+    /**
+     * PATCH /metadata/{projectName}/applications/{appId}
+     *
+     * <p>Updates the {@link ProjectRole} of the {@link Application} of the specified {@code appId}
+     * in the specified {@code projectName}.
+     */
+    @RequiresProjectRole(ProjectRole.OWNER)
+    @Patch("/metadata/{projectName}/applications/{appId}")
+    @Consumes("application/json-patch+json")
+    public CompletableFuture<Revision> updateApplicationRole(@Param String projectName,
+                                                             @Param String appId,
+                                                             JsonPatch jsonPatch,
+                                                             Author author) {
+        return updateApplicationRole(projectName, appId, jsonPatch, author, false);
+    }
+
+    private CompletableFuture<Revision> updateApplicationRole(
+            String projectName, String appId,
+            JsonPatch jsonPatch, Author author, boolean checkToken) {
+        final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/role");
+        final ProjectRole role = ProjectRole.of(operation.value());
+        final Application application = mds.findApplicationByAppId(appId);
+        if (checkToken && application.type() != ApplicationType.TOKEN) {
+            throw new IllegalArgumentException("appId: " + appId + " is not a token");
+        }
+        return mds.updateApplicationRole(author, projectName, application, role);
+    }
+
+    /**
+     * DELETE /metadata/{projectName}/applications/{appId}
+     *
+     * <p>Removes the {@link Application} of the specified {@code appId} from the specified {@code projectName}.
+     */
+    @RequiresProjectRole(ProjectRole.OWNER)
+    @Delete("/metadata/{projectName}/applications/{appId}")
+    public CompletableFuture<Revision> removeApplication(@Param String projectName,
+                                                         @Param String appId,
+                                                         Author author) {
+        return removeApplication(projectName, appId, author, false);
+    }
+
+    private CompletableFuture<Revision> removeApplication(String projectName, String appId,
+                                                          Author author, boolean checkToken) {
+        final Application application = mds.findApplicationByAppId(appId);
+        if (checkToken && application.type() != ApplicationType.TOKEN) {
+            throw new IllegalArgumentException("appId: " + appId + " is not a token");
+        }
+        return mds.removeApplicationFromProject(author, projectName, application.appId());
+    }
+
+    /**
+     * POST /metadata/{projectName}/repos/{repoName}/roles/applications
+     *
+     * <p>Adds the {@link RepositoryRole} for an application to the specified {@code repoName} in the specified
+     * {@code projectName}.
+     */
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    @Post("/metadata/{projectName}/repos/{repoName}/roles/applications")
+    public CompletableFuture<Revision> addApplicationRepositoryRole(
+            @Param String projectName,
+            @Param String repoName,
+            IdAndRepositoryRole applicationAndRepositoryRole,
+            Author author) {
+        return mds.addApplicationRepositoryRole(author, projectName, repoName,
+                                                applicationAndRepositoryRole.id(),
+                                                applicationAndRepositoryRole.role());
+    }
+
+    /**
+     * DELETE /metadata/{projectName}/repos/{repoName}/roles/applications/{appId}
+     *
+     * <p>Removes the {@link RepositoryRole} of the specified {@code appId} from the specified {@code repoName}
+     * in the specified {@code projectName}.
+     */
+    @RequiresRepositoryRole(RepositoryRole.ADMIN)
+    @Delete("/metadata/{projectName}/repos/{repoName}/roles/applications/{appId}")
+    public CompletableFuture<Revision> removeApplicationRepositoryRole(@Param String projectName,
+                                                                       @Param String repoName,
+                                                                       @Param String appId,
+                                                                       Author author) {
+        final Application application = mds.findApplicationByAppId(appId);
+        if (application.type() != ApplicationType.TOKEN) {
+            throw new IllegalArgumentException("appId: " + appId + " is not a token");
+        }
+        return mds.removeApplicationRepositoryRole(author, projectName, repoName, appId);
+    }
+
+    /**
+     * POST /metadata/{projectName}/tokens
+     *
+     * <p>Adds a {@link Token} to the specified {@code projectName}.
+     *
+     * @deprecated Use {@link #addApplication(String, IdAndProjectRole, Author)} instead.
+     */
+    @RequiresProjectRole(ProjectRole.OWNER)
+    @Post("/metadata/{projectName}/tokens")
+    @Deprecated
+    public CompletableFuture<Revision> addToken(@Param String projectName,
+                                                IdAndProjectRole request,
+                                                Author author) {
+        final Application application = mds.findApplicationByAppId(request.id());
+        if (application.type() != ApplicationType.TOKEN) {
+            throw new IllegalArgumentException("appId: " + request.id() + " is not a token");
+        }
+        return mds.addApplication(author, projectName, application.appId(), request.role());
+    }
+
+    /**
+     * PATCH /metadata/{projectName}/tokens/{appId}
+     *
+     * <p>Updates the {@link ProjectRole} of the {@link Token} of the specified {@code appId}
+     * in the specified {@code projectName}.
+     *
+     * @deprecated Use {@link #updateApplicationRole(String, String, JsonPatch, Author)} instead.
+     */
+    @RequiresProjectRole(ProjectRole.OWNER)
+    @Patch("/metadata/{projectName}/tokens/{appId}")
+    @Consumes("application/json-patch+json")
+    @Deprecated
+    public CompletableFuture<Revision> updateTokenRole(@Param String projectName,
+                                                       @Param String appId,
+                                                       JsonPatch jsonPatch,
+                                                       Author author) {
+        return updateApplicationRole(projectName, appId, jsonPatch, author, false);
+    }
+
+    /**
+     * DELETE /metadata/{projectName}/tokens/{appId}
+     *
+     * <p>Removes the {@link Token} of the specified {@code appId} from the specified {@code projectName}.
+     *
+     * @deprecated Use {@link #removeApplication(String, String, Author)} instead.
+     */
+    @RequiresProjectRole(ProjectRole.OWNER)
+    @Delete("/metadata/{projectName}/tokens/{appId}")
+    @Deprecated
+    public CompletableFuture<Revision> removeToken(@Param String projectName,
+                                                   @Param String appId,
+                                                   Author author) {
+        return removeApplication(projectName, appId, author, true);
     }
 
     /**
@@ -241,16 +348,19 @@ public class MetadataApiService extends AbstractService {
      *
      * <p>Adds the {@link RepositoryRole} for a token to the specified {@code repoName} in the specified
      * {@code projectName}.
+     *
+     * @deprecated Use {@link #addApplicationRepositoryRole(String, String, IdAndRepositoryRole, Author)}
      */
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Post("/metadata/{projectName}/repos/{repoName}/roles/tokens")
+    @Deprecated
     public CompletableFuture<Revision> addTokenRepositoryRole(
             @Param String projectName,
             @Param String repoName,
             IdAndRepositoryRole tokenAndRepositoryRole,
             Author author) {
-        return mds.addTokenRepositoryRole(author, projectName, repoName,
-                                          tokenAndRepositoryRole.id(), tokenAndRepositoryRole.role());
+        return mds.addApplicationRepositoryRole(author, projectName, repoName,
+                                                tokenAndRepositoryRole.id(), tokenAndRepositoryRole.role());
     }
 
     /**
@@ -258,15 +368,21 @@ public class MetadataApiService extends AbstractService {
      *
      * <p>Removes the {@link RepositoryRole} of the specified {@code appId} from the specified {@code repoName}
      * in the specified {@code projectName}.
+     *
+     * @deprecated Use {@link #removeApplicationRepositoryRole(String, String, String, Author)}
      */
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Delete("/metadata/{projectName}/repos/{repoName}/roles/tokens/{appId}")
+    @Deprecated
     public CompletableFuture<Revision> removeTokenRepositoryRole(@Param String projectName,
                                                                  @Param String repoName,
                                                                  @Param String appId,
                                                                  Author author) {
-        final Token token = mds.findTokenByAppId(appId);
-        return mds.removeTokenRepositoryRole(author, projectName, repoName, appId);
+        final Application application = mds.findApplicationByAppId(appId);
+        if (application.type() != ApplicationType.TOKEN) {
+            throw new IllegalArgumentException("appId: " + appId + " is not a token");
+        }
+        return mds.removeApplicationRepositoryRole(author, projectName, repoName, appId);
     }
 
     private static ReplaceOperation ensureSingleReplaceOperation(JsonPatch patch, String expectedPath) {
@@ -282,15 +398,6 @@ public class MetadataApiService extends AbstractService {
                       "Invalid path value: " + operation.path());
 
         return (ReplaceOperation) operation;
-    }
-
-    private static String urlDecode(String input) {
-        try {
-            // TODO(hyangtack) Remove this after https://github.com/line/armeria/issues/756 is resolved.
-            return URLDecoder.decode(input, StandardCharsets.UTF_8.name());
-        } catch (UnsupportedEncodingException e) {
-            return Exceptions.throwUnsafely(e);
-        }
     }
 
     public static final class IdAndProjectRole {

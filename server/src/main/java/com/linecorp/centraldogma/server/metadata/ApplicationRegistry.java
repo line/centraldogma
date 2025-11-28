@@ -37,46 +37,53 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 
 /**
- * Holds a token map and a secret map for fast lookup.
+ * Holds an application map, a secret map and a certificate ID map for fast lookup.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL)
-public final class Tokens implements HasWeight {
+public final class ApplicationRegistry implements HasWeight {
 
     static final String SECRET_PREFIX = "appToken-";
 
     /**
-     * Tokens which belong to this project.
+     * Applications which belong to this project.
      */
-    private final Map<String, Token> appIds;
+    private final Map<String, Application> appIds;
 
     /**
-     * A mapping of secret and {@link Token#id()}.
+     * A mapping of secret and {@link Token#appId()}.
      */
     private final Map<String, String> secrets;
 
     /**
+     * A mapping of certificate ID and {@link Certificate#appId()}.
+     */
+    private final Map<String, String> certificateIds;
+
+    /**
      * Creates a new empty instance.
      */
-    public Tokens() {
-        this(ImmutableMap.of(), ImmutableMap.of());
+    public ApplicationRegistry() {
+        this(ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of());
     }
 
     /**
-     * Creates a new instance with the given application IDs and secrets.
+     * Creates a new instance with the given application IDs, secrets, and certificateIds.
      */
     @JsonCreator
-    public Tokens(@JsonProperty("appIds") Map<String, Token> appIds,
-                  @JsonProperty("secrets") Map<String, String> secrets) {
+    public ApplicationRegistry(@JsonProperty("appIds") Map<String, Application> appIds,
+                               @JsonProperty("secrets") Map<String, String> secrets,
+                               @JsonProperty("certificateIds") Map<String, String> certificateIds) {
         this.appIds = requireNonNull(appIds, "appIds");
         this.secrets = requireNonNull(secrets, "secrets");
+        this.certificateIds = requireNonNull(certificateIds, "certificateIds");
     }
 
     /**
-     * Returns the application {@link Token}s.
+     * Returns the applications.
      */
     @JsonProperty
-    public Map<String, Token> appIds() {
+    public Map<String, Application> appIds() {
         return appIds;
     }
 
@@ -89,26 +96,34 @@ public final class Tokens implements HasWeight {
     }
 
     /**
-     * Returns the {@link Token} that corresponds to the specified application ID.
+     * Returns the certificate IDs.
      */
-    public Token get(String appId) {
-        final Token token = getOrDefault(appId, null);
-        if (token != null) {
-            return token;
-        }
-        throw new TokenNotFoundException("Application ID not found: " + appId);
+    @JsonProperty
+    public Map<String, String> certificateIds() {
+        return certificateIds;
     }
 
     /**
-     * Returns the {@link Token} that corresponds to the specified application ID. {@code defaultValue} is
+     * Returns the {@link Application} that corresponds to the specified application ID.
+     */
+    public Application get(String appId) {
+        final Application application = getOrDefault(appId, null);
+        if (application != null) {
+            return application;
+        }
+        throw new ApplicationNotFoundException("Application ID not found: " + appId);
+    }
+
+    /**
+     * Returns the {@link Application} that corresponds to the specified application ID. {@code defaultValue} is
      * returned if there's no such application.
      */
     @Nullable
-    public Token getOrDefault(String appId, @Nullable Token defaultValue) {
+    public Application getOrDefault(String appId, @Nullable Application defaultValue) {
         requireNonNull(appId, "appId");
-        final Token token = appIds.get(appId);
-        if (token != null) {
-            return token;
+        final Application application = appIds.get(appId);
+        if (application != null) {
+            return application;
         }
         return defaultValue;
     }
@@ -121,7 +136,7 @@ public final class Tokens implements HasWeight {
         if (token != null) {
             return token;
         }
-        throw new TokenNotFoundException("Secret not found: " + secret);
+        throw new ApplicationNotFoundException("Secret not found: " + secret);
     }
 
     /**
@@ -136,20 +151,51 @@ public final class Tokens implements HasWeight {
         }
         final String appId = secrets.get(secret);
         if (appId != null) {
-            return getOrDefault(appId, defaultValue);
+            final Application application = getOrDefault(appId, null);
+            if (application instanceof Token) {
+                return (Token) application;
+            }
         }
         return defaultValue;
     }
 
     /**
-     * Returns a new {@link Tokens} which does not contain any secrets.
+     * Returns the {@link Certificate} that corresponds to the specified certificate ID.
      */
-    public Tokens withoutSecret() {
-        final Map<String, Token> appIds =
+    public Certificate findByCertificateId(String certificateId) {
+        final Certificate certificate = findByCertificateIdOrDefault(certificateId, null);
+        if (certificate != null) {
+            return certificate;
+        }
+        throw new ApplicationNotFoundException("Certificate ID not found: " + certificateId);
+    }
+
+    /**
+     * Returns the {@link Certificate} that corresponds to the specified certificate ID.
+     * {@code defaultValue} is returned if there's no such certificate ID.
+     */
+    @Nullable
+    public Certificate findByCertificateIdOrDefault(String certificateId, @Nullable Certificate defaultValue) {
+        requireNonNull(certificateId, "certificateId");
+        final String appId = certificateIds.get(certificateId);
+        if (appId != null) {
+            final Application application = getOrDefault(appId, null);
+            if (application instanceof Certificate) {
+                return (Certificate) application;
+            }
+        }
+        return defaultValue;
+    }
+
+    /**
+     * Returns a new {@link ApplicationRegistry} which does not contain any secrets.
+     */
+    public ApplicationRegistry withoutSecret() {
+        final Map<String, Application> appIds =
                 appIds().values().stream()
-                        .map(Token::withoutSecret)
-                        .collect(Collectors.toMap(Token::id, Function.identity()));
-        return new Tokens(appIds, ImmutableMap.of());
+                        .map(app -> app instanceof Token ? ((Token) app).withoutSecret() : app)
+                        .collect(Collectors.toMap(Application::id, Function.identity()));
+        return new ApplicationRegistry(appIds, ImmutableMap.of(), ImmutableMap.of());
     }
 
     @Override
@@ -160,6 +206,11 @@ public final class Tokens implements HasWeight {
             weight += entry.getKey().length();
             weight += entry.getValue().length();
         }
+        weight += certificateIds.size();
+        for (Entry<String, String> entry : certificateIds.entrySet()) {
+            weight += entry.getKey().length();
+            weight += entry.getValue().length();
+        }
         return weight;
     }
 
@@ -167,7 +218,8 @@ public final class Tokens implements HasWeight {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("appIds", appIds())
-                          .add("secrets", secrets())
+                          .add("secrets.size", secrets().size())
+                          .add("certificateIds", certificateIds())
                           .toString();
     }
 

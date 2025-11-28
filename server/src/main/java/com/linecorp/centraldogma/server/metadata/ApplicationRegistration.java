@@ -30,13 +30,13 @@ import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 
 /**
- * Specifies a registration of a {@link Token}.
+ * Specifies a registration of an {@link Application}.
  */
 @JsonInclude(Include.NON_NULL)
-public class TokenRegistration implements Identifiable, HasWeight {
+public class ApplicationRegistration implements Identifiable, HasWeight {
 
     /**
-     * An application identifier which belongs to a {@link Token}.
+     * An application identifier which belongs to an {@link Application}.
      */
     private final String appId;
 
@@ -46,7 +46,7 @@ public class TokenRegistration implements Identifiable, HasWeight {
     private final ProjectRole role;
 
     /**
-     * Specifies when the token is registered by whom.
+     * Specifies when the application is registered by whom.
      */
     private final UserAndTimestamp creation;
 
@@ -54,9 +54,9 @@ public class TokenRegistration implements Identifiable, HasWeight {
      * Creates a new instance.
      */
     @JsonCreator
-    public TokenRegistration(@JsonProperty("appId") String appId,
-                             @JsonProperty("role") ProjectRole role,
-                             @JsonProperty("creation") UserAndTimestamp creation) {
+    public ApplicationRegistration(@JsonProperty("appId") String appId,
+                                   @JsonProperty("role") ProjectRole role,
+                                   @JsonProperty("creation") UserAndTimestamp creation) {
         this.appId = requireNonNull(appId, "appId");
         this.role = requireNonNull(role, "role");
         this.creation = requireNonNull(creation, "creation");
@@ -76,7 +76,7 @@ public class TokenRegistration implements Identifiable, HasWeight {
     }
 
     /**
-     * Returns the role of the token in a project.
+     * Returns the role of the application in a project.
      */
     @JsonProperty
     public ProjectRole role() {
@@ -84,7 +84,7 @@ public class TokenRegistration implements Identifiable, HasWeight {
     }
 
     /**
-     * Returns who creates the token when.
+     * Returns who creates the application when.
      */
     @JsonProperty
     public UserAndTimestamp creation() {
@@ -101,10 +101,10 @@ public class TokenRegistration implements Identifiable, HasWeight {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof TokenRegistration)) {
+        if (!(o instanceof ApplicationRegistration)) {
             return false;
         }
-        final TokenRegistration that = (TokenRegistration) o;
+        final ApplicationRegistration that = (ApplicationRegistration) o;
         return appId.equals(that.appId) &&
                role == that.role &&
                creation.equals(that.creation);

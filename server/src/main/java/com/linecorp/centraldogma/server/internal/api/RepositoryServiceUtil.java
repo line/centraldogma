@@ -45,7 +45,7 @@ public final class RepositoryServiceUtil {
             @Nullable EncryptionStorageManager encryptionStorageManager) {
         final Map<String, RepositoryRole> users;
         final Map<String, RepositoryRole> tokens;
-        if (author.isToken()) {
+        if (author.isApplication()) {
             users = ImmutableMap.of();
             // author.name() is the appId of the token.
             tokens = ImmutableMap.of(author.name(), RepositoryRole.ADMIN);

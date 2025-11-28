@@ -51,11 +51,11 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager;
+import com.linecorp.centraldogma.server.metadata.ApplicationRegistration;
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.server.metadata.User;
-import com.linecorp.centraldogma.server.metadata.UserWithToken;
+import com.linecorp.centraldogma.server.metadata.UserWithApplication;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
@@ -108,11 +108,11 @@ public class ProjectServiceV1 extends AbstractService {
         }
 
         ProjectRole role = null;
-        if (user instanceof UserWithToken) {
-            final String appId = ((UserWithToken) user).token().appId();
-            final TokenRegistration tokenRegistration = metadata.tokens().get(appId);
-            if (tokenRegistration != null) {
-                role = tokenRegistration.role();
+        if (user instanceof UserWithApplication) {
+            final String appId = user.login(); // login is appId for UserWithApplication
+            final ApplicationRegistration applicationRegistration = metadata.applications().get(appId);
+            if (applicationRegistration != null) {
+                role = applicationRegistration.role();
             }
         } else {
             final Member member = metadata.memberOrDefault(user.id(), null);
