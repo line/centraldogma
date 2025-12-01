@@ -27,6 +27,7 @@ import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.HttpServiceWithRoutes;
 import com.linecorp.armeria.server.saml.SamlServiceProvider;
+import com.linecorp.centraldogma.server.auth.AllowedUrisConfig;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
 
@@ -44,7 +45,7 @@ public class SamlAuthProvider implements AuthProvider {
     }
 
     @Override
-    public HttpService webLoginService() {
+    public HttpService webLoginService(AllowedUrisConfig unused) {
         // TODO(minwoox): Redirect using return_to and ref parameters.
         final HttpService service = (ctx, req) -> {
             return HttpResponse.of(ResponseHeaders.builder(HttpStatus.FOUND)
