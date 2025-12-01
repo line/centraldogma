@@ -31,7 +31,7 @@ class ChangeDeserializeTest {
 
     @Test
     void deserializeContentAsJson() throws JsonProcessingException {
-        String json =
+        final String json =
                 "{ \"type\": \"UPSERT_JSON\", \"path\": \"/foo.json\", \"content\": { \"key\": \"value\" } }";
         final ObjectMapper mapper = JacksonUtil.newDefaultObjectMapper();
         final Change<JsonNode> change = mapper.readValue(json, Change.class);
@@ -43,8 +43,9 @@ class ChangeDeserializeTest {
 
     @Test
     void deserializeRawContentAsJson() throws JsonProcessingException {
-        String json =
-                "{ \"type\": \"UPSERT_JSON\", \"path\": \"/foo.json\", \"rawContent\": \"{ \\\"key\\\": \\\"value\\\" }\" }";
+        final String json =
+                "{ \"type\": \"UPSERT_JSON\", \"path\": \"/foo.json\", " +
+                "\"rawContent\": \"{ \\\"key\\\": \\\"value\\\" }\" }";
         final ObjectMapper mapper = JacksonUtil.newDefaultObjectMapper();
         final Change<JsonNode> change = mapper.readValue(json, Change.class);
         assertThat(change.type()).isEqualTo(ChangeType.UPSERT_JSON);
