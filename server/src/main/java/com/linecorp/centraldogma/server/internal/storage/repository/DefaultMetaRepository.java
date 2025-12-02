@@ -309,7 +309,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
 
     @Override
     public CompletableFuture<Command<Revision>> createCredentialPushCommand(Credential credential,
-                                                                                Author author, boolean update) {
+                                                                            Author author, boolean update) {
         final String credentialName = credential.name();
         if (update) {
             return credential(credentialName).thenApply(c -> {
@@ -349,7 +349,7 @@ public final class DefaultMetaRepository extends RepositoryWrapper implements Me
     }
 
     private Command<Revision> newMirrorCommand(String repoName, MirrorRequest mirrorRequest,
-                                                   Author author, String summary) {
+                                               Author author, String summary) {
         final MirrorConfig mirrorConfig = converterToMirrorConfig(mirrorRequest);
         final JsonNode jsonNode = Jackson.valueToTree(mirrorConfig);
         final Change<JsonNode> change =

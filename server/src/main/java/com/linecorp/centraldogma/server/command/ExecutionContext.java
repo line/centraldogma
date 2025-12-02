@@ -34,5 +34,5 @@ public interface ExecutionContext {
     /**
      * Returns {@code true} if the command is being executed as part of a replay.
      */
-    boolean isReplication();
+    boolean isReplay();
 }

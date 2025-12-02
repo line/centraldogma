@@ -121,7 +121,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private void throwExceptionIfRepositoryNotWritable(ExecutionContext ctx, Command<?> command)
             throws Exception {
-        if (!ctx.isReplication() &&
+        if (!ctx.isReplay() &&
             (command instanceof NormalizableCommit || command instanceof PushAsIsCommand)) {
             final RepositoryCommand<?> repositoryCommand = (RepositoryCommand<?>) command;
             if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(repositoryCommand.projectName())) {

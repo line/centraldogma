@@ -70,6 +70,7 @@ public interface CommandExecutor {
      * Executes the specified {@link Command} with the {@link ExecutionContext}.
      *
      * @param command the command which is supposed to be executed
+     * @param ctx the execution context for this command
      * @param <T> the type of the result to be returned
      */
     <T> CompletableFuture<T> execute(ExecutionContext ctx, Command<T> command);

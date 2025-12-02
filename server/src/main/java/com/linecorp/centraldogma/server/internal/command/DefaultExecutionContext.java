@@ -22,14 +22,14 @@ public final class DefaultExecutionContext implements ExecutionContext {
 
     public static final DefaultExecutionContext EMPTY = new DefaultExecutionContext(false);
 
-    private final boolean isReplication;
+    private final boolean isReplay;
 
-    public DefaultExecutionContext(boolean isReplication) {
-        this.isReplication = isReplication;
+    public DefaultExecutionContext(boolean isReplay) {
+        this.isReplay = isReplay;
     }
 
     @Override
-    public boolean isReplication() {
-        return isReplication;
+    public boolean isReplay() {
+        return isReplay;
     }
 }

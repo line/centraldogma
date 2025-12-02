@@ -179,8 +179,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             return whenReady;
         }
 
-        return client.endpointGroup().whenReady().thenRun(() -> {
-        });
+        return client.endpointGroup().whenReady().thenRun(() -> {});
     }
 
     @Override
@@ -1093,6 +1092,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             }
             logger.warn("The server does not support raw content. Using Entry#content() instead. path: {}",
                         entryPath);
+            // The server version may be old so fall back to normal content.
         }
         final JsonNode content = getField(node, "content");
         final String content0;

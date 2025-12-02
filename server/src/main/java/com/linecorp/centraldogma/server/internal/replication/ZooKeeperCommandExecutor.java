@@ -129,7 +129,7 @@ public final class ZooKeeperCommandExecutor
     private static final RetryPolicy RETRY_POLICY_ALWAYS = new RetryForever(500);
     private static final RetryPolicy RETRY_POLICY_NEVER = (retryCount, elapsedTimeMs, sleeper) -> false;
 
-    private static final ExecutionContext REPLICATION_CONTEXT = new DefaultExecutionContext(true);
+    private static final ExecutionContext REPLAY_CONTEXT = new DefaultExecutionContext(true);
 
     private final ConcurrentMap<String, InterProcessMutex> mutexMap = new ConcurrentHashMap<>();
     private final Map<String, ReplicationMetrics> replicationTimings = new ConcurrentHashMap<>();
@@ -836,7 +836,7 @@ public final class ZooKeeperCommandExecutor
                     l = log.get();
                     command = l.command();
                     final Object expectedResult = l.result();
-                    final Object actualResult = delegate.execute(REPLICATION_CONTEXT, command).get();
+                    final Object actualResult = delegate.execute(REPLAY_CONTEXT, command).get();
 
                     if (!Objects.equals(expectedResult, actualResult)) {
                         throw new ReplicationException(
