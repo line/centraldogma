@@ -163,6 +163,11 @@ public enum NoopEncryptionStorageManager implements EncryptionStorageManager {
     }
 
     @Override
+    public void reencryptRepositoryData(String projectName, String repoName) {
+        // No-op
+    }
+
+    @Override
     public Map<String, Map<String, byte[]>> getAllData() {
         return ImmutableMap.of();
     }

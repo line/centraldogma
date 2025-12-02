@@ -367,6 +367,174 @@ final class RepositoryEncryptionStorage {
         }
     }
 
+    void reencryptRepositoryData(String projectName, String repoName) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repoName, "repoName");
+
+        logger.info("Re-encrypting data for repository: {}/{}", projectName, repoName);
+
+        final SecretKeyWithVersion currentDek = getCurrentDek(projectName, repoName);
+        final int newKeyVersion = currentDek.version();
+        final SecretKey newDek = currentDek.secretKey();
+
+        final String projectRepoPrefix = projectRepo(projectName, repoName) + '/';
+        final byte[] projectRepoPrefixBytes = projectRepoPrefix.getBytes(StandardCharsets.UTF_8);
+
+        final byte[] objectKeyPrefixBytes = (projectRepoPrefix + OBJS).getBytes(StandardCharsets.UTF_8);
+        final byte[] refsKeyPrefixBytes = (projectRepoPrefix + REFS).getBytes(StandardCharsets.UTF_8);
+        final byte[] headKeyBytes = (projectRepoPrefix + HEAD).getBytes(StandardCharsets.UTF_8);
+        final byte[] rev2ShaPrefixBytes = (projectRepoPrefix + REV2SHA).getBytes(StandardCharsets.UTF_8);
+
+        int totalReencryptedCount = 0;
+        int operationsInCurrentBatch = 0;
+
+        final ColumnFamilyHandle metadataColumnFamilyHandle =
+                rocksDbStorage.getColumnFamilyHandle(ENCRYPTION_METADATA_COLUMN_FAMILY);
+        final ColumnFamilyHandle encryptedObjectIdHandle =
+                rocksDbStorage.getColumnFamilyHandle(ENCRYPTED_OBJECT_ID_COLUMN_FAMILY);
+
+        final HashMap<Integer, SecretKey> deks = new HashMap<>();
+
+        final Snapshot snapshot = rocksDbStorage.getSnapshot();
+        try (ReadOptions readOptions = new ReadOptions().setSnapshot(snapshot);
+             WriteBatch writeBatch = new WriteBatch();
+             WriteOptions writeOptions = new WriteOptions();
+             RocksIterator iterator = rocksDbStorage.newIterator(metadataColumnFamilyHandle, readOptions)) {
+
+            iterator.seek(projectRepoPrefixBytes);
+            while (iterator.isValid()) {
+                final byte[] metadataKey = iterator.key();
+
+                if (!startsWith(metadataKey, projectRepoPrefixBytes)) {
+                    break;
+                }
+
+                final byte[] metadataValue = iterator.value();
+                final byte[] idPart; // ObjectId, refName or revNum
+
+                if (startsWith(metadataKey, objectKeyPrefixBytes)) {
+                    // MetadataKey: project/repo/objs/<objectId_bytes(20)>
+                    // MetadataValue: key version(4) + nonce(12) + type(4) + objectWdek(48)
+                    if (metadataKey.length == objectKeyPrefixBytes.length + 20) {
+                        idPart = null; // unused
+                        if (metadataValue != null) {
+                            final GitObjectMetadata gitObjectMetadata =
+                                    GitObjectMetadata.fromBytes(metadataValue);
+
+                            // Skip if already encrypted with the current key version
+                            if (gitObjectMetadata.keyVersion() == newKeyVersion) {
+                                iterator.next();
+                                continue;
+                            }
+
+                            // Unwrap the object DEK using the old repository DEK
+                            final SecretKey oldRepoDek =
+                                    getCachedDek(projectName, repoName, deks, gitObjectMetadata.keyVersion());
+                            final byte[] objectDekBytes;
+                            try {
+                                objectDekBytes = AesGcmSivCipher.decrypt(
+                                        oldRepoDek, gitObjectMetadata.nonce(),
+                                        gitObjectMetadata.objectWdek());
+                            } catch (Exception e) {
+                                throw new EncryptionStorageException(
+                                        "Failed to unwrap object DEK for " +
+                                        new String(metadataKey, StandardCharsets.UTF_8), e);
+                            }
+
+                            // Re-wrap the same object DEK with new repository DEK using the SAME nonce
+                            final byte[] newWrappedObjectDek = AesGcmSivCipher.encrypt(
+                                    newDek, gitObjectMetadata.nonce(), objectDekBytes);
+
+                            final GitObjectMetadata newGitObjectMetadata = GitObjectMetadata.of(
+                                    newKeyVersion, gitObjectMetadata.nonce(), gitObjectMetadata.type(),
+                                    newWrappedObjectDek);
+                            final byte[] newMetadataValue = newGitObjectMetadata.toBytes();
+
+                            // Update only metadata - encrypted object data and its key remain unchanged
+                            // since we're using the same object DEK, just wrapped with a new repository DEK.
+                            writeBatch.put(metadataColumnFamilyHandle, metadataKey, newMetadataValue);
+
+                            operationsInCurrentBatch++;
+                            totalReencryptedCount++;
+                        } else {
+                            logger.warn("Invalid metadata value for object key: {}",
+                                        new String(metadataKey, StandardCharsets.UTF_8));
+                        }
+                    } else {
+                        logger.warn("Invalid object metadata key length: {}",
+                                    new String(metadataKey, StandardCharsets.UTF_8));
+                    }
+                } else {
+                    // Handle refs, HEAD, and rev2sha
+                    if (startsWith(metadataKey, rev2ShaPrefixBytes)) {
+                        // MetadataKey: project/repo/rev2sha/<revision_major_bytes(4)>
+                        // MetadataValue: key version(4) + nonce(12)
+                        if (metadataKey.length == rev2ShaPrefixBytes.length + 4) {
+                            idPart = Arrays.copyOfRange(metadataKey, rev2ShaPrefixBytes.length,
+                                                        metadataKey.length);
+                            if (reencryptObjectIdEntry(projectName, repoName, metadataKey, metadataValue,
+                                                       idPart, newKeyVersion, newDek, deks,
+                                                       metadataColumnFamilyHandle, encryptedObjectIdHandle,
+                                                       writeBatch, "rev2sha")) {
+                                operationsInCurrentBatch++;
+                                totalReencryptedCount++;
+                            }
+                        } else {
+                            logger.warn("Invalid rev2sha metadata key length: {}",
+                                        new String(metadataKey, StandardCharsets.UTF_8));
+                        }
+                    } else if (startsWith(metadataKey, headKeyBytes) ||
+                               startsWith(metadataKey, refsKeyPrefixBytes)) {
+                        // MetadataKey: project/repo/HEAD or project/repo/refs/heads/master
+                        // MetadataValue: key version(4) + nonce(12)
+                        idPart = Arrays.copyOfRange(metadataKey,
+                                                    projectRepoPrefixBytes.length, metadataKey.length);
+                        if (reencryptObjectIdEntry(projectName, repoName, metadataKey, metadataValue,
+                                                   idPart, newKeyVersion, newDek,
+                                                   deks, metadataColumnFamilyHandle, encryptedObjectIdHandle,
+                                                   writeBatch, "ref")) {
+                            operationsInCurrentBatch++;
+                            totalReencryptedCount++;
+                        }
+                    } else {
+                        logger.warn("Unknown metadata key pattern for prefix {}: {}",
+                                    projectRepoPrefix, new String(metadataKey, StandardCharsets.UTF_8));
+                    }
+                }
+
+                operationsInCurrentBatch = executeBatchIfNeeded(writeBatch, writeOptions,
+                                                                operationsInCurrentBatch,
+                                                                totalReencryptedCount,
+                                                                projectName, repoName, "Re-encrypted");
+                iterator.next();
+            }
+
+            executeFinalBatch(writeBatch, writeOptions, operationsInCurrentBatch,
+                              totalReencryptedCount, projectName, repoName, "Re-encrypted");
+
+            if (totalReencryptedCount > 0) {
+                logger.info("Successfully re-encrypted a total of {} entries for repository {}/{} " +
+                            "with DEK version {}",
+                            totalReencryptedCount, projectName, repoName, newKeyVersion);
+            } else {
+                logger.info("No data needed re-encryption for repository {}/{}", projectName, repoName);
+            }
+        } catch (RocksDBException | EncryptionStorageException e) {
+            throw new EncryptionStorageException(
+                    "Failed to re-encrypt repository data for " + projectRepo(projectName, repoName), e);
+        } catch (Exception e) {
+            throw new EncryptionStorageException("Unexpected error during repository data re-encryption for " +
+                                                 projectRepo(projectName, repoName), e);
+        } finally {
+            rocksDbStorage.releaseSnapshot(snapshot);
+        }
+    }
+
+    private SecretKey getCachedDek(String projectName, String repoName, HashMap<Integer, SecretKey> deks,
+                                   int keyVersion) {
+        return deks.computeIfAbsent(keyVersion, k -> getDek(projectName, repoName, k));
+    }
+
     void deleteRepositoryData(String projectName, String repoName) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -390,6 +558,9 @@ final class RepositoryEncryptionStorage {
                 rocksDbStorage.getColumnFamilyHandle(ENCRYPTED_OBJECT_COLUMN_FAMILY);
         final ColumnFamilyHandle encryptedObjectIdHandle =
                 rocksDbStorage.getColumnFamilyHandle(ENCRYPTED_OBJECT_ID_COLUMN_FAMILY);
+
+        final HashMap<Integer, SecretKey> deks = new HashMap<>();
+
         try (WriteBatch writeBatch = new WriteBatch();
              WriteOptions writeOptions = new WriteOptions();
              RocksIterator iterator = rocksDbStorage.newIterator(metadataColumnFamilyHandle)) {
@@ -418,7 +589,8 @@ final class RepositoryEncryptionStorage {
                             final SecretKeySpec objectDek;
                             try {
                                 objectDek = gitObjectMetadata.objectDek(
-                                        getDek(projectName, repoName, gitObjectMetadata.keyVersion()));
+                                        getCachedDek(projectName, repoName, deks,
+                                                     gitObjectMetadata.keyVersion()));
                             } catch (Exception e) {
                                 throw new EncryptionStorageException(
                                         "Failed to get object dek for " +
@@ -448,8 +620,8 @@ final class RepositoryEncryptionStorage {
                             if (metadataValue != null && metadataValue.length == 4 + NONCE_SIZE_BYTES) {
                                 final byte[] nonce = new byte[NONCE_SIZE_BYTES];
                                 System.arraycopy(metadataValue, 4, nonce, 0, NONCE_SIZE_BYTES);
-                                final SecretKey dek = getDek(projectName, repoName,
-                                                             Ints.fromByteArray(metadataValue));
+                                final SecretKey dek = getCachedDek(projectName, repoName, deks,
+                                                                   Ints.fromByteArray(metadataValue));
                                 final byte[] key = AesGcmSivCipher.encrypt(dek, nonce, idPart);
                                 writeBatch.delete(encryptedObjectIdHandle, key);
                                 operationsInCurrentBatch++;
@@ -473,8 +645,8 @@ final class RepositoryEncryptionStorage {
                         if (metadataValue != null && metadataValue.length == 4 + NONCE_SIZE_BYTES) {
                             final byte[] nonce = new byte[NONCE_SIZE_BYTES];
                             System.arraycopy(metadataValue, 4, nonce, 0, NONCE_SIZE_BYTES);
-                            final SecretKey dek = getDek(projectName, repoName,
-                                                         Ints.fromByteArray(metadataValue));
+                            final SecretKey dek = getCachedDek(projectName, repoName, deks,
+                                                               Ints.fromByteArray(metadataValue));
                             final byte[] key = AesGcmSivCipher.encrypt(dek, nonce, idPart);
                             writeBatch.delete(encryptedObjectIdHandle, key);
                             operationsInCurrentBatch++;
@@ -492,28 +664,17 @@ final class RepositoryEncryptionStorage {
                 writeBatch.delete(metadataColumnFamilyHandle, metadataKey);
                 operationsInCurrentBatch++;
                 totalDeletedCount++;
-                if (operationsInCurrentBatch >= BATCH_WRITE_SIZE) {
-                    if (writeBatch.count() > 0) {
-                        writeOptions.setSync(true);
-                        rocksDbStorage.write(writeOptions, writeBatch);
-                        logger.info("Deleted {} entries for repository {}/{}. " +
-                                    "Total entries processed for deletion so far: {}.",
-                                    operationsInCurrentBatch, projectName, repoName, totalDeletedCount);
-                        writeBatch.clear();
-                        operationsInCurrentBatch = 0;
-                    }
-                }
+
+                operationsInCurrentBatch = executeBatchIfNeeded(writeBatch, writeOptions,
+                                                                operationsInCurrentBatch,
+                                                                totalDeletedCount,
+                                                                projectName, repoName, "Deleted");
 
                 iterator.next();
             }
 
-            if (operationsInCurrentBatch > 0) {
-                writeOptions.setSync(true);
-                rocksDbStorage.write(writeOptions, writeBatch);
-                logger.info("Deleted {} entries for repository {}/{}. " +
-                            "Total entries processed for deletion so far: {}.",
-                            operationsInCurrentBatch, projectName, repoName, totalDeletedCount);
-            }
+            executeFinalBatch(writeBatch, writeOptions, operationsInCurrentBatch,
+                              totalDeletedCount, projectName, repoName, "Deleted");
 
             if (totalDeletedCount > 0) {
                 logger.info("Successfully deleted a total of {} entries for repository {}/{}",
@@ -716,6 +877,146 @@ final class RepositoryEncryptionStorage {
                                 }, executor);
     }
 
+    private int executeBatchIfNeeded(WriteBatch writeBatch, WriteOptions writeOptions,
+                                     int currentBatchSize, int totalCount,
+                                     String projectName, String repoName, String operation) {
+        if (currentBatchSize >= BATCH_WRITE_SIZE && writeBatch.count() > 0) {
+            try {
+                writeOptions.setSync(true);
+                rocksDbStorage.write(writeOptions, writeBatch);
+                logger.info("{} {} entries for repository {}/{}. Total entries processed so far: {}.",
+                           operation, currentBatchSize, projectName, repoName, totalCount);
+                writeBatch.clear();
+                return 0; // Reset batch size
+            } catch (RocksDBException e) {
+                throw new EncryptionStorageException(
+                        "Failed to write batch for " + projectRepo(projectName, repoName), e);
+            }
+        }
+        return currentBatchSize;
+    }
+
+    /**
+     * Executes any remaining batch operations.
+     */
+    private void executeFinalBatch(WriteBatch writeBatch, WriteOptions writeOptions,
+                                   int currentBatchSize, int totalCount,
+                                   String projectName, String repoName, String operation) {
+        if (currentBatchSize > 0) {
+            try {
+                writeOptions.setSync(true);
+                rocksDbStorage.write(writeOptions, writeBatch);
+                logger.info("{} {} entries for repository {}/{}. Total entries processed so far: {}.",
+                            operation, currentBatchSize, projectName, repoName, totalCount);
+            } catch (RocksDBException e) {
+                throw new EncryptionStorageException(
+                        "Failed to write final batch for " + projectRepo(projectName, repoName), e);
+            }
+        }
+    }
+
+    private boolean reencryptObjectIdEntry(String projectName, String repoName,
+                                           byte[] metadataKey, @Nullable byte[] metadataValue,
+                                           byte[] idPart, int newKeyVersion, SecretKey newDek,
+                                           HashMap<Integer, SecretKey> deks,
+                                           ColumnFamilyHandle metadataColumnFamilyHandle,
+                                           ColumnFamilyHandle encryptedObjectIdHandle,
+                                           WriteBatch writeBatch, String entryType) {
+        if (metadataValue == null || metadataValue.length != 4 + NONCE_SIZE_BYTES) {
+            logger.warn("Invalid metadata value for {} key: {}",
+                        entryType, new String(metadataKey, StandardCharsets.UTF_8));
+            return false;
+        }
+
+        final int oldKeyVersion = Ints.fromByteArray(metadataValue);
+
+        // Skip if already encrypted with the current key version
+        if (oldKeyVersion == newKeyVersion) {
+            return false;
+        }
+
+        final byte[] oldNonce = new byte[NONCE_SIZE_BYTES];
+        System.arraycopy(metadataValue, 4, oldNonce, 0, NONCE_SIZE_BYTES);
+
+        final SecretKey oldDek = getCachedDek(projectName, repoName, deks, oldKeyVersion);
+        final byte[] oldEncryptedKey;
+        try {
+            oldEncryptedKey = AesGcmSivCipher.encrypt(oldDek, oldNonce, idPart);
+        } catch (Exception e) {
+            throw new EncryptionStorageException(
+                    "Failed to encrypt old key for " + entryType + ' ' +
+                    new String(metadataKey, StandardCharsets.UTF_8), e);
+        }
+
+        final byte[] encryptedData;
+        try {
+            encryptedData = rocksDbStorage.get(ENCRYPTED_OBJECT_ID_COLUMN_FAMILY, oldEncryptedKey);
+        } catch (RocksDBException e) {
+            throw new EncryptionStorageException(
+                    "Failed to get encrypted " + entryType + " for " +
+                    new String(metadataKey, StandardCharsets.UTF_8), e);
+        }
+
+        if (encryptedData == null) {
+            logger.warn("Encrypted {} data not found for: {}",
+                        entryType, new String(metadataKey, StandardCharsets.UTF_8));
+            return false;
+        }
+
+        // Decrypt the data with old DEK + old nonce
+        final byte[] decryptedData;
+        try {
+            decryptedData = AesGcmSivCipher.decrypt(oldDek, oldNonce, encryptedData);
+        } catch (Exception e) {
+            throw new EncryptionStorageException(
+                    "Failed to decrypt " + entryType + " data for " +
+                    new String(metadataKey, StandardCharsets.UTF_8), e);
+        }
+
+        // Generate new nonce
+        final byte[] newNonce = AesGcmSivCipher.generateNonce();
+        final byte[] newMetadataValue = new byte[4 + NONCE_SIZE_BYTES];
+        System.arraycopy(Ints.toByteArray(newKeyVersion), 0, newMetadataValue, 0, 4);
+        System.arraycopy(newNonce, 0, newMetadataValue, 4, NONCE_SIZE_BYTES);
+
+        final byte[] newEncryptedKey;
+        try {
+            newEncryptedKey = AesGcmSivCipher.encrypt(newDek, newNonce, idPart);
+        } catch (Exception e) {
+            throw new EncryptionStorageException(
+                    "Failed to encrypt new key for " + entryType + ' ' +
+                    new String(metadataKey, StandardCharsets.UTF_8), e);
+        }
+
+        // Re-encrypt the data with new DEK + new nonce
+        final byte[] newEncryptedData;
+        try {
+            newEncryptedData = AesGcmSivCipher.encrypt(newDek, newNonce, decryptedData);
+        } catch (Exception e) {
+            throw new EncryptionStorageException(
+                    "Failed to encrypt new " + entryType + " data for " +
+                    new String(metadataKey, StandardCharsets.UTF_8), e);
+        }
+
+        // Update metadata and encrypted data
+        try {
+            writeBatch.put(metadataColumnFamilyHandle, metadataKey, newMetadataValue);
+            writeBatch.delete(encryptedObjectIdHandle, oldEncryptedKey);
+            writeBatch.put(encryptedObjectIdHandle, newEncryptedKey, newEncryptedData);
+            if (logger.isTraceEnabled()) {
+                logger.trace("Re-encrypted {} entry: {} (oldVersion={}, newVersion={})",
+                             entryType, new String(metadataKey, StandardCharsets.UTF_8),
+                             oldKeyVersion, newKeyVersion);
+            }
+        } catch (RocksDBException e) {
+            throw new EncryptionStorageException(
+                    "Failed to update encrypted " + entryType + " for " +
+                    new String(metadataKey, StandardCharsets.UTF_8), e);
+        }
+
+        return true;
+    }
+
     private static boolean startsWith(byte[] array, byte[] prefix) {
         if (array.length < prefix.length) {
             return false;
@@ -730,9 +1031,8 @@ final class RepositoryEncryptionStorage {
 
     Map<String, Map<String, byte[]>> getAllData() {
         final Map<String, Map<String, byte[]>> allData = new HashMap<>();
-        try (Snapshot snapshot = rocksDbStorage.getSnapshot();
-             ReadOptions readOptions = new ReadOptions().setSnapshot(snapshot)) {
-
+        final Snapshot snapshot = rocksDbStorage.getSnapshot();
+        try (ReadOptions readOptions = new ReadOptions().setSnapshot(snapshot)) {
             for (Map.Entry<String, ColumnFamilyHandle> entry : rocksDbStorage.getAllColumnFamilyHandles()
                                                                              .entrySet()) {
                 final String cfName = entry.getKey();
@@ -749,6 +1049,8 @@ final class RepositoryEncryptionStorage {
                 }
                 allData.put(cfName, cfData);
             }
+        } finally {
+            rocksDbStorage.releaseSnapshot(snapshot);
         }
 
         return allData;

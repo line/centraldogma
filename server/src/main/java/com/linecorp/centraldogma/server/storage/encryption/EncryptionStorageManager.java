@@ -199,6 +199,13 @@ public interface EncryptionStorageManager extends SafeCloseable {
     void deleteRepositoryData(String projectName, String repoName);
 
     /**
+     * Re-encrypts all data for the specified repository with the current DEK version.
+     * This is typically called after a DEK rotation to ensure all data is encrypted
+     * with the latest key version.
+     */
+    void reencryptRepositoryData(String projectName, String repoName);
+
+    /**
      * Returns all data stored in the encryption storage manager.
      *
      * @deprecated Do not use this method for production code as it may return a large amount of data.
