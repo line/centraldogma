@@ -37,7 +37,8 @@ final class DefaultChange<T> implements Change<T> {
     @JsonCreator
     static DefaultChange<?> deserialize(@JsonProperty("type") ChangeType type,
                                         @JsonProperty("path") String path,
-                                        @JsonProperty("content") @Nullable JsonNode content) {
+                                        @JsonProperty("content") @Nullable JsonNode content,
+                                        @JsonProperty("rawContent") @Nullable String rawContent) {
         requireNonNull(type, "type");
         final Class<?> contentType = type.contentType();
         if (contentType == Void.class) {
@@ -47,6 +48,18 @@ final class DefaultChange<T> implements Change<T> {
         } else if (type.contentType() == String.class) {
             if (content == null || !content.isTextual()) {
                 return rejectIncompatibleContent(content, String.class);
+            }
+        } else {
+            assert type.contentType() == JsonNode.class;
+            // Raw content is only used for JSON content types for now.
+            // TODO(ikhoon): Use rawContent to commit the content as-is.
+            if (content == null && rawContent != null) {
+                try {
+                    content = Jackson.readTree(rawContent);
+                } catch (JsonProcessingException e) {
+                    throw new IllegalArgumentException("incompatible content: " + rawContent +
+                                                       " (expected: valid JSON)", e);
+                }
             }
         }
 
