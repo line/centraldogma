@@ -396,8 +396,8 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     updateMirror: builder.mutation<
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       any,
       { projectName: string; repoName: string; id: string; mirror: MirrorRequest }
     >({
@@ -483,8 +483,8 @@ export const apiSlice = createApi({
       transformResponse: (response: CredentialDto) => addIdFromCredentialName(response),
       providesTags: ['Metadata'],
     }),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     addNewCredential: builder.mutation<
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       any,
       { projectName: string; credentialRequest: CreateCredentialRequestDto }
     >({
