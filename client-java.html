@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Java client library &mdash; Central Dogma 0.77.4 documentation</title>
+  <title>Java client library &mdash; Central Dogma 0.78.0 documentation</title>
   
 
   
@@ -72,7 +72,7 @@
             
             
               <div class="version">
-                0.77
+                0.78
               </div>
             
           
@@ -212,14 +212,14 @@ exposed by a Central Dogma server.</p>
 <h2>Adding <code class="docutils literal notranslate"><span class="pre">centraldogma-client</span></code> as a dependency<a class="headerlink" href="#adding-centraldogma-client-as-a-dependency" title="Permalink to this headline">¶</a></h2>
 <p>Gradle:</p>
 <pre class="highlight-gradle literal-block">dependencies {
-    compile 'com.linecorp.centraldogma:centraldogma-client-armeria:0.77.4'
+    compile 'com.linecorp.centraldogma:centraldogma-client-armeria:0.78.0'
 }</pre>
 <p>Maven:</p>
 <pre class="highlight-xml literal-block">&lt;dependencies&gt;
   &lt;dependency&gt;
     &lt;groupId&gt;com.linecorp.centraldogma&lt;/groupId&gt;
     &lt;artifactId&gt;centraldogma-client-armeria&lt;/artifactId&gt;
-    &lt;version&gt;0.77.4&lt;/version&gt;
+    &lt;version&gt;0.78.0&lt;/version&gt;
   &lt;/dependency&gt;
 &lt;/dependencies&gt;</pre>
 </div>
@@ -379,7 +379,8 @@ Let’s consider that the contents of the <code class="docutils literal notransl
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Corresponding types of values should be same or one of the types must be <code class="docutils literal notranslate"><span class="pre">null</span></code> to replace.
-If their types do not match or neither value is <code class="docutils literal notranslate"><span class="pre">null</span></code>, you will get a <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/common/QueryExecutionException.html">QueryExecutionException</a></code>.</p>
+If their types do not match or neither value is <code class="docutils literal notranslate"><span class="pre">null</span></code>, you will get
+a <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/common/QueryExecutionException.html">QueryExecutionException</a></code>.</p>
 </div>
 <p>You can mark some files involved in the merge process as optional.</p>
 <div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">CentralDogma dogma = ...;
@@ -392,10 +393,10 @@ CompletableFuture&lt;MergedEntry&lt;JsonNode&gt;&gt; future =
 </div>
 <p>Note that we used <code class="docutils literal notranslate"><span class="pre">MergeSource.ofOptional(&quot;/b.json&quot;)</span></code>, which tells to include the <code class="docutils literal notranslate"><span class="pre">/b.json</span></code> file only if it
 exists in the repository. If it does not exist, <code class="docutils literal notranslate"><span class="pre">/a.json</span></code> and <code class="docutils literal notranslate"><span class="pre">/c.json</span></code> will be merged sequentially.
-The files specified as required must exist in the repository. You will get an <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/common/EntryNotFoundException.html">EntryNotFoundException</a></code>
-otherwise.
-You will get the <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/common/EntryNotFoundException.html">EntryNotFoundException</a></code> as well when you specify all of the files as optional
-and none of them exists.</p>
+The files specified as required must exist in the repository.
+You will get an <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/common/EntryNotFoundException.html">EntryNotFoundException</a></code> otherwise.
+You will get the <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/common/EntryNotFoundException.html">EntryNotFoundException</a></code> as well when you specify all of the
+files as optional and none of them exists.</p>
 <p>As we used <code class="docutils literal notranslate"><span class="pre">Query.ofJsonPath()</span></code> in <a class="reference internal" href="#getting-a-file"><span class="std std-ref">Getting a file</span></a>, you can use <code class="docutils literal notranslate"><span class="pre">MergeQuery.ofJsonPath()</span></code> to
 retrieve the result of JSON path evaluation of the <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/common/MergedEntry.html">MergedEntry</a></code>.</p>
 <div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">CentralDogma dogma = ...;
@@ -677,14 +678,14 @@ a Java version lower than 17.</p>
 </div>
 <p>Gradle:</p>
 <pre class="highlight-gradle literal-block">dependencies {
-    compile 'com.linecorp.centraldogma:centraldogma-client-spring-boot3-starter:0.77.4'
+    compile 'com.linecorp.centraldogma:centraldogma-client-spring-boot3-starter:0.78.0'
 }</pre>
 <p>Maven:</p>
 <pre class="highlight-xml literal-block">&lt;dependencies&gt;
   &lt;dependency&gt;
     &lt;groupId&gt;com.linecorp.centraldogma&lt;/groupId&gt;
     &lt;artifactId&gt;centraldogma-client-spring-boot3-starter&lt;/artifactId&gt;
-    &lt;version&gt;0.77.4&lt;/version&gt;
+    &lt;version&gt;0.78.0&lt;/version&gt;
   &lt;/dependency&gt;
 &lt;/dependencies&gt;</pre>
 <p>Then, add a new section called <code class="docutils literal notranslate"><span class="pre">centraldogma</span></code> to your Spring Boot application configuration, which is often
