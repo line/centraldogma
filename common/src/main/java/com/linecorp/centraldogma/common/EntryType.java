@@ -16,10 +16,10 @@
 
 package com.linecorp.centraldogma.common;
 
+import static com.linecorp.centraldogma.internal.Json5.isJsonCompatible;
 import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.base.Ascii;
 
 /**
  * The type of an {@link Entry}.
@@ -51,7 +51,7 @@ public enum EntryType {
             return DIRECTORY;
         }
 
-        if (Ascii.toLowerCase(path).endsWith(".json")) {
+        if (isJsonCompatible(path)) {
             return JSON;
         }
 

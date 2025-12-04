@@ -163,11 +163,18 @@ class LocalToRemoteGitMirrorTest {
         mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("1");
 
+        //language=JSON5
+        final String json5 = "{\n" +
+                             "  // This is a single-line comment\n" +
+                             "  \"key\": \"value\"\n" +
+                             '}';
+
         // Create a new commit
         client.forRepo(projName, REPO_FOO)
               .commit("Add a commit",
                       Change.ofJsonUpsert(localPath + "/foo.json", "{\"a\":\"b\"}"),
                       Change.ofJsonUpsert(localPath + "/bar/foo.json", "{\"a\":\"c\"}"),
+                      Change.ofJsonUpsert(localPath + "/bar/foo.json5", json5),
                       Change.ofTextUpsert(localPath + "/baz/foo.txt", "\"a\": \"b\"\n"))
               .push().join();
 
@@ -183,6 +190,9 @@ class LocalToRemoteGitMirrorTest {
                 getFileContent(commitId3, remotePath + "/bar/foo.json")))).isEqualTo("{\"a\":\"c\"}");
         assertThat(new String(getFileContent(commitId3, remotePath + "/baz/foo.txt")))
                 .isEqualTo("\"a\": \"b\"\n");
+        final String fooJson5 = new String(getFileContent(commitId3, remotePath + "/bar/foo.json5"));
+        // Make sure the JSON5 content is mirrored as-is.
+        assertThat(fooJson5).isEqualTo(json5 + '\n');
 
         // Mirror once again without adding a commit.
         mirroringService.mirror().join();

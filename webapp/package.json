@@ -32,6 +32,7 @@
     "cronstrue": "^2.50.0",
     "date-fns": "^3.6.0",
     "framer-motion": "^11.2.13",
+    "json5": "^2.2.3",
     "jsonpath": "^1.1.1",
     "next": "^14.2.4",
     "prismjs": "^1.29.0",

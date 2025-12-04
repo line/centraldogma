@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.linecorp.centraldogma.internal.Json5.isJson5;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -29,6 +30,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Json5;
 
 /**
  * A file or a directory in a repository.
@@ -69,7 +71,13 @@ public final class Entry<T> implements ContentHolder<T> {
      */
     public static Entry<JsonNode> ofJson(Revision revision, String path, String content)
             throws JsonParseException {
-        return new Entry<>(revision, path, EntryType.JSON, Jackson.readTree(content), content);
+        final JsonNode jsonNode;
+        if (isJson5(path)) {
+            jsonNode = Json5.readTree(content);
+        } else {
+            jsonNode = Jackson.readTree(content);
+        }
+        return new Entry<>(revision, path, EntryType.JSON, jsonNode, content);
     }
 
     /**
@@ -193,6 +201,9 @@ public final class Entry<T> implements ContentHolder<T> {
 
     @Override
     public String contentAsText() {
+        if (rawContent != null) {
+            return rawContent;
+        }
         if (contentAsText == null) {
             contentAsText = ContentHolder.super.contentAsText();
         }
@@ -208,8 +219,19 @@ public final class Entry<T> implements ContentHolder<T> {
     }
 
     @Override
+    public JsonNode contentAsJson() throws JsonParseException {
+        if (content instanceof JsonNode) {
+            return (JsonNode) content;
+        }
+        if (isJson5(path) && rawContent != null) {
+            return Json5.readTree(rawContent);
+        }
+        return ContentHolder.super.contentAsJson();
+    }
+
+    @Override
     public int hashCode() {
-        return (revision.hashCode() * 31 + type.hashCode()) * 31 + path.hashCode();
+        return Objects.hash(revision, path, content, type);
     }
 
     @Override
