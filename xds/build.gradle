@@ -5,14 +5,15 @@ dependencies {
     implementation libs.kubernetes.client.impl
 
     implementation libs.armeria.grpc
-    implementation libs.controlplane.api
     implementation libs.controlplane.cache
     implementation libs.controlplane.server
 
     implementation libs.reflections
 
     testImplementation libs.armeria.junit5
-    testImplementation libs.armeria.xds
+    testImplementation (libs.armeria.xds) {
+        exclude group: 'com.linecorp.armeria', module: 'armeria-xds-api'
+    }
     testImplementation libs.kubernetes.server.mock
     testImplementation libs.kubernetes.junit.jupiter
     testImplementation libs.logback15
