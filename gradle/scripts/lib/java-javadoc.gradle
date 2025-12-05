@@ -1,6 +1,7 @@
 import groovy.json.JsonBuilder
 import groovy.json.JsonSlurper
 
+import javax.inject.Inject
 import java.security.MessageDigest
 
 def offlineJavadoc = rootProject.hasProperty('offlineJavadoc')
