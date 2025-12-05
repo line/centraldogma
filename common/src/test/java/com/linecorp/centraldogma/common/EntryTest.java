@@ -101,7 +101,7 @@ class EntryTest {
         assertThat(e.hasContent()).isTrue();
         e.ifHasContent(content -> assertThatJson(content).isEqualTo("{ \"foo\": \"bar\" }"));
         assertThatJson(e.content()).isEqualTo("{ \"foo\": \"bar\" }");
-        assertThat(e.contentAsText()).isEqualTo("{\"foo\":\"bar\"}");
+        assertThat(e.contentAsText()).isEqualTo("{ \"foo\": \"bar\" }");
         assertThat(e.contentAsPrettyText()).isEqualTo("{\n  \"foo\": \"bar\"\n}");
         assertThat(e.content()).isSameAs(e.contentAsJson());
         assertThat(e.content()).isEqualTo(e.contentAsJson(JsonNode.class));
