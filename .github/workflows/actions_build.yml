@@ -75,7 +75,7 @@ jobs:
 
     - name: Build with Gradle
       run: |
-        ./gradlew --no-daemon --stacktrace -Pleak -PnoLint build \
+        ./gradlew clean --no-daemon --stacktrace -Pleak -PnoLint build \
         ${{ matrix.coverage && '-Pcoverage' || '' }} \
         -PflakyTests=false \
         -PbuildJdkVersion=${{ env.BUILD_JDK_VERSION }} \
