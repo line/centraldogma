@@ -16,43 +16,44 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
-import static com.linecorp.centraldogma.internal.Util.TOKEN_EMAIL_SUFFIX;
+import static com.linecorp.centraldogma.internal.Util.APPLICATION_EMAIL_SUFFIX;
 import static java.util.Objects.requireNonNull;
 
 import com.google.common.base.MoreObjects;
 
 /**
- * A {@link User} which accesses the API with a {@link Token}.
+ * A {@link User} which accesses the API with an {@link Application}.
  */
-public final class UserWithToken extends User {
+public final class UserWithApplication extends User {
 
     private static final long serialVersionUID = 6021146546653491444L;
 
-    private final Token token;
+    private final Application application;
 
     /**
      * Creates a new instance.
      */
-    public UserWithToken(Token token) {
-        super(requireNonNull(token, "token").appId(), token.appId() + TOKEN_EMAIL_SUFFIX);
-        this.token = token;
+    public UserWithApplication(Application application) {
+        super(requireNonNull(application, "application").appId(),
+              application.appId() + APPLICATION_EMAIL_SUFFIX);
+        this.application = application;
     }
 
     /**
-     * Returns the {@link Token} of the user.
+     * Returns the {@link Application} of the user.
      */
-    public Token token() {
-        return token;
+    public Application application() {
+        return application;
     }
 
     @Override
     public boolean isSystemAdmin() {
-        return token.isSystemAdmin();
+        return application.isSystemAdmin();
     }
 
     @Override
     public int hashCode() {
-        return super.hashCode() * 31 + token.hashCode();
+        return super.hashCode() * 31 + application.hashCode();
     }
 
     @Override
@@ -60,21 +61,21 @@ public final class UserWithToken extends User {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof UserWithToken)) {
+        if (!(o instanceof UserWithApplication)) {
             return false;
         }
         if (!super.equals(o)) {
             return false;
         }
 
-        final UserWithToken that = (UserWithToken) o;
-        return token.equals(that.token);
+        final UserWithApplication that = (UserWithApplication) o;
+        return application.equals(that.application);
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("token", token.withoutSecret())
+                          .add("application", application)
                           .toString();
     }
 }

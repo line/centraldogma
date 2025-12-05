@@ -68,9 +68,9 @@ public class ProjectMetadata implements Identifiable, HasWeight {
     private final Map<String, Member> members;
 
     /**
-     * Tokens which belong to this project.
+     * Applications which belong to this project.
      */
-    private final Map<String, TokenRegistration> tokens;
+    private final Map<String, ApplicationRegistration> applications;
 
     /**
      * Specifies when this project is created by whom.
@@ -90,13 +90,13 @@ public class ProjectMetadata implements Identifiable, HasWeight {
     public ProjectMetadata(@JsonProperty("name") String name,
                            @JsonProperty("repos") Map<String, RepositoryMetadata> repos,
                            @JsonProperty("members") Map<String, Member> members,
-                           @JsonProperty("tokens") Map<String, TokenRegistration> tokens,
+                           @JsonProperty("applications") Map<String, ApplicationRegistration> applications,
                            @JsonProperty("creation") UserAndTimestamp creation,
                            @JsonProperty("removal") @Nullable UserAndTimestamp removal) {
         this.name = requireNonNull(name, "name");
         this.repos = ImmutableMap.copyOf(requireNonNull(repos, "repos"));
         this.members = ImmutableMap.copyOf(requireNonNull(members, "members"));
-        this.tokens = ImmutableMap.copyOf(requireNonNull(tokens, "tokens"));
+        this.applications = ImmutableMap.copyOf(requireNonNull(applications, "applications"));
         this.creation = requireNonNull(creation, "creation");
         this.removal = removal;
     }
@@ -131,11 +131,11 @@ public class ProjectMetadata implements Identifiable, HasWeight {
     }
 
     /**
-     * Returns the {@link TokenRegistration}s of this project.
+     * Returns the {@link ApplicationRegistration}s of this project.
      */
     @JsonProperty
-    public Map<String, TokenRegistration> tokens() {
-        return tokens;
+    public Map<String, ApplicationRegistration> applications() {
+        return applications;
     }
 
     /**
@@ -192,15 +192,16 @@ public class ProjectMetadata implements Identifiable, HasWeight {
     }
 
     /**
-     * Returns the {@link TokenRegistration} of the specified application ID in this project.
+     * Returns the {@link ApplicationRegistration} of the specified application ID in this project.
      */
     @Nullable
-    public TokenRegistration tokenOrDefault(String appId, @Nullable TokenRegistration defaultToken) {
-        final TokenRegistration token = tokens.get(requireNonNull(appId, "appId"));
-        if (token != null) {
-            return token;
+    public ApplicationRegistration applicationOrDefault(String appId,
+                                                        @Nullable ApplicationRegistration defaultApplication) {
+        final ApplicationRegistration application = applications.get(requireNonNull(appId, "appId"));
+        if (application != null) {
+            return application;
         }
-        return defaultToken;
+        return defaultApplication;
     }
 
     @Override
@@ -212,8 +213,8 @@ public class ProjectMetadata implements Identifiable, HasWeight {
         for (Member member : members.values()) {
             weight += member.weight();
         }
-        for (TokenRegistration token : tokens.values()) {
-            weight += token.weight();
+        for (ApplicationRegistration application : applications.values()) {
+            weight += application.weight();
         }
 
         return weight;
@@ -231,14 +232,14 @@ public class ProjectMetadata implements Identifiable, HasWeight {
         return name.equals(that.name) &&
                repos.equals(that.repos) &&
                members.equals(that.members) &&
-               tokens.equals(that.tokens) &&
+               applications.equals(that.applications) &&
                creation.equals(that.creation) &&
                Objects.equals(removal, that.removal);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, repos, members, tokens, creation, removal);
+        return Objects.hash(name, repos, members, applications, creation, removal);
     }
 
     @Override
@@ -247,7 +248,7 @@ public class ProjectMetadata implements Identifiable, HasWeight {
                           .add("name", name())
                           .add("repos", repos())
                           .add("members", members())
-                          .add("tokens", tokens())
+                          .add("applications", applications())
                           .add("creation", creation())
                           .add("removal", removal())
                           .toString();
@@ -266,7 +267,7 @@ public class ProjectMetadata implements Identifiable, HasWeight {
         return new ProjectMetadata(name(),
                                    filtered,
                                    members(),
-                                   tokens(),
+                                   applications(),
                                    creation(),
                                    removal());
     }
