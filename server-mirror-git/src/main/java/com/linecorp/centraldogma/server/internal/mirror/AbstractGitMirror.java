@@ -89,7 +89,6 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
@@ -339,15 +338,13 @@ abstract class AbstractGitMirror extends AbstractMirror {
                 }
                 numBytes += contentLength;
 
-                final byte[] content = reader.open(objectId).getBytes();
+                final String content = new String(reader.open(objectId).getBytes(), UTF_8);
                 switch (EntryType.guessFromPath(localPath)) {
                     case JSON:
-                        final JsonNode jsonNode = Jackson.readTree(content);
-                        changes.putIfAbsent(localPath, Change.ofJsonUpsert(localPath, jsonNode));
+                        changes.putIfAbsent(localPath, Change.ofJsonUpsert(localPath, content));
                         break;
                     case TEXT:
-                        final String strVal = new String(content, UTF_8);
-                        changes.putIfAbsent(localPath, Change.ofTextUpsert(localPath, strVal));
+                        changes.putIfAbsent(localPath, Change.ofTextUpsert(localPath, content));
                         break;
                 }
             }
@@ -365,10 +362,10 @@ abstract class AbstractGitMirror extends AbstractMirror {
         });
 
         try {
-            final CommitResult commitResult = executor.execute(Command.push(
+            final Revision revision = executor.execute(Command.push(
                     MIRROR_AUTHOR, localRepo().parent().name(), localRepo().name(),
                     Revision.HEAD, summary, detail, Markup.PLAINTEXT, changes.values())).join();
-            final String description = summary + ", revision: " + commitResult.revision().text();
+            final String description = summary + ", revision: " + revision.text();
             return newMirrorResult(MirrorStatus.SUCCESS, description, triggeredTime);
         } catch (CompletionException e) {
             if (e.getCause() instanceof RedundantChangeException) {

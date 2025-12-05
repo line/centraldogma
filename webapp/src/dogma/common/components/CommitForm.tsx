@@ -39,12 +39,12 @@ export const CommitForm = ({
   const { register, handleSubmit, reset } = useForm<FormData>();
   const dispatch = useAppDispatch();
   const onSubmit = async (formData: FormData) => {
-    let newContent = content();
+    const newContent = content();
     if (name.endsWith('.json')) {
       try {
-        newContent = JSON.parse(newContent);
+        JSON.parse(newContent);
       } catch (error) {
-        dispatch(newNotification(`Failed to format json content.`, ErrorMessageParser.parse(error), 'error'));
+        dispatch(newNotification(`Invalid JSON file.`, ErrorMessageParser.parse(error), 'error'));
         return;
       }
     }
@@ -58,7 +58,7 @@ export const CommitForm = ({
         {
           path: path,
           type: name.endsWith('.json') ? 'UPSERT_JSON' : 'UPSERT_TEXT',
-          content: newContent,
+          rawContent: newContent,
         },
       ],
     };

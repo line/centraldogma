@@ -44,7 +44,7 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param path the path of the directory
      */
     public static Entry<Void> ofDirectory(Revision revision, String path) {
-        return new Entry<>(revision, path, EntryType.DIRECTORY, null);
+        return new Entry<>(revision, path, EntryType.DIRECTORY, null, null);
     }
 
     /**
@@ -55,7 +55,7 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param content the content of the JSON file
      */
     public static Entry<JsonNode> ofJson(Revision revision, String path, JsonNode content) {
-        return new Entry<>(revision, path, EntryType.JSON, content);
+        return new Entry<>(revision, path, EntryType.JSON, content, null);
     }
 
     /**
@@ -69,7 +69,7 @@ public final class Entry<T> implements ContentHolder<T> {
      */
     public static Entry<JsonNode> ofJson(Revision revision, String path, String content)
             throws JsonParseException {
-        return ofJson(revision, path, Jackson.readTree(content));
+        return new Entry<>(revision, path, EntryType.JSON, Jackson.readTree(content), content);
     }
 
     /**
@@ -80,7 +80,7 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param content the content of the text file
      */
     public static Entry<String> ofText(Revision revision, String path, String content) {
-        return new Entry<>(revision, path, EntryType.TEXT, content);
+        return new Entry<>(revision, path, EntryType.TEXT, content, content);
     }
 
     /**
@@ -93,13 +93,15 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param <T> the content type. {@link JsonNode} if JSON. {@link String} if text.
      */
     public static <T> Entry<T> of(Revision revision, String path, EntryType type, @Nullable T content) {
-        return new Entry<>(revision, path, type, content);
+        return new Entry<>(revision, path, type, content, null);
     }
 
     private final Revision revision;
     private final String path;
     @Nullable
     private final T content;
+    @Nullable
+    private final String rawContent;
     private final EntryType type;
     @Nullable
     private String contentAsText;
@@ -113,8 +115,10 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param path the path of the entry
      * @param type the type of given {@code content}
      * @param content an object of given type {@code T}
+     * @param rawContent the raw content string, which is used for viewing the original JSON text
      */
-    private Entry(Revision revision, String path, EntryType type, @Nullable T content) {
+    private Entry(Revision revision, String path, EntryType type, @Nullable T content,
+                  @Nullable String rawContent) {
         requireNonNull(revision, "revision");
         checkArgument(!revision.isRelative(), "revision: %s (expected: absolute revision)", revision);
         this.revision = revision;
@@ -126,10 +130,12 @@ public final class Entry<T> implements ContentHolder<T> {
         if (entryContentType == Void.class) {
             checkArgument(content == null, "content: %s (expected: null)", content);
             this.content = null;
+            this.rawContent = null;
         } else {
             @SuppressWarnings("unchecked")
             final T castContent = (T) entryContentType.cast(requireNonNull(content, "content"));
             this.content = castContent;
+            this.rawContent = rawContent;
         }
     }
 
@@ -175,6 +181,14 @@ public final class Entry<T> implements ContentHolder<T> {
             throw new EntryNoContentException(type, revision, path);
         }
         return content;
+    }
+
+    /**
+     * Returns the raw content if available.
+     */
+    @Nullable
+    public String rawContent() {
+        return rawContent;
     }
 
     @Override

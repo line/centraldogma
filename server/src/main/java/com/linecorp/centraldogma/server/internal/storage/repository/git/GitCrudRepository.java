@@ -37,7 +37,6 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.storage.repository.CrudRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.HasRevision;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -74,11 +73,11 @@ public final class GitCrudRepository<T> implements CrudRepository<T> {
     public CompletableFuture<HasRevision<T>> save(String id, T entity, Author author, String description) {
         final String path = getPath(id);
         final Change<JsonNode> change = Change.ofJsonUpsert(path, Jackson.valueToTree(entity));
-        final Command<CommitResult> command =
+        final Command<Revision> command =
                 Command.push(author, projectName, repoName, Revision.HEAD, description, "", Markup.MARKDOWN,
                              change);
-        return executor.execute(command).thenCompose(result -> {
-            return repository.get(result.revision(), path).thenApply(this::entryToValue);
+        return executor.execute(command).thenCompose(revision -> {
+            return repository.get(revision, path).thenApply(this::entryToValue);
         });
     }
 
@@ -102,10 +101,10 @@ public final class GitCrudRepository<T> implements CrudRepository<T> {
     public CompletableFuture<Revision> delete(String id, Author author, String description) {
         final String path = getPath(id);
         final Change<Void> change = Change.ofRemoval(path);
-        final Command<CommitResult> command =
+        final Command<Revision> command =
                 Command.push(Author.SYSTEM, projectName, repoName, Revision.HEAD, description, "",
                              Markup.MARKDOWN, change);
-        return executor.execute(command).thenApply(CommitResult::revision);
+        return executor.execute(command);
     }
 
     private HasRevision<T> entryToValue(@Nullable Entry<?> entry) {

@@ -59,12 +59,12 @@ export const NewFile = ({
   const [prefixes] = useState(initialPrefixes);
   const onSubmit = async (formData: FormData) => {
     const path = `${prefixes.join('/')}/${formData.name}`;
-    let content = editorRef.current.getValue();
+    const content = editorRef.current.getValue();
     if (formData.name.endsWith('.json')) {
       try {
-        content = JSON.parse(content);
+        JSON.parse(content);
       } catch (error) {
-        dispatch(newNotification(`Failed to format json content.`, ErrorMessageParser.parse(error), 'error'));
+        dispatch(newNotification(`Invalid JSON file.`, ErrorMessageParser.parse(error), 'error'));
         return;
       }
     }
@@ -79,7 +79,7 @@ export const NewFile = ({
         {
           path: path.startsWith('/') ? path : `/${path}`,
           type: formData.name.endsWith('.json') ? 'UPSERT_JSON' : 'UPSERT_TEXT',
-          content: content,
+          rawContent: content,
         },
       ],
     };

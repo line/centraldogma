@@ -535,9 +535,8 @@ class GitRepositoryTest {
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RedundantChangeException.class);
 
-        // Ensure a change only whose serialized form is different does not count.
         final Change<JsonNode> change1a = Change.ofJsonUpsert("/redundant_upsert_2.json",
-                                                              "{ \"bar\": 1, \"foo\": 0 }");
+                                                              "{ \"foo\": 0, \"bar\": 1 }");
         assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change1a).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RedundantChangeException.class);

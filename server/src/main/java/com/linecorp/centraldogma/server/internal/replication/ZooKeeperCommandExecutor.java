@@ -90,10 +90,12 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.ExecutionContext;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizableCommit;
 import com.linecorp.centraldogma.server.command.RepositoryCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
+import com.linecorp.centraldogma.server.internal.command.DefaultExecutionContext;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -126,6 +128,8 @@ public final class ZooKeeperCommandExecutor
 
     private static final RetryPolicy RETRY_POLICY_ALWAYS = new RetryForever(500);
     private static final RetryPolicy RETRY_POLICY_NEVER = (retryCount, elapsedTimeMs, sleeper) -> false;
+
+    private static final ExecutionContext REPLAY_CONTEXT = new DefaultExecutionContext(true);
 
     private final ConcurrentMap<String, InterProcessMutex> mutexMap = new ConcurrentHashMap<>();
     private final Map<String, ReplicationMetrics> replicationTimings = new ConcurrentHashMap<>();
@@ -832,7 +836,7 @@ public final class ZooKeeperCommandExecutor
                     l = log.get();
                     command = l.command();
                     final Object expectedResult = l.result();
-                    final Object actualResult = delegate.execute(command).get();
+                    final Object actualResult = delegate.execute(REPLAY_CONTEXT, command).get();
 
                     if (!Objects.equals(expectedResult, actualResult)) {
                         throw new ReplicationException(
@@ -1096,7 +1100,7 @@ public final class ZooKeeperCommandExecutor
 
     // Ensure that all logs are replayed, any other logs can not be added before end of this function.
     @Override
-    protected <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception {
+    protected <T> CompletableFuture<T> doExecute(ExecutionContext ctx, Command<T> command) throws Exception {
         final CompletableFuture<T> future = new CompletableFuture<>();
         ExecutorService executor = this.executor;
         if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
@@ -1111,7 +1115,7 @@ public final class ZooKeeperCommandExecutor
         executor.execute(() -> {
             try {
                 timings.startExecutorExecution();
-                future.complete(blockingExecute(command, timings));
+                future.complete(blockingExecute(ctx, command, timings));
             } catch (Throwable t) {
                 future.completeExceptionally(t);
             } finally {
@@ -1124,7 +1128,8 @@ public final class ZooKeeperCommandExecutor
         return future;
     }
 
-    private <T> T blockingExecute(Command<T> command, ReplicationTimings timings) throws Exception {
+    private <T> T blockingExecute(ExecutionContext ctx, Command<T> command, ReplicationTimings timings)
+            throws Exception {
         createParentNodes();
 
         try (SafeCloseable ignored = safeLock(command, timings)) {
@@ -1150,7 +1155,7 @@ public final class ZooKeeperCommandExecutor
             timings.startCommandExecution();
             final T result;
             try {
-                result = delegate.execute(command).get();
+                result = delegate.execute(ctx, command).get();
             } finally {
                 timings.endCommandExecution();
             }

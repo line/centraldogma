@@ -62,7 +62,18 @@ public interface CommandExecutor {
      * @param command the command which is supposed to be executed
      * @param <T> the type of the result to be returned
      */
-    <T> CompletableFuture<T> execute(Command<T> command);
+    default <T> CompletableFuture<T> execute(Command<T> command) {
+        return execute(ExecutionContext.empty(), command);
+    }
+
+    /**
+     * Executes the specified {@link Command} with the {@link ExecutionContext}.
+     *
+     * @param ctx the execution context for this command
+     * @param command the command which is supposed to be executed
+     * @param <T> the type of the result to be returned
+     */
+    <T> CompletableFuture<T> execute(ExecutionContext ctx, Command<T> command);
 
     /**
      * Returns the status manager of this executor.

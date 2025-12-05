@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.server.internal.api.DtoConverter.newProjectDto;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.checkStatusArgument;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.checkUnremoveArgument;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
@@ -91,7 +92,7 @@ public class ProjectServiceV1 extends AbstractService {
 
         return CompletableFuture.supplyAsync(() -> {
             return projectApiManager.listProjects(user).values().stream()
-                                    .map(project -> DtoConverter.convert(project, getUserRole(project, user)))
+                                    .map(project -> newProjectDto(project, getUserRole(project, user)))
                                     .collect(toImmutableList());
         }, executor);
     }
@@ -139,7 +140,7 @@ public class ProjectServiceV1 extends AbstractService {
     public CompletableFuture<ProjectDto> createProject(CreateProjectRequest request, Author author, User user) {
         return projectApiManager.createProject(request.name(), author).handle(returnOrThrow(() -> {
             final Project project = projectApiManager.getProject(request.name(), user);
-            return DtoConverter.convert(project, ProjectRole.OWNER);
+            return newProjectDto(project, ProjectRole.OWNER);
         }));
     }
 
@@ -195,7 +196,7 @@ public class ProjectServiceV1 extends AbstractService {
                                                       User user) {
         checkUnremoveArgument(node);
         return projectApiManager.unremoveProject(projectName, author)
-                                .handle(returnOrThrow(() -> DtoConverter.convert(
+                                .handle(returnOrThrow(() -> newProjectDto(
                                         projectApiManager.getProject(projectName, user), ProjectRole.OWNER)));
     }
 }

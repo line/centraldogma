@@ -21,13 +21,14 @@ import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
  * Prepares to send a {@link CentralDogma#getFile(String, String, Revision, Query)} request to the
  * Central Dogma repository.
  */
-public final class FileRequest<T> {
+public final class FileRequest<T> extends AbstractFileRequest<FileRequest<T>> {
 
     private final Query<T> query;
     private final CentralDogmaRepository centralDogmaRepo;
@@ -53,8 +54,11 @@ public final class FileRequest<T> {
      */
     public CompletableFuture<Entry<T>> get(Revision revision) {
         requireNonNull(revision, "revision");
+        if (viewRaw() && query.type() == QueryType.JSON_PATH) {
+            throw new IllegalStateException("JSON_PATH query cannot be used with raw view");
+        }
         return centralDogmaRepo.centralDogma().getFile(centralDogmaRepo.projectName(),
                                                        centralDogmaRepo.repositoryName(),
-                                                       revision, query);
+                                                       revision, query, viewRaw());
     }
 }

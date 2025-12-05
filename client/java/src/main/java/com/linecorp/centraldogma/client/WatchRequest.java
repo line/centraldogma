@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
@@ -33,6 +34,7 @@ public final class WatchRequest<T> extends WatchOptions {
 
     private final CentralDogmaRepository centralDogmaRepo;
     private final Query<T> query;
+    private boolean viewRaw;
 
     WatchRequest(CentralDogmaRepository centralDogmaRepo, Query<T> query) {
         this.centralDogmaRepo = centralDogmaRepo;
@@ -55,6 +57,21 @@ public final class WatchRequest<T> extends WatchOptions {
     public WatchRequest<T> errorOnEntryNotFound(boolean errorOnEntryNotFound) {
         //noinspection unchecked
         return (WatchRequest<T>) super.errorOnEntryNotFound(errorOnEntryNotFound);
+    }
+
+    /**
+     * Sets whether to view the raw content of the watched files.
+     * The default is {@code false}.
+     *
+     * <p>Note that {@link QueryType#JSON_PATH} query cannot be used with raw view.
+     * @throws IllegalArgumentException if {@link QueryType#JSON_PATH} query is used with raw view
+     */
+    public WatchRequest<T> viewRaw(boolean viewRaw) {
+        if (viewRaw && query.type() == QueryType.JSON_PATH) {
+            throw new IllegalArgumentException("JSON_PATH query cannot be used with raw view");
+        }
+        this.viewRaw = viewRaw;
+        return this;
     }
 
     /**
@@ -86,6 +103,6 @@ public final class WatchRequest<T> extends WatchOptions {
         return centralDogmaRepo.centralDogma().watchFile(centralDogmaRepo.projectName(),
                                                          centralDogmaRepo.repositoryName(),
                                                          lastKnownRevision, query,
-                                                         timeoutMillis(), errorOnEntryNotFound());
+                                                         timeoutMillis(), errorOnEntryNotFound(), viewRaw);
     }
 }

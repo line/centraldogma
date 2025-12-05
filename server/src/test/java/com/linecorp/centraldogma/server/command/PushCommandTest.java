@@ -39,7 +39,7 @@ class PushCommandTest {
         final Change<Void> removal = Change.ofRemoval("/b.txt");
         final List<Change<?>> changes = ImmutableList.of(json, text, removal);
 
-        final Command<CommitResult> pushCommand =
+        final Command<Revision> pushCommand =
                 Command.push(Author.SYSTEM, "myProject", "myRepo",
                              Revision.HEAD,
                              "summary", "detail",
