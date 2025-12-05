@@ -320,7 +320,7 @@ public interface Command<T> {
      * @param markup the markup for the detail message
      * @param changes the changes to be applied
      */
-    static Command<CommitResult> push(Author author, String projectName, String repositoryName,
+    static Command<Revision> push(Author author, String projectName, String repositoryName,
                                       Revision baseRevision, String summary, String detail,
                                       Markup markup, Change<?>... changes) {
 
@@ -343,10 +343,10 @@ public interface Command<T> {
      * @param markup the markup for the detail message
      * @param changes the changes to be applied
      */
-    static Command<CommitResult> push(@Nullable Long timestamp, Author author,
-                                      String projectName, String repositoryName,
-                                      Revision baseRevision, String summary, String detail,
-                                      Markup markup, Change<?>... changes) {
+    static Command<Revision> push(@Nullable Long timestamp, Author author,
+                                  String projectName, String repositoryName,
+                                  Revision baseRevision, String summary, String detail,
+                                  Markup markup, Change<?>... changes) {
         return push(timestamp, author, projectName, repositoryName, baseRevision,
                     summary, detail, markup, ImmutableList.copyOf(changes));
     }
@@ -366,9 +366,9 @@ public interface Command<T> {
      * @param markup the markup for the detail message
      * @param changes the changes to be applied
      */
-    static Command<CommitResult> push(Author author, String projectName, String repositoryName,
-                                      Revision baseRevision, String summary, String detail,
-                                      Markup markup, Iterable<Change<?>> changes) {
+    static Command<Revision> push(Author author, String projectName, String repositoryName,
+                                  Revision baseRevision, String summary, String detail,
+                                  Markup markup, Iterable<Change<?>> changes) {
         return push(null, author, projectName, repositoryName, baseRevision, summary, detail, markup, changes);
     }
 
@@ -388,12 +388,12 @@ public interface Command<T> {
      * @param markup the markup for the detail message
      * @param changes the changes to be applied
      */
-    static Command<CommitResult> push(@Nullable Long timestamp, Author author,
-                                      String projectName, String repositoryName,
-                                      Revision baseRevision, String summary, String detail,
-                                      Markup markup, Iterable<Change<?>> changes) {
-        return new NormalizingPushCommand(timestamp, author, projectName, repositoryName, baseRevision,
-                                          summary, detail, markup, changes);
+    static Command<Revision> push(@Nullable Long timestamp, Author author,
+                                  String projectName, String repositoryName,
+                                  Revision baseRevision, String summary, String detail,
+                                  Markup markup, Iterable<Change<?>> changes) {
+        return new PushAsIsCommand(timestamp, author, projectName, repositoryName, baseRevision,
+                                   summary, detail, markup, changes);
     }
 
     /**

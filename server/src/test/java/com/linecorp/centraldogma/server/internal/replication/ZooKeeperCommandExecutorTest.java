@@ -201,12 +201,10 @@ class ZooKeeperCommandExecutorTest {
             final AtomicInteger counter = new AtomicInteger();
             return command -> completedFuture(new Revision(counter.incrementAndGet()));
         })) {
-            final Command<CommitResult> command = Command.push(null, Author.SYSTEM, "foo", "bar",
-                                                               new Revision(42), "", "", Markup.PLAINTEXT,
-                                                               ImmutableList.of());
-            assert command instanceof NormalizingPushCommand;
-            final PushAsIsCommand asIsCommand = ((NormalizingPushCommand) command).asIs(
-                    CommitResult.of(new Revision(43), ImmutableList.of()));
+            final Command<Revision> command = Command.push(null, Author.SYSTEM, "foo", "bar",
+                                                           new Revision(42), "", "", Markup.PLAINTEXT,
+                                                           ImmutableList.of());
+            final PushAsIsCommand asIsCommand = (PushAsIsCommand) command;
 
             final int COMMANDS_PER_REPLICA = 7;
             final List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -361,17 +359,15 @@ class ZooKeeperCommandExecutorTest {
 
     private static PushAsIsCommand executeCommand(Replica replica1, boolean normalizingPush) {
         if (normalizingPush) {
-            final Command<CommitResult> normalizingPushCommand =
+            final Command<Revision> pushCommand =
                     Command.push(0L, Author.SYSTEM, "project", "repo1", new Revision(1),
                                  "summary", "detail",
                                  Markup.PLAINTEXT,
                                  ImmutableList.of(pushChange));
 
-            assert normalizingPushCommand instanceof NormalizingPushCommand;
-            final PushAsIsCommand asIsCommand = ((NormalizingPushCommand) normalizingPushCommand).asIs(
-                    CommitResult.of(new Revision(2), ImmutableList.of(normalizedChange)));
+            final PushAsIsCommand asIsCommand = (PushAsIsCommand) pushCommand;
 
-            assertThat(replica1.commandExecutor().execute(normalizingPushCommand).join().revision())
+            assertThat(replica1.commandExecutor().execute(pushCommand).join())
                     .isEqualTo(new Revision(2));
             return asIsCommand;
         } else {
@@ -559,23 +555,20 @@ class ZooKeeperCommandExecutorTest {
             assertThat(commandResult2.command()).isEqualTo(readOnlyCommand);
             awaitUntilReplicated(cluster, readOnlyCommand);
 
-            final Command<CommitResult> normalizingPushCommand =
+            final Command<Revision> pushCommand =
                     Command.push(0L, Author.SYSTEM, "project", "repo1", new Revision(1),
                                  "summary", "detail",
                                  Markup.PLAINTEXT,
                                  ImmutableList.of(pushChange));
 
-            assert normalizingPushCommand instanceof NormalizingPushCommand;
-            final PushAsIsCommand asIsCommand = ((NormalizingPushCommand) normalizingPushCommand).asIs(
-                    CommitResult.of(new Revision(2), ImmutableList.of(normalizedChange)));
+            final PushAsIsCommand asIsCommand = (PushAsIsCommand) pushCommand;
 
-            assertThatThrownBy(() -> replica1.commandExecutor().execute(normalizingPushCommand))
+            assertThatThrownBy(() -> replica1.commandExecutor().execute(pushCommand))
                     .isInstanceOf(ReadOnlyException.class)
                     .hasMessageContaining("running in read-only mode.");
 
-            final Command<CommitResult> forceNormalizingPush = Command.forcePush(normalizingPushCommand);
-            assertThat(replica1.commandExecutor().execute(forceNormalizingPush).join()
-                               .revision())
+            final Command<Revision> forceNormalizingPush = Command.forcePush(pushCommand);
+            assertThat(replica1.commandExecutor().execute(forceNormalizingPush).join())
                     .isEqualTo(new Revision(2));
             final ReplicationLog<?> commandResult3 = replica1.commandExecutor().loadLog(2, false).get();
             // The content of force push is changed to PushAsIsCommand.

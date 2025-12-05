@@ -29,7 +29,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
@@ -76,7 +75,6 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
@@ -89,7 +87,6 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
@@ -339,15 +336,13 @@ abstract class AbstractGitMirror extends AbstractMirror {
                 }
                 numBytes += contentLength;
 
-                final byte[] content = reader.open(objectId).getBytes();
+                final String content = new String(reader.open(objectId).getBytes(), UTF_8);
                 switch (EntryType.guessFromPath(localPath)) {
                     case JSON:
-                        final JsonNode jsonNode = Jackson.readTree(content);
-                        changes.putIfAbsent(localPath, Change.ofJsonUpsert(localPath, jsonNode));
+                        changes.putIfAbsent(localPath, Change.ofJsonUpsert(localPath, content));
                         break;
                     case TEXT:
-                        final String strVal = new String(content, UTF_8);
-                        changes.putIfAbsent(localPath, Change.ofTextUpsert(localPath, strVal));
+                        changes.putIfAbsent(localPath, Change.ofTextUpsert(localPath, content));
                         break;
                 }
             }
@@ -365,10 +360,10 @@ abstract class AbstractGitMirror extends AbstractMirror {
         });
 
         try {
-            final CommitResult commitResult = executor.execute(Command.push(
+            final Revision revision = executor.execute(Command.push(
                     MIRROR_AUTHOR, localRepo().parent().name(), localRepo().name(),
                     Revision.HEAD, summary, detail, Markup.PLAINTEXT, changes.values())).join();
-            final String description = summary + ", revision: " + commitResult.revision().text();
+            final String description = summary + ", revision: " + revision.text();
             return newMirrorResult(MirrorStatus.SUCCESS, description, triggeredTime);
         } catch (CompletionException e) {
             if (e.getCause() instanceof RedundantChangeException) {
@@ -635,13 +630,12 @@ abstract class AbstractGitMirror extends AbstractMirror {
             throws JsonProcessingException {
         switch (EntryType.guessFromPath(pathString)) {
             case JSON:
-                final JsonNode oldJsonNode = oldContent != null ? Jackson.readTree(oldContent) : null;
-                final JsonNode newJsonNode = (JsonNode) entry.content();
-
+                final String oldJson = oldContent != null ? new String(oldContent, UTF_8) : null;
+                final String newJson = entry.rawContent();
+                assert newJson != null;
                 // Upsert only when the contents are really different.
-                if (!Objects.equals(newJsonNode, oldJsonNode)) {
-                    // Use InsertText to store the content in pretty format
-                    final String newContent = newJsonNode.toPrettyString() + '\n';
+                if (!newJson.equals(oldJson)) {
+                    final String newContent = newJson + '\n';
                     applyPathEdit(dirCache, new InsertText(pathString, inserter, newContent));
                     return newContent.length();
                 }

@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.client.updater;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.linecorp.centraldogma.internal.Json5.isJsonCompatible;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.TimeUnit;
@@ -367,8 +368,9 @@ public class CentralDogmaBeanFactory {
     }
 
     private static Query<JsonNode> buildQuery(CentralDogmaBeanConfig config) {
-        checkArgument(config.path().get().endsWith(".json"),
-                      "path: %s (expected: ends with '.json')", config.path().get());
-        return Query.ofJsonPath(config.path().get(), config.jsonPath().orElse("$"));
+        final String path = config.path().get();
+        checkArgument(isJsonCompatible(path),
+                      "path: %s (expected: ends with '.json' or '.json5')", path);
+        return Query.ofJsonPath(path, config.jsonPath().orElse("$"));
     }
 }

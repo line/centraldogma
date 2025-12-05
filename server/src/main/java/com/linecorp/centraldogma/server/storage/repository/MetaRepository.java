@@ -27,7 +27,6 @@ import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.server.ZoneConfig;
 import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 
@@ -85,19 +84,19 @@ public interface MetaRepository extends Repository {
     /**
      * Create a push {@link Command} for the {@link MirrorDto}.
      */
-    CompletableFuture<Command<CommitResult>> createMirrorPushCommand(
+    CompletableFuture<Command<Revision>> createMirrorPushCommand(
             String repoName, MirrorRequest mirrorRequest, Author author,
             @Nullable ZoneConfig zoneConfig, boolean update);
 
     /**
      * Create a push {@link Command} for the {@link Credential}.
      */
-    CompletableFuture<Command<CommitResult>> createCredentialPushCommand(Credential credential, Author author,
-                                                                         boolean update);
+    CompletableFuture<Command<Revision>> createCredentialPushCommand(Credential credential, Author author,
+                                                                     boolean update);
 
     /**
      * Create a push {@link Command} for the {@link Credential}.
      */
-    CompletableFuture<Command<CommitResult>> createCredentialPushCommand(String repoName, Credential credential,
-                                                                         Author author, boolean update);
+    CompletableFuture<Command<Revision>> createCredentialPushCommand(String repoName, Credential credential,
+                                                                     Author author, boolean update);
 }

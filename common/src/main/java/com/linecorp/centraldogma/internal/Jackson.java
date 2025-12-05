@@ -44,7 +44,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.NullNode;
@@ -118,16 +117,6 @@ public final class Jackson {
     public static void registerModules(Module... modules) {
         compactMapper.registerModules(modules);
         prettyMapper.registerModules(modules);
-    }
-
-    public static void registerSubtypes(NamedType... subtypes) {
-        compactMapper.registerSubtypes(subtypes);
-        prettyMapper.registerSubtypes(subtypes);
-    }
-
-    public static void registerSubtypes(Class<?>... subtypes) {
-        compactMapper.registerSubtypes(subtypes);
-        prettyMapper.registerSubtypes(subtypes);
     }
 
     public static <T> T readValue(String data, Class<T> type) throws JsonParseException, JsonMappingException {

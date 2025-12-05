@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.client;
 
+import static com.linecorp.centraldogma.internal.Json5.isJsonCompatible;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -31,7 +32,6 @@ import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 
@@ -44,7 +44,6 @@ import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -74,13 +73,12 @@ public final class CentralDogmaRepository {
         try {
             final byte[] bytes = Files.readAllBytes(file);
             final String lower = file.getFileName().toString();
+            final String content = new String(bytes, StandardCharsets.UTF_8);
 
-            if (lower.endsWith(".json")) {
-                final JsonNode node = Jackson.readValue(bytes, JsonNode.class);
-                return Change.ofJsonUpsert(repoPath, node);
+            if (isJsonCompatible(lower)) {
+                return Change.ofJsonUpsert(repoPath, content);
             }
-
-            return Change.ofTextUpsert(repoPath, new String(bytes, StandardCharsets.UTF_8));
+            return Change.ofTextUpsert(repoPath, content);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to create Change for " + file, e);
         }

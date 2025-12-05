@@ -45,7 +45,6 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.MirrorRequest;
 import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
@@ -156,12 +155,12 @@ class DefaultMetaRepositoryWithMirrorTest {
                                       "", "git+ssh", "bar.com/bar.git", "/some-path", "develop", null,
                                       credentialName(project.name(), "bob"), null));
             for (Credential credential : credentials(project.name())) {
-                final Command<CommitResult> command =
+                final Command<Revision> command =
                         metaRepo.createCredentialPushCommand(credential, Author.SYSTEM, false).join();
                 pmExtension.executor().execute(command).join();
             }
             for (MirrorRequest mirror : mirrors) {
-                final Command<CommitResult> command =
+                final Command<Revision> command =
                         metaRepo.createMirrorPushCommand(mirror.localRepo(), mirror, Author.SYSTEM,
                                                          null, false).join();
                 pmExtension.executor().execute(command).join();

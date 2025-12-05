@@ -287,7 +287,7 @@ export const apiSlice = createApi({
     getFiles: builder.query<FileDto[] | FileDto, GetFilesByProjectAndRepoName>({
       query: ({ projectName, repoName, revision, filePath, withContent }) => {
         if (withContent) {
-          return `/api/v1/projects/${projectName}/repos/${repoName}/contents${filePath || ''}?revision=${revision || 'head'}`;
+          return `/api/v1/projects/${projectName}/repos/${repoName}/contents${filePath || ''}?revision=${revision || 'head'}&viewRaw=true`;
         } else {
           return `/api/v1/projects/${projectName}/repos/${repoName}/list${filePath || ''}?revision=${revision || 'head'}`;
         }
@@ -296,7 +296,7 @@ export const apiSlice = createApi({
     }),
     getFileContent: builder.query<FileContentDto, GetFileContent>({
       query: ({ projectName, repoName, filePath, revision }) =>
-        `/api/v1/projects/${projectName}/repos/${repoName}/contents${filePath}?revision=${revision}`,
+        `/api/v1/projects/${projectName}/repos/${repoName}/contents${filePath}?revision=${revision}&viewRaw=true`,
       providesTags: ['File'],
     }),
     pushFileChanges: builder.mutation({
@@ -396,8 +396,8 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     updateMirror: builder.mutation<
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       any,
       { projectName: string; repoName: string; id: string; mirror: MirrorRequest }
     >({
@@ -483,8 +483,8 @@ export const apiSlice = createApi({
       transformResponse: (response: CredentialDto) => addIdFromCredentialName(response),
       providesTags: ['Metadata'],
     }),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     addNewCredential: builder.mutation<
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       any,
       { projectName: string; credentialRequest: CreateCredentialRequestDto }
     >({

@@ -52,7 +52,7 @@ const FileContentPage = () => {
               projectName={projectName}
               repoName={repoName}
               extension={fileExtension}
-              originalContent={data.content}
+              originalContent={data.rawContent}
               path={data.path}
               name={fileName}
               revision={revision}

@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.linecorp.centraldogma.internal.Json5.isJson5;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -29,6 +30,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Json5;
 
 /**
  * A file or a directory in a repository.
@@ -44,7 +46,7 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param path the path of the directory
      */
     public static Entry<Void> ofDirectory(Revision revision, String path) {
-        return new Entry<>(revision, path, EntryType.DIRECTORY, null);
+        return new Entry<>(revision, path, EntryType.DIRECTORY, null, null);
     }
 
     /**
@@ -55,7 +57,7 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param content the content of the JSON file
      */
     public static Entry<JsonNode> ofJson(Revision revision, String path, JsonNode content) {
-        return new Entry<>(revision, path, EntryType.JSON, content);
+        return new Entry<>(revision, path, EntryType.JSON, content, null);
     }
 
     /**
@@ -69,7 +71,13 @@ public final class Entry<T> implements ContentHolder<T> {
      */
     public static Entry<JsonNode> ofJson(Revision revision, String path, String content)
             throws JsonParseException {
-        return ofJson(revision, path, Jackson.readTree(content));
+        final JsonNode jsonNode;
+        if (isJson5(path)) {
+            jsonNode = Json5.readTree(content);
+        } else {
+            jsonNode = Jackson.readTree(content);
+        }
+        return new Entry<>(revision, path, EntryType.JSON, jsonNode, content);
     }
 
     /**
@@ -80,7 +88,7 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param content the content of the text file
      */
     public static Entry<String> ofText(Revision revision, String path, String content) {
-        return new Entry<>(revision, path, EntryType.TEXT, content);
+        return new Entry<>(revision, path, EntryType.TEXT, content, content);
     }
 
     /**
@@ -93,13 +101,15 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param <T> the content type. {@link JsonNode} if JSON. {@link String} if text.
      */
     public static <T> Entry<T> of(Revision revision, String path, EntryType type, @Nullable T content) {
-        return new Entry<>(revision, path, type, content);
+        return new Entry<>(revision, path, type, content, null);
     }
 
     private final Revision revision;
     private final String path;
     @Nullable
     private final T content;
+    @Nullable
+    private final String rawContent;
     private final EntryType type;
     @Nullable
     private String contentAsText;
@@ -113,8 +123,10 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param path the path of the entry
      * @param type the type of given {@code content}
      * @param content an object of given type {@code T}
+     * @param rawContent the raw content string, which is used for viewing the original JSON text
      */
-    private Entry(Revision revision, String path, EntryType type, @Nullable T content) {
+    private Entry(Revision revision, String path, EntryType type, @Nullable T content,
+                  @Nullable String rawContent) {
         requireNonNull(revision, "revision");
         checkArgument(!revision.isRelative(), "revision: %s (expected: absolute revision)", revision);
         this.revision = revision;
@@ -126,10 +138,12 @@ public final class Entry<T> implements ContentHolder<T> {
         if (entryContentType == Void.class) {
             checkArgument(content == null, "content: %s (expected: null)", content);
             this.content = null;
+            this.rawContent = null;
         } else {
             @SuppressWarnings("unchecked")
             final T castContent = (T) entryContentType.cast(requireNonNull(content, "content"));
             this.content = castContent;
+            this.rawContent = rawContent;
         }
     }
 
@@ -177,8 +191,19 @@ public final class Entry<T> implements ContentHolder<T> {
         return content;
     }
 
+    /**
+     * Returns the raw content if available.
+     */
+    @Nullable
+    public String rawContent() {
+        return rawContent;
+    }
+
     @Override
     public String contentAsText() {
+        if (rawContent != null) {
+            return rawContent;
+        }
         if (contentAsText == null) {
             contentAsText = ContentHolder.super.contentAsText();
         }
@@ -194,8 +219,19 @@ public final class Entry<T> implements ContentHolder<T> {
     }
 
     @Override
+    public JsonNode contentAsJson() throws JsonParseException {
+        if (content instanceof JsonNode) {
+            return (JsonNode) content;
+        }
+        if (isJson5(path) && rawContent != null) {
+            return Json5.readTree(rawContent);
+        }
+        return ContentHolder.super.contentAsJson();
+    }
+
+    @Override
     public int hashCode() {
-        return (revision.hashCode() * 31 + type.hashCode()) * 31 + path.hashCode();
+        return Objects.hash(revision, path, content, type);
     }
 
     @Override

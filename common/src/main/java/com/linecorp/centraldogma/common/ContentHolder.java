@@ -109,11 +109,6 @@ public interface ContentHolder<T> {
      * @throws JsonMappingException if failed to convert the parsed JSON into {@code valueType}
      */
     default <U> U contentAsJson(Class<U> valueType) throws JsonParseException, JsonMappingException {
-        final T content = content();
-        if (content instanceof TreeNode) {
-            return Jackson.treeToValue((TreeNode) content, valueType);
-        }
-
-        return Jackson.readValue(contentAsText(), valueType);
+        return Jackson.treeToValue(contentAsJson(), valueType);
     }
 }

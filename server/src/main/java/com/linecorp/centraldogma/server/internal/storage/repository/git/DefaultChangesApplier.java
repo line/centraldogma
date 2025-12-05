@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.linecorp.centraldogma.internal.Json5.isJson5;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.sanitizeText;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -36,6 +37,7 @@ import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectInserter;
 import org.eclipse.jgit.lib.ObjectReader;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.base.MoreObjects;
@@ -46,6 +48,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.TextPatchConflictException;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Json5;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 
@@ -73,13 +76,23 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
 
             switch (change.type()) {
                 case UPSERT_JSON: {
-                    final JsonNode oldJsonNode = oldContent != null ? Jackson.readTree(oldContent) : null;
+                    final String rawContent = change.rawContent();
                     final JsonNode newJsonNode = firstNonNull((JsonNode) change.content(),
                                                               JsonNodeFactory.instance.nullNode());
+                    final boolean hasChanges;
+                    if (rawContent != null) {
+                        // If rawContent is provided, compare the raw JSON text.
+                        final String oldRawContent = oldContent != null ? new String(oldContent, UTF_8) : null;
+                        hasChanges = !rawContent.equals(oldRawContent);
+                    } else {
+                        // Otherwise, compare the parsed JSON nodes.
+                        final JsonNode oldJsonNode = toJsonNode(changePath, oldContent);
+                        hasChanges = !Objects.equals(newJsonNode, oldJsonNode);
+                    }
 
-                    // Upsert only when the contents are really different.
-                    if (!Objects.equals(newJsonNode, oldJsonNode)) {
-                        applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
+                    if (hasChanges) {
+                        applyPathEdit(dirCache,
+                                      new InsertJson(changePath, inserter, newJsonNode, change.rawContent()));
                         numEdits++;
                     }
                     break;
@@ -149,13 +162,7 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
                     break;
                 }
                 case APPLY_JSON_PATCH: {
-                    final JsonNode oldJsonNode;
-                    if (oldContent != null) {
-                        oldJsonNode = Jackson.readTree(oldContent);
-                    } else {
-                        oldJsonNode = Jackson.nullNode;
-                    }
-
+                    final JsonNode oldJsonNode = toJsonNode(changePath, oldContent);
                     final JsonNode newJsonNode;
                     try {
                         newJsonNode = JsonPatch.fromJson((JsonNode) change.content()).apply(oldJsonNode);
@@ -167,7 +174,8 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
 
                     // Apply only when the contents are really different.
                     if (!newJsonNode.equals(oldJsonNode)) {
-                        applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
+                        // NB: Some JSON5 features, such as comments, will be lost when using JSON Patch.
+                        applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode, null));
                         numEdits++;
                     }
                     break;
@@ -215,6 +223,17 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
             }
         }
         return numEdits;
+    }
+
+    private static JsonNode toJsonNode(String path, @Nullable byte[] content) throws JsonParseException {
+        if (content == null) {
+            return Jackson.nullNode;
+        }
+        if (isJson5(path)) {
+            return Json5.readTree(content);
+        } else {
+            return Jackson.readTree(content);
+        }
     }
 
     @Override

@@ -40,16 +40,20 @@ public class EntryDto<T> {
 
     private final EntryType type;
 
+    @Nullable
     private final T content;
+    @Nullable
+    private final String rawContent;
 
     private final String url;
 
     public EntryDto(Revision revision, String path, EntryType type,
-                    String projectName, String repoName, @Nullable T content) {
+                    String projectName, String repoName, @Nullable T content, @Nullable String rawContent) {
         this.revision = requireNonNull(revision, "revision");
         this.path = requireNonNull(path, "path");
         this.type = requireNonNull(type, "type");
         this.content = content;
+        this.rawContent = rawContent;
         url = PROJECTS_PREFIX + '/' + projectName + REPOS + '/' + repoName + CONTENTS + path;
     }
 
@@ -72,6 +76,12 @@ public class EntryDto<T> {
     @Nullable
     public T content() {
         return content;
+    }
+
+    @JsonProperty
+    @Nullable
+    public String rawContent() {
+        return rawContent;
     }
 
     @JsonProperty
