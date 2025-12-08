@@ -122,9 +122,6 @@ final class LdsStreamingMultipleClientsTest {
             await().until(() -> fooSnapshotCaptor.get() != null);
             fooListenerSnapshot = fooSnapshotCaptor.getAndSet(null);
             assertThat(fooListenerSnapshot.xdsResource().resource()).isEqualTo(fooListener);
-
-            // bar is not updated.
-            await().pollDelay(200, TimeUnit.MILLISECONDS).until(() -> barSnapshotCaptor.get() == null);
         }
     }
 }

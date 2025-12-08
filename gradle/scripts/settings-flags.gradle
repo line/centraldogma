@@ -118,6 +118,17 @@ static def addFlags(Set<String> actualFlags, ...flags) {
         }
     }
 
+    // 'kotlin(\\d+\\.\\+d)' implies 'kotlin'
+    if (!actualFlags.contains('kotlin')) {
+        def pattern = Pattern.compile('^kotlin(\\d+\\.\\d+)$')
+        for (String flag: actualFlags) {
+            if (pattern.matcher(flag).matches()) {
+                actualFlags.add('kotlin')
+                break
+            }
+        }
+    }
+
     // 'kotlin' implies 'java'
     if (actualFlags.contains('kotlin')) {
         actualFlags.add('java')
@@ -176,5 +187,9 @@ static void afterProjectsWithFlags(Project project, Iterable<?> flags, Closure<S
 
 // We add a "virtual project", with no source code, to control dependency management using Gradle's platform
 // functionality.
+def virtualProjectsPath = "${rootDir}/build/virtual-projects"
 includeWithFlags ':dependencyManagement', 'dependencyManagement'
-project(':dependencyManagement').projectDir = file("${rootProject.projectDir}/build/dependencyManagement")
+project(":dependencyManagement").with {
+    projectDir = file("${virtualProjectsPath}/dependencyManagement")
+    projectDir.mkdirs()
+}

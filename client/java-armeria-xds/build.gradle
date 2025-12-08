@@ -4,8 +4,13 @@ dependencies {
     // Armeria
     api libs.armeria.xds
 
-    testImplementation libs.controlplane.server
-    testImplementation libs.controlplane.cache
+    testImplementation (libs.controlplane.server) {
+        exclude group: "io.envoyproxy.controlplane"
+    }
+    testImplementation (libs.controlplane.cache) {
+        exclude group: "io.envoyproxy.controlplane"
+    }
+
     testImplementation libs.armeria.junit5
     testImplementation libs.jackson.dataformat.yaml
 }

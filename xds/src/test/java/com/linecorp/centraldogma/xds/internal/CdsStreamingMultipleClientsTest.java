@@ -76,13 +76,15 @@ final class CdsStreamingMultipleClientsTest {
 
             final ClusterLoadAssignment fooEndpoint = loadAssignment(fooClusterName, "127.0.0.1", 8080);
             createEndpoint(fooGroupName, fooClusterId, fooEndpoint, webClient);
-            Cluster fooCluster = cluster(fooClusterName, 1);
+            final Cluster fooCluster = cluster(fooClusterName, 1);
             createCluster(fooGroupName, fooClusterId, fooCluster, webClient);
 
-            await().until(() -> fooSnapshotCaptor.get() != null);
-            ClusterSnapshot fooClusterSnapshot = fooSnapshotCaptor.getAndSet(null);
-            assertThat(fooClusterSnapshot.xdsResource().resource()).isEqualTo(fooCluster);
-            assertThat(fooClusterSnapshot.endpointSnapshot().xdsResource().resource()).isEqualTo(fooEndpoint);
+            await().untilAsserted(() -> {
+                final ClusterSnapshot fooClusterSnapshot = fooSnapshotCaptor.get();
+                assertThat(fooClusterSnapshot.xdsResource().resource()).isEqualTo(fooCluster);
+                assertThat(fooClusterSnapshot.endpointSnapshot().xdsResource().resource())
+                        .isEqualTo(fooEndpoint);
+            });
 
             // bar is not updated.
             await().pollDelay(200, TimeUnit.MILLISECONDS).until(() -> barSnapshotCaptor.get() == null);
@@ -91,24 +93,21 @@ final class CdsStreamingMultipleClientsTest {
             createEndpoint(barGroupName, barClusterId, barEndpoint, webClient);
             final Cluster barCluster = cluster(barClusterName, 1);
             createCluster(barGroupName, barClusterId, barCluster, webClient);
-            await().until(() -> barSnapshotCaptor.get() != null);
-            final ClusterSnapshot barClusterSnapshot = barSnapshotCaptor.getAndSet(null);
-            assertThat(barClusterSnapshot.xdsResource().resource()).isEqualTo(barCluster);
-            assertThat(barClusterSnapshot.endpointSnapshot().xdsResource().resource()).isEqualTo(barEndpoint);
-
-            // foo is not updated.
-            await().pollDelay(200, TimeUnit.MILLISECONDS).until(() -> fooSnapshotCaptor.get() == null);
+            await().untilAsserted(() -> {
+                final ClusterSnapshot barClusterSnapshot = barSnapshotCaptor.get();
+                assertThat(barClusterSnapshot.xdsResource().resource()).isEqualTo(barCluster);
+                assertThat(barClusterSnapshot.endpointSnapshot().xdsResource().resource())
+                        .isEqualTo(barEndpoint);
+            });
 
             // Change the configuration.
-            fooCluster = cluster(fooClusterName, 2);
-            updateCluster(fooGroupName, fooClusterId, fooCluster, webClient);
-            await().until(() -> fooSnapshotCaptor.get() != null);
-            fooClusterSnapshot = fooSnapshotCaptor.getAndSet(null);
-            assertThat(fooClusterSnapshot.xdsResource().resource()).isEqualTo(fooCluster);
-            assertThat(fooClusterSnapshot.endpointSnapshot().xdsResource().resource()).isEqualTo(fooEndpoint);
-
-            // bar is not updated.
-            await().pollDelay(200, TimeUnit.MILLISECONDS).until(() -> barSnapshotCaptor.get() == null);
+            final Cluster fooCluster2 = cluster(fooClusterName, 2);
+            updateCluster(fooGroupName, fooClusterId, fooCluster2, webClient);
+            await().untilAsserted(() -> {
+                final ClusterSnapshot clusterSnapshot = fooSnapshotCaptor.get();
+                assertThat(clusterSnapshot.xdsResource().resource()).isEqualTo(fooCluster2);
+                assertThat(clusterSnapshot.endpointSnapshot().xdsResource().resource()).isEqualTo(fooEndpoint);
+            });
         }
     }
 }

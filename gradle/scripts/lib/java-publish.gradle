@@ -1,25 +1,12 @@
 configure(projectsWithFlags('publish', 'java')) {
     publishing {
         publications {
-            jar(MavenPublication) {
+            jar(MavenPublication) { pub ->
                 from components.java
 
                 // We don't publish Gradle metadata yet so don't need to worry about these variants.
                 suppressPomMetadataWarningsFor('optionalApiElements')
                 suppressPomMetadataWarningsFor('optionalRuntimeElements')
-
-                // Resolved versions are used to publish platform dependencies in pom XML.
-                versionMapping {
-                    usage(Usage.JAVA_RUNTIME) {
-                        fromResolutionResult()
-                    }
-                    usage(Usage.JAVA_API) {
-                        // compileOnly dependencies should not be included in the compile scope of POM. If we
-                        // don't exclude them, compileOnly dependencies are also used to resolve the final
-                        // dependency version.
-                        fromResolutionOf("runtimeClasspath")
-                    }
-                }
 
                 // Replace published jar with shaded when available. We manually create shading tasks instead of
                 // applying the shadow plugin itself so need to do it ourselves.
@@ -29,15 +16,18 @@ configure(projectsWithFlags('publish', 'java')) {
                     jarOverrideFile = tasks.trimShadedJar.outJarFiles.find() as File
                     jarOverrideTask = tasks.trimShadedJar
                 } else if (tasks.findByName('shadedJar')) {
-                    jarOverrideFile = tasks.shadedJar.archivePath
+                    jarOverrideFile = tasks.shadedJar.archiveFile.get().asFile
                     jarOverrideTask = tasks.shadedJar
                 }
                 if (jarOverrideFile != null) {
                     // For some reason this needs to be in afterEvaluate or dependencies are lost from the POM.
-                    afterEvaluate {
-                        def unshaded = artifacts.find { it.classifier == null && it.extension == 'jar' }
-                        artifacts.remove(unshaded)
-                        artifact(jarOverrideFile).builtBy(jarOverrideTask)
+                    gradle.projectsEvaluated {
+                        // Drop any artifact whose classifier is 'optional'
+                        pub.artifacts.removeIf { it.classifier == 'optional' }
+
+                        def unshaded = pub.artifacts.find { it.classifier == null && it.extension == 'jar' }
+                        pub.artifacts.remove(unshaded)
+                        pub.artifact(jarOverrideFile).builtBy(jarOverrideTask)
                     }
                 }
 
@@ -46,33 +36,10 @@ configure(projectsWithFlags('publish', 'java')) {
                     withXml {
                         def rootNode = asNode()
 
-                        // Do not import 'com.linecorp.armeria:dependencyManagement'.
-                        if (rootNode.get('dependencyManagement')) {
-                            def dependencyManagement = rootNode.get('dependencyManagement')[0]
-                            if (dependencyManagement.get('dependencies')) {
-                                def dependencies = dependencyManagement.get('dependencies')[0]
-                                dependencies.findAll {
-                                    def groupId = it.get('groupId')[0]
-                                    def artifactId = it.get('artifactId')[0]
-                                    groupId == rootProject.group && artifactId == 'dependencyManagement'
-                                }.each {
-                                    dependencies.remove(it)
-                                }
-
-                                // Clean up empty tags.
-                                if (dependencies.directChildren.isEmpty()) {
-                                    dependencyManagement.remove(dependencies)
-                                    if (dependencyManagement.directChildren.isEmpty()) {
-                                        rootNode.remove(dependencyManagement)
-                                    }
-                                }
-                            }
-                        }
-
-                        // Strip out shaded dependencies. We manually create shading tasks instead of applying
-                        // the shadow plugin itself so need to do it ourselves.
                         if (rootNode.get('dependencies')) {
                             def dependencies = rootNode.get('dependencies')[0]
+                            // Strip out shaded dependencies. We manually create shading tasks instead of applying
+                            // the shadow plugin itself so need to do it ourselves.
                             def shaded = dependencies.findAll {
                                 def groupId = it.get('groupId')[0]
                                 def artifactId = it.get('artifactId')[0]
@@ -81,11 +48,42 @@ configure(projectsWithFlags('publish', 'java')) {
                                 }
                             }
                             shaded.each { dependencies.remove(it) }
+
+                            def resolvedArtifacts = configurations.compileClasspath.resolvedConfiguration.resolvedArtifacts
+                            // Update unresolved dependencies constrained by the platform dependencies.
+                            dependencies.findAll { it.get('version')[0] == null }.each { dep ->
+                                def groupId = dep.get('groupId')[0].text()
+                                def artifactId = dep.get('artifactId')[0].text()
+
+                                def resolved = resolvedArtifacts.find { artifact ->
+                                    return groupId == artifact.moduleVersion.id.group && artifactId == artifact.moduleVersion.id.name
+                                }
+                                if (resolved == null) {
+                                    throw new IllegalStateException("Failed to resolve dependency: ${groupId}:${artifactId}")
+                                }
+                                def version = resolved.moduleVersion.id.version
+                                // Create a new node and add it to the dependencies node.
+                                dep.appendNode('version', version)
+
+                                // Adjust the classifier and scope to be located at the end of the dependency.
+                                def classifier = dep.get('classifier')[0]
+                                if (classifier != null) {
+                                    dep.remove(classifier)
+                                    dep.appendNode('classifier', classifier.text())
+                                }
+                                def scope = dep.get('scope')[0]
+                                dep.remove(scope)
+                                dep.appendNode('scope', scope.text())
+                            }
                         }
                     }
                 }
             }
         }
+    }
+    def shadedJarTask = tasks.findByName('trimShadedJar') ?: tasks.findByName('shadedJar')
+    if (shadedJarTask != null) {
+        tasks.publishJarPublicationToMavenLocal.dependsOn(shadedJarTask)
     }
 }
 
