@@ -281,10 +281,7 @@ public class MetadataApiService extends AbstractService {
                                                                        @Param String repoName,
                                                                        @Param String appId,
                                                                        Author author) {
-        final Application application = mds.findApplicationByAppId(appId);
-        if (application.type() != ApplicationType.TOKEN) {
-            throw new IllegalArgumentException("appId: " + appId + " is not a token");
-        }
+        mds.findApplicationByAppId(appId); // Validate existence of the application.
         return mds.removeApplicationRepositoryRole(author, projectName, repoName, appId);
     }
 
@@ -324,7 +321,7 @@ public class MetadataApiService extends AbstractService {
                                                        @Param String appId,
                                                        JsonPatch jsonPatch,
                                                        Author author) {
-        return updateApplicationRole(projectName, appId, jsonPatch, author, false);
+        return updateApplicationRole(projectName, appId, jsonPatch, author, true);
     }
 
     /**

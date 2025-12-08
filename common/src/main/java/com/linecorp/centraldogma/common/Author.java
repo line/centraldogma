@@ -100,7 +100,7 @@ public class Author {
      */
     @JsonIgnore
     public boolean isApplication() {
-        return email().endsWith(APPLICATION_EMAIL_SUFFIX) || name().endsWith(LEGACY_APPLICATION_EMAIL_SUFFIX);
+        return email().endsWith(APPLICATION_EMAIL_SUFFIX) || email().endsWith(LEGACY_APPLICATION_EMAIL_SUFFIX);
     }
 
     @Override

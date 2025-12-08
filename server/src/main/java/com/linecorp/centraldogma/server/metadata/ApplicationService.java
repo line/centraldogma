@@ -265,9 +265,8 @@ final class ApplicationService {
         final Certificate certificate = new Certificate(appId, certificateId, isSystemAdmin, isSystemAdmin,
                                                         UserAndTimestamp.of(author));
         final JsonPointer appIdPath = JsonPointer.compile("/appIds" + encodeSegment(certificate.appId()));
-        final String certificatedId = certificate.certificateId();
         final JsonPointer certificateIdPath =
-                JsonPointer.compile("/certificateIds" + encodeSegment(certificatedId));
+                JsonPointer.compile("/certificateIds" + encodeSegment(certificateId));
         final Change<JsonNode> change =
                 Change.ofJsonPatch(TOKEN_JSON,
                                    asJsonArray(JsonPatchOperation.testAbsence(appIdPath),
@@ -297,8 +296,9 @@ final class ApplicationService {
                             application.appId(), ((Certificate) application).certificateId(),
                             application.isSystemAdmin(), application.allowGuestAccess(),
                             application.creation(), application.deactivation(), userAndTimestamp);
+                    final String certificateId = ((Certificate) application).certificateId();
                     final Map<String, String> newCertificateIds =
-                            removeFromMap(registry.certificateIds(), appId);
+                            removeFromMap(registry.certificateIds(), certificateId);
                     return new ApplicationRegistry(updateMap(registry.appIds(), appId, newCertificate),
                                                    registry.secrets(), newCertificateIds);
                 });
@@ -344,8 +344,8 @@ final class ApplicationService {
                     final Application application =
                             getApplicationToDeactivate(headRevision, registry, appId,
                                                        ApplicationType.CERTIFICATE);
-                    final String certificatedId = ((Certificate) application).certificateId();
-                    final Certificate newCertificate = new Certificate(application.appId(), certificatedId,
+                    final String certificateId = ((Certificate) application).certificateId();
+                    final Certificate newCertificate = new Certificate(application.appId(), certificateId,
                                                                        application.isSystemAdmin(),
                                                                        application.allowGuestAccess(),
                                                                        application.creation(),
@@ -353,7 +353,7 @@ final class ApplicationService {
                     final Map<String, Application> newAppIds = updateMap(registry.appIds(), appId,
                                                                          newCertificate);
                     final Map<String, String> newCertificateIds =
-                            removeFromMap(registry.certificateIds(), certificatedId);
+                            removeFromMap(registry.certificateIds(), certificateId);
                     return new ApplicationRegistry(newAppIds, registry.secrets(), newCertificateIds);
                 });
         return applicationRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
