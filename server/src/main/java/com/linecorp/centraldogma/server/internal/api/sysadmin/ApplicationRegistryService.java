@@ -124,7 +124,7 @@ public final class ApplicationRegistryService extends AbstractService {
                           "Only system administrators are allowed to create a system admin-level application.");
             checkArgument(secret == null,
                           "Only system administrators are allowed to create a new application token from " +
-                          " the given secret string");
+                          "the given secret string");
         }
         final CompletableFuture<Revision> future;
         if (applicationType == ApplicationType.TOKEN) {

@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
  * Extracts the certificate ID from the peer certificate.
  */
 @FunctionalInterface
-public interface CertificateIdExtractor {
+public interface ApplicationCertificateIdExtractor {
 
     /**
      * Extracts the certificate ID from the peer certificate.

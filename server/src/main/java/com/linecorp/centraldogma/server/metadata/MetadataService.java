@@ -1042,9 +1042,9 @@ public class MetadataService {
     }
 
     /**
-     * Returns a {@link Certificate} which has the specified {@code certificateId}.
+     * Returns a {@link ApplicationCertificate} which has the specified {@code certificateId}.
      */
-    public Certificate findCertificateById(String certificateId) {
+    public ApplicationCertificate findCertificateById(String certificateId) {
         return applicationService.findCertificateById(certificateId);
     }
 
@@ -1173,7 +1173,7 @@ public class MetadataService {
     }
 
     /**
-     * Creates a new application {@link Certificate} with the specified {@code appId} and
+     * Creates a new application {@link ApplicationCertificate} with the specified {@code appId} and
      * {@code certificateId}.
      */
     public CompletableFuture<Revision> createCertificate(Author author, String appId, String certificateId,
@@ -1182,7 +1182,7 @@ public class MetadataService {
     }
 
     /**
-     * Removes the {@link Certificate} of the specified {@code appId}.
+     * Removes the {@link ApplicationCertificate} of the specified {@code appId}.
      * This sets {@link Application#deletion()} to the current timestamp. It will be purged later by
      * {@link #purgeApplication(Author, String)}.
      */
@@ -1191,14 +1191,14 @@ public class MetadataService {
     }
 
     /**
-     * Activates the {@link Certificate} of the specified {@code appId}.
+     * Activates the {@link ApplicationCertificate} of the specified {@code appId}.
      */
     public CompletableFuture<Revision> activateCertificate(Author author, String appId) {
         return applicationService.activateCertificate(author, appId);
     }
 
     /**
-     * Deactivates the {@link Certificate} of the specified {@code appId}.
+     * Deactivates the {@link ApplicationCertificate} of the specified {@code appId}.
      */
     public CompletableFuture<Revision> deactivateCertificate(Author author, String appId) {
         return applicationService.deactivateCertificate(author, appId);

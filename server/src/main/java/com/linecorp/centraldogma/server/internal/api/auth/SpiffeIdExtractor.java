@@ -25,9 +25,9 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.linecorp.centraldogma.server.auth.CertificateIdExtractor;
+import com.linecorp.centraldogma.server.auth.ApplicationCertificateIdExtractor;
 
-enum SpiffeIdExtractor implements CertificateIdExtractor {
+enum SpiffeIdExtractor implements ApplicationCertificateIdExtractor {
 
     INSTANCE;
 

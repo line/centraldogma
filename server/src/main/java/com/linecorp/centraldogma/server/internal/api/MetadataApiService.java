@@ -356,6 +356,10 @@ public class MetadataApiService extends AbstractService {
             @Param String repoName,
             IdAndRepositoryRole tokenAndRepositoryRole,
             Author author) {
+        final Application application = mds.findApplicationByAppId(tokenAndRepositoryRole.id());
+        if (application.type() != ApplicationType.TOKEN) {
+            throw new IllegalArgumentException("appId: " + tokenAndRepositoryRole.id() + " is not a token");
+        }
         return mds.addApplicationRepositoryRole(author, projectName, repoName,
                                                 tokenAndRepositoryRole.id(), tokenAndRepositoryRole.role());
     }

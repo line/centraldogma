@@ -81,10 +81,10 @@ class MetadataServiceTest {
     private static final String certificateId2 = "certificate/id/2";
     private static final Token appToken1 = new Token(app1, "secret", false, true, UserAndTimestamp.of(author));
     private static final Token appToken2 = new Token(app2, "secret", false, true, UserAndTimestamp.of(author));
-    private static final Certificate certificate1 = new Certificate(cert1, certificateId1, false, true,
-                                                                    UserAndTimestamp.of(author));
-    private static final Certificate certificate2 = new Certificate(cert2, certificateId2, false, true,
-                                                                    UserAndTimestamp.of(author));
+    private static final ApplicationCertificate certificate1 = new ApplicationCertificate(cert1, certificateId1, false, true,
+                                                                                          UserAndTimestamp.of(author));
+    private static final ApplicationCertificate certificate2 = new ApplicationCertificate(cert2, certificateId2, false, true,
+                                                                                          UserAndTimestamp.of(author));
 
     @Test
     void project() {

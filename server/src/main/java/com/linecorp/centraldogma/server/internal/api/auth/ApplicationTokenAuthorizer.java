@@ -62,7 +62,7 @@ public class ApplicationTokenAuthorizer extends AbstractAuthorizer {
             final Token appToken = tokenLookupFunc.apply(accessToken);
             if (appToken != null && appToken.isActive()) {
                 final String appId = appToken.appId();
-                ctx.logBuilder().authenticatedUser("appToken/" + appId);
+                ctx.logBuilder().authenticatedUser("app/" + appId + "/token");
                 final UserWithApplication user = new UserWithApplication(appToken);
                 AuthUtil.setCurrentUser(ctx, user);
                 HttpApiUtil.setVerboseResponses(ctx, user);

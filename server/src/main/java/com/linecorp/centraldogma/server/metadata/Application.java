@@ -31,7 +31,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type")
 @JsonSubTypes({
         @Type(value = Token.class, name = "TOKEN"),
-        @Type(value = Certificate.class, name = "CERTIFICATE")
+        @Type(value = ApplicationCertificate.class, name = "CERTIFICATE")
 })
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)

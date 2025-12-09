@@ -88,6 +88,7 @@ import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.common.TlsKeyPair;
 import com.linecorp.armeria.common.TlsProvider;
+import com.linecorp.armeria.common.TlsProviderBuilder;
 import com.linecorp.armeria.common.metric.MeterIdPrefixFunction;
 import com.linecorp.armeria.common.prometheus.PrometheusMeterRegistries;
 import com.linecorp.armeria.common.util.EventLoopGroups;
@@ -156,7 +157,7 @@ import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
 import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthorizer;
-import com.linecorp.centraldogma.server.internal.api.auth.CertificateAuthorizer;
+import com.linecorp.centraldogma.server.internal.api.auth.ApplicationCertificateAuthorizer;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRoleDecorator.RequiresProjectRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRoleDecorator.RequiresRepositoryRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
@@ -739,15 +740,16 @@ public class CentralDogma implements AutoCloseable {
                     } else {
                         final ServerTlsConfigBuilder serverTlsConfigBuilder =
                                 ServerTlsConfig.builder().clientAuth(ClientAuth.OPTIONAL);
+                        final TlsProviderBuilder tlsProviderBuilder = TlsProvider.builder().keyPair(tlsKeyPair);
                         if (!authConfig.mtlsConfig().caCertificateFiles().isEmpty()) {
                             final List<X509Certificate> caCertificates =
                                     authConfig.mtlsConfig().caCertificates();
                             if (!caCertificates.isEmpty()) {
-                                serverTlsConfigBuilder.tlsCustomizer(b -> b.trustManager(caCertificates));
+                                tlsProviderBuilder.trustedCertificates(caCertificates);
                             }
                         }
 
-                        sb.tlsProvider(TlsProvider.of(tlsKeyPair), serverTlsConfigBuilder.build());
+                        sb.tlsProvider(tlsProviderBuilder.build(), serverTlsConfigBuilder.build());
                     }
                 } else {
                     mtlsEnabled = false;
@@ -897,7 +899,7 @@ public class CentralDogma implements AutoCloseable {
         if (mtlsEnabled) {
             // Find the certificate lastly because it raises an exception if no certificate
             // is found in the connection.
-            authorizer = authorizer.orElse(new CertificateAuthorizer(mds::findCertificateById));
+            authorizer = authorizer.orElse(new ApplicationCertificateAuthorizer(mds::findCertificateById));
         }
 
         final AuthProviderParameters parameters = new AuthProviderParameters(

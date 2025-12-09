@@ -34,12 +34,12 @@ import com.google.common.base.Objects;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL)
-public final class Certificate extends AbstractApplication {
+public final class ApplicationCertificate extends AbstractApplication {
 
     private final String certificateId;
 
-    Certificate(String appId, String certificateId, boolean isSystemAdmin, boolean allowGuestAccess,
-                UserAndTimestamp creation) {
+    ApplicationCertificate(String appId, String certificateId, boolean isSystemAdmin, boolean allowGuestAccess,
+                           UserAndTimestamp creation) {
         this(appId, certificateId, isSystemAdmin, allowGuestAccess, creation, null, null);
     }
 
@@ -47,13 +47,13 @@ public final class Certificate extends AbstractApplication {
      * Creates a new instance.
      */
     @JsonCreator
-    public Certificate(@JsonProperty("appId") String appId,
-                       @JsonProperty("certificateId") String certificateId,
-                       @JsonProperty("systemAdmin") boolean isSystemAdmin,
-                       @JsonProperty("allowGuestAccess") @Nullable Boolean allowGuestAccess,
-                       @JsonProperty("creation") UserAndTimestamp creation,
-                       @JsonProperty("deactivation") @Nullable UserAndTimestamp deactivation,
-                       @JsonProperty("deletion") @Nullable UserAndTimestamp deletion) {
+    public ApplicationCertificate(@JsonProperty("appId") String appId,
+                                  @JsonProperty("certificateId") String certificateId,
+                                  @JsonProperty("systemAdmin") boolean isSystemAdmin,
+                                  @JsonProperty("allowGuestAccess") @Nullable Boolean allowGuestAccess,
+                                  @JsonProperty("creation") UserAndTimestamp creation,
+                                  @JsonProperty("deactivation") @Nullable UserAndTimestamp deactivation,
+                                  @JsonProperty("deletion") @Nullable UserAndTimestamp deletion) {
         super(appId, ApplicationType.CERTIFICATE, isSystemAdmin,
               firstNonNull(allowGuestAccess, false), // Disallow guest access by default for certificate.
               requireNonNull(creation, "creation"), deactivation, deletion);
@@ -69,12 +69,12 @@ public final class Certificate extends AbstractApplication {
     }
 
     @Override
-    public Certificate withSystemAdmin(boolean isSystemAdmin) {
+    public ApplicationCertificate withSystemAdmin(boolean isSystemAdmin) {
         if (isSystemAdmin == isSystemAdmin()) {
             return this;
         }
-        return new Certificate(appId(), certificateId, isSystemAdmin, allowGuestAccess(),
-                               creation(), deactivation(), deletion());
+        return new ApplicationCertificate(appId(), certificateId, isSystemAdmin, allowGuestAccess(),
+                                          creation(), deactivation(), deletion());
     }
 
     @Override
@@ -87,13 +87,13 @@ public final class Certificate extends AbstractApplication {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof Certificate)) {
+        if (!(o instanceof ApplicationCertificate)) {
             return false;
         }
         if (!super.equals(o)) {
             return false;
         }
-        final Certificate that = (Certificate) o;
+        final ApplicationCertificate that = (ApplicationCertificate) o;
         return Objects.equal(certificateId, that.certificateId);
     }
 

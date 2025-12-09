@@ -55,7 +55,7 @@ import com.linecorp.centraldogma.server.internal.api.MetadataApiService.IdAndPro
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-final class CertificateAuthTest {
+final class ApplicationCertificateAuthTest {
 
     private static final String CERT_ID = "centraldogma.com/my-client";
 

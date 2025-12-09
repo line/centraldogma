@@ -23,7 +23,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.internal.Jackson;
 
-class CertificateTest {
+class ApplicationCertificateTest {
 
     @Test
     void serialize() throws Exception {
@@ -32,7 +32,7 @@ class CertificateTest {
                 "2025-01-15T10:00:00Z"
         );
 
-        final Certificate certificate = new Certificate(
+        final ApplicationCertificate certificate = new ApplicationCertificate(
                 "app-123",
                 "cert-abc-xyz",
                 true,
@@ -70,7 +70,7 @@ class CertificateTest {
                             "  }" +
                             '}';
 
-        final Certificate certificate = Jackson.readValue(json, Certificate.class);
+        final ApplicationCertificate certificate = Jackson.readValue(json, ApplicationCertificate.class);
 
         assertThat(certificate.appId()).isEqualTo("app-456");
         assertThat(certificate.certificateId()).isEqualTo("cert-def-123");
@@ -95,7 +95,7 @@ class CertificateTest {
                 "2025-04-01T12:00:00Z"
         );
 
-        final Certificate original = new Certificate(
+        final ApplicationCertificate original = new ApplicationCertificate(
                 "app-789",
                 "cert-ghi-456",
                 true,
@@ -106,7 +106,7 @@ class CertificateTest {
         );
 
         final String json = Jackson.writeValueAsString(original);
-        final Certificate deserialized = Jackson.readValue(json, Certificate.class);
+        final ApplicationCertificate deserialized = Jackson.readValue(json, ApplicationCertificate.class);
 
         assertThat(deserialized.appId()).isEqualTo(original.appId());
         assertThat(deserialized.certificateId()).isEqualTo(original.certificateId());
@@ -137,7 +137,7 @@ class CertificateTest {
                             "  }" +
                             '}';
 
-        final Certificate certificate = Jackson.readValue(json, Certificate.class);
+        final ApplicationCertificate certificate = Jackson.readValue(json, ApplicationCertificate.class);
 
         assertThat(certificate.isSystemAdmin()).isFalse();
         assertThat(certificate.allowGuestAccess()).isFalse();

@@ -56,7 +56,7 @@ public final class ApplicationRegistry implements HasWeight {
     private final Map<String, String> secrets;
 
     /**
-     * A mapping of certificate ID and {@link Certificate#appId()}.
+     * A mapping of certificate ID and {@link ApplicationCertificate#appId()}.
      */
     private final Map<String, String> certificateIds;
 
@@ -160,10 +160,10 @@ public final class ApplicationRegistry implements HasWeight {
     }
 
     /**
-     * Returns the {@link Certificate} that corresponds to the specified certificate ID.
+     * Returns the {@link ApplicationCertificate} that corresponds to the specified certificate ID.
      */
-    public Certificate findByCertificateId(String certificateId) {
-        final Certificate certificate = findByCertificateIdOrDefault(certificateId, null);
+    public ApplicationCertificate findByCertificateId(String certificateId) {
+        final ApplicationCertificate certificate = findByCertificateIdOrDefault(certificateId, null);
         if (certificate != null) {
             return certificate;
         }
@@ -171,17 +171,18 @@ public final class ApplicationRegistry implements HasWeight {
     }
 
     /**
-     * Returns the {@link Certificate} that corresponds to the specified certificate ID.
+     * Returns the {@link ApplicationCertificate} that corresponds to the specified certificate ID.
      * {@code defaultValue} is returned if there's no such certificate ID.
      */
     @Nullable
-    public Certificate findByCertificateIdOrDefault(String certificateId, @Nullable Certificate defaultValue) {
+    public ApplicationCertificate findByCertificateIdOrDefault(String certificateId, @Nullable
+    ApplicationCertificate defaultValue) {
         requireNonNull(certificateId, "certificateId");
         final String appId = certificateIds.get(certificateId);
         if (appId != null) {
             final Application application = getOrDefault(appId, null);
-            if (application instanceof Certificate) {
-                return (Certificate) application;
+            if (application instanceof ApplicationCertificate) {
+                return (ApplicationCertificate) application;
             }
         }
         return defaultValue;

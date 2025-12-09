@@ -33,11 +33,11 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.Authorizer;
-import com.linecorp.centraldogma.server.auth.CertificateIdExtractor;
+import com.linecorp.centraldogma.server.auth.ApplicationCertificateIdExtractor;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.ApplicationNotFoundException;
-import com.linecorp.centraldogma.server.metadata.Certificate;
+import com.linecorp.centraldogma.server.metadata.ApplicationCertificate;
 import com.linecorp.centraldogma.server.metadata.UserWithApplication;
 
 import io.netty.handler.ssl.OpenSslSession;
@@ -45,16 +45,16 @@ import io.netty.handler.ssl.OpenSslSession;
 /**
  * An authorizer which extracts certificate ID from mTLS peer certificate and validates it.
  */
-public final class CertificateAuthorizer implements Authorizer<HttpRequest> {
+public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRequest> {
 
-    private static final Logger logger = LoggerFactory.getLogger(CertificateAuthorizer.class);
+    private static final Logger logger = LoggerFactory.getLogger(ApplicationCertificateAuthorizer.class);
 
     // TODO(minwoox): Make it configurable via SPI.
-    private static final CertificateIdExtractor ID_EXTRACTOR = SpiffeIdExtractor.INSTANCE;
+    private static final ApplicationCertificateIdExtractor ID_EXTRACTOR = SpiffeIdExtractor.INSTANCE;
 
-    private final Function<String, Certificate> certificateLookupFunc;
+    private final Function<String, ApplicationCertificate> certificateLookupFunc;
 
-    public CertificateAuthorizer(Function<String, Certificate> certificateLookupFunc) {
+    public ApplicationCertificateAuthorizer(Function<String, ApplicationCertificate> certificateLookupFunc) {
         this.certificateLookupFunc = requireNonNull(certificateLookupFunc, "certificateLookupFunc");
     }
 
@@ -87,7 +87,13 @@ public final class CertificateAuthorizer implements Authorizer<HttpRequest> {
             if (!(peerCert instanceof X509Certificate)) {
                 continue;
             }
-            certificateId = ID_EXTRACTOR.extractCertificateId((X509Certificate) peerCert);
+            final X509Certificate x509Certificate = (X509Certificate) peerCert;
+            if (x509Certificate.getBasicConstraints() != -1) {
+                logger.trace("Skipping CA certificate: addr={}, cert={}", ctx.clientAddress(), x509Certificate);
+                continue;
+            }
+
+            certificateId = ID_EXTRACTOR.extractCertificateId(x509Certificate);
             if (certificateId != null) {
                 break;
             }
@@ -99,10 +105,10 @@ public final class CertificateAuthorizer implements Authorizer<HttpRequest> {
         }
 
         try {
-            final Certificate certificate = certificateLookupFunc.apply(certificateId);
+            final ApplicationCertificate certificate = certificateLookupFunc.apply(certificateId);
             if (certificate != null && certificate.isActive()) {
                 final String appId = certificate.appId();
-                ctx.logBuilder().authenticatedUser("appCert/" + appId);
+                ctx.logBuilder().authenticatedUser("app/" + appId + "/cert");
                 final UserWithApplication user = new UserWithApplication(certificate);
                 AuthUtil.setCurrentUser(ctx, user);
                 HttpApiUtil.setVerboseResponses(ctx, user);

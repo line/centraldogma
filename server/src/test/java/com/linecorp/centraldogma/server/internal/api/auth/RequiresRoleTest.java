@@ -200,19 +200,19 @@ class RequiresRoleTest {
     private static Stream<Arguments> arguments() {
         return Stream.of(
                 Arguments.of(
-                        "appToken/" + APP_ID_1, SECRET_1,
+                        "app/" + APP_ID_1 + "/token", SECRET_1,
                         "project1", ProjectRole.OWNER, "repo1", RepositoryRole.WRITE,
                         HttpStatus.FORBIDDEN),
                 Arguments.of(
-                        "appToken/" + APP_ID_2, SECRET_2,
+                        "app/" + APP_ID_2 + "/token", SECRET_2,
                         "project1", ProjectRole.MEMBER, "repo1", RepositoryRole.READ,
                         HttpStatus.FORBIDDEN),
                 Arguments.of(
-                        "appToken/" + APP_ID_3, SECRET_3,
+                        "app/" + APP_ID_3 + "/token", SECRET_3,
                         "project1", ProjectRole.GUEST, "repo1", null,
                         HttpStatus.FORBIDDEN),
                 Arguments.of(
-                        "appToken/" + APP_ID_1, SECRET_1,
+                        "app/" + APP_ID_1 + "/token", SECRET_1,
                         "project2", ProjectRole.GUEST, "repo1", null,
                         HttpStatus.NOT_FOUND),
                 Arguments.of(
