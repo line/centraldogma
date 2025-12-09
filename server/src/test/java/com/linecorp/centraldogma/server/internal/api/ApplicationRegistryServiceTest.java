@@ -60,9 +60,9 @@ import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.ApplicationLevelRequest;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.ApplicationRegistryService;
 import com.linecorp.centraldogma.server.metadata.Application;
+import com.linecorp.centraldogma.server.metadata.ApplicationCertificate;
 import com.linecorp.centraldogma.server.metadata.ApplicationRegistry;
 import com.linecorp.centraldogma.server.metadata.ApplicationType;
-import com.linecorp.centraldogma.server.metadata.ApplicationCertificate;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.User;
@@ -181,9 +181,10 @@ class ApplicationRegistryServiceTest {
 
     @Test
     void systemAdminApplication() {
-        final ApplicationCertificate certificate = (ApplicationCertificate) applicationRegistryService.createApplication(
-                "certAdmin1", true, ApplicationType.CERTIFICATE, null, "cert/123",
-                systemAdminAuthor, systemAdmin).join().content();
+        final ApplicationCertificate certificate =
+                (ApplicationCertificate) applicationRegistryService.createApplication(
+                        "certAdmin1", true, ApplicationType.CERTIFICATE, null, "cert/123",
+                        systemAdminAuthor, systemAdmin).join().content();
         assertThat(certificate.isActive()).isTrue();
         assertThat(certificate.certificateId()).isEqualTo("cert/123");
         assertThatThrownBy(
@@ -224,8 +225,9 @@ class ApplicationRegistryServiceTest {
                                                 .join())
                 .hasCauseInstanceOf(HttpResponseException.class);
 
-        final ApplicationCertificate deleted = (ApplicationCertificate) applicationRegistryService.deleteApplication(
-                ctx, "certAdmin1", systemAdminAuthor, systemAdmin).join();
+        final ApplicationCertificate deleted =
+                (ApplicationCertificate) applicationRegistryService.deleteApplication(
+                        ctx, "certAdmin1", systemAdminAuthor, systemAdmin).join();
         assertThat(deleted.appId()).isEqualTo(certificate.appId());
 
         assertThat(applicationRegistryService.purgeApplication(ctx, "certAdmin1", systemAdminAuthor,
@@ -259,18 +261,20 @@ class ApplicationRegistryServiceTest {
         assertThat(tokens.stream().filter(token -> !StringUtil.isNullOrEmpty(token.secret())).count())
                 .isEqualTo(0);
 
-        assertThat(applicationRegistryService.deleteToken(ctx, "forUser1", systemAdminAuthor, systemAdmin)
-                                             .thenCompose(unused -> applicationRegistryService.purgeToken(
-                                       ctx, "forUser1", systemAdminAuthor, systemAdmin)).join())
+        assertThat(
+                applicationRegistryService.deleteToken(ctx, "forUser1", systemAdminAuthor, systemAdmin)
+                                          .thenCompose(unused -> applicationRegistryService.purgeToken(
+                                                  ctx, "forUser1", systemAdminAuthor, systemAdmin)).join())
                 .satisfies(t -> {
                     assertThat(t.appId()).isEqualTo(userToken1.appId());
                     assertThat(t.isSystemAdmin()).isEqualTo(userToken1.isSystemAdmin());
                     assertThat(t.creation()).isEqualTo(userToken1.creation());
                     assertThat(t.deactivation()).isEqualTo(userToken1.deactivation());
                 });
-        assertThat(applicationRegistryService.deleteToken(ctx, "forUser2", guestAuthor, guest)
-                                             .thenCompose(unused -> applicationRegistryService.purgeToken(
-                                       ctx, "forUser2", guestAuthor, guest)).join())
+        assertThat(
+                applicationRegistryService.deleteToken(ctx, "forUser2", guestAuthor, guest)
+                                          .thenCompose(unused -> applicationRegistryService.purgeToken(
+                                                  ctx, "forUser2", guestAuthor, guest)).join())
                 .satisfies(t -> {
                     assertThat(t.appId()).isEqualTo(userToken2.appId());
                     assertThat(t.isSystemAdmin()).isEqualTo(userToken2.isSystemAdmin());
@@ -281,12 +285,14 @@ class ApplicationRegistryServiceTest {
 
     @Test
     void userCertificate() {
-        final ApplicationCertificate userCert1 = (ApplicationCertificate) applicationRegistryService.createApplication(
-                "certUser1", false, ApplicationType.CERTIFICATE, null, "cert-user1",
-                systemAdminAuthor, systemAdmin).join().content();
-        final ApplicationCertificate userCert2 = (ApplicationCertificate) applicationRegistryService.createApplication(
-                "certUser2", false, ApplicationType.CERTIFICATE, null, "cert-user2",
-                guestAuthor, guest).join().content();
+        final ApplicationCertificate userCert1 =
+                (ApplicationCertificate) applicationRegistryService.createApplication(
+                        "certUser1", false, ApplicationType.CERTIFICATE, null, "cert-user1",
+                        systemAdminAuthor, systemAdmin).join().content();
+        final ApplicationCertificate userCert2 =
+                (ApplicationCertificate) applicationRegistryService.createApplication(
+                        "certUser2", false, ApplicationType.CERTIFICATE, null, "cert-user2",
+                        guestAuthor, guest).join().content();
         assertThat(userCert1.isActive()).isTrue();
         assertThat(userCert2.isActive()).isTrue();
         assertThat(userCert1.certificateId()).isEqualTo("cert-user1");
@@ -377,11 +383,14 @@ class ApplicationRegistryServiceTest {
 
     @Test
     public void updateCertificate() {
-        final ApplicationCertificate certificate = (ApplicationCertificate) applicationRegistryService.createApplication(
-                "certUpdate", true, ApplicationType.CERTIFICATE, null, "cert/update",
-                systemAdminAuthor, systemAdmin).join().content();
+        final ApplicationCertificate certificate =
+                (ApplicationCertificate) applicationRegistryService.createApplication(
+                        "certUpdate", true, ApplicationType.CERTIFICATE, null, "cert/update",
+                        systemAdminAuthor, systemAdmin).join().content();
         assertThat(certificate.isActive()).isTrue();
 
+        final JsonNode deactivation = Jackson.valueToTree(ImmutableMap.of("status", "inactive"));
+        final JsonNode activation = Jackson.valueToTree(ImmutableMap.of("status", "active"));
         applicationRegistryService.updateApplication(ctx, "certUpdate", deactivation,
                                                      systemAdminAuthor, systemAdmin).join();
         await().untilAsserted(() -> assertThat(
@@ -395,8 +404,7 @@ class ApplicationRegistryServiceTest {
         assertThatThrownBy(
                 () -> applicationRegistryService.updateApplication(ctx, "certUpdate", Jackson.valueToTree(
                         ImmutableList.of(ImmutableMap.of())), systemAdminAuthor, systemAdmin).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(IllegalArgumentException.class);
 
         applicationRegistryService.deleteApplication(ctx, "certUpdate", systemAdminAuthor, systemAdmin).join();
         await().untilAsserted(() -> assertThat(
@@ -438,20 +446,23 @@ class ApplicationRegistryServiceTest {
 
     @Test
     void updateCertificateLevel() {
-        final ApplicationCertificate certificate = (ApplicationCertificate) applicationRegistryService.createApplication(
-                "certLevelUpdate", false, ApplicationType.CERTIFICATE, null, "cert-level",
-                systemAdminAuthor, systemAdmin).join().content();
+        final ApplicationCertificate certificate =
+                (ApplicationCertificate) applicationRegistryService.createApplication(
+                        "certLevelUpdate", false, ApplicationType.CERTIFICATE, null, "cert-level",
+                        systemAdminAuthor, systemAdmin).join().content();
         assertThat(certificate.isActive()).isTrue();
         assertThat(certificate.isSystemAdmin()).isFalse();
 
-        final ApplicationCertificate systemAdminCert = (ApplicationCertificate) applicationRegistryService.updateApplicationLevel(
-                ctx, "certLevelUpdate", new ApplicationLevelRequest("SYSTEMADMIN"),
-                systemAdminAuthor, systemAdmin).join();
+        final ApplicationCertificate systemAdminCert =
+                (ApplicationCertificate) applicationRegistryService.updateApplicationLevel(
+                        ctx, "certLevelUpdate", new ApplicationLevelRequest("SYSTEMADMIN"),
+                        systemAdminAuthor, systemAdmin).join();
         assertThat(systemAdminCert.isSystemAdmin()).isTrue();
 
-        final ApplicationCertificate userCert = (ApplicationCertificate) applicationRegistryService.updateApplicationLevel(
-                ctx, "certLevelUpdate", new ApplicationLevelRequest("USER"),
-                systemAdminAuthor, systemAdmin).join();
+        final ApplicationCertificate userCert =
+                (ApplicationCertificate) applicationRegistryService.updateApplicationLevel(
+                        ctx, "certLevelUpdate", new ApplicationLevelRequest("USER"),
+                        systemAdminAuthor, systemAdmin).join();
         assertThat(userCert.isSystemAdmin()).isFalse();
 
         assertThatThrownBy(

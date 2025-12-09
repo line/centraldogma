@@ -275,8 +275,9 @@ final class ApplicationService {
         checkArgument(!isNullOrEmpty(certificateId), "certificateId must not be null or empty");
 
         // Does not allow guest access for non admin certificate.
-        final ApplicationCertificate certificate = new ApplicationCertificate(appId, certificateId, isSystemAdmin, isSystemAdmin,
-                                                                              UserAndTimestamp.of(author));
+        final ApplicationCertificate certificate =
+                new ApplicationCertificate(appId, certificateId, isSystemAdmin, isSystemAdmin,
+                                           UserAndTimestamp.of(author));
         final JsonPointer appIdPath = JsonPointer.compile("/appIds" + encodeSegment(certificate.appId()));
         final JsonPointer certificateIdPath =
                 JsonPointer.compile("/certificateIds" + encodeSegment(certificateId));
@@ -331,11 +332,12 @@ final class ApplicationService {
                             getApplicationToActivate(headRevision, registry, appId,
                                                      ApplicationType.CERTIFICATE);
                     final ApplicationCertificate certificate = (ApplicationCertificate) application;
-                    final ApplicationCertificate newCertificate = new ApplicationCertificate(certificate.appId(),
-                                                                                             certificate.certificateId(),
-                                                                                             certificate.isSystemAdmin(),
-                                                                                             certificate.allowGuestAccess(),
-                                                                                             certificate.creation());
+                    final ApplicationCertificate newCertificate =
+                            new ApplicationCertificate(certificate.appId(),
+                                                       certificate.certificateId(),
+                                                       certificate.isSystemAdmin(),
+                                                       certificate.allowGuestAccess(),
+                                                       certificate.creation());
                     final Map<String, String> newCertificateIds =
                             addToMap(registry.certificateIds(), certificate.certificateId(), appId);
                     return new ApplicationRegistry(updateMap(registry.appIds(), appId, newCertificate),
@@ -358,11 +360,12 @@ final class ApplicationService {
                             getApplicationToDeactivate(headRevision, registry, appId,
                                                        ApplicationType.CERTIFICATE);
                     final String certificateId = ((ApplicationCertificate) application).certificateId();
-                    final ApplicationCertificate newCertificate = new ApplicationCertificate(application.appId(), certificateId,
-                                                                                             application.isSystemAdmin(),
-                                                                                             application.allowGuestAccess(),
-                                                                                             application.creation(),
-                                                                                             userAndTimestamp, null);
+                    final ApplicationCertificate newCertificate =
+                            new ApplicationCertificate(application.appId(), certificateId,
+                                                       application.isSystemAdmin(),
+                                                       application.allowGuestAccess(),
+                                                       application.creation(),
+                                                       userAndTimestamp, null);
                     final Map<String, Application> newAppIds = updateMap(registry.appIds(), appId,
                                                                          newCertificate);
                     final Map<String, String> newCertificateIds =

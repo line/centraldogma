@@ -432,7 +432,7 @@ class MetadataApiServiceTest {
         // Promote the member with certificate to a repository admin.
         final HttpRequest req = HttpRequest.builder()
                                            .post("/api/v1/metadata/" + PROJECT_NAME + "/repos/" +
-                                                 REPOSITORY_NAME + "/roles/tokens")
+                                                 REPOSITORY_NAME + "/roles/applications")
                                            .contentJson(new IdAndRepositoryRole(MEMBER_CERTIFICATE_APP_ID,
                                                                                 RepositoryRole.ADMIN))
                                            .build();

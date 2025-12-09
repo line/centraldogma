@@ -65,12 +65,12 @@ import com.linecorp.centraldogma.server.metadata.User;
 @ProducesJson
 public final class ApplicationRegistryService extends AbstractService {
 
-    private static final JsonNode activation = Jackson.valueToTree(
+    private static final JsonNode LEGACY_ACTIVATION = Jackson.valueToTree(
             ImmutableList.of(
                     ImmutableMap.of("op", "replace",
                                     "path", "/status",
                                     "value", "active")));
-    private static final JsonNode deactivation = Jackson.valueToTree(
+    private static final JsonNode LEGACY_DEACTIVATION = Jackson.valueToTree(
             ImmutableList.of(
                     ImmutableMap.of("op", "replace",
                                     "path", "/status",
@@ -199,13 +199,25 @@ public final class ApplicationRegistryService extends AbstractService {
     public CompletableFuture<Application> updateApplication(ServiceRequestContext ctx,
                                                             @Param String appId,
                                                             JsonNode node, Author author, User loginUser) {
+        // {"status":"active"} or {"status":"inactive"}
+        final JsonNode status = node.get("status");
+        if (status == null || status.isNull() || !status.isTextual()) {
+            throw new IllegalArgumentException(
+                    "The request must contain a 'status' field with a string value.");
+        }
+        final String text = status.asText();
+        if (!"active".equals(text) && !"inactive".equals(text)) {
+            throw new IllegalArgumentException(
+                    "The 'status' field must be either 'active' or 'inactive': " + text);
+        }
+
         return getApplicationOrRespondForbidden(ctx, appId, loginUser).thenCompose(
                 application -> {
                     if (application.isDeleted()) {
                         throw new IllegalArgumentException(
                                 "You can't update the status of the application scheduled for deletion.");
                     }
-                    if (node.equals(activation)) {
+                    if ("active".equals(text)) {
                         if (application.type() == ApplicationType.TOKEN) {
                             return mds.activateToken(author, appId)
                                       .thenApply(unused -> ((Token) application).withoutSecret());
@@ -214,18 +226,13 @@ public final class ApplicationRegistryService extends AbstractService {
                                       .thenApply(unused -> application);
                         }
                     }
-                    if (node.equals(deactivation)) {
-                        if (application.type() == ApplicationType.TOKEN) {
-                            return mds.deactivateToken(author, appId)
-                                      .thenApply(unused -> ((Token) application).withoutSecret());
-                        } else {
-                            return mds.deactivateCertificate(author, appId)
-                                      .thenApply(unused -> application);
-                        }
+                    if (application.type() == ApplicationType.TOKEN) {
+                        return mds.deactivateToken(author, appId)
+                                  .thenApply(unused -> ((Token) application).withoutSecret());
+                    } else {
+                        return mds.deactivateCertificate(author, appId)
+                                  .thenApply(unused -> application);
                     }
-                    throw new IllegalArgumentException("Unsupported JSON patch: " + node +
-                                                       " (expected: " + activation + " or " + deactivation +
-                                                       ')');
                 }
         );
     }
@@ -385,17 +392,17 @@ public final class ApplicationRegistryService extends AbstractService {
                         throw new IllegalArgumentException(
                                 "You can't update the status of the token scheduled for deletion.");
                     }
-                    if (node.equals(activation)) {
+                    if (node.equals(LEGACY_ACTIVATION)) {
                         return mds.activateToken(author, appId)
                                   .thenApply(unused -> token.withoutSecret());
                     }
-                    if (node.equals(deactivation)) {
+                    if (node.equals(LEGACY_DEACTIVATION)) {
                         return mds.deactivateToken(author, appId)
                                   .thenApply(unused -> token.withoutSecret());
                     }
                     throw new IllegalArgumentException("Unsupported JSON patch: " + node +
-                                                       " (expected: " + activation + " or " + deactivation +
-                                                       ')');
+                                                       " (expected: " + LEGACY_ACTIVATION + " or " +
+                                                       LEGACY_DEACTIVATION + ')');
                 }
         );
     }

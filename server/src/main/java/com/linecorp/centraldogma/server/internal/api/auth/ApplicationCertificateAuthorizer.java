@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.api.auth;
 
 import static java.util.Objects.requireNonNull;
 
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -36,8 +37,8 @@ import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.centraldogma.server.auth.ApplicationCertificateIdExtractor;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
-import com.linecorp.centraldogma.server.metadata.ApplicationNotFoundException;
 import com.linecorp.centraldogma.server.metadata.ApplicationCertificate;
+import com.linecorp.centraldogma.server.metadata.ApplicationNotFoundException;
 import com.linecorp.centraldogma.server.metadata.UserWithApplication;
 
 import io.netty.handler.ssl.OpenSslSession;
@@ -69,7 +70,7 @@ public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRe
             return UnmodifiableFuture.completedFuture(false);
         }
 
-        final java.security.cert.Certificate[] peerCertificates;
+        final Certificate[] peerCertificates;
         try {
             peerCertificates = sslSession.getPeerCertificates();
         } catch (SSLPeerUnverifiedException e) {
@@ -82,16 +83,19 @@ public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRe
         }
 
         String certificateId = null;
-        for (java.security.cert.Certificate peerCert : peerCertificates) {
+        for (Certificate peerCert : peerCertificates) {
             logger.trace("Peer certificate: addr={}, cert={}", ctx.clientAddress(), peerCert);
             if (!(peerCert instanceof X509Certificate)) {
                 continue;
             }
             final X509Certificate x509Certificate = (X509Certificate) peerCert;
+            /* // Uncomment the following lines after fixing Singned Certificate Extension to
+            generate end-entity certs.
             if (x509Certificate.getBasicConstraints() != -1) {
                 logger.trace("Skipping CA certificate: addr={}, cert={}", ctx.clientAddress(), x509Certificate);
                 continue;
             }
+            */
 
             certificateId = ID_EXTRACTOR.extractCertificateId(x509Certificate);
             if (certificateId != null) {
