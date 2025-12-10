@@ -2,7 +2,7 @@ import { Monaco } from '@monaco-editor/react';
 
 /**
  * Register JSON5 language in Monaco Editor.
- *Example of supported JSON5 features:
+ * Example of supported JSON5 features:
  * ```json5
  * {
  *   // comments
