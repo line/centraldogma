@@ -23,9 +23,6 @@ import { AiOutlineDelete } from 'react-icons/ai';
 import { DiscardChangesModal } from 'dogma/common/components/editor/DiscardChangesModal';
 import { DeleteFileModal } from 'dogma/common/components/editor/DeleteFileModal';
 import { CommitForm } from 'dogma/common/components/CommitForm';
-import { useAppDispatch } from 'dogma/hooks';
-import { newNotification } from 'dogma/features/notification/notificationSlice';
-import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import Router from 'next/router';
 import Link from 'next/link';
 import { FaHistory } from 'react-icons/fa';
@@ -68,34 +65,29 @@ const FileEditor = ({
   name,
   revision,
 }: FileEditorProps) => {
-  const dispatch = useAppDispatch();
   const language = extensionToLanguageMap[extension] || extension;
-  let jsonContent = '';
-  if (language === 'json') {
-    try {
-      jsonContent = JSON.parse(
-        typeof originalContent === 'string' ? originalContent : JSON.stringify(originalContent),
-      );
-    } catch (error) {
-      dispatch(newNotification(`Failed to format json content.`, ErrorMessageParser.parse(error), 'error'));
-    }
-  }
   const [tabIndex, setTabIndex] = useState(0);
   const handleTabChange = (index: number) => {
     setTabIndex(index);
   };
+  let displayContent = originalContent;
+  if (path.endsWith('.json') && originalContent.indexOf('\n') === -1) {
+    // Pretty print JSON content if it's a single line which is hard to read.
+    // If the file is not created from a raw JSON, the server will normalize it and write a compact JSON.
+    displayContent = JSON.stringify(JSON.parse(originalContent), null, 2);
+  }
   const [fileContent, setFileContent] = useState('');
   const editorRef = useRef(null);
   const handleEditorMount: OnMount = (editor) => {
     editorRef.current = editor;
-    setFileContent(jsonContent ? JSON.stringify(jsonContent, null, 2) : originalContent);
+    setFileContent(displayContent);
   };
   const { isOpen: isCancelModalOpen, onOpen: onCancelModalOpen, onClose: onCancelModalClose } = useDisclosure();
   const { isOpen: isDeleteModalOpen, onOpen: onDeleteModalOpen, onClose: onDeleteModalClose } = useDisclosure();
   const [readOnly, setReadOnly] = useState(true);
   const switchMode = () => {
     if (readOnly) {
-      setFileContent(jsonContent ? JSON.stringify(jsonContent, null, 2) : originalContent);
+      setFileContent(displayContent);
       setReadOnly(false);
     } else {
       onCancelModalOpen();
@@ -175,10 +167,10 @@ const FileEditor = ({
                   />
                 </Flex>
                 <Spacer />
-                {readOnly && language === 'json' && jsonContent ? <JsonPathLegend /> : ''}
+                {readOnly && language === 'json' ? <JsonPathLegend /> : ''}
               </Flex>
-              {readOnly && language === 'json' && jsonContent ? (
-                <JsonPath setFileContent={setFileContent} jsonContent={jsonContent} />
+              {readOnly && language === 'json' ? (
+                <JsonPath setFileContent={setFileContent} jsonContent={JSON.parse(originalContent)} />
               ) : (
                 ''
               )}
@@ -188,7 +180,7 @@ const FileEditor = ({
                 }
                 language={language}
                 theme={colorMode === 'light' ? 'light' : 'vs-dark'}
-                value={typeof fileContent === 'string' ? fileContent : JSON.stringify(fileContent)}
+                value={fileContent}
                 options={{
                   autoIndent: 'full',
                   formatOnPaste: true,

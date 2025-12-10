@@ -195,8 +195,27 @@ public interface CentralDogma extends AutoCloseable {
      *
      * @return the {@link Entry} that is matched by the given {@link Query}
      */
+    default <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName,
+                                                    Revision revision, Query<T> query) {
+        return getFile(projectName, repositoryName, revision, query, false);
+    }
+
+    /**
+     * Queries a file at the specified revision and path with the specified {@link Query}.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * boolean viewRaw = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .file(query)
+     *      .viewRaw(viewRaw)
+     *      .get(revision);
+     * }</pre>
+     *
+     * @return the {@link Entry} that is matched by the given {@link Query}
+     */
     <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName,
-                                            Revision revision, Query<T> query);
+                                            Revision revision, Query<T> query, boolean viewRaw);
 
     /**
      * Retrieves the files matched by the path pattern.
@@ -223,8 +242,28 @@ public interface CentralDogma extends AutoCloseable {
      *
      * @return a {@link Map} of file path and {@link Entry} pairs
      */
+    default CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
+                                                              Revision revision, PathPattern pathPattern) {
+        return getFiles(projectName, repositoryName, revision, pathPattern, false);
+    }
+
+    /**
+     * Retrieves the files matched by the {@link PathPattern}.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * boolean viewRaw = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .file(pathPattern)
+     *      .viewRaw(viewRaw)
+     *      .get(revision);
+     * }</pre>
+     *
+     * @return a {@link Map} of file path and {@link Entry} pairs
+     */
     CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
-                                                      Revision revision, PathPattern pathPattern);
+                                                      Revision revision, PathPattern pathPattern,
+                                                      boolean viewRaw);
 
     /**
      * Retrieves the merged entry of the specified {@link MergeSource}s at the specified revision.
@@ -749,9 +788,40 @@ public interface CentralDogma extends AutoCloseable {
      *         earlier due to issues such as server restart.
      *         {@link EntryNotFoundException} is raised if the target does not exist.
      */
+    default <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
+                                                      Revision lastKnownRevision, Query<T> query,
+                                                      long timeoutMillis, boolean errorOnEntryNotFound) {
+        return watchFile(projectName, repositoryName, lastKnownRevision, query,
+                         timeoutMillis, errorOnEntryNotFound, false);
+    }
+
+    /**
+     * Waits for the file matched by the specified {@link Query} to be changed since the specified
+     * {@code lastKnownRevision}. If the file does not exist and {@code errorOnEntryNotFound} is {@code true},
+     * the returned {@link CompletableFuture} will be completed exceptionally with
+     * {@link EntryNotFoundException}. If no changes were made within the specified {@code timeoutMillis},
+     * the returned {@link CompletableFuture} will be completed with {@code null}.
+     * It is recommended to specify the largest {@code timeoutMillis} allowed by the server.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .watch(query)
+     *      .timeoutMillis(timeoutMillis)
+     *      .errorOnEntryNotFound(errorOnEntryNotFound)
+     *      .start(lastKnownRevision);
+     * }</pre>
+     *
+     * @return the {@link Entry} which contains the latest known {@link Query} result.
+     *         {@code null} if the file was not changed for {@code timeoutMillis} milliseconds
+     *         since the invocation of this method. Even before the timeout, the watch may return null
+     *         earlier due to issues such as server restart.
+     *         {@link EntryNotFoundException} is raised if the target does not exist.
+     */
     <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                               Revision lastKnownRevision, Query<T> query,
-                                              long timeoutMillis, boolean errorOnEntryNotFound);
+                                              long timeoutMillis, boolean errorOnEntryNotFound,
+                                              boolean viewRaw);
 
     /**
      * Returns a {@link Watcher} which notifies its listeners when the result of the

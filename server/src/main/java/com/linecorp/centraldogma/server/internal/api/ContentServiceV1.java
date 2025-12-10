@@ -22,7 +22,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.common.EntryType.DIRECTORY;
 import static com.linecorp.centraldogma.internal.Util.isValidDirPath;
 import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
-import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert;
+import static com.linecorp.centraldogma.server.internal.api.DtoConverter.newEntryDto;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
 import static com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1.increaseCounterIfOldRevisionUsed;
 import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.isMirrorOrCredentialFile;
@@ -77,7 +77,6 @@ import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.CommitMessageRequestConverter;
@@ -129,12 +128,13 @@ public class ContentServiceV1 extends AbstractService {
         final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
         increaseCounterIfOldRevisionUsed(ctx, repository, normalizedRev);
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
-        listFiles(repository, normalizedPath, normalizedRev, false, future);
+        findFiles(repository, normalizedPath, normalizedRev, false, false, future);
         return future;
     }
 
-    private static void listFiles(Repository repository, String pathPattern, Revision normalizedRev,
-                                  boolean withContent, CompletableFuture<List<EntryDto<?>>> result) {
+    private static void findFiles(Repository repository, String pathPattern, Revision normalizedRev,
+                                  boolean withContent, boolean viewRaw,
+                                  CompletableFuture<List<EntryDto<?>>> result) {
         final Map<FindOption<?>, ?> options = withContent ? FindOptions.FIND_ALL_WITH_CONTENT
                                                           : FindOptions.FIND_ALL_WITHOUT_CONTENT;
 
@@ -148,10 +148,11 @@ public class ContentServiceV1 extends AbstractService {
             // This is called once at most, because the pathPattern is not a valid file path anymore.
             if (isValidFilePath(pathPattern) && entries.size() == 1 &&
                 entries.values().iterator().next().type() == DIRECTORY) {
-                listFiles(repository, pathPattern + "/*", normalizedRev, withContent, result);
+                findFiles(repository, pathPattern + "/*", normalizedRev, withContent, viewRaw, result);
             } else {
                 result.complete(entries.values().stream()
-                                       .map(entry -> convert(repository, normalizedRev, entry, withContent))
+                                       .map(entry -> newEntryDto(repository, normalizedRev, entry, withContent,
+                                                                 viewRaw))
                                        .collect(toImmutableList()));
             }
             return null;
@@ -206,7 +207,7 @@ public class ContentServiceV1 extends AbstractService {
         final long commitTimeMillis = System.currentTimeMillis();
         return push(commitTimeMillis, author, repository, new Revision(revision), commitMessage, changes)
                 .toCompletableFuture()
-                .thenApply(rrev -> convert(rrev, commitTimeMillis));
+                .thenApply(rrev -> DtoConverter.newPushResultDto(rrev, commitTimeMillis));
     }
 
     private CompletableFuture<Revision> push(long commitTimeMills, Author author, Repository repository,
@@ -218,7 +219,7 @@ public class ContentServiceV1 extends AbstractService {
 
         return execute(Command.push(
                 commitTimeMills, author, repository.parent().name(), repository.name(),
-                revision, summary, detail, markup, changes)).thenApply(CommitResult::revision);
+                revision, summary, detail, markup, changes));
     }
 
     /**
@@ -239,7 +240,7 @@ public class ContentServiceV1 extends AbstractService {
                 repository.previewDiff(baseRevision, changes);
 
         return changesFuture.thenApply(previewDiffs -> previewDiffs.values().stream()
-                                                                   .map(DtoConverter::convert)
+                                                                   .map(DtoConverter::newChangeDto)
                                                                    .collect(toImmutableList()));
     }
 
@@ -260,6 +261,7 @@ public class ContentServiceV1 extends AbstractService {
     public CompletableFuture<?> getFiles(
             ServiceRequestContext ctx,
             @Param String path, @Param @Default("-1") String revision,
+            @Param @Default("false") boolean viewRaw,
             Repository repository,
             @RequestConverter(WatchRequestConverter.class) @Nullable WatchRequest watchRequest,
             @RequestConverter(QueryRequestConverter.class) @Nullable Query<?> query) {
@@ -274,7 +276,7 @@ public class ContentServiceV1 extends AbstractService {
             final boolean errorOnEntryNotFound = watchRequest.notifyEntryNotFound();
             if (query != null) {
                 return watchFile(ctx, repository, lastKnownRevision, query, timeOutMillis,
-                                 errorOnEntryNotFound);
+                                 errorOnEntryNotFound, viewRaw);
             }
 
             return watchRepository(ctx, repository, lastKnownRevision, normalizedPath,
@@ -285,19 +287,20 @@ public class ContentServiceV1 extends AbstractService {
         if (query != null) {
             // get a file
             return repository.get(normalizedRev, query)
-                             .handle(returnOrThrow((Entry<?> result) -> convert(repository, normalizedRev,
-                                                                                result, true)));
+                             .handle(returnOrThrow((Entry<?> result) -> newEntryDto(repository, normalizedRev,
+                                                                                    result, true, viewRaw)));
         }
 
         // get files
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
-        listFiles(repository, normalizedPath, normalizedRev, true, future);
+        findFiles(repository, normalizedPath, normalizedRev, true, viewRaw, future);
         return future;
     }
 
     private CompletableFuture<?> watchFile(ServiceRequestContext ctx,
                                            Repository repository, Revision lastKnownRevision,
-                                           Query<?> query, long timeOutMillis, boolean errorOnEntryNotFound) {
+                                           Query<?> query, long timeOutMillis, boolean errorOnEntryNotFound,
+                                           boolean viewRaw) {
         final CompletableFuture<? extends Entry<?>> future = watchService.watchFile(
                 repository, lastKnownRevision, query, timeOutMillis, errorOnEntryNotFound);
 
@@ -307,7 +310,7 @@ public class ContentServiceV1 extends AbstractService {
 
         return future.thenApply(entry -> {
             final Revision revision = entry.revision();
-            final EntryDto<?> entryDto = convert(repository, revision, entry, true);
+            final EntryDto<?> entryDto = newEntryDto(repository, revision, entry, true, viewRaw);
             return (Object) new WatchResultDto(revision, entryDto);
         }).exceptionally(ContentServiceV1::handleWatchFailure);
     }
@@ -379,7 +382,7 @@ public class ContentServiceV1 extends AbstractService {
                     final boolean toList = to != null ||
                                            isNullOrEmpty(revision) ||
                                            "/".equalsIgnoreCase(revision);
-                    return objectOrList(commits, toList, DtoConverter::convert);
+                    return objectOrList(commits, toList, DtoConverter::newCommitDto);
                 });
     }
 
@@ -405,12 +408,13 @@ public class ContentServiceV1 extends AbstractService {
         increaseCounterIfOldRevisionUsed(ctx, repository, toRevision);
         if (query != null) {
             return repository.diff(fromRevision, toRevision, query)
-                             .thenApply(DtoConverter::convert);
+                             .thenApply(DtoConverter::newChangeDto);
         } else {
             return repository
                     .diff(fromRevision, toRevision, normalizePath(pathPattern))
                     .thenApply(changeMap -> changeMap.values().stream()
-                                                     .map(DtoConverter::convert).collect(toImmutableList()));
+                                                     .map(DtoConverter::newChangeDto)
+                                                     .collect(toImmutableList()));
         }
     }
 
@@ -437,7 +441,7 @@ public class ContentServiceV1 extends AbstractService {
             @RequestConverter(MergeQueryRequestConverter.class) MergeQuery<T> query) {
         final Revision rev = new Revision(revision);
         increaseCounterIfOldRevisionUsed(ctx, repository, rev);
-        return repository.mergeFiles(rev, query).thenApply(DtoConverter::convert);
+        return repository.mergeFiles(rev, query).thenApply(DtoConverter::newMergedEntryDto);
     }
 
     public static void checkMetaRepoPush(String repoName, Iterable<Change<?>> changes) {
