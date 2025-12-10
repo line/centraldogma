@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - centraldogma-*
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Target version x.y.z'
+        required: true
+        type: string
 
 env:
   LC_ALL: 'en_US.UTF-8'
@@ -16,14 +22,21 @@ jobs:
     if: github.repository == 'line/centraldogma'
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the repo
+      - name: Check out tag from workflow_dispatch
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v4
+        with:
+          ref: centraldogma-${{ github.event.inputs.version }}
+
+      - name: Check out tag on push
+        if: github.event_name != 'workflow_dispatch'
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: 17
+          distribution: 'zulu'
+          java-version: 25
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
@@ -38,12 +51,15 @@ jobs:
         id: release-version
         uses: actions/github-script@v4
         with:
-          # Extract a release version from 'refs/tags/centraldogma-x.y.z' tag.
           script: |
-            const version = context.ref.replace(/.*centraldogma-/, '')
-            console.log('Release version: ' + version)
-            return version
-          result-encoding: string
+            let version;
+            if (context.eventName === 'workflow_dispatch') {
+              version = context.payload.inputs.version;
+            } else {
+              version = context.ref.replace(/.*centraldogma-/, '');
+            }
+            console.log('Release version:', version);
+            return version;
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
