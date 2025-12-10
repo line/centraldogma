@@ -41,6 +41,7 @@ import java.util.regex.Matcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.spotify.futures.CompletableFutures;
@@ -54,6 +55,7 @@ import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -315,7 +317,14 @@ final class XdsKubernetesEndpointFetchingService extends XdsResourceWatchingServ
             assert matches;
             final String aggregatorId = matcher.group(2);
             final String fileName = K8S_ENDPOINTS_DIRECTORY + aggregatorId + ".json";
-            final Change<JsonNode> change = Change.ofJsonUpsert(fileName, json);
+            final JsonNode jsonNode;
+            try {
+                jsonNode = Jackson.readTree(json);
+            } catch (JsonParseException e) {
+                // Should never reach here as it is already validated.
+                throw new IllegalStateException(e);
+            }
+            final Change<JsonNode> change = Change.ofJsonUpsert(fileName, jsonNode);
             commandExecutor.execute(
                     Command.push(Author.SYSTEM, XDS_CENTRAL_DOGMA_PROJECT, groupName, Revision.HEAD,
                                  "Add " + aggregator.getClusterName() + '.', "",

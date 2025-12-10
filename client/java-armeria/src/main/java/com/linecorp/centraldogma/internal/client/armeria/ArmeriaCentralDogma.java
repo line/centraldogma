@@ -873,6 +873,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         requireNonNull(query, "query");
         checkArgument(timeoutMillis > 0, "timeoutMillis: %s (expected: > 0)", timeoutMillis);
         if (viewRaw && query.type() == QueryType.JSON_PATH) {
+            // JSON_PATH query cannot return raw content because the raw content is normalized
+            // when applying JSON_PATH.
             throw new IllegalArgumentException("JSON_PATH query cannot be used with raw view");
         }
         try {
@@ -888,7 +890,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 path.setLength(path.length() - 1);
             }
             if (viewRaw) {
-                path.append(path.indexOf("?") >= 0 ? "&" : "?").append("viewRaw=true");
+                // The query type can't be JSON_PATH here as checked above.
+                path.append("?viewRaw=true");
             }
 
             return watch(lastKnownRevision, timeoutMillis, path.toString(), query.type(),

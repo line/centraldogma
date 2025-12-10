@@ -16,7 +16,7 @@ concurrency:
 
 env:
   LC_ALL: "en_US.UTF-8"
-  BUILD_JDK_VERSION: "21"
+  BUILD_JDK_VERSION: "25"
 
 jobs:
   build:
@@ -29,7 +29,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        java: [21]
+        java: [25]
         include:
           - java: 11
             os: ubuntu-latest
@@ -40,6 +40,8 @@ jobs:
             os: ubuntu-latest
             min-java: 11
           - java: 21
+            os: ubuntu-latest
+          - java: 25
             snapshot: true
             os: ubuntu-latest
 
@@ -53,20 +55,20 @@ jobs:
       shell: bash
     - uses: actions/checkout@v4
 
-    - id: setup-build-jdk
-      name: Set up build JDK ${{ env.BUILD_JDK_VERSION }}
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: ${{ env.BUILD_JDK_VERSION }}
-
     - id: setup-test-jdk
       if: ${{ matrix.java != env.BUILD_JDK_VERSION }}
       name: Set up test JDK ${{ matrix.java }}
       uses: actions/setup-java@v4
       with:
-        distribution: 'temurin'
+        distribution: 'zulu'
         java-version: ${{ matrix.java }}
+
+    - id: setup-build-jdk
+      name: Set up build JDK ${{ env.BUILD_JDK_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: ${{ env.BUILD_JDK_VERSION }}
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v5
@@ -156,7 +158,7 @@ jobs:
         name: Set up JDK ${{ env.BUILD_JDK_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: 'zulu'
           java-version: ${{ env.BUILD_JDK_VERSION }}
 
       - name: Setup Gradle
@@ -180,7 +182,7 @@ jobs:
         name: Set up JDK ${{ env.BUILD_JDK_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: 'zulu'
           java-version: ${{ env.BUILD_JDK_VERSION }}
 
       - name: Setup Gradle
@@ -204,7 +206,7 @@ jobs:
         name: Set up JDK ${{ env.BUILD_JDK_VERSION }}
         uses: actions/setup-java@v3
         with:
-          distribution: 'temurin'
+          distribution: 'zulu'
           java-version: ${{ env.BUILD_JDK_VERSION }}
 
       - name: Setup Gradle

@@ -57,8 +57,10 @@ import io.envoyproxy.envoy.config.bootstrap.v3.ClusterManager;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster.DiscoveryType;
 import io.envoyproxy.envoy.config.core.v3.Address;
+import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource;
 import io.envoyproxy.envoy.config.core.v3.ApiConfigSource;
 import io.envoyproxy.envoy.config.core.v3.ApiConfigSource.ApiType;
+import io.envoyproxy.envoy.config.core.v3.ConfigSource;
 import io.envoyproxy.envoy.config.core.v3.GrpcService;
 import io.envoyproxy.envoy.config.core.v3.GrpcService.EnvoyGrpc;
 import io.envoyproxy.envoy.config.core.v3.HeaderValue;
@@ -269,8 +271,13 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
                 .addGrpcServices(grpcService)
                 .setApiType(ApiType.AGGREGATED_GRPC)
                 .build();
+        final AggregatedConfigSource ads = AggregatedConfigSource.getDefaultInstance();
         final DynamicResources dynamicResources =
-                DynamicResources.newBuilder().setAdsConfig(apiConfigSource).build();
+                DynamicResources.newBuilder()
+                                .setLdsConfig(ConfigSource.newBuilder().setAds(ads))
+                                .setCdsConfig(ConfigSource.newBuilder().setAds(ads))
+                                .setAdsConfig(apiConfigSource)
+                                .build();
         final Bootstrap bootstrap =
                 Bootstrap.newBuilder()
                          .setClusterManager(ClusterManager.newBuilder()
@@ -300,7 +307,9 @@ public final class XdsCentralDogmaBuilder extends AbstractCentralDogmaBuilder<Xd
             localityLbEndpointsBuilder.addLbEndpoints(lbEndpoint);
         }
         final ClusterLoadAssignment clusterLoadAssignment =
-                ClusterLoadAssignment.newBuilder().addEndpoints(localityLbEndpointsBuilder.build()).build();
+                ClusterLoadAssignment.newBuilder()
+                                     .setClusterName(BOOTSTRAP_CLUSTER_NAME)
+                                     .addEndpoints(localityLbEndpointsBuilder.build()).build();
 
         if (isUseTls()) {
             clusterBuilder.setTransportSocket(

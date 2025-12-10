@@ -136,7 +136,9 @@ task copyClientBinaries(group: 'Build',
                 from sourceFile
                 into nativeDir
                 rename { targetFileName }
-                fileMode 0755
+                filePermissions { permissions ->
+                    permissions.unix('rwxr-xr-x')
+                }
             }
         }
     }

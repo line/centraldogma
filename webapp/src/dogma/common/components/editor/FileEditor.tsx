@@ -72,16 +72,17 @@ const FileEditor = ({
   const handleTabChange = (index: number) => {
     setTabIndex(index);
   };
+  let displayContent = originalContent;
   if (path.endsWith('.json') && originalContent.indexOf('\n') === -1) {
     // Pretty print JSON content if it's a single line which is hard to read.
     // If the file is not created from a raw JSON, the server will normalize it and write a compact JSON.
-    originalContent = JSON.stringify(JSON.parse(originalContent), null, 2);
+    displayContent = JSON.stringify(JSON.parse(originalContent), null, 2);
   }
   const [fileContent, setFileContent] = useState('');
   const editorRef = useRef(null);
   const handleEditorMount: OnMount = (editor) => {
     editorRef.current = editor;
-    setFileContent(originalContent);
+    setFileContent(displayContent);
   };
 
   const { isOpen: isCancelModalOpen, onOpen: onCancelModalOpen, onClose: onCancelModalClose } = useDisclosure();
@@ -89,7 +90,7 @@ const FileEditor = ({
   const [readOnly, setReadOnly] = useState(true);
   const switchMode = () => {
     if (readOnly) {
-      setFileContent(originalContent);
+      setFileContent(displayContent);
       setReadOnly(false);
     } else {
       onCancelModalOpen();
