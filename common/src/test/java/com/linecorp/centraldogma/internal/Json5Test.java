@@ -184,7 +184,6 @@ class Json5Test {
         assertThatJson(node).node("array").isArray().ofLength(3);
     }
 
-
     @Test
     void specialNumbers() throws Exception {
         //language=JSON5

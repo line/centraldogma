@@ -52,9 +52,7 @@ export const CommitForm = ({
         dispatch(newNotification(`Invalid JSON file.`, ErrorMessageParser.parse(error), 'error'));
         return;
       }
-    }
-
-    if (isJson5(name)) {
+    } else if (isJson5(name)) {
       try {
         JSON5.parse(newContent);
         isJsonFile = true;

@@ -73,9 +73,7 @@ export const NewFile = ({
         dispatch(newNotification(`Invalid JSON file.`, ErrorMessageParser.parse(error), 'error'));
         return;
       }
-    }
-
-    if (isJson5(formData.name)) {
+    } else if (isJson5(formData.name)) {
       try {
         JSON5.parse(content);
         isJsonFile = true;
