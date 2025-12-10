@@ -46,7 +46,7 @@ final class ChangeSerializer extends StdSerializer<Change<?>> {
         if (change.type().contentType() == String.class) {
             if (content != null) {
                 // For text-based changes, always use 'content' field.
-                gen.writeStringField("content", (String) change.content());
+                gen.writeStringField("content", (String) content);
             }
             gen.writeEndObject();
             return;

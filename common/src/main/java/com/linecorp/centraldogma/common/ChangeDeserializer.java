@@ -109,6 +109,7 @@ final class ChangeDeserializer extends StdDeserializer<Change<?>> {
                 }
                 break;
             case RENAME:
+                assert content != null;
                 result = Change.ofRename(path, content.asText());
                 break;
             case APPLY_JSON_PATCH:
