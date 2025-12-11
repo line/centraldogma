@@ -126,8 +126,8 @@ class MetadataApiServiceTest {
     @Test
     void addUpdateAndRemoveProjectMember() throws JsonProcessingException {
         addProjectMember();
-        final JsonPatch jsonPatch = JsonPatch.generate(Jackson.readTree("{\"role\":\"MEMBER\"}}"),
-                                                       Jackson.readTree("{\"role\":\"OWNER\"}}"),
+        final JsonPatch jsonPatch = JsonPatch.generate(Jackson.readTree("{\"role\":\"MEMBER\"}"),
+                                                       Jackson.readTree("{\"role\":\"OWNER\"}"),
                                                        ReplaceMode.RFC6902);
         // [{"op":"replace","path":"/role","value":"OWNER"}]
         // Update the member
@@ -162,8 +162,8 @@ class MetadataApiServiceTest {
         addProjectToken();
         HttpRequest request;
 
-        final JsonPatch jsonPatch = JsonPatch.generate(Jackson.readTree("{\"role\":\"MEMBER\"}}"),
-                                                       Jackson.readTree("{\"role\":\"OWNER\"}}"),
+        final JsonPatch jsonPatch = JsonPatch.generate(Jackson.readTree("{\"role\":\"MEMBER\"}"),
+                                                       Jackson.readTree("{\"role\":\"OWNER\"}"),
                                                        ReplaceMode.RFC6902);
         // [{"op":"replace","path":"/role","value":"OWNER"}]
         // Update the token
