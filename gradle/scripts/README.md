@@ -32,28 +32,31 @@ sensible defaults. By applying them, you can:
 - [Building shaded JARs with `shade` flag](#building-shaded-jars-with-shade-flag)
     - [Trimming a shaded JAR with `trim` flag](#trimming-a-shaded-jar-with-trim-flag)
     - [Shading a multi-module project with `relocate` flag](#shading-a-multi-module-project-with-relocate-flag)
-- [Setting a target version with the `java(\\d+)` flag](#setting-a-target-version-with-the-javad-flag)
+- [Setting a Java target version with the `java(\\d+)` flag](#setting-a-java-target-version-with-the-javad-flag)
+- [Setting a Kotlin target version with the `kotlin(\\d+\\.\\d+)` flag](#setting-a-koltin-target-version-with-the-kotlindd-flag)
+- [Automatic module names](#automatic-module-names)
 - [Tagging conveniently with `release` task](#tagging-conveniently-with-release-task)
 
 <!-- /MarkdownTOC -->
 
 ## Setup
 
-1. Run `gradle wrapper` to set up a new project.
+1. Run `gradle init` to set up a new project.
 
    ```
    $ mkdir myproject
    $ cd myproject
-   $ gradle wrapper
+   $ gradle init 
    $ ls
    gradle/
    gradlew
    gradlew.bat
    ```
-2. Copy everything in this directory into `<project_root>/gradle/scripts`.
-   If copied correctly, you should see the following `ls` command output:
+2. Add this repository as submodule into `<project_root>/gradle/scripts`.
+   If cloned correctly, you should see the following `ls` command output:
 
    ```
+   $ git submodule add https://github.com/line/gradle-scripts.git gradle/scripts
    $ ls gradle/scripts
    lib/
    build-flags.gradle
@@ -97,6 +100,7 @@ sensible defaults. By applying them, you can:
    ```
    group=com.doe.john.myexample
    version=0.0.1-SNAPSHOT
+   versionPattern=^[0-9]+\\.[0-9]+\\.[0-9]+$
    projectName=My Example
    projectUrl=https://www.example.com/
    projectDescription=My example project
@@ -117,6 +121,7 @@ sensible defaults. By applying them, you can:
    googleAnalyticsId=UA-XXXXXXXX
    javaSourceCompatibility=1.8
    javaTargetCompatibility=1.8
+   automaticModuleNames=false
    ```
 
 5. That's all. You now have two Java subprojects with sensible defaults.
@@ -572,6 +577,13 @@ relocations [ { from: "com.google.common", to: "com.doe.john.myproject.shaded.gu
               { from: "com.google.thirdparty.publicsuffix", to: "com.doe.john.myproject.shaded.publicsuffix" } ]
 ```
 
+Unshaded tests are disabled by default when a shading task is configured. If you want to run unshaded tests,
+you can specify `-PpreferShadedTests=false` option.
+
+
+If you would like to remove specific files when shading the JAR, you may specify the
+`-PshadowExclusions=<comma delimited files>` option.
+
 ### Trimming a shaded JAR with `trim` flag
 
 If you shade many dependencies, your JAR will grow huge, even if you only use
@@ -631,7 +643,7 @@ for more information.
    }
    ```
 
-## Setting a target version with the `java(\\d+)` flag.
+## Setting a Java target version with the `java(\\d+)` flag.
 
 By default, setting the `java` flag compiles a module targeting minimum compatibility with the Java version
 specified by `javaTargetCompatibility`. `javaTargetCompatibility` is Java 8 by default if unspecified.
@@ -657,6 +669,52 @@ The flag may be added like the following:
 
 Note that if the target Java version is greater than the build JDK version,
 an `UnsupportedClassVersionError` may be raised.
+
+Plus, you can use `-PminimumJavaVersion` property to override the minimum version of `javaTargetCompatibility`
+set by `java` flag. For example, if you set `-PminimumJavaVersion=11`, `javaTargetCompatibility` lower than 
+Java 11 will be upgraded to Java 11.
+
+## Setting a Kotlin target version with the `kotlin(\\d+\\.\\d+)` flag.
+
+By default, `kotlin` flag compiles a Kotlin module with the [language and API version](https://kotlinlang.org/docs/compatibility-modes.html)
+specified by [Kotlin Gradle plugin](https://plugins.gradle.org/plugin/org.jetbrains.kotlin.jvm).
+However, if you want to compile a Kotlin module with a different language version and API version, you can use
+`kotlin(\\d+\\.\\d)` flag.
+
+For example, `kotlin1.6` flag makes your Kotlin module compatible with language version 1.6 and API version 1.6.
+
+## Automatic module names
+
+By specifying the `automaticModuleNames=true` property in `settings.gradle`, every `java` project's JAR
+file will contain the `Automatic-Module-Name` property in its `MANIFEST.MF`, auto-generated from the group ID
+and artifact ID. For example:
+
+- groupId: `com.example`, artifactId: `foo-bar`
+  - module name: `com.example.foo.bar`
+- groupId: `com.example.foo`, artifactId: `foo-bar`
+  - module name: `com.example.foo.bar`
+
+If enabled, each project with `java` flag will have the `automaticModuleName` property.
+
+You can override the automatic module name of a certain project via `automaticModuleNameOverride`:
+
+    ```groovy
+    ext {
+        // Change the automatic module name of a project to 'com.example.fubar'.
+        automaticModuleNameOverride = 'com.example.fubar'
+    }
+    ```
+
+Alternatively, you can also specify a mapping via the `automaticModuleNameOverrides` extension property:
+
+    ```groovy
+    ext {
+        // Change the automatic module name of project ':bar' to 'com.example.fubar'.
+        automaticModuleNameOverrides = [
+            ':bar': 'com.example.fubar'
+        ]
+    }
+    ```
 
 ## Tagging conveniently with `release` task
 

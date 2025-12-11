@@ -97,6 +97,12 @@ public final class RocksDbRepository extends Repository {
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public void close() {
+        super.close();
+        encryptionGitStorage.close();
+    }
+
     private static class EmptyAttributesNodeProvider implements AttributesNodeProvider {
 
         static final EmptyAttributesNodeProvider EMPTY_ATTRIBUTES_NODE_PROVIDER =

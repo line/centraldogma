@@ -31,9 +31,11 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.EncryptionConfig;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 import com.linecorp.centraldogma.server.management.ServerStatus;
+import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -44,7 +46,6 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
         @Type(value = CreateProjectCommand.class, name = "CREATE_PROJECT"),
-        @Type(value = ResetMetaRepositoryCommand.class, name = "RESET_META_REPOSITORY"),
         @Type(value = RemoveProjectCommand.class, name = "REMOVE_PROJECT"),
         @Type(value = PurgeProjectCommand.class, name = "PURGE_PROJECT"),
         @Type(value = UnremoveProjectCommand.class, name = "UNREMOVE_PROJECT"),
@@ -55,6 +56,9 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = MigrateToEncryptedRepositoryCommand.class, name = "MIGRATE_TO_ENCRYPTED_REPOSITORY"),
         @Type(value = NormalizingPushCommand.class, name = "NORMALIZING_PUSH"),
         @Type(value = PushAsIsCommand.class, name = "PUSH"),
+        @Type(value = RewrapAllKeysCommand.class, name = "REWRAP_ALL_KEYS"),
+        @Type(value = RotateWdekCommand.class, name = "ROTATE_WDEK"),
+        @Type(value = RotateSessionMasterKeyCommand.class, name = "ROTATE_SESSION_MASTER_KEY"),
         @Type(value = CreateSessionCommand.class, name = "CREATE_SESSIONS"),
         @Type(value = RemoveSessionCommand.class, name = "REMOVE_SESSIONS"),
         @Type(value = CreateSessionMasterKeyCommand.class, name = "CREATE_SESSION_MASTER_KEY"),
@@ -78,13 +82,12 @@ public interface Command<T> {
      *
      * @param author the author who is creating the project
      * @param name the name of the project which is supposed to be created
-     * @param wdek the wrapped data encryption key for the project
+     * @param wdekDetails the wrapped data encryption key for the project
      */
-    static Command<Void> createProject(Author author, String name, byte[] wdek) {
+    static Command<Void> createProject(Author author, String name, WrappedDekDetails wdekDetails) {
         requireNonNull(author, "author");
-        requireNonNull(wdek, "wdek");
-        checkArgument(wdek.length > 0, "wdek must not be empty");
-        return new CreateProjectCommand(null, author, name, wdek);
+        requireNonNull(wdekDetails, "wdekDetails");
+        return new CreateProjectCommand(null, author, name, wdekDetails);
     }
 
     /**
@@ -191,14 +194,13 @@ public interface Command<T> {
      * @param author the author who is creating the repository
      * @param projectName the name of the project that the new repository is supposed to belong to
      * @param repositoryName the name of the repository which is supposed to be created
-     * @param wdek the wrapped data encryption key for the repository
+     * @param wdekDetails the wrapped data encryption key for the repository
      */
     static Command<Void> createRepository(Author author, String projectName, String repositoryName,
-                                          byte[] wdek) {
+                                          WrappedDekDetails wdekDetails) {
         requireNonNull(author, "author");
-        requireNonNull(wdek, "wdek");
-        checkArgument(wdek.length > 0, "wdek must not be empty");
-        return new CreateRepositoryCommand(null, author, projectName, repositoryName, wdek);
+        requireNonNull(wdekDetails, "wdekDetails");
+        return new CreateRepositoryCommand(null, author, projectName, repositoryName, wdekDetails);
     }
 
     /**
@@ -296,9 +298,11 @@ public interface Command<T> {
      * Returns a new {@link Command} which is used to migrate a repository to an encrypted repository.
      */
     static Command<Void> migrateToEncryptedRepository(@Nullable Long timestamp, Author author,
-                                                      String projectName, String repositoryName, byte[] wdek) {
+                                                      String projectName, String repositoryName,
+                                                      WrappedDekDetails wdekDetails) {
         requireNonNull(author, "author");
-        return new MigrateToEncryptedRepositoryCommand(timestamp, author, projectName, repositoryName, wdek);
+        return new MigrateToEncryptedRepositoryCommand(timestamp, author, projectName,
+                                                       repositoryName, wdekDetails);
     }
 
     /**
@@ -316,7 +320,7 @@ public interface Command<T> {
      * @param markup the markup for the detail message
      * @param changes the changes to be applied
      */
-    static Command<CommitResult> push(Author author, String projectName, String repositoryName,
+    static Command<Revision> push(Author author, String projectName, String repositoryName,
                                       Revision baseRevision, String summary, String detail,
                                       Markup markup, Change<?>... changes) {
 
@@ -339,10 +343,10 @@ public interface Command<T> {
      * @param markup the markup for the detail message
      * @param changes the changes to be applied
      */
-    static Command<CommitResult> push(@Nullable Long timestamp, Author author,
-                                      String projectName, String repositoryName,
-                                      Revision baseRevision, String summary, String detail,
-                                      Markup markup, Change<?>... changes) {
+    static Command<Revision> push(@Nullable Long timestamp, Author author,
+                                  String projectName, String repositoryName,
+                                  Revision baseRevision, String summary, String detail,
+                                  Markup markup, Change<?>... changes) {
         return push(timestamp, author, projectName, repositoryName, baseRevision,
                     summary, detail, markup, ImmutableList.copyOf(changes));
     }
@@ -362,9 +366,9 @@ public interface Command<T> {
      * @param markup the markup for the detail message
      * @param changes the changes to be applied
      */
-    static Command<CommitResult> push(Author author, String projectName, String repositoryName,
-                                      Revision baseRevision, String summary, String detail,
-                                      Markup markup, Iterable<Change<?>> changes) {
+    static Command<Revision> push(Author author, String projectName, String repositoryName,
+                                  Revision baseRevision, String summary, String detail,
+                                  Markup markup, Iterable<Change<?>> changes) {
         return push(null, author, projectName, repositoryName, baseRevision, summary, detail, markup, changes);
     }
 
@@ -384,12 +388,12 @@ public interface Command<T> {
      * @param markup the markup for the detail message
      * @param changes the changes to be applied
      */
-    static Command<CommitResult> push(@Nullable Long timestamp, Author author,
-                                      String projectName, String repositoryName,
-                                      Revision baseRevision, String summary, String detail,
-                                      Markup markup, Iterable<Change<?>> changes) {
-        return new NormalizingPushCommand(timestamp, author, projectName, repositoryName, baseRevision,
-                                          summary, detail, markup, changes);
+    static Command<Revision> push(@Nullable Long timestamp, Author author,
+                                  String projectName, String repositoryName,
+                                  Revision baseRevision, String summary, String detail,
+                                  Markup markup, Iterable<Change<?>> changes) {
+        return new PushAsIsCommand(timestamp, author, projectName, repositoryName, baseRevision,
+                                   summary, detail, markup, changes);
     }
 
     /**
@@ -404,6 +408,39 @@ public interface Command<T> {
                                            ContentTransformer<?> transformer) {
         return TransformCommand.of(timestamp, author, projectName, repositoryName,
                                    baseRevision, summary, detail, markup, transformer);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to re-wrap all existing keys
+     * with the {@link EncryptionConfig#kekId()} specified in the configuration.
+     */
+    static Command<Void> rewrapAllKeys(Author author) {
+        requireNonNull(author, "author");
+        return new RewrapAllKeysCommand(null, author);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to rotate the wrapped data encryption key (WDEK).
+     */
+    static Command<Void> rotateWdek(Author author, String projectName, String repoName,
+                                    WrappedDekDetails wdekDetails, boolean reencrypt) {
+        requireNonNull(author, "author");
+        return new RotateWdekCommand(null, author, projectName, repoName, wdekDetails, reencrypt);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to create a new session master key.
+     */
+    static Command<Void> createSessionMasterKey(SessionMasterKey sessionMasterKey) {
+        return new CreateSessionMasterKeyCommand(null, null, sessionMasterKey);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to rotate the session master key.
+     */
+    static Command<Void> rotateSessionMasterKey(Author author, SessionMasterKey sessionMasterKey) {
+        requireNonNull(author, "author");
+        return new RotateSessionMasterKeyCommand(null, author, sessionMasterKey);
     }
 
     /**
@@ -422,13 +459,6 @@ public interface Command<T> {
      */
     static Command<Void> removeSession(String sessionId) {
         return new RemoveSessionCommand(null, null, sessionId);
-    }
-
-    /**
-     * Returns a new {@link Command} which is used to create a new session master key.
-     */
-    static Command<Void> createSessionMasterKey(SessionMasterKey sessionMasterKey) {
-        return new CreateSessionMasterKeyCommand(null, null, sessionMasterKey);
     }
 
     /**

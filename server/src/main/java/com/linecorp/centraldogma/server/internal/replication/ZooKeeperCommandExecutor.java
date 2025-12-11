@@ -28,7 +28,6 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -70,11 +69,9 @@ import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.luben.zstd.Zstd;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
-import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.escape.Escaper;
@@ -82,7 +79,6 @@ import com.google.common.escape.Escapers;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Uninterruptibles;
 
-import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.LockAcquireTimeoutException;
 import com.linecorp.centraldogma.common.Revision;
@@ -90,20 +86,19 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
-import com.linecorp.centraldogma.server.command.AbstractPushCommand;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.ExecutionContext;
 import com.linecorp.centraldogma.server.command.ForcePushCommand;
 import com.linecorp.centraldogma.server.command.NormalizableCommit;
-import com.linecorp.centraldogma.server.command.TransformCommand;
+import com.linecorp.centraldogma.server.command.RepositoryCommand;
 import com.linecorp.centraldogma.server.command.UpdateServerStatusCommand;
+import com.linecorp.centraldogma.server.internal.command.DefaultExecutionContext;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tag;
-import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -134,8 +129,10 @@ public final class ZooKeeperCommandExecutor
     private static final RetryPolicy RETRY_POLICY_ALWAYS = new RetryForever(500);
     private static final RetryPolicy RETRY_POLICY_NEVER = (retryCount, elapsedTimeMs, sleeper) -> false;
 
+    private static final ExecutionContext REPLAY_CONTEXT = new DefaultExecutionContext(true);
+
     private final ConcurrentMap<String, InterProcessMutex> mutexMap = new ConcurrentHashMap<>();
-    private final Map<ProjectNameAndAcquired, Timer> lockAcquiredTimers = new ConcurrentHashMap<>();
+    private final Map<String, ReplicationMetrics> replicationTimings = new ConcurrentHashMap<>();
 
     private final ZooKeeperReplicationConfig cfg;
     private final File revisionFile;
@@ -839,7 +836,7 @@ public final class ZooKeeperCommandExecutor
                     l = log.get();
                     command = l.command();
                     final Object expectedResult = l.result();
-                    final Object actualResult = delegate.execute(command).get();
+                    final Object actualResult = delegate.execute(REPLAY_CONTEXT, command).get();
 
                     if (!Objects.equals(expectedResult, actualResult)) {
                         throw new ReplicationException(
@@ -916,13 +913,14 @@ public final class ZooKeeperCommandExecutor
         oldLogRemover.touch();
     }
 
-    private SafeCloseable safeLock(Command<?> command) {
+    private SafeCloseable safeLock(Command<?> command, ReplicationTimings timings) {
+        final long startTime = System.nanoTime();
+        timings.startLockAcquisition(startTime);
         final long lockTimeoutNanos = this.lockTimeoutNanos;
         final String executionPath = command.executionPath();
         final InterProcessMutex mtx = mutexMap.computeIfAbsent(
                 executionPath, k -> new InterProcessMutex(curator, absolutePath(LOCK_PATH, k)));
 
-        final long startTime = System.nanoTime();
         boolean lockAcquired = false;
         Throwable cause = null;
         try {
@@ -956,13 +954,7 @@ public final class ZooKeeperCommandExecutor
             cause = e;
         }
 
-        if (command instanceof AbstractPushCommand) {
-            final String projectName = ((AbstractPushCommand<?>) command).projectName();
-            record(projectName, startTime, lockAcquired);
-        } else if (command instanceof TransformCommand) {
-            final String projectName = ((TransformCommand) command).projectName();
-            record(projectName, startTime, lockAcquired);
-        }
+        timings.endLockAcquisition(lockAcquired);
 
         if (!lockAcquired) {
             if (cause != null) {
@@ -977,23 +969,17 @@ public final class ZooKeeperCommandExecutor
             }
         }
 
-        return () -> safeRelease(mtx);
+        return () -> safeRelease(mtx, timings);
     }
 
-    private void record(String projectName, long startTime, boolean lockAcquired) {
-        final Timer timer = lockAcquiredTimers.computeIfAbsent(
-                new ProjectNameAndAcquired(projectName, lockAcquired), key -> MoreMeters.newTimer(
-                        meterRegistry, "zookeeper.lock.acquired",
-                        ImmutableList.of(Tag.of("project", projectName),
-                                         Tag.of("acquired", String.valueOf(lockAcquired)))));
-        timer.record(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-    }
-
-    private static void safeRelease(InterProcessMutex mtx) {
+    private static void safeRelease(InterProcessMutex mtx, ReplicationTimings timings) {
         try {
+            timings.startLockRelease();
             mtx.release();
         } catch (Exception ignored) {
             // Ignore.
+        } finally {
+            timings.endLockRelease();
         }
     }
 
@@ -1022,66 +1008,14 @@ public final class ZooKeeperCommandExecutor
         return path(PATH_PREFIX, path(pathElements));
     }
 
-    private static class LogMeta {
-
-        private final int replicaId;
-        private final long timestamp;
-        private final int size;
-        private final List<Long> blocks = new ArrayList<>();
-
-        @JsonCreator
-        LogMeta(@JsonProperty(value = "replicaId", required = true) int replicaId,
-                @JsonProperty(value = "timestamp", defaultValue = "0") Long timestamp,
-                @JsonProperty("size") int size) {
-            this.replicaId = replicaId;
-            if (timestamp == null) {
-                timestamp = 0L;
-            }
-            this.timestamp = timestamp;
-            this.size = size;
-        }
-
-        @JsonProperty
-        int replicaId() {
-            return replicaId;
-        }
-
-        @JsonProperty
-        long timestamp() {
-            return timestamp;
-        }
-
-        @JsonProperty
-        int size() {
-            return size;
-        }
-
-        @JsonProperty
-        List<Long> blocks() {
-            return Collections.unmodifiableList(blocks);
-        }
-
-        public void appendBlock(long blockId) {
-            blocks.add(blockId);
-        }
-
-        @Override
-        public String toString() {
-            return MoreObjects.toStringHelper(this)
-                              .add("replicaId", replicaId)
-                              .add("timestamp", timestamp)
-                              .add("size", size)
-                              .add("blocks", blocks)
-                              .toString();
-        }
-    }
-
     private long storeLog(ReplicationLog<?> log) {
         try {
             final byte[] bytes = Jackson.writeValueAsBytes(log);
             assert bytes.length > 0;
 
-            final LogMeta logMeta = new LogMeta(log.replicaId(), System.currentTimeMillis(), bytes.length);
+            // TODO(ikhoon): Enable compression once releasing decompression support for forward compatibility.
+            final LogMeta logMeta = new LogMeta(log.replicaId(), System.currentTimeMillis(), bytes.length,
+                                                null, null);
 
             final int count = (bytes.length + MAX_BYTES - 1) / MAX_BYTES;
             for (int i = 0; i < count; ++i) {
@@ -1120,7 +1054,7 @@ public final class ZooKeeperCommandExecutor
                 return Optional.empty();
             }
 
-            final byte[] bytes = new byte[logMeta.size()];
+            byte[] bytes = new byte[logMeta.size()];
             int offset = 0;
             for (long blockId : logMeta.blocks()) {
                 final String blockPath = absolutePath(LOG_BLOCK_PATH) + '/' + pathFromRevision(blockId);
@@ -1130,6 +1064,10 @@ public final class ZooKeeperCommandExecutor
             }
             assert logMeta.size() == offset;
 
+            final Boolean compressed = logMeta.compressed();
+            if (compressed != null && compressed) {
+                bytes = Zstd.decompress(bytes);
+            }
             final ReplicationLog<?> log = Jackson.readValue(bytes, ReplicationLog.class);
             return Optional.of(log);
         } catch (Exception e) {
@@ -1148,9 +1086,21 @@ public final class ZooKeeperCommandExecutor
         return String.format("%010d", revision);
     }
 
+    private <T> ReplicationTimings newReplicationTimings(Command<T> command) {
+        ReplicationMetrics metrics = null;
+        if (command instanceof RepositoryCommand) {
+            final RepositoryCommand<?> repoCommand = (RepositoryCommand<?>) command;
+            final String projectName = repoCommand.projectName();
+            metrics = replicationTimings.computeIfAbsent(projectName, key -> {
+                return new ReplicationMetrics(meterRegistry, key);
+            });
+        }
+        return ReplicationTimings.of(metrics);
+    }
+
     // Ensure that all logs are replayed, any other logs can not be added before end of this function.
     @Override
-    protected <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception {
+    protected <T> CompletableFuture<T> doExecute(ExecutionContext ctx, Command<T> command) throws Exception {
         final CompletableFuture<T> future = new CompletableFuture<>();
         ExecutorService executor = this.executor;
         if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
@@ -1160,20 +1110,29 @@ public final class ZooKeeperCommandExecutor
                 executor = ForkJoinPool.commonPool();
             }
         }
+        final ReplicationTimings timings = newReplicationTimings(command);
+        timings.startExecutorSubmit();
         executor.execute(() -> {
             try {
-                future.complete(blockingExecute(command));
+                timings.startExecutorExecution();
+                future.complete(blockingExecute(ctx, command, timings));
             } catch (Throwable t) {
                 future.completeExceptionally(t);
+            } finally {
+                timings.record();
+                if (logger.isDebugEnabled() && timings != NoopReplicationTimings.INSTANCE) {
+                    logger.debug("Elapsed times for {}: {}", command, timings.toText());
+                }
             }
         });
         return future;
     }
 
-    private <T> T blockingExecute(Command<T> command) throws Exception {
+    private <T> T blockingExecute(ExecutionContext ctx, Command<T> command, ReplicationTimings timings)
+            throws Exception {
         createParentNodes();
 
-        try (SafeCloseable ignored = safeLock(command)) {
+        try (SafeCloseable ignored = safeLock(command, timings)) {
 
             // NB: We are sure no other replicas will append the conflicting logs (the commands with the
             //     same execution path) while we hold the lock for the command's execution path.
@@ -1181,28 +1140,47 @@ public final class ZooKeeperCommandExecutor
             //     Other replicas may still append the logs with different execution paths, because, by design,
             //     two commands never conflict with each other if they have different execution paths.
 
-            final List<String> recentRevisions = curator.getChildren().forPath(absolutePath(LOG_PATH));
-            if (!recentRevisions.isEmpty()) {
-                final long lastRevision = recentRevisions.stream().mapToLong(Long::parseLong).max().getAsLong();
-                replayLogs(lastRevision);
+            timings.startLogReplay();
+            try {
+                final List<String> recentRevisions = curator.getChildren().forPath(absolutePath(LOG_PATH));
+                if (!recentRevisions.isEmpty()) {
+                    final long lastRevision = recentRevisions.stream().mapToLong(Long::parseLong).max()
+                                                             .getAsLong();
+                    replayLogs(lastRevision);
+                }
+            } finally {
+                timings.endLogReplay();
             }
 
-            final T result = delegate.execute(command).get();
+            timings.startCommandExecution();
+            final T result;
+            try {
+                result = delegate.execute(ctx, command).get();
+            } finally {
+                timings.endCommandExecution();
+            }
+
+            timings.startLogStore();
+            final long revision;
             final ReplicationLog<?> log;
-            final Command<?> maybeUnwrapped = unwrapForcePush(command);
-            if (maybeUnwrapped instanceof NormalizableCommit) {
-                final NormalizableCommit normalizingPushCommand = (NormalizableCommit) maybeUnwrapped;
-                assert result instanceof CommitResult : result;
-                final CommitResult commitResult = (CommitResult) result;
-                final Command<Revision> pushAsIsCommand = normalizingPushCommand.asIs(commitResult);
-                log = new ReplicationLog<>(replicaId(),
-                                           maybeWrap(command, pushAsIsCommand), commitResult.revision());
-            } else {
-                log = new ReplicationLog<>(replicaId(), command, result);
-            }
+            try {
+                final Command<?> maybeUnwrapped = unwrapForcePush(command);
+                if (maybeUnwrapped instanceof NormalizableCommit) {
+                    final NormalizableCommit normalizingPushCommand = (NormalizableCommit) maybeUnwrapped;
+                    assert result instanceof CommitResult : result;
+                    final CommitResult commitResult = (CommitResult) result;
+                    final Command<Revision> pushAsIsCommand = normalizingPushCommand.asIs(commitResult);
+                    log = new ReplicationLog<>(replicaId(),
+                                               maybeWrap(command, pushAsIsCommand), commitResult.revision());
+                } else {
+                    log = new ReplicationLog<>(replicaId(), command, result);
+                }
 
-            // Store the command execution log to ZooKeeper.
-            final long revision = storeLog(log);
+                // Store the command execution log to ZooKeeper.
+                revision = storeLog(log);
+            } finally {
+                timings.endLogStore();
+            }
 
             // Update the ServerStatus to the CommandExecutor after the log is stored.
             if (command.type() == CommandType.UPDATE_SERVER_STATUS) {
@@ -1255,33 +1233,5 @@ public final class ZooKeeperCommandExecutor
     @VisibleForTesting
     public void setLockTimeoutMillis(long lockTimeoutMillis) {
         lockTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(lockTimeoutMillis);
-    }
-
-    private static class ProjectNameAndAcquired {
-        private final String projectName;
-        private final boolean lockAcquired;
-
-        ProjectNameAndAcquired(String projectName, boolean lockAcquired) {
-            this.projectName = projectName;
-            this.lockAcquired = lockAcquired;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(projectName, lockAcquired);
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (!(obj instanceof ProjectNameAndAcquired)) {
-                return false;
-            }
-            final ProjectNameAndAcquired that = (ProjectNameAndAcquired) obj;
-            return lockAcquired == that.lockAcquired &&
-                   projectName.equals(that.projectName);
-        }
     }
 }

@@ -122,6 +122,7 @@ import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
+import com.linecorp.centraldogma.server.auth.AllowedUrisConfig;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
@@ -152,6 +153,7 @@ import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthor
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRoleDecorator.RequiresProjectRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRoleDecorator.RequiresRepositoryRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.KeyManagementService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.ServerStatusService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.TokenService;
@@ -1026,6 +1028,10 @@ public class CentralDogma implements AutoCloseable {
             authProvider.moreServices().forEach(sb::service);
         }
 
+        if (encryptionStorageManager.enabled()) {
+            apiV1ServiceBuilder.annotatedService(new KeyManagementService(executor, encryptionStorageManager));
+        }
+
         sb.annotatedService()
           .decorator(decorator)
           .decorator(DecodingService.newDecorator())
@@ -1038,9 +1044,10 @@ public class CentralDogma implements AutoCloseable {
 
             if (authProvider != null) {
                 // Will redirect to /web/auth/login by default.
-                sb.service(LOGIN_PATH, authProvider.webLoginService());
+                final AllowedUrisConfig allowedUrisConfig = AllowedUrisConfig.of(config().corsConfig());
+                sb.service(LOGIN_PATH, authProvider.webLoginService(allowedUrisConfig));
                 // Will redirect to /web/auth/logout by default.
-                sb.service(LOGOUT_PATH, authProvider.webLogoutService());
+                sb.service(LOGOUT_PATH, authProvider.webLogoutService(allowedUrisConfig));
             }
 
             // If the index.html is just returned, Next.js will handle the all remaining process such as

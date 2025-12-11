@@ -135,7 +135,7 @@ class ContentServiceV1Test {
     }
 
     @Test
-    void pushFileToMetaRepositoryShouldFail() {
+    void pushFileToDogmaRepositoryShouldFail() {
         final WebClient client = dogma.httpClient();
 
         final String body =
@@ -150,7 +150,7 @@ class ContentServiceV1Test {
                 "   }" +
                 '}';
         final RequestHeaders headers =
-                RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos/meta/contents",
+                RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos/dogma/contents",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);

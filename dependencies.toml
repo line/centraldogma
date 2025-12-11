@@ -3,11 +3,11 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 [versions]
-armeria = "1.33.4"
-assertj = "3.27.4"
+armeria = "1.34.1"
+assertj = "3.27.6"
 awaitility = "4.3.0"
-bouncycastle = "1.81"
-caffeine = "3.2.2"
+bouncycastle = "1.83"
+caffeine = "3.2.3"
 checkstyle = "10.3.3"
 conscrypt = "2.5.2"
 controlplane = "1.0.49"
@@ -19,17 +19,17 @@ curator = "5.9.0"
 cron-utils = "9.2.0"
 diffutils = "1.3.0"
 download = "5.6.0"
-dropwizard-metrics = "4.2.33"
+dropwizard-metrics = "4.2.37"
 eddsa = "0.3.0"
 findbugs = "3.0.2"
 futures-completable = "0.3.6"
-grpc-java = "1.74.0"
-guava = "33.4.8-jre"
+grpc-java = "1.77.0"
+guava = "33.5.0-jre"
 guava-failureaccess = "1.0.1"
-hamcrest-library = "2.2"
+hamcrest-library = "3.0"
 hibernate-validator6 = "6.2.5.Final"
-hibernate-validator8 = "8.0.1.Final"
-jackson = "2.19.2"
+hibernate-validator8 = "8.0.3.Final"
+jackson = "2.20.1"
 javassist = "3.30.2-GA"
 javax-annotation = "1.3.2"
 javax-inject = "1"
@@ -40,34 +40,34 @@ jetty-alpn-agent = "2.0.10"
 # JGit 7.x.x requires Java 17
 jgit6 = "6.10.0.202406032230-r"
 junit4 = "4.13.2"
-junit5 = "5.13.4"
+junit5 = "5.14.1"
 junit-pioneer = "2.3.0"
 jsch = "0.1.55"
 # Don't update `json-path` version
 json-path = "2.2.0"
 # 3.0.0 requires java 17
 json-unit = "2.38.0"
-jsoup = "1.21.1" # JSoup is only used for Gradle script.
+jsoup = "1.21.2" # JSoup is only used for Gradle script.
 jmh-core = "1.37"
 jmh-gradle-plugin = "0.7.3"
 jxr = "0.2.1"
-kubernetes-client = "7.3.1"
+kubernetes-client = "7.4.0"
 logback15 = "1.5.7"
-micrometer = "1.15.2"
-mina-sshd = "2.15.0"
-mockito = "5.18.0"
-nimbus-jose-jwt = "10.5"
+micrometer = "1.16.0"
+mina-sshd = "2.16.0"
+mockito = "5.20.0"
+nimbus-jose-jwt = "10.6"
 nexus-publish-plugin = "2.0.0"
 node-gradle-plugin = "7.1.0"
 osdetector = "1.7.3"
-owasp = "1.3.1"
-proguard = "7.4.2"
-protobuf = "3.25.5"
-protobuf-gradle-plugin = "0.8.19"
-quartz = "2.3.2"
+owasp = "1.4.0"
+proguard = "7.8.1"
+protobuf = "3.25.8"
+protobuf-gradle-plugin = "0.9.5"
+quartz = "2.5.1"
 reflections = "0.9.11"
-rocksdb = "10.2.1"
-shadow-gradle-plugin = "7.1.2"
+rocksdb = "10.4.2"
+shadow-gradle-plugin = "8.3.9"
 # Don't update `shiro` version
 shiro = "1.3.2"
 slf4j2 = "2.0.17"
@@ -76,7 +76,7 @@ slf4j2 = "2.0.17"
 snappy = "1.1.10.5"
 sphinx = "2.10.1"
 spring-boot2 = "2.7.18"
-spring-boot3 = "3.5.4"
+spring-boot3 = "3.5.8"
 spring-test-junit5 = "1.5.0"
 testcontainers = "1.21.3"
 thrift09 = { strictly = "0.9.3-1" }
@@ -84,6 +84,7 @@ thrift09 = { strictly = "0.9.3-1" }
 # See: https://github.com/apache/curator/blob/master/pom.xml
 #      (Switch to the right tag to find out the right version.)
 zookeeper = "3.9.3"
+zstd = "1.5.7-6"
 
 [boms]
 armeria = { module = "com.linecorp.armeria:armeria-bom", version.ref = "armeria" }
@@ -108,6 +109,8 @@ module = "com.linecorp.armeria:armeria-saml"
 module = "com.linecorp.armeria:armeria-thrift0.9"
 [libraries.armeria-xds]
 module = "com.linecorp.armeria:armeria-xds"
+[libraries.armeria-xds-api]
+module = "com.linecorp.armeria:armeria-xds-api"
 
 [libraries.assertj]
 module = "org.assertj:assertj-core"
@@ -395,7 +398,7 @@ module = "org.rocksdb:rocksdbjni"
 version.ref = "rocksdb"
 
 [libraries.shadow-gradle-plugin]
-module = "gradle.plugin.com.github.johnrengelman:shadow"
+module = "com.gradleup.shadow:com.gradleup.shadow.gradle.plugin"
 version.ref = "shadow-gradle-plugin"
 
 [libraries.shiro-core]
@@ -469,6 +472,10 @@ exclusions = [
     "log4j:log4j",
     "org.apache.yetus:audience-annotations",
     "org.slf4j:slf4j-log4j12"]
+
+[libraries.zstd]
+module = "com.github.luben:zstd-jni"
+version.ref = "zstd"
 
 [plugins]
 download = { id = "de.undercouch.download", version.ref = "download" }

@@ -41,13 +41,21 @@ dependencies {
     implementation libs.micrometer.core
     implementation libs.micrometer.prometheus
 
-    implementation libs.rocksdbjni
+    if (OperatingSystem.current().isWindows()) {
+        implementation(variantOf(libs.rocksdbjni) { classifier('win64') })
+    } else if (OperatingSystem.current().isMacOsX()) {
+        implementation(variantOf(libs.rocksdbjni) { classifier('osx') })
+    } else {
+        implementation(variantOf(libs.rocksdbjni) { classifier('linux64') })
+    }
 
     // Quartz
     implementation libs.quartz
 
     // Snappy
     implementation libs.snappy
+
+    implementation libs.zstd
 
     // Logging
     optionalImplementation libs.logback15

@@ -28,10 +28,6 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
-import com.nimbusds.jose.JWEEncrypter;
-import com.nimbusds.jose.JWSSigner;
-import com.nimbusds.jose.crypto.DirectEncrypter;
-import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jwt.SignedJWT;
 import com.spotify.futures.CompletableFutures;
 
@@ -46,12 +42,9 @@ public final class AuthSessionService {
     private final BooleanSupplier sessionPropagatorWritableChecker;
     private final Duration sessionValidDuration;
 
+    private final boolean encryptSessionCookie;
     @Nullable
-    private final SessionKey sessionKey;
-    @Nullable
-    private final JWSSigner signer;
-    @Nullable
-    private final JWEEncrypter encrypter;
+    private volatile SessionKey sessionKey;
 
     public AuthSessionService(
             Function<Session, CompletableFuture<Void>> loginSessionPropagator,
@@ -64,18 +57,14 @@ public final class AuthSessionService {
         this.sessionValidDuration = requireNonNull(sessionValidDuration, "sessionValidDuration");
         requireNonNull(encryptionStorageManager, "encryptionStorageManager");
 
-        if (encryptionStorageManager.encryptSessionCookie()) {
+        encryptSessionCookie = encryptionStorageManager.encryptSessionCookie();
+        if (encryptSessionCookie) {
             sessionKey = encryptionStorageManager.getCurrentSessionKey().join();
-            try {
-                signer = new MACSigner(sessionKey.signingKey());
-                encrypter = new DirectEncrypter(sessionKey.encryptionKey());
-            } catch (Throwable t) {
-                throw new IllegalStateException("Failed to initialize AuthSessionService", t);
-            }
+            encryptionStorageManager.addSessionKeyListener(sessionKey -> {
+                this.sessionKey = sessionKey;
+            });
         } else {
             sessionKey = null;
-            signer = null;
-            encrypter = null;
         }
     }
 
@@ -86,23 +75,23 @@ public final class AuthSessionService {
                                                  Supplier<String> csrfTokenGenerator) {
         if (!sessionPropagatorWritableChecker.getAsBoolean()) {
             // Read-only mode
-            if (sessionKey == null) {
+            if (!encryptSessionCookie) {
                 return CompletableFutures.exceptionallyCompletedFuture(
                         new ReadOnlyException("Cannot login in read-only mode without session encryption"));
             }
-
-            assert signer != null;
-            assert encrypter != null;
+            final SessionKey sessionKey = this.sessionKey;
+            assert sessionKey != null;
             final String sessionKeyVersion = Integer.toString(sessionKey.version());
             final SignedJWT signedJwt =
-                    SessionUtil.createSignedJwtInReadOnly(username, sessionKeyVersion, signer);
+                    SessionUtil.createSignedJwtInReadOnly(username, sessionKeyVersion, sessionKey.signer());
             // Generate a CSRF token by hashing the signature of the JWT to relate it to the session.
             // Even though the server is in read-only mode, we use the CSRF token for using
             // - logout API
             // - server status API (that isn't working at the moment but probably will work in the future)
             // - other APIs that require CSRF token in the future.
             final String csrfToken = csrfTokenFromSignedJwt(signedJwt);
-            final String sessionCookieValue = createJwe(signedJwt.serialize(), sessionKeyVersion, encrypter);
+            final String sessionCookieValue = createJwe(signedJwt.serialize(), sessionKeyVersion,
+                                                        sessionKey.encrypter());
             return CompletableFuture.completedFuture(new LoginResult(sessionCookieValue, csrfToken));
         }
 
@@ -113,12 +102,12 @@ public final class AuthSessionService {
 
         return loginSessionPropagator.apply(newSession).thenApply(unused -> {
             final String sessionCookieValue;
-            if (sessionKey != null) {
-                assert signer != null;
-                assert encrypter != null;
+            if (encryptSessionCookie) {
+                final SessionKey sessionKey = this.sessionKey;
+                assert sessionKey != null;
                 sessionCookieValue = createSessionJwe(newSession,
                                                       Integer.toString(sessionKey.version()),
-                                                      signer, encrypter);
+                                                      sessionKey.signer(), sessionKey.encrypter());
             } else {
                 sessionCookieValue = sessionId;
             }

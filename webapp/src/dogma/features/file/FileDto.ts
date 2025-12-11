@@ -7,4 +7,5 @@ export interface FileDto {
   url: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   content?: string | any;
+  rawContent?: string;
 }

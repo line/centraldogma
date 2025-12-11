@@ -82,6 +82,7 @@ import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
+import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.DiffResultType;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -107,9 +108,11 @@ class GitRepositoryTest {
         fileRepo = createFileRepository(project, new File(repoDir, "test_repo"), Author.SYSTEM,
                                         0L, commonPool(), null);
         encryptionStorageManager = EncryptionStorageManager.of(
-                new File(repoDir, "rocksdb").toPath(), false);
-        encryptionStorageManager.storeWdek(project.name(), "test_repo2",
-                                           encryptionStorageManager.generateWdek().join());
+                new File(repoDir, "rocksdb").toPath(), false, "kekId");
+        final WrappedDekDetails wrappedDekDetails =
+                new WrappedDekDetails(encryptionStorageManager.generateWdek().join(), 1,
+                                      encryptionStorageManager.kekId(), project.name(), "test_repo2");
+        encryptionStorageManager.storeWdek(wrappedDekDetails);
         encryptedRepo = createEncryptionRepository(project, new File(repoDir, "test_repo2"),
                                                    Author.SYSTEM, 0L, commonPool(), null,
                                                    encryptionStorageManager);
@@ -532,9 +535,8 @@ class GitRepositoryTest {
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RedundantChangeException.class);
 
-        // Ensure a change only whose serialized form is different does not count.
         final Change<JsonNode> change1a = Change.ofJsonUpsert("/redundant_upsert_2.json",
-                                                              "{ \"bar\": 1, \"foo\": 0 }");
+                                                              "{ \"foo\": 0, \"bar\": 1 }");
         assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change1a).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RedundantChangeException.class);

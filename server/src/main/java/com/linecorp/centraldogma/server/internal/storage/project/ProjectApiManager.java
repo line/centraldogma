@@ -38,6 +38,7 @@ import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.metadata.UserWithToken;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
+import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -117,8 +118,13 @@ public final class ProjectApiManager {
             return commandExecutor.execute(Command.createProject(author, projectName));
         }
         return encryptionStorageManager.generateWdek()
-                                       .thenCompose(wdek -> commandExecutor.execute(
-                                               Command.createProject(author, projectName, wdek)))
+                                       .thenCompose(wdek -> {
+                                           final WrappedDekDetails wdekDetails = new WrappedDekDetails(
+                                                   wdek, 1, encryptionStorageManager.kekId(),
+                                                   projectName, Project.REPO_DOGMA);
+                                           return commandExecutor.execute(
+                                                   Command.createProject(author, projectName, wdekDetails));
+                                       })
                                        .exceptionally(cause -> {
                                            throw new EncryptionStorageException(
                                                    "Failed to create encrypted project " + projectName, cause);

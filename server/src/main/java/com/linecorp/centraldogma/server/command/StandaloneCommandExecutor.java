@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
@@ -27,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.common.ReadOnlyException;
 import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.server.auth.Session;
@@ -36,10 +36,10 @@ import com.linecorp.centraldogma.server.management.ServerStatusManager;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
+import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
-import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
@@ -114,14 +114,15 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     @Override
-    protected <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception {
-        throwExceptionIfRepositoryNotWritable(command);
-        return doExecute0(command);
+    protected <T> CompletableFuture<T> doExecute(ExecutionContext ctx, Command<T> command) throws Exception {
+        throwExceptionIfRepositoryNotWritable(ctx, command);
+        return doExecute0(ctx, command);
     }
 
-    private void throwExceptionIfRepositoryNotWritable(Command<?> command) throws Exception {
-        if (command instanceof NormalizableCommit) {
-            assert command instanceof RepositoryCommand;
+    private void throwExceptionIfRepositoryNotWritable(ExecutionContext ctx, Command<?> command)
+            throws Exception {
+        if (!ctx.isReplay() &&
+            (command instanceof NormalizableCommit || command instanceof PushAsIsCommand)) {
             final RepositoryCommand<?> repositoryCommand = (RepositoryCommand<?>) command;
             if (InternalProjectInitializer.INTERNAL_PROJECT_DOGMA.equals(repositoryCommand.projectName())) {
                 return;
@@ -147,13 +148,9 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> CompletableFuture<T> doExecute0(Command<T> command) throws Exception {
+    private <T> CompletableFuture<T> doExecute0(ExecutionContext ctx, Command<T> command) throws Exception {
         if (command instanceof CreateProjectCommand) {
             return (CompletableFuture<T>) createProject((CreateProjectCommand) command);
-        }
-
-        if (command instanceof ResetMetaRepositoryCommand) {
-            return (CompletableFuture<T>) resetMetaRepository((ResetMetaRepositoryCommand) command);
         }
 
         if (command instanceof RemoveProjectCommand) {
@@ -206,6 +203,18 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return (CompletableFuture<T>) push((TransformCommand) command, true);
         }
 
+        if (command instanceof RewrapAllKeysCommand) {
+            return (CompletableFuture<T>) rewrapAllKeys();
+        }
+
+        if (command instanceof RotateWdekCommand) {
+            return (CompletableFuture<T>) rotateWdek((RotateWdekCommand) command);
+        }
+
+        if (command instanceof RotateSessionMasterKeyCommand) {
+            return (CompletableFuture<T>) rotateSessionMasterKey((RotateSessionMasterKeyCommand) command);
+        }
+
         if (command instanceof CreateSessionCommand) {
             return (CompletableFuture<T>) createSession((CreateSessionCommand) command);
         }
@@ -225,7 +234,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         if (command instanceof ForcePushCommand) {
             // TODO(minwoox): Should we prevent executing when the replication status is READ_ONLY?
             //noinspection TailRecursion
-            return doExecute0(((ForcePushCommand<T>) command).delegate());
+            return doExecute0(ctx, ((ForcePushCommand<T>) command).delegate());
         }
 
         throw new UnsupportedOperationException(command.toString());
@@ -235,10 +244,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> createProject(CreateProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            final byte[] wdek = c.wdek();
-            final boolean encrypt = wdek != null;
+            final WrappedDekDetails wdekDetails = c.wdekDetails();
+            final boolean encrypt = wdekDetails != null;
             if (encrypt) {
-                encryptionStorageManager.storeWdek(c.projectName(), Project.REPO_DOGMA, wdek);
+                encryptionStorageManager.storeWdek(wdekDetails);
             }
 
             try {
@@ -246,7 +255,8 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             } catch (Throwable t) {
                 if (encrypt) {
                     try {
-                        encryptionStorageManager.removeWdek(c.projectName(), Project.REPO_DOGMA);
+                        encryptionStorageManager.removeWdek(c.projectName(), Project.REPO_DOGMA,
+                                                            c.wdekDetails().dekVersion(), true);
                     } catch (Throwable t2) {
                         logger.warn("Failed to remove the WDEK of {}/{}",
                                     c.projectName(), Project.REPO_DOGMA, t2);
@@ -280,29 +290,14 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         }, repositoryWorker);
     }
 
-    private CompletableFuture<Void> resetMetaRepository(ResetMetaRepositoryCommand command) {
-        return CompletableFuture.supplyAsync(() -> {
-            final Project project = projectManager.get(command.projectName());
-            if (project == null) {
-                throw new IllegalStateException("Project not found: " + command.projectName());
-            }
-            final MetaRepository metaRepository = project.resetMetaRepository();
-            if (!Project.REPO_DOGMA.equals(metaRepository.name())) {
-                logger.warn("Meta repository name is not changed in {}. meta repo: {}",
-                            project.name(), metaRepository.name());
-            }
-            return null;
-        }, repositoryWorker);
-    }
-
     // Repository operations
 
     private CompletableFuture<Void> createRepository(CreateRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            final byte[] wdek = c.wdek();
-            final boolean encrypt = wdek != null;
+            final WrappedDekDetails wdekDetails = c.wdekDetails();
+            final boolean encrypt = wdekDetails != null;
             if (encrypt) {
-                encryptionStorageManager.storeWdek(c.projectName(), c.repositoryName(), wdek);
+                encryptionStorageManager.storeWdek(wdekDetails);
             }
 
             try {
@@ -311,7 +306,8 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             } catch (Throwable t) {
                 if (encrypt) {
                     try {
-                        encryptionStorageManager.removeWdek(c.projectName(), c.repositoryName());
+                        encryptionStorageManager.removeWdek(c.projectName(), c.repositoryName(),
+                                                            c.wdekDetails().dekVersion(), true);
                     } catch (Throwable t2) {
                         logger.warn("Failed to remove the WDEK of {}/{}",
                                     c.projectName(), c.repositoryName(), t2);
@@ -353,12 +349,13 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                     "The repository is already encrypted: " + c.projectName() + '/' + c.repositoryName());
         }
         return CompletableFuture.supplyAsync(() -> {
-            encryptionStorageManager.storeWdek(c.projectName(), c.repositoryName(), c.wdek());
+            encryptionStorageManager.storeWdek(c.wdekDetails());
             try {
                 repositoryManager.migrateToEncryptedRepository(c.repositoryName());
             } catch (Throwable t) {
                 try {
-                    encryptionStorageManager.removeWdek(c.projectName(), c.repositoryName());
+                    encryptionStorageManager.removeWdek(c.projectName(), c.repositoryName(),
+                                                        c.wdekDetails().dekVersion(), true);
                 } catch (Throwable t2) {
                     logger.warn("Failed to remove the WDEK of {}/{}",
                                 c.projectName(), c.repositoryName(), t2);
@@ -386,6 +383,81 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private Repository repo(RepositoryCommand<?> c) {
         return projectManager.get(c.projectName()).repos().get(c.repositoryName());
+    }
+
+    private CompletableFuture<Void> rewrapAllKeys() {
+        if (!encryptionStorageManager.enabled()) {
+            throw new IllegalStateException("Encryption is not enabled.");
+        }
+
+        logger.info("Rewrapping all keys with kek: {}", encryptionStorageManager.kekId());
+        return CompletableFuture.supplyAsync(() -> encryptionStorageManager.rewrapAllKeys(repositoryWorker),
+                                             repositoryWorker)
+                                .thenCompose(Function.identity())
+                                .handle((unused, cause) -> {
+                                    if (cause != null) {
+                                        logger.warn("Failed to rewrap all keys with kek: {}",
+                                                    encryptionStorageManager.kekId(),
+                                                    cause);
+                                        Exceptions.throwUnsafely(cause);
+                                    } else {
+                                        logger.info("All keys rewrapped.");
+                                    }
+                                    return null;
+                                });
+    }
+
+    private CompletableFuture<Void> rotateWdek(RotateWdekCommand c) {
+        if (!encryptionStorageManager.enabled()) {
+            throw new IllegalStateException("Encryption is not enabled. command: " + c);
+        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            logger.info("Rotating WDEK for {}/{} to version {}",
+                        c.projectName(), c.repositoryName(), c.wdekDetails().dekVersion());
+            try {
+                encryptionStorageManager.rotateWdek(c.wdekDetails());
+                logger.info("WDEK rotated for {}/{}.", c.projectName(), c.repositoryName());
+            } catch (Throwable t) {
+                logger.warn("Failed to rotate WDEK for {}/{} to version {}",
+                            c.projectName(), c.repositoryName(), c.wdekDetails().dekVersion(), t);
+                Exceptions.throwUnsafely(t);
+            }
+            if (c.reencrypt()) {
+                try {
+                    logger.info("Re-encrypting all data in {}/{} with the new WDEK.",
+                                c.projectName(), c.repositoryName());
+                    encryptionStorageManager.reencryptRepositoryData(c.projectName(), c.repositoryName());
+                    logger.info("All data re-encrypted in {}/{}.", c.projectName(), c.repositoryName());
+                } catch (Throwable t) {
+                    logger.warn("Failed to re-encrypt all data in {}/{} with the new WDEK.",
+                                c.projectName(), c.repositoryName(), t);
+                    Exceptions.throwUnsafely(t);
+                }
+            }
+
+            return null;
+        }, repositoryWorker);
+    }
+
+    private CompletableFuture<Void> rotateSessionMasterKey(RotateSessionMasterKeyCommand c) {
+        if (!encryptionStorageManager.encryptSessionCookie()) {
+            throw new IllegalStateException("Session cookie encryption is not enabled. command: " + c);
+        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            final int version = c.sessionMasterKey().version();
+            logger.info("Rotating session master key to version {}", version);
+            try {
+                encryptionStorageManager.rotateSessionMasterKey(c.sessionMasterKey());
+                logger.info("Session master key rotated.");
+            } catch (Throwable t) {
+                logger.warn("Failed to rotate session master key to version {}",
+                            version, t);
+                Exceptions.throwUnsafely(t);
+            }
+            return null;
+        }, repositoryWorker);
     }
 
     private CompletableFuture<Void> createSession(CreateSessionCommand c) {
@@ -418,8 +490,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             throw new IllegalStateException("Encryption is not enabled. command: " + c);
         }
 
-        encryptionStorageManager.storeSessionMasterKey(c.sessionMasterKey());
-        return UnmodifiableFuture.completedFuture(null);
+        return CompletableFuture.supplyAsync(() -> {
+            encryptionStorageManager.storeSessionMasterKey(c.sessionMasterKey());
+            return null;
+        }, repositoryWorker);
     }
 
     private CompletableFuture<Void> updateServerStatus(UpdateServerStatusCommand c) {

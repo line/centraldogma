@@ -80,17 +80,27 @@ abstract class AbstractChangesApplier {
     static final class InsertJson extends PathEdit {
         private final ObjectInserter inserter;
         private final JsonNode jsonNode;
+        @Nullable
+        private final String jsonText;
 
-        InsertJson(String entryPath, ObjectInserter inserter, JsonNode jsonNode) {
+        InsertJson(String entryPath, ObjectInserter inserter, JsonNode jsonNode, @Nullable String jsonText) {
             super(entryPath);
             this.inserter = inserter;
             this.jsonNode = jsonNode;
+            this.jsonText = jsonText;
         }
 
         @Override
         public void apply(DirCacheEntry ent) {
             try {
-                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, Jackson.writeValueAsBytes(jsonNode)));
+                final byte[] jsonBytes;
+                if (jsonText != null) {
+                    // Use the raw JSON text if available to preserve formatting and comments.
+                    jsonBytes = jsonText.getBytes(UTF_8);
+                } else {
+                    jsonBytes = Jackson.writeValueAsBytes(jsonNode);
+                }
+                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, jsonBytes));
                 ent.setFileMode(FileMode.REGULAR_FILE);
             } catch (IOException e) {
                 throw new StorageException("failed to create a new JSON blob", e);

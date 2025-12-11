@@ -49,6 +49,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.primitives.Ints;
 
+import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.AesGcmSivCipher;
@@ -56,7 +57,7 @@ import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageExce
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.encryption.SecretKeyWithVersion;
 
-public final class EncryptionGitStorage {
+public final class EncryptionGitStorage implements SafeCloseable {
 
     public static final String OBJS = "objs/";
     public static final String REFS = R_REFS; // refs/
@@ -68,8 +69,9 @@ public final class EncryptionGitStorage {
     private final byte[] refsKeyPrefix;
     private final byte[] rev2ShaPrefix;
     private final EncryptionStorageManager encryptionStorageManager;
-    private final SecretKeyWithVersion currentDek;
-    private final ConcurrentHashMap<Integer, SecretKey> deks = new ConcurrentHashMap<>();
+
+    private volatile SecretKeyWithVersion currentDek;
+    private final ConcurrentHashMap<Integer, SecretKey> dekWithVersion = new ConcurrentHashMap<>();
 
     public EncryptionGitStorage(String projectName, String repoName,
                                 EncryptionStorageManager encryptionStorageManager) {
@@ -82,7 +84,8 @@ public final class EncryptionGitStorage {
         rev2ShaPrefix = (projectRepoPrefix + REV2SHA).getBytes(StandardCharsets.UTF_8);
         this.encryptionStorageManager = encryptionStorageManager;
         currentDek = encryptionStorageManager.getCurrentDek(projectName, repoName);
-        deks.put(currentDek.version(), currentDek.secretKey());
+
+        encryptionStorageManager.addCurrentDekListener(projectName, repoName, newDek -> currentDek = newDek);
     }
 
     String projectName() {
@@ -93,9 +96,12 @@ public final class EncryptionGitStorage {
         return repoName;
     }
 
-    private SecretKey dek(int version) {
-        return deks.computeIfAbsent(version, key -> encryptionStorageManager.getDek(
-                projectName, repoName, version));
+    /**
+     * Gets a specific version of DEK from cache or storage.
+     */
+    private SecretKey getDek(int version) {
+        return dekWithVersion.computeIfAbsent(version, v ->
+            encryptionStorageManager.getDek(projectName, repoName, v));
     }
 
     ObjectId insertObject(ObjectId objectId, int type, byte[] data, int off, int len) throws IOException {
@@ -175,7 +181,7 @@ public final class EncryptionGitStorage {
         }
 
         final int keyVersion = getInt(metadata, 0);
-        final SecretKey dek = dek(keyVersion);
+        final SecretKey dek = getDek(keyVersion);
 
         final GitObjectMetadata gitObjectMetadata = GitObjectMetadata.fromBytes(metadata);
         final SecretKeySpec objectDek;
@@ -209,7 +215,7 @@ public final class EncryptionGitStorage {
         final byte[] nonce = new byte[NONCE_SIZE_BYTES];
         System.arraycopy(metadata, 4, nonce, 0, NONCE_SIZE_BYTES);
         final int keyVersion = getInt(metadata, 0);
-        final SecretKey dek = dek(keyVersion);
+        final SecretKey dek = getDek(keyVersion);
 
         final byte[] encryptedRefName = encrypt(dek, nonce, refNameBytes, 0, refNameBytes.length);
         final byte[] encryptedRefValue = encryptionStorageManager.getObjectId(encryptedRefName, metadataKey);
@@ -264,7 +270,7 @@ public final class EncryptionGitStorage {
         } else {
             final byte[] previousNonce = new byte[NONCE_SIZE_BYTES];
             System.arraycopy(previousMetadata, 4, previousNonce, 0, NONCE_SIZE_BYTES);
-            final SecretKey previousDek = dek(getInt(previousMetadata, 0));
+            final SecretKey previousDek = getDek(getInt(previousMetadata, 0));
             previousEncryptedRefName =
                     encrypt(previousDek, previousNonce, refNameBytes, 0, refNameBytes.length);
         }
@@ -292,7 +298,7 @@ public final class EncryptionGitStorage {
         final byte[] nonce = new byte[NONCE_SIZE_BYTES];
         System.arraycopy(metadata, 4, nonce, 0, NONCE_SIZE_BYTES);
         final int keyVersion = getInt(metadata, 0);
-        final SecretKey dek = dek(keyVersion);
+        final SecretKey dek = getDek(keyVersion);
 
         final byte[] encryptedRefName = encrypt(dek, nonce, refNameBytes, 0, refNameBytes.length);
         encryptionStorageManager.deleteObjectId(metadataKey, encryptedRefName);
@@ -322,7 +328,7 @@ public final class EncryptionGitStorage {
             throw new RevisionNotFoundException(revision);
         }
         final int keyVersion = getInt(metadata, 0);
-        final SecretKey dek = dek(keyVersion);
+        final SecretKey dek = getDek(keyVersion);
 
         final byte[] nonce = new byte[NONCE_SIZE_BYTES];
         System.arraycopy(metadata, 4, nonce, 0, NONCE_SIZE_BYTES);
@@ -365,6 +371,11 @@ public final class EncryptionGitStorage {
                 encrypt(currentDek.secretKey(), nonce, Ints.toByteArray(revision.major()), 0, 4);
         final byte[] encryptedId = encryptObjectId(currentDek.secretKey(), nonce, objectId);
         encryptionStorageManager.putObjectId(metadataKey, metadata, encryptedRevision, encryptedId, null);
+    }
+
+    @Override
+    public void close() {
+        encryptionStorageManager.removeCurrentDekListener(projectName, repoName);
     }
 
     private static final class DecryptedObjectLoader extends ObjectLoader {

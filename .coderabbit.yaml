@@ -1,0 +1,7 @@
+reviews:
+  profile: "chill"
+  high_level_summary: false
+  auto_review:
+    enabled: true
+    drafts: false
+    ignore_title_keywords: ["WIP"]

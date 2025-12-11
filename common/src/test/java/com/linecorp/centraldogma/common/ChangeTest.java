@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.common;
 
+import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -24,10 +25,11 @@ import java.util.List;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
-import com.linecorp.centraldogma.testing.internal.TestUtil;
 
 import difflib.DiffUtils;
 import difflib.Patch;
@@ -61,8 +63,15 @@ class ChangeTest {
     }
 
     @Test
-    void testJsonConversion() {
-        TestUtil.assertJsonConversion(Change.ofJsonUpsert("/1.json", "{ \"a\": 42 }"), Change.class,
+    void testJsonConversion() throws JsonParseException {
+        assertJsonConversion(Change.ofJsonUpsert("/1.json", "{ \"a\": 42 }"), Change.class,
+                             '{' +
+                             "  \"type\": \"UPSERT_JSON\"," +
+                             "  \"path\": \"/1.json\"," +
+                             "  \"rawContent\": \"{ \\\"a\\\": 42 }\"" +
+                             '}');
+
+        assertJsonConversion(Change.ofJsonUpsert("/1.json", Jackson.readTree("{ \"a\": 42 }")), Change.class,
                              '{' +
                              "  \"type\": \"UPSERT_JSON\"," +
                              "  \"path\": \"/1.json\"," +
@@ -71,15 +80,15 @@ class ChangeTest {
                              "  }" +
                              '}');
 
-        TestUtil.assertJsonConversion(Change.ofTextUpsert("/2", "foo"), Change.class,
+        assertJsonConversion(Change.ofTextUpsert("/2", "foo"), Change.class,
                              '{' +
                              "  \"type\": \"UPSERT_TEXT\"," +
                              "  \"path\": \"/2\"," +
                              "  \"content\": \"foo\"" +
                              '}');
 
-        TestUtil.assertJsonConversion(Change.ofJsonPatch("/3.json", "{ \"foo\": \"bar\" }",
-                                                         "{ \"foo\": \"baz\" }"), Change.class,
+        assertJsonConversion(Change.ofJsonPatch("/3.json", "{ \"foo\": \"bar\" }",
+                                                "{ \"foo\": \"baz\" }"), Change.class,
                              '{' +
                              "  \"type\": \"APPLY_JSON_PATCH\"," +
                              "  \"path\": \"/3.json\"," +
@@ -91,25 +100,24 @@ class ChangeTest {
                              "  }]" +
                              '}');
 
-        TestUtil.assertJsonConversion(Change.ofTextPatch("/4", "foo", "bar"), Change.class,
+        assertJsonConversion(Change.ofTextPatch("/4", "foo", "bar"), Change.class,
                              '{' +
                              "  \"type\": \"APPLY_TEXT_PATCH\"," +
                              "  \"path\": \"/4\"," +
                              "  \"content\": \"--- /4\\n" +
-                                              "+++ /4\\n" +
-                                              "@@ -1,1 +1,1 @@\\n" +
-                                              "-foo\\n" +
-                                              "+bar\"" +
+                             "+++ /4\\n" +
+                             "@@ -1,1 +1,1 @@\\n" +
+                             "-foo\\n" +
+                             "+bar\"" +
                              '}');
 
-        TestUtil.assertJsonConversion(Change.ofRemoval("/5"), Change.class,
+        assertJsonConversion(Change.ofRemoval("/5"), Change.class,
                              '{' +
                              "  \"type\": \"REMOVE\"," +
-                             "  \"path\": \"/5\"," +
-                             "  \"content\": null" +
+                             "  \"path\": \"/5\"" +
                              '}');
 
-        TestUtil.assertJsonConversion(Change.ofRename("/6", "/7"), Change.class,
+        assertJsonConversion(Change.ofRename("/6", "/7"), Change.class,
                              '{' +
                              "  \"type\": \"RENAME\"," +
                              "  \"path\": \"/6\"," +

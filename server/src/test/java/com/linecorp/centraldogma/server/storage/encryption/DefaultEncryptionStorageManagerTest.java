@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Base64;
 
 import javax.crypto.SecretKey;
 
@@ -48,7 +49,7 @@ class DefaultEncryptionStorageManagerTest {
         // Ensure ServiceLoader can find our test KMS
         // This relies on the META-INF/services file being in the test classpath
         final String rocksDbPath = tempDir.resolve(DefaultEncryptionStorageManager.ROCKSDB_PATH).toString();
-        storageManager = new DefaultEncryptionStorageManager(rocksDbPath, false);
+        storageManager = new DefaultEncryptionStorageManager(rocksDbPath, false, "kekId");
     }
 
     @AfterEach
@@ -66,22 +67,28 @@ class DefaultEncryptionStorageManagerTest {
 
     @Test
     void generateWdek() throws Exception {
-        final byte[] wdek = storageManager.generateWdek().join();
-        assertThat(wdek).isNotNull();
-        assertThat(wdek).startsWith("wrapped-".getBytes());
+        final WrappedDekDetails wdekDetails =
+                new WrappedDekDetails(storageManager.generateWdek().join(), 1,
+                                      storageManager.kekId(), PROJECT_NAME, REPO_NAME);
+        assertThat(wdekDetails).isNotNull();
+        final String wrappedDek = wdekDetails.wrappedDek();
+        final byte[] decoded = Base64.getDecoder().decode(wrappedDek);
+        assertThat(decoded).startsWith("kekId-wrapped-".getBytes());
         // Check DEK length (AES-256 = 32 bytes)
-        assertThat(wdek.length).isEqualTo("wrapped-".length() + 32);
+        assertThat(decoded.length).isEqualTo("kekId-wrapped-".length() + 32);
     }
 
     @Test
     void storeAndGetDek() throws Exception {
-        final byte[] wdek = storageManager.generateWdek().join();
+        final WrappedDekDetails wdekDetails =
+                new WrappedDekDetails(storageManager.generateWdek().join(), 1,
+                                      storageManager.kekId(), PROJECT_NAME, REPO_NAME);
 
         assertThatThrownBy(() -> storageManager.getCurrentDek(PROJECT_NAME, REPO_NAME))
                 .isInstanceOf(EncryptionStorageException.class)
                 .hasMessageContaining("WDEK of " + PROJECT_NAME + '/' + REPO_NAME + " does not exist");
 
-        storageManager.storeWdek(PROJECT_NAME, REPO_NAME, wdek);
+        storageManager.storeWdek(wdekDetails);
         final SecretKey dek = storageManager.getDek(PROJECT_NAME, REPO_NAME, 1);
 
         // 4. Verify
@@ -90,13 +97,13 @@ class DefaultEncryptionStorageManagerTest {
         assertThat(dek.getEncoded()).hasSize(32); // AES-256 key size
 
         // Try storing again
-        assertThatThrownBy(() -> storageManager.storeWdek(PROJECT_NAME, REPO_NAME, wdek))
+        assertThatThrownBy(() -> storageManager.storeWdek(wdekDetails))
                 .isInstanceOf(EncryptionStorageException.class)
                 .hasMessageContaining("WDEK of " + PROJECT_NAME + '/' + REPO_NAME + "/1 already exists");
 
         assertThat(storageManager.getDek(PROJECT_NAME, REPO_NAME, 1)).isNotNull();
 
-        storageManager.removeWdek(PROJECT_NAME, REPO_NAME);
+        storageManager.removeWdek(PROJECT_NAME, REPO_NAME, 1, true);
 
         // Verify it's gone
         assertThatThrownBy(() -> storageManager.getDek(PROJECT_NAME, REPO_NAME, 1))
@@ -105,7 +112,7 @@ class DefaultEncryptionStorageManagerTest {
 
     @Test
     void removeWdek_whenNotExists_shouldNotFail() {
-        storageManager.removeWdek(PROJECT_NAME, "nonExistentRepo");
+        storageManager.removeWdek(PROJECT_NAME, "nonExistentRepo", 1, true);
     }
 
     @Test

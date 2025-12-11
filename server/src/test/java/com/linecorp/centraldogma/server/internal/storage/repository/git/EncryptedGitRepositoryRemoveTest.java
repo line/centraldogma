@@ -45,6 +45,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.
 import com.linecorp.centraldogma.server.internal.storage.repository.git.rocksdb.RocksDbRepository;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
+import com.linecorp.centraldogma.server.storage.encryption.WrappedDekDetails;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -63,14 +64,17 @@ final class EncryptedGitRepositoryRemoveTest {
         final File projectDir = new File(rootDir, PROJECT_NAME);
 
         final EncryptionStorageManager encryptionStorageManager =
-                EncryptionStorageManager.of(new File(rootDir, "rocksdb").toPath(), false);
+                EncryptionStorageManager.of(new File(rootDir, "rocksdb").toPath(), false, "kekId");
         final GitRepositoryManager gitRepositoryManager =
                 new GitRepositoryManager(project, projectDir, commonPool(),
                                          MoreExecutors.directExecutor(), null, encryptionStorageManager);
 
         // Generate a WDEK and store it in the storage manager before creating the corresponding repository.
-        encryptionStorageManager.storeWdek(PROJECT_NAME, REPO_NAME,
-                                           encryptionStorageManager.generateWdek().join());
+        final String wdek = encryptionStorageManager.generateWdek().join();
+        final WrappedDekDetails wrappedDekDetails =
+                new WrappedDekDetails(wdek, 1, encryptionStorageManager.kekId(),
+                                      PROJECT_NAME, REPO_NAME);
+        encryptionStorageManager.storeWdek(wrappedDekDetails);
         final Repository repo =
                 gitRepositoryManager.create(REPO_NAME, 0, Author.SYSTEM, true);
         final org.eclipse.jgit.lib.Repository repository = repo.jGitRepository();
@@ -118,12 +122,27 @@ final class EncryptedGitRepositoryRemoveTest {
         assertEntrySize(encryptionStorageManager, wdekSize,
                         encryptionMetadataSize, encryptedObjectIdSize, encryptedObjectSize);
 
+        // Rotate the WDEK for the first repository.
+        final String rotatedWdek = encryptionStorageManager.generateWdek().join();
+        final WrappedDekDetails rotatedWdekDetails =
+                new WrappedDekDetails(rotatedWdek, 2, encryptionStorageManager.kekId(),
+                                      PROJECT_NAME, REPO_NAME);
+        encryptionStorageManager.rotateWdek(rotatedWdekDetails);
+
+        wdekSize = 3; // version 1, version 2, and current
+        // encryptionMetadataSize, encryptedObjectIdSize, encryptedObjectSize remain the same
+        assertEntrySize(encryptionStorageManager, wdekSize,
+                        encryptionMetadataSize, encryptedObjectIdSize, encryptedObjectSize);
+
+        final String wdek2 = encryptionStorageManager.generateWdek().join();
+        final WrappedDekDetails wrappedDekDetails2 =
+                new WrappedDekDetails(wdek2, 1, encryptionStorageManager.kekId(),
+                                      PROJECT_NAME, "bar2");
         // Create another repository.
-        encryptionStorageManager.storeWdek(PROJECT_NAME, "bar2",
-                                           encryptionStorageManager.generateWdek().join());
+        encryptionStorageManager.storeWdek(wrappedDekDetails2);
         gitRepositoryManager.create("bar2", 0, Author.SYSTEM, true);
 
-        wdekSize = 2 + 2;
+        wdekSize = 3 + 2; // first repo has 3 keys (v1, v2, current), second repo has 2 keys (v1, current)
         encryptionMetadataSize = 5 + 9;
         encryptedObjectIdSize = 3 + 4;
         encryptedObjectSize = 2 + 5;

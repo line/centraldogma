@@ -173,8 +173,8 @@ You can get a merged file from a repository:
     assert mergedEntry.content() instanceof JsonNode;
     System.err.println(mergedEntry.content());
 
-The ``mergeFiles()`` call above will retrieve the :api:`MergedEntry` which contains a JSON document which
-is the result of merging the files specified in the :api:`MergeQuery` sequentially.
+The ``mergeFiles()`` call above will retrieve the :api:`com.linecorp.centraldogma.common.MergedEntry` which contains a JSON document which
+is the result of merging the files specified in the :api:`com.linecorp.centraldogma.common.MergeQuery` sequentially.
 We specified ``Revision.HEAD``, so the latest revision of ``/a.json``, ``/b.json`` and ``/c.json``
 will be merged. If you want to fetch at the specific revision, you can specify the revision as we
 did in :ref:`getting-a-file`.
@@ -231,7 +231,8 @@ Then, the content of the merged entry will be:
 .. note::
 
     Corresponding types of values should be same or one of the types must be ``null`` to replace.
-    If their types do not match or neither value is ``null``, you will get a :api:`QueryExecutionException`.
+    If their types do not match or neither value is ``null``, you will get
+    a :api:`com.linecorp.centraldogma.common.QueryExecutionException`.
 
 You can mark some files involved in the merge process as optional.
 
@@ -247,13 +248,13 @@ You can mark some files involved in the merge process as optional.
 
 Note that we used ``MergeSource.ofOptional("/b.json")``, which tells to include the ``/b.json`` file only if it
 exists in the repository. If it does not exist, ``/a.json`` and ``/c.json`` will be merged sequentially.
-The files specified as required must exist in the repository. You will get an :api:`EntryNotFoundException`
-otherwise.
-You will get the :api:`EntryNotFoundException` as well when you specify all of the files as optional
-and none of them exists.
+The files specified as required must exist in the repository.
+You will get an :api:`com.linecorp.centraldogma.common.EntryNotFoundException` otherwise.
+You will get the :api:`com.linecorp.centraldogma.common.EntryNotFoundException` as well when you specify all of the
+files as optional and none of them exists.
 
 As we used ``Query.ofJsonPath()`` in :ref:`getting-a-file`, you can use ``MergeQuery.ofJsonPath()`` to
-retrieve the result of JSON path evaluation of the :api:`MergedEntry`.
+retrieve the result of JSON path evaluation of the :api:`com.linecorp.centraldogma.common.MergedEntry`.
 
 .. code-block:: java
 
@@ -266,7 +267,7 @@ retrieve the result of JSON path evaluation of the :api:`MergedEntry`.
                              MergeQuery.ofJsonPath(mergeSources, "$.someValue"));
 
 Central Dogma server will apply the JSON path expression ``$.someValue`` to the content of the
-:api:`MergedEntry`, and return the query result to the client.
+:api:`com.linecorp.centraldogma.common.MergedEntry`, and return the query result to the client.
 
 .. _pushing-a-commit:
 
@@ -373,7 +374,7 @@ sure your application is not affected when the servers have an issue.
 
 Alternatively, you can choose not to use ``awaitInitialValue()`` at all if the value being retrieved is not
 part of a critical path, e.g. span collection rate in distributed tracing. In such a case, you can simply
-add a callback to :api:`Watcher` or poll the most recently retrieved value using the ``latestValue()`` method:
+add a callback to :api:`com.linecorp.centraldogma.client.Watcher` or poll the most recently retrieved value using the ``latestValue()`` method:
 
 .. code-block:: java
 

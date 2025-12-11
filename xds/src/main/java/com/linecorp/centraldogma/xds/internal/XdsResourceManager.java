@@ -42,6 +42,7 @@ import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -154,10 +155,11 @@ public final class XdsResourceManager {
         final Change<JsonNode> change;
         try {
             final String jsonText = JSON_MESSAGE_MARSHALLER.writeValueAsString(resource);
+            final JsonNode jsonNode = Jackson.readTree(jsonText);
             if (create) {
-                change = Change.ofJsonPatch(fileName, null, jsonText);
+                change = Change.ofJsonPatch(fileName, null, jsonNode);
             } else {
-                change = Change.ofJsonUpsert(fileName, jsonText);
+                change = Change.ofJsonUpsert(fileName, jsonNode);
             }
         } catch (IOException e) {
             // This could happen when the message has a type that isn't registered to JSON_MESSAGE_MARSHALLER.

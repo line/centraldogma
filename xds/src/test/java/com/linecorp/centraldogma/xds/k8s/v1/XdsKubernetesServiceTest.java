@@ -203,7 +203,7 @@ class XdsKubernetesServiceTest {
                 .node("grpc-code").isEqualTo("INVALID_ARGUMENT")
                 .node("message").isEqualTo(
                         "failed to find credential file " +
-                        "'/credentials/invalid-credential.json' in @xds/meta");
+                        "'/credentials/invalid-credential.json' in @xds/dogma");
     }
 
     @CsvSource({ "repo-credential", "project-credential" })
