@@ -29,7 +29,7 @@ export function registerJson5Language(monaco: Monaco) {
       root: [
         // Comments
         [/(\/\/.*$)/, 'comment'],
-        [/(\/\*[^]*?\*\/)/, 'comment'],
+        [/(\/\*[\s\S]*?\*\/)/, 'comment'],
 
         // Single-quoted strings
         [/'/, { token: 'string.quote', bracket: '@open', next: '@sstring' }],

@@ -41,12 +41,6 @@ class Json5Test {
     }
 
     @Test
-    void test() throws JsonParseException {
-        final JsonNode jsonNode = Jackson.readTree("");
-        System.out.println(jsonNode);
-    }
-
-    @Test
     void multiLineComments() throws Exception {
         //language=JSON5
         final String json5 = "{\n" +
