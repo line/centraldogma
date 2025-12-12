@@ -56,9 +56,9 @@ import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.internal.admin.auth.SessionUtil;
+import com.linecorp.centraldogma.server.metadata.ApplicationRegistration;
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -114,7 +114,7 @@ class ProjectServiceV1Test {
     @Test
     void createProject() {
         ProjectMetadata projectMetadata = createProjectAndReturnMetadata(userClient, "myPro");
-        assertThat(projectMetadata.tokens()).isEmpty();
+        assertThat(projectMetadata.applications()).isEmpty();
         assertThat(projectMetadata.members().size()).isOne();
         final Member member =
                 projectMetadata.members().get(TestAuthMessageUtil.USERNAME2 + Util.USER_EMAIL_SUFFIX);
@@ -123,10 +123,10 @@ class ProjectServiceV1Test {
 
         projectMetadata = createProjectAndReturnMetadata(tokenClient, "myPro2");
         assertThat(projectMetadata.members()).isEmpty();
-        assertThat(projectMetadata.tokens().size()).isOne();
-        final TokenRegistration tokenRegistration = projectMetadata.tokens().get("appId2");
-        assertThat(tokenRegistration.id()).isEqualTo("appId2");
-        assertThat(tokenRegistration.role()).isEqualTo(ProjectRole.OWNER);
+        assertThat(projectMetadata.applications().size()).isOne();
+        final ApplicationRegistration applicationRegistration = projectMetadata.applications().get("appId2");
+        assertThat(applicationRegistration.id()).isEqualTo("appId2");
+        assertThat(applicationRegistration.role()).isEqualTo(ProjectRole.OWNER);
     }
 
     static ResponseEntity<ProjectDto> createProject(BlockingWebClient client, String name) {

@@ -73,7 +73,7 @@ class UserServiceTest {
                                 .execute()
                                 .content();
         assertThat(user.name()).isEqualTo("testAppId");
-        assertThat(user.email()).isEqualTo("testAppId" + Util.TOKEN_EMAIL_SUFFIX);
+        assertThat(user.email()).isEqualTo("testAppId" + Util.APPLICATION_EMAIL_SUFFIX);
     }
 
     @Test

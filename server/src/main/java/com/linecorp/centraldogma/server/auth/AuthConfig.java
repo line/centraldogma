@@ -67,6 +67,8 @@ public final class AuthConfig {
     private final long sessionTimeoutMillis;
     private final String sessionValidationSchedule;
 
+    private final MtlsConfig mtlsConfig;
+
     @Nullable
     private final Object properties;
 
@@ -81,6 +83,7 @@ public final class AuthConfig {
      *                         the cache for {@link Session} of the server
      * @param sessionTimeoutMillis the timeout for {@link Session}s of the server
      * @param sessionValidationSchedule the schedule for validating sessions
+     * @param mtlsConfig the mTLS configuration
      * @param properties the additional properties which are used in the factory
      */
     @JsonCreator
@@ -91,6 +94,7 @@ public final class AuthConfig {
             @JsonProperty("sessionCacheSpec") @Nullable String sessionCacheSpec,
             @JsonProperty("sessionTimeoutMillis") @Nullable Long sessionTimeoutMillis,
             @JsonProperty("sessionValidationSchedule") @Nullable String sessionValidationSchedule,
+            @JsonProperty("mtls") @Nullable MtlsConfig mtlsConfig,
             @JsonProperty("properties") @Nullable JsonNode properties) throws Exception {
         this((AuthProviderFactory) AuthConfig.class
                      .getClassLoader()
@@ -101,6 +105,7 @@ public final class AuthConfig {
              firstNonNull(sessionCacheSpec, DEFAULT_SESSION_CACHE_SPEC),
              firstNonNull(sessionTimeoutMillis, DEFAULT_SESSION_TIMEOUT_MILLIS),
              firstNonNull(sessionValidationSchedule, DEFAULT_SESSION_VALIDATION_SCHEDULE),
+             firstNonNull(mtlsConfig, MtlsConfig.disabled()),
              properties);
     }
 
@@ -115,6 +120,7 @@ public final class AuthConfig {
      *                         the cache for {@link Session} of the server
      * @param sessionTimeoutMillis the timeout for {@link Session}s of the server
      * @param sessionValidationSchedule the schedule for validating sessions
+     * @param mtlsConfig the mTLS configuration
      * @param properties the additional properties which are used in the factory
      */
     public AuthConfig(AuthProviderFactory factory,
@@ -123,6 +129,7 @@ public final class AuthConfig {
                       String sessionCacheSpec,
                       long sessionTimeoutMillis,
                       String sessionValidationSchedule,
+                      MtlsConfig mtlsConfig,
                       @Nullable Object properties) {
         this.factory = requireNonNull(factory, "factory");
         this.systemAdministrators = requireNonNull(systemAdministrators, "systemAdministrators");
@@ -133,6 +140,7 @@ public final class AuthConfig {
         this.sessionTimeoutMillis = sessionTimeoutMillis;
         this.sessionValidationSchedule = validateSchedule(
                 requireNonNull(sessionValidationSchedule, "sessionValidationSchedule"));
+        this.mtlsConfig = requireNonNull(mtlsConfig, "mtlsConfig");
         this.properties = properties;
     }
 
@@ -189,6 +197,14 @@ public final class AuthConfig {
     @JsonProperty
     public String sessionValidationSchedule() {
         return sessionValidationSchedule;
+    }
+
+    /**
+     * Returns the mTLS configuration.
+     */
+    @JsonProperty
+    public MtlsConfig mtlsConfig() {
+        return mtlsConfig;
     }
 
     /**
