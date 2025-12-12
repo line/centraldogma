@@ -341,6 +341,9 @@ abstract class AbstractGitMirror extends AbstractMirror {
                     case JSON:
                         changes.putIfAbsent(localPath, Change.ofJsonUpsert(localPath, content));
                         break;
+                    case YAML:
+                        changes.putIfAbsent(localPath, Change.ofYamlUpsert(localPath, content));
+                        break;
                     case TEXT:
                         changes.putIfAbsent(localPath, Change.ofTextUpsert(localPath, content));
                         break;
@@ -630,12 +633,13 @@ abstract class AbstractGitMirror extends AbstractMirror {
             throws JsonProcessingException {
         switch (EntryType.guessFromPath(pathString)) {
             case JSON:
-                final String oldJson = oldContent != null ? new String(oldContent, UTF_8) : null;
-                final String newJson = entry.rawContent();
-                assert newJson != null;
+            case YAML:
+                final String oldData = oldContent != null ? new String(oldContent, UTF_8) : null;
+                final String newData = entry.rawContent();
+                assert newData != null;
                 // Upsert only when the contents are really different.
-                if (!newJson.equals(oldJson)) {
-                    final String newContent = newJson + '\n';
+                if (!newData.equals(oldData)) {
+                    final String newContent = newData + '\n';
                     applyPathEdit(dirCache, new InsertText(pathString, inserter, newContent));
                     return newContent.length();
                 }

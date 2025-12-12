@@ -6,8 +6,7 @@ import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { useForm } from 'react-hook-form';
-import JSON5 from 'json5';
-import { isJson, isJson5 } from 'dogma/util/path-util';
+import { validateFileContent } from 'dogma/features/file/FileValidator';
 
 type FormData = {
   summary: string;
@@ -42,24 +41,12 @@ export const CommitForm = ({
   const dispatch = useAppDispatch();
   const onSubmit = async (formData: FormData) => {
     const newContent = content();
-    let isJsonFile = false;
-    // TODO(ikhoon): Deduplicate validation logic with NewFile
-    if (isJson(name)) {
-      try {
-        JSON.parse(newContent);
-        isJsonFile = true;
-      } catch (error) {
-        dispatch(newNotification(`Invalid JSON file.`, ErrorMessageParser.parse(error), 'error'));
-        return;
-      }
-    } else if (isJson5(name)) {
-      try {
-        JSON5.parse(newContent);
-        isJsonFile = true;
-      } catch (error) {
-        dispatch(newNotification(`Invalid JSON5 file.`, ErrorMessageParser.parse(error), 'error'));
-        return;
-      }
+    let changeType;
+    try {
+      changeType = validateFileContent(name, newContent);
+    } catch (error) {
+      dispatch(newNotification(`Invalid file content.`, ErrorMessageParser.parse(error), 'error'));
+      return;
     }
 
     const data = {
@@ -70,7 +57,7 @@ export const CommitForm = ({
       changes: [
         {
           path: path,
-          type: isJsonFile ? 'UPSERT_JSON' : 'UPSERT_TEXT',
+          type: changeType,
           rawContent: newContent,
         },
       ],

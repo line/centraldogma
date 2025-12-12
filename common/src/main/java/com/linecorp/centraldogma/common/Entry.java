@@ -31,6 +31,7 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Json5;
+import com.linecorp.centraldogma.internal.Yaml;
 
 /**
  * A file or a directory in a repository.
@@ -78,6 +79,29 @@ public final class Entry<T> implements ContentHolder<T> {
             jsonNode = Jackson.readTree(content);
         }
         return new Entry<>(revision, path, EntryType.JSON, jsonNode, content);
+    }
+
+    /**
+     * Returns a newly-created {@link Entry} of a YAML file with the given content.
+     * @param revision the revision of the YAML file
+     * @param path the path of the YAML file
+     * @param content the content of the YAML file
+     */
+    public static Entry<JsonNode> ofYaml(Revision revision, String path, JsonNode content) {
+        return new Entry<>(revision, path, EntryType.YAML, content, null);
+    }
+
+    /**
+     * Returns a newly-created {@link Entry} of a YAML file.
+     * @param revision the revision of the YAML file
+     * @param path the path of the YAML file
+     * @param content the content of the YAML file
+     * @throws JsonParseException if the {@code content} is not a valid YAML
+     */
+    public static Entry<JsonNode> ofYaml(Revision revision, String path, String content)
+            throws JsonParseException {
+        final JsonNode jsonNode = Yaml.readTree(content);
+        return new Entry<>(revision, path, EntryType.YAML, jsonNode, content);
     }
 
     /**
@@ -223,9 +247,11 @@ public final class Entry<T> implements ContentHolder<T> {
         if (content instanceof JsonNode) {
             return (JsonNode) content;
         }
-        if (isJson5(path) && rawContent != null) {
-            return Json5.readTree(rawContent);
+
+        if (rawContent != null) {
+            return Jackson.readTree(path, rawContent);
         }
+
         return ContentHolder.super.contentAsJson();
     }
 

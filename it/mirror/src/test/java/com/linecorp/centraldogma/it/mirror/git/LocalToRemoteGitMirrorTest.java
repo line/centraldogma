@@ -168,6 +168,9 @@ class LocalToRemoteGitMirrorTest {
                              "  // This is a single-line comment\n" +
                              "  \"key\": \"value\"\n" +
                              '}';
+        //language=yaml
+        final String yaml = "# This is a comment\n" +
+                            "YAML: true";
 
         // Create a new commit
         client.forRepo(projName, REPO_FOO)
@@ -175,6 +178,7 @@ class LocalToRemoteGitMirrorTest {
                       Change.ofJsonUpsert(localPath + "/foo.json", "{\"a\":\"b\"}"),
                       Change.ofJsonUpsert(localPath + "/bar/foo.json", "{\"a\":\"c\"}"),
                       Change.ofJsonUpsert(localPath + "/bar/foo.json5", json5),
+                      Change.ofYamlUpsert(localPath + "/bar/foo.yaml", yaml),
                       Change.ofTextUpsert(localPath + "/baz/foo.txt", "\"a\": \"b\"\n"))
               .push().join();
 
@@ -193,6 +197,8 @@ class LocalToRemoteGitMirrorTest {
         final String fooJson5 = new String(getFileContent(commitId3, remotePath + "/bar/foo.json5"));
         // Make sure the JSON5 content is mirrored as-is.
         assertThat(fooJson5).isEqualTo(json5 + '\n');
+        final String fooYaml = new String(getFileContent(commitId3, remotePath + "/bar/foo.yaml"));
+        assertThat(fooYaml).isEqualTo(yaml + '\n');
 
         // Mirror once again without adding a commit.
         mirroringService.mirror().join();

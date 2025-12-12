@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.internal;
 
 import static com.fasterxml.jackson.databind.node.JsonNodeType.OBJECT;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.linecorp.centraldogma.internal.Json5.isJson;
+import static com.linecorp.centraldogma.internal.Json5.isJson5;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -177,6 +179,30 @@ public final class Jackson {
 
     public static <T> T readValue(JsonParser jp, TypeReference<T> typeReference) throws IOException {
         return compactMapper.readValue(jp, typeReference);
+    }
+
+    public static JsonNode readTree(String path, String data) throws JsonParseException {
+        if (isJson(path)) {
+            return readTree(data);
+        } else if (isJson5(path)) {
+            return Json5.readTree(data);
+        } else if (Yaml.isYaml(path)) {
+            return Yaml.readTree(data);
+        } else {
+            throw new IllegalArgumentException("Unsupported file type: " + path);
+        }
+    }
+
+    public static JsonNode readTree(String path, byte[] data) throws JsonParseException {
+        if (isJson(path)) {
+            return readTree(data);
+        } else if (isJson5(path)) {
+            return Json5.readTree(data);
+        } else if (Yaml.isYaml(path)) {
+            return Yaml.readTree(data);
+        } else {
+            throw new IllegalArgumentException("Unsupported file type: " + path);
+        }
     }
 
     public static JsonNode readTree(String data) throws JsonParseException {
