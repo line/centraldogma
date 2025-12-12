@@ -225,14 +225,12 @@ class Json5CrudTest {
         assertThatJson(usersEntry.content()).node("[1].name").isEqualTo("Bob");
         assertThatJson(usersEntry.content()).node("[2].name").isEqualTo("Charlie");
 
-        // 다른 JSON Path 쿼리
         final Entry<JsonNode> themeEntry = repo.file(Query.ofJsonPath("/users.json5", "$.settings.theme"))
                                                .get()
                                                .join();
 
         assertThatJson(themeEntry.content()).isEqualTo("\"dark\"");
 
-        // 배열 필터링
         final Entry<JsonNode> adminEntry = repo.file(Query.ofJsonPath("/users.json5",
                                                                       "$.users[?(@.role == 'admin')]"))
                                                .get()
@@ -249,13 +247,11 @@ class Json5CrudTest {
         final Change<JsonNode> change = Change.ofJsonUpsert("/test.json5", json5Text);
         repo.commit("Add test file", change).push().join();
 
-        // JSON_PATH 쿼리는 viewRaw=true와 함께 사용할 수 없음
         final Query<JsonNode> jsonPathQuery = Query.ofJsonPath("/test.json5", "$.key");
         assertThatThrownBy(() -> repo.file(jsonPathQuery).viewRaw(true).get().join())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("JSON_PATH query cannot be used with raw view");
 
-        // viewRaw=false (기본값)는 정상 작동
         final Entry<JsonNode> entry = repo.file(jsonPathQuery).get().join();
         assertThatJson(entry.content()).isEqualTo("\"value\"");
     }
@@ -279,7 +275,6 @@ class Json5CrudTest {
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/configs/config2.json5", json5Text2);
         repo.commit("Add configs", change1, change2).push().join();
 
-        // viewRaw=true로 여러 파일 읽기
         final Map<String, Entry<?>> entriesWithRaw = repo.file(PathPattern.of("/configs/*.json5"))
                                                          .viewRaw(true)
                                                          .get()
@@ -309,7 +304,6 @@ class Json5CrudTest {
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/data/file2.json5", json5Text2);
         repo.commit("Add data files", change1, change2).push().join();
 
-        // viewRaw=false (기본값)로 여러 파일 읽기
         final Map<String, Entry<?>> entries = repo.file(PathPattern.of("/data/*.json5"))
                                                   .get()
                                                   .join();
@@ -400,7 +394,6 @@ class Json5CrudTest {
         final Change<JsonNode> updateChange = Change.ofJsonUpsert("/config.json5", updatedJson5Text);
         repo.commit("Update config", updateChange).push().join();
 
-        // JSON Path로 특정 필드만 watch
         final Entry<JsonNode> enabledEntry = repo.watch(Query.ofJsonPath("/config.json5", "$.config.enabled"))
                                                  .start(initialResult.revision())
                                                  .join();
@@ -421,7 +414,6 @@ class Json5CrudTest {
         final Change<JsonNode> change = Change.ofJsonUpsert("/test.json5", json5Text);
         repo.commit("Add test file", change).push().join();
 
-        // JSON_PATH 쿼리는 viewRaw=true와 함께 사용할 수 없음 (watch)
         final Query<JsonNode> jsonPathQuery = Query.ofJsonPath("/test.json5", "$.key");
         assertThatThrownBy(() -> repo.watch(jsonPathQuery).viewRaw(true))
                 .isInstanceOf(IllegalArgumentException.class)
