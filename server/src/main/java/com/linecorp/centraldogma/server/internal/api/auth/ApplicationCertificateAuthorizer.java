@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api.auth;
 
+import static com.linecorp.centraldogma.server.internal.api.auth.ApplicationCertificateAuthorizer.CertificateId.NOT_FOUND;
 import static java.util.Objects.requireNonNull;
 
 import java.security.cert.Certificate;
@@ -23,6 +24,7 @@ import java.security.cert.X509Certificate;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 
@@ -30,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.HttpRequest;
+import com.linecorp.armeria.common.logging.RequestLogProperty;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -41,7 +44,10 @@ import com.linecorp.centraldogma.server.metadata.ApplicationCertificate;
 import com.linecorp.centraldogma.server.metadata.ApplicationNotFoundException;
 import com.linecorp.centraldogma.server.metadata.UserWithApplication;
 
+import io.netty.channel.Channel;
 import io.netty.handler.ssl.OpenSslSession;
+import io.netty.util.Attribute;
+import io.netty.util.AttributeKey;
 
 /**
  * An authorizer which extracts certificate ID from mTLS peer certificate and validates it.
@@ -49,6 +55,9 @@ import io.netty.handler.ssl.OpenSslSession;
 public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRequest> {
 
     private static final Logger logger = LoggerFactory.getLogger(ApplicationCertificateAuthorizer.class);
+
+    private static final AttributeKey<CertificateId> CERTIFICATE_ID =
+            AttributeKey.valueOf(ApplicationCertificateAuthorizer.class, "CERTIFICATE_ID");
 
     // TODO(minwoox): Make it configurable via SPI.
     private static final ApplicationCertificateIdExtractor ID_EXTRACTOR = SpiffeIdExtractor.INSTANCE;
@@ -61,13 +70,26 @@ public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRe
 
     @Override
     public CompletionStage<Boolean> authorize(ServiceRequestContext ctx, HttpRequest data) {
+        final Channel channel = ctx.log().ensureAvailable(RequestLogProperty.SESSION).channel();
+        assert channel != null;
+        if (channel.hasAttr(CERTIFICATE_ID)) {
+            final Attribute<CertificateId> attr = channel.attr(CERTIFICATE_ID);
+            final CertificateId pair = attr.get();
+            if (pair == NOT_FOUND) {
+                return UnmodifiableFuture.completedFuture(false);
+            } else {
+                final String certificateId = pair.certificateId;
+                assert certificateId != null;
+                return handleCertificateId(ctx, certificateId);
+            }
+        }
         final SSLSession sslSession = ctx.sslSession();
         if (sslSession == null) {
-            return UnmodifiableFuture.completedFuture(false);
+            return returnUnauthorized(channel);
         }
 
         if (sslSession instanceof OpenSslSession && !((OpenSslSession) sslSession).hasPeerCertificates()) {
-            return UnmodifiableFuture.completedFuture(false);
+            return returnUnauthorized(channel);
         }
 
         final Certificate[] peerCertificates;
@@ -75,11 +97,11 @@ public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRe
             peerCertificates = sslSession.getPeerCertificates();
         } catch (SSLPeerUnverifiedException e) {
             // TODO(minwoox): Fix not to raise an exception for no peer certificate.
-            return UnmodifiableFuture.completedFuture(false);
+            return returnUnauthorized(channel);
         }
 
         if (peerCertificates.length == 0) {
-            return UnmodifiableFuture.completedFuture(false);
+            return returnUnauthorized(channel);
         }
 
         String certificateId = null;
@@ -105,9 +127,19 @@ public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRe
 
         if (certificateId == null) {
             logger.trace("No certificateId found in certificate: addr={}", ctx.clientAddress());
-            return UnmodifiableFuture.completedFuture(false);
+            return returnUnauthorized(channel);
         }
 
+        channel.attr(CERTIFICATE_ID).set(new CertificateId(true, certificateId));
+        return handleCertificateId(ctx, certificateId);
+    }
+
+    private static UnmodifiableFuture<Boolean> returnUnauthorized(Channel channel) {
+        channel.attr(CERTIFICATE_ID).set(NOT_FOUND);
+        return UnmodifiableFuture.completedFuture(false);
+    }
+
+    private UnmodifiableFuture<Boolean> handleCertificateId(ServiceRequestContext ctx, String certificateId) {
         try {
             final ApplicationCertificate certificate = certificateLookupFunc.apply(certificateId);
             if (certificate != null && certificate.isActive()) {
@@ -131,6 +163,23 @@ public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRe
                             certificateId, ctx.clientAddress(), cause);
             }
             return UnmodifiableFuture.completedFuture(false);
+        }
+    }
+
+    static class CertificateId {
+
+        static final CertificateId NOT_FOUND = new CertificateId(false, null);
+
+        final boolean found;
+        @Nullable
+        final String certificateId;
+
+        CertificateId(boolean found, @Nullable String certificateId) {
+            this.found = found;
+            if (found) {
+                requireNonNull(certificateId, "certificateId");
+            }
+            this.certificateId = certificateId;
         }
     }
 }
