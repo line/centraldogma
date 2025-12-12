@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.linecorp.centraldogma.internal.Json5.isJson5;
 import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
 
 import java.util.Objects;
@@ -29,6 +30,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Json5;
 
 final class JsonChange extends AbstractChange<JsonNode> {
 
@@ -58,8 +60,12 @@ final class JsonChange extends AbstractChange<JsonNode> {
         } else {
             assert jsonText != null;
             try {
-                // Check if jsonText is a valid JSON.
-                this.jsonNode = Jackson.readTree(jsonText);
+                if (isJson5(path)) {
+                    this.jsonNode = Json5.readTree(jsonText);
+                } else {
+                    // Check if jsonText is a valid JSON.
+                    this.jsonNode = Jackson.readTree(jsonText);
+                }
             } catch (JsonProcessingException e) {
                 throw new ChangeFormatException("failed to read a value as a JSON tree", e);
             }
