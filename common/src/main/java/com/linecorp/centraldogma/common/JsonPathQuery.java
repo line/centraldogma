@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.common;
 
-import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateStructuredFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -43,7 +43,7 @@ final class JsonPathQuery implements Query<JsonNode> {
     }
 
     JsonPathQuery(String path, Iterable<String> jsonPaths) {
-        this.path = validateJsonFilePath(path, "path");
+        this.path = validateStructuredFilePath(path, "path");
         Streams.stream(requireNonNull(jsonPaths, "jsonPaths"))
                .forEach(jsonPath -> Util.validateJsonPath(jsonPath, "jsonPath"));
         this.jsonPaths = ImmutableList.copyOf(jsonPaths);

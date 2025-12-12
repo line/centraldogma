@@ -16,8 +16,8 @@ import {
   Spacer,
   Stack,
   Textarea,
-  VStack,
   useColorMode,
+  VStack,
 } from '@chakra-ui/react';
 import { usePushFileChangesMutation } from 'dogma/features/api/apiSlice';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
@@ -29,10 +29,9 @@ import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import Editor, { OnMount } from '@monaco-editor/react';
 import { ChangeEvent, KeyboardEvent, useRef, useState } from 'react';
-import JSON5 from 'json5';
-import { isJson, isJson5 } from 'dogma/util/path-util';
 import { extensionToLanguageMap } from 'dogma/common/components/editor/FileEditor';
 import { registerJson5Language } from 'dogma/features/file/Json5Language';
+import { validateFileContent } from 'dogma/features/file/FileValidator';
 
 const FILE_PATH_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/;
 
@@ -64,23 +63,11 @@ export const NewFile = ({
   const onSubmit = async (formData: FormData) => {
     const path = `${prefixes.join('/')}/${formData.name}`;
     const content = editorRef.current.getValue();
-    let isJsonFile = false;
-    if (isJson(formData.name)) {
-      try {
-        JSON.parse(content);
-        isJsonFile = true;
-      } catch (error) {
-        dispatch(newNotification(`Invalid JSON file.`, ErrorMessageParser.parse(error), 'error'));
-        return;
-      }
-    } else if (isJson5(formData.name)) {
-      try {
-        JSON5.parse(content);
-        isJsonFile = true;
-      } catch (error) {
-        dispatch(newNotification(`Invalid JSON5 file.`, ErrorMessageParser.parse(error), 'error'));
-        return;
-      }
+    let changeType;
+    try {
+      changeType = validateFileContent(fileName, content);
+    } catch (error) {
+      dispatch(newNotification(`Invalid file content.`, ErrorMessageParser.parse(error), 'error'));
     }
 
     const data = {
@@ -92,7 +79,7 @@ export const NewFile = ({
       changes: [
         {
           path: path.startsWith('/') ? path : `/${path}`,
-          type: isJsonFile ? 'UPSERT_JSON' : 'UPSERT_TEXT',
+          type: changeType,
           rawContent: content,
         },
       ],

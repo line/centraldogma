@@ -117,6 +117,7 @@ import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.internal.HistoryConstants;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.internal.Yaml;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -179,7 +180,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             return whenReady;
         }
 
-        return client.endpointGroup().whenReady().thenRun(() -> {});
+        return client.endpointGroup().whenReady().thenRun(() -> {
+        });
     }
 
     @Override
@@ -1062,25 +1064,36 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     private static <T> Entry<T> toEntry(Revision revision, JsonNode node, QueryType queryType,
                                         boolean viewRaw) {
         final String entryPath = getField(node, "path").asText();
-        final EntryType receivedEntryType = EntryType.valueOf(getField(node, "type").asText());
+        final EntryType receivedEntryType = EntryType.guessFromPath(entryPath);
         switch (queryType) {
             case IDENTITY_TEXT:
                 return entryAsText(revision, node, entryPath, viewRaw);
             case IDENTITY_JSON:
             case JSON_PATH:
-                if (receivedEntryType != EntryType.JSON) {
-                    throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
-                                                    " (expected: " + queryType + ')');
+                switch (receivedEntryType) {
+                    case JSON:
+                        return entryAsJson(revision, node, entryPath, viewRaw);
+                    case YAML:
+                        return entryAsYaml(revision, node, entryPath, viewRaw);
+                    default:
+                        throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
+                                                        " (expected: " + queryType + ')');
                 }
-                return entryAsJson(revision, node, entryPath, viewRaw);
+            case IDENTITY_YAML:
+                return entryAsYaml(revision, node, entryPath, viewRaw);
             case IDENTITY:
                 switch (receivedEntryType) {
                     case JSON:
                         return entryAsJson(revision, node, entryPath, viewRaw);
+                    case YAML:
+                        return entryAsYaml(revision, node, entryPath, viewRaw);
                     case TEXT:
                         return entryAsText(revision, node, entryPath, viewRaw);
                     case DIRECTORY:
                         return unsafeCast(Entry.ofDirectory(revision, entryPath));
+                    default:
+                        throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
+                                                        " (expected: " + queryType + ')');
                 }
         }
         throw new Error(); // Should never reach here.
@@ -1124,6 +1137,36 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             // The server version may be old so fall back to normal content.
         }
         return unsafeCast(Entry.ofJson(revision, entryPath, getField(node, "content")));
+    }
+
+    private static <T> Entry<T> entryAsYaml(Revision revision, JsonNode node, String entryPath,
+                                            boolean viewRaw) {
+        if (viewRaw) {
+            final JsonNode rawContent = node.get("rawContent");
+            if (rawContent != null) {
+                try {
+                    return unsafeCast(Entry.ofYaml(revision, entryPath, rawContent.asText()));
+                } catch (JsonParseException e) {
+                    // Should never reach here as the raw JSON text was already validated by the server.
+                    throw new IllegalStateException(e);
+                }
+            }
+            // Should never reach here as the server already supports YAML entries.
+            throw new IllegalStateException("The server does not provide rawContent for YAML entry: " +
+                                            entryPath);
+        }
+        final JsonNode content = getField(node, "content");
+        if (content.isTextual()) {
+            // For backward compatibility, the server might return the YAML content as a string.
+            try {
+                final JsonNode jsonNode = Yaml.readTree(content.asText());
+                return unsafeCast(Entry.ofYaml(revision, entryPath, jsonNode));
+            } catch (JsonParseException e) {
+                // Should never reach here as the YAML content was already validated by the server.
+                throw new IllegalStateException(e);
+            }
+        }
+        return unsafeCast(Entry.ofYaml(revision, entryPath, content));
     }
 
     private static Commit toCommit(JsonNode node) {
