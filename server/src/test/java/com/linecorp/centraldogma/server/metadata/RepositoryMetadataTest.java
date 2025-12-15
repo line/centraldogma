@@ -44,7 +44,7 @@ class RepositoryMetadataTest {
                "      \"bar@dogma.com\": \"WRITE\"," +
                "      \"foo@dogma.com\": \"READ\"" +
                "    }," +
-               "    \"applications\": {" +
+               "    \"appIds\": {" +
                "      \"goodman\": \"READ\"" +
                "    }" +
                "  }," +
@@ -63,7 +63,7 @@ class RepositoryMetadataTest {
         assertThat(repositoryMetadata.roles().users())
                 .isEqualTo(ImmutableMap.of("foo@dogma.com", RepositoryRole.READ,
                                            "bar@dogma.com", RepositoryRole.WRITE));
-        assertThat(repositoryMetadata.roles().applications())
+        assertThat(repositoryMetadata.roles().appIds())
                 .isEqualTo(ImmutableMap.of("goodman", RepositoryRole.READ));
         assertThat(repositoryMetadata.creation())
                 .isEqualTo(new UserAndTimestamp("minu.song@dogma.com", "2024-08-19T02:47:23.370762417Z"));

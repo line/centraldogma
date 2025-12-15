@@ -34,11 +34,11 @@ import com.google.common.base.Objects;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL)
-public final class ApplicationCertificate extends AbstractApplication {
+public final class CertificateAppIdentity extends AbstractAppIdentity {
 
     private final String certificateId;
 
-    ApplicationCertificate(String appId, String certificateId, boolean isSystemAdmin, boolean allowGuestAccess,
+    CertificateAppIdentity(String appId, String certificateId, boolean isSystemAdmin, boolean allowGuestAccess,
                            UserAndTimestamp creation) {
         this(appId, certificateId, isSystemAdmin, allowGuestAccess, creation, null, null);
     }
@@ -47,14 +47,14 @@ public final class ApplicationCertificate extends AbstractApplication {
      * Creates a new instance.
      */
     @JsonCreator
-    public ApplicationCertificate(@JsonProperty("appId") String appId,
+    public CertificateAppIdentity(@JsonProperty("appId") String appId,
                                   @JsonProperty("certificateId") String certificateId,
                                   @JsonProperty("systemAdmin") boolean isSystemAdmin,
                                   @JsonProperty("allowGuestAccess") @Nullable Boolean allowGuestAccess,
                                   @JsonProperty("creation") UserAndTimestamp creation,
                                   @JsonProperty("deactivation") @Nullable UserAndTimestamp deactivation,
                                   @JsonProperty("deletion") @Nullable UserAndTimestamp deletion) {
-        super(appId, ApplicationType.CERTIFICATE, isSystemAdmin,
+        super(appId, AppIdentityType.CERTIFICATE, isSystemAdmin,
               firstNonNull(allowGuestAccess, false), // Disallow guest access by default for certificate.
               requireNonNull(creation, "creation"), deactivation, deletion);
         this.certificateId = requireNonNull(certificateId, "certificateId");
@@ -69,11 +69,11 @@ public final class ApplicationCertificate extends AbstractApplication {
     }
 
     @Override
-    public ApplicationCertificate withSystemAdmin(boolean isSystemAdmin) {
+    public CertificateAppIdentity withSystemAdmin(boolean isSystemAdmin) {
         if (isSystemAdmin == isSystemAdmin()) {
             return this;
         }
-        return new ApplicationCertificate(appId(), certificateId, isSystemAdmin, allowGuestAccess(),
+        return new CertificateAppIdentity(appId(), certificateId, isSystemAdmin, allowGuestAccess(),
                                           creation(), deactivation(), deletion());
     }
 
@@ -87,13 +87,13 @@ public final class ApplicationCertificate extends AbstractApplication {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof ApplicationCertificate)) {
+        if (!(o instanceof CertificateAppIdentity)) {
             return false;
         }
         if (!super.equals(o)) {
             return false;
         }
-        final ApplicationCertificate that = (ApplicationCertificate) o;
+        final CertificateAppIdentity that = (CertificateAppIdentity) o;
         return Objects.equal(certificateId, that.certificateId);
     }
 

@@ -37,18 +37,18 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 
 /**
- * Holds an application map, a secret map and a certificate ID map for fast lookup.
+ * Holds an app identity map, a secret map and a certificate ID map for fast lookup.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL)
-public final class ApplicationRegistry implements HasWeight {
+public final class AppIdentityRegistry implements HasWeight {
 
     static final String SECRET_PREFIX = "appToken-";
 
     /**
-     * Applications which belong to this project.
+     * App identities which belong to this project.
      */
-    private final Map<String, Application> appIds;
+    private final Map<String, AppIdentity> appIds;
 
     /**
      * A mapping of secret and {@link Token#appId()}.
@@ -56,22 +56,22 @@ public final class ApplicationRegistry implements HasWeight {
     private final Map<String, String> secrets;
 
     /**
-     * A mapping of certificate ID and {@link ApplicationCertificate#appId()}.
+     * A mapping of certificate ID and {@link CertificateAppIdentity#appId()}.
      */
     private final Map<String, String> certificateIds;
 
     /**
      * Creates a new empty instance.
      */
-    public ApplicationRegistry() {
+    public AppIdentityRegistry() {
         this(ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of());
     }
 
     /**
-     * Creates a new instance with the given application IDs, secrets, and certificateIds.
+     * Creates a new instance with the given appIDs, secrets, and certificateIds.
      */
     @JsonCreator
-    public ApplicationRegistry(@JsonProperty("appIds") Map<String, Application> appIds,
+    public AppIdentityRegistry(@JsonProperty("appIds") Map<String, AppIdentity> appIds,
                                @JsonProperty("secrets") Map<String, String> secrets,
                                @JsonProperty("certificateIds") Map<String, String> certificateIds) {
         this.appIds = requireNonNull(appIds, "appIds");
@@ -80,10 +80,10 @@ public final class ApplicationRegistry implements HasWeight {
     }
 
     /**
-     * Returns the applications.
+     * Returns the app identities.
      */
     @JsonProperty
-    public Map<String, Application> appIds() {
+    public Map<String, AppIdentity> appIds() {
         return appIds;
     }
 
@@ -104,26 +104,26 @@ public final class ApplicationRegistry implements HasWeight {
     }
 
     /**
-     * Returns the {@link Application} that corresponds to the specified application ID.
+     * Returns the {@link AppIdentity} that corresponds to the specified application ID.
      */
-    public Application get(String appId) {
-        final Application application = getOrDefault(appId, null);
-        if (application != null) {
-            return application;
+    public AppIdentity get(String appId) {
+        final AppIdentity appIdentity = getOrDefault(appId, null);
+        if (appIdentity != null) {
+            return appIdentity;
         }
-        throw new ApplicationNotFoundException("Application ID not found: " + appId);
+        throw new AppIdentityNotFoundException("App identity not found: " + appId);
     }
 
     /**
-     * Returns the {@link Application} that corresponds to the specified application ID. {@code defaultValue} is
-     * returned if there's no such application.
+     * Returns the {@link AppIdentity} that corresponds to the specified application ID. {@code defaultValue} is
+     * returned if there's no such app identity.
      */
     @Nullable
-    public Application getOrDefault(String appId, @Nullable Application defaultValue) {
+    public AppIdentity getOrDefault(String appId, @Nullable AppIdentity defaultValue) {
         requireNonNull(appId, "appId");
-        final Application application = appIds.get(appId);
-        if (application != null) {
-            return application;
+        final AppIdentity appIdentity = appIds.get(appId);
+        if (appIdentity != null) {
+            return appIdentity;
         }
         return defaultValue;
     }
@@ -136,7 +136,7 @@ public final class ApplicationRegistry implements HasWeight {
         if (token != null) {
             return token;
         }
-        throw new ApplicationNotFoundException("Secret not found: " + secret);
+        throw new AppIdentityNotFoundException("Secret not found: " + secret);
     }
 
     /**
@@ -151,52 +151,52 @@ public final class ApplicationRegistry implements HasWeight {
         }
         final String appId = secrets.get(secret);
         if (appId != null) {
-            final Application application = getOrDefault(appId, null);
-            if (application instanceof Token) {
-                return (Token) application;
+            final AppIdentity appIdentity = getOrDefault(appId, null);
+            if (appIdentity instanceof Token) {
+                return (Token) appIdentity;
             }
         }
         return defaultValue;
     }
 
     /**
-     * Returns the {@link ApplicationCertificate} that corresponds to the specified certificate ID.
+     * Returns the {@link CertificateAppIdentity} that corresponds to the specified certificate ID.
      */
-    public ApplicationCertificate findByCertificateId(String certificateId) {
-        final ApplicationCertificate certificate = findByCertificateIdOrDefault(certificateId, null);
+    public CertificateAppIdentity findByCertificateId(String certificateId) {
+        final CertificateAppIdentity certificate = findByCertificateIdOrDefault(certificateId, null);
         if (certificate != null) {
             return certificate;
         }
-        throw new ApplicationNotFoundException("Certificate ID not found: " + certificateId);
+        throw new AppIdentityNotFoundException("Certificate ID not found: " + certificateId);
     }
 
     /**
-     * Returns the {@link ApplicationCertificate} that corresponds to the specified certificate ID.
+     * Returns the {@link CertificateAppIdentity} that corresponds to the specified certificate ID.
      * {@code defaultValue} is returned if there's no such certificate ID.
      */
     @Nullable
-    public ApplicationCertificate findByCertificateIdOrDefault(String certificateId, @Nullable
-    ApplicationCertificate defaultValue) {
+    public CertificateAppIdentity findByCertificateIdOrDefault(String certificateId, @Nullable
+    CertificateAppIdentity defaultValue) {
         requireNonNull(certificateId, "certificateId");
         final String appId = certificateIds.get(certificateId);
         if (appId != null) {
-            final Application application = getOrDefault(appId, null);
-            if (application instanceof ApplicationCertificate) {
-                return (ApplicationCertificate) application;
+            final AppIdentity appIdentity = getOrDefault(appId, null);
+            if (appIdentity instanceof CertificateAppIdentity) {
+                return (CertificateAppIdentity) appIdentity;
             }
         }
         return defaultValue;
     }
 
     /**
-     * Returns a new {@link ApplicationRegistry} which does not contain any secrets.
+     * Returns a new {@link AppIdentityRegistry} which does not contain any secrets.
      */
-    public ApplicationRegistry withoutSecret() {
-        final Map<String, Application> appIds =
+    public AppIdentityRegistry withoutSecret() {
+        final Map<String, AppIdentity> appIds =
                 appIds().values().stream()
                         .map(app -> app instanceof Token ? ((Token) app).withoutSecret() : app)
-                        .collect(Collectors.toMap(Application::id, Function.identity()));
-        return new ApplicationRegistry(appIds, ImmutableMap.of(), ImmutableMap.of());
+                        .collect(Collectors.toMap(AppIdentity::id, Function.identity()));
+        return new AppIdentityRegistry(appIds, ImmutableMap.of(), ImmutableMap.of());
     }
 
     @Override

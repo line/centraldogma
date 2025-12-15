@@ -161,7 +161,7 @@ import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthor
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRoleDecorator.RequiresProjectRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRoleDecorator.RequiresRepositoryRoleDecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
-import com.linecorp.centraldogma.server.internal.api.sysadmin.ApplicationRegistryService;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.AppIdentityRegistryService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.KeyManagementService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.MirrorAccessControlService;
 import com.linecorp.centraldogma.server.internal.api.sysadmin.ServerStatusService;
@@ -1052,7 +1052,7 @@ public class CentralDogma implements AutoCloseable {
             assert sessionManager != null : "sessionManager";
             apiV1ServiceBuilder
                     .annotatedService(new MetadataApiService(executor, mds, authCfg.loginNameNormalizer()))
-                    .annotatedService(new ApplicationRegistryService(executor, mds, mtlsEnabled));
+                    .annotatedService(new AppIdentityRegistryService(executor, mds, mtlsEnabled));
 
             // authentication services:
             Optional.ofNullable(authProvider.loginApiService())

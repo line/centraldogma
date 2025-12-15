@@ -19,13 +19,13 @@ package com.linecorp.centraldogma.server.metadata;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 
 /**
- * A {@link CentralDogmaException} that is raised when failed to find an {@link Application}.
+ * A {@link CentralDogmaException} that is raised when failed to find an {@link AppIdentity}.
  */
-public final class ApplicationNotFoundException extends CentralDogmaException {
+public final class AppIdentityNotFoundException extends CentralDogmaException {
 
     private static final long serialVersionUID = 7795045154004749414L;
 
-    ApplicationNotFoundException(String message) {
+    AppIdentityNotFoundException(String message) {
         super(message);
     }
 }

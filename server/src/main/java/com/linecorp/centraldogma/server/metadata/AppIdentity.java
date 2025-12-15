@@ -26,16 +26,16 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
- * An application that can access Central Dogma resources.
+ * An application identity that can access Central Dogma resources.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type")
 @JsonSubTypes({
         @Type(value = Token.class, name = "TOKEN"),
-        @Type(value = ApplicationCertificate.class, name = "CERTIFICATE")
+        @Type(value = CertificateAppIdentity.class, name = "CERTIFICATE")
 })
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
-public interface Application extends Identifiable {
+public interface AppIdentity extends Identifiable {
 
     /**
      * Returns the application ID.
@@ -44,60 +44,60 @@ public interface Application extends Identifiable {
     String appId();
 
     /**
-     * Returns the application type.
+     * Returns the application identity type.
      */
     @JsonProperty("type")
-    ApplicationType type();
+    AppIdentityType type();
 
     /**
-     * Returns whether this application is for system administrators.
+     * Returns whether this application identity is for system administrators.
      */
     @JsonProperty
     boolean isSystemAdmin();
 
     /**
-     * Returns whether this application allows guest access.
+     * Returns whether this application identity allows guest access.
      */
     @JsonProperty
     boolean allowGuestAccess();
 
     /**
-     * Returns who created this application when.
+     * Returns who created this application identity when.
      */
     @JsonProperty
     UserAndTimestamp creation();
 
     /**
-     * Returns who deactivated this application when.
+     * Returns who deactivated this application identity when.
      */
     @Nullable
     @JsonProperty
     UserAndTimestamp deactivation();
 
     /**
-     * Returns who deleted this application when.
+     * Returns who deleted this application identity when.
      */
     @Nullable
     @JsonProperty
     UserAndTimestamp deletion();
 
     /**
-     * Returns whether this application is active.
+     * Returns whether this application identity is active.
      */
     default boolean isActive() {
         return deactivation() == null && deletion() == null;
     }
 
     /**
-     * Returns whether this application is deleted.
+     * Returns whether this application identity is deleted.
      */
     default boolean isDeleted() {
         return deletion() != null;
     }
 
     /**
-     * Returns a new {@link Application} instance with the specified system admin flag.
+     * Returns a new {@link AppIdentity} instance with the specified system admin flag.
      */
-    Application withSystemAdmin(boolean isSystemAdmin);
+    AppIdentity withSystemAdmin(boolean isSystemAdmin);
 }
 

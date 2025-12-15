@@ -40,9 +40,9 @@ import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.centraldogma.server.auth.ApplicationCertificateIdExtractor;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
-import com.linecorp.centraldogma.server.metadata.ApplicationCertificate;
-import com.linecorp.centraldogma.server.metadata.ApplicationNotFoundException;
-import com.linecorp.centraldogma.server.metadata.UserWithApplication;
+import com.linecorp.centraldogma.server.metadata.AppIdentityNotFoundException;
+import com.linecorp.centraldogma.server.metadata.CertificateAppIdentity;
+import com.linecorp.centraldogma.server.metadata.UserWithAppIdentity;
 
 import io.netty.channel.Channel;
 import io.netty.handler.ssl.OpenSslSession;
@@ -62,9 +62,9 @@ public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRe
     // TODO(minwoox): Make it configurable via SPI.
     private static final ApplicationCertificateIdExtractor ID_EXTRACTOR = SpiffeIdExtractor.INSTANCE;
 
-    private final Function<String, ApplicationCertificate> certificateLookupFunc;
+    private final Function<String, CertificateAppIdentity> certificateLookupFunc;
 
-    public ApplicationCertificateAuthorizer(Function<String, ApplicationCertificate> certificateLookupFunc) {
+    public ApplicationCertificateAuthorizer(Function<String, CertificateAppIdentity> certificateLookupFunc) {
         this.certificateLookupFunc = requireNonNull(certificateLookupFunc, "certificateLookupFunc");
     }
 
@@ -141,11 +141,11 @@ public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRe
 
     private UnmodifiableFuture<Boolean> handleCertificateId(ServiceRequestContext ctx, String certificateId) {
         try {
-            final ApplicationCertificate certificate = certificateLookupFunc.apply(certificateId);
+            final CertificateAppIdentity certificate = certificateLookupFunc.apply(certificateId);
             if (certificate != null && certificate.isActive()) {
                 final String appId = certificate.appId();
                 ctx.logBuilder().authenticatedUser("app/" + appId + "/cert");
-                final UserWithApplication user = new UserWithApplication(certificate);
+                final UserWithAppIdentity user = new UserWithAppIdentity(certificate);
                 AuthUtil.setCurrentUser(ctx, user);
                 HttpApiUtil.setVerboseResponses(ctx, user);
                 return UnmodifiableFuture.completedFuture(true);
@@ -154,7 +154,7 @@ public final class ApplicationCertificateAuthorizer implements Authorizer<HttpRe
         } catch (Throwable cause) {
             final Throwable peeled = Exceptions.peel(cause);
             if (peeled instanceof IllegalArgumentException ||
-                peeled instanceof ApplicationNotFoundException) {
+                peeled instanceof AppIdentityNotFoundException) {
                 // Do not log the cause.
                 logger.debug("Failed to authorize certificate: certificateId={}, addr={}",
                              certificateId, ctx.clientAddress());

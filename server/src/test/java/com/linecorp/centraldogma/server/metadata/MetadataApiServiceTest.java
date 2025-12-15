@@ -163,7 +163,7 @@ class MetadataApiServiceTest {
 
         // Add as a member to the project
         request = HttpRequest.builder()
-                             .post("/api/v1/metadata/" + PROJECT_NAME + "/applications")
+                             .post("/api/v1/metadata/" + PROJECT_NAME + "/appIdentities")
                              .contentJson(new IdAndProjectRole(MEMBER_TOKEN_APP_ID, ProjectRole.MEMBER))
                              .build();
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.OK);
@@ -177,11 +177,11 @@ class MetadataApiServiceTest {
         configureWebClient(builder);
         memberCertClient = builder.build().blocking();
 
-        // Register a certificate client application
+        // Register a certificate app identity
         final AggregatedHttpResponse response =
-                dogma.httpClient().post(API_V1_PATH_PREFIX + "applications",
+                dogma.httpClient().post(API_V1_PATH_PREFIX + "appIdentities",
                                         QueryParams.of("appId", MEMBER_CERTIFICATE_APP_ID,
-                                                       "applicationType", "CERTIFICATE",
+                                                       "appIdentityType", "CERTIFICATE",
                                                        "certificateId", CERT_ID,
                                                        "isSystemAdmin", false),
                                         HttpData.empty()).aggregate().join();
@@ -190,7 +190,7 @@ class MetadataApiServiceTest {
 
         // Add certificate client as a member to the project
         request = HttpRequest.builder()
-                             .post("/api/v1/metadata/" + PROJECT_NAME + "/applications")
+                             .post("/api/v1/metadata/" + PROJECT_NAME + "/appIdentities")
                              .contentJson(new IdAndProjectRole(MEMBER_CERTIFICATE_APP_ID, ProjectRole.MEMBER))
                              .build();
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.OK);
@@ -291,7 +291,7 @@ class MetadataApiServiceTest {
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.OK);
 
         ProjectMetadata projectMetadata = projectMetadata();
-        assertThat(projectMetadata.repo(REPOSITORY_NAME).roles().applications().get(APP_ID))
+        assertThat(projectMetadata.repo(REPOSITORY_NAME).roles().appIds().get(APP_ID))
                 .isSameAs(RepositoryRole.READ);
 
         // Remove the member
@@ -301,7 +301,7 @@ class MetadataApiServiceTest {
         assertThat(systemAdminClient.execute(request).status())
                 .isSameAs(HttpStatus.NO_CONTENT);
         projectMetadata = projectMetadata();
-        assertThat(projectMetadata.repo(REPOSITORY_NAME).roles().applications().get(APP_ID)).isNull();
+        assertThat(projectMetadata.repo(REPOSITORY_NAME).roles().appIds().get(APP_ID)).isNull();
     }
 
     @Test
@@ -432,7 +432,7 @@ class MetadataApiServiceTest {
         // Promote the member with certificate to a repository admin.
         final HttpRequest req = HttpRequest.builder()
                                            .post("/api/v1/metadata/" + PROJECT_NAME + "/repos/" +
-                                                 REPOSITORY_NAME + "/roles/applications")
+                                                 REPOSITORY_NAME + "/roles/appIdentities")
                                            .contentJson(new IdAndRepositoryRole(MEMBER_CERTIFICATE_APP_ID,
                                                                                 RepositoryRole.ADMIN))
                                            .build();

@@ -43,8 +43,8 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.metadata.Application;
-import com.linecorp.centraldogma.server.metadata.ApplicationRegistry;
+import com.linecorp.centraldogma.server.metadata.AppIdentity;
+import com.linecorp.centraldogma.server.metadata.AppIdentityRegistry;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -85,7 +85,7 @@ public class PurgeSchedulingService {
         storagePurgingScheduler.start(() -> {
             try {
                 purgeProjectAndRepository(commandExecutor, metadataService);
-                purgeApplications(metadataService);
+                purgeAppIdentities(metadataService);
             } catch (Exception e) {
                 logger.warn("Unexpected purging service failure", e);
             }
@@ -149,17 +149,17 @@ public class PurgeSchedulingService {
                 });
     }
 
-    private static void purgeApplications(MetadataService metadataService) {
-        final ApplicationRegistry applicationRegistry = metadataService.getApplicationRegistry();
-        final List<String> purging = applicationRegistry.appIds().values()
+    private static void purgeAppIdentities(MetadataService metadataService) {
+        final AppIdentityRegistry appIdentityRegistry = metadataService.getAppIdentityRegistry();
+        final List<String> purging = appIdentityRegistry.appIds().values()
                                                         .stream()
-                                                        .filter(Application::isDeleted)
-                                                        .map(Application::appId)
+                                                        .filter(AppIdentity::isDeleted)
+                                                        .map(AppIdentity::appId)
                                                         .collect(toImmutableList());
 
         if (!purging.isEmpty()) {
-            logger.info("Purging {} applications: {}", purging.size(), purging);
-            purging.forEach(appId -> metadataService.purgeApplication(Author.SYSTEM, appId));
+            logger.info("Purging {} app identities: {}", purging.size(), purging);
+            purging.forEach(appId -> metadataService.purgeAppIdentity(Author.SYSTEM, appId));
         }
     }
 

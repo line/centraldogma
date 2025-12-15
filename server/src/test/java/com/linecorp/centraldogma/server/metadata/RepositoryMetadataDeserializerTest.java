@@ -39,7 +39,7 @@ class RepositoryMetadataDeserializerTest {
                               "      \"foo@dogma.com\": \"READ\"," +
                               "      \"bar@dogma.com\": \"WRITE\"" +
                               "    }," +
-                              "    \"applications\": {" +
+                              "    \"appIds\": {" +
                               "      \"goodman\": \"READ\"" +
                               "    }" +
                               "  }," +
@@ -60,7 +60,7 @@ class RepositoryMetadataDeserializerTest {
         assertThat(roles.users()).isEqualTo(
                 ImmutableMap.of("foo@dogma.com", RepositoryRole.READ,
                                 "bar@dogma.com", RepositoryRole.WRITE));
-        assertThat(roles.applications()).isEqualTo(
+        assertThat(roles.appIds()).isEqualTo(
                 ImmutableMap.of("goodman", RepositoryRole.READ));
         assertThat(repositoryMetadata.creation())
                 .isEqualTo(new UserAndTimestamp("minu.song@dogma.com", "2024-08-19T02:47:23.370762417Z"));

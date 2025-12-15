@@ -30,13 +30,13 @@ import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 
 /**
- * Specifies a registration of an {@link Application}.
+ * Specifies a registration of an {@link AppIdentity}.
  */
 @JsonInclude(Include.NON_NULL)
-public class ApplicationRegistration implements Identifiable, HasWeight {
+public class AppIdentityRegistration implements Identifiable, HasWeight {
 
     /**
-     * An application identifier which belongs to an {@link Application}.
+     * An application identifier which belongs to an {@link AppIdentity}.
      */
     private final String appId;
 
@@ -46,7 +46,7 @@ public class ApplicationRegistration implements Identifiable, HasWeight {
     private final ProjectRole role;
 
     /**
-     * Specifies when the application is registered by whom.
+     * Specifies when the app identity is registered by whom.
      */
     private final UserAndTimestamp creation;
 
@@ -54,7 +54,7 @@ public class ApplicationRegistration implements Identifiable, HasWeight {
      * Creates a new instance.
      */
     @JsonCreator
-    public ApplicationRegistration(@JsonProperty("appId") String appId,
+    public AppIdentityRegistration(@JsonProperty("appId") String appId,
                                    @JsonProperty("role") ProjectRole role,
                                    @JsonProperty("creation") UserAndTimestamp creation) {
         this.appId = requireNonNull(appId, "appId");
@@ -76,7 +76,7 @@ public class ApplicationRegistration implements Identifiable, HasWeight {
     }
 
     /**
-     * Returns the role of the application in a project.
+     * Returns the role of the app identity in a project.
      */
     @JsonProperty
     public ProjectRole role() {
@@ -84,7 +84,7 @@ public class ApplicationRegistration implements Identifiable, HasWeight {
     }
 
     /**
-     * Returns who creates the application when.
+     * Returns who creates the app identity when.
      */
     @JsonProperty
     public UserAndTimestamp creation() {
@@ -101,10 +101,10 @@ public class ApplicationRegistration implements Identifiable, HasWeight {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof ApplicationRegistration)) {
+        if (!(o instanceof AppIdentityRegistration)) {
             return false;
         }
-        final ApplicationRegistration that = (ApplicationRegistration) o;
+        final AppIdentityRegistration that = (AppIdentityRegistration) o;
         return appId.equals(that.appId) &&
                role == that.role &&
                creation.equals(that.creation);

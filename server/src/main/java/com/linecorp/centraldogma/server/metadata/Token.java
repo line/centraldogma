@@ -31,7 +31,7 @@ import com.linecorp.centraldogma.internal.Util;
 /**
  * Specifies details of an application token.
  */
-public final class Token extends AbstractApplication {
+public final class Token extends AbstractAppIdentity {
 
     /**
      * A secret which is used to access an HTTP API.
@@ -41,7 +41,7 @@ public final class Token extends AbstractApplication {
 
     Token(String appId, String secret, boolean isSystemAdmin, boolean allowGuestAccess,
           UserAndTimestamp creation) {
-        super(appId, ApplicationType.TOKEN, isSystemAdmin, allowGuestAccess, creation, null, null);
+        super(appId, AppIdentityType.TOKEN, isSystemAdmin, allowGuestAccess, creation, null, null);
         this.secret = Util.validateFileName(secret, "secret");
     }
 
@@ -56,7 +56,7 @@ public final class Token extends AbstractApplication {
                  @JsonProperty("creation") UserAndTimestamp creation,
                  @JsonProperty("deactivation") @Nullable UserAndTimestamp deactivation,
                  @JsonProperty("deletion") @Nullable UserAndTimestamp deletion) {
-        super(appId, ApplicationType.TOKEN, isSystemAdmin,
+        super(appId, AppIdentityType.TOKEN, isSystemAdmin,
               // Allow guest access by default for backward compatibility.
               firstNonNull(allowGuestAccess, true),
               requireNonNull(creation, "creation"),
@@ -67,7 +67,7 @@ public final class Token extends AbstractApplication {
 
     private Token(String appId, boolean isSystemAdmin, boolean allowGuestAccess, UserAndTimestamp creation,
                   @Nullable UserAndTimestamp deactivation, @Nullable UserAndTimestamp deletion) {
-        super(appId, ApplicationType.TOKEN, isSystemAdmin, allowGuestAccess,
+        super(appId, AppIdentityType.TOKEN, isSystemAdmin, allowGuestAccess,
               requireNonNull(creation, "creation"), deactivation, deletion);
         secret = null;
     }

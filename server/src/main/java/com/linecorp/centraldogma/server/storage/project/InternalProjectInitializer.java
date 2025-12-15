@@ -53,7 +53,7 @@ import com.linecorp.centraldogma.server.auth.SessionKey;
 import com.linecorp.centraldogma.server.auth.SessionMasterKey;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.metadata.ApplicationRegistry;
+import com.linecorp.centraldogma.server.metadata.AppIdentityRegistry;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionEntryExistsException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionEntryNoExistException;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
@@ -75,9 +75,9 @@ public final class InternalProjectInitializer {
     private final CompletableFuture<Void> initialFuture = new CompletableFuture<>();
 
     @Nullable
-    private volatile Revision lastApplicationRegistryRevision;
+    private volatile Revision lastAppIdentityRegistryRevision;
     @Nullable
-    private volatile ApplicationRegistry applicationRegistry;
+    private volatile AppIdentityRegistry appIdentityRegistry;
 
     /**
      * Creates a new instance.
@@ -108,7 +108,7 @@ public final class InternalProjectInitializer {
                         TOKEN_JSON + " file does not exist in " + INTERNAL_PROJECT_DOGMA +
                         '/' + Project.REPO_DOGMA + ". Cannot initialize in read-only mode.");
             }
-            setApplicationRegistry(entry, dogmaRepo);
+            setAppIdentityRegistry(entry, dogmaRepo);
             if (encryptionStorageManager.encryptSessionCookie()) {
                 if (encryptionStorageManager.getCurrentSessionKey().join() == null) {
                     throw new IllegalStateException(
@@ -125,12 +125,12 @@ public final class InternalProjectInitializer {
 
     /**
      * Creates an internal project and repositories and
-     * an application registry to {@code dogma/dogma/tokens.json}.
+     * an app identity registry to {@code dogma/dogma/tokens.json}.
      */
     public void initialize() {
         try {
             initialize0(INTERNAL_PROJECT_DOGMA);
-            initializeApplicationRegistry();
+            initializeAppIdentityRegistry();
             initializeSessionKey();
             initialFuture.complete(null);
         } catch (Exception cause) {
@@ -149,7 +149,7 @@ public final class InternalProjectInitializer {
     }
 
     /**
-     * Creates an internal project and repositories such as an application registry.
+     * Creates an internal project and repositories such as an app identity registry.
      */
     private void initialize0(String projectName) {
         final long creationTimeMillis = System.currentTimeMillis();
@@ -171,18 +171,18 @@ public final class InternalProjectInitializer {
         initializeInternalRepos(projectName, Project.internalRepos(), creationTimeMillis);
     }
 
-    private void initializeApplicationRegistry() {
+    private void initializeAppIdentityRegistry() {
         final Repository dogmaRepo = projectManager.get(INTERNAL_PROJECT_DOGMA).repos().get(Project.REPO_DOGMA);
         final Entry<JsonNode> entry = dogmaRepo.getOrNull(Revision.HEAD, Query.ofJson(TOKEN_JSON)).join();
         if (entry != null && entry.hasContent()) {
-            setApplicationRegistry(entry, dogmaRepo);
+            setAppIdentityRegistry(entry, dogmaRepo);
             return;
         }
         try {
             final Change<?> change = Change.ofJsonPatch(TOKEN_JSON,
-                                                        null, Jackson.valueToTree(new ApplicationRegistry()));
+                                                        null, Jackson.valueToTree(new AppIdentityRegistry()));
             final String commitSummary =
-                    "Initialize the application registry file: /" + INTERNAL_PROJECT_DOGMA + '/' +
+                    "Initialize the app identity registry file: /" + INTERNAL_PROJECT_DOGMA + '/' +
                     Project.REPO_DOGMA + TOKEN_JSON;
             executor.execute(Command.forcePush(push(Author.SYSTEM, INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
                                                     Revision.HEAD, commitSummary, "", Markup.PLAINTEXT,
@@ -191,29 +191,29 @@ public final class InternalProjectInitializer {
         } catch (Throwable cause) {
             final Throwable peeled = Exceptions.peel(cause);
             if (!(peeled instanceof ChangeConflictException)) {
-                throw new Error("failed to initialize the application registry file", peeled);
+                throw new Error("failed to initialize the app identity registry file", peeled);
             }
         }
         final Entry<JsonNode> entry1 = dogmaRepo.getOrNull(Revision.HEAD, Query.ofJson(TOKEN_JSON)).join();
         checkState(entry1 != null && entry1.hasContent(),
                    "%s file does not exist in %s/%s", TOKEN_JSON,  INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA);
-        setApplicationRegistry(entry1, dogmaRepo);
+        setAppIdentityRegistry(entry1, dogmaRepo);
     }
 
-    private void setApplicationRegistry(Entry<JsonNode> entry, Repository dogmaRepo) {
+    private void setAppIdentityRegistry(Entry<JsonNode> entry, Repository dogmaRepo) {
         try {
-            final ApplicationRegistry applicationRegistry =
-                    Jackson.treeToValue(entry.content(), ApplicationRegistry.class);
-            lastApplicationRegistryRevision = entry.revision();
-            this.applicationRegistry = applicationRegistry;
-            attachApplicationRegistryListener(dogmaRepo);
+            final AppIdentityRegistry appIdentityRegistry =
+                    Jackson.treeToValue(entry.content(), AppIdentityRegistry.class);
+            lastAppIdentityRegistryRevision = entry.revision();
+            this.appIdentityRegistry = appIdentityRegistry;
+            attachAppIdentityRegistryListener(dogmaRepo);
         } catch (JsonParseException | JsonMappingException e) {
             throw new RuntimeException(String.format("failed to parse %s/%s/%s", INTERNAL_PROJECT_DOGMA,
                                                      Project.REPO_DOGMA, TOKEN_JSON), e);
         }
     }
 
-    private void attachApplicationRegistryListener(Repository dogmaRepo) {
+    private void attachAppIdentityRegistryListener(Repository dogmaRepo) {
         dogmaRepo.addListener(RepositoryListener.of(Query.ofJson(TOKEN_JSON), entry -> {
             if (entry == null) {
                 logger.warn("{} file is missing in {}/{}", TOKEN_JSON, INTERNAL_PROJECT_DOGMA,
@@ -222,18 +222,18 @@ public final class InternalProjectInitializer {
             }
 
             final Revision lastRevision = entry.revision();
-            final Revision lastApplicationRegistryRevision = this.lastApplicationRegistryRevision;
-            if (lastApplicationRegistryRevision != null &&
-                lastRevision.compareTo(lastApplicationRegistryRevision) <= 0) {
+            final Revision lastAppIdentityRegistryRevision = this.lastAppIdentityRegistryRevision;
+            if (lastAppIdentityRegistryRevision != null &&
+                lastRevision.compareTo(lastAppIdentityRegistryRevision) <= 0) {
                 // An old data.
                 return;
             }
 
             try {
-                final ApplicationRegistry applicationRegistry =
-                        Jackson.treeToValue(entry.content(), ApplicationRegistry.class);
-                this.lastApplicationRegistryRevision = lastRevision;
-                this.applicationRegistry = applicationRegistry;
+                final AppIdentityRegistry appIdentityRegistry =
+                        Jackson.treeToValue(entry.content(), AppIdentityRegistry.class);
+                this.lastAppIdentityRegistryRevision = lastRevision;
+                this.appIdentityRegistry = appIdentityRegistry;
             } catch (JsonParseException | JsonMappingException e) {
                 logger.warn("Invalid {} file in {}/{}", TOKEN_JSON, INTERNAL_PROJECT_DOGMA,
                             Project.REPO_DOGMA, e);
@@ -279,12 +279,12 @@ public final class InternalProjectInitializer {
     }
 
     /**
-     * Returns the {@link ApplicationRegistry}.
+     * Returns the {@link AppIdentityRegistry}.
      */
-    public ApplicationRegistry applicationRegistry() {
-        final ApplicationRegistry applicationRegistry = this.applicationRegistry;
-        checkState(applicationRegistry != null, "applicationRegistry have not been loaded yet");
-        return applicationRegistry;
+    public AppIdentityRegistry appIdentityRegistry() {
+        final AppIdentityRegistry appIdentityRegistry = this.appIdentityRegistry;
+        checkState(appIdentityRegistry != null, "appIdentityRegistry have not been loaded yet");
+        return appIdentityRegistry;
     }
 
     /**

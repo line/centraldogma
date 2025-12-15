@@ -16,44 +16,44 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
-import static com.linecorp.centraldogma.internal.Util.APPLICATION_EMAIL_SUFFIX;
+import static com.linecorp.centraldogma.internal.Util.APP_IDENTITY_EMAIL_SUFFIX;
 import static java.util.Objects.requireNonNull;
 
 import com.google.common.base.MoreObjects;
 
 /**
- * A {@link User} which accesses the API with an {@link Application}.
+ * A {@link User} which accesses the API with an {@link AppIdentity}.
  */
-public final class UserWithApplication extends User {
+public final class UserWithAppIdentity extends User {
 
     private static final long serialVersionUID = 6021146546653491444L;
 
-    private final Application application;
+    private final AppIdentity appIdentity;
 
     /**
      * Creates a new instance.
      */
-    public UserWithApplication(Application application) {
-        super(requireNonNull(application, "application").appId(),
-              application.appId() + APPLICATION_EMAIL_SUFFIX);
-        this.application = application;
+    public UserWithAppIdentity(AppIdentity appIdentity) {
+        super(requireNonNull(appIdentity, "appIdentity").appId(),
+              appIdentity.appId() + APP_IDENTITY_EMAIL_SUFFIX);
+        this.appIdentity = appIdentity;
     }
 
     /**
-     * Returns the {@link Application} of the user.
+     * Returns the {@link AppIdentity} of the user.
      */
-    public Application application() {
-        return application;
+    public AppIdentity appIdentity() {
+        return appIdentity;
     }
 
     @Override
     public boolean isSystemAdmin() {
-        return application.isSystemAdmin();
+        return appIdentity.isSystemAdmin();
     }
 
     @Override
     public int hashCode() {
-        return super.hashCode() * 31 + application.hashCode();
+        return super.hashCode() * 31 + appIdentity.hashCode();
     }
 
     @Override
@@ -61,21 +61,21 @@ public final class UserWithApplication extends User {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof UserWithApplication)) {
+        if (!(o instanceof UserWithAppIdentity)) {
             return false;
         }
         if (!super.equals(o)) {
             return false;
         }
 
-        final UserWithApplication that = (UserWithApplication) o;
-        return application.equals(that.application);
+        final UserWithAppIdentity that = (UserWithAppIdentity) o;
+        return appIdentity.equals(that.appIdentity);
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("application", application)
+                          .add("appIdentity", appIdentity)
                           .toString();
     }
 }

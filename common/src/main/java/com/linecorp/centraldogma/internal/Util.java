@@ -38,10 +38,10 @@ import com.jayway.jsonpath.JsonPath;
 public final class Util {
 
     /**
-     * The domain part when generating an email address for the application.
+     * The domain part when generating an email address for the app identity.
      */
-    public static final String APPLICATION_EMAIL_SUFFIX = "@dogma-application.local";
-    public static final String LEGACY_APPLICATION_EMAIL_SUFFIX = "@dogma-token.local";
+    public static final String APP_IDENTITY_EMAIL_SUFFIX = "@dogma-app-identity.local";
+    public static final String LEGACY_APP_IDENTITY_EMAIL_SUFFIX = "@dogma-token.local";
 
     /**
      * The domain part used when generating an email address for the user if the user did not provide

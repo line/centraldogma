@@ -77,7 +77,7 @@ class MissingRepositoryMetadataTest {
         assertThat(roles.projectRoles().member()).isSameAs(RepositoryRole.WRITE);
         assertThat(roles.projectRoles().guest()).isNull();
         assertThat(roles.users()).isEmpty();
-        assertThat(roles.applications()).isEmpty();
+        assertThat(roles.appIds()).isEmpty();
 
         // However, the metadata of a non-existent repository must not trigger auto-generation.
         assertThatThrownBy(() -> mds.getRepo(PROJ, "missing").join())

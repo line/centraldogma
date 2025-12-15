@@ -27,12 +27,12 @@ import com.google.common.base.Objects;
 import com.linecorp.centraldogma.internal.Util;
 
 /**
- * An abstract base class for {@link Application} implementations.
+ * An abstract base class for {@link AppIdentity} implementations.
  */
-abstract class AbstractApplication implements Application {
+abstract class AbstractAppIdentity implements AppIdentity {
 
     private final String appId;
-    private final ApplicationType type;
+    private final AppIdentityType type;
     private final boolean isSystemAdmin;
     private final boolean allowGuestAccess;
     private final UserAndTimestamp creation;
@@ -41,9 +41,9 @@ abstract class AbstractApplication implements Application {
     @Nullable
     private final UserAndTimestamp deletion;
 
-    AbstractApplication(String appId, ApplicationType type, boolean isSystemAdmin, boolean allowGuestAccess,
-                        UserAndTimestamp creation, @Nullable UserAndTimestamp deactivation,
-                        @Nullable UserAndTimestamp deletion) {
+    AbstractAppIdentity(String appId, AppIdentityType type, boolean isSystemAdmin,
+                        boolean allowGuestAccess, UserAndTimestamp creation,
+                        @Nullable UserAndTimestamp deactivation, @Nullable UserAndTimestamp deletion) {
         this.appId = Util.validateFileName(appId, "appId");
         this.type = requireNonNull(type, "type");
         this.isSystemAdmin = isSystemAdmin;
@@ -64,7 +64,7 @@ abstract class AbstractApplication implements Application {
     }
 
     @Override
-    public ApplicationType type() {
+    public AppIdentityType type() {
         return type;
     }
 
@@ -105,7 +105,7 @@ abstract class AbstractApplication implements Application {
             return false;
         }
 
-        final AbstractApplication that = (AbstractApplication) o;
+        final AbstractAppIdentity that = (AbstractAppIdentity) o;
         return appId.equals(that.appId) &&
                type == that.type &&
                isSystemAdmin == that.isSystemAdmin &&

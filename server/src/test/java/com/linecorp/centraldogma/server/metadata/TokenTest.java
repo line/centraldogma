@@ -41,8 +41,8 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.internal.api.sysadmin.ApplicationLevelRequest;
-import com.linecorp.centraldogma.server.internal.api.sysadmin.ApplicationRegistryService;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.AppIdentityLevelRequest;
+import com.linecorp.centraldogma.server.internal.api.sysadmin.AppIdentityRegistryService;
 import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -61,14 +61,14 @@ class TokenTest {
     private static final ServiceRequestContext CTX =
             ServiceRequestContext.builder(HttpRequest.of(HttpMethod.GET, "/")).build();
 
-    private static ApplicationRegistryService applicationRegistryService;
+    private static AppIdentityRegistryService appIdentityRegistryService;
     private static MetadataService metadataService;
 
     @BeforeAll
     static void setUp() throws JsonParseException {
         metadataService = new MetadataService(manager.projectManager(), manager.executor(),
                                               manager.internalProjectInitializer());
-        applicationRegistryService = new ApplicationRegistryService(manager.executor(), metadataService,
+        appIdentityRegistryService = new AppIdentityRegistryService(manager.executor(), metadataService,
                                                                     false);
 
         // Put the legacy token.
@@ -109,7 +109,7 @@ class TokenTest {
 
     @Test
     void updateToken() throws JsonParseException {
-        final Collection<Token> tokens = applicationRegistryService.listTokens(USER);
+        final Collection<Token> tokens = appIdentityRegistryService.listTokens(USER);
         assertThat(tokens.size()).isOne();
         final Token token = Iterables.getFirst(tokens, null);
         assertThat(token.appId()).isEqualTo(APP_ID);
@@ -122,10 +122,10 @@ class TokenTest {
                                         "path", "/status",
                                         "value", "inactive")));
 
-        applicationRegistryService.updateToken(CTX, APP_ID, deactivation, AUTHOR, USER).join();
-        await().untilAsserted(() -> assertThat(metadataService.findApplicationByAppId(APP_ID)
+        appIdentityRegistryService.updateToken(CTX, APP_ID, deactivation, AUTHOR, USER).join();
+        await().untilAsserted(() -> assertThat(metadataService.findAppIdentity(APP_ID)
                                                               .isActive()).isFalse());
-        Application updated = metadataService.findApplicationByAppId(APP_ID);
+        AppIdentity updated = metadataService.findAppIdentity(APP_ID);
         assertThat(updated.appId()).isEqualTo(APP_ID);
         assertThat(updated.isSystemAdmin()).isTrue();
 
@@ -135,10 +135,10 @@ class TokenTest {
                                         "path", "/status",
                                         "value", "active")));
 
-        applicationRegistryService.updateToken(CTX, APP_ID, activation, AUTHOR, USER).join();
-        await().untilAsserted(() -> assertThat(metadataService.findApplicationByAppId(APP_ID)
+        appIdentityRegistryService.updateToken(CTX, APP_ID, activation, AUTHOR, USER).join();
+        await().untilAsserted(() -> assertThat(metadataService.findAppIdentity(APP_ID)
                                                               .isActive()).isTrue());
-        updated = metadataService.findApplicationByAppId(APP_ID);
+        updated = metadataService.findAppIdentity(APP_ID);
         assertThat(updated.appId()).isEqualTo(APP_ID);
         assertThat(updated.isSystemAdmin()).isTrue();
     }
@@ -146,14 +146,14 @@ class TokenTest {
     @Test
     void updateTokenLevel() {
         final Token userToken =
-                applicationRegistryService.updateTokenLevel(CTX, APP_ID, new ApplicationLevelRequest("USER"),
+                appIdentityRegistryService.updateTokenLevel(CTX, APP_ID, new AppIdentityLevelRequest("USER"),
                                                             AUTHOR, USER)
                                           .join();
         assertThat(userToken.isSystemAdmin()).isFalse();
 
         final Token updatedToken =
-                applicationRegistryService.updateTokenLevel(CTX, APP_ID,
-                                                            new ApplicationLevelRequest("SYSTEMADMIN"),
+                appIdentityRegistryService.updateTokenLevel(CTX, APP_ID,
+                                                            new AppIdentityLevelRequest("SYSTEMADMIN"),
                                                             AUTHOR, USER)
                                           .join();
         assertThat(updatedToken.isSystemAdmin()).isTrue();

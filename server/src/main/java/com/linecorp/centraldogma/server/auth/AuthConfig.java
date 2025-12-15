@@ -202,7 +202,7 @@ public final class AuthConfig {
     /**
      * Returns the mTLS configuration.
      */
-    @JsonProperty
+    @JsonProperty("mtls")
     public MtlsConfig mtlsConfig() {
         return mtlsConfig;
     }

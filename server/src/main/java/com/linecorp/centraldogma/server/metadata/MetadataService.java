@@ -76,7 +76,7 @@ public class MetadataService {
     /**
      * A path of token list file.
      */
-    // TODO(minwoox): Rename to /application-registry.json
+    // TODO(minwoox): Rename to /app-identity-registry.json
     public static final String TOKEN_JSON = "/tokens.json";
 
     /**
@@ -86,7 +86,7 @@ public class MetadataService {
 
     private final ProjectManager projectManager;
     private final RepositorySupport<ProjectMetadata> metadataRepo;
-    private final ApplicationService applicationService;
+    private final AppIdentityService appIdentityService;
 
     private final Map<String, CompletableFuture<Revision>> reposInAddingMetadata = new ConcurrentHashMap<>();
 
@@ -97,7 +97,7 @@ public class MetadataService {
                            InternalProjectInitializer projectInitializer) {
         this.projectManager = requireNonNull(projectManager, "projectManager");
         metadataRepo = new RepositorySupport<>(projectManager, executor, ProjectMetadata.class);
-        applicationService = new ApplicationService(projectManager, executor, projectInitializer);
+        appIdentityService = new AppIdentityService(projectManager, executor, projectInitializer);
     }
 
     /**
@@ -266,7 +266,7 @@ public class MetadataService {
                     return new ProjectMetadata(projectMetadata.name(),
                                                newRepos,
                                                newMembers,
-                                               projectMetadata.applications(),
+                                               projectMetadata.appIds(),
                                                projectMetadata.creation(),
                                                projectMetadata.removal());
                 });
@@ -283,7 +283,7 @@ public class MetadataService {
             final Map<String, RepositoryRole> users = roles.users();
             if (users.get(memberId) != null) {
                 final ImmutableMap<String, RepositoryRole> newUsers = removeFromMap(users, memberId);
-                final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.applications());
+                final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.appIds());
                 reposBuilder.put(entry.getKey(),
                                  new RepositoryMetadata(repositoryMetadata.name(),
                                                         newRoles,
@@ -457,7 +457,7 @@ public class MetadataService {
         final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                 repoName, (headRevision, repositoryMetadata) -> {
             final Roles newRoles = new Roles(projectRoles, repositoryMetadata.roles().users(),
-                                             repositoryMetadata.roles().applications());
+                                             repositoryMetadata.roles().appIds());
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
@@ -468,86 +468,86 @@ public class MetadataService {
     }
 
     /**
-     * Adds an {@link Application} of the specified {@code appId} to the specified {@code projectName}.
+     * Adds an {@link AppIdentity} of the specified {@code appId} to the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> addApplication(Author author, String projectName,
+    public CompletableFuture<Revision> addAppIdentity(Author author, String projectName,
                                                       String appId, ProjectRole role) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(appId, "appId");
         requireNonNull(role, "role");
 
-        applicationService.getApplicationRegistry().get(appId); // Will raise an exception if not found.
-        final ApplicationRegistration registration = new ApplicationRegistration(appId, role,
+        appIdentityService.getAppIdentityRegistry().get(appId); // Will raise an exception if not found.
+        final AppIdentityRegistration registration = new AppIdentityRegistration(appId, role,
                                                                                  UserAndTimestamp.of(author));
-        final JsonPointer path = JsonPointer.compile("/applications" + encodeSegment(registration.id()));
+        final JsonPointer path = JsonPointer.compile("/appIds" + encodeSegment(registration.id()));
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
                                        asJsonArray(JsonPatchOperation.testAbsence(path),
                                                    JsonPatchOperation.add(path,
                                                                           Jackson.valueToTree(registration))));
-        final String commitSummary = "Add an application '" + registration.id() +
+        final String commitSummary = "Add an app identity '" + registration.id() +
                                      "' to the project '" + projectName + "' with a role '" + role + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**
-     * Removes the {@link Application} of the specified {@code appId} from the specified {@code projectName}.
-     * It also removes every application repository role belonging to {@link Application} from
+     * Removes the {@link AppIdentity} of the specified {@code appId} from the specified {@code projectName}.
+     * It also removes every app identity repository role belonging to {@link AppIdentity} from
      * every {@link RepositoryMetadata}.
      */
-    public CompletableFuture<Revision> removeApplicationFromProject(Author author,
+    public CompletableFuture<Revision> removeAppIdentityFromProject(Author author,
                                                                     String projectName, String appId) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(appId, "appId");
 
-        return removeApplicationFromProject(author, projectName, appId, false);
+        return removeAppIdentityFromProject(author, projectName, appId, false);
     }
 
-    CompletableFuture<Revision> removeApplicationFromProject(Author author, String projectName, String appId,
+    CompletableFuture<Revision> removeAppIdentityFromProject(Author author, String projectName, String appId,
                                                              boolean quiet) {
         final String commitSummary =
-                "Remove the application '" + appId + "' from the project '" + projectName + '\'';
+                "Remove the app identity '" + appId + "' from the project '" + projectName + '\'';
         final ProjectMetadataTransformer transformer =
                 new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
-                    final Map<String, ApplicationRegistration> applications = projectMetadata.applications();
-                    final Map<String, ApplicationRegistration> newApplications;
-                    if (applications.get(appId) == null) {
+                    final Map<String, AppIdentityRegistration> appIds = projectMetadata.appIds();
+                    final Map<String, AppIdentityRegistration> newAppIds;
+                    if (appIds.get(appId) == null) {
                         if (!quiet) {
-                            throw new ApplicationNotFoundException(
-                                    "failed to find the application " + appId + " in project " + projectName);
+                            throw new AppIdentityNotFoundException(
+                                    "failed to find the app identity " + appId + " in project " + projectName);
                         }
-                        newApplications = applications;
+                        newAppIds = appIds;
                     } else {
-                        newApplications = applications.entrySet()
+                        newAppIds = appIds.entrySet()
                                                       .stream()
                                                       .filter(entry -> !entry.getKey().equals(appId))
                                                       .collect(toImmutableMap(Entry::getKey, Entry::getValue));
                     }
 
                     final ImmutableMap<String, RepositoryMetadata> newRepos =
-                            removeApplicationFromRepositories(appId, projectMetadata);
+                            removeAppIdentityFromRepositories(appId, projectMetadata);
                     return new ProjectMetadata(projectMetadata.name(),
                                                newRepos,
                                                projectMetadata.members(),
-                                               newApplications,
+                                               newAppIds,
                                                projectMetadata.creation(),
                                                projectMetadata.removal());
                 });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
-    private static ImmutableMap<String, RepositoryMetadata> removeApplicationFromRepositories(
+    private static ImmutableMap<String, RepositoryMetadata> removeAppIdentityFromRepositories(
             String appId, ProjectMetadata projectMetadata) {
         final ImmutableMap.Builder<String, RepositoryMetadata> builder =
                 ImmutableMap.builderWithExpectedSize(projectMetadata.repos().size());
         for (Entry<String, RepositoryMetadata> entry : projectMetadata.repos().entrySet()) {
             final RepositoryMetadata repositoryMetadata = entry.getValue();
             final Roles roles = repositoryMetadata.roles();
-            if (roles.applications().get(appId) != null) {
-                final Map<String, RepositoryRole> newApplications = removeFromMap(roles.applications(), appId);
-                final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newApplications);
+            if (roles.appIds().get(appId) != null) {
+                final Map<String, RepositoryRole> newAppIds = removeFromMap(roles.appIds(), appId);
+                final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newAppIds);
                 builder.put(entry.getKey(), new RepositoryMetadata(repositoryMetadata.name(),
                                                                    newRoles,
                                                                    repositoryMetadata.creation(),
@@ -561,22 +561,23 @@ public class MetadataService {
     }
 
     /**
-     * Updates a {@link ProjectRole} for the {@link Application} of the specified {@code appId}.
+     * Updates a {@link ProjectRole} for the {@link AppIdentity} of the specified {@code appId}.
      */
-    public CompletableFuture<Revision> updateApplicationRole(Author author, String projectName,
-                                                             Application application, ProjectRole role) {
+    public CompletableFuture<Revision> updateAppIdentityRole(
+            Author author, String projectName,
+            AppIdentity appIdentity, ProjectRole role) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
-        requireNonNull(application, "application");
+        requireNonNull(appIdentity, "appIdentity");
         requireNonNull(role, "role");
-        final ApplicationRegistration registration = new ApplicationRegistration(application.appId(), role,
+        final AppIdentityRegistration registration = new AppIdentityRegistration(appIdentity.appId(), role,
                                                                                  UserAndTimestamp.of(author));
-        final JsonPointer path = JsonPointer.compile("/applications" + encodeSegment(registration.id()));
+        final JsonPointer path = JsonPointer.compile("/appIds" + encodeSegment(registration.id()));
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
                                    JsonPatchOperation.replace(
                                            path, Jackson.valueToTree(registration)).toJsonNode());
-        final String commitSummary = "Update the role of an application '" + application.appId() +
+        final String commitSummary = "Update the role of an app identity '" + appIdentity.appId() +
                                      "' as '" + role + "' for the project '" + projectName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
@@ -610,7 +611,7 @@ public class MetadataService {
 
                 final Map<String, RepositoryRole> users = roles.users();
                 final ImmutableMap<String, RepositoryRole> newUsers = addToMap(users, member.id(), role);
-                final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.applications());
+                final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.appIds());
                 return new RepositoryMetadata(repositoryMetadata.name(),
                                               newRoles,
                                               repositoryMetadata.creation(),
@@ -641,7 +642,7 @@ public class MetadataService {
             }
 
             final Map<String, RepositoryRole> newUsers = removeFromMap(roles.users(), memberId);
-            final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.applications());
+            final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.appIds());
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
@@ -683,7 +684,7 @@ public class MetadataService {
             }
 
             final Map<String, RepositoryRole> newUsers = updateMap(roles.users(), memberId, role);
-            final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.applications());
+            final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.appIds());
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
@@ -696,10 +697,10 @@ public class MetadataService {
     }
 
     /**
-     * Adds the {@link RepositoryRole} for the {@link Application} of the specified {@code appId} to the
+     * Adds the {@link RepositoryRole} for the {@link AppIdentity} of the specified {@code appId} to the
      * specified {@code repoName} in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> addApplicationRepositoryRole(Author author, String projectName,
+    public CompletableFuture<Revision> addAppIdentityRepositoryRole(Author author, String projectName,
                                                                     String repoName, String appId,
                                                                     RepositoryRole role) {
         requireNonNull(author, "author");
@@ -710,20 +711,20 @@ public class MetadataService {
 
         return getProject(projectName).thenCompose(project -> {
             project.repo(repoName); // Raises an exception if the repository does not exist.
-            ensureProjectApplication(project, appId);
-            final String commitSummary = "Add repository role of the application '" + appId + "' as '" + role +
+            ensureProjectAppIdentity(project, appId);
+            final String commitSummary = "Add repository role of the app identity '" + appId + "' as '" + role +
                                          "' to '" + projectName + '/' + repoName + "'\n";
             final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                     repoName, (headRevision, repositoryMetadata) -> {
                 final Roles roles = repositoryMetadata.roles();
-                if (roles.applications().get(appId) != null) {
+                if (roles.appIds().get(appId) != null) {
                     throw new ChangeConflictException(
-                            "the application " + appId + " is already added to '" +
+                            "the app identity " + appId + " is already added to '" +
                             projectName + '/' + repoName + '\'');
                 }
 
-                final Map<String, RepositoryRole> newApplications = addToMap(roles.applications(), appId, role);
-                final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newApplications);
+                final Map<String, RepositoryRole> newAppIds = addToMap(roles.appIds(), appId, role);
+                final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newAppIds);
                 return new RepositoryMetadata(repositoryMetadata.name(),
                                               newRoles,
                                               repositoryMetadata.creation(),
@@ -735,10 +736,10 @@ public class MetadataService {
     }
 
     /**
-     * Removes the {@link RepositoryRole} for the {@link Application} of the specified {@code appId} of
+     * Removes the {@link RepositoryRole} for the {@link AppIdentity} of the specified {@code appId} of
      * the specified {@code repoName} in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> removeApplicationRepositoryRole(Author author, String projectName,
+    public CompletableFuture<Revision> removeAppIdentityRepositoryRole(Author author, String projectName,
                                                                        String repoName, String appId) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
@@ -748,31 +749,31 @@ public class MetadataService {
         final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                 repoName, (headRevision, repositoryMetadata) -> {
             final Roles roles = repositoryMetadata.roles();
-            if (roles.applications().get(appId) == null) {
+            if (roles.appIds().get(appId) == null) {
                 throw new ChangeConflictException(
-                        "the application " + appId + " doesn't exist at '" +
+                        "the app identity " + appId + " doesn't exist at '" +
                         projectName + '/' + repoName + '\'');
             }
 
-            final Map<String, RepositoryRole> newApplications = removeFromMap(roles.applications(), appId);
-            final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newApplications);
+            final Map<String, RepositoryRole> newAppIds = removeFromMap(roles.appIds(), appId);
+            final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newAppIds);
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
                                           repositoryMetadata.status());
         });
-        final String commitSummary = "Remove repository role of the application '" + appId +
+        final String commitSummary = "Remove repository role of the app identity '" + appId +
                                      "' from '" + projectName + '/' + repoName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     // TODO(minwoox): Add this API to MetadataApiService
     /**
-     * Updates the {@link RepositoryRole} for the {@link Application} of the specified {@code appId} of
+     * Updates the {@link RepositoryRole} for the {@link AppIdentity} of the specified {@code appId} of
      * the specified {@code repoName} in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> updateApplicationRepositoryRole(Author author, String projectName,
+    public CompletableFuture<Revision> updateAppIdentityRepositoryRole(Author author, String projectName,
                                                                        String repoName, String appId,
                                                                        RepositoryRole role) {
         requireNonNull(author, "author");
@@ -784,10 +785,10 @@ public class MetadataService {
         final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                 repoName, (headRevision, repositoryMetadata) -> {
             final Roles roles = repositoryMetadata.roles();
-            final RepositoryRole oldRepositoryRole = roles.applications().get(appId);
+            final RepositoryRole oldRepositoryRole = roles.appIds().get(appId);
             if (oldRepositoryRole == null) {
-                throw new ApplicationNotFoundException(
-                        "the application " + appId + " doesn't exist at '" +
+                throw new AppIdentityNotFoundException(
+                        "the app identity " + appId + " doesn't exist at '" +
                         projectName + '/' + repoName + '\'');
             }
 
@@ -798,21 +799,21 @@ public class MetadataService {
                         "' isn't changed.");
             }
 
-            final Map<String, RepositoryRole> newApplications = updateMap(roles.applications(), appId, role);
-            final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newApplications);
+            final Map<String, RepositoryRole> newAppIds = updateMap(roles.appIds(), appId, role);
+            final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newAppIds);
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
                                           repositoryMetadata.removal(),
                                           repositoryMetadata.status());
         });
-        final String commitSummary = "Update repository role of the application '" + appId +
+        final String commitSummary = "Update repository role of the app identity '" + appId +
                                      "' for '" + projectName + '/' + repoName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
-     * Finds {@link RepositoryRole} of the specified {@link User} or {@link UserWithApplication}
+     * Finds {@link RepositoryRole} of the specified {@link User} or {@link UserWithAppIdentity}
      * from the specified {@code repoName} in the specified {@code projectName}. If the {@link User}
      * is not found, it will return {@code null}.
      */
@@ -824,8 +825,8 @@ public class MetadataService {
         if (user.isSystemAdmin()) {
             return CompletableFuture.completedFuture(RepositoryRole.ADMIN);
         }
-        if (user instanceof UserWithApplication) {
-            return findRepositoryRole(projectName, repoName, ((UserWithApplication) user).application());
+        if (user instanceof UserWithAppIdentity) {
+            return findRepositoryRole(projectName, repoName, ((UserWithAppIdentity) user).appIdentity());
         }
         return findRepositoryRole0(projectName, repoName, user);
     }
@@ -836,28 +837,28 @@ public class MetadataService {
      * it will return {@code null}.
      */
     public CompletableFuture<RepositoryRole> findRepositoryRole(String projectName, String repoName,
-                                                                Application application) {
+                                                                AppIdentity appIdentity) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
-        requireNonNull(application, "application");
+        requireNonNull(appIdentity, "appIdentity");
 
         return getProject(projectName).thenApply(metadata -> {
             final RepositoryMetadata repositoryMetadata = metadata.repo(repoName);
             final Roles roles = repositoryMetadata.roles();
-            final String appId = application.appId();
-            final RepositoryRole tokenRepositoryRole = roles.applications().get(appId);
+            final String appId = appIdentity.appId();
+            final RepositoryRole tokenRepositoryRole = roles.appIds().get(appId);
 
-            final ApplicationRegistration projectApplicationRegistration = metadata.applications().get(appId);
+            final AppIdentityRegistration projectAppIdentityRegistration = metadata.appIds().get(appId);
             final ProjectRole projectRole;
-            if (projectApplicationRegistration != null) {
-                projectRole = projectApplicationRegistration.role();
+            if (projectAppIdentityRegistration != null) {
+                projectRole = projectAppIdentityRegistration.role();
             } else {
-                // System admin applications were checked before this method.
-                assert !application.isSystemAdmin();
-                if (application.allowGuestAccess()) {
+                // System admin app identities were checked before this method.
+                assert !appIdentity.isSystemAdmin();
+                if (appIdentity.allowGuestAccess()) {
                     projectRole = ProjectRole.GUEST;
                 } else {
-                    // The application is not allowed with the GUEST permission.
+                    // The app identity is not allowed with the GUEST permission.
                     return null;
                 }
             }
@@ -923,9 +924,9 @@ public class MetadataService {
             return CompletableFuture.completedFuture(ProjectRole.OWNER);
         }
         return getProject(projectName).thenApply(project -> {
-            if (user instanceof UserWithApplication) {
-                final ApplicationRegistration registration = project.applications().getOrDefault(
-                        user.login(), null); // login is appId for UserWithApplication
+            if (user instanceof UserWithAppIdentity) {
+                final AppIdentityRegistration registration = project.appIds().getOrDefault(
+                        user.login(), null); // login is appId for UserWithappIdentity
                 //noinspection ConstantValue
                 return registration != null ? registration.role() : ProjectRole.GUEST;
             } else {
@@ -936,17 +937,17 @@ public class MetadataService {
     }
 
     /**
-     * Fetches the {@link ApplicationRegistry} from the repository.
+     * Fetches the {@link AppIdentityRegistry} from the repository.
      */
-    public CompletableFuture<ApplicationRegistry> fetchApplicationRegistry() {
-        return applicationService.fetchApplicationRegistry();
+    public CompletableFuture<AppIdentityRegistry> fetchAppIdentityRegistry() {
+        return appIdentityService.fetchAppIdentityRegistry();
     }
 
     /**
-     * Returns an {@link ApplicationRegistry}.
+     * Returns an {@link AppIdentityRegistry}.
      */
-    public ApplicationRegistry getApplicationRegistry() {
-        return applicationService.getApplicationRegistry();
+    public AppIdentityRegistry getAppIdentityRegistry() {
+        return appIdentityService.getAppIdentityRegistry();
     }
 
     /**
@@ -954,7 +955,7 @@ public class MetadataService {
      * will be automatically generated.
      */
     public CompletableFuture<Revision> createToken(Author author, String appId) {
-        return applicationService.createToken(author, appId);
+        return appIdentityService.createToken(author, appId);
     }
 
     /**
@@ -962,14 +963,14 @@ public class MetadataService {
      * secret.
      */
     public CompletableFuture<Revision> createToken(Author author, String appId, boolean isSystemAdmin) {
-        return applicationService.createToken(author, appId, isSystemAdmin);
+        return appIdentityService.createToken(author, appId, isSystemAdmin);
     }
 
     /**
      * Creates a new user-level {@link Token} with the specified {@code appId} and {@code secret}.
      */
     public CompletableFuture<Revision> createToken(Author author, String appId, String secret) {
-        return applicationService.createToken(author, appId, secret);
+        return appIdentityService.createToken(author, appId, secret);
     }
 
     /**
@@ -977,45 +978,45 @@ public class MetadataService {
      */
     public CompletableFuture<Revision> createToken(Author author, String appId, String secret,
                                                    boolean isSystemAdmin) {
-        return applicationService.createToken(author, appId, secret, isSystemAdmin);
+        return appIdentityService.createToken(author, appId, secret, isSystemAdmin);
     }
 
     /**
      * Removes the {@link Token} of the specified {@code appId}.
-     * This sets {@link Application#deletion()} to the current timestamp. It will be purged later by
-     * {@link #purgeApplication(Author, String)}.
+     * This sets {@link AppIdentity#deletion()} to the current timestamp. It will be purged later by
+     * {@link #purgeAppIdentity(Author, String)}.
      */
     public CompletableFuture<Revision> destroyToken(Author author, String appId) {
-        return applicationService.destroyToken(author, appId);
+        return appIdentityService.destroyToken(author, appId);
     }
 
     /**
-     * Purges the {@link Application} of the specified {@code appId} that was removed before.
+     * Purges the {@link AppIdentity} of the specified {@code appId} that was removed before.
      *
      * <p>Note that this is a blocking method that should not be invoked in an event loop.
      */
-    public Revision purgeApplication(Author author, String appId) {
-        purgeApplicationInProjects(author, appId);
-        return applicationService.purgeApplication(author, appId);
+    public Revision purgeAppIdentity(Author author, String appId) {
+        purgeAppIdentityInProjects(author, appId);
+        return appIdentityService.purgeAppIdentity(author, appId);
     }
 
-    private void purgeApplicationInProjects(Author author, String appId) {
+    private void purgeAppIdentityInProjects(Author author, String appId) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
         final Collection<Project> projects = listProjectsWithoutInternal(projectManager.list(),
                                                                          User.SYSTEM_ADMIN).values();
-        // Remove the application from projects that only have the application.
+        // Remove the app identity from projects that only have the app identity.
         for (Project project : projects) {
             // Fetch the metadata to get the latest information.
             final ProjectMetadata projectMetadata = fetchMetadata(project.name()).join();
-            final boolean containsTargetApplicationInTheProject =
-                    projectMetadata.applications().values()
+            final boolean containsTargetAppIdentityInTheProject =
+                    projectMetadata.appIds().values()
                                    .stream()
-                                   .anyMatch(application -> application.appId().equals(appId));
+                                   .anyMatch(appIdentity -> appIdentity.appId().equals(appId));
 
-            if (containsTargetApplicationInTheProject) {
-                removeApplicationFromProject(author, project.name(), appId, true).join();
+            if (containsTargetAppIdentityInTheProject) {
+                removeAppIdentityFromProject(author, project.name(), appId, true).join();
             }
         }
     }
@@ -1024,35 +1025,35 @@ public class MetadataService {
      * Activates the {@link Token} of the specified {@code appId}.
      */
     public CompletableFuture<Revision> activateToken(Author author, String appId) {
-        return applicationService.activateToken(author, appId);
+        return appIdentityService.activateToken(author, appId);
     }
 
     /**
      * Deactivates the {@link Token} of the specified {@code appId}.
      */
     public CompletableFuture<Revision> deactivateToken(Author author, String appId) {
-        return applicationService.deactivateToken(author, appId);
+        return appIdentityService.deactivateToken(author, appId);
     }
 
     /**
-     * Returns an {@link Application} which has the specified {@code appId}.
+     * Returns an {@link AppIdentity} which has the specified {@code appId}.
      */
-    public Application findApplicationByAppId(String appId) {
-        return applicationService.findApplicationByAppId(appId);
+    public AppIdentity findAppIdentity(String appId) {
+        return appIdentityService.findAppIdentity(appId);
     }
 
     /**
-     * Returns a {@link ApplicationCertificate} which has the specified {@code certificateId}.
+     * Returns a {@link CertificateAppIdentity} which has the specified {@code certificateId}.
      */
-    public ApplicationCertificate findCertificateById(String certificateId) {
-        return applicationService.findCertificateById(certificateId);
+    public CertificateAppIdentity findCertificateById(String certificateId) {
+        return appIdentityService.findCertificateById(certificateId);
     }
 
     /**
      * Returns a {@link Token} which has the specified {@code secret}.
      */
     public Token findTokenBySecret(String secret) {
-        return applicationService.findTokenBySecret(secret);
+        return appIdentityService.findTokenBySecret(secret);
     }
 
     /**
@@ -1068,15 +1069,15 @@ public class MetadataService {
     }
 
     /**
-     * Ensures that the specified {@code appId} is an application of the specified {@code project}.
+     * Ensures that the specified {@code appId} is an app identity of the specified {@code project}.
      */
-    private static void ensureProjectApplication(ProjectMetadata project, String appId) {
+    private static void ensureProjectAppIdentity(ProjectMetadata project, String appId) {
         requireNonNull(project, "project");
         requireNonNull(appId, "appId");
 
-        if (!project.applications().containsKey(appId)) {
-            throw new ApplicationNotFoundException(
-                    appId + " is not an application of the project '" + project.name() + '\'');
+        if (!project.appIds().containsKey(appId)) {
+            throw new AppIdentityNotFoundException(
+                    appId + " is not an app identity of the project '" + project.name() + '\'');
         }
     }
 
@@ -1141,7 +1142,7 @@ public class MetadataService {
                 return new ProjectMetadata(projectMetadata.name(),
                                            builder.build(),
                                            projectMetadata.members(),
-                                           projectMetadata.applications(),
+                                           projectMetadata.appIds(),
                                            projectMetadata.creation(),
                                            projectMetadata.removal());
             });
@@ -1173,42 +1174,42 @@ public class MetadataService {
     }
 
     /**
-     * Creates a new application {@link ApplicationCertificate} with the specified {@code appId} and
+     * Creates a new app identity {@link CertificateAppIdentity} with the specified {@code appId} and
      * {@code certificateId}.
      */
     public CompletableFuture<Revision> createCertificate(Author author, String appId, String certificateId,
                                                          boolean isSystemAdmin) {
-        return applicationService.createCertificate(author, appId, certificateId, isSystemAdmin);
+        return appIdentityService.createCertificate(author, appId, certificateId, isSystemAdmin);
     }
 
     /**
-     * Removes the {@link ApplicationCertificate} of the specified {@code appId}.
-     * This sets {@link Application#deletion()} to the current timestamp. It will be purged later by
-     * {@link #purgeApplication(Author, String)}.
+     * Removes the {@link CertificateAppIdentity} of the specified {@code appId}.
+     * This sets {@link AppIdentity#deletion()} to the current timestamp. It will be purged later by
+     * {@link #purgeAppIdentity(Author, String)}.
      */
     public CompletableFuture<Revision> destroyCertificate(Author author, String appId) {
-        return applicationService.destroyCertificate(author, appId);
+        return appIdentityService.destroyCertificate(author, appId);
     }
 
     /**
-     * Activates the {@link ApplicationCertificate} of the specified {@code appId}.
+     * Activates the {@link CertificateAppIdentity} of the specified {@code appId}.
      */
     public CompletableFuture<Revision> activateCertificate(Author author, String appId) {
-        return applicationService.activateCertificate(author, appId);
+        return appIdentityService.activateCertificate(author, appId);
     }
 
     /**
-     * Deactivates the {@link ApplicationCertificate} of the specified {@code appId}.
+     * Deactivates the {@link CertificateAppIdentity} of the specified {@code appId}.
      */
     public CompletableFuture<Revision> deactivateCertificate(Author author, String appId) {
-        return applicationService.deactivateCertificate(author, appId);
+        return appIdentityService.deactivateCertificate(author, appId);
     }
 
     /**
-     * Updates the application level of the specified {@code appId}.
+     * Updates the app identity level of the specified {@code appId}.
      */
-    public CompletableFuture<Revision> updateApplicationLevel(Author author, String appId,
+    public CompletableFuture<Revision> updateAppIdentityLevel(Author author, String appId,
                                                               boolean toBeSystemAdmin) {
-        return applicationService.updateApplicationLevel(author, appId, toBeSystemAdmin);
+        return appIdentityService.updateAppIdentityLevel(author, appId, toBeSystemAdmin);
     }
 }

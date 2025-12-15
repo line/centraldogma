@@ -17,16 +17,16 @@
 package com.linecorp.centraldogma.server.metadata;
 
 /**
- * The type of application.
+ * The type of application identity.
  */
-public enum ApplicationType {
+public enum AppIdentityType {
     /**
-     * A token-based application.
+     * A token-based application identity.
      */
     TOKEN,
 
     /**
-     * A certificate-based application.
+     * A certificate-based application identity.
      */
     CERTIFICATE
 }

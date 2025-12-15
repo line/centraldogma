@@ -20,8 +20,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
-import static com.linecorp.centraldogma.server.metadata.ApplicationRegistry.SECRET_PREFIX;
-import static com.linecorp.centraldogma.server.metadata.ApplicationRegistry.validateSecret;
+import static com.linecorp.centraldogma.server.metadata.AppIdentityRegistry.SECRET_PREFIX;
+import static com.linecorp.centraldogma.server.metadata.AppIdentityRegistry.validateSecret;
+import static com.linecorp.centraldogma.server.metadata.MetadataService.TOKEN_JSON;
 import static com.linecorp.centraldogma.server.metadata.MetadataService.addToMap;
 import static com.linecorp.centraldogma.server.metadata.MetadataService.removeFromMap;
 import static com.linecorp.centraldogma.server.metadata.MetadataService.updateMap;
@@ -46,30 +47,24 @@ import com.linecorp.centraldogma.server.storage.project.InternalProjectInitializ
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
-final class ApplicationService {
+final class AppIdentityService {
 
-    /**
-     * A path of token list file.
-     */
-    // TODO(minwoox): Rename to /application-registry.json
-    private static final String TOKEN_JSON = "/tokens.json";
-
-    private final RepositorySupport<ApplicationRegistry> applicationRegistryRepo;
+    private final RepositorySupport<AppIdentityRegistry> appIdentityRegistryRepo;
     private final InternalProjectInitializer projectInitializer;
 
-    ApplicationService(ProjectManager projectManager, CommandExecutor executor,
+    AppIdentityService(ProjectManager projectManager, CommandExecutor executor,
                        InternalProjectInitializer projectInitializer) {
         this.projectInitializer = requireNonNull(projectInitializer, "projectInitializer");
-        applicationRegistryRepo = new RepositorySupport<>(projectManager, executor, ApplicationRegistry.class);
+        appIdentityRegistryRepo = new RepositorySupport<>(projectManager, executor, AppIdentityRegistry.class);
     }
 
-    CompletableFuture<ApplicationRegistry> fetchApplicationRegistry() {
-        return applicationRegistryRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
+    CompletableFuture<AppIdentityRegistry> fetchAppIdentityRegistry() {
+        return appIdentityRegistryRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
                                       .thenApply(HolderWithRevision::object);
     }
 
-    ApplicationRegistry getApplicationRegistry() {
-        return projectInitializer.applicationRegistry();
+    AppIdentityRegistry getAppIdentityRegistry() {
+        return projectInitializer.appIdentityRegistry();
     }
 
     CompletableFuture<Revision> createToken(Author author, String appId) {
@@ -104,7 +99,7 @@ final class ApplicationService {
                                                JsonPatchOperation.add(appIdPath, Jackson.valueToTree(newToken)),
                                                JsonPatchOperation.add(secretPath,
                                                                       Jackson.valueToTree(newToken.id()))));
-        return applicationRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
+        return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
                                             "Add a token: " + newToken.id(), change);
     }
 
@@ -115,44 +110,44 @@ final class ApplicationService {
         final String commitSummary = "Destroy the token: " + appId;
         final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
 
-        final ApplicationRegistryTransformer transformer = new ApplicationRegistryTransformer(
+        final AppIdentityRegistryTransformer transformer = new AppIdentityRegistryTransformer(
                 (headRevision, registry) -> {
-                    final Application application =
-                            getApplicationToDestroy(headRevision, registry, appId, ApplicationType.TOKEN);
+                    final AppIdentity appIdentity =
+                            getAppIdentityToDestroy(headRevision, registry, appId, AppIdentityType.TOKEN);
 
-                    final Token token = (Token) application;
+                    final Token token = (Token) appIdentity;
                     final String secret = token.secret();
                     assert secret != null;
                     final Token newToken = new Token(
-                            application.appId(), secret,
-                            application.isSystemAdmin(), application.allowGuestAccess(),
-                            application.creation(), application.deactivation(), userAndTimestamp);
+                            appIdentity.appId(), secret,
+                            appIdentity.isSystemAdmin(), appIdentity.allowGuestAccess(),
+                            appIdentity.creation(), appIdentity.deactivation(), userAndTimestamp);
                     final Map<String, String> newSecrets = removeFromMap(registry.secrets(), secret);
-                    return new ApplicationRegistry(updateMap(registry.appIds(), appId, newToken), newSecrets,
+                    return new AppIdentityRegistry(updateMap(registry.appIds(), appId, newToken), newSecrets,
                                                    registry.certificateIds());
                 });
-        return applicationRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
+        return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA,
                                             author, commitSummary, transformer);
     }
 
-    Revision purgeApplication(Author author, String appId) {
+    Revision purgeAppIdentity(Author author, String appId) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
-        final String commitSummary = "Purge the application: " + appId;
+        final String commitSummary = "Purge the app identity: " + appId;
 
-        final ApplicationRegistryTransformer transformer = new ApplicationRegistryTransformer(
+        final AppIdentityRegistryTransformer transformer = new AppIdentityRegistryTransformer(
                 (headRevision, registry) -> {
-                    final Application application = registry.get(appId); // Raise an exception if not found.
-                    if (application.deletion() == null) {
+                    final AppIdentity appIdentity = registry.get(appId); // Raise an exception if not found.
+                    if (appIdentity.deletion() == null) {
                         throw new RedundantChangeException(
-                                headRevision, "The application must be destroyed before purging: " + appId);
+                                headRevision, "The app identity must be destroyed before purging: " + appId);
                     }
 
-                    final Map<String, Application> newAppIds = removeFromMap(registry.appIds(), appId);
-                    // The application is already removed from secrets and certificateIds when destroyed.
-                    return new ApplicationRegistry(newAppIds, registry.secrets(), registry.certificateIds());
+                    final Map<String, AppIdentity> newAppIds = removeFromMap(registry.appIds(), appId);
+                    // The app identity is already removed from secrets and certificateIds when destroyed.
+                    return new AppIdentityRegistry(newAppIds, registry.secrets(), registry.certificateIds());
         });
-        return applicationRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
+        return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
                                             commitSummary, transformer)
                                       .join();
     }
@@ -163,20 +158,20 @@ final class ApplicationService {
 
         final String commitSummary = "Activate the token: " + appId;
 
-        final ApplicationRegistryTransformer transformer = new ApplicationRegistryTransformer(
+        final AppIdentityRegistryTransformer transformer = new AppIdentityRegistryTransformer(
                 (headRevision, registry) -> {
-                    final Application application =
-                            getApplicationToActivate(headRevision, registry, appId, ApplicationType.TOKEN);
-                    final String secret = ((Token) application).secret();
+                    final AppIdentity appIdentity =
+                            getAppIdentityToActivate(headRevision, registry, appId, AppIdentityType.TOKEN);
+                    final String secret = ((Token) appIdentity).secret();
                     assert secret != null;
                     final Map<String, String> newSecrets =
                             addToMap(registry.secrets(), secret, appId); // The key is secret not appId.
-                    final Token newToken = new Token(application.appId(), secret, application.isSystemAdmin(),
-                                                     application.allowGuestAccess(), application.creation());
-                    return new ApplicationRegistry(updateMap(registry.appIds(), appId, newToken), newSecrets,
+                    final Token newToken = new Token(appIdentity.appId(), secret, appIdentity.isSystemAdmin(),
+                                                     appIdentity.allowGuestAccess(), appIdentity.creation());
+                    return new AppIdentityRegistry(updateMap(registry.appIds(), appId, newToken), newSecrets,
                                                    registry.certificateIds());
                 });
-        return applicationRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
+        return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
                                             commitSummary, transformer);
     }
 
@@ -187,84 +182,84 @@ final class ApplicationService {
         final String commitSummary = "Deactivate the token: " + appId;
         final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
 
-        final ApplicationRegistryTransformer transformer = new ApplicationRegistryTransformer(
+        final AppIdentityRegistryTransformer transformer = new AppIdentityRegistryTransformer(
                 (headRevision, registry) -> {
-            final Application application =
-                    getApplicationToDeactivate(headRevision, registry, appId, ApplicationType.TOKEN);
-            final String secret = ((Token) application).secret();
+            final AppIdentity appIdentity =
+                    getAppIdentityToDeactivate(headRevision, registry, appId, AppIdentityType.TOKEN);
+            final String secret = ((Token) appIdentity).secret();
             assert secret != null;
-            final Token newToken = new Token(application.appId(), secret,
-                                             application.isSystemAdmin(), application.allowGuestAccess(),
-                                             application.creation(), userAndTimestamp, null);
-            final Map<String, Application> newAppIds = updateMap(registry.appIds(), appId, newToken);
+            final Token newToken = new Token(appIdentity.appId(), secret,
+                                             appIdentity.isSystemAdmin(), appIdentity.allowGuestAccess(),
+                                             appIdentity.creation(), userAndTimestamp, null);
+            final Map<String, AppIdentity> newAppIds = updateMap(registry.appIds(), appId, newToken);
             final Map<String, String> newSecrets =
                     removeFromMap(registry.secrets(), secret); // Note that the key is secret not appId.
-            return new ApplicationRegistry(newAppIds, newSecrets, registry.certificateIds());
+            return new AppIdentityRegistry(newAppIds, newSecrets, registry.certificateIds());
         });
-        return applicationRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
+        return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
                                             commitSummary, transformer);
     }
 
-    Application findApplicationByAppId(String appId) {
+    AppIdentity findAppIdentity(String appId) {
         requireNonNull(appId, "appId");
-        return getApplicationRegistry().get(appId);
+        return getAppIdentityRegistry().get(appId);
     }
 
-    ApplicationCertificate findCertificateById(String certificateId) {
+    CertificateAppIdentity findCertificateById(String certificateId) {
         requireNonNull(certificateId, "certificateId");
-        return getApplicationRegistry().findByCertificateId(certificateId);
+        return getAppIdentityRegistry().findByCertificateId(certificateId);
     }
 
     Token findTokenBySecret(String secret) {
         requireNonNull(secret, "secret");
         validateSecret(secret);
-        return getApplicationRegistry().findBySecret(secret);
+        return getAppIdentityRegistry().findBySecret(secret);
     }
 
-    private static Application getApplicationToDestroy(Revision headRevision, ApplicationRegistry registry,
-                                                       String appId, ApplicationType expectedType) {
-        final Application application = registry.get(appId); // Raise an exception if not found.
-        if (application.deletion() != null) {
-            throw new RedundantChangeException(headRevision, "The application is already destroyed: " + appId);
+    private static AppIdentity getAppIdentityToDestroy(Revision headRevision, AppIdentityRegistry registry,
+                                                       String appId, AppIdentityType expectedType) {
+        final AppIdentity appIdentity = registry.get(appId); // Raise an exception if not found.
+        if (appIdentity.deletion() != null) {
+            throw new RedundantChangeException(headRevision, "The app identity is already destroyed: " + appId);
         }
-        throwIfInvalidType(appId, application, expectedType);
-        return application;
+        throwIfInvalidType(appId, appIdentity, expectedType);
+        return appIdentity;
     }
 
-    private static Application getApplicationToActivate(Revision headRevision, ApplicationRegistry registry,
-                                                        String appId, ApplicationType expectedType) {
-        final Application application = registry.get(appId); // Raise an exception if not found.
-        if (application.deletion() != null) {
+    private static AppIdentity getAppIdentityToActivate(Revision headRevision, AppIdentityRegistry registry,
+                                                        String appId, AppIdentityType expectedType) {
+        final AppIdentity appIdentity = registry.get(appId); // Raise an exception if not found.
+        if (appIdentity.deletion() != null) {
             throw new RedundantChangeException(
-                    headRevision, "The application is already destroyed: " + appId);
+                    headRevision, "The app identity is already destroyed: " + appId);
         }
-        if (application.deactivation() == null) {
-            throw new RedundantChangeException(headRevision, "The application is already activated: " + appId);
+        if (appIdentity.deactivation() == null) {
+            throw new RedundantChangeException(headRevision, "The app identity is already activated: " + appId);
         }
-        throwIfInvalidType(appId, application, expectedType);
-        return application;
+        throwIfInvalidType(appId, appIdentity, expectedType);
+        return appIdentity;
     }
 
-    private static Application getApplicationToDeactivate(Revision headRevision, ApplicationRegistry registry,
-                                                          String appId, ApplicationType expectedType) {
-        final Application application = registry.get(appId); // Raise an exception if not found.
-        if (application.deletion() != null) {
+    private static AppIdentity getAppIdentityToDeactivate(Revision headRevision, AppIdentityRegistry registry,
+                                                          String appId, AppIdentityType expectedType) {
+        final AppIdentity appIdentity = registry.get(appId); // Raise an exception if not found.
+        if (appIdentity.deletion() != null) {
             throw new RedundantChangeException(
-                    headRevision, "The application is already destroyed: " + appId);
+                    headRevision, "The app identity is already destroyed: " + appId);
         }
-        if (application.deactivation() != null) {
+        if (appIdentity.deactivation() != null) {
             throw new RedundantChangeException(
-                    headRevision, "The application is already deactivated: " + appId);
+                    headRevision, "The app identity is already deactivated: " + appId);
         }
-        throwIfInvalidType(appId, application, expectedType);
-        return application;
+        throwIfInvalidType(appId, appIdentity, expectedType);
+        return appIdentity;
     }
 
-    private static void throwIfInvalidType(String appId, Application application,
-                                           ApplicationType expectedType) {
-        if (application.type() != expectedType) {
+    private static void throwIfInvalidType(String appId, AppIdentity appIdentity,
+                                           AppIdentityType expectedType) {
+        if (appIdentity.type() != expectedType) {
             throw new IllegalArgumentException(
-                    appId + " application is not a " + expectedType + ": " + application.type());
+                    appId + " app identity is not a " + expectedType + ": " + appIdentity.type());
         }
     }
 
@@ -275,8 +270,8 @@ final class ApplicationService {
         checkArgument(!isNullOrEmpty(certificateId), "certificateId must not be null or empty");
 
         // Does not allow guest access for non admin certificate.
-        final ApplicationCertificate certificate =
-                new ApplicationCertificate(appId, certificateId, isSystemAdmin, isSystemAdmin,
+        final CertificateAppIdentity certificate =
+                new CertificateAppIdentity(appId, certificateId, isSystemAdmin, isSystemAdmin,
                                            UserAndTimestamp.of(author));
         final JsonPointer appIdPath = JsonPointer.compile("/appIds" + encodeSegment(certificate.appId()));
         final JsonPointer certificateIdPath =
@@ -290,7 +285,7 @@ final class ApplicationService {
                                                JsonPatchOperation.add(certificateIdPath,
                                                                       Jackson.valueToTree(
                                                                               certificate.appId()))));
-        return applicationRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
+        return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
                               "Add a certificate: " + certificate.id(), change);
     }
 
@@ -301,22 +296,22 @@ final class ApplicationService {
         final String commitSummary = "Destroy the certificate: " + appId;
         final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
 
-        final ApplicationRegistryTransformer transformer = new ApplicationRegistryTransformer(
+        final AppIdentityRegistryTransformer transformer = new AppIdentityRegistryTransformer(
                 (headRevision, registry) -> {
-                    final Application application =
-                            getApplicationToDestroy(headRevision, registry, appId, ApplicationType.CERTIFICATE);
+                    final AppIdentity appIdentity =
+                            getAppIdentityToDestroy(headRevision, registry, appId, AppIdentityType.CERTIFICATE);
 
-                    final ApplicationCertificate newCertificate = new ApplicationCertificate(
-                            application.appId(), ((ApplicationCertificate) application).certificateId(),
-                            application.isSystemAdmin(), application.allowGuestAccess(),
-                            application.creation(), application.deactivation(), userAndTimestamp);
-                    final String certificateId = ((ApplicationCertificate) application).certificateId();
+                    final CertificateAppIdentity newCertificate = new CertificateAppIdentity(
+                            appIdentity.appId(), ((CertificateAppIdentity) appIdentity).certificateId(),
+                            appIdentity.isSystemAdmin(), appIdentity.allowGuestAccess(),
+                            appIdentity.creation(), appIdentity.deactivation(), userAndTimestamp);
+                    final String certificateId = ((CertificateAppIdentity) appIdentity).certificateId();
                     final Map<String, String> newCertificateIds =
                             removeFromMap(registry.certificateIds(), certificateId);
-                    return new ApplicationRegistry(updateMap(registry.appIds(), appId, newCertificate),
+                    return new AppIdentityRegistry(updateMap(registry.appIds(), appId, newCertificate),
                                                    registry.secrets(), newCertificateIds);
                 });
-        return applicationRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary,
+        return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary,
                                             transformer);
     }
 
@@ -326,24 +321,24 @@ final class ApplicationService {
 
         final String commitSummary = "Activate the certificate: " + appId;
 
-        final ApplicationRegistryTransformer transformer = new ApplicationRegistryTransformer(
+        final AppIdentityRegistryTransformer transformer = new AppIdentityRegistryTransformer(
                 (headRevision, registry) -> {
-                    final Application application =
-                            getApplicationToActivate(headRevision, registry, appId,
-                                                     ApplicationType.CERTIFICATE);
-                    final ApplicationCertificate certificate = (ApplicationCertificate) application;
-                    final ApplicationCertificate newCertificate =
-                            new ApplicationCertificate(certificate.appId(),
+                    final AppIdentity appIdentity =
+                            getAppIdentityToActivate(headRevision, registry, appId,
+                                                     AppIdentityType.CERTIFICATE);
+                    final CertificateAppIdentity certificate = (CertificateAppIdentity) appIdentity;
+                    final CertificateAppIdentity newCertificate =
+                            new CertificateAppIdentity(certificate.appId(),
                                                        certificate.certificateId(),
                                                        certificate.isSystemAdmin(),
                                                        certificate.allowGuestAccess(),
                                                        certificate.creation());
                     final Map<String, String> newCertificateIds =
                             addToMap(registry.certificateIds(), certificate.certificateId(), appId);
-                    return new ApplicationRegistry(updateMap(registry.appIds(), appId, newCertificate),
+                    return new AppIdentityRegistry(updateMap(registry.appIds(), appId, newCertificate),
                                                    registry.secrets(), newCertificateIds);
                 });
-        return applicationRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
+        return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
                                             commitSummary, transformer);
     }
 
@@ -354,48 +349,48 @@ final class ApplicationService {
         final String commitSummary = "Deactivate the certificate: " + appId;
         final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
 
-        final ApplicationRegistryTransformer transformer = new ApplicationRegistryTransformer(
+        final AppIdentityRegistryTransformer transformer = new AppIdentityRegistryTransformer(
                 (headRevision, registry) -> {
-                    final Application application =
-                            getApplicationToDeactivate(headRevision, registry, appId,
-                                                       ApplicationType.CERTIFICATE);
-                    final String certificateId = ((ApplicationCertificate) application).certificateId();
-                    final ApplicationCertificate newCertificate =
-                            new ApplicationCertificate(application.appId(), certificateId,
-                                                       application.isSystemAdmin(),
-                                                       application.allowGuestAccess(),
-                                                       application.creation(),
+                    final AppIdentity appIdentity =
+                            getAppIdentityToDeactivate(headRevision, registry, appId,
+                                                       AppIdentityType.CERTIFICATE);
+                    final String certificateId = ((CertificateAppIdentity) appIdentity).certificateId();
+                    final CertificateAppIdentity newCertificate =
+                            new CertificateAppIdentity(appIdentity.appId(), certificateId,
+                                                       appIdentity.isSystemAdmin(),
+                                                       appIdentity.allowGuestAccess(),
+                                                       appIdentity.creation(),
                                                        userAndTimestamp, null);
-                    final Map<String, Application> newAppIds = updateMap(registry.appIds(), appId,
+                    final Map<String, AppIdentity> newAppIds = updateMap(registry.appIds(), appId,
                                                                          newCertificate);
                     final Map<String, String> newCertificateIds =
                             removeFromMap(registry.certificateIds(), certificateId);
-                    return new ApplicationRegistry(newAppIds, registry.secrets(), newCertificateIds);
+                    return new AppIdentityRegistry(newAppIds, registry.secrets(), newCertificateIds);
                 });
-        return applicationRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
+        return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
                                             commitSummary, transformer);
     }
 
-    CompletableFuture<Revision> updateApplicationLevel(Author author, String appId,
+    CompletableFuture<Revision> updateAppIdentityLevel(Author author, String appId,
                                                        boolean toBeSystemAdmin) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
-        final String commitSummary =
-                "Update the application level: " + appId + " to " + (toBeSystemAdmin ? "system admin" : "user");
-        final ApplicationRegistryTransformer transformer = new ApplicationRegistryTransformer(
+        final String commitSummary = "Update the app identity level: " + appId + " to " +
+                                     (toBeSystemAdmin ? "system admin" : "user");
+        final AppIdentityRegistryTransformer transformer = new AppIdentityRegistryTransformer(
                 (headRevision, registry) -> {
-                    final Application application = registry.get(appId); // Raise an exception if not found.
-                    if (toBeSystemAdmin == application.isSystemAdmin()) {
+                    final AppIdentity appIdentity = registry.get(appId); // Raise an exception if not found.
+                    if (toBeSystemAdmin == appIdentity.isSystemAdmin()) {
                         throw new RedundantChangeException(
                                 headRevision,
-                                "The application is already " + (toBeSystemAdmin ? "system admin" : "user"));
+                                "The app identity is already " + (toBeSystemAdmin ? "system admin" : "user"));
                     }
 
-                    final Application newApplication = application.withSystemAdmin(toBeSystemAdmin);
-                    return new ApplicationRegistry(updateMap(registry.appIds(), appId, newApplication),
+                    final AppIdentity newAppIdentity = appIdentity.withSystemAdmin(toBeSystemAdmin);
+                    return new AppIdentityRegistry(updateMap(registry.appIds(), appId, newAppIdentity),
                                                    registry.secrets(), registry.certificateIds());
                 });
-        return applicationRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary,
+        return appIdentityRegistryRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary,
                                             transformer);
     }
 }

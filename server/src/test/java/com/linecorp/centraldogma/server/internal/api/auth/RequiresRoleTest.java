@@ -110,16 +110,16 @@ class RequiresRoleTest {
                .toCompletableFuture().join();
 
             // app-1 is an owner and it has read/write permission.
-            mds.addApplication(AUTHOR, "project1", APP_ID_1, ProjectRole.OWNER)
+            mds.addAppIdentity(AUTHOR, "project1", APP_ID_1, ProjectRole.OWNER)
                .toCompletableFuture().join();
-            await().until(() -> mds.findApplicationByAppId(APP_ID_1) != null);
-            mds.addApplicationRepositoryRole(AUTHOR, "project1", "repo1", APP_ID_1, RepositoryRole.WRITE)
+            await().until(() -> mds.findAppIdentity(APP_ID_1) != null);
+            mds.addAppIdentityRepositoryRole(AUTHOR, "project1", "repo1", APP_ID_1, RepositoryRole.WRITE)
                .toCompletableFuture().join();
 
             // app-2 is a member and it has read-only permission.
-            mds.addApplication(AUTHOR, "project1", APP_ID_2, ProjectRole.MEMBER)
+            mds.addAppIdentity(AUTHOR, "project1", APP_ID_2, ProjectRole.MEMBER)
                .toCompletableFuture().join();
-            await().until(() -> mds.findApplicationByAppId(APP_ID_2) != null);
+            await().until(() -> mds.findAppIdentity(APP_ID_2) != null);
             sb.dependencyInjector(
                     DependencyInjector.ofSingletons(new RequiresRepositoryRoleDecoratorFactory(mds),
                                                     new RequiresProjectRoleDecoratorFactory(mds)),

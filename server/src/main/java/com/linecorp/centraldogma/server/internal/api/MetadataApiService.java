@@ -47,8 +47,8 @@ import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
-import com.linecorp.centraldogma.server.metadata.Application;
-import com.linecorp.centraldogma.server.metadata.ApplicationType;
+import com.linecorp.centraldogma.server.metadata.AppIdentity;
+import com.linecorp.centraldogma.server.metadata.AppIdentityType;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectRoles;
 import com.linecorp.centraldogma.server.metadata.Token;
@@ -188,101 +188,101 @@ public class MetadataApiService extends AbstractService {
     }
 
     /**
-     * POST /metadata/{projectName}/applications
+     * POST /metadata/{projectName}/appIdentities
      *
-     * <p>Adds an {@link Application} to the specified {@code projectName}.
+     * <p>Adds an {@link AppIdentity} to the specified {@code projectName}.
      */
     @RequiresProjectRole(ProjectRole.OWNER)
-    @Post("/metadata/{projectName}/applications")
-    public CompletableFuture<Revision> addApplication(@Param String projectName,
+    @Post("/metadata/{projectName}/appIdentities")
+    public CompletableFuture<Revision> addAppIdentity(@Param String projectName,
                                                       IdAndProjectRole request,
                                                       Author author) {
-        final Application application = mds.findApplicationByAppId(request.id());
-        return mds.addApplication(author, projectName, application.appId(), request.role());
+        final AppIdentity appIdentity = mds.findAppIdentity(request.id());
+        return mds.addAppIdentity(author, projectName, appIdentity.appId(), request.role());
     }
 
     /**
-     * PATCH /metadata/{projectName}/applications/{appId}
+     * PATCH /metadata/{projectName}/appIdentities/{appId}
      *
-     * <p>Updates the {@link ProjectRole} of the {@link Application} of the specified {@code appId}
+     * <p>Updates the {@link ProjectRole} of the {@link AppIdentity} of the specified {@code appId}
      * in the specified {@code projectName}.
      */
     @RequiresProjectRole(ProjectRole.OWNER)
-    @Patch("/metadata/{projectName}/applications/{appId}")
+    @Patch("/metadata/{projectName}/appIdentities/{appId}")
     @Consumes("application/json-patch+json")
-    public CompletableFuture<Revision> updateApplicationRole(@Param String projectName,
+    public CompletableFuture<Revision> updateAppIdentityRole(@Param String projectName,
                                                              @Param String appId,
                                                              JsonPatch jsonPatch,
                                                              Author author) {
-        return updateApplicationRole(projectName, appId, jsonPatch, author, false);
+        return updateAppIdentityRole(projectName, appId, jsonPatch, author, false);
     }
 
-    private CompletableFuture<Revision> updateApplicationRole(
+    private CompletableFuture<Revision> updateAppIdentityRole(
             String projectName, String appId,
             JsonPatch jsonPatch, Author author, boolean checkToken) {
         final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/role");
         final ProjectRole role = ProjectRole.of(operation.value());
-        final Application application = mds.findApplicationByAppId(appId);
-        if (checkToken && application.type() != ApplicationType.TOKEN) {
+        final AppIdentity appIdentity = mds.findAppIdentity(appId);
+        if (checkToken && appIdentity.type() != AppIdentityType.TOKEN) {
             throw new IllegalArgumentException("appId: " + appId + " is not a token");
         }
-        return mds.updateApplicationRole(author, projectName, application, role);
+        return mds.updateAppIdentityRole(author, projectName, appIdentity, role);
     }
 
     /**
-     * DELETE /metadata/{projectName}/applications/{appId}
+     * DELETE /metadata/{projectName}/appIdentities/{appId}
      *
-     * <p>Removes the {@link Application} of the specified {@code appId} from the specified {@code projectName}.
+     * <p>Removes the {@link AppIdentity} of the specified {@code appId} from the specified {@code projectName}.
      */
     @RequiresProjectRole(ProjectRole.OWNER)
-    @Delete("/metadata/{projectName}/applications/{appId}")
-    public CompletableFuture<Revision> removeApplication(@Param String projectName,
+    @Delete("/metadata/{projectName}/appIdentities/{appId}")
+    public CompletableFuture<Revision> removeAppIdentity(@Param String projectName,
                                                          @Param String appId,
                                                          Author author) {
-        return removeApplication(projectName, appId, author, false);
+        return removeAppIdentity(projectName, appId, author, false);
     }
 
-    private CompletableFuture<Revision> removeApplication(String projectName, String appId,
+    private CompletableFuture<Revision> removeAppIdentity(String projectName, String appId,
                                                           Author author, boolean checkToken) {
-        final Application application = mds.findApplicationByAppId(appId);
-        if (checkToken && application.type() != ApplicationType.TOKEN) {
+        final AppIdentity appIdentity = mds.findAppIdentity(appId);
+        if (checkToken && appIdentity.type() != AppIdentityType.TOKEN) {
             throw new IllegalArgumentException("appId: " + appId + " is not a token");
         }
-        return mds.removeApplicationFromProject(author, projectName, application.appId());
+        return mds.removeAppIdentityFromProject(author, projectName, appIdentity.appId());
     }
 
     /**
-     * POST /metadata/{projectName}/repos/{repoName}/roles/applications
+     * POST /metadata/{projectName}/repos/{repoName}/roles/appIdentities
      *
-     * <p>Adds the {@link RepositoryRole} for an application to the specified {@code repoName} in the specified
+     * <p>Adds the {@link RepositoryRole} for an app identity to the specified {@code repoName} in the specified
      * {@code projectName}.
      */
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
-    @Post("/metadata/{projectName}/repos/{repoName}/roles/applications")
-    public CompletableFuture<Revision> addApplicationRepositoryRole(
+    @Post("/metadata/{projectName}/repos/{repoName}/roles/appIdentities")
+    public CompletableFuture<Revision> addAppIdentityRepositoryRole(
             @Param String projectName,
             @Param String repoName,
-            IdAndRepositoryRole applicationAndRepositoryRole,
+            IdAndRepositoryRole appIdentityAndRepositoryRole,
             Author author) {
-        return mds.addApplicationRepositoryRole(author, projectName, repoName,
-                                                applicationAndRepositoryRole.id(),
-                                                applicationAndRepositoryRole.role());
+        return mds.addAppIdentityRepositoryRole(author, projectName, repoName,
+                                                appIdentityAndRepositoryRole.id(),
+                                                appIdentityAndRepositoryRole.role());
     }
 
     /**
-     * DELETE /metadata/{projectName}/repos/{repoName}/roles/applications/{appId}
+     * DELETE /metadata/{projectName}/repos/{repoName}/roles/appIdentities/{appId}
      *
      * <p>Removes the {@link RepositoryRole} of the specified {@code appId} from the specified {@code repoName}
      * in the specified {@code projectName}.
      */
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
-    @Delete("/metadata/{projectName}/repos/{repoName}/roles/applications/{appId}")
-    public CompletableFuture<Revision> removeApplicationRepositoryRole(@Param String projectName,
+    @Delete("/metadata/{projectName}/repos/{repoName}/roles/appIdentities/{appId}")
+    public CompletableFuture<Revision> removeAppIdentityRepositoryRole(@Param String projectName,
                                                                        @Param String repoName,
                                                                        @Param String appId,
                                                                        Author author) {
-        mds.findApplicationByAppId(appId); // Validate existence of the application.
-        return mds.removeApplicationRepositoryRole(author, projectName, repoName, appId);
+        mds.findAppIdentity(appId); // Validate existence of the app identity.
+        return mds.removeAppIdentityRepositoryRole(author, projectName, repoName, appId);
     }
 
     /**
@@ -290,7 +290,7 @@ public class MetadataApiService extends AbstractService {
      *
      * <p>Adds a {@link Token} to the specified {@code projectName}.
      *
-     * @deprecated Use {@link #addApplication(String, IdAndProjectRole, Author)} instead.
+     * @deprecated Use {@link #addAppIdentity(String, IdAndProjectRole, Author)} instead.
      */
     @RequiresProjectRole(ProjectRole.OWNER)
     @Post("/metadata/{projectName}/tokens")
@@ -298,11 +298,11 @@ public class MetadataApiService extends AbstractService {
     public CompletableFuture<Revision> addToken(@Param String projectName,
                                                 IdAndProjectRole request,
                                                 Author author) {
-        final Application application = mds.findApplicationByAppId(request.id());
-        if (application.type() != ApplicationType.TOKEN) {
+        final AppIdentity appIdentity = mds.findAppIdentity(request.id());
+        if (appIdentity.type() != AppIdentityType.TOKEN) {
             throw new IllegalArgumentException("appId: " + request.id() + " is not a token");
         }
-        return mds.addApplication(author, projectName, application.appId(), request.role());
+        return mds.addAppIdentity(author, projectName, appIdentity.appId(), request.role());
     }
 
     /**
@@ -311,7 +311,7 @@ public class MetadataApiService extends AbstractService {
      * <p>Updates the {@link ProjectRole} of the {@link Token} of the specified {@code appId}
      * in the specified {@code projectName}.
      *
-     * @deprecated Use {@link #updateApplicationRole(String, String, JsonPatch, Author)} instead.
+     * @deprecated Use {@link #updateAppIdentityRole(String, String, JsonPatch, Author)} instead.
      */
     @RequiresProjectRole(ProjectRole.OWNER)
     @Patch("/metadata/{projectName}/tokens/{appId}")
@@ -321,7 +321,7 @@ public class MetadataApiService extends AbstractService {
                                                        @Param String appId,
                                                        JsonPatch jsonPatch,
                                                        Author author) {
-        return updateApplicationRole(projectName, appId, jsonPatch, author, true);
+        return updateAppIdentityRole(projectName, appId, jsonPatch, author, true);
     }
 
     /**
@@ -329,7 +329,7 @@ public class MetadataApiService extends AbstractService {
      *
      * <p>Removes the {@link Token} of the specified {@code appId} from the specified {@code projectName}.
      *
-     * @deprecated Use {@link #removeApplication(String, String, Author)} instead.
+     * @deprecated Use {@link #removeAppIdentity(String, String, Author)} instead.
      */
     @RequiresProjectRole(ProjectRole.OWNER)
     @Delete("/metadata/{projectName}/tokens/{appId}")
@@ -337,7 +337,7 @@ public class MetadataApiService extends AbstractService {
     public CompletableFuture<Revision> removeToken(@Param String projectName,
                                                    @Param String appId,
                                                    Author author) {
-        return removeApplication(projectName, appId, author, true);
+        return removeAppIdentity(projectName, appId, author, true);
     }
 
     /**
@@ -346,7 +346,7 @@ public class MetadataApiService extends AbstractService {
      * <p>Adds the {@link RepositoryRole} for a token to the specified {@code repoName} in the specified
      * {@code projectName}.
      *
-     * @deprecated Use {@link #addApplicationRepositoryRole(String, String, IdAndRepositoryRole, Author)}
+     * @deprecated Use {@link #addAppIdentityRepositoryRole(String, String, IdAndRepositoryRole, Author)}
      */
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Post("/metadata/{projectName}/repos/{repoName}/roles/tokens")
@@ -356,11 +356,11 @@ public class MetadataApiService extends AbstractService {
             @Param String repoName,
             IdAndRepositoryRole tokenAndRepositoryRole,
             Author author) {
-        final Application application = mds.findApplicationByAppId(tokenAndRepositoryRole.id());
-        if (application.type() != ApplicationType.TOKEN) {
+        final AppIdentity appIdentity = mds.findAppIdentity(tokenAndRepositoryRole.id());
+        if (appIdentity.type() != AppIdentityType.TOKEN) {
             throw new IllegalArgumentException("appId: " + tokenAndRepositoryRole.id() + " is not a token");
         }
-        return mds.addApplicationRepositoryRole(author, projectName, repoName,
+        return mds.addAppIdentityRepositoryRole(author, projectName, repoName,
                                                 tokenAndRepositoryRole.id(), tokenAndRepositoryRole.role());
     }
 
@@ -370,7 +370,7 @@ public class MetadataApiService extends AbstractService {
      * <p>Removes the {@link RepositoryRole} of the specified {@code appId} from the specified {@code repoName}
      * in the specified {@code projectName}.
      *
-     * @deprecated Use {@link #removeApplicationRepositoryRole(String, String, String, Author)}
+     * @deprecated Use {@link #removeAppIdentityRepositoryRole(String, String, String, Author)}
      */
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Delete("/metadata/{projectName}/repos/{repoName}/roles/tokens/{appId}")
@@ -379,11 +379,11 @@ public class MetadataApiService extends AbstractService {
                                                                  @Param String repoName,
                                                                  @Param String appId,
                                                                  Author author) {
-        final Application application = mds.findApplicationByAppId(appId);
-        if (application.type() != ApplicationType.TOKEN) {
+        final AppIdentity appIdentity = mds.findAppIdentity(appId);
+        if (appIdentity.type() != AppIdentityType.TOKEN) {
             throw new IllegalArgumentException("appId: " + appId + " is not a token");
         }
-        return mds.removeApplicationRepositoryRole(author, projectName, repoName, appId);
+        return mds.removeAppIdentityRepositoryRole(author, projectName, repoName, appId);
     }
 
     private static ReplaceOperation ensureSingleReplaceOperation(JsonPatch patch, String expectedPath) {

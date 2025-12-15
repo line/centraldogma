@@ -28,22 +28,22 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.ContentTransformer;
 
-class ApplicationRegistryTransformer extends ContentTransformer<JsonNode> {
+class AppIdentityRegistryTransformer extends ContentTransformer<JsonNode> {
 
-    ApplicationRegistryTransformer(BiFunction<Revision, ApplicationRegistry, ApplicationRegistry> transformer) {
+    AppIdentityRegistryTransformer(BiFunction<Revision, AppIdentityRegistry, AppIdentityRegistry> transformer) {
         super(TOKEN_JSON, EntryType.JSON,
               (headRevision, jsonNode) -> Jackson.valueToTree(
-                      transformer.apply(headRevision, applicationRegistry(jsonNode))));
+                      transformer.apply(headRevision, appIdentityRegistry(jsonNode))));
     }
 
-    private static ApplicationRegistry applicationRegistry(JsonNode node) {
-        final ApplicationRegistry applicationRegistry;
+    private static AppIdentityRegistry appIdentityRegistry(JsonNode node) {
+        final AppIdentityRegistry appIdentityRegistry;
         try {
-            applicationRegistry = Jackson.treeToValue(node, ApplicationRegistry.class);
+            appIdentityRegistry = Jackson.treeToValue(node, AppIdentityRegistry.class);
         } catch (JsonParseException | JsonMappingException e) {
             // Should never reach here.
             throw new Error(e);
         }
-        return applicationRegistry;
+        return appIdentityRegistry;
     }
 }

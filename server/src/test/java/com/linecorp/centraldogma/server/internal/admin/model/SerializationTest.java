@@ -31,7 +31,7 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.centraldogma.common.ProjectRole;
 import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.metadata.ApplicationRegistration;
+import com.linecorp.centraldogma.server.metadata.AppIdentityRegistration;
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
@@ -77,7 +77,7 @@ class SerializationTest {
                                                     Project.REPO_DOGMA, dogmaRepo),
                                     ImmutableMap.of(member.id(), member),
                                     ImmutableMap.of(token.id(),
-                                                    new ApplicationRegistration(token.id(),
+                                                    new AppIdentityRegistration(token.id(),
                                                                                 ProjectRole.MEMBER,
                                                                                 newCreationTag())),
                                     newCreationTag(),
@@ -94,7 +94,7 @@ class SerializationTest {
                            "           \"guest\": null" +
                            "        }," +
                            "        \"users\" : { },\n" +
-                           "        \"applications\" : { }\n" +
+                           "        \"appIds\" : { }\n" +
                            "      },\n" +
                            "      \"creation\" : {\n" +
                            "        \"user\" : \"editor@dogma.org\",\n" +
@@ -110,7 +110,7 @@ class SerializationTest {
                            "           \"guest\": null" +
                            "        }," +
                            "        \"users\" : { },\n" +
-                           "        \"applications\" : { }\n" +
+                           "        \"appIds\" : { }\n" +
                            "      },\n" +
                            "      \"status\" : \"ACTIVE\"\n" +
                            "    }\n" +
@@ -125,7 +125,7 @@ class SerializationTest {
                            "      }\n" +
                            "    }\n" +
                            "  },\n" +
-                           "  \"applications\" : {\n" +
+                           "  \"appIds\" : {\n" +
                            "    \"testApp\" : {\n" +
                            "      \"appId\" : \"testApp\",\n" +
                            "      \"role\" : \"MEMBER\",\n" +
@@ -153,7 +153,7 @@ class SerializationTest {
                            "           \"guest\": null" +
                            "        }," +
                            "        \"users\" : { },\n" +
-                           "        \"applications\" : { }\n" +
+                           "        \"appIds\" : { }\n" +
                            "      },\n" +
                            "      \"creation\" : {\n" +
                            "        \"user\" : \"editor@dogma.org\",\n" +
@@ -172,7 +172,7 @@ class SerializationTest {
                            "      }\n" +
                            "    }\n" +
                            "  },\n" +
-                           "  \"applications\" : {\n" +
+                           "  \"appIds\" : {\n" +
                            "    \"testApp\" : {\n" +
                            "      \"appId\" : \"testApp\",\n" +
                            "      \"role\" : \"MEMBER\",\n" +
@@ -194,7 +194,7 @@ class SerializationTest {
         assertThat(obj.repos().size()).isEqualTo(2);
         assertThat(obj.members().size()).isOne();
         assertThat(obj.members().get(userLogin).role()).isEqualTo(ProjectRole.MEMBER);
-        assertThat(obj.applications().size()).isOne();
+        assertThat(obj.appIds().size()).isOne();
         assertThat(obj.creation()).isNotNull();
         assertThat(obj.creation().user()).isEqualTo("editor@dogma.org");
         assertThat(obj.creation().timestamp()).isEqualTo("2017-01-01T00:00:00Z");
@@ -213,7 +213,7 @@ class SerializationTest {
                                     ImmutableMap.of(repositoryMetadata.name(), repositoryMetadata),
                                     ImmutableMap.of(member.id(), member),
                                     ImmutableMap.of(token.id(),
-                                                    new ApplicationRegistration(token.id(),
+                                                    new AppIdentityRegistration(token.id(),
                                                                                 ProjectRole.MEMBER,
                                                                                 newCreationTag())),
                                     newCreationTag(),
@@ -230,7 +230,7 @@ class SerializationTest {
                                            "           \"guest\": null" +
                                            "        }," +
                                            "        \"users\" : { },\n" +
-                                           "        \"applications\" : { }\n" +
+                                           "        \"appIds\" : { }\n" +
                                            "      },\n" +
                                            "      \"creation\" : {\n" +
                                            "        \"user\" : \"editor@dogma.org\",\n" +
@@ -249,7 +249,7 @@ class SerializationTest {
                                            "      }\n" +
                                            "    }\n" +
                                            "  },\n" +
-                                           "  \"applications\" : {\n" +
+                                           "  \"appIds\" : {\n" +
                                            "    \"testApp\" : {\n" +
                                            "      \"appId\" : \"testApp\",\n" +
                                            "      \"role\" : \"MEMBER\",\n" +
@@ -276,7 +276,7 @@ class SerializationTest {
         assertThat(obj.members().size()).isOne();
         assertThatJson(Jackson.writeValueAsString(obj.members().get("armeria@dogma.org")))
                 .isEqualTo(Jackson.writeValueAsString(member));
-        assertThat(obj.applications().size()).isOne();
+        assertThat(obj.appIds().size()).isOne();
         assertThat(obj.creation()).isNotNull();
         assertThat(obj.creation().user()).isEqualTo("editor@dogma.org");
         assertThat(obj.creation().timestamp()).isEqualTo("2017-01-01T00:00:00Z");

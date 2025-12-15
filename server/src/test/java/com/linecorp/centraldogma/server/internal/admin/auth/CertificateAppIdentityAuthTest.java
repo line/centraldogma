@@ -55,7 +55,7 @@ import com.linecorp.centraldogma.server.internal.api.MetadataApiService.IdAndPro
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-final class ApplicationCertificateAuthTest {
+final class CertificateAppIdentityAuthTest {
 
     private static final String CERT_ID = "centraldogma.com/my-client";
 
@@ -152,9 +152,9 @@ final class ApplicationCertificateAuthTest {
         assertThat(contentResponse.status()).isEqualTo(HttpStatus.UNAUTHORIZED);
 
         final AggregatedHttpResponse response =
-                dogma.httpClient().post(API_V1_PATH_PREFIX + "applications",
+                dogma.httpClient().post(API_V1_PATH_PREFIX + "appIdentities",
                                         QueryParams.of("appId", "cert1",
-                                                       "applicationType", "CERTIFICATE",
+                                                       "appIdentityType", "CERTIFICATE",
                                                        "certificateId", CERT_ID,
                                                        "isSystemAdmin", false),
                                         HttpData.empty()).aggregate().join();
@@ -166,7 +166,7 @@ final class ApplicationCertificateAuthTest {
         assertThat(contentResponse.status()).isEqualTo(HttpStatus.FORBIDDEN);
 
         final HttpRequest request = HttpRequest.builder()
-                                               .post("/api/v1/metadata/foo/applications")
+                                               .post("/api/v1/metadata/foo/appIdentities")
                                                .contentJson(new IdAndProjectRole("cert1", ProjectRole.MEMBER))
                                                .build();
         // Grant the cert1 certification access to the 'foo' project.

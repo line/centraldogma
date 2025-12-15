@@ -36,6 +36,7 @@ import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
+import com.linecorp.armeria.server.annotation.ConsumesJson;
 import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.Get;
@@ -53,17 +54,17 @@ import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
-import com.linecorp.centraldogma.server.metadata.Application;
-import com.linecorp.centraldogma.server.metadata.ApplicationType;
+import com.linecorp.centraldogma.server.metadata.AppIdentity;
+import com.linecorp.centraldogma.server.metadata.AppIdentityType;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.User;
 
 /**
- * Annotated service object for managing {@link Application}s.
+ * Annotated service object for managing {@link AppIdentity}s.
  */
 @ProducesJson
-public final class ApplicationRegistryService extends AbstractService {
+public final class AppIdentityRegistryService extends AbstractService {
 
     private static final JsonNode LEGACY_ACTIVATION = Jackson.valueToTree(
             ImmutableList.of(
@@ -79,55 +80,57 @@ public final class ApplicationRegistryService extends AbstractService {
     private final MetadataService mds;
     private final boolean mtlsEnabled;
 
-    public ApplicationRegistryService(CommandExecutor executor, MetadataService mds, boolean mtlsEnabled) {
+    public AppIdentityRegistryService(CommandExecutor executor, MetadataService mds, boolean mtlsEnabled) {
         super(executor);
         this.mds = requireNonNull(mds, "mds");
         this.mtlsEnabled = mtlsEnabled;
     }
 
     /**
-     * GET /applications
+     * GET /appIdentities
      *
-     * <p>Returns the list of the applications.
+     * <p>Returns the list of the app identities.
      */
-    @Get("/applications")
-    public Collection<Application> listApplications(User loginUser) {
+    @Get("/appIdentities")
+    public Collection<AppIdentity> listAppIdentities(User loginUser) {
         if (loginUser.isSystemAdmin()) {
-            return mds.getApplicationRegistry().appIds().values();
+            return mds.getAppIdentityRegistry().appIds().values();
         } else {
-            return mds.getApplicationRegistry().withoutSecret().appIds().values();
+            return mds.getAppIdentityRegistry().withoutSecret().appIds().values();
         }
     }
 
     /**
-     * POST /applications
+     * POST /appIdentities
      *
-     * <p>Returns a newly-generated application belonging to the current login user.
+     * <p>Returns a newly-generated app identity belonging to the current login user.
      */
-    @Post("/applications")
+    @Post("/appIdentities")
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
-    public CompletableFuture<ResponseEntity<Application>> createApplication(
+    public CompletableFuture<ResponseEntity<AppIdentity>> createAppIdentity(
             @Param String appId,
             @Param @Default("false") boolean isSystemAdmin,
-            @Param ApplicationType applicationType,
+            @Param AppIdentityType appIdentityType,
             @Param @Nullable String secret,
             @Param @Nullable String certificateId,
             Author author, User loginUser) {
-        if (!mtlsEnabled && applicationType == ApplicationType.CERTIFICATE) {
+        if (!mtlsEnabled && appIdentityType == AppIdentityType.CERTIFICATE) {
             throw new IllegalArgumentException(
-                    "Cannot create a CERTIFICATE type application when mTLS is disabled.");
+                    "Cannot create a CERTIFICATE type app identity when mTLS is disabled.");
         }
 
         if (!loginUser.isSystemAdmin()) {
-            checkArgument(!isSystemAdmin,
-                          "Only system administrators are allowed to create a system admin-level application.");
-            checkArgument(secret == null,
-                          "Only system administrators are allowed to create a new application token from " +
-                          "the given secret string");
+            checkArgument(
+                    !isSystemAdmin,
+                    "Only system administrators are allowed to create a system admin-level app identity.");
+            checkArgument(
+                    secret == null,
+                    "Only system administrators are allowed to create a new application token from " +
+                    "the given secret string");
         }
         final CompletableFuture<Revision> future;
-        if (applicationType == ApplicationType.TOKEN) {
+        if (appIdentityType == AppIdentityType.TOKEN) {
             checkArgument(certificateId == null,
                           "TOKEN type cannot have a certificateId: %s", certificateId);
             if (secret != null) {
@@ -141,62 +144,62 @@ public final class ApplicationRegistryService extends AbstractService {
                           "CERTIFICATE type cannot have a secret: %s", secret);
             future = mds.createCertificate(author, appId, certificateId, isSystemAdmin);
         }
-        return future.thenCompose(unused -> fetchApplicationByAppId(appId))
-                     .thenApply(application -> {
+        return future.thenCompose(unused -> fetchAppIdentity(appId))
+                     .thenApply(appIdentity -> {
                          final ResponseHeaders headers = ResponseHeaders.of(HttpStatus.CREATED,
                                                                             HttpHeaderNames.LOCATION,
-                                                                            "/applications/" + appId);
-                         return ResponseEntity.of(headers, application);
+                                                                            "/appIdentities/" + appId);
+                         return ResponseEntity.of(headers, appIdentity);
                      });
     }
 
     /**
-     * DELETE /applications/{appId}
+     * DELETE /appIdentities/{appId}
      *
-     * <p>Deletes an application of the specified ID then returns it.
+     * <p>Deletes an app identity of the specified ID then returns it.
      */
-    @Delete("/applications/{appId}")
-    public CompletableFuture<Application> deleteApplication(ServiceRequestContext ctx,
+    @Delete("/appIdentities/{appId}")
+    public CompletableFuture<AppIdentity> deleteAppIdentity(ServiceRequestContext ctx,
                                                             @Param String appId,
                                                             Author author, User loginUser) {
-        return getApplicationOrRespondForbidden(ctx, appId, loginUser).thenCompose(
-                application -> {
-                    if (application.type() == ApplicationType.TOKEN) {
+        return getAppIdentityOrRespondForbidden(ctx, appId, loginUser).thenCompose(
+                appIdentities -> {
+                    if (appIdentities.type() == AppIdentityType.TOKEN) {
                         return mds.destroyToken(author, appId)
-                                  .thenApply(unused -> ((Token) application).withoutSecret());
+                                  .thenApply(unused -> ((Token) appIdentities).withoutSecret());
                     }
-                    return mds.destroyCertificate(author, appId).thenApply(unused -> application);
+                    return mds.destroyCertificate(author, appId).thenApply(unused -> appIdentities);
                 });
     }
 
     /**
-     * DELETE /applications/{appId}/removed
+     * DELETE /appIdentities/{appId}/removed
      *
-     * <p>Purges an application of the specified ID that was deleted before.
+     * <p>Purges an app identity of the specified ID that was deleted before.
      */
-    @Delete("/applications/{appId}/removed")
+    @Delete("/appIdentities/{appId}/removed")
     @RequiresSystemAdministrator
-    public CompletableFuture<Application> purgeApplication(ServiceRequestContext ctx,
+    public CompletableFuture<AppIdentity> purgeAppIdentity(ServiceRequestContext ctx,
                                                            @Param String appId,
                                                            Author author, User loginUser) {
-        return getApplicationOrRespondForbidden(ctx, appId, loginUser).thenApplyAsync(
-                application -> {
-                    mds.purgeApplication(author, appId);
-                    if (application.type() == ApplicationType.TOKEN) {
-                        return ((Token) application).withoutSecret();
+        return getAppIdentityOrRespondForbidden(ctx, appId, loginUser).thenApplyAsync(
+                appIdentity -> {
+                    mds.purgeAppIdentity(author, appId);
+                    if (appIdentity.type() == AppIdentityType.TOKEN) {
+                        return ((Token) appIdentity).withoutSecret();
                     }
-                    return application;
+                    return appIdentity;
                 }, ctx.blockingTaskExecutor());
     }
 
     /**
-     * PATCH /applications/{appId}
+     * PATCH /appIdentities/{appId}
      *
-     * <p>Activates or deactivates the application of the specified {@code appId}.
+     * <p>Activates or deactivates the app identity of the specified {@code appId}.
      */
-    @Patch("/applications/{appId}")
-    @Consumes("application/json-patch+json")
-    public CompletableFuture<Application> updateApplication(ServiceRequestContext ctx,
+    @Patch("/appIdentities/{appId}")
+    @ConsumesJson
+    public CompletableFuture<AppIdentity> updateAppIdentity(ServiceRequestContext ctx,
                                                             @Param String appId,
                                                             JsonNode node, Author author, User loginUser) {
         // {"status":"active"} or {"status":"inactive"}
@@ -211,68 +214,74 @@ public final class ApplicationRegistryService extends AbstractService {
                     "The 'status' field must be either 'active' or 'inactive': " + text);
         }
 
-        return getApplicationOrRespondForbidden(ctx, appId, loginUser).thenCompose(
-                application -> {
-                    if (application.isDeleted()) {
+        return getAppIdentityOrRespondForbidden(ctx, appId, loginUser).thenCompose(
+                appIdentity -> {
+                    if (appIdentity.isDeleted()) {
                         throw new IllegalArgumentException(
-                                "You can't update the status of the application scheduled for deletion.");
+                                "You can't update the status of the app identity scheduled for deletion.");
                     }
                     if ("active".equals(text)) {
-                        if (application.type() == ApplicationType.TOKEN) {
-                            return mds.activateToken(author, appId)
-                                      .thenApply(unused -> ((Token) application).withoutSecret());
+                        if (appIdentity.type() == AppIdentityType.TOKEN) {
+                            return mds.activateToken(author, appId);
                         } else {
-                            return mds.activateCertificate(author, appId)
-                                      .thenApply(unused -> application);
+                            return mds.activateCertificate(author, appId);
                         }
                     }
-                    if (application.type() == ApplicationType.TOKEN) {
-                        return mds.deactivateToken(author, appId)
-                                  .thenApply(unused -> ((Token) application).withoutSecret());
+                    if (appIdentity.type() == AppIdentityType.TOKEN) {
+                        return mds.deactivateToken(author, appId);
                     } else {
-                        return mds.deactivateCertificate(author, appId)
-                                  .thenApply(unused -> application);
+                        return mds.deactivateCertificate(author, appId);
                     }
                 }
-        );
+        ).thenCompose(unused -> {
+            // Fetch the updated app identity.
+            return fetchAppIdentity(appId).thenApply(updated -> {
+                if (updated.type() == AppIdentityType.TOKEN) {
+                    return ((Token) updated).withoutSecret();
+                }
+                return updated;
+            });
+        });
     }
 
     /**
-     * PATCH /applications/{appId}/level
+     * PATCH /appIdentities/{appId}/level
      *
-     * <p>Updates a level of the application of the specified ID.
+     * <p>Updates a level of the app identity of the specified ID.
      */
-    @Patch("/applications/{appId}/level")
+    @Patch("/appIdentities/{appId}/level")
+    @ConsumesJson
     @RequiresSystemAdministrator
-    public CompletableFuture<Application> updateApplicationLevel(
+    public CompletableFuture<AppIdentity> updateAppIdentityLevel(
             ServiceRequestContext ctx,
             @Param String appId,
-            ApplicationLevelRequest applicationLevelRequest,
+            AppIdentityLevelRequest appIdentityLevelRequest,
             Author author, User loginUser) {
-        final String newTokenLevel = applicationLevelRequest.level().toLowerCase();
-        checkArgument("user".equals(newTokenLevel) || "systemadmin".equals(newTokenLevel),
-                      "token level: %s (expected: user or systemadmin)", applicationLevelRequest.level());
+        final String newAppIdentityLevel = appIdentityLevelRequest.level().toLowerCase();
+        checkArgument("user".equals(newAppIdentityLevel) || "systemadmin".equals(newAppIdentityLevel),
+                      "app identity level: %s (expected: user or systemadmin)",
+                      appIdentityLevelRequest.level());
 
-        return getApplicationOrRespondForbidden(ctx, appId, loginUser).thenCompose(
-                application -> {
+        return getAppIdentityOrRespondForbidden(ctx, appId, loginUser).thenCompose(
+                appIdentity -> {
                     boolean toBeSystemAdmin = false;
 
-                    switch (newTokenLevel) {
+                    switch (newAppIdentityLevel) {
                         case "user":
-                            if (!application.isSystemAdmin()) {
+                            if (!appIdentity.isSystemAdmin()) {
                                 throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
                             }
                             break;
                         case "systemadmin":
-                            if (application.isSystemAdmin()) {
+                            if (appIdentity.isSystemAdmin()) {
                                 throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
                             }
                             toBeSystemAdmin = true;
                             break;
                     }
-                    return mds.updateApplicationLevel(author, appId, toBeSystemAdmin).thenCompose(
-                            unused -> fetchApplicationByAppId(appId).thenApply(updated -> {
-                                if (updated.type() == ApplicationType.TOKEN) {
+                    return mds.updateAppIdentityLevel(author, appId, toBeSystemAdmin).thenCompose(
+                            unused -> fetchAppIdentity(appId).thenApply(updated -> {
+                                if (updated.type() == AppIdentityType.TOKEN) {
                                     return ((Token) updated).withoutSecret();
                                 }
                                 return updated;
@@ -285,26 +294,26 @@ public final class ApplicationRegistryService extends AbstractService {
      *
      * <p>Returns the list of the tokens generated before.
      *
-     * @deprecated Use {@link #listApplications(User)} instead.
+     * @deprecated Use {@link #listAppIdentities(User)} instead.
      */
     @Get("/tokens")
     @Deprecated
     public Collection<Token> listTokens(User loginUser) {
         if (loginUser.isSystemAdmin()) {
-            return mds.getApplicationRegistry()
+            return mds.getAppIdentityRegistry()
                       .appIds()
                       .values()
                       .stream()
-                      .filter(application -> application.type() == ApplicationType.TOKEN)
-                      .map(application -> (Token) application)
+                      .filter(appIdentity -> appIdentity.type() == AppIdentityType.TOKEN)
+                      .map(appIdentity -> (Token) appIdentity)
                       .collect(toImmutableList());
         } else {
-            return mds.getApplicationRegistry()
+            return mds.getAppIdentityRegistry()
                       .appIds()
                       .values()
                       .stream()
-                      .filter(application -> application.type() == ApplicationType.TOKEN)
-                      .map(application -> (Token) application)
+                      .filter(appIdentity -> appIdentity.type() == AppIdentityType.TOKEN)
+                      .map(appIdentity -> (Token) appIdentity)
                       .map(Token::withoutSecret)
                       .collect(toImmutableList());
         }
@@ -315,8 +324,8 @@ public final class ApplicationRegistryService extends AbstractService {
      *
      * <p>Returns a newly-generated token belonging to the current login user.
      *
-     * @deprecated Use {@link #createApplication(
-     *             String, boolean, ApplicationType, String, String, Author, User)}.
+     * @deprecated Use {@link #createAppIdentity(
+     *             String, boolean, AppIdentityType, String, String, Author, User)}.
      */
     @Post("/tokens")
     @StatusCode(201)
@@ -326,10 +335,10 @@ public final class ApplicationRegistryService extends AbstractService {
                                                                 @Param @Default("false") boolean isSystemAdmin,
                                                                 @Param @Nullable String secret,
                                                                 Author author, User loginUser) {
-        return createApplication(appId, isSystemAdmin, ApplicationType.TOKEN, secret, null,
+        return createAppIdentity(appId, isSystemAdmin, AppIdentityType.TOKEN, secret, null,
                                  author, loginUser)
                 .thenApply(responseEntity -> {
-                    final Application app = responseEntity.content();
+                    final AppIdentity app = responseEntity.content();
                     return ResponseEntity.of(responseEntity.headers(), (Token) app);
                 });
     }
@@ -339,7 +348,7 @@ public final class ApplicationRegistryService extends AbstractService {
      *
      * <p>Deletes a token of the specified ID then returns it.
      *
-     * @deprecated Use {@link #deleteApplication(ServiceRequestContext, String, Author, User)}.
+     * @deprecated Use {@link #deleteAppIdentity(ServiceRequestContext, String, Author, User)}.
      */
     @Delete("/tokens/{appId}")
     @Deprecated
@@ -358,7 +367,7 @@ public final class ApplicationRegistryService extends AbstractService {
      *
      * <p>Purges a token of the specified ID that was deleted before.
      *
-     * @deprecated Use {@link #purgeApplication(ServiceRequestContext, String, Author, User)}.
+     * @deprecated Use {@link #purgeAppIdentity(ServiceRequestContext, String, Author, User)}.
      */
     @Delete("/tokens/{appId}/removed")
     @RequiresSystemAdministrator
@@ -368,7 +377,7 @@ public final class ApplicationRegistryService extends AbstractService {
                                                Author author, User loginUser) {
         return getTokenOrRespondForbidden(ctx, appId, loginUser).thenApplyAsync(
                 token -> {
-                    mds.purgeApplication(author, appId);
+                    mds.purgeAppIdentity(author, appId);
                     return token.withoutSecret();
                 }, ctx.blockingTaskExecutor());
     }
@@ -378,7 +387,7 @@ public final class ApplicationRegistryService extends AbstractService {
      *
      * <p>Activates or deactivates the token of the specified {@code appId}.
      *
-     * @deprecated Use {@link #updateApplication(ServiceRequestContext, String, JsonNode, Author, User)}.
+     * @deprecated Use {@link #updateAppIdentity(ServiceRequestContext, String, JsonNode, Author, User)}.
      */
     @Patch("/tokens/{appId}")
     @Consumes("application/json-patch+json")
@@ -412,51 +421,51 @@ public final class ApplicationRegistryService extends AbstractService {
      *
      * <p>Updates a level of a token of the specified ID.
      *
-     * @deprecated Use {@link #updateApplicationLevel(ServiceRequestContext, String,
-     *             ApplicationLevelRequest, Author, User)}.
+     * @deprecated Use {@link #updateAppIdentityLevel(ServiceRequestContext, String,
+     *             AppIdentityLevelRequest, Author, User)}.
      */
     @Patch("/tokens/{appId}/level")
     @RequiresSystemAdministrator
     @Deprecated
     public CompletableFuture<Token> updateTokenLevel(ServiceRequestContext ctx,
                                                      @Param String appId,
-                                                     ApplicationLevelRequest applicationLevelRequest,
+                                                     AppIdentityLevelRequest appIdentityLevelRequest,
                                                      Author author, User loginUser) {
         // Call getTokenOrRespondForbidden first to check if it is a token.
         return getTokenOrRespondForbidden(ctx, appId, loginUser)
-                .thenCompose(unused -> updateApplicationLevel(
-                        ctx, appId, applicationLevelRequest, author, loginUser)
-                        .thenApply(application -> ((Token) application).withoutSecret()));
+                .thenCompose(unused -> updateAppIdentityLevel(
+                        ctx, appId, appIdentityLevelRequest, author, loginUser)
+                        .thenApply(appIdentity -> (Token) appIdentity));
     }
 
-    private CompletableFuture<Application> fetchApplicationByAppId(String appId) {
-        return mds.fetchApplicationRegistry().thenApply(registry -> registry.get(appId));
+    private CompletableFuture<AppIdentity> fetchAppIdentity(String appId) {
+        return mds.fetchAppIdentityRegistry().thenApply(registry -> registry.get(appId));
     }
 
-    private CompletableFuture<Application> getApplicationOrRespondForbidden(ServiceRequestContext ctx,
+    private CompletableFuture<AppIdentity> getAppIdentityOrRespondForbidden(ServiceRequestContext ctx,
                                                                             String appId, User loginUser) {
-        return fetchApplicationByAppId(appId).thenApply(application -> {
+        return fetchAppIdentity(appId).thenApply(appIdentity -> {
             // Give permission to the system administrators.
             if (!loginUser.isSystemAdmin() &&
-                !application.creation().user().equals(loginUser.id())) {
+                !appIdentity.creation().user().equals(loginUser.id())) {
                 return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
-                                                 "Do not have permission for application: %s",
-                                                 application.appId());
+                                                 "Do not have permission for app identity: %s",
+                                                 appIdentity.appId());
             }
-            return application;
+            return appIdentity;
         });
     }
 
     private CompletableFuture<Token> getTokenOrRespondForbidden(ServiceRequestContext ctx,
                                                                 String appId, User loginUser) {
-        return getApplicationOrRespondForbidden(ctx, appId, loginUser).thenApply(application -> {
-            if (application.type() != ApplicationType.TOKEN) {
+        return getAppIdentityOrRespondForbidden(ctx, appId, loginUser).thenApply(appIdentity -> {
+            if (appIdentity.type() != AppIdentityType.TOKEN) {
                 return HttpApiUtil.throwResponse(
                         ctx, HttpStatus.NOT_FOUND, "%s is not a token but a %s",
-                        application.appId(), application.type());
+                        appIdentity.appId(), appIdentity.type());
             }
 
-            return (Token) application;
+            return (Token) appIdentity;
         });
     }
 }
