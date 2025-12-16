@@ -180,8 +180,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             return whenReady;
         }
 
-        return client.endpointGroup().whenReady().thenRun(() -> {
-        });
+        return client.endpointGroup().whenReady().thenRun(() -> {});
     }
 
     @Override

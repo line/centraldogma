@@ -91,7 +91,7 @@ final class StructuredChange extends AbstractChange<JsonNode> {
             return contentAsText;
         }
         try {
-            return contentAsText = Jackson.writeValueAsString(jsonNode);
+            return contentAsText = Jackson.writeValueAsString(path(), jsonNode);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to convert JSON content to text: " + jsonNode, e);
         }

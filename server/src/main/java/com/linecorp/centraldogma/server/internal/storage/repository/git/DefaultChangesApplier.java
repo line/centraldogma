@@ -93,7 +93,8 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
                     if (hasChanges) {
                         String newJson = rawContent;
                         if (newJson == null) {
-                            newJson = Jackson.writeValueAsString(newJsonNode);
+                            // Use pretty format for readability in the web UI.
+                            newJson = Jackson.writeValueAsPrettyString(newJsonNode);
                         }
                         applyPathEdit(dirCache, new InsertText(changePath, inserter, newJson));
                         numEdits++;
@@ -200,7 +201,7 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
                         if (isYaml(changePath)) {
                             newContent = Yaml.writeValueAsString(newJsonNode);
                         } else {
-                            newContent = Jackson.writeValueAsString(newJsonNode);
+                            newContent = Jackson.writeValueAsPrettyString(newJsonNode);
                         }
                         applyPathEdit(dirCache, new InsertText(changePath, inserter, newContent));
                         numEdits++;

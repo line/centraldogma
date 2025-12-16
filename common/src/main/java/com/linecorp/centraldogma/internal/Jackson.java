@@ -20,6 +20,7 @@ import static com.fasterxml.jackson.databind.node.JsonNodeType.OBJECT;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.Json5.isJson;
 import static com.linecorp.centraldogma.internal.Json5.isJson5;
+import static com.linecorp.centraldogma.internal.Json5.isJsonCompatible;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -231,6 +232,14 @@ public final class Jackson {
 
     public static String writeValueAsString(Object value) throws JsonProcessingException {
         return compactMapper.writeValueAsString(value);
+    }
+
+    public static String writeValueAsString(String path, Object value) throws JsonProcessingException {
+        if (isJsonCompatible(path)) {
+            return compactMapper.writeValueAsString(value);
+        } else {
+            return Yaml.writeValueAsString(value);
+        }
     }
 
     public static String writeValueAsPrettyString(Object value) throws JsonProcessingException {
