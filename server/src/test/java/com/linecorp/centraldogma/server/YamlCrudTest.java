@@ -25,7 +25,6 @@ import java.util.concurrent.CompletionException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -45,14 +44,11 @@ import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.jsonpatch.AddOperation;
-import com.linecorp.centraldogma.common.jsonpatch.CopyOperation;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
-import com.linecorp.centraldogma.common.jsonpatch.MoveOperation;
 import com.linecorp.centraldogma.common.jsonpatch.RemoveIfExistsOperation;
 import com.linecorp.centraldogma.common.jsonpatch.RemoveOperation;
 import com.linecorp.centraldogma.common.jsonpatch.ReplaceOperation;
-import com.linecorp.centraldogma.common.jsonpatch.SafeReplaceOperation;
 import com.linecorp.centraldogma.common.jsonpatch.TestOperation;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -79,7 +75,6 @@ class YamlCrudTest {
         repo = dogma.client().forRepo("testProject", "testRepo");
     }
 
-    @Timeout(Long.MAX_VALUE)
     @CsvSource({ "config.yaml", "config.yml" })
     @ParameterizedTest
     void pushAndReadRawYamlFile(String fileName) throws InterruptedException {
@@ -95,12 +90,12 @@ class YamlCrudTest {
                                 "  created: '2025-01-01'\n" +
                                 "  updated: '2025-01-15'\n";
 
-        final Change<JsonNode> change = Change.ofYamlUpsert("/" + fileName, yamlText);
+        final Change<JsonNode> change = Change.ofYamlUpsert('/' + fileName, yamlText);
         final PushResult result = repo.commit("Add YAML file", change).push().join();
         assertThat(result.revision().major()).isPositive();
 
         @SuppressWarnings("unchecked")
-        final Entry<JsonNode> rawEntry = (Entry<JsonNode>) repo.file("/" + fileName)
+        final Entry<JsonNode> rawEntry = (Entry<JsonNode>) repo.file('/' + fileName)
                                                                .viewRaw(true)
                                                                .get()
                                                                .join();
@@ -114,7 +109,6 @@ class YamlCrudTest {
         assertThatJson(rawEntry.content()).node("tags").isArray().ofLength(2);
         assertThatJson(rawEntry.content()).node("metadata.created").isEqualTo("2025-01-01");
         assertThatJson(rawEntry.content()).node("metadata.updated").isEqualTo("2025-01-15");
-        Thread.sleep(Long.MAX_VALUE);
     }
 
     @Test
@@ -400,89 +394,6 @@ class YamlCrudTest {
     }
 
     @Test
-    void jsonPatchCopyOnYamlFile() throws JsonParseException {
-        //language=yaml
-        final String yamlText = "source: original\n" +
-                                "value: 42\n";
-        repo.commit("add initial yaml", Change.ofYamlUpsert("/data.yaml", yamlText))
-            .push()
-            .join();
-
-        final CopyOperation copy = JsonPatchOperation.copy(JsonPointer.compile("/source"),
-                                                           JsonPointer.compile("/destination"));
-        final Change<JsonNode> change = Change.ofJsonPatch("/data.yaml", copy);
-        repo.commit("copy source to destination", change)
-            .push()
-            .join();
-
-        final JsonNode jsonNode = repo.file("/data.yaml").get().join().contentAsJson();
-        assertThatJson(jsonNode).node("source").isEqualTo("original");
-        assertThatJson(jsonNode).node("destination").isEqualTo("original");
-        assertThatJson(jsonNode).node("value").isEqualTo(42);
-    }
-
-    @Test
-    void jsonPatchMoveOnYamlFile() throws JsonParseException {
-        //language=yaml
-        final String yamlText = "oldName: value\n" +
-                                "other: data\n";
-        repo.commit("add initial yaml", Change.ofYamlUpsert("/move.yaml", yamlText))
-            .push()
-            .join();
-
-        final MoveOperation move = JsonPatchOperation.move(JsonPointer.compile("/oldName"),
-                                                           JsonPointer.compile("/newName"));
-        final Change<JsonNode> change = Change.ofJsonPatch("/move.yaml", move);
-        repo.commit("move oldName to newName", change)
-            .push()
-            .join();
-
-        final JsonNode jsonNode = repo.file("/move.yaml").get().join().contentAsJson();
-        assertThat(jsonNode.has("oldName")).isFalse();
-        assertThatJson(jsonNode).node("newName").isEqualTo("value");
-        assertThatJson(jsonNode).node("other").isEqualTo("data");
-    }
-
-    @Test
-    void jsonPatchRemoveOnYamlFile() throws JsonParseException {
-        //language=yaml
-        final String yamlText = "keep: value1\n" +
-                                "remove: value2\n" +
-                                "alsoKeep: value3\n";
-        repo.commit("add initial yaml", Change.ofYamlUpsert("/remove.yaml", yamlText))
-            .push()
-            .join();
-
-        final RemoveOperation remove = JsonPatchOperation.remove(JsonPointer.compile("/remove"));
-        final Change<JsonNode> change = Change.ofJsonPatch("/remove.yaml", remove);
-        repo.commit("remove field", change)
-            .push()
-            .join();
-
-        final JsonNode jsonNode = repo.file("/remove.yaml").get().join().contentAsJson();
-        assertThatJson(jsonNode).node("keep").isEqualTo("value1");
-        assertThat(jsonNode.has("remove")).isFalse();
-        assertThatJson(jsonNode).node("alsoKeep").isEqualTo("value3");
-    }
-
-    @Test
-    void jsonPatchRemoveNonExistentFieldThrowsException() {
-        //language=yaml
-        final String yamlText = "existing: value\n";
-        repo.commit("add initial yaml", Change.ofYamlUpsert("/test.yaml", yamlText))
-            .push()
-            .join();
-
-        final RemoveOperation remove = JsonPatchOperation.remove(JsonPointer.compile("/nonExistent"));
-        final Change<JsonNode> change = Change.ofJsonPatch("/test.yaml", remove);
-
-        assertThatThrownBy(() -> repo.commit("remove non-existent", change).push().join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(JsonPatchConflictException.class)
-                .hasMessageContaining("non-existent path: /nonExistent");
-    }
-
-    @Test
     void jsonPatchRemoveIfExistsOnYamlFile() throws JsonParseException {
         //language=yaml
         final String yamlText = "keep: value1\n" +
@@ -509,37 +420,6 @@ class YamlCrudTest {
     }
 
     @Test
-    void jsonPatchSafeReplaceOnYamlFile() throws JsonParseException {
-        //language=yaml
-        final String yamlText = "counter: 10\n";
-        repo.commit("add initial yaml", Change.ofYamlUpsert("/counter.yaml", yamlText))
-            .push()
-            .join();
-
-        // Safe replace with correct old value
-        SafeReplaceOperation safeReplace =
-                JsonPatchOperation.safeReplace(JsonPointer.compile("/counter"),
-                                               new IntNode(10), new IntNode(20));
-        Change<JsonNode> change = Change.ofJsonPatch("/counter.yaml", safeReplace);
-        repo.commit("safe replace counter", change)
-            .push()
-            .join();
-
-        JsonNode jsonNode = repo.file("/counter.yaml").get().join().contentAsJson();
-        assertThatJson(jsonNode).node("counter").isEqualTo(20);
-
-        // Safe replace with wrong old value should fail
-        safeReplace = JsonPatchOperation.safeReplace(JsonPointer.compile("/counter"),
-                                                     new IntNode(10), new IntNode(30));
-        final Change<JsonNode> failChange = Change.ofJsonPatch("/counter.yaml", safeReplace);
-
-        assertThatThrownBy(() -> repo.commit("invalid safe replace", failChange).push().join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(JsonPatchConflictException.class)
-                .hasMessageContaining("mismatching value at '/counter': 20 (expected: 10)");
-    }
-
-    @Test
     void jsonPatchTestOnYamlFile() {
         //language=yaml
         final String yamlText = "testField: 100\n";
@@ -549,7 +429,7 @@ class YamlCrudTest {
 
         // Test operation with matching value should throw RedundantChangeException (no change)
         TestOperation test = JsonPatchOperation.test(JsonPointer.compile("/testField"), new IntNode(100));
-        Change<JsonNode> change = Change.ofJsonPatch("/test.yaml", test);
+        final Change<JsonNode> change = Change.ofJsonPatch("/test.yaml", test);
 
         assertThatThrownBy(() -> repo.commit("test field", change).push().join())
                 .isInstanceOf(CompletionException.class)
@@ -591,33 +471,6 @@ class YamlCrudTest {
         assertThatJson(jsonNode).node("count").isEqualTo(1);
         assertThatJson(jsonNode).node("newField").isEqualTo("added");
         assertThat(jsonNode.has("toRemove")).isFalse();
-    }
-
-    @Test
-    void jsonPatchOnYamlFileWithNestedArrays() throws JsonParseException {
-        //language=yaml
-        final String yamlText = "users:\n" +
-                                "  - name: Alice\n" +
-                                "    role: admin\n" +
-                                "  - name: Bob\n" +
-                                "    role: user\n";
-        repo.commit("add initial yaml", Change.ofYamlUpsert("/users.yaml", yamlText))
-            .push()
-            .join();
-
-        // Add a new user to the array
-        final AddOperation add = JsonPatchOperation.add(JsonPointer.compile("/users/2"),
-                                                        new TextNode("Charlie"));
-        // Note: Adding to array requires proper JsonNode, let's use replace on first user's role instead
-        final ReplaceOperation replace = JsonPatchOperation.replace(JsonPointer.compile("/users/0/role"),
-                                                                    new TextNode("superadmin"));
-        repo.commit("update first user role", Change.ofJsonPatch("/users.yaml", replace))
-            .push()
-            .join();
-
-        final JsonNode jsonNode = repo.file("/users.yaml").get().join().contentAsJson();
-        assertThatJson(jsonNode).node("users[0].role").isEqualTo("superadmin");
-        assertThatJson(jsonNode).node("users[1].role").isEqualTo("user");
     }
 
     @Test

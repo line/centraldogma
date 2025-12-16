@@ -180,8 +180,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             return whenReady;
         }
 
-        return client.endpointGroup().whenReady().thenRun(() -> {
-        });
+        return client.endpointGroup().whenReady().thenRun(() -> {});
     }
 
     @Override
@@ -1064,7 +1063,16 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     private static <T> Entry<T> toEntry(Revision revision, JsonNode node, QueryType queryType,
                                         boolean viewRaw) {
         final String entryPath = getField(node, "path").asText();
-        final EntryType receivedEntryType = EntryType.guessFromPath(entryPath);
+        final String entryTypeString = getField(node, "type").asText();
+
+        final EntryType receivedEntryType;
+        if (entryTypeString.equals(EntryType.DIRECTORY.name())) {
+            // If the server is an older version, the path may not end with a '/' for directory entries.
+            receivedEntryType = EntryType.DIRECTORY;
+        } else {
+            receivedEntryType = EntryType.guessFromPath(entryPath);
+        }
+
         switch (queryType) {
             case IDENTITY_TEXT:
                 return entryAsText(revision, node, entryPath, viewRaw);

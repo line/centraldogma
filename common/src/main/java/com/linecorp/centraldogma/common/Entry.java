@@ -47,6 +47,9 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param path the path of the directory
      */
     public static Entry<Void> ofDirectory(Revision revision, String path) {
+        if (!path.endsWith("/")) {
+            path += "/";
+        }
         return new Entry<>(revision, path, EntryType.DIRECTORY, null, null);
     }
 

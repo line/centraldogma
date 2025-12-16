@@ -87,11 +87,16 @@ public final class PathPatternFilter extends TreeFilter {
     }
 
     private static String normalize(String p) {
-        final String normalized;
+        String normalized;
         if (p.charAt(0) != '/') {
             normalized = "/**/" + p;
         } else {
             normalized = p;
+        }
+
+        // The path given in match() does not have a trailing '/' for directories.
+        if (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, p.length() - 1);
         }
         return normalized;
     }

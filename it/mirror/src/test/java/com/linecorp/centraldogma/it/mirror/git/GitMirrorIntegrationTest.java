@@ -31,6 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
@@ -295,7 +296,9 @@ class GitMirrorIntegrationTest {
 
         //// Make sure /target/mirror_state.json exists (and nothing else.)
         final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState(rev1, "/target/");
-        assertThat(client.getFiles(projName, REPO_FOO, rev1, PathPattern.of("/target/**")).join().values())
+        final Collection<Entry<?>> values = client.getFiles(projName, REPO_FOO, rev1,
+                                                            PathPattern.of("/target/**")).join().values();
+        assertThat(values)
                 .containsExactly(expectedInitialMirrorState);
 
         // Now, add some files to the git repository and mirror.

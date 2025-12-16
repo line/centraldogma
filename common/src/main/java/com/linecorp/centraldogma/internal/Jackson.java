@@ -190,7 +190,8 @@ public final class Jackson {
         } else if (Yaml.isYaml(path)) {
             return Yaml.readTree(data);
         } else {
-            throw new IllegalArgumentException("Unsupported file type: " + path);
+            // Fallback to JSON parser.
+            return readTree(data);
         }
     }
 

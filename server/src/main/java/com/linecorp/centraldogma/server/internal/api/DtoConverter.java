@@ -90,8 +90,10 @@ final class DtoConverter {
                     // JSON_PATH is used to read the part of YAML files, which is a new feature.
                     return newEntryDto(repository, revision, entry.path(), entry.type(), entry.content(), null);
                 } else {
-                    // Use EntryType.TEXT for backward compatibility. Old clients may not recognize EntryType.YAML.
-                    // TODO(ikhoon): Use entry.content() once we drop the support for old clients.
+                    // Use EntryType.TEXT for backward compatibility. Old clients may not recognize
+                    // EntryType.YAML.
+                    // TODO(ikhoon): Use entry.content() instead of entry.rawContent() once we drop the support
+                    //               for old clients.
                     return newEntryDto(repository, revision, entry.path(), EntryType.TEXT, entry.rawContent(),
                                        null);
                 }
