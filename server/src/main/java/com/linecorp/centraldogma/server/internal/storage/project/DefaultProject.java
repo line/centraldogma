@@ -55,9 +55,9 @@ import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaR
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.internal.storage.repository.cache.CachingRepositoryManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager;
+import com.linecorp.centraldogma.server.metadata.AppIdentityRegistration;
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.storage.encryption.EncryptionStorageManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -203,14 +203,14 @@ public class DefaultProject implements Project {
 
             final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
             final Map<String, Member> members;
-            final Map<String, TokenRegistration> tokens;
-            if (author.isToken()) {
+            final Map<String, AppIdentityRegistration> tokens;
+            if (author.isAppIdentity()) {
                 members = ImmutableMap.of();
                 // author.name() is the appId of the token.
-                final TokenRegistration tokenRegistration =
-                        new TokenRegistration(author.name(), ProjectRole.OWNER, userAndTimestamp);
+                final AppIdentityRegistration appIdentityRegistration =
+                        new AppIdentityRegistration(author.name(), ProjectRole.OWNER, userAndTimestamp);
 
-                tokens = ImmutableMap.of(tokenRegistration.id(), tokenRegistration);
+                tokens = ImmutableMap.of(appIdentityRegistration.id(), appIdentityRegistration);
             } else {
                 final Member member = new Member(author, ProjectRole.OWNER, userAndTimestamp);
                 members = ImmutableMap.of(member.id(), member);

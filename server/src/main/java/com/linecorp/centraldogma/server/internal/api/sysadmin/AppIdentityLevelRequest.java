@@ -19,11 +19,11 @@ package com.linecorp.centraldogma.server.internal.api.sysadmin;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public final class TokenLevelRequest {
+public final class AppIdentityLevelRequest {
     private final String level;
 
     @JsonCreator
-    public TokenLevelRequest(@JsonProperty("level") String level) {
+    public AppIdentityLevelRequest(@JsonProperty("level") String level) {
         this.level = level;
     }
 

@@ -41,7 +41,7 @@ public final class Roles implements HasWeight {
 
     private final Map<String, RepositoryRole> users;
 
-    private final Map<String, RepositoryRole> tokens;
+    private final Map<String, RepositoryRole> appIds;
 
     /**
      * Creates a new instance.
@@ -49,10 +49,10 @@ public final class Roles implements HasWeight {
     @JsonCreator
     public Roles(@JsonProperty("projects") ProjectRoles projectRoles,
                  @JsonProperty("users") Map<String, RepositoryRole> users,
-                 @JsonProperty("tokens") Map<String, RepositoryRole> tokens) {
+                 @JsonProperty("appIds") Map<String, RepositoryRole> appIds) {
         this.projectRoles = requireNonNull(projectRoles, "projectRoles");
         this.users = requireNonNull(users, "users");
-        this.tokens = requireNonNull(tokens, "tokens");
+        this.appIds = requireNonNull(appIds, "appIds");
     }
 
     /**
@@ -66,17 +66,17 @@ public final class Roles implements HasWeight {
     /**
      * Returns the {@link RepositoryRole}s of users.
      */
-    @JsonProperty("users")
+    @JsonProperty
     public Map<String, RepositoryRole> users() {
         return users;
     }
 
     /**
-     * Returns the {@link RepositoryRole}s of tokens.
+     * Returns the {@link RepositoryRole}s of app identities.
      */
-    @JsonProperty("tokens")
-    public Map<String, RepositoryRole> tokens() {
-        return tokens;
+    @JsonProperty
+    public Map<String, RepositoryRole> appIds() {
+        return appIds;
     }
 
     @Override
@@ -90,7 +90,7 @@ public final class Roles implements HasWeight {
             weight += entry.getKey().length();
             weight += entry.getValue().name().length();
         }
-        for (Entry<String, RepositoryRole> entry : tokens.entrySet()) {
+        for (Entry<String, RepositoryRole> entry : appIds.entrySet()) {
             weight += entry.getKey().length();
             weight += entry.getValue().name().length();
         }
@@ -108,12 +108,12 @@ public final class Roles implements HasWeight {
         final Roles other = (Roles) o;
         return projectRoles.equals(other.projectRoles) &&
                users.equals(other.users) &&
-               tokens.equals(other.tokens);
+               appIds.equals(other.appIds);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(projectRoles, users, tokens);
+        return Objects.hashCode(projectRoles, users, appIds);
     }
 
     @Override
@@ -121,7 +121,7 @@ public final class Roles implements HasWeight {
         return MoreObjects.toStringHelper(this)
                           .add("projectRoles", projectRoles)
                           .add("users", users)
-                          .add("tokens", tokens)
+                          .add("appIds", appIds)
                           .toString();
     }
 }

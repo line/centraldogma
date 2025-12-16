@@ -74,8 +74,16 @@ class MetadataServiceTest {
     private static final User user2 = new User("user2@localhost.com");
     private static final String app1 = "app-1";
     private static final String app2 = "app-2";
+    private static final String cert1 = "cert-1";
+    private static final String cert2 = "cert-2";
+    private static final String certificateId1 = "certificate/id/1";
+    private static final String certificateId2 = "certificate/id/2";
     private static final Token appToken1 = new Token(app1, "secret", false, true, UserAndTimestamp.of(author));
     private static final Token appToken2 = new Token(app2, "secret", false, true, UserAndTimestamp.of(author));
+    private static final CertificateAppIdentity certificate1 =
+            new CertificateAppIdentity(cert1, certificateId1, false, true, UserAndTimestamp.of(author));
+    private static final CertificateAppIdentity certificate2 =
+            new CertificateAppIdentity(cert2, certificateId2, false, true, UserAndTimestamp.of(author));
 
     @Test
     void project() {
@@ -284,59 +292,113 @@ class MetadataServiceTest {
     void tokenRepositoryRole() {
         final MetadataService mds = newMetadataService(manager);
 
-        mds.addRepo(author, project1, repo1, ProjectRoles.of(null, null)).join();
-        mds.createToken(author, app1).join();
-        // Try once more.
-        assertThatThrownBy(() -> mds.createToken(author, app1).join())
-                .hasCauseInstanceOf(ChangeConflictException.class);
-
-        await().untilAsserted(() -> assertThat(mds.findTokenByAppId(app1)).isNotNull());
+        createRepoAndRegisterToken(mds, app1);
 
         // Token 'app2' is not created yet.
-        assertThatThrownBy(() -> mds.addToken(author, project1, app2, ProjectRole.MEMBER).join())
-                .isInstanceOf(TokenNotFoundException.class);
+        assertThatThrownBy(() -> mds.addAppIdentity(author, project1, app2, ProjectRole.MEMBER).join())
+                .isInstanceOf(AppIdentityNotFoundException.class);
 
         // Token is not registered to the project yet.
-        assertThatThrownBy(() -> mds.addTokenRepositoryRole(author, project1, repo1, app1, RepositoryRole.READ)
+        assertThatThrownBy(() -> mds.addAppIdentityRepositoryRole(author, project1,
+                                                                  repo1, app1, RepositoryRole.READ)
                                     .join())
-                .hasCauseInstanceOf(TokenNotFoundException.class);
+                .hasCauseInstanceOf(AppIdentityNotFoundException.class);
 
         assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join()).isNull();
 
         // Be a token of the project.
-        mds.addToken(author, project1, app1, ProjectRole.MEMBER).join();
-        await().until(() -> mds.findTokenByAppId(app1) != null);
-        mds.addTokenRepositoryRole(author, project1, repo1, app1, RepositoryRole.READ).join();
+        mds.addAppIdentity(author, project1, app1, ProjectRole.MEMBER).join();
+        await().until(() -> mds.findAppIdentity(app1) != null);
+        mds.addAppIdentityRepositoryRole(author, project1, repo1, app1, RepositoryRole.READ).join();
 
         await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join())
                 .isSameAs(RepositoryRole.READ));
 
         // Try once more
-        assertThatThrownBy(() -> mds.addToken(author, project1, app1, ProjectRole.MEMBER).join())
+        assertThatThrownBy(() -> mds.addAppIdentity(author, project1, app1, ProjectRole.MEMBER).join())
                 .hasCauseInstanceOf(ChangeConflictException.class);
-        assertThatThrownBy(() -> mds.addTokenRepositoryRole(author, project1, repo1, app1, RepositoryRole.READ)
+        assertThatThrownBy(() -> mds.addAppIdentityRepositoryRole(author, project1,
+                                                                  repo1, app1, RepositoryRole.READ)
                                     .join())
                 .hasCauseInstanceOf(ChangeConflictException.class);
 
         final Revision revision =
-                mds.updateTokenRepositoryRole(author, project1, repo1, app1, RepositoryRole.WRITE).join();
+                mds.updateAppIdentityRepositoryRole(author, project1, repo1, app1, RepositoryRole.WRITE).join();
         await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join())
                 .isSameAs(RepositoryRole.WRITE));
 
         // Update invalid token
-        assertThatThrownBy(() -> mds.updateTokenRepositoryRole(author, project1, repo1, app2,
-                                                               RepositoryRole.WRITE).join())
-                .hasCauseInstanceOf(TokenNotFoundException.class);
+        assertThatThrownBy(() -> mds.updateAppIdentityRepositoryRole(author, project1, repo1, app2,
+                                                                     RepositoryRole.WRITE).join())
+                .hasCauseInstanceOf(AppIdentityNotFoundException.class);
 
         // Update again with the same permission.
-        assertThat(mds.updateTokenRepositoryRole(author, project1, repo1, app1, RepositoryRole.WRITE).join())
+        assertThat(mds.updateAppIdentityRepositoryRole(author, project1, repo1, app1, RepositoryRole.WRITE)
+                      .join())
                 .isEqualTo(revision);
 
-        mds.removeTokenRepositoryRole(author, project1, repo1, app1).join();
-        assertThatThrownBy(() -> mds.removeTokenRepositoryRole(author, project1, repo1, app1).join())
+        mds.removeAppIdentityRepositoryRole(author, project1, repo1, app1).join();
+        assertThatThrownBy(() -> mds.removeAppIdentityRepositoryRole(author, project1, repo1, app1).join())
                 .hasCauseInstanceOf(ChangeConflictException.class);
 
         assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join()).isNull();
+    }
+
+    @Test
+    void certificateRepositoryRole() {
+        final MetadataService mds = newMetadataService(manager);
+
+        createRepoAndRegisterCertificate(mds, cert1, certificateId1);
+
+        // Certificate 'cert2' is not created yet.
+        assertThatThrownBy(() -> mds.addAppIdentity(author, project1, cert2, ProjectRole.MEMBER).join())
+                .isInstanceOf(AppIdentityNotFoundException.class);
+
+        // Certificate is not registered to the project yet.
+        assertThatThrownBy(() -> mds.addAppIdentityRepositoryRole(author, project1, repo1, cert1,
+                                                                  RepositoryRole.READ).join())
+                .hasCauseInstanceOf(AppIdentityNotFoundException.class);
+
+        assertThat(mds.findRepositoryRole(project1, repo1, certificate1).join()).isNull();
+
+        // Register certificate to the project.
+        mds.addAppIdentity(author, project1, cert1, ProjectRole.MEMBER).join();
+        await().until(() -> mds.findAppIdentity(cert1) != null);
+        mds.addAppIdentityRepositoryRole(author, project1, repo1, cert1, RepositoryRole.READ).join();
+
+        await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, certificate1).join())
+                .isSameAs(RepositoryRole.READ));
+
+        // Try once more - should fail due to duplication
+        assertThatThrownBy(() -> mds.addAppIdentity(author, project1, cert1, ProjectRole.MEMBER).join())
+                .hasCauseInstanceOf(ChangeConflictException.class);
+        assertThatThrownBy(() -> mds.addAppIdentityRepositoryRole(author, project1, repo1, cert1,
+                                                                  RepositoryRole.READ).join())
+                .hasCauseInstanceOf(ChangeConflictException.class);
+
+        final Revision revision =
+                mds.updateAppIdentityRepositoryRole(author, project1, repo1, cert1, RepositoryRole.WRITE)
+                   .join();
+
+        await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, certificate1).join())
+                .isSameAs(RepositoryRole.WRITE));
+
+        // updating non-existent certificate fails
+        assertThatThrownBy(() -> mds.updateAppIdentityRepositoryRole(author, project1, repo1, cert2,
+                                                                     RepositoryRole.WRITE).join())
+                .hasCauseInstanceOf(AppIdentityNotFoundException.class);
+
+        // updating with same role returns same revision
+        assertThat(mds.updateAppIdentityRepositoryRole(author, project1, repo1, cert1, RepositoryRole.WRITE)
+                      .join())
+                .isEqualTo(revision);
+
+        mds.removeAppIdentityRepositoryRole(author, project1, repo1, cert1).join();
+
+        // duplicate removal fails
+        assertThatThrownBy(() -> mds.removeAppIdentityRepositoryRole(author, project1, repo1, cert1).join())
+                .hasCauseInstanceOf(ChangeConflictException.class);
+        assertThat(mds.findRepositoryRole(project1, repo1, certificate1).join()).isNull();
     }
 
     @Test
@@ -376,16 +438,16 @@ class MetadataServiceTest {
         mds.createToken(author, app1).join();
         mds.createToken(author, app2).join();
 
-        mds.addToken(author, project1, app1, ProjectRole.MEMBER).join();
-        mds.addToken(author, project1, app2, ProjectRole.MEMBER).join();
-        await().until(() -> mds.findTokenByAppId(app2) != null);
-        mds.addTokenRepositoryRole(author, project1, repo1, app1, RepositoryRole.READ).join();
-        mds.addTokenRepositoryRole(author, project1, repo1, app2, RepositoryRole.READ).join();
+        mds.addAppIdentity(author, project1, app1, ProjectRole.MEMBER).join();
+        mds.addAppIdentity(author, project1, app2, ProjectRole.MEMBER).join();
+        await().until(() -> mds.findAppIdentity(app2) != null);
+        mds.addAppIdentityRepositoryRole(author, project1, repo1, app1, RepositoryRole.READ).join();
+        mds.addAppIdentityRepositoryRole(author, project1, repo1, app2, RepositoryRole.READ).join();
 
         assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join()).isSameAs(RepositoryRole.READ);
 
         // Remove 'app1' from the project.
-        mds.removeToken(author, project1, app1).join();
+        mds.removeAppIdentityFromProject(author, project1, app1).join();
         // Remove token repository role of 'app1', too.
         await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join())
                 .isNull());
@@ -393,8 +455,8 @@ class MetadataServiceTest {
         assertThat(mds.findRepositoryRole(project1, repo1, appToken2).join()).isSameAs(RepositoryRole.READ);
 
         // Remove 'app1' again.
-        assertThatThrownBy(() -> mds.removeToken(author, project1, app1).join())
-                .hasCauseInstanceOf(TokenNotFoundException.class);
+        assertThatThrownBy(() -> mds.removeAppIdentityFromProject(author, project1, app1).join())
+                .hasCauseInstanceOf(AppIdentityNotFoundException.class);
     }
 
     @Test
@@ -405,19 +467,19 @@ class MetadataServiceTest {
         mds.createToken(author, app1).join();
         mds.createToken(author, app2).join();
 
-        mds.addToken(author, project1, app1, ProjectRole.MEMBER).join();
-        mds.addToken(author, project1, app2, ProjectRole.MEMBER).join();
+        mds.addAppIdentity(author, project1, app1, ProjectRole.MEMBER).join();
+        mds.addAppIdentity(author, project1, app2, ProjectRole.MEMBER).join();
 
-        await().until(() -> mds.findTokenByAppId(app2) != null);
-        mds.addTokenRepositoryRole(author, project1, repo1, app1, RepositoryRole.READ).join();
-        mds.addTokenRepositoryRole(author, project1, repo1, app2, RepositoryRole.READ).join();
+        await().until(() -> mds.findAppIdentity(app2) != null);
+        mds.addAppIdentityRepositoryRole(author, project1, repo1, app1, RepositoryRole.READ).join();
+        mds.addAppIdentityRepositoryRole(author, project1, repo1, app2, RepositoryRole.READ).join();
 
         await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join())
                 .isSameAs(RepositoryRole.READ));
 
         // Remove 'app1' from the system completely.
         mds.destroyToken(author, app1).join();
-        mds.purgeToken(author, app1);
+        mds.purgeAppIdentity(author, app1);
 
         await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, appToken1).join())
                 .isNull());
@@ -426,7 +488,67 @@ class MetadataServiceTest {
 
         // Remove 'app1' again.
         assertThatThrownBy(() -> mds.destroyToken(author, app1).join())
-                .hasCauseInstanceOf(TokenNotFoundException.class);
+                .hasCauseInstanceOf(AppIdentityNotFoundException.class);
+    }
+
+    @Test
+    void destroyCertificate() {
+        final MetadataService mds = newMetadataService(manager);
+
+        mds.addRepo(author, project1, repo1, ProjectRoles.of(null, null)).join();
+        mds.createCertificate(author, cert1, certificateId1, false).join();
+        mds.createCertificate(author, cert2, certificateId2, false).join();
+
+        mds.addAppIdentity(author, project1, cert1, ProjectRole.MEMBER).join();
+        mds.addAppIdentity(author, project1, cert2, ProjectRole.MEMBER).join();
+
+        await().until(() -> mds.findAppIdentity(cert2) != null);
+        mds.addAppIdentityRepositoryRole(author, project1, repo1, cert1, RepositoryRole.READ).join();
+        mds.addAppIdentityRepositoryRole(author, project1, repo1, cert2, RepositoryRole.READ).join();
+
+        await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, certificate1).join())
+                .isSameAs(RepositoryRole.READ));
+
+        // Remove 'cert1' from the system completely.
+        mds.destroyCertificate(author, cert1).join();
+        mds.purgeAppIdentity(author, cert1);
+
+        await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, certificate1).join())
+                .isNull());
+
+        assertThat(mds.findRepositoryRole(project1, repo1, certificate2).join()).isSameAs(RepositoryRole.READ);
+
+        // Remove 'cert1' again.
+        assertThatThrownBy(() -> mds.destroyCertificate(author, cert1).join())
+                .hasCauseInstanceOf(AppIdentityNotFoundException.class);
+    }
+
+    @Test
+    void removeCertificate() {
+        final MetadataService mds = newMetadataService(manager);
+
+        mds.addRepo(author, project1, repo1, ProjectRoles.of(null, null)).join();
+        mds.createCertificate(author, cert1, certificateId1, false).join();
+        mds.createCertificate(author, cert2, certificateId2, false).join();
+
+        mds.addAppIdentity(author, project1, cert1, ProjectRole.MEMBER).join();
+        mds.addAppIdentity(author, project1, cert2, ProjectRole.MEMBER).join();
+        await().until(() -> mds.findAppIdentity(cert2) != null);
+        mds.addAppIdentityRepositoryRole(author, project1, repo1, cert1, RepositoryRole.READ).join();
+        mds.addAppIdentityRepositoryRole(author, project1, repo1, cert2, RepositoryRole.READ).join();
+
+        assertThat(mds.findRepositoryRole(project1, repo1, certificate1).join()).isSameAs(RepositoryRole.READ);
+
+        // Remove 'cert1' from the project.
+        mds.removeAppIdentityFromProject(author, project1, cert1).join();
+        await().untilAsserted(() -> assertThat(mds.findRepositoryRole(project1, repo1, certificate1).join())
+                .isNull());
+
+        assertThat(mds.findRepositoryRole(project1, repo1, certificate2).join()).isSameAs(RepositoryRole.READ);
+
+        // Remove 'cert1' again.
+        assertThatThrownBy(() -> mds.removeAppIdentityFromProject(author, project1, cert1).join())
+                .hasCauseInstanceOf(AppIdentityNotFoundException.class);
     }
 
     @Test
@@ -434,23 +556,48 @@ class MetadataServiceTest {
         final MetadataService mds = newMetadataService(manager);
 
         mds.createToken(author, app1).join();
-        await().untilAsserted(() -> assertThat(mds.getTokens().get(app1)).isNotNull());
-        assertThat(mds.getTokens().get(app1).creation().user()).isEqualTo(owner.id());
+        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(app1)).isNotNull());
+        assertThat(mds.getAppIdentityRegistry().get(app1).creation().user()).isEqualTo(owner.id());
 
         final Revision revision = mds.deactivateToken(author, app1).join();
-        await().untilAsserted(() -> assertThat(mds.getTokens().get(app1).isActive()).isFalse());
-        final Token token = mds.getTokens().get(app1);
-        assertThat(token.deactivation()).isNotNull();
-        assertThat(token.deactivation().user()).isEqualTo(owner.id());
+        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(app1).isActive()).isFalse());
+        final AppIdentity appIdentity = mds.getAppIdentityRegistry().get(app1);
+        assertThat(appIdentity.deactivation()).isNotNull();
+        assertThat(appIdentity.deactivation().user()).isEqualTo(owner.id());
 
         // Executing the same operation will return the same revision.
         assertThat(mds.deactivateToken(author, app1).join()).isEqualTo(revision);
 
         assertThat(mds.activateToken(author, app1).join().major()).isEqualTo(revision.major() + 1);
-        await().untilAsserted(() -> assertThat(mds.getTokens().get(app1).isActive()).isTrue());
+        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(app1).isActive()).isTrue());
 
         // Executing the same operation will return the same revision.
         assertThat(mds.activateToken(author, app1).join().major()).isEqualTo(revision.major() + 1);
+    }
+
+    @Test
+    void certificateActivationAndDeactivation() {
+        final MetadataService mds = newMetadataService(manager);
+
+        mds.createCertificate(author, cert1, certificateId1, false).join();
+        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(cert1)).isNotNull());
+        assertThat(mds.getAppIdentityRegistry().get(cert1).creation().user()).isEqualTo(owner.id());
+        assertThat(mds.getAppIdentityRegistry().get(cert1).type()).isEqualTo(AppIdentityType.CERTIFICATE);
+
+        final Revision revision = mds.deactivateCertificate(author, cert1).join();
+        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(cert1).isActive()).isFalse());
+        final AppIdentity appIdentity = mds.getAppIdentityRegistry().get(cert1);
+        assertThat(appIdentity.deactivation()).isNotNull();
+        assertThat(appIdentity.deactivation().user()).isEqualTo(owner.id());
+
+        // Executing the same operation will return the same revision.
+        assertThat(mds.deactivateCertificate(author, cert1).join()).isEqualTo(revision);
+
+        assertThat(mds.activateCertificate(author, cert1).join().major()).isEqualTo(revision.major() + 1);
+        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(cert1).isActive()).isTrue());
+
+        // Executing the same operation will return the same revision.
+        assertThat(mds.activateCertificate(author, cert1).join().major()).isEqualTo(revision.major() + 1);
     }
 
     @Test
@@ -458,23 +605,25 @@ class MetadataServiceTest {
         final MetadataService mds = newMetadataService(manager);
 
         mds.createToken(author, app1).join();
-        await().untilAsserted(() -> assertThat(mds.getTokens().get(app1)).isNotNull());
-        assertThat(mds.getTokens().get(app1).isSystemAdmin()).isFalse();
+        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(app1)).isNotNull());
+        assertThat(mds.getAppIdentityRegistry().get(app1).isSystemAdmin()).isFalse();
 
-        final Tokens tokens = mds.getTokens();
-        // tokens are cached so the same instance is returned.
-        assertThat(tokens).isSameAs(mds.getTokens());
+        final AppIdentityRegistry registry = mds.getAppIdentityRegistry();
+        // registry is cached so the same instance is returned.
+        assertThat(registry).isSameAs(mds.getAppIdentityRegistry());
 
-        final Revision revision = mds.updateTokenLevel(author, app1, true).join();
-        await().untilAsserted(() -> assertThat(mds.getTokens().get(app1).isSystemAdmin()).isTrue());
+        final Revision revision = mds.updateAppIdentityLevel(author, app1, true).join();
+        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(app1)
+                                                  .isSystemAdmin()).isTrue());
         // Now the reference is different.
-        assertThat(mds.getTokens()).isNotSameAs(tokens);
+        assertThat(mds.getAppIdentityRegistry()).isNotSameAs(registry);
 
-        assertThat(mds.updateTokenLevel(author, app1, true).join()).isEqualTo(revision);
+        assertThat(mds.updateAppIdentityLevel(author, app1, true).join()).isEqualTo(revision);
 
-        assertThat(mds.updateTokenLevel(author, app1, false).join()).isEqualTo(revision.forward(1));
-        await().untilAsserted(() -> assertThat(mds.getTokens().get(app1).isSystemAdmin()).isFalse());
-        assertThat(mds.updateTokenLevel(author, app1, false).join()).isEqualTo(revision.forward(1));
+        assertThat(mds.updateAppIdentityLevel(author, app1, false).join()).isEqualTo(revision.forward(1));
+        await().untilAsserted(() -> assertThat(mds.getAppIdentityRegistry().get(app1)
+                                                  .isSystemAdmin()).isFalse());
+        assertThat(mds.updateAppIdentityLevel(author, app1, false).join()).isEqualTo(revision.forward(1));
     }
 
     @Test
@@ -546,5 +695,39 @@ class MetadataServiceTest {
 
     private static ProjectMetadata getProject(MetadataService mds, String projectName) {
         return mds.getProject(projectName).join();
+    }
+
+    private static void createRepoAndRegisterToken(MetadataService mds, String appId) {
+        createRepo(mds);
+        createTokenAndVerifyDuplicateFails(mds, appId);
+        waitUntilAppIdentityRegistered(mds, appId);
+    }
+
+    private static void createRepoAndRegisterCertificate(MetadataService mds,
+                                                         String appId, String certificateId) {
+        createRepo(mds);
+        createCertificateAndVerifyDuplicateFails(mds, appId, certificateId);
+        waitUntilAppIdentityRegistered(mds, appId);
+    }
+
+    private static void createRepo(MetadataService mds) {
+        mds.addRepo(author, project1, repo1, ProjectRoles.of(null, null)).join();
+    }
+
+    private static void createTokenAndVerifyDuplicateFails(MetadataService mds, String appId) {
+        mds.createToken(author, appId).join();
+        assertThatThrownBy(() -> mds.createToken(author, appId).join())
+                .hasCauseInstanceOf(ChangeConflictException.class);
+    }
+
+    private static void createCertificateAndVerifyDuplicateFails(MetadataService mds, String appId,
+                                                                 String certificateId) {
+        mds.createCertificate(author, appId, certificateId, false).join();
+        assertThatThrownBy(() -> mds.createCertificate(author, appId, certificateId, false).join())
+                .hasCauseInstanceOf(ChangeConflictException.class);
+    }
+
+    private static void waitUntilAppIdentityRegistered(MetadataService mds, String appId) {
+        await().untilAsserted(() -> assertThat(mds.findAppIdentity(appId)).isNotNull());
     }
 }

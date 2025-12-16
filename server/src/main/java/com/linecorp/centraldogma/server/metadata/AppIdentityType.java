@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2025 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -16,16 +16,18 @@
 
 package com.linecorp.centraldogma.server.metadata;
 
-import com.linecorp.centraldogma.common.CentralDogmaException;
-
 /**
- * A {@link CentralDogmaException} that is raised when failed to find a {@link Token}.
+ * The type of application identity.
  */
-public final class TokenNotFoundException extends CentralDogmaException {
+public enum AppIdentityType {
+    /**
+     * A token-based application identity.
+     */
+    TOKEN,
 
-    private static final long serialVersionUID = 7795045154004749414L;
-
-    TokenNotFoundException(String message) {
-        super(message);
-    }
+    /**
+     * A certificate-based application identity.
+     */
+    CERTIFICATE
 }
+
