@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.it.mirror.git;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
+import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_COMMIT_SECTION;
@@ -31,6 +32,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletionException;
 
 import javax.annotation.Nullable;
@@ -188,6 +190,12 @@ class GitMirrorIntegrationTest {
         addToGitIndex(".gitkeep", "");
         addToGitIndex("first/light.txt", "26-Aug-2014");
         addToGitIndex("second/son.json", "{\"release_date\": \"21-Mar-2014\"}");
+        //language=JSON5
+        final String json5 = "{\n" +
+                             "  // This is a single-line comment\n" +
+                             "  \"key\": \"value\"\n" +
+                             '}';
+        addToGitIndex("third/config.json5", json5);
         git.commit().setMessage("Add the release dates of the 'Infamous' series")
            .setAuthor("Mirror", "mirror@localhost.localdomain")
            .call();
@@ -209,13 +217,22 @@ class GitMirrorIntegrationTest {
 
         //// Make sure the two files are all there.
         final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev3, "/");
-        assertThat(client.getFiles(projName, REPO_FOO, rev3, PathPattern.all()).join().values())
+        final Map<String, Entry<?>> files = client.getFiles(projName, REPO_FOO, rev3, PathPattern.all(), true)
+                                                  .join();
+        assertThat(files.values())
                 .containsExactlyInAnyOrder(expectedSecondMirrorState,
                                            Entry.ofDirectory(rev3, "/first"),
                                            Entry.ofText(rev3, "/first/light.txt", "26-Aug-2014\n"),
                                            Entry.ofDirectory(rev3, "/second"),
                                            Entry.ofJson(rev3, "/second/son.json",
-                                                        "{\"release_date\": \"21-Mar-2014\"}"));
+                                                        "{\"release_date\": \"21-Mar-2014\"}"),
+                                           Entry.ofDirectory(rev3, "/third"),
+                                           Entry.ofJson(rev3, "/third/config.json5", json5));
+        // Make sure that JSON5 content is preserved as-is.
+        final Entry<?> json5Config = files.get("/third/config.json5");
+        assertThat(json5Config.rawContent()).isEqualTo(json5);
+        assertThatJson(json5Config.contentAsJson())
+                .isEqualTo("{\"key\": \"value\"}");
 
         // Rewrite the history of the git repository and mirror.
         git.reset().setMode(ResetType.HARD).setRef("HEAD^").call();
@@ -408,7 +425,7 @@ class GitMirrorIntegrationTest {
         // Add files whose total size exceeds the allowed maximum.
         long remainder = MAX_NUM_BYTES + 1;
         final int defaultFileSize = (int) (MAX_NUM_BYTES / MAX_NUM_FILES * 2);
-        for (int i = 0;; i++) {
+        for (int i = 0; ; i++) {
             final int fileSize;
             if (remainder > defaultFileSize) {
                 remainder -= defaultFileSize;

@@ -29,7 +29,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
@@ -76,7 +75,6 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
@@ -632,13 +630,12 @@ abstract class AbstractGitMirror extends AbstractMirror {
             throws JsonProcessingException {
         switch (EntryType.guessFromPath(pathString)) {
             case JSON:
-                final JsonNode oldJsonNode = oldContent != null ? Jackson.readTree(oldContent) : null;
-                final JsonNode newJsonNode = (JsonNode) entry.content();
-
+                final String oldJson = oldContent != null ? new String(oldContent, UTF_8) : null;
+                final String newJson = entry.rawContent();
+                assert newJson != null;
                 // Upsert only when the contents are really different.
-                if (!Objects.equals(newJsonNode, oldJsonNode)) {
-                    // Use InsertText to store the content in pretty format
-                    final String newContent = newJsonNode.toPrettyString() + '\n';
+                if (!newJson.equals(oldJson)) {
+                    final String newContent = newJson + '\n';
                     applyPathEdit(dirCache, new InsertText(pathString, inserter, newContent));
                     return newContent.length();
                 }

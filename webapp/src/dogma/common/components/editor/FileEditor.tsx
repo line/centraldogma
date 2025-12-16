@@ -26,6 +26,7 @@ import { CommitForm } from 'dogma/common/components/CommitForm';
 import Router from 'next/router';
 import Link from 'next/link';
 import { FaHistory } from 'react-icons/fa';
+import { registerJson5Language } from 'dogma/features/file/Json5Language';
 
 export type FileEditorProps = {
   projectName: string;
@@ -44,6 +45,7 @@ export const extensionToLanguageMap: { [key: string]: string } = {
   html: 'html',
   css: 'css',
   json: 'json',
+  json5: 'json5',
   xml: 'xml',
   md: 'markdown',
   py: 'python',
@@ -82,6 +84,7 @@ const FileEditor = ({
     editorRef.current = editor;
     setFileContent(displayContent);
   };
+
   const { isOpen: isCancelModalOpen, onOpen: onCancelModalOpen, onClose: onCancelModalClose } = useDisclosure();
   const { isOpen: isDeleteModalOpen, onOpen: onDeleteModalOpen, onClose: onDeleteModalClose } = useDisclosure();
   const [readOnly, setReadOnly] = useState(true);
@@ -190,6 +193,7 @@ const FileEditor = ({
                   scrollBeyondLastLine: false,
                 }}
                 onMount={handleEditorMount}
+                beforeMount={registerJson5Language}
               />
             </Box>
           </TabPanel>
@@ -206,7 +210,7 @@ const FileEditor = ({
               height="50vh"
               language={language}
               theme={colorMode === 'light' ? 'light' : 'vs-dark'}
-              original={typeof fileContent === 'string' ? fileContent : JSON.stringify(fileContent)}
+              original={fileContent}
               modified={editorRef?.current?.getValue()}
               options={{
                 autoIndent: 'full',

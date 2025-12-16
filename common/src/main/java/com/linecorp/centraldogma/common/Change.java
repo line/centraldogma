@@ -60,12 +60,12 @@ public interface Change<T> {
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_TEXT}.
      *
      * <p>Note that you should use {@link #ofJsonUpsert(String, String)} if the specified {@code path} ends with
-     * {@code ".json"}. The {@link #ofJsonUpsert(String, String)} will check that the given {@code text} is a
-     * valid JSON.
+     * {@code ".json"} or {@code ".json5"}. The {@link #ofJsonUpsert(String, String)} will check that the given
+     * {@code text} is a valid JSON.
      *
      * @param path the path of the file
      * @param text the content of the file
-     * @throws ChangeFormatException if the path ends with {@code ".json"}
+     * @throws ChangeFormatException if the path ends with {@code ".json"} or {@code ".json5"}
      */
     static Change<String> ofTextUpsert(String path, String text) {
         requireNonNull(text, "text");

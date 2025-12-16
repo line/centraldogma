@@ -419,7 +419,7 @@ class GitRepository implements Repository {
                 } else {
                     switch (entryType) {
                         case JSON:
-                            entry = Entry.ofJson(normRevision, path, Jackson.nullNode);
+                            entry = Entry.ofJson(normRevision, path, "");
                             break;
                         case TEXT:
                             entry = Entry.ofText(normRevision, path, "");
