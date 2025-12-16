@@ -27,6 +27,7 @@ import Router from 'next/router';
 import Link from 'next/link';
 import { FaHistory } from 'react-icons/fa';
 import { registerJson5Language } from 'dogma/features/file/Json5Language';
+import { isStructuredFile, parseContent } from 'dogma/features/file/StructuredFileSupport';
 
 export type FileEditorProps = {
   projectName: string;
@@ -170,10 +171,14 @@ const FileEditor = ({
                   />
                 </Flex>
                 <Spacer />
-                {readOnly && language === 'json' ? <JsonPathLegend /> : ''}
+                {readOnly && isStructuredFile(language) ? <JsonPathLegend /> : ''}
               </Flex>
-              {readOnly && language === 'json' ? (
-                <JsonPath setFileContent={setFileContent} jsonContent={JSON.parse(originalContent)} />
+              {readOnly && isStructuredFile(language) ? (
+                <JsonPath
+                  language={language}
+                  setFileContent={setFileContent}
+                  originalContent={originalContent}
+                />
               ) : (
                 ''
               )}

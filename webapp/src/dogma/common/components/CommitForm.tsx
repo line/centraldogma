@@ -6,7 +6,7 @@ import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { useForm } from 'react-hook-form';
-import { validateFileContent } from 'dogma/features/file/FileValidator';
+import { detectChangeType } from 'dogma/features/file/StructuredFileSupport';
 
 type FormData = {
   summary: string;
@@ -43,7 +43,7 @@ export const CommitForm = ({
     const newContent = content();
     let changeType;
     try {
-      changeType = validateFileContent(name, newContent);
+      changeType = detectChangeType(name, newContent);
     } catch (error) {
       dispatch(newNotification(`Invalid file content.`, ErrorMessageParser.parse(error), 'error'));
       return;

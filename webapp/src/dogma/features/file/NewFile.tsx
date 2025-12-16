@@ -31,7 +31,7 @@ import Editor, { OnMount } from '@monaco-editor/react';
 import { ChangeEvent, KeyboardEvent, useRef, useState } from 'react';
 import { extensionToLanguageMap } from 'dogma/common/components/editor/FileEditor';
 import { registerJson5Language } from 'dogma/features/file/Json5Language';
-import { validateFileContent } from 'dogma/features/file/FileValidator';
+import { detectChangeType } from 'dogma/features/file/StructuredFileSupport';
 
 const FILE_PATH_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/;
 
@@ -65,7 +65,7 @@ export const NewFile = ({
     const content = editorRef.current.getValue();
     let changeType;
     try {
-      changeType = validateFileContent(fileName, content);
+      changeType = detectChangeType(fileName, content);
     } catch (error) {
       dispatch(newNotification(`Invalid file content.`, ErrorMessageParser.parse(error), 'error'));
     }
