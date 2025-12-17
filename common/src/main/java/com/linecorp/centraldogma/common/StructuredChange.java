@@ -17,8 +17,8 @@
 package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.linecorp.centraldogma.internal.Json5.isJson5;
-import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
+import static com.linecorp.centraldogma.internal.Util.isValidJsonFilePath;
+import static com.linecorp.centraldogma.internal.Util.isValidYamlFilePath;
 
 import java.util.Objects;
 
@@ -30,46 +30,43 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.Json5;
 
-final class JsonChange extends AbstractChange<JsonNode> {
+final class StructuredChange extends AbstractChange<JsonNode> {
 
     private final JsonNode jsonNode;
     @Nullable
-    private final String jsonText;
+    private final String structuredText;
 
     @Nullable
     private String contentAsText;
 
-    JsonChange(String path, ChangeType type, JsonNode jsonNode) {
+    StructuredChange(String path, ChangeType type, JsonNode jsonNode) {
         this(path, type, jsonNode, null);
     }
 
-    JsonChange(String path, ChangeType type, String jsonText) {
-        this(path, type, null, jsonText);
+    StructuredChange(String path, ChangeType type, String structuredText) {
+        this(path, type, null, structuredText);
     }
 
-    private JsonChange(String path, ChangeType type, @Nullable JsonNode jsonNode, @Nullable String jsonText) {
+    private StructuredChange(String path, ChangeType type, @Nullable JsonNode jsonNode,
+                             @Nullable String structuredText) {
         super(path, type);
         checkArgument(type.contentType() == JsonNode.class, "type.contentType() must be JsonNode.class");
-        validateJsonFilePath(path, "path");
+        checkArgument(isValidJsonFilePath(path) || isValidYamlFilePath(path),
+                      "Only JSON/YAML files are supported: %s", path);
 
         if (jsonNode != null) {
             this.jsonNode = jsonNode;
-            this.jsonText = null;
+            this.structuredText = null;
         } else {
-            assert jsonText != null;
+            assert structuredText != null;
             try {
-                if (isJson5(path)) {
-                    this.jsonNode = Json5.readTree(jsonText);
-                } else {
-                    // Check if jsonText is a valid JSON.
-                    this.jsonNode = Jackson.readTree(jsonText);
-                }
+                // Check if the structured text has a valid structure.
+                this.jsonNode = Jackson.readTree(path, structuredText);
             } catch (JsonProcessingException e) {
-                throw new ChangeFormatException("failed to read a value as a JSON tree", e);
+                throw new ChangeFormatException("failed to read a value as a JSON tree. file: " + path, e);
             }
-            this.jsonText = jsonText;
+            this.structuredText = structuredText;
         }
     }
 
@@ -81,20 +78,20 @@ final class JsonChange extends AbstractChange<JsonNode> {
     @Nullable
     @Override
     public String rawContent() {
-        return jsonText;
+        return structuredText;
     }
 
     @Override
     public String contentAsText() {
-        if (jsonText != null) {
-            return jsonText;
+        if (structuredText != null) {
+            return structuredText;
         }
 
         if (contentAsText != null) {
             return contentAsText;
         }
         try {
-            return contentAsText = Jackson.writeValueAsString(jsonNode);
+            return contentAsText = Jackson.writeValueAsString(path(), jsonNode);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to convert JSON content to text: " + jsonNode, e);
         }
@@ -102,13 +99,13 @@ final class JsonChange extends AbstractChange<JsonNode> {
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof JsonChange)) {
+        if (!(o instanceof StructuredChange)) {
             return false;
         }
         if (!super.equals(o)) {
             return false;
         }
-        final JsonChange that = (JsonChange) o;
+        final StructuredChange that = (StructuredChange) o;
         return Objects.equals(jsonNode, that.jsonNode);
     }
 
@@ -120,8 +117,8 @@ final class JsonChange extends AbstractChange<JsonNode> {
     @Override
     public String toString() {
         String contentString;
-        if (jsonText != null) {
-            contentString = jsonText;
+        if (structuredText != null) {
+            contentString = structuredText;
         } else {
             contentString = jsonNode.toString();
         }
@@ -131,7 +128,7 @@ final class JsonChange extends AbstractChange<JsonNode> {
         final ToStringHelper builder = MoreObjects.toStringHelper(this)
                                                   .add("type", type())
                                                   .add("path", path());
-        if (jsonText != null) {
+        if (structuredText != null) {
             builder.add("rawContent", contentString);
         } else {
             builder.add("content", contentString);

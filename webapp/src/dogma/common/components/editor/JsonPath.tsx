@@ -1,20 +1,24 @@
 import { DebouncedInput } from 'dogma/common/components/table/DebouncedInput';
 import { Box, Text } from '@chakra-ui/react';
 import jp from 'jsonpath';
+import { parseContent, stringifyContent } from 'dogma/features/file/StructuredFileSupport';
 
 export const JsonPath = ({
+  language,
   setFileContent,
-  jsonContent,
+  originalContent,
 }: {
+  language: string;
   setFileContent: (value: string) => void;
-  jsonContent: string;
+  originalContent: string;
 }) => {
   const handleOnChange = (value: string) => {
     try {
       if (value) {
-        setFileContent(JSON.stringify(jp.query(jsonContent, value), null, 2));
+        const jsonContent = parseContent(language, originalContent);
+        setFileContent(stringifyContent(language, jp.query(jsonContent, value)));
       } else if (value === '') {
-        setFileContent(jsonContent);
+        setFileContent(originalContent);
       }
     } catch (err) {
       setFileContent('Invalid JSONPath.');

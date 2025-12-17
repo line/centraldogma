@@ -30,9 +30,9 @@ describe('FileList', () => {
       },
       {
         revision: 6,
-        path: '/mydir',
+        path: '/mydir/',
         type: 'DIRECTORY',
-        url: '/api/v1/projects/Gamma/repos/repo1/contents/mydir',
+        url: '/api/v1/projects/Gamma/repos/repo1/contents/mydir/',
       },
     ];
 
@@ -58,7 +58,11 @@ describe('FileList', () => {
     const { getByText } = renderWithProviders(<FileList {...expectedProps} />);
     let name;
     expectedProps.data.forEach((file: FileDto) => {
-      name = getByText(file.path.slice(1));
+      let normalizedPath = file.path.slice(1);
+      if (normalizedPath.endsWith('/')) {
+        normalizedPath = normalizedPath.slice(0, -1);
+      }
+      name = getByText(normalizedPath);
       expect(name).toBeVisible();
     });
   });

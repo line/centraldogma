@@ -38,6 +38,13 @@ public class EntryDto<T> {
 
     private final String path;
 
+    /**
+     * The type of the entry.
+     *
+     * @deprecated Clients should use {@link EntryType#guessFromPath(String)} instead. {@link EntryType} makes
+     *             it difficult to support new types.
+     */
+    @Deprecated
     private final EntryType type;
 
     @Nullable
@@ -67,6 +74,7 @@ public class EntryDto<T> {
         return path;
     }
 
+    @Deprecated
     @JsonProperty
     public EntryType type() {
         return type;

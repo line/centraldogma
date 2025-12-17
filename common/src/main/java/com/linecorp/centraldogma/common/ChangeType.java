@@ -33,6 +33,12 @@ public enum ChangeType {
     UPSERT_JSON(JsonNode.class),
 
     /**
+     * Adds a new YAML file or replaces an existing file. {@link Change#content()} will return
+     * the {@link JsonNode} that represents the content of the file.
+     */
+    UPSERT_YAML(JsonNode.class),
+
+    /**
      * Adds a new text file or replaces an existing file. {@link Change#content()} will return
      * the {@link String} that represents the content of the file.
      */
