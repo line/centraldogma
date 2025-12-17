@@ -90,7 +90,7 @@ abstract class AbstractChangesApplier {
         @Override
         public void apply(DirCacheEntry ent) {
             try {
-                final byte[] jsonBytes = Jackson.writeValueAsBytes(jsonNode);
+                final byte[] jsonBytes = Jackson.writeValueAsPrettyString(jsonNode).getBytes(UTF_8);
                 ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, jsonBytes));
                 ent.setFileMode(FileMode.REGULAR_FILE);
             } catch (IOException e) {
