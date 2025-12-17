@@ -211,7 +211,7 @@ public interface Change<T> {
 
         return new StructuredChange(path, ChangeType.APPLY_JSON_PATCH,
                                     JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE)
-                                                 .toJson());
+                                             .toJson());
     }
 
     /**
@@ -230,7 +230,7 @@ public interface Change<T> {
 
         return new StructuredChange(path, ChangeType.APPLY_JSON_PATCH,
                                     JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE)
-                                                 .toJson());
+                                             .toJson());
     }
 
     /**

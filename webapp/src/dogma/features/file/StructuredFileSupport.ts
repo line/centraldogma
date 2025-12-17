@@ -47,5 +47,5 @@ export function stringifyContent(language: string, data: any): string {
 }
 
 export function isStructuredFile(language: string): boolean {
-  return ['json', 'json5', 'yaml', 'yml'].includes(language);
+  return ['json', 'json5', 'yaml'].includes(language);
 }

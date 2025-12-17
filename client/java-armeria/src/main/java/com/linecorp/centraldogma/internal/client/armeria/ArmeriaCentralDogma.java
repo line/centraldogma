@@ -1170,7 +1170,6 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 final JsonNode jsonNode = Yaml.readTree(content.asText());
                 return unsafeCast(Entry.ofYaml(revision, entryPath, jsonNode));
             } catch (JsonParseException e) {
-                // Should never reach here as the YAML content was already validated by the server.
                 throw new IllegalStateException(e);
             }
         }
