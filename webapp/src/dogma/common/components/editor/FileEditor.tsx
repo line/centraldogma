@@ -27,7 +27,7 @@ import Router from 'next/router';
 import Link from 'next/link';
 import { FaHistory } from 'react-icons/fa';
 import { registerJson5Language } from 'dogma/features/file/Json5Language';
-import { isStructuredFile, parseContent } from 'dogma/features/file/StructuredFileSupport';
+import { isStructuredFile } from 'dogma/features/file/StructuredFileSupport';
 
 export type FileEditorProps = {
   projectName: string;

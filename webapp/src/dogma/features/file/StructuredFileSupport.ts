@@ -32,6 +32,7 @@ export function parseContent(language: string, content: string): any {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function stringifyContent(language: string, data: any): string {
   switch (language) {
     case 'json':
