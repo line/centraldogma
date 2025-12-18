@@ -19,11 +19,13 @@ import { authReducer } from 'dogma/features/auth/authSlice';
 import { apiSlice } from 'dogma/features/api/apiSlice';
 import { notificationReducer } from 'dogma/features/notification/notificationSlice';
 import { filterReducer } from 'dogma/features/filter/filterSlice';
+import { serverConfigReducer } from 'dogma/features/server-config/serverConfigSlice';
 
 const rootReducer = combineReducers({
   auth: authReducer,
   filter: filterReducer,
   notification: notificationReducer,
+  serverConfig: serverConfigReducer,
   [apiSlice.reducerPath]: apiSlice.reducer,
 });
 

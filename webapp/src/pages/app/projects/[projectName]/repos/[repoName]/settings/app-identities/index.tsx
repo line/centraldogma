@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LINE Corporation
+ * Copyright 2023 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -17,46 +17,48 @@
 import { useRouter } from 'next/router';
 import { Flex, Spacer } from '@chakra-ui/react';
 import RepositorySettingsView from 'dogma/features/repo/settings/RepositorySettingsView';
-import { NewUserRepositoryRole } from 'dogma/features/repo/settings/users/NewUserRepositoryRole';
+import { NewAppIdentityRepositoryRole } from 'dogma/features/repo/settings/app-identities/NewAppIdentityRepositoryRole';
 import { UserOrAppIdentityRepositoryRoleDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import { UserOrAppIdentityRepositoryRoleList } from 'dogma/features/repo/settings/UserOrAppIdentityRepositoryRoleList';
 import {
-  useAddUserRepositoryRoleMutation,
-  useDeleteUserRepositoryRoleMutation,
+  useAddAppIdentityRepositoryRoleMutation,
+  useDeleteAppIdentityRepositoryRoleMutation,
 } from 'dogma/features/api/apiSlice';
 
-const RepositoryUserPage = () => {
+const RepositoryAppIdentityPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   const repoName = router.query.repoName ? (router.query.repoName as string) : '';
-  const [addUserRepositoryRole, { isLoading: isAddUserLoading }] = useAddUserRepositoryRoleMutation();
-  const [deleteUserRepositoryRole, { isLoading: isDeleteUserLoading }] = useDeleteUserRepositoryRoleMutation();
+  const [addAppIdentityRepositoryRole, { isLoading: isAddAppIdentityLoading }] =
+    useAddAppIdentityRepositoryRoleMutation();
+  const [deleteAppIdentityRepositoryRole, { isLoading: isDeleteAppIdentityLoading }] =
+    useDeleteAppIdentityRepositoryRoleMutation();
   return (
-    <RepositorySettingsView projectName={projectName} repoName={repoName} currentTab={'users'}>
+    <RepositorySettingsView projectName={projectName} repoName={repoName} currentTab={'app-identities'}>
       {(metadata) => (
         <>
           <Flex>
             <Spacer />
-            <NewUserRepositoryRole
+            <NewAppIdentityRepositoryRole
               projectName={projectName}
               repoName={repoName}
-              members={metadata ? Array.from(Object.values(metadata.members)) : []}
-              addUserRepositoryRole={addUserRepositoryRole}
-              isLoading={isAddUserLoading}
-              userRepositoryRole={
-                metadata?.repos[repoName]?.roles?.users ?? ({} as UserOrAppIdentityRepositoryRoleDto)
+              appIds={metadata ? Array.from(Object.values(metadata.appIds)) : []}
+              addAppIdentityRepositoryRole={addAppIdentityRepositoryRole}
+              isLoading={isAddAppIdentityLoading}
+              appIdentityRepositoryRole={
+                metadata?.repos[repoName]?.roles?.appIds ?? ({} as UserOrAppIdentityRepositoryRoleDto)
               }
             />
           </Flex>
           <UserOrAppIdentityRepositoryRoleList
             projectName={projectName}
             repoName={repoName}
-            entityType="user"
+            entityType="appIdentity"
             userOrAppIdentityRepositoryRole={
-              metadata?.repos[repoName]?.roles?.users ?? ({} as UserOrAppIdentityRepositoryRoleDto)
+              metadata?.repos[repoName]?.roles?.appIds ?? ({} as UserOrAppIdentityRepositoryRoleDto)
             }
-            deleteUserOrAppIdentity={deleteUserRepositoryRole}
-            isLoading={isDeleteUserLoading}
+            deleteUserOrAppIdentity={deleteAppIdentityRepositoryRole}
+            isLoading={isDeleteAppIdentityLoading}
           />
         </>
       )}
@@ -64,4 +66,4 @@ const RepositoryUserPage = () => {
   );
 };
 
-export default RepositoryUserPage;
+export default RepositoryAppIdentityPage;

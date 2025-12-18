@@ -16,36 +16,28 @@
 
 package com.linecorp.centraldogma.webapp;
 
-import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD2;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME2;
-import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.getAccessToken;
 
 import java.io.IOException;
-import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.cert.CertificateException;
 
 import org.apache.shiro.config.Ini;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableList;
 
-import com.linecorp.armeria.client.BlockingWebClient;
-import com.linecorp.armeria.client.WebClient;
-import com.linecorp.armeria.common.AggregatedHttpResponse;
-import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.SessionProtocol;
-import com.linecorp.armeria.common.auth.AuthToken;
-import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
+import com.linecorp.armeria.internal.common.util.SelfSignedCertificate;
 import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.TlsConfig;
 import com.linecorp.centraldogma.server.ZoneConfig;
+import com.linecorp.centraldogma.server.auth.MtlsConfig;
 import com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory;
-import com.linecorp.centraldogma.server.credential.CreateCredentialRequest;
-import com.linecorp.centraldogma.server.internal.credential.NoneCredential;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 
 final class ShiroCentralDogmaTestServer {
@@ -56,7 +48,8 @@ final class ShiroCentralDogmaTestServer {
      * Start a new Central Dogma server with Apache Shiro.
      */
     @SuppressWarnings("UncommentedMain")
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, CertificateException {
+        final SelfSignedCertificate serverCert = new SelfSignedCertificate();
         final Path rootDir = Files.createTempDirectory("dogma-test");
         final CentralDogma server = new CentralDogmaBuilder(rootDir.toFile())
                 // Enable the legacy webapp
@@ -72,35 +65,15 @@ final class ShiroCentralDogmaTestServer {
                     users.put(USERNAME2, PASSWORD2);
                     return iniConfig;
                 }))
+                // Needs for enabling mTLS.
+                .port(443, SessionProtocol.HTTPS)
+                .tls(new TlsConfig(serverCert.certificate(), serverCert.privateKey(), null, null, null))
+                .mtlsConfig(new MtlsConfig(true, ImmutableList.of()))
                 .pluginConfigs(new MirroringServicePluginConfig(true, null, null, null, true))
                 .zone(new ZoneConfig("zoneA", ImmutableList.of("zoneA", "zoneB", "zoneC")))
                 .build();
         server.start().join();
-        scaffold();
         Runtime.getRuntime().addShutdownHook(new Thread(server::close));
-    }
-
-    private static void scaffold() throws UnknownHostException, JsonProcessingException {
-        final String token = getAccessToken(WebClient.of("http://127.0.0.1:" + PORT), USERNAME, PASSWORD,
-                                            "appId", true);
-        final com.linecorp.centraldogma.client.CentralDogma client = new ArmeriaCentralDogmaBuilder()
-                .host("127.0.0.1", PORT)
-                .accessToken(token)
-                .build();
-        client.createProject("foo").join();
-        client.createRepository("foo", "bar").join();
-
-        final BlockingWebClient webClient = WebClient.builder("http://127.0.0.1:" + PORT)
-                                                     .auth(AuthToken.ofOAuth2(token))
-                                                     .build()
-                                                     .blocking();
-        final AggregatedHttpResponse res = webClient.prepare()
-                                                    .post("/api/v1/projects/foo/credentials")
-                                                    .contentJson(new CreateCredentialRequest(
-                                                            "none",
-                                                            new NoneCredential(credentialName("foo", "none"))))
-                                                    .execute();
-        assert res.status() == HttpStatus.OK : res.status();
     }
 
     private ShiroCentralDogmaTestServer() {}

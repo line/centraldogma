@@ -16,32 +16,32 @@
 
 import { useRouter } from 'next/router';
 import { Flex, Spacer } from '@chakra-ui/react';
-import { useDeleteTokenMemberMutation } from 'dogma/features/api/apiSlice';
+import { useDeleteAppIdentityMemberMutation } from 'dogma/features/api/apiSlice';
 import ProjectSettingsView from 'dogma/features/project/settings/ProjectSettingsView';
-import { AddAppToken } from 'dogma/features/project/settings/tokens/AddAppToken';
+import { AddAppIdentity } from 'dogma/features/project/settings/app-identities/AddAppIdentity';
 import AppEntityList from 'dogma/features/project/settings/AppEntityList';
 
-const ProjectTokenPage = () => {
+const ProjectAppIdentityPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
-  const [deleteToken, { isLoading }] = useDeleteTokenMemberMutation();
+  const [deleteAppIdentity, { isLoading }] = useDeleteAppIdentityMemberMutation();
   return (
-    <ProjectSettingsView projectName={projectName} currentTab={'tokens'}>
+    <ProjectSettingsView projectName={projectName} currentTab={'app-identities'}>
       {(metadata) => (
         <>
           <Flex>
             <Spacer />
-            <AddAppToken projectName={projectName} />
+            <AddAppIdentity projectName={projectName} />
           </Flex>
           <AppEntityList
-            data={metadata ? Array.from(Object.values(metadata.tokens)) : []}
+            data={metadata ? Array.from(Object.values(metadata.appIds)) : []}
             projectName={projectName}
-            entityType={'token'}
+            entityType={'appIdentity'}
             getId={(row) => row.appId}
             getRole={(row) => row.role}
             getAddedBy={(row) => row.creation.user}
             getTimestamp={(row) => row.creation.timestamp}
-            deleteMutation={(projectName, id) => deleteToken({ projectName, id }).unwrap()}
+            deleteMutation={(projectName, id) => deleteAppIdentity({ projectName, id }).unwrap()}
             isLoading={isLoading}
           />
         </>
@@ -50,4 +50,4 @@ const ProjectTokenPage = () => {
   );
 };
 
-export default ProjectTokenPage;
+export default ProjectAppIdentityPage;
