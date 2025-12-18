@@ -49,7 +49,7 @@ final class IdentityQuery<T> implements Query<T> {
                 validateFilePath(path, "path");
                 break;
         }
-        this.path = validateFilePath(path, "path");
+        this.path = path;
         this.queryType = requireNonNull(queryType, "queryType");
     }
 

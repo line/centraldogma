@@ -33,7 +33,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.repository.CrudRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.HasId;
-import com.linecorp.centraldogma.server.internal.storage.repository.HasRevision;
+import com.linecorp.centraldogma.server.storage.repository.HasRevision;
 import com.linecorp.centraldogma.testing.internal.CrudRepositoryExtension;
 
 class GitCrudRepositoryTest {
