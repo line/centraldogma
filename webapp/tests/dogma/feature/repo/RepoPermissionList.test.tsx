@@ -18,7 +18,7 @@ describe('RepoRoleList', () => {
             guest: null as 'READ' | 'WRITE' | null,
           },
           users: {},
-          tokens: {},
+          appIds: {},
         },
         creation: { user: 'lb56789@localhost.localdomain', timestamp: '2022-11-23T03:13:50.128853Z' },
       },
@@ -32,7 +32,7 @@ describe('RepoRoleList', () => {
           users: {
             'lz123456@localhost.localdomain': 'WRITE',
           },
-          tokens: {
+          appIds: {
             'test-token': 'READ',
           },
         },
@@ -46,7 +46,7 @@ describe('RepoRoleList', () => {
             guest: null as 'READ' | 'WRITE' | null,
           },
           users: {},
-          tokens: {},
+          appIds: {},
         },
         creation: { user: 'lb56789@localhost.localdomain', timestamp: '2022-12-16T05:25:30.973209Z' },
         removal: { user: 'lb56789@localhost.localdomain', timestamp: '2022-12-16T05:25:37.020133Z' },

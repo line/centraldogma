@@ -34,7 +34,7 @@ const RepositoryAppIdentityPage = () => {
   const [deleteAppIdentityRepositoryRole, { isLoading: isDeleteAppIdentityLoading }] =
     useDeleteAppIdentityRepositoryRoleMutation();
   return (
-    <RepositorySettingsView projectName={projectName} repoName={repoName} currentTab={'app-identities'}>
+    <RepositorySettingsView projectName={projectName} repoName={repoName} currentTab={'App Identities'}>
       {(metadata) => (
         <>
           <Flex>

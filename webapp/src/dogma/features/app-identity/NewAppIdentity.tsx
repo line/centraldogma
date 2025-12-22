@@ -84,9 +84,14 @@ export const NewAppIdentity = () => {
       return;
     }
 
-    const data = `appId=${formData.appId}&appIdentityType=${formData.type}&isSystemAdmin=${formData.isSystemAdmin || false}${
-      formData.type === 'CERTIFICATE' ? `&certificateId=${formData.certificateId}` : ''
-    }`;
+    const params = new URLSearchParams();
+    params.set('appId', formData.appId);
+    params.set('appIdentityType', formData.type);
+    params.set('isSystemAdmin', String(formData.isSystemAdmin || false));
+    if (formData.type === 'CERTIFICATE' && formData.certificateId) {
+      params.set('certificateId', formData.certificateId);
+    }
+    const data = params.toString();
     try {
       const response = await addNewAppIdentity({ data }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {

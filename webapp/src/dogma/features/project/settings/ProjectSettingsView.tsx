@@ -38,10 +38,10 @@ type TabName =
   | 'repositories'
   | 'roles'
   | 'members'
-  | 'app-identities'
+  | 'App Identities'
   | 'mirrors'
   | 'credentials'
-  | 'danger zone';
+  | 'Danger Zone';
 
 export interface TapInfo {
   name: TabName;
@@ -55,10 +55,10 @@ const TABS: TapInfo[] = [
   { name: 'repositories', path: '', accessRole: 'GUEST', allowAnonymous: true },
   { name: 'roles', path: 'roles', accessRole: 'OWNER', allowAnonymous: false },
   { name: 'members', path: 'members', accessRole: 'OWNER', allowAnonymous: false },
-  { name: 'app-identities', path: 'app-identities', accessRole: 'OWNER', allowAnonymous: false },
+  { name: 'App Identities', path: 'app-identities', accessRole: 'OWNER', allowAnonymous: false },
   { name: 'mirrors', path: 'mirrors', accessRole: 'OWNER', allowAnonymous: true },
   { name: 'credentials', path: 'credentials', accessRole: 'OWNER', allowAnonymous: true },
-  { name: 'danger zone', path: 'danger-zone', accessRole: 'OWNER', allowAnonymous: true },
+  { name: 'Danger Zone', path: 'danger-zone', accessRole: 'OWNER', allowAnonymous: true },
 ];
 
 function isAllowed(userRole: string, anonymous: boolean, tabInfo: TapInfo): boolean {

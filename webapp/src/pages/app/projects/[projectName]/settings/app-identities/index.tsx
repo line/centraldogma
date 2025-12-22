@@ -26,7 +26,7 @@ const ProjectAppIdentityPage = () => {
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   const [deleteAppIdentity, { isLoading }] = useDeleteAppIdentityMemberMutation();
   return (
-    <ProjectSettingsView projectName={projectName} currentTab={'app-identities'}>
+    <ProjectSettingsView projectName={projectName} currentTab={'App Identities'}>
       {(metadata) => (
         <>
           <Flex>

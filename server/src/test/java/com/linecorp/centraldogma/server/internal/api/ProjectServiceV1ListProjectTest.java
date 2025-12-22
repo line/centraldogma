@@ -40,6 +40,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
@@ -311,8 +312,8 @@ class ProjectServiceV1ListProjectTest {
         final String appId = "app-abc";
         final ResponseEntity<Token> tokenResponse =
                 normalClient.prepare()
-                            .post("/api/v1/tokens")
-                            .queryParam("appId", appId)
+                            .post("/api/v1/appIdentities")
+                            .queryParams(ImmutableMap.of("appId", appId, "appIdentityType", "token").entrySet())
                             .asJson(Token.class, mapper)
                             .execute();
         assertThat(tokenResponse.status()).isEqualTo(HttpStatus.CREATED);
@@ -329,7 +330,7 @@ class ProjectServiceV1ListProjectTest {
 
         AggregatedHttpResponse aRes =
                 normalClient.prepare()
-                            .post("/api/v1/metadata/trustin/tokens")
+                            .post("/api/v1/metadata/trustin/appIdentities")
                             .contentJson(new IdAndProjectRole(appId, ProjectRole.MEMBER))
                             .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);
@@ -340,7 +341,7 @@ class ProjectServiceV1ListProjectTest {
         });
 
         aRes = normalClient.prepare()
-                           .post("/api/v1/metadata/hyangtack/tokens")
+                           .post("/api/v1/metadata/hyangtack/appIdentities")
                            .contentJson(new IdAndProjectRole(appId, ProjectRole.OWNER))
                            .execute();
         assertThat(aRes.status()).isEqualTo(HttpStatus.OK);

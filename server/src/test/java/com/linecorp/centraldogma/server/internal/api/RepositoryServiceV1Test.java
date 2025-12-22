@@ -140,7 +140,7 @@ class RepositoryServiceV1Test {
         assertThat(systemAdminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);
         // Add a token as a member of the project.
         request = HttpRequest.builder()
-                             .post("/api/v1/metadata/myPro/tokens")
+                             .post("/api/v1/metadata/myPro/appIdentities")
                              .contentJson(new IdAndProjectRole("appId2", ProjectRole.MEMBER))
                              .build();
         assertThat(systemAdminClient.execute(request).aggregate().join().status()).isSameAs(HttpStatus.OK);

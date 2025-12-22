@@ -224,7 +224,7 @@ class MirroringAndCredentialServiceV1Test {
     private static void setUpRole() {
         final ResponseEntity<Revision> res =
                 systemAdminClient.prepare()
-                                 .post("/api/v1/metadata/{proj}/tokens")
+                                 .post("/api/v1/metadata/{proj}/appIdentities")
                                  .pathParam("proj", FOO_PROJ)
                                  .contentJson(ImmutableMap.of("id", "appId2", "role", "OWNER"))
                                  .asJson(Revision.class)

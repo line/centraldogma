@@ -148,7 +148,7 @@ export const NewAppIdentityRepositoryRole = ({
                 isLoading={isLoading}
               />
             ) : (
-              <ChakraLink href={`/app/projects/${projectName}/settings/tokens`} color="teal">
+              <ChakraLink href={`/app/projects/${projectName}/settings/app-identities`} color="teal">
                 Go to project {projectName}&apos;s app identity page
               </ChakraLink>
             )}
