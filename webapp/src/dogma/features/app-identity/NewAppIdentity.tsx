@@ -28,7 +28,7 @@ import { useAddNewAppIdentityMutation } from 'dogma/features/api/apiSlice';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { IoMdArrowDropdown } from 'react-icons/io';
 import { useAppDispatch, useAppSelector } from 'dogma/hooks';
 
@@ -65,6 +65,7 @@ export const NewAppIdentity = () => {
     handleSubmit,
     reset,
     watch,
+    control,
     formState: { errors },
   } = useForm<FormData>({
     defaultValues: {
@@ -131,18 +132,18 @@ export const NewAppIdentity = () => {
             <PopoverBody minWidth="md">
               <FormControl mb={4}>
                 <FormLabel>Type</FormLabel>
-                <RadioGroup defaultValue="TOKEN">
-                  <Stack direction="row" spacing={4}>
-                    <Radio value="TOKEN" {...register('type')}>
-                      Token
-                    </Radio>
-                    {mtlsEnabled && (
-                      <Radio value="CERTIFICATE" {...register('type')}>
-                        Certificate
-                      </Radio>
-                    )}
-                  </Stack>
-                </RadioGroup>
+                <Controller
+                  name="type"
+                  control={control}
+                  render={({ field: { onChange, value } }) => (
+                    <RadioGroup value={value} onChange={onChange}>
+                      <Stack direction="row" spacing={4}>
+                        <Radio value="TOKEN">Token</Radio>
+                        {mtlsEnabled && <Radio value="CERTIFICATE">Certificate</Radio>}
+                      </Stack>
+                    </RadioGroup>
+                  )}
+                />
               </FormControl>
 
               <FormControl isInvalid={errors.appId ? true : false} isRequired>
