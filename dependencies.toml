@@ -77,6 +77,7 @@ snappy = "1.1.10.5"
 sphinx = "2.10.1"
 spring-boot2 = "2.7.18"
 spring-boot3 = "3.5.8"
+spring-boot4 = "4.0.0"
 spring-test-junit5 = "1.5.0"
 testcontainers = "1.21.3"
 thrift09 = { strictly = "0.9.3-1" }
@@ -451,6 +452,23 @@ version.ref = "spring-boot3"
 [libraries.spring-boot3-configuration-processor]
 module = "org.springframework.boot:spring-boot-configuration-processor"
 version.ref = "spring-boot3"
+
+[libraries.spring-boot4-autoconfigure]
+module = "org.springframework.boot:spring-boot-autoconfigure"
+version.ref = "spring-boot4"
+[libraries.spring-boot4-starter]
+module = "org.springframework.boot:spring-boot-starter"
+version.ref = "spring-boot4"
+javadocs = "https://docs.spring.io/spring/docs/current/javadoc-api/"
+[libraries.spring-boot4-starter-test]
+module = "org.springframework.boot:spring-boot-starter-test"
+version.ref = "spring-boot4"
+[libraries.spring-boot4-configuration-processor]
+module = "org.springframework.boot:spring-boot-configuration-processor"
+version.ref = "spring-boot4"
+[libraries.spring-boot4-validation]
+module = "org.springframework.boot:spring-boot-validation"
+version.ref = "spring-boot4"
 
 [libraries.spring-test-junit5]
 module = "com.github.sbrannen:spring-test-junit5"

@@ -1,0 +1,10 @@
+dependencies {
+    api project(':client:java-armeria')
+    api libs.spring.boot4.autoconfigure
+    api libs.spring.boot4.validation
+    annotationProcessor libs.spring.boot4.configuration.processor
+
+    testImplementation libs.spring.boot4.starter.test
+    testRuntimeOnly libs.hibernate.validator8
+}
+

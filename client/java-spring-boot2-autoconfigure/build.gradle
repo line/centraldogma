@@ -18,17 +18,30 @@ dependencies {
     testImplementation 'ch.qos.logback:logback-classic'
 }
 
-// Use the sources from 'client-spring-boot3-autoconfigure'.
+// Use the sources from 'client-spring-boot4-autoconfigure'.
 // NB: We should not add these in the 'sourceSets' directive because that will make the directories mentioned
 //     below are added to two projects and having a source directory with two output directories will confuse
 //     the IDE.
-def autoconfigureProjectDir = "${rootProject.projectDir}/client/java-spring-boot3-autoconfigure"
-tasks.compileJava.source "${autoconfigureProjectDir}/src/main/java"
-tasks.compileTestJava.source "${autoconfigureProjectDir}/src/test/java", "${autoconfigureProjectDir}/gen-src/test/java"
-tasks.processTestResources.from "${autoconfigureProjectDir}/src/test/resources"
-tasks.sourcesJar.from "${autoconfigureProjectDir}/src/main/java"
-tasks.sourcesJar.from "${autoconfigureProjectDir}/src/main/resources"
-tasks.javadoc.source "${autoconfigureProjectDir}/src/main/java"
+def autoconfigure3ProjectDir = "${rootProject.projectDir}/client/java-spring-boot3-autoconfigure"
+def autoconfigure4ProjectDir = "${rootProject.projectDir}/client/java-spring-boot4-autoconfigure"
+tasks.compileJava {
+    source fileTree("${autoconfigure4ProjectDir}/src/main/java") {
+        exclude "**/CentralDogmaSettings.java"
+        exclude "**/package-info.java"
+    }
+    source "${autoconfigure3ProjectDir}/src/main/java"
+}
+tasks.compileTestJava.source "${autoconfigure4ProjectDir}/src/test/java", "${autoconfigure4ProjectDir}/gen-src/test/java"
+tasks.processTestResources.from "${autoconfigure4ProjectDir}/src/test/resources"
+tasks.sourcesJar.from "${autoconfigure4ProjectDir}/src/main/java"
+tasks.sourcesJar.from "${autoconfigure4ProjectDir}/src/main/resources"
+tasks.javadoc {
+    source fileTree("${autoconfigure4ProjectDir}/src/main/java") {
+        exclude "**/CentralDogmaSettings.java"
+        exclude "**/package-info.java"
+    }
+    source "${autoconfigure3ProjectDir}/src/main/java"
+}
 
 // Disable checkstyle because it's checked by 'client-spring-boot-autoconfigure'
 tasks.withType(Checkstyle) {

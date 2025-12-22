@@ -8,3 +8,25 @@ dependencies {
     testRuntimeOnly libs.hibernate.validator8
 }
 
+// Use the sources from 'client-spring-boot4-autoconfigure'.
+// NB: We should not add these in the 'sourceSets' directive because that will make the directories mentioned
+//     below are added to two projects and having a source directory with two output directories will confuse
+//     the IDE.
+def autoconfigureProjectDir = "${rootProject.projectDir}/client/java-spring-boot4-autoconfigure"
+tasks.compileJava {
+    source fileTree("${autoconfigureProjectDir}/src/main/java") {
+        exclude "**/CentralDogmaSettings.java"
+        exclude "**/package-info.java"
+    }
+}
+tasks.processResources.from "${autoconfigureProjectDir}/src/main/resources"
+tasks.compileTestJava.source "${autoconfigureProjectDir}/src/test/java", "${autoconfigureProjectDir}/gen-src/test/java"
+tasks.processTestResources.from "${autoconfigureProjectDir}/src/test/resources"
+tasks.sourcesJar.from "${autoconfigureProjectDir}/src/main/java"
+tasks.sourcesJar.from "${autoconfigureProjectDir}/src/main/resources"
+tasks.javadoc {
+    source fileTree("${autoconfigureProjectDir}/src/main/java") {
+        exclude "**/CentralDogmaSettings.java"
+        exclude "**/package-info.java"
+    }
+}
