@@ -33,8 +33,13 @@ tasks.compileJava {
 }
 tasks.compileTestJava.source "${autoconfigure4ProjectDir}/src/test/java", "${autoconfigure4ProjectDir}/gen-src/test/java"
 tasks.processTestResources.from "${autoconfigure4ProjectDir}/src/test/resources"
-tasks.sourcesJar.from "${autoconfigure4ProjectDir}/src/main/java"
-tasks.sourcesJar.from "${autoconfigure4ProjectDir}/src/main/resources"
+tasks.sourcesJar {
+    from fileTree("${autoconfigure4ProjectDir}/src/main/java") {
+        exclude "**/CentralDogmaSettings.java"
+        exclude "**/package-info.java"
+    }
+    from "${autoconfigure3ProjectDir}/src/main/java"
+}
 tasks.javadoc {
     source fileTree("${autoconfigure4ProjectDir}/src/main/java") {
         exclude "**/CentralDogmaSettings.java"

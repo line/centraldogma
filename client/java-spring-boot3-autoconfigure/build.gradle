@@ -14,6 +14,7 @@ dependencies {
 //     the IDE.
 def autoconfigureProjectDir = "${rootProject.projectDir}/client/java-spring-boot4-autoconfigure"
 tasks.compileJava {
+    source "${project.projectDir}/src/main/java"
     source fileTree("${autoconfigureProjectDir}/src/main/java") {
         exclude "**/CentralDogmaSettings.java"
         exclude "**/package-info.java"
@@ -22,9 +23,15 @@ tasks.compileJava {
 tasks.processResources.from "${autoconfigureProjectDir}/src/main/resources"
 tasks.compileTestJava.source "${autoconfigureProjectDir}/src/test/java", "${autoconfigureProjectDir}/gen-src/test/java"
 tasks.processTestResources.from "${autoconfigureProjectDir}/src/test/resources"
-tasks.sourcesJar.from "${autoconfigureProjectDir}/src/main/java"
-tasks.sourcesJar.from "${autoconfigureProjectDir}/src/main/resources"
+tasks.sourcesJar {
+    from "${project.projectDir}/src/main/java"
+    from fileTree("${autoconfigureProjectDir}/src/main/java") {
+        exclude "**/CentralDogmaSettings.java"
+        exclude "**/package-info.java"
+    }
+}
 tasks.javadoc {
+    source "${project.projectDir}/src/main/java"
     source fileTree("${autoconfigureProjectDir}/src/main/java") {
         exclude "**/CentralDogmaSettings.java"
         exclude "**/package-info.java"

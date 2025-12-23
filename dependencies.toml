@@ -29,6 +29,7 @@ guava-failureaccess = "1.0.1"
 hamcrest-library = "3.0"
 hibernate-validator6 = "6.2.5.Final"
 hibernate-validator8 = "8.0.3.Final"
+hibernate-validator9 = "9.1.0.Final"
 jackson = "2.20.1"
 javassist = "3.30.2-GA"
 javax-annotation = "1.3.2"
@@ -210,6 +211,9 @@ version.ref = "hibernate-validator6"
 [libraries.hibernate-validator8]
 module = "org.hibernate.validator:hibernate-validator"
 version.ref = "hibernate-validator8"
+[libraries.hibernate-validator9]
+module = "org.hibernate.validator:hibernate-validator"
+version.ref = "hibernate-validator9"
 
 [libraries.jackson-annotations]
 module = "com.fasterxml.jackson.core:jackson-annotations"
@@ -460,14 +464,14 @@ version.ref = "spring-boot4"
 module = "org.springframework.boot:spring-boot-starter"
 version.ref = "spring-boot4"
 javadocs = "https://docs.spring.io/spring/docs/current/javadoc-api/"
+[libraries.spring-boot4-starter-validation]
+module = "org.springframework.boot:spring-boot-starter-validation"
+version.ref = "spring-boot4"
 [libraries.spring-boot4-starter-test]
 module = "org.springframework.boot:spring-boot-starter-test"
 version.ref = "spring-boot4"
 [libraries.spring-boot4-configuration-processor]
 module = "org.springframework.boot:spring-boot-configuration-processor"
-version.ref = "spring-boot4"
-[libraries.spring-boot4-validation]
-module = "org.springframework.boot:spring-boot-validation"
 version.ref = "spring-boot4"
 
 [libraries.spring-test-junit5]
