@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2017 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -17,10 +17,9 @@ package com.linecorp.centraldogma.client.spring;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import javax.inject.Inject;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -32,16 +31,16 @@ import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurati
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = TestConfiguration.class)
-@ActiveProfiles({ "local", "useProfile", "confTest" })
-class CentralDogmaClientAutoConfigurationProfileTest {
+@ActiveProfiles({ "local", "confTest" })
+class CentralDogmaClientAutoConfigurationSpringProfileTest {
     @Configuration
     @Import(CentralDogmaClientAutoConfiguration.class)
     static class TestConfiguration {}
 
-    @Inject
+    @Autowired
     private CentralDogma client;
 
-    @Inject
+    @Autowired
     private CentralDogmaSettings settings;
 
     @Test
@@ -52,7 +51,7 @@ class CentralDogmaClientAutoConfigurationProfileTest {
     @Test
     void settings() {
         assertThat(settings.getHosts()).isNull();
-        assertThat(settings.getProfile()).isEqualTo("myprofile");
+        assertThat(settings.getProfile()).isNull();
         assertThat(settings.getUseTls()).isNull();
         assertThat(settings.getHealthCheckIntervalMillis()).isNull();
         assertThat(settings.getMaxNumRetriesOnReplicationLag()).isNull();

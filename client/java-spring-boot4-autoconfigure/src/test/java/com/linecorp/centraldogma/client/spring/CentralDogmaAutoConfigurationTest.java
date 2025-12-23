@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 LINE Corporation
+ * Copyright 2017 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -16,52 +16,46 @@
 package com.linecorp.centraldogma.client.spring;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import javax.inject.Inject;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.armeria.DnsAddressEndpointGroupConfigurator;
-import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurationWithDnsEndpointGroupConfiguratorTest.TestConfiguration;
+import com.linecorp.centraldogma.client.spring.CentralDogmaAutoConfigurationTest.TestConfiguration;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = TestConfiguration.class)
 @ActiveProfiles({ "local", "confTest" })
-class CentralDogmaClientAutoConfigurationWithDnsEndpointGroupConfiguratorTest {
-    @SpringBootApplication
+class CentralDogmaAutoConfigurationTest {
+    @Configuration
+    @EnableAutoConfiguration
     static class TestConfiguration {
-        @Bean
-        AtomicBoolean customizationDone() {
-            return new AtomicBoolean();
-        }
+        static CentralDogmaClientFactoryConfigurator factoryConfigurator = builder -> {};
 
         @Bean
-        DnsAddressEndpointGroupConfigurator dnsAddressEndpointGroupConfigurator(
-                AtomicBoolean customizationDone) {
-            return b -> customizationDone.set(true);
+        CentralDogmaClientFactoryConfigurator configurator() {
+            return factoryConfigurator;
         }
     }
 
-    @Inject
+    @Autowired
     private CentralDogma client;
 
-    @Inject
-    private AtomicBoolean customizationDone;
+    @Autowired
+    List<CentralDogmaClientFactoryConfigurator> configurators;
 
     @Test
-    void centralDogmaClient() throws Exception {
+    void centralDogmaClient() {
         assertThat(client).isNotNull();
-        // client has been instantiated
-        assertTrue(customizationDone.get());
+        assertThat(configurators).containsExactly(TestConfiguration.factoryConfigurator);
     }
 }
