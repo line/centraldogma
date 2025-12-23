@@ -111,7 +111,7 @@ public class ProjectServiceV1 extends AbstractService {
         ProjectRole role = null;
         if (user instanceof UserWithToken) {
             final String appId = ((UserWithToken) user).token().appId();
-            final TokenRegistration tokenRegistration = metadata.tokens().get(appId);
+            final TokenRegistration tokenRegistration = metadata.appIds().get(appId);
             if (tokenRegistration != null) {
                 role = tokenRegistration.role();
             }

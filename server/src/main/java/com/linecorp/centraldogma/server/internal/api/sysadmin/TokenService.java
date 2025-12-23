@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.api.sysadmin;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -52,6 +53,7 @@ import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresSystemAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
+import com.linecorp.centraldogma.server.metadata.AppIdentityType;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.User;
@@ -88,9 +90,22 @@ public class TokenService extends AbstractService {
     @Get("/tokens")
     public Collection<Token> listTokens(User loginUser) {
         if (loginUser.isSystemAdmin()) {
-            return mds.getTokens().appIds().values();
+            return mds.getTokens()
+                      .appIds()
+                      .values()
+                      .stream()
+                      .filter(appIdentity -> appIdentity.type() == AppIdentityType.TOKEN)
+                      .map(appIdentity -> (Token) appIdentity)
+                      .collect(toImmutableList());
         } else {
-            return mds.getTokens().withoutSecret().appIds().values();
+            return mds.getTokens()
+                      .appIds()
+                      .values()
+                      .stream()
+                      .filter(appIdentity -> appIdentity.type() == AppIdentityType.TOKEN)
+                      .map(appIdentity -> (Token) appIdentity)
+                      .map(Token::withoutSecret)
+                      .collect(toImmutableList());
         }
     }
 
