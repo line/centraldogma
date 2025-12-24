@@ -807,6 +807,9 @@ public class CentralDogma implements AutoCloseable {
         }
 
         sb.service("/title", webAppTitleFile(cfg.webAppTitle(), SystemInfo.hostname()).asService());
+        final String configContent = "{\"mtlsEnabled\": " + mtlsEnabled + '}';
+        sb.service("/configs", (ctx, req) ->
+                HttpResponse.of(HttpStatus.OK, MediaType.JSON, configContent));
 
         sb.service(HEALTH_CHECK_PATH, HealthCheckService.builder()
                                                         .checkers(serverHealth)

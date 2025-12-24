@@ -1,6 +1,6 @@
 import { RepositoryRole } from 'dogma/features/auth/RepositoryRole';
 
-export interface AddUserOrTokenRepositoryRoleDto {
+export interface AddUserOrAppIdentityRepositoryRoleDto {
   projectName: string;
   repoName: string;
   data: {

@@ -111,11 +111,11 @@ public final class AppIdentityRegistryService extends AbstractService {
     public CompletableFuture<ResponseEntity<AppIdentity>> createAppIdentity(
             @Param String appId,
             @Param @Default("false") boolean isSystemAdmin,
-            @Param AppIdentityType appIdentityType,
+            @Param AppIdentityType type,
             @Param @Nullable String secret,
             @Param @Nullable String certificateId,
             Author author, User loginUser) {
-        if (!mtlsEnabled && appIdentityType == AppIdentityType.CERTIFICATE) {
+        if (!mtlsEnabled && type == AppIdentityType.CERTIFICATE) {
             throw new IllegalArgumentException(
                     "Cannot create a CERTIFICATE type app identity when mTLS is disabled.");
         }
@@ -130,7 +130,7 @@ public final class AppIdentityRegistryService extends AbstractService {
                     "the given secret string");
         }
         final CompletableFuture<Revision> future;
-        if (appIdentityType == AppIdentityType.TOKEN) {
+        if (type == AppIdentityType.TOKEN) {
             checkArgument(certificateId == null,
                           "TOKEN type cannot have a certificateId: %s", certificateId);
             if (secret != null) {

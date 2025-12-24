@@ -19,12 +19,12 @@ import {
 import { Controller, useForm } from 'react-hook-form';
 import { IoMdArrowDropdown } from 'react-icons/io';
 import { useState } from 'react';
-import { useGetTokensQuery } from 'dogma/features/api/apiSlice';
-import { TokenDto } from 'dogma/features/token/TokenDto';
+import { useGetAppIdentitiesQuery } from 'dogma/features/api/apiSlice';
+import { AppIdentityDto } from 'dogma/features/app-identity/AppIdentity';
 import { OptionBase, Select } from 'chakra-react-select';
-import { ConfirmAddToken } from 'dogma/features/project/settings/tokens/ConfirmAddToken';
+import { ConfirmAddAppIdentity } from 'dogma/features/project/settings/app-identities/ConfirmAddAppIdentity';
 
-interface TokenOptionType extends OptionBase {
+interface AppIdentityOptionType extends OptionBase {
   value: string;
   label: string;
 }
@@ -34,13 +34,13 @@ type FormData = {
   role: string;
 };
 
-export const AddAppToken = ({ projectName }: { projectName: string }) => {
-  const result = useGetTokensQuery();
-  const tokenOptions: TokenOptionType[] = (result.data || [])
-    .filter((token: TokenDto) => !token.deactivation)
-    .map((token: TokenDto) => ({
-      value: token.appId,
-      label: token.appId,
+export const AddAppIdentity = ({ projectName }: { projectName: string }) => {
+  const result = useGetAppIdentitiesQuery();
+  const appIdentityOptions: AppIdentityOptionType[] = (result.data || [])
+    .filter((identity: AppIdentityDto) => !identity.deactivation)
+    .map((identity: AppIdentityDto) => ({
+      value: identity.appId,
+      label: identity.appId,
     }));
   const {
     control,
@@ -64,12 +64,12 @@ export const AddAppToken = ({ projectName }: { projectName: string }) => {
     <Popover placement="bottom" isOpen={isOpen} onClose={onClose}>
       <PopoverTrigger>
         <Button colorScheme="teal" size="sm" onClick={onToggle} rightIcon={<IoMdArrowDropdown />}>
-          Add Token
+          Add App Identity
         </Button>
       </PopoverTrigger>
       <PopoverContent minWidth="md">
         <PopoverHeader pt={4} fontWeight="bold" border={0} mb={3}>
-          Add a new token
+          Add a new app identity
         </PopoverHeader>
         <PopoverArrow />
         <PopoverCloseButton />
@@ -85,9 +85,9 @@ export const AddAppToken = ({ projectName }: { projectName: string }) => {
                     ref={ref}
                     id="appId"
                     name={name}
-                    options={tokenOptions}
+                    options={appIdentityOptions}
                     // The default value of React Select must be null (and not undefined)
-                    value={tokenOptions.find((option) => option.value === value) || null}
+                    value={appIdentityOptions.find((option) => option.value === value) || null}
                     onChange={(option) => option && onChange(option.value)}
                     placeholder="Enter App ID ..."
                     closeMenuOnSelect={true}
@@ -112,7 +112,7 @@ export const AddAppToken = ({ projectName }: { projectName: string }) => {
           </PopoverBody>
           <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
             <Spacer />
-            <ConfirmAddToken
+            <ConfirmAddAppIdentity
               projectName={projectName}
               id={appId}
               role={role}

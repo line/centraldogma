@@ -154,7 +154,7 @@ final class CertificateAppIdentityAuthTest {
         final AggregatedHttpResponse response =
                 dogma.httpClient().post(API_V1_PATH_PREFIX + "appIdentities",
                                         QueryParams.of("appId", "cert1",
-                                                       "appIdentityType", "CERTIFICATE",
+                                                       "type", "CERTIFICATE",
                                                        "certificateId", CERT_ID,
                                                        "isSystemAdmin", false),
                                         HttpData.empty()).aggregate().join();
