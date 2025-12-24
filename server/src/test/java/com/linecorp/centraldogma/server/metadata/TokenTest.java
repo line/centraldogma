@@ -80,7 +80,7 @@ class TokenTest {
                 TOKEN_JSON,
                 asJsonArray(JsonPatchOperation.testAbsence(appIdPath),
                             JsonPatchOperation.testAbsence(secretPath),
-                            JsonPatchOperation.add(appIdPath, Jackson.readTree(tokenJson(true))),
+                            JsonPatchOperation.add(appIdPath, Jackson.readTree(tokenJson())),
                             JsonPatchOperation.add(secretPath, Jackson.valueToTree(APP_ID))));
 
         dogmaRepository.commit(Revision.HEAD, System.currentTimeMillis(), AUTHOR,
@@ -89,21 +89,16 @@ class TokenTest {
 
     @Test
     void deserializeToken() throws Exception {
-        final String legacyTokenJson = tokenJson(true);
-        final Token legacyToken = Jackson.readValue(legacyTokenJson, Token.class);
-        assertThat(legacyToken.appId()).isEqualTo(APP_ID);
-        assertThat(legacyToken.isSystemAdmin()).isTrue();
-
-        final String tokenJson = tokenJson(false);
+        final String tokenJson = tokenJson();
         final Token token = Jackson.readValue(tokenJson, Token.class);
         assertThat(token.appId()).isEqualTo(APP_ID);
         assertThat(token.isSystemAdmin()).isTrue();
     }
 
-    private static String tokenJson(boolean legacy) {
+    private static String tokenJson() {
         return "{\"appId\": \"" + APP_ID + "\"," +
                "  \"secret\": \"" + APP_SECRET + "\"," +
-               (legacy ? "  \"admin\": true," : " \"systemAdmin\": true,") +
+               " \"systemAdmin\": true," +
                "  \"creation\": {" +
                "    \"user\": \"foo@foo.com\"," +
                "    \"timestamp\": \"2018-04-10T09:58:20.032Z\"" +

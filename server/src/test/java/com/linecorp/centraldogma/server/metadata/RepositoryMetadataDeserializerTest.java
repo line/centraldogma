@@ -27,7 +27,8 @@ import com.linecorp.centraldogma.internal.Jackson;
 class RepositoryMetadataDeserializerTest {
 
     @Test
-    void deserialize() throws Exception {
+    void deserializeWithTokens() throws Exception {
+        // Test backward compatibility - tokens field should be mapped to appIds
         final String format = '{' +
                               "  \"name\": \"minu-test\"," +
                               "  \"roles\": {" +
@@ -51,6 +52,32 @@ class RepositoryMetadataDeserializerTest {
         validate(Jackson.readValue(format, RepositoryMetadata.class));
     }
 
+    @Test
+    void deserializeWithAppIds() throws Exception {
+        // Test new format with appIds field
+        final String format = '{' +
+                              "  \"name\": \"minu-test\"," +
+                              "  \"roles\": {" +
+                              "    \"projects\": {" +
+                              "       \"member\": \"READ\"," +
+                              "       \"guest\": null" +
+                              "    }," +
+                              "    \"users\": {" +
+                              "      \"foo@dogma.com\": \"READ\"," +
+                              "      \"bar@dogma.com\": \"WRITE\"" +
+                              "    }," +
+                              "    \"appIds\": {" +
+                              "      \"goodman\": \"READ\"" +
+                              "    }" +
+                              "  }," +
+                              "  \"creation\": {" +
+                              "    \"user\": \"minu.song@dogma.com\"," +
+                              "    \"timestamp\": \"2024-08-19T02:47:23.370762417Z\"" +
+                              "  }" +
+                              '}';
+        validate(Jackson.readValue(format, RepositoryMetadata.class));
+    }
+
     private static void validate(RepositoryMetadata repositoryMetadata) {
         assertThat(repositoryMetadata.id()).isEqualTo("minu-test");
         assertThat(repositoryMetadata.name()).isEqualTo("minu-test"); // id and name are the same.
@@ -60,7 +87,7 @@ class RepositoryMetadataDeserializerTest {
         assertThat(roles.users()).isEqualTo(
                 ImmutableMap.of("foo@dogma.com", RepositoryRole.READ,
                                 "bar@dogma.com", RepositoryRole.WRITE));
-        assertThat(roles.tokens()).isEqualTo(
+        assertThat(roles.appIds()).isEqualTo(
                 ImmutableMap.of("goodman", RepositoryRole.READ));
         assertThat(repositoryMetadata.creation())
                 .isEqualTo(new UserAndTimestamp("minu.song@dogma.com", "2024-08-19T02:47:23.370762417Z"));
