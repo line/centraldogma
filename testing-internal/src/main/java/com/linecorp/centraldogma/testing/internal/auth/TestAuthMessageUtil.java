@@ -109,7 +109,7 @@ public final class TestAuthMessageUtil {
         final QueryParams params = QueryParams.builder()
                                               .add("appId", appId)
                                               .add("isSystemAdmin", String.valueOf(isSystemAdmin))
-                                              .add("appIdentityType", "token")
+                                              .add("type", "TOKEN")
                                               .build();
         final Token token =
                 client.blocking().prepare()

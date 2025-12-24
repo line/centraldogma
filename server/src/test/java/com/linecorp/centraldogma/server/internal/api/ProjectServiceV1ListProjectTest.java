@@ -313,7 +313,7 @@ class ProjectServiceV1ListProjectTest {
         final ResponseEntity<Token> tokenResponse =
                 normalClient.prepare()
                             .post("/api/v1/appIdentities")
-                            .queryParams(ImmutableMap.of("appId", appId, "appIdentityType", "token").entrySet())
+                            .queryParams(ImmutableMap.of("appId", appId, "type", "TOKEN").entrySet())
                             .asJson(Token.class, mapper)
                             .execute();
         assertThat(tokenResponse.status()).isEqualTo(HttpStatus.CREATED);

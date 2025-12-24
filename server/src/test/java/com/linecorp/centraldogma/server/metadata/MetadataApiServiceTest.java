@@ -153,8 +153,7 @@ class MetadataApiServiceTest {
         // Create a token
         HttpRequest request = HttpRequest.builder()
                                          .post("/api/v1/appIdentities")
-                                         .content(MediaType.FORM_DATA,
-                                                  "appId=" + APP_ID + "&appIdentityType=TOKEN")
+                                         .content(MediaType.FORM_DATA, "appId=" + APP_ID + "&type=TOKEN")
                                          .build();
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.CREATED);
 
@@ -182,7 +181,7 @@ class MetadataApiServiceTest {
         final AggregatedHttpResponse response =
                 dogma.httpClient().post(API_V1_PATH_PREFIX + "appIdentities",
                                         QueryParams.of("appId", MEMBER_CERTIFICATE_APP_ID,
-                                                       "appIdentityType", "CERTIFICATE",
+                                                       "type", "CERTIFICATE",
                                                        "certificateId", CERT_ID,
                                                        "isSystemAdmin", false),
                                         HttpData.empty()).aggregate().join();

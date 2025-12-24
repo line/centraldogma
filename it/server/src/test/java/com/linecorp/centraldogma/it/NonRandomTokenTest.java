@@ -55,7 +55,7 @@ class NonRandomTokenTest {
         final HttpRequest request = HttpRequest.builder()
                                                .post("/api/v1/appIdentities")
                                                .content(MediaType.FORM_DATA,
-                                                        "secret=appToken-secret&appIdentityType=token" +
+                                                        "secret=appToken-secret&type=TOKEN" +
                                                         "&isSystemAdmin=true&appId=foo")
                                                .build();
         AggregatedHttpResponse res = systemAdminClient.execute(request).aggregate().join();

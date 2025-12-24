@@ -103,7 +103,7 @@ class TokenGuestPermissionTest {
         final ResponseEntity<Token> response =
                 client.prepare()
                       .post("/api/v1/appIdentities")
-                      .content(MediaType.FORM_DATA, QueryParams.of("appId", appId, "appIdentityType", "token")
+                      .content(MediaType.FORM_DATA, QueryParams.of("appId", appId, "type", "token")
                                                                .toQueryString())
                       .asJson(Token.class, new ObjectMapper())
                       .execute();
@@ -151,7 +151,7 @@ class TokenGuestPermissionTest {
                 client.prepare()
                       .post("/api/v1/appIdentities")
                       .content(MediaType.FORM_DATA,
-                               QueryParams.of("appId", appId, "isSystemAdmin", true, "appIdentityType", "token")
+                               QueryParams.of("appId", appId, "isSystemAdmin", true, "type", "TOKEN")
                                           .toQueryString())
                       .asJson(Token.class, new ObjectMapper())
                       .execute();
