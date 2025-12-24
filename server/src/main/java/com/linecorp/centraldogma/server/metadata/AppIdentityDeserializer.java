@@ -31,7 +31,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * Legacy tokens may not have a "type" field, but they will have a "secret" field,
  * which indicates they should be deserialized as {@link Token}.
  */
-public final class AppIdentityDeserializer extends JsonDeserializer<AppIdentity> {
+final class AppIdentityDeserializer extends JsonDeserializer<AppIdentity> {
 
     @Override
     public AppIdentity deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
@@ -44,16 +44,21 @@ public final class AppIdentityDeserializer extends JsonDeserializer<AppIdentity>
         if (typeNode != null) {
             // Type field exists, deserialize based on type
             final String typeValue = typeNode.asText();
-            final AppIdentityType type = AppIdentityType.valueOf(typeValue);
+            final AppIdentityType type;
+            try {
+                type = AppIdentityType.valueOf(typeValue);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Unknown AppIdentityType: " + typeValue, e);
+            }
 
             switch (type) {
                 case TOKEN:
                     return deserializeToken(node);
                 case CERTIFICATE:
                     return deserializeCertificate(node);
-                default:
-                    throw new IllegalArgumentException("Unknown AppIdentityType: " + type);
             }
+            // Should never reach here
+            throw new Error();
         } else {
             // Legacy format: no type field
             // If secret field exists, it's a Token

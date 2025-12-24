@@ -22,6 +22,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -90,23 +91,20 @@ public class TokenService extends AbstractService {
     @Get("/tokens")
     public Collection<Token> listTokens(User loginUser) {
         if (loginUser.isSystemAdmin()) {
-            return mds.getTokens()
-                      .appIds()
-                      .values()
-                      .stream()
-                      .filter(appIdentity -> appIdentity.type() == AppIdentityType.TOKEN)
-                      .map(appIdentity -> (Token) appIdentity)
-                      .collect(toImmutableList());
+            return tokenStream().collect(toImmutableList());
         } else {
-            return mds.getTokens()
-                      .appIds()
-                      .values()
-                      .stream()
-                      .filter(appIdentity -> appIdentity.type() == AppIdentityType.TOKEN)
-                      .map(appIdentity -> (Token) appIdentity)
-                      .map(Token::withoutSecret)
-                      .collect(toImmutableList());
+            return tokenStream().map(Token::withoutSecret)
+                                .collect(toImmutableList());
         }
+    }
+
+    private Stream<Token> tokenStream() {
+        return mds.getTokens()
+                  .appIds()
+                  .values()
+                  .stream()
+                  .filter(appIdentity -> appIdentity.type() == AppIdentityType.TOKEN)
+                  .map(appIdentity -> (Token) appIdentity);
     }
 
     /**

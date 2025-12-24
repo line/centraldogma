@@ -184,6 +184,12 @@ public final class Tokens implements HasWeight {
             weight += entry.getKey().length();
             weight += entry.getValue().length();
         }
+
+        for (Entry<String, String> entry : certificateIds.entrySet()) {
+            weight += entry.getKey().length();
+            weight += entry.getValue().length();
+        }
+
         return weight;
     }
 
