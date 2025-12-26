@@ -34,6 +34,8 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -72,6 +74,15 @@ import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 class ZoneAwareMirrorTest {
 
     private static final List<String> ZONES = ImmutableList.of("zone1", "zone2", "zone3");
+
+    // The SSH test key file is stored as GitHub Secrets and automatically created during CI builds.
+
+    @BeforeAll
+    static void checkSshKeyFileExists() {
+        Assumptions.assumeTrue(
+                MirrorRunnerTest.class.getResource(PRIVATE_KEY_FILE) != null,
+                "Skipping test because SSH key file '" + PRIVATE_KEY_FILE + "' does not exist. ");
+    }
 
     @RegisterExtension
     CentralDogmaReplicationExtension cluster = new CentralDogmaReplicationExtension(3) {

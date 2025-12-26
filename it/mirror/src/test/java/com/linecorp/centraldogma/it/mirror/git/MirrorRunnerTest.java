@@ -27,6 +27,8 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -57,6 +59,15 @@ class MirrorRunnerTest {
     static final String BAR_REPO = "bar";
     static final String PRIVATE_KEY_FILE = "ecdsa_256.openssh";
     static final String TEST_MIRROR_ID = "test-mirror";
+
+    // The SSH test key file is stored as GitHub Secrets and automatically created during CI builds.
+
+    @BeforeAll
+    static void checkSshKeyFileExists() {
+        Assumptions.assumeTrue(
+                MirrorRunnerTest.class.getResource(PRIVATE_KEY_FILE) != null,
+                "Skipping test because SSH key file '" + PRIVATE_KEY_FILE + "' does not exist. ");
+    }
 
     @RegisterExtension
     CentralDogmaExtension dogma = new CentralDogmaExtension() {
@@ -237,12 +248,10 @@ class MirrorRunnerTest {
 
     static CreateCredentialRequest getCreateCredentialRequest(String projectName, @Nullable String repoName)
             throws Exception {
-        final String publicKeyFile = "ecdsa_256.openssh.pub";
-
         final byte[] privateKeyBytes =
-                Resources.toByteArray(GitMirrorAuthTest.class.getResource(PRIVATE_KEY_FILE));
+                Resources.toByteArray(MirrorRunnerTest.class.getResource(PRIVATE_KEY_FILE));
         final byte[] publicKeyBytes =
-                Resources.toByteArray(GitMirrorAuthTest.class.getResource(publicKeyFile));
+                Resources.toByteArray(MirrorRunnerTest.class.getResource("ecdsa_256.openssh.pub"));
         final String privateKey = new String(privateKeyBytes, StandardCharsets.UTF_8).trim();
         final String publicKey = new String(publicKeyBytes, StandardCharsets.UTF_8).trim();
 
