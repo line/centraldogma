@@ -60,8 +60,7 @@ class MirrorRunnerTest {
     static final String PRIVATE_KEY_FILE = "ecdsa_256.openssh";
     static final String TEST_MIRROR_ID = "test-mirror";
 
-    // The SSH test key file is stored as GitHub Secrets and
-    // automatically created during CI builds.
+    // The SSH test key file is stored as GitHub Secrets and automatically created during CI builds.
 
     @BeforeAll
     static void checkSshKeyFileExists() {

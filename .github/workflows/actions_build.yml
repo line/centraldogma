@@ -82,29 +82,24 @@ jobs:
         # Write all SSH key files from secrets
         echo "${{ secrets.SSH_TEST_ECDSA_256_OPENSSH }}" > "$TEST_RESOURCES_DIR/ecdsa_256.openssh"
         echo "${{ secrets.SSH_TEST_ECDSA_256_OPENSSH_PASSWORD }}" > "$TEST_RESOURCES_DIR/ecdsa_256.openssh.password"
-        echo "${{ secrets.SSH_TEST_ECDSA_256_OPENSSH_PUB }}" > "$TEST_RESOURCES_DIR/ecdsa_256.openssh.pub"
         echo "${{ secrets.SSH_TEST_ECDSA_256_PEM }}" > "$TEST_RESOURCES_DIR/ecdsa_256.pem"
         echo "${{ secrets.SSH_TEST_ECDSA_256_PEM_PASSWORD }}" > "$TEST_RESOURCES_DIR/ecdsa_256.pem.password"
         
         echo "${{ secrets.SSH_TEST_ECDSA_384_OPENSSH }}" > "$TEST_RESOURCES_DIR/ecdsa_384.openssh"
         echo "${{ secrets.SSH_TEST_ECDSA_384_OPENSSH_PASSWORD }}" > "$TEST_RESOURCES_DIR/ecdsa_384.openssh.password"
-        echo "${{ secrets.SSH_TEST_ECDSA_384_OPENSSH_PUB }}" > "$TEST_RESOURCES_DIR/ecdsa_384.openssh.pub"
         echo "${{ secrets.SSH_TEST_ECDSA_384_PEM }}" > "$TEST_RESOURCES_DIR/ecdsa_384.pem"
         echo "${{ secrets.SSH_TEST_ECDSA_384_PEM_PASSWORD }}" > "$TEST_RESOURCES_DIR/ecdsa_384.pem.password"
         
         echo "${{ secrets.SSH_TEST_ECDSA_521_OPENSSH }}" > "$TEST_RESOURCES_DIR/ecdsa_521.openssh"
         echo "${{ secrets.SSH_TEST_ECDSA_521_OPENSSH_PASSWORD }}" > "$TEST_RESOURCES_DIR/ecdsa_521.openssh.password"
-        echo "${{ secrets.SSH_TEST_ECDSA_521_OPENSSH_PUB }}" > "$TEST_RESOURCES_DIR/ecdsa_521.openssh.pub"
         echo "${{ secrets.SSH_TEST_ECDSA_521_PEM }}" > "$TEST_RESOURCES_DIR/ecdsa_521.pem"
         echo "${{ secrets.SSH_TEST_ECDSA_521_PEM_PASSWORD }}" > "$TEST_RESOURCES_DIR/ecdsa_521.pem.password"
         
         echo "${{ secrets.SSH_TEST_ED25519_OPENSSH }}" > "$TEST_RESOURCES_DIR/ed25519.openssh"
         echo "${{ secrets.SSH_TEST_ED25519_OPENSSH_PASSWORD }}" > "$TEST_RESOURCES_DIR/ed25519.openssh.password"
-        echo "${{ secrets.SSH_TEST_ED25519_OPENSSH_PUB }}" > "$TEST_RESOURCES_DIR/ed25519.openssh.pub"
         
         echo "${{ secrets.SSH_TEST_RSA_OPENSSH }}" > "$TEST_RESOURCES_DIR/rsa.openssh"
         echo "${{ secrets.SSH_TEST_RSA_OPENSSH_PASSWORD }}" > "$TEST_RESOURCES_DIR/rsa.openssh.password"
-        echo "${{ secrets.SSH_TEST_RSA_OPENSSH_PUB }}" > "$TEST_RESOURCES_DIR/rsa.openssh.pub"
         echo "${{ secrets.SSH_TEST_RSA_PEM }}" > "$TEST_RESOURCES_DIR/rsa.pem"
         echo "${{ secrets.SSH_TEST_RSA_PEM_PASSWORD }}" > "$TEST_RESOURCES_DIR/rsa.pem.password"
         
