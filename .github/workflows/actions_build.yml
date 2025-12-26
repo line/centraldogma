@@ -74,47 +74,90 @@ jobs:
       uses: gradle/actions/setup-gradle@v5
 
     - name: Setup SSH test keys
+      env:
+        # ECDSA 256
+        SSH_TEST_ECDSA_256_OPENSSH: ${{ secrets.SSH_TEST_ECDSA_256_OPENSSH }}
+        SSH_TEST_ECDSA_256_OPENSSH_PASSWORD: ${{ secrets.SSH_TEST_ECDSA_256_OPENSSH_PASSWORD }}
+        SSH_TEST_ECDSA_256_PEM: ${{ secrets.SSH_TEST_ECDSA_256_PEM }}
+        SSH_TEST_ECDSA_256_PEM_PASSWORD: ${{ secrets.SSH_TEST_ECDSA_256_PEM_PASSWORD }}
+        # ECDSA 384
+        SSH_TEST_ECDSA_384_OPENSSH: ${{ secrets.SSH_TEST_ECDSA_384_OPENSSH }}
+        SSH_TEST_ECDSA_384_OPENSSH_PASSWORD: ${{ secrets.SSH_TEST_ECDSA_384_OPENSSH_PASSWORD }}
+        SSH_TEST_ECDSA_384_PEM: ${{ secrets.SSH_TEST_ECDSA_384_PEM }}
+        SSH_TEST_ECDSA_384_PEM_PASSWORD: ${{ secrets.SSH_TEST_ECDSA_384_PEM_PASSWORD }}
+        # ECDSA 521
+        SSH_TEST_ECDSA_521_OPENSSH: ${{ secrets.SSH_TEST_ECDSA_521_OPENSSH }}
+        SSH_TEST_ECDSA_521_OPENSSH_PASSWORD: ${{ secrets.SSH_TEST_ECDSA_521_OPENSSH_PASSWORD }}
+        SSH_TEST_ECDSA_521_PEM: ${{ secrets.SSH_TEST_ECDSA_521_PEM }}
+        SSH_TEST_ECDSA_521_PEM_PASSWORD: ${{ secrets.SSH_TEST_ECDSA_521_PEM_PASSWORD }}
+        # ED25519
+        SSH_TEST_ED25519_OPENSSH: ${{ secrets.SSH_TEST_ED25519_OPENSSH }}
+        SSH_TEST_ED25519_OPENSSH_PASSWORD: ${{ secrets.SSH_TEST_ED25519_OPENSSH_PASSWORD }}
+        # RSA
+        SSH_TEST_RSA_OPENSSH: ${{ secrets.SSH_TEST_RSA_OPENSSH }}
+        SSH_TEST_RSA_OPENSSH_PASSWORD: ${{ secrets.SSH_TEST_RSA_OPENSSH_PASSWORD }}
+        SSH_TEST_RSA_PEM: ${{ secrets.SSH_TEST_RSA_PEM }}
+        SSH_TEST_RSA_PEM_PASSWORD: ${{ secrets.SSH_TEST_RSA_PEM_PASSWORD }}
       run: |
+        # Check if secrets are available (e.g., skip on forked PRs)
+        if [ -z "$SSH_TEST_ECDSA_256_OPENSSH" ]; then
+          echo " SSH Key Secrets are empty. Skipping SSH key setup."
+          exit 0
+        fi
+        
         # Create the test resources directory
         TEST_RESOURCES_DIR="it/mirror/src/test/resources/com/linecorp/centraldogma/it/mirror/git"
         mkdir -p "$TEST_RESOURCES_DIR"
         
-        # Write all SSH key files from secrets
-        echo "${{ secrets.SSH_TEST_ECDSA_256_OPENSSH }}" > "$TEST_RESOURCES_DIR/ecdsa_256.openssh"
-        echo "${{ secrets.SSH_TEST_ECDSA_256_OPENSSH_PASSWORD }}" > "$TEST_RESOURCES_DIR/ecdsa_256.openssh.password"
-        echo "${{ secrets.SSH_TEST_ECDSA_256_PEM }}" > "$TEST_RESOURCES_DIR/ecdsa_256.pem"
-        echo "${{ secrets.SSH_TEST_ECDSA_256_PEM_PASSWORD }}" > "$TEST_RESOURCES_DIR/ecdsa_256.pem.password"
+        # Write all SSH key files using environment variables
+        # Using quotes ("$VAR") preserves newlines and prevents injection
+        echo "$SSH_TEST_ECDSA_256_OPENSSH" > "$TEST_RESOURCES_DIR/ecdsa_256.openssh"
+        echo "$SSH_TEST_ECDSA_256_OPENSSH_PASSWORD" > "$TEST_RESOURCES_DIR/ecdsa_256.openssh.password"
+        echo "$SSH_TEST_ECDSA_256_PEM" > "$TEST_RESOURCES_DIR/ecdsa_256.pem"
+        echo "$SSH_TEST_ECDSA_256_PEM_PASSWORD" > "$TEST_RESOURCES_DIR/ecdsa_256.pem.password"
         
-        echo "${{ secrets.SSH_TEST_ECDSA_384_OPENSSH }}" > "$TEST_RESOURCES_DIR/ecdsa_384.openssh"
-        echo "${{ secrets.SSH_TEST_ECDSA_384_OPENSSH_PASSWORD }}" > "$TEST_RESOURCES_DIR/ecdsa_384.openssh.password"
-        echo "${{ secrets.SSH_TEST_ECDSA_384_PEM }}" > "$TEST_RESOURCES_DIR/ecdsa_384.pem"
-        echo "${{ secrets.SSH_TEST_ECDSA_384_PEM_PASSWORD }}" > "$TEST_RESOURCES_DIR/ecdsa_384.pem.password"
+        echo "$SSH_TEST_ECDSA_384_OPENSSH" > "$TEST_RESOURCES_DIR/ecdsa_384.openssh"
+        echo "$SSH_TEST_ECDSA_384_OPENSSH_PASSWORD" > "$TEST_RESOURCES_DIR/ecdsa_384.openssh.password"
+        echo "$SSH_TEST_ECDSA_384_PEM" > "$TEST_RESOURCES_DIR/ecdsa_384.pem"
+        echo "$SSH_TEST_ECDSA_384_PEM_PASSWORD" > "$TEST_RESOURCES_DIR/ecdsa_384.pem.password"
         
-        echo "${{ secrets.SSH_TEST_ECDSA_521_OPENSSH }}" > "$TEST_RESOURCES_DIR/ecdsa_521.openssh"
-        echo "${{ secrets.SSH_TEST_ECDSA_521_OPENSSH_PASSWORD }}" > "$TEST_RESOURCES_DIR/ecdsa_521.openssh.password"
-        echo "${{ secrets.SSH_TEST_ECDSA_521_PEM }}" > "$TEST_RESOURCES_DIR/ecdsa_521.pem"
-        echo "${{ secrets.SSH_TEST_ECDSA_521_PEM_PASSWORD }}" > "$TEST_RESOURCES_DIR/ecdsa_521.pem.password"
+        echo "$SSH_TEST_ECDSA_521_OPENSSH" > "$TEST_RESOURCES_DIR/ecdsa_521.openssh"
+        echo "$SSH_TEST_ECDSA_521_OPENSSH_PASSWORD" > "$TEST_RESOURCES_DIR/ecdsa_521.openssh.password"
+        echo "$SSH_TEST_ECDSA_521_PEM" > "$TEST_RESOURCES_DIR/ecdsa_521.pem"
+        echo "$SSH_TEST_ECDSA_521_PEM_PASSWORD" > "$TEST_RESOURCES_DIR/ecdsa_521.pem.password"
         
-        echo "${{ secrets.SSH_TEST_ED25519_OPENSSH }}" > "$TEST_RESOURCES_DIR/ed25519.openssh"
-        echo "${{ secrets.SSH_TEST_ED25519_OPENSSH_PASSWORD }}" > "$TEST_RESOURCES_DIR/ed25519.openssh.password"
+        echo "$SSH_TEST_ED25519_OPENSSH" > "$TEST_RESOURCES_DIR/ed25519.openssh"
+        echo "$SSH_TEST_ED25519_OPENSSH_PASSWORD" > "$TEST_RESOURCES_DIR/ed25519.openssh.password"
         
-        echo "${{ secrets.SSH_TEST_RSA_OPENSSH }}" > "$TEST_RESOURCES_DIR/rsa.openssh"
-        echo "${{ secrets.SSH_TEST_RSA_OPENSSH_PASSWORD }}" > "$TEST_RESOURCES_DIR/rsa.openssh.password"
-        echo "${{ secrets.SSH_TEST_RSA_PEM }}" > "$TEST_RESOURCES_DIR/rsa.pem"
-        echo "${{ secrets.SSH_TEST_RSA_PEM_PASSWORD }}" > "$TEST_RESOURCES_DIR/rsa.pem.password"
+        echo "$SSH_TEST_RSA_OPENSSH" > "$TEST_RESOURCES_DIR/rsa.openssh"
+        echo "$SSH_TEST_RSA_OPENSSH_PASSWORD" > "$TEST_RESOURCES_DIR/rsa.openssh.password"
+        echo "$SSH_TEST_RSA_PEM" > "$TEST_RESOURCES_DIR/rsa.pem"
+        echo "$SSH_TEST_RSA_PEM_PASSWORD" > "$TEST_RESOURCES_DIR/rsa.pem.password"
         
-        echo "SSH test keys have been set up"
+        # Set proper permissions for SSH keys
+        find "$TEST_RESOURCES_DIR" -type f \( -name "*.openssh*" -o -name "*.pem*" \) -exec chmod 600 {} \; 2>/dev/null || true
+        
+        # Verify the files were created
+        echo "=========================================="
+        echo "SSH test key files verification:"
+        echo "=========================================="
+        ls -lh "$TEST_RESOURCES_DIR"
       shell: bash
 
     - name: Build with Gradle
       run: |
+        JAVA_INSTALLATIONS="${{ steps.setup-build-jdk.outputs.path }}"
+        if [ "${{ matrix.java }}" != "${{ env.BUILD_JDK_VERSION }}" ]; then
+          JAVA_INSTALLATIONS="${JAVA_INSTALLATIONS},${{ steps.setup-test-jdk.outputs.path }}"
+        fi
+        
         ./gradlew --no-daemon --stacktrace -Pleak -PnoLint build \
         ${{ matrix.coverage && '-Pcoverage' || '' }} \
         -PflakyTests=false \
         -PbuildJdkVersion=${{ env.BUILD_JDK_VERSION }} \
         -PtestJavaVersion=${{ matrix.java }} \
         ${{ matrix.min-java && format('-PminimumJavaVersion={0}', matrix.min-java) || '' }} \
-        -Porg.gradle.java.installations.paths=${{ steps.setup-build-jdk.outputs.path }},${{ steps.setup-test-jdk.outputs.path }}
+        -Porg.gradle.java.installations.paths="${JAVA_INSTALLATIONS}"
       shell: bash
 
     - if: ${{ matrix.snapshot && github.ref_name == 'main' }}
@@ -134,14 +177,20 @@ jobs:
     - name: Summarize the failed tests
       if: failure()
       run: |
+        # Build Java installations paths
+        JAVA_INSTALLATIONS="${{ steps.setup-build-jdk.outputs.path }}"
+        if [ "${{ matrix.java }}" != "${{ env.BUILD_JDK_VERSION }}" ]; then
+          JAVA_INSTALLATIONS="${JAVA_INSTALLATIONS},${{ steps.setup-test-jdk.outputs.path }}"
+        fi
+        
         ./gradlew --no-daemon --stacktrace --max-workers=1 reportFailedTests \
         -PnoLint \
         -PflakyTests=false \
         -PbuildJdkVersion=${{ env.BUILD_JDK_VERSION }} \
         -PtestJavaVersion=${{ matrix.java }} \
         ${{ matrix.min-java && format('-PminimumJavaVersion={0}', matrix.min-java) || '' }} \
-        -Porg.gradle.java.installations.paths=${{ steps.setup-build-jdk.outputs.path }},${{ steps.setup-jdk.outputs.path }}
-
+        -Porg.gradle.java.installations.paths="${JAVA_INSTALLATIONS}"
+        
         SUMMARY_FILE="build/failed-tests-result.txt"
         if test -f "$SUMMARY_FILE"; then
           echo '### 🔴 Failed tests' >> $GITHUB_STEP_SUMMARY
@@ -233,17 +282,17 @@ jobs:
     env:
       GRADLE_OPTS: -Xmx1280m
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - id: setup-jdk
         name: Set up JDK ${{ env.BUILD_JDK_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: ${{ env.BUILD_JDK_VERSION }}
 
       - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
