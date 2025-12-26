@@ -20,13 +20,12 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 
 import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -34,8 +33,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.ImmutableSet.Builder;
-import com.google.common.io.Resources;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
@@ -46,7 +43,7 @@ import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-class GitMirrorAuthTest {
+class GitMirrorHttpsAuthTest {
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
@@ -56,7 +53,7 @@ class GitMirrorAuthTest {
         }
     };
 
-    // To make this test cover all supported authentication schemes, the following environment variables
+    // To make this test cover HTTPS authentication schemes, the following environment variables
     // must be set:
     //
     // - GITHUB_CD_AUTHTEST_USERNAME (optional; defaults to your system username)
@@ -102,7 +99,8 @@ class GitMirrorAuthTest {
 
     @ParameterizedTest(name = "{0}, {1}")
     @MethodSource("arguments")
-    void auth(String projName, String gitUri, JsonNode credential) {
+    @DisabledIf("noCredentials")
+    void httpsAuth(String projName, String gitUri, JsonNode credential) {
         client.createProject(projName).join();
         client.createRepository(projName, "main").join();
 
@@ -129,8 +127,13 @@ class GitMirrorAuthTest {
         client.removeProject(projName).join();
     }
 
+    static boolean noCredentials() {
+        return GITHUB_PASSWORD == null && GITHUB_ACCESS_TOKEN == null;
+    }
+
     private static Collection<Arguments> arguments() throws Exception {
         final ImmutableSet.Builder<Arguments> builder = ImmutableSet.builder();
+
         if (GITHUB_PASSWORD != null) {
             builder.add(Arguments.of(
                     "https",
@@ -155,64 +158,6 @@ class GitMirrorAuthTest {
                             "  \"accessToken\": \"" + Jackson.escapeText(GITHUB_ACCESS_TOKEN) + '"' +
                             '}')));
         }
-
-        // Test Git-over-SSH as well with the read-only GitHub deploy key of the test repository.
-        //
-        // Note to security auditors:
-        //
-        //   Do not report any security issues about the SSH key pair being used in this test.
-        //   It is intentionally checked in to the source code repository and used only for
-        //   accessing an empty read-only private repository dedicated to test if SSH authentication works.
-        //   We are very sure that it has access to no other repositories.
-        //
-        sshAuth(builder, "ecdsa_256.openssh", "ecdsa_256.openssh.pub", "");
-        sshAuth(builder, "ecdsa_256.openssh.password", "ecdsa_256.openssh.pub", "secret");
-        sshAuth(builder, "ecdsa_256.pem", "ecdsa_256.openssh.pub", "");
-        sshAuth(builder, "ecdsa_256.pem.password", "ecdsa_256.openssh.pub", "secret");
-
-        sshAuth(builder, "ecdsa_384.openssh", "ecdsa_384.openssh.pub", "");
-        sshAuth(builder, "ecdsa_384.openssh.password", "ecdsa_384.openssh.pub", "secret");
-        sshAuth(builder, "ecdsa_384.pem", "ecdsa_384.openssh.pub", "");
-        sshAuth(builder, "ecdsa_384.pem.password", "ecdsa_384.openssh.pub", "secret");
-
-        sshAuth(builder, "ecdsa_521.openssh", "ecdsa_521.openssh.pub", "");
-        sshAuth(builder, "ecdsa_521.openssh.password", "ecdsa_521.openssh.pub", "secret");
-        sshAuth(builder, "ecdsa_521.pem", "ecdsa_521.openssh.pub", "");
-        sshAuth(builder, "ecdsa_521.pem.password", "ecdsa_521.openssh.pub", "secret");
-
-        sshAuth(builder, "ed25519.openssh", "ed25519.openssh.pub", "");
-        sshAuth(builder, "ed25519.openssh.password", "ed25519.openssh.pub", "secret");
-        // Cannot convert ed25519 into PEM format.
-
-        sshAuth(builder, "rsa.openssh", "rsa.openssh.pub", "");
-        sshAuth(builder, "rsa.openssh.password", "rsa.openssh.pub", "secret");
-        sshAuth(builder, "rsa.pem", "rsa.openssh.pub", "");
-        sshAuth(builder, "rsa.pem.password", "rsa.openssh.pub", "secret");
-
         return builder.build();
-    }
-
-    private static void sshAuth(Builder<Arguments> builder, String privateKeyFile, String publicKeyFile,
-                                String passphrase)
-            throws IOException {
-        final byte[] privateKeyBytes =
-                Resources.toByteArray(GitMirrorAuthTest.class.getResource(privateKeyFile));
-        final byte[] publicKeyBytes =
-                Resources.toByteArray(GitMirrorAuthTest.class.getResource(publicKeyFile));
-        final String privateKey = new String(privateKeyBytes, StandardCharsets.UTF_8).trim();
-        final String publicKey = new String(publicKeyBytes, StandardCharsets.UTF_8).trim();
-
-        builder.add(Arguments.of(
-                privateKeyFile, // Use privateKeyFile as the project name.
-                "git+ssh://github.com/line/centraldogma-authtest.git",
-                Jackson.readTree(
-                        '{' +
-                        "  \"name\": \"" + credentialName(privateKeyFile, privateKeyFile) + "\"," +
-                        "  \"type\": \"SSH_KEY\"," +
-                        "  \"username\": \"git\"," +
-                        "  \"publicKey\": \"" + Jackson.escapeText(publicKey) + "\"," +
-                        "  \"privateKey\": \"" + Jackson.escapeText(privateKey) + "\"," +
-                        "  \"passphrase\": \"" + passphrase + '"' +
-                        '}')));
     }
 }
