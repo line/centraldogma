@@ -8,67 +8,55 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  Text,
+  useDisclosure,
 } from '@chakra-ui/react';
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import { useAddNewTokenMemberMutation } from 'dogma/features/api/apiSlice';
+import { useDeactivateAppIdentityMutation } from 'dogma/features/api/apiSlice';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
+import { FcNoIdea } from 'react-icons/fc';
 
-export const ConfirmAddToken = ({
-  projectName,
-  id,
-  role,
-  isOpen,
-  onClose,
-  resetForm,
-}: {
-  projectName: string;
-  id: string;
-  role: string;
-  isOpen: boolean;
-  onClose: () => void;
-  resetForm: () => void;
-}) => {
+export const DeactivateAppIdentity = ({ appId, hidden }: { appId: string; hidden: boolean }) => {
+  const { isOpen, onToggle, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
-  const [addNewToken, { isLoading }] = useAddNewTokenMemberMutation();
-  const handleAddNewToken = async () => {
+  const [deactivate, { isLoading }] = useDeactivateAppIdentityMutation();
+  const handleDeactivate = async () => {
     try {
-      const response = await addNewToken({ projectName, id, role }).unwrap();
+      const response = await deactivate({ appId }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      dispatch(newNotification('New token saved', `Successfully added ${id}`, 'success'));
+      dispatch(newNotification('App identity deactivated', `Successfully deactivated ${appId}`, 'success'));
       onClose();
-      resetForm();
     } catch (error) {
-      dispatch(newNotification(`Failed to add ${id}`, ErrorMessageParser.parse(error), 'error'));
+      dispatch(newNotification(`Failed to deactivate ${appId}`, ErrorMessageParser.parse(error), 'error'));
     }
   };
   return (
     <>
-      <Button type="submit" colorScheme="teal" variant="ghost">
-        Add
+      <Button size="sm" hidden={hidden} variant="ghost" onClick={onToggle} leftIcon={<FcNoIdea />}>
+        Deactivate
       </Button>
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Are you sure?</ModalHeader>
           <ModalCloseButton />
-          <ModalBody>
-            <Text>
-              Add <Text as="b">{id}</Text> as {role === 'owner' ? 'an' : 'a'} {role} of {projectName}?
-            </Text>
-          </ModalBody>
+          <ModalBody>Deactivate application identity {`${appId}`}</ModalBody>
           <ModalFooter>
             <HStack spacing={3}>
-              <Button colorScheme="teal" variant="outline" onClick={onClose}>
+              <Button colorScheme="red" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button colorScheme="teal" onClick={handleAddNewToken} isLoading={isLoading} loadingText="Adding">
-                Add
+              <Button
+                colorScheme="red"
+                onClick={handleDeactivate}
+                isLoading={isLoading}
+                loadingText="Deactivating"
+              >
+                Deactivate
               </Button>
             </HStack>
           </ModalFooter>

@@ -16,9 +16,9 @@ import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { ApiAction } from 'dogma/features/api/apiSlice';
 import { RepositoryRole } from 'dogma/features/auth/RepositoryRole';
-import { AddUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings/AddUserOrTokenRepositoryRoleDto';
+import { AddUserOrAppIdentityRepositoryRoleDto } from 'dogma/features/repo/settings/AddUserOrAppIdentityRepositoryRoleDto';
 
-export const ConfirmAddUserOrTokenRepositoryRole = ({
+export const ConfirmAddUserOrAppIdentityRepositoryRole = ({
   projectName,
   repoName,
   entityType,
@@ -32,13 +32,13 @@ export const ConfirmAddUserOrTokenRepositoryRole = ({
 }: {
   projectName: string;
   repoName: string;
-  entityType: 'user' | 'token';
+  entityType: 'user' | 'appIdentity';
   loginId: string;
   repositoryRole: string;
   isOpen: boolean;
   onClose: () => void;
   resetForm: () => void;
-  addUserRepositoryRole: ApiAction<AddUserOrTokenRepositoryRoleDto, void>;
+  addUserRepositoryRole: ApiAction<AddUserOrAppIdentityRepositoryRoleDto, void>;
   isLoading: boolean;
 }) => {
   const dispatch = useAppDispatch();

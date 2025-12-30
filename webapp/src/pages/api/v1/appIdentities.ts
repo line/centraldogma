@@ -1,13 +1,15 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { faker } from '@faker-js/faker';
-import { TokenDto } from 'dogma/features/token/TokenDto';
+import { Token } from 'dogma/features/app-identity/AppIdentity';
 
 const newToken = (id: number) => {
-  const token: TokenDto = {
+  const token: Token = {
     appId: `${faker.animal.snake().replaceAll(' ', '-').toLowerCase()}-${id}`,
+    type: 'TOKEN',
     secret: faker.datatype.uuid(),
     systemAdmin: faker.datatype.boolean(),
+    allowGuestAccess: true,
     creation: { user: faker.internet.email(), timestamp: faker.datatype.datetime().toISOString() },
   };
   if (id & 1) {
@@ -16,7 +18,7 @@ const newToken = (id: number) => {
   return token;
 };
 
-const tokenList: TokenDto[] = [];
+const tokenList: Token[] = [];
 
 const makeData = (len: number) => {
   for (let i = len; i > 0; i--) {

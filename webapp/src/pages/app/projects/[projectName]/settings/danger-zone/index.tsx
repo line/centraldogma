@@ -7,7 +7,7 @@ const DangerZonePage = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   return (
-    <ProjectSettingsView projectName={projectName} currentTab={'danger zone'}>
+    <ProjectSettingsView projectName={projectName} currentTab={'Danger Zone'}>
       {() => (
         <Box padding={3}>
           <DeleteProject projectName={projectName} />
