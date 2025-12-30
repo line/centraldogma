@@ -42,8 +42,6 @@ import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 
 final class ShiroCentralDogmaMtlsTestServer {
 
-    private static final int PORT = 36462;
-
     /**
      * Start a new Central Dogma server with Apache Shiro.
      */
