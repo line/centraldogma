@@ -53,8 +53,6 @@ final class ShiroCentralDogmaMtlsTestServer {
                 // Enable the legacy webapp
                 // .webAppEnabled(true)
                 .systemAdministrators(USERNAME)
-                .cors("http://127.0.0.1:36462", "http://127.0.0.1:3000", "http://localhost:36462",
-                      "http://localhost:3000")
                 .authProviderFactory(new ShiroAuthProviderFactory(unused -> {
                     final Ini iniConfig = new Ini();
                     final Ini.Section users = iniConfig.addSection("users");

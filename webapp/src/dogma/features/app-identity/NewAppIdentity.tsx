@@ -171,6 +171,9 @@ export const NewAppIdentity = () => {
                       required: selectedType === 'CERTIFICATE',
                     })}
                   />
+                  <FormHelperText pl={1}>
+                    The ID of the client certificate to be used for mTLS authentication.
+                  </FormHelperText>
                   {errors.certificateId && <FormErrorMessage>Certificate ID is required</FormErrorMessage>}
                 </FormControl>
               )}
