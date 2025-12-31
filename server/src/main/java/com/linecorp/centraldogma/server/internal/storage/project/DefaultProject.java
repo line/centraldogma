@@ -220,6 +220,7 @@ public class DefaultProject implements Project {
             final ProjectMetadata metadata = new ProjectMetadata(name,
                                                                  ImmutableMap.of(),
                                                                  members,
+                                                                 null,
                                                                  tokens,
                                                                  userAndTimestamp, null);
             final CommitResult result =

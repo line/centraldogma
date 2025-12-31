@@ -145,7 +145,7 @@ class TokenServiceTest {
         final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) manager.executor();
         executor.execute(Command.createProject(Author.SYSTEM, "myPro")).join();
         metadataService.addToken(Author.SYSTEM, "myPro", "forAdmin1", ProjectRole.OWNER).join();
-        await().untilAsserted(() -> assertThat(metadataService.getProject("myPro").join().tokens()
+        await().untilAsserted(() -> assertThat(metadataService.getProject("myPro").join().appIds()
                                                               .containsKey("forAdmin1")).isTrue());
 
         final Collection<Token> tokens = tokenService.listTokens(systemAdmin);
@@ -164,7 +164,7 @@ class TokenServiceTest {
                     assertThat(t.isDeleted()).isTrue();
                 });
         await().untilAsserted(() -> assertThat(tokenService.listTokens(systemAdmin).size()).isEqualTo(0));
-        assertThat(metadataService.getProject("myPro").join().tokens().size()).isEqualTo(0);
+        assertThat(metadataService.getProject("myPro").join().appIds().size()).isEqualTo(0);
     }
 
     @Test

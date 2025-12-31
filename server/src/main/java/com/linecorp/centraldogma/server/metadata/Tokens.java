@@ -46,9 +46,9 @@ public final class Tokens implements HasWeight {
     static final String SECRET_PREFIX = "appToken-";
 
     /**
-     * Tokens which belong to this project.
+     * AppIdentities which belong to this project.
      */
-    private final Map<String, Token> appIds;
+    private final Map<String, AppIdentity> appIds;
 
     /**
      * A mapping of secret and {@link Token#id()}.
@@ -56,27 +56,38 @@ public final class Tokens implements HasWeight {
     private final Map<String, String> secrets;
 
     /**
+     * A mapping of certificate ID and application ID.
+     */
+    private final Map<String, String> certificateIds;
+
+    /**
      * Creates a new empty instance.
      */
     public Tokens() {
-        this(ImmutableMap.of(), ImmutableMap.of());
+        this(ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of());
     }
 
     /**
-     * Creates a new instance with the given application IDs and secrets.
+     * Creates a new instance with the given application IDs, secrets, and certificate IDs.
      */
     @JsonCreator
-    public Tokens(@JsonProperty("appIds") Map<String, Token> appIds,
-                  @JsonProperty("secrets") Map<String, String> secrets) {
-        this.appIds = requireNonNull(appIds, "appIds");
-        this.secrets = requireNonNull(secrets, "secrets");
+    public Tokens(@JsonProperty("appIds") Map<String, AppIdentity> appIds,
+                  @JsonProperty("secrets") Map<String, String> secrets,
+                  @JsonProperty("certificateIds") @Nullable Map<String, String> certificateIds) {
+        this.appIds = ImmutableMap.copyOf(requireNonNull(appIds, "appIds"));
+        this.secrets = ImmutableMap.copyOf(requireNonNull(secrets, "secrets"));
+        if (certificateIds != null) {
+            this.certificateIds = ImmutableMap.copyOf(certificateIds);
+        } else {
+            this.certificateIds = ImmutableMap.of();
+        }
     }
 
     /**
-     * Returns the application {@link Token}s.
+     * Returns the application {@link AppIdentity}s.
      */
     @JsonProperty
-    public Map<String, Token> appIds() {
+    public Map<String, AppIdentity> appIds() {
         return appIds;
     }
 
@@ -86,6 +97,14 @@ public final class Tokens implements HasWeight {
     @JsonProperty
     public Map<String, String> secrets() {
         return secrets;
+    }
+
+    /**
+     * Returns the certificate IDs.
+     */
+    @JsonProperty
+    public Map<String, String> certificateIds() {
+        return certificateIds;
     }
 
     /**
@@ -106,11 +125,11 @@ public final class Tokens implements HasWeight {
     @Nullable
     public Token getOrDefault(String appId, @Nullable Token defaultValue) {
         requireNonNull(appId, "appId");
-        final Token token = appIds.get(appId);
-        if (token != null) {
-            return token;
+        final AppIdentity appIdentity = appIds.get(appId);
+        if (appIdentity == null || appIdentity.type() != AppIdentityType.TOKEN) {
+            return defaultValue;
         }
-        return defaultValue;
+        return (Token) appIdentity;
     }
 
     /**
@@ -145,11 +164,16 @@ public final class Tokens implements HasWeight {
      * Returns a new {@link Tokens} which does not contain any secrets.
      */
     public Tokens withoutSecret() {
-        final Map<String, Token> appIds =
+        final Map<String, AppIdentity> appIds =
                 appIds().values().stream()
-                        .map(Token::withoutSecret)
-                        .collect(Collectors.toMap(Token::id, Function.identity()));
-        return new Tokens(appIds, ImmutableMap.of());
+                        .map(appId -> {
+                            if (appId.type() != AppIdentityType.TOKEN) {
+                                return appId;
+                            }
+                            return ((Token) appId).withoutSecret();
+                        })
+                        .collect(Collectors.toMap(AppIdentity::id, Function.identity()));
+        return new Tokens(appIds, ImmutableMap.of(), certificateIds);
     }
 
     @Override
@@ -160,6 +184,12 @@ public final class Tokens implements HasWeight {
             weight += entry.getKey().length();
             weight += entry.getValue().length();
         }
+
+        for (Entry<String, String> entry : certificateIds.entrySet()) {
+            weight += entry.getKey().length();
+            weight += entry.getValue().length();
+        }
+
         return weight;
     }
 
@@ -167,7 +197,8 @@ public final class Tokens implements HasWeight {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("appIds", appIds())
-                          .add("secrets", secrets())
+                          .add("secrets.size", secrets().size())
+                          .add("certificateIds", certificateIds())
                           .toString();
     }
 

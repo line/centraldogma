@@ -114,7 +114,7 @@ class ProjectServiceV1Test {
     @Test
     void createProject() {
         ProjectMetadata projectMetadata = createProjectAndReturnMetadata(userClient, "myPro");
-        assertThat(projectMetadata.tokens()).isEmpty();
+        assertThat(projectMetadata.appIds()).isEmpty();
         assertThat(projectMetadata.members().size()).isOne();
         final Member member =
                 projectMetadata.members().get(TestAuthMessageUtil.USERNAME2 + Util.USER_EMAIL_SUFFIX);
@@ -123,8 +123,8 @@ class ProjectServiceV1Test {
 
         projectMetadata = createProjectAndReturnMetadata(tokenClient, "myPro2");
         assertThat(projectMetadata.members()).isEmpty();
-        assertThat(projectMetadata.tokens().size()).isOne();
-        final TokenRegistration tokenRegistration = projectMetadata.tokens().get("appId2");
+        assertThat(projectMetadata.appIds().size()).isOne();
+        final TokenRegistration tokenRegistration = projectMetadata.appIds().get("appId2");
         assertThat(tokenRegistration.id()).isEqualTo("appId2");
         assertThat(tokenRegistration.role()).isEqualTo(ProjectRole.OWNER);
     }

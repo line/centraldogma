@@ -44,17 +44,17 @@ public final class RepositoryServiceUtil {
             Author author, String projectName, String repoName, boolean encrypt,
             @Nullable EncryptionStorageManager encryptionStorageManager) {
         final Map<String, RepositoryRole> users;
-        final Map<String, RepositoryRole> tokens;
+        final Map<String, RepositoryRole> appIds;
         if (author.isToken()) {
             users = ImmutableMap.of();
             // author.name() is the appId of the token.
-            tokens = ImmutableMap.of(author.name(), RepositoryRole.ADMIN);
+            appIds = ImmutableMap.of(author.name(), RepositoryRole.ADMIN);
         } else {
             users = ImmutableMap.of(author.email(), RepositoryRole.ADMIN);
-            tokens = ImmutableMap.of();
+            appIds = ImmutableMap.of();
         }
 
-        final Roles roles = new Roles(DEFAULT_PROJECT_ROLES, users, tokens);
+        final Roles roles = new Roles(DEFAULT_PROJECT_ROLES, users, null, appIds);
         final RepositoryMetadata repositoryMetadata =
                 RepositoryMetadata.of(repoName, roles, UserAndTimestamp.of(author));
 
