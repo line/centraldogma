@@ -55,24 +55,29 @@ const FileList = <Data extends object>({
 
   const columns = useMemo(
     () => [
-      columnHelper.accessor((row: FileDto) => row.path.split('/').pop(), {
-        cell: (info) => (
-          <ChakraLink
-            fontWeight={'semibold'}
-            href={
-              info.row.original.type === 'DIRECTORY'
-                ? `${directoryPath}/${info.getValue()}`
-                : `${slug}/${info.getValue()}`
-            }
-          >
-            <HStack>
-              <Box>{info.row.original.type === 'DIRECTORY' ? <FcOpenedFolder /> : <FcFile />}</Box>
-              <Box>{info.getValue()}</Box>
-            </HStack>
-          </ChakraLink>
-        ),
-        header: 'Path',
-      }),
+      columnHelper.accessor(
+        (row: FileDto) => {
+          const normalized = row.path.endsWith('/') ? row.path.slice(0, -1) : row.path;
+          return normalized.split('/').pop();
+        },
+        {
+          cell: (info) => {
+            const isDirectory = info.row.original.path.endsWith('/');
+            return (
+              <ChakraLink
+                fontWeight={'semibold'}
+                href={isDirectory ? `${directoryPath}/${info.getValue()}` : `${slug}/${info.getValue()}`}
+              >
+                <HStack>
+                  <Box>{isDirectory ? <FcOpenedFolder /> : <FcFile />}</Box>
+                  <Box>{info.getValue()}</Box>
+                </HStack>
+              </ChakraLink>
+            );
+          },
+          header: 'Path',
+        },
+      ),
       columnHelper.accessor((row: FileDto) => row.revision, {
         cell: (info) => info.getValue(),
         header: 'Revision',

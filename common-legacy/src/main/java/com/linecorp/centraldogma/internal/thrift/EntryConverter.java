@@ -46,6 +46,9 @@ public final class EntryConverter {
             case TEXT:
                 file.setContent((String) entry.content());
                 break;
+            case YAML:
+                file.setContent(entry.rawContent());
+                break;
             case DIRECTORY:
                 break;
             default:

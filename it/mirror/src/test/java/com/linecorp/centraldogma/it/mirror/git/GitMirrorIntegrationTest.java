@@ -31,6 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
@@ -196,6 +197,10 @@ class GitMirrorIntegrationTest {
                              "  \"key\": \"value\"\n" +
                              '}';
         addToGitIndex("third/config.json5", json5);
+        //language=yaml
+        final String yaml = "# This is a comment\n" +
+                            "YAML: true";
+        addToGitIndex("fourth/config.yaml", yaml);
         git.commit().setMessage("Add the release dates of the 'Infamous' series")
            .setAuthor("Mirror", "mirror@localhost.localdomain")
            .call();
@@ -227,12 +232,18 @@ class GitMirrorIntegrationTest {
                                            Entry.ofJson(rev3, "/second/son.json",
                                                         "{\"release_date\": \"21-Mar-2014\"}"),
                                            Entry.ofDirectory(rev3, "/third"),
-                                           Entry.ofJson(rev3, "/third/config.json5", json5));
+                                           Entry.ofJson(rev3, "/third/config.json5", json5),
+                                           Entry.ofDirectory(rev3, "/fourth"),
+                                           Entry.ofYaml(rev3, "/fourth/config.yaml", yaml));
         // Make sure that JSON5 content is preserved as-is.
         final Entry<?> json5Config = files.get("/third/config.json5");
         assertThat(json5Config.rawContent()).isEqualTo(json5);
         assertThatJson(json5Config.contentAsJson())
                 .isEqualTo("{\"key\": \"value\"}");
+        final Entry<?> yamlConfig = files.get("/fourth/config.yaml");
+        assertThat(yamlConfig.rawContent()).isEqualTo(yaml);
+        assertThatJson(yamlConfig.contentAsJson())
+                .isEqualTo("{\"YAML\": true}");
 
         // Rewrite the history of the git repository and mirror.
         git.reset().setMode(ResetType.HARD).setRef("HEAD^").call();
@@ -285,7 +296,9 @@ class GitMirrorIntegrationTest {
 
         //// Make sure /target/mirror_state.json exists (and nothing else.)
         final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState(rev1, "/target/");
-        assertThat(client.getFiles(projName, REPO_FOO, rev1, PathPattern.of("/target/**")).join().values())
+        final Collection<Entry<?>> values = client.getFiles(projName, REPO_FOO, rev1,
+                                                            PathPattern.of("/target/**")).join().values();
+        assertThat(values)
                 .containsExactly(expectedInitialMirrorState);
 
         // Now, add some files to the git repository and mirror.

@@ -81,9 +81,10 @@ class FileManagementTest {
 
         assertThat(files).hasSize(NUM_FILES + 1);
 
-        final Entry<?> dir = files.get(testRootWithoutSlash);
+        // The path of the directory entry must be with a trailing '/'.
+        final Entry<?> dir = files.get(TEST_ROOT);
         assertThat(dir.type()).isEqualTo(EntryType.DIRECTORY);
-        assertThat(dir.path()).isEqualTo(testRootWithoutSlash);
+        assertThat(dir.path()).isEqualTo(TEST_ROOT);
         assertThat(dir.hasContent()).isFalse();
         assertThatThrownBy(dir::content).isInstanceOf(EntryNoContentException.class);
 
