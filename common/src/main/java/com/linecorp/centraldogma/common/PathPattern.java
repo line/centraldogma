@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.common;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.common.DefaultPathPattern.ALL;
 import static com.linecorp.centraldogma.common.DefaultPathPattern.allPattern;
 import static java.util.Objects.requireNonNull;
@@ -37,6 +38,13 @@ import com.google.common.collect.Streams;
 public interface PathPattern {
 
     /**
+     * Returns a newly created {@link PathPatternBuilder}.
+     */
+    static PathPatternBuilder builder() {
+        return new PathPatternBuilder();
+    }
+
+    /**
      * Returns the path pattern that represents all files.
      */
     static PathPattern all() {
@@ -51,6 +59,18 @@ public interface PathPattern {
     }
 
     /**
+     * Creates a path pattern with the {@code pathPatterns}.
+     */
+    static PathPattern of(PathPattern... pathPatterns) {
+        requireNonNull(pathPatterns, "pathPatterns");
+        checkArgument(pathPatterns.length > 0, "pathPatterns is empty.");
+        if (pathPatterns.length == 1) {
+            return pathPatterns[0];
+        }
+        return new DefaultPathPattern(pathPatterns);
+    }
+
+    /**
      * Creates a path pattern with the {@code patterns}.
      */
     static PathPattern of(Iterable<String> patterns) {
@@ -60,6 +80,34 @@ public interface PathPattern {
         }
 
         return new DefaultPathPattern(ImmutableSet.copyOf(patterns));
+    }
+
+    /**
+     * Returns the path pattern for matching file(s) ending in {@code filename}.
+     */
+    static PathPattern endsWith(String filename) {
+        return builder().endsWith(filename).build();
+    }
+
+    /**
+     * Returns the path pattern for file(s) that start with {@code dirPath}.
+     */
+    static PathPattern startsWith(String dirPath) {
+        return builder().startsWith(dirPath).build();
+    }
+
+    /**
+     * Returns the path pattern for file(s) that contains {@code dirPath}.
+     */
+    static PathPattern contains(String dirPath) {
+        return builder().contains(dirPath).build();
+    }
+
+    /**
+     * Returns the path pattern for file(s) with {@code extension}.
+     */
+    static PathPattern hasExtension(String extension) {
+        return builder().hasExtension(extension).build();
     }
 
     /**
