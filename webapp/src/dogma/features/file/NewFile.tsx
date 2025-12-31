@@ -33,6 +33,8 @@ import JSON5 from 'json5';
 import { isJson, isJson5 } from 'dogma/util/path-util';
 import { extensionToLanguageMap } from 'dogma/common/components/editor/FileEditor';
 import { registerJson5Language } from 'dogma/features/file/Json5Language';
+import { useLocalMonaco } from 'dogma/features/file/MonacoLoader';
+import { Loading } from 'dogma/common/components/Loading';
 
 const FILE_PATH_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/;
 
@@ -137,6 +139,12 @@ export const NewFile = ({
     const fileExtension = fileName.substring(fileName.lastIndexOf('.') + 1);
     language = extensionToLanguageMap[fileExtension] || fileExtension;
   }
+
+  const monaco = useLocalMonaco();
+  if (!monaco) {
+    return <Loading />;
+  }
+
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <Flex minWidth="max-content" alignItems="center" mb={4}>
