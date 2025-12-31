@@ -27,6 +27,8 @@ import Router from 'next/router';
 import Link from 'next/link';
 import { FaHistory } from 'react-icons/fa';
 import { registerJson5Language } from 'dogma/features/file/Json5Language';
+import { useLocalMonaco } from 'dogma/features/file/MonacoLoader';
+import { Loading } from 'dogma/common/components/Loading';
 
 export type FileEditorProps = {
   projectName: string;
@@ -105,6 +107,12 @@ const FileEditor = ({
   const { colorMode } = useColorMode();
   const [diffSideBySide, setDiffSideBySide] = useState(false);
   const [editorExpanded, setEditorExpanded] = useState(false);
+
+  const monaco = useLocalMonaco();
+  if (!monaco) {
+    return <Loading />;
+  }
+
   return (
     <Box>
       <Flex gap={4}>
