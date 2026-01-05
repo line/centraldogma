@@ -68,6 +68,7 @@ export const NewFile = ({
       changeType = detectChangeType(fileName, content);
     } catch (error) {
       dispatch(newNotification(`Invalid file content.`, ErrorMessageParser.parse(error), 'error'));
+      return;
     }
 
     const data = {

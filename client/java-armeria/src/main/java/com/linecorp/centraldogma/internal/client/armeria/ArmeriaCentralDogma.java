@@ -1077,6 +1077,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             case IDENTITY_TEXT:
                 return entryAsText(revision, node, entryPath, viewRaw);
             case IDENTITY_JSON:
+                return entryAsJson(revision, node, entryPath, viewRaw);
             case JSON_PATH:
                 switch (receivedEntryType) {
                     case JSON:
