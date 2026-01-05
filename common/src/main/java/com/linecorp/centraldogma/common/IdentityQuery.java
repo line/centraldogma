@@ -17,6 +17,9 @@
 package com.linecorp.centraldogma.common;
 
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateStructuredFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateYamlFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collections;
@@ -30,6 +33,22 @@ final class IdentityQuery<T> implements Query<T> {
     private final QueryType queryType;
 
     IdentityQuery(String path, QueryType queryType) {
+        switch (queryType) {
+            case IDENTITY_JSON:
+                validateJsonFilePath(path, "path");
+                break;
+            case IDENTITY_YAML:
+                validateYamlFilePath(path, "path");
+                break;
+            case JSON_PATH:
+                validateStructuredFilePath(path, "path");
+                break;
+            case IDENTITY_TEXT:
+            case IDENTITY:
+            default:
+                validateFilePath(path, "path");
+                break;
+        }
         this.path = validateFilePath(path, "path");
         this.queryType = requireNonNull(queryType, "queryType");
     }

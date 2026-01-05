@@ -336,7 +336,7 @@ class YamlCrudTest {
         final Change<JsonNode> updateChange = Change.ofYamlUpsert("/counter.yaml", updatedYamlText);
         repo.commit("Increment counter", updateChange).push().join();
 
-        final Entry<JsonNode> entry = repo.watch(Query.ofJson("/counter.yaml"))
+        final Entry<JsonNode> entry = repo.watch(Query.ofYaml("/counter.yaml"))
                                           .start(initialResult.revision())
                                           .join();
 
