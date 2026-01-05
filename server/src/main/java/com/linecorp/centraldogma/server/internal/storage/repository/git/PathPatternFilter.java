@@ -96,7 +96,7 @@ public final class PathPatternFilter extends TreeFilter {
 
         // The path given in match() does not have a trailing '/' for directories.
         if (normalized.endsWith("/")) {
-            normalized = normalized.substring(0, p.length() - 1);
+            normalized = normalized.substring(0, normalized.length() - 1);
         }
         return normalized;
     }
