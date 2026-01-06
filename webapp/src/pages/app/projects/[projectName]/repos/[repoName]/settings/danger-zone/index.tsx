@@ -8,7 +8,7 @@ const DangerZonePage = () => {
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   const repoName = router.query.repoName ? (router.query.repoName as string) : '';
   return (
-    <RepositorySettingsView projectName={projectName} repoName={repoName} currentTab={'danger zone'}>
+    <RepositorySettingsView projectName={projectName} repoName={repoName} currentTab={'Danger Zone'}>
       {() => (
         <Box padding={3}>
           <DeleteRepo

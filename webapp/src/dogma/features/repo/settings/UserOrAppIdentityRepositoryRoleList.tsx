@@ -1,31 +1,31 @@
 import { Tag, TagLabel, Wrap, WrapItem } from '@chakra-ui/react';
 import { createColumnHelper } from '@tanstack/react-table';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
-import { DeleteUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings/DeleteUserOrTokenRepositoryRoleDto';
-import { UserOrTokenRepositoryRoleDto } from 'dogma/features/repo/RepositoriesMetadataDto';
+import { DeleteUserOrAppIdentityRepositoryRoleDto } from 'dogma/features/repo/settings/DeleteUserOrAppIdentityRepositoryRoleDto';
+import { UserOrAppIdentityRepositoryRoleDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import { useMemo } from 'react';
 import { ApiAction } from 'dogma/features/api/apiSlice';
 import { DeleteAppEntity } from 'dogma/features/project/settings/DeleteAppEntity';
 
 type UserAndRole = [string, string];
 
-type UserOrTokenRepositoryRoleListProps = {
+type UserOrAppIdentityRepositoryRoleListProps = {
   projectName: string;
   repoName: string;
-  entityType: 'token' | 'user';
-  userOrTokenRepositoryRole: UserOrTokenRepositoryRoleDto;
-  deleteUserOrToken: ApiAction<DeleteUserOrTokenRepositoryRoleDto, void>;
+  entityType: 'appIdentity' | 'user';
+  userOrAppIdentityRepositoryRole: UserOrAppIdentityRepositoryRoleDto;
+  deleteUserOrAppIdentity: ApiAction<DeleteUserOrAppIdentityRepositoryRoleDto, void>;
   isLoading: boolean;
 };
 
-export const UserOrTokenRepositoryRoleList = ({
+export const UserOrAppIdentityRepositoryRoleList = ({
   projectName,
   repoName,
   entityType,
-  userOrTokenRepositoryRole,
-  deleteUserOrToken,
+  userOrAppIdentityRepositoryRole,
+  deleteUserOrAppIdentity,
   isLoading,
-}: UserOrTokenRepositoryRoleListProps): JSX.Element => {
+}: UserOrAppIdentityRepositoryRoleListProps): JSX.Element => {
   const columnHelper = createColumnHelper<UserAndRole>();
   const columns = useMemo(
     () => [
@@ -54,7 +54,7 @@ export const UserOrTokenRepositoryRoleList = ({
             id={info.getValue() as unknown as string}
             entityType={entityType}
             deleteEntity={(projectName, id, repoName) =>
-              deleteUserOrToken({ projectName, id, repoName }).unwrap()
+              deleteUserOrAppIdentity({ projectName, id, repoName }).unwrap()
             }
             isLoading={isLoading}
           />
@@ -63,7 +63,7 @@ export const UserOrTokenRepositoryRoleList = ({
         enableSorting: false,
       }),
     ],
-    [columnHelper, deleteUserOrToken, isLoading, projectName, repoName, entityType],
+    [columnHelper, deleteUserOrAppIdentity, isLoading, projectName, repoName, entityType],
   );
-  return <DynamicDataTable columns={columns} data={Object.entries(userOrTokenRepositoryRole)} />;
+  return <DynamicDataTable columns={columns} data={Object.entries(userOrAppIdentityRepositoryRole)} />;
 };

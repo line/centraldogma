@@ -10,20 +10,20 @@ import {
   ModalOverlay,
   useDisclosure,
 } from '@chakra-ui/react';
-import { useDeleteTokenMutation } from 'dogma/features/api/apiSlice';
+import { useDeleteAppIdentityMutation } from 'dogma/features/api/apiSlice';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
 import { MdDelete } from 'react-icons/md';
 
-export const DeleteToken = ({ appId, hidden }: { appId: string; hidden: boolean }) => {
+export const DeleteAppIdentity = ({ appId, hidden }: { appId: string; hidden: boolean }) => {
   const { isOpen, onToggle, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
-  const [deleteToken, { isLoading }] = useDeleteTokenMutation();
+  const [deleteAppIdentity, { isLoading }] = useDeleteAppIdentityMutation();
   const handleDelete = async () => {
     try {
-      await deleteToken({ appId }).unwrap();
-      dispatch(newNotification('Token deleted.', `Successfully deleted ${appId}`, 'success'));
+      await deleteAppIdentity({ appId }).unwrap();
+      dispatch(newNotification('App identity deleted', `Successfully deleted ${appId}`, 'success'));
       onClose();
     } catch (error) {
       dispatch(newNotification(`Failed to delete ${appId}`, ErrorMessageParser.parse(error), 'error'));
@@ -46,7 +46,7 @@ export const DeleteToken = ({ appId, hidden }: { appId: string; hidden: boolean 
         <ModalContent>
           <ModalHeader>Are you sure?</ModalHeader>
           <ModalCloseButton />
-          <ModalBody>Delete application token {`${appId}`}</ModalBody>
+          <ModalBody>Delete application identity {`${appId}`}</ModalBody>
           <ModalFooter>
             <HStack spacing={3}>
               <Button colorScheme="red" variant="outline" onClick={onClose}>

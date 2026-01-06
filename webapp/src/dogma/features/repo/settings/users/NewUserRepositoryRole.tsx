@@ -21,9 +21,9 @@ import { Controller, useForm } from 'react-hook-form';
 import { IoMdArrowDropdown } from 'react-icons/io';
 import { useState } from 'react';
 import { OptionBase, Select } from 'chakra-react-select';
-import { ConfirmAddUserOrTokenRepositoryRole } from 'dogma/features/repo/settings/ConfirmAddUserOrTokenRepositoryRole';
-import { AddUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings/AddUserOrTokenRepositoryRoleDto';
-import { UserOrTokenRepositoryRoleDto } from 'dogma/features/repo/RepositoriesMetadataDto';
+import { ConfirmAddUserOrAppIdentityRepositoryRole } from 'dogma/features/repo/settings/ConfirmAddUserOrAppIdentityRepositoryRole';
+import { AddUserOrAppIdentityRepositoryRoleDto } from 'dogma/features/repo/settings/AddUserOrAppIdentityRepositoryRoleDto';
+import { UserOrAppIdentityRepositoryRoleDto } from 'dogma/features/repo/RepositoriesMetadataDto';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { ApiAction } from 'dogma/features/api/apiSlice';
 import { AppMemberDetailDto } from 'dogma/features/project/settings/members/AppMemberDto';
@@ -49,9 +49,9 @@ export const NewUserRepositoryRole = ({
   projectName: string;
   repoName: string;
   members: AppMemberDetailDto[];
-  addUserRepositoryRole: ApiAction<AddUserOrTokenRepositoryRoleDto, void>;
+  addUserRepositoryRole: ApiAction<AddUserOrAppIdentityRepositoryRoleDto, void>;
   isLoading: boolean;
-  userRepositoryRole: UserOrTokenRepositoryRoleDto;
+  userRepositoryRole: UserOrAppIdentityRepositoryRoleDto;
 }) => {
   const memberOptions: MemberOptionType[] = members
     .filter((member) => !(member.login in userRepositoryRole))
@@ -135,7 +135,7 @@ export const NewUserRepositoryRole = ({
           <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
             <Spacer />
             {memberOptions.length ? (
-              <ConfirmAddUserOrTokenRepositoryRole
+              <ConfirmAddUserOrAppIdentityRepositoryRole
                 projectName={projectName}
                 repoName={repoName}
                 entityType={'user'}

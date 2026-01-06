@@ -90,7 +90,7 @@ public final class ProjectApiManager {
                     if (metadata != null) {
                         // Only show internal projects to the members of the project.
                         if (user instanceof UserWithAppIdentity) {
-                            // TODO(minwoox): Add the type that distinguishes between users and tokens.
+                            // TODO(minwoox): Add the type that distinguishes between users and app identies.
                             // login is appId for UserWithAppIdentity
                             if (metadata.appIdentityOrDefault(user.login(), null) != null) {
                                 result.put(entry.getKey(), entry.getValue());

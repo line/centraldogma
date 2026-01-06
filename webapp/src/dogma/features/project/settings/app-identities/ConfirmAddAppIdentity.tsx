@@ -8,50 +8,60 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  useDisclosure,
+  Text,
 } from '@chakra-ui/react';
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import { useActivateTokenMutation } from 'dogma/features/api/apiSlice';
+import { useAddNewAppIdentityMemberMutation } from 'dogma/features/api/apiSlice';
 import { newNotification } from 'dogma/features/notification/notificationSlice';
 import ErrorMessageParser from 'dogma/features/services/ErrorMessageParser';
 import { useAppDispatch } from 'dogma/hooks';
-import { FcIdea } from 'react-icons/fc';
 
-export const ActivateToken = ({ appId, hidden }: { appId: string; hidden: boolean }) => {
-  const { isOpen, onToggle, onClose } = useDisclosure();
+export const ConfirmAddAppIdentity = ({
+  projectName,
+  id,
+  role,
+  isOpen,
+  onClose,
+  resetForm,
+}: {
+  projectName: string;
+  id: string;
+  role: string;
+  isOpen: boolean;
+  onClose: () => void;
+  resetForm: () => void;
+}) => {
   const dispatch = useAppDispatch();
-  const [activate, { isLoading }] = useActivateTokenMutation();
-  const handleActivate = async () => {
+  const [addNewAppIdentity, { isLoading }] = useAddNewAppIdentityMemberMutation();
+  const handleAddNewAppIdentity = async () => {
     try {
-      const response = await activate({ appId }).unwrap();
+      const response = await addNewAppIdentity({ projectName, id, role }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      dispatch(newNotification('Token activated', `Successfully activated ${appId}`, 'success'));
+      dispatch(newNotification('New app identity saved', `Successfully added ${id}`, 'success'));
       onClose();
+      resetForm();
     } catch (error) {
-      dispatch(newNotification(`Failed to activate ${appId}`, ErrorMessageParser.parse(error), 'error'));
+      dispatch(newNotification(`Failed to add ${id}`, ErrorMessageParser.parse(error), 'error'));
     }
   };
   return (
     <>
-      <Button
-        size="sm"
-        colorScheme="blue"
-        hidden={hidden}
-        variant="ghost"
-        onClick={onToggle}
-        leftIcon={<FcIdea />}
-      >
-        Activate
+      <Button type="submit" colorScheme="teal" variant="ghost">
+        Add
       </Button>
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Are you sure?</ModalHeader>
           <ModalCloseButton />
-          <ModalBody>Activate application token {`${appId}`}</ModalBody>
+          <ModalBody>
+            <Text>
+              Add <Text as="b">{id}</Text> as {role === 'owner' ? 'an' : 'a'} {role} of {projectName}?
+            </Text>
+          </ModalBody>
           <ModalFooter>
             <HStack spacing={3}>
               <Button colorScheme="teal" variant="outline" onClick={onClose}>
@@ -59,11 +69,11 @@ export const ActivateToken = ({ appId, hidden }: { appId: string; hidden: boolea
               </Button>
               <Button
                 colorScheme="teal"
-                onClick={handleActivate}
+                onClick={handleAddNewAppIdentity}
                 isLoading={isLoading}
-                loadingText="Activating"
+                loadingText="Adding"
               >
-                Activate
+                Add
               </Button>
             </HStack>
           </ModalFooter>

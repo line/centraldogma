@@ -203,24 +203,24 @@ public class DefaultProject implements Project {
 
             final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
             final Map<String, Member> members;
-            final Map<String, AppIdentityRegistration> tokens;
+            final Map<String, AppIdentityRegistration> appIds;
             if (author.isAppIdentity()) {
                 members = ImmutableMap.of();
                 // author.name() is the appId of the token.
                 final AppIdentityRegistration appIdentityRegistration =
                         new AppIdentityRegistration(author.name(), ProjectRole.OWNER, userAndTimestamp);
 
-                tokens = ImmutableMap.of(appIdentityRegistration.id(), appIdentityRegistration);
+                appIds = ImmutableMap.of(appIdentityRegistration.id(), appIdentityRegistration);
             } else {
                 final Member member = new Member(author, ProjectRole.OWNER, userAndTimestamp);
                 members = ImmutableMap.of(member.id(), member);
-                tokens = ImmutableMap.of();
+                appIds = ImmutableMap.of();
             }
 
             final ProjectMetadata metadata = new ProjectMetadata(name,
                                                                  ImmutableMap.of(),
                                                                  members,
-                                                                 tokens,
+                                                                 appIds,
                                                                  userAndTimestamp, null);
             final CommitResult result =
                     dogmaRepo.commit(headRev, creationTimeMillis, Author.SYSTEM,

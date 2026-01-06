@@ -73,7 +73,7 @@ class AppIdentityRegistryServiceViaHttpTest {
     @Test
     void createTokenAndUpdateLevel() throws JsonParseException {
         assertThat(systemAdminClient.post(API_V1_PATH_PREFIX + "appIdentities",
-                                          QueryParams.of("appId", "forUpdate", "appIdentityType", "TOKEN",
+                                          QueryParams.of("appId", "forUpdate", "type", "TOKEN",
                                                          "isSystemAdmin", false),
                                           HttpData.empty())
                                     .aggregate()

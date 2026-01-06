@@ -1,7 +1,7 @@
 import { UserAndTimestamp } from 'dogma/common/UserAndTimestamp';
 
-export type AppTokenDto = Map<string, AppTokenDetailDto>;
-export interface AppTokenDetailDto {
+export type AppIdDto = Map<string, AppIdDetailDto>;
+export interface AppIdDetailDto {
   appId: string;
   role: 'MEMBER' | 'OWNER';
   creation: UserAndTimestamp;

@@ -23,10 +23,10 @@ import { HistoryDto } from 'dogma/features/history/HistoryDto';
 import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
 import { FileContentDto } from 'dogma/features/file/FileContentDto';
 import { RevisionDto } from 'dogma/features/history/RevisionDto';
-import { TokenDto } from 'dogma/features/token/TokenDto';
+import { AppIdentityDto } from 'dogma/features/app-identity/AppIdentity';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import { DeleteUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings/DeleteUserOrTokenRepositoryRoleDto';
-import { AddUserOrTokenRepositoryRoleDto } from 'dogma/features/repo/settings/AddUserOrTokenRepositoryRoleDto';
+import { DeleteUserOrAppIdentityRepositoryRoleDto } from 'dogma/features/repo/settings/DeleteUserOrAppIdentityRepositoryRoleDto';
+import { AddUserOrAppIdentityRepositoryRoleDto } from 'dogma/features/repo/settings/AddUserOrAppIdentityRepositoryRoleDto';
 import { DeleteMemberDto } from 'dogma/features/project/settings/members/DeleteMemberDto';
 import { MirrorDto, MirrorRequest } from 'dogma/features/repo/settings/mirrors/MirrorRequest';
 import { createLoginUrl } from 'dogma/util/auth';
@@ -136,7 +136,7 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Project', 'Metadata', 'Repo', 'File', 'Token', 'Mirror', 'ServerStatus'],
+  tagTypes: ['Project', 'Metadata', 'Repo', 'File', 'AppIdentity', 'Mirror', 'ServerStatus'],
   endpoints: (builder) => ({
     getProjects: builder.query<ProjectDto[], GetProjects>({
       async queryFn(arg, _queryApi, _extraOptions, fetchWithBQ) {
@@ -201,17 +201,17 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    addNewTokenMember: builder.mutation({
+    addNewAppIdentityMember: builder.mutation({
       query: ({ projectName, id, role }) => ({
-        url: `/api/v1/metadata/${projectName}/tokens`,
+        url: `/api/v1/metadata/${projectName}/appIdentities`,
         method: 'POST',
         body: { id, role: role.toUpperCase() },
       }),
       invalidatesTags: ['Metadata'],
     }),
-    deleteTokenMember: builder.mutation<void, DeleteMemberDto>({
+    deleteAppIdentityMember: builder.mutation<void, DeleteMemberDto>({
       query: ({ projectName, id }) => ({
-        url: `/api/v1/metadata/${projectName}/tokens/${id}`,
+        url: `/api/v1/metadata/${projectName}/appIdentities/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Metadata'],
@@ -224,7 +224,7 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    addUserRepositoryRole: builder.mutation<void, AddUserOrTokenRepositoryRoleDto>({
+    addUserRepositoryRole: builder.mutation<void, AddUserOrAppIdentityRepositoryRoleDto>({
       query: ({ projectName, repoName, data }) => ({
         url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/users`,
         method: 'POST',
@@ -232,24 +232,24 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    deleteUserRepositoryRole: builder.mutation<void, DeleteUserOrTokenRepositoryRoleDto>({
+    deleteUserRepositoryRole: builder.mutation<void, DeleteUserOrAppIdentityRepositoryRoleDto>({
       query: ({ projectName, repoName, id }) => ({
         url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/users/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Metadata'],
     }),
-    addTokenRepositoryRole: builder.mutation<void, AddUserOrTokenRepositoryRoleDto>({
+    addAppIdentityRepositoryRole: builder.mutation<void, AddUserOrAppIdentityRepositoryRoleDto>({
       query: ({ projectName, repoName, data }) => ({
-        url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/tokens`,
+        url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/appIdentities`,
         method: 'POST',
         body: data,
       }),
       invalidatesTags: ['Metadata'],
     }),
-    deleteTokenRepositoryRole: builder.mutation<void, DeleteUserOrTokenRepositoryRoleDto>({
+    deleteAppIdentityRepositoryRole: builder.mutation<void, DeleteUserOrAppIdentityRepositoryRoleDto>({
       query: ({ projectName, repoName, id }) => ({
-        url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/tokens/${id}`,
+        url: `/api/v1/metadata/${projectName}/repos/${repoName}/roles/appIdentities/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Metadata'],
@@ -330,49 +330,43 @@ export const apiSlice = createApi({
         `/api/v1/projects/${projectName}/repos/${repoName}/revision/${revision}`,
       providesTags: ['File'],
     }),
-    getTokens: builder.query<TokenDto[], void>({
-      query: () => '/api/v1/tokens',
-      providesTags: ['Token'],
+    getAppIdentities: builder.query<AppIdentityDto[], void>({
+      query: () => '/api/v1/appIdentities',
+      providesTags: ['AppIdentity'],
     }),
-    addNewToken: builder.mutation({
+    addNewAppIdentity: builder.mutation({
       query: ({ data }) => ({
-        url: `/api/v1/tokens`,
+        url: `/api/v1/appIdentities`,
         method: 'POST',
         body: data,
         headers: {
           'Content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
         },
       }),
-      invalidatesTags: ['Token'],
+      invalidatesTags: ['AppIdentity'],
     }),
-    deactivateToken: builder.mutation({
+    deactivateAppIdentity: builder.mutation({
       query: ({ appId }) => ({
-        url: `/api/v1/tokens/${appId}`,
+        url: `/api/v1/appIdentities/${appId}`,
         method: 'PATCH',
-        body: [{ op: 'replace', path: '/status', value: 'inactive' }],
-        headers: {
-          'Content-type': 'application/json-patch+json; charset=UTF-8',
-        },
+        body: { status: 'inactive' },
       }),
-      invalidatesTags: ['Token'],
+      invalidatesTags: ['AppIdentity'],
     }),
-    activateToken: builder.mutation({
+    activateAppIdentity: builder.mutation({
       query: ({ appId }) => ({
-        url: `/api/v1/tokens/${appId}`,
+        url: `/api/v1/appIdentities/${appId}`,
         method: 'PATCH',
-        body: [{ op: 'replace', path: '/status', value: 'active' }],
-        headers: {
-          'Content-type': 'application/json-patch+json; charset=UTF-8',
-        },
+        body: { status: 'active' },
       }),
-      invalidatesTags: ['Token'],
+      invalidatesTags: ['AppIdentity'],
     }),
-    deleteToken: builder.mutation({
+    deleteAppIdentity: builder.mutation({
       query: ({ appId }) => ({
-        url: `/api/v1/tokens/${appId}`,
+        url: `/api/v1/appIdentities/${appId}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Token'],
+      invalidatesTags: ['AppIdentity'],
     }),
     getProjectMirrors: builder.query<MirrorDto[], string>({
       query: (projectName) => `/api/v1/projects/${projectName}/mirrors`,
@@ -572,24 +566,24 @@ export const {
   useGetMetadataByProjectNameQuery,
   useAddNewMemberMutation,
   useDeleteMemberMutation,
-  useAddNewTokenMemberMutation,
-  useDeleteTokenMemberMutation,
+  useAddNewAppIdentityMemberMutation,
+  useDeleteAppIdentityMemberMutation,
   useUpdateRepositoryProjectRolesMutation,
   useAddUserRepositoryRoleMutation,
   useDeleteUserRepositoryRoleMutation,
-  useAddTokenRepositoryRoleMutation,
-  useDeleteTokenRepositoryRoleMutation,
+  useAddAppIdentityRepositoryRoleMutation,
+  useDeleteAppIdentityRepositoryRoleMutation,
   // Repo
   useGetReposQuery,
   useAddNewRepoMutation,
   useDeleteRepoMutation,
   useRestoreRepoMutation,
-  // Token
-  useGetTokensQuery,
-  useAddNewTokenMutation,
-  useDeactivateTokenMutation,
-  useActivateTokenMutation,
-  useDeleteTokenMutation,
+  // AppIdentity
+  useGetAppIdentitiesQuery,
+  useAddNewAppIdentityMutation,
+  useDeactivateAppIdentityMutation,
+  useActivateAppIdentityMutation,
+  useDeleteAppIdentityMutation,
   // File
   useGetFilesQuery,
   useGetFileContentQuery,

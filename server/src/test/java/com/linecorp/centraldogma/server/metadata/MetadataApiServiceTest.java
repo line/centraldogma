@@ -152,8 +152,8 @@ class MetadataApiServiceTest {
 
         // Create a token
         HttpRequest request = HttpRequest.builder()
-                                         .post("/api/v1/tokens")
-                                         .content(MediaType.FORM_DATA, "appId=" + APP_ID)
+                                         .post("/api/v1/appIdentities")
+                                         .content(MediaType.FORM_DATA, "appId=" + APP_ID + "&type=TOKEN")
                                          .build();
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.CREATED);
 
@@ -181,7 +181,7 @@ class MetadataApiServiceTest {
         final AggregatedHttpResponse response =
                 dogma.httpClient().post(API_V1_PATH_PREFIX + "appIdentities",
                                         QueryParams.of("appId", MEMBER_CERTIFICATE_APP_ID,
-                                                       "appIdentityType", "CERTIFICATE",
+                                                       "type", "CERTIFICATE",
                                                        "certificateId", CERT_ID,
                                                        "isSystemAdmin", false),
                                         HttpData.empty()).aggregate().join();
@@ -241,14 +241,14 @@ class MetadataApiServiceTest {
         // [{"op":"replace","path":"/role","value":"OWNER"}]
         // Update the token
         request = HttpRequest.builder()
-                             .patch("/api/v1/metadata/" + PROJECT_NAME + "/tokens/app_id")
+                             .patch("/api/v1/metadata/" + PROJECT_NAME + "/appIdentities/app_id")
                              .content(MediaType.JSON_PATCH, Jackson.writeValueAsString(jsonPatch))
                              .build();
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.OK);
 
         // Remove the token
         request = HttpRequest.builder()
-                             .delete("/api/v1/metadata/" + PROJECT_NAME + "/tokens/app_id")
+                             .delete("/api/v1/metadata/" + PROJECT_NAME + "/appIdentities/app_id")
                              .build();
         assertThat(systemAdminClient.execute(request).status())
                 .isSameAs(HttpStatus.NO_CONTENT);
@@ -257,7 +257,7 @@ class MetadataApiServiceTest {
     private static void addProjectToken() {
         final HttpRequest request =
                 HttpRequest.builder()
-                           .post("/api/v1/metadata/" + PROJECT_NAME + "/tokens")
+                           .post("/api/v1/metadata/" + PROJECT_NAME + "/appIdentities")
                            .contentJson(new IdAndProjectRole("app_id", ProjectRole.MEMBER))
                            .build();
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.OK);
@@ -285,7 +285,7 @@ class MetadataApiServiceTest {
         addProjectToken();
         HttpRequest request = HttpRequest.builder()
                                          .post("/api/v1/metadata/" + PROJECT_NAME + "/repos/" +
-                                               REPOSITORY_NAME + "/roles/tokens")
+                                               REPOSITORY_NAME + "/roles/appIdentities")
                                          .contentJson(new IdAndRepositoryRole(APP_ID, RepositoryRole.READ))
                                          .build();
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.OK);
@@ -296,7 +296,7 @@ class MetadataApiServiceTest {
 
         // Remove the member
         request = HttpRequest.builder()
-                             .delete("/api/v1/metadata/" + PROJECT_NAME + "/tokens/" + APP_ID)
+                             .delete("/api/v1/metadata/" + PROJECT_NAME + "/appIdentities/" + APP_ID)
                              .build();
         assertThat(systemAdminClient.execute(request).status())
                 .isSameAs(HttpStatus.NO_CONTENT);
@@ -397,7 +397,7 @@ class MetadataApiServiceTest {
         // Promote the member to a repository admin.
         final HttpRequest req = HttpRequest.builder()
                                            .post("/api/v1/metadata/" + PROJECT_NAME + "/repos/" +
-                                                 REPOSITORY_NAME + "/roles/tokens")
+                                                 REPOSITORY_NAME + "/roles/appIdentities")
                                            .contentJson(new IdAndRepositoryRole("foo_token",
                                                                                 RepositoryRole.ADMIN))
                                            .build();
