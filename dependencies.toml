@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 [versions]
-armeria = "1.34.1"
+armeria = "1.35.0"
 assertj = "3.27.6"
 awaitility = "4.3.0"
 bouncycastle = "1.83"
@@ -23,7 +23,7 @@ dropwizard-metrics = "4.2.37"
 eddsa = "0.3.0"
 findbugs = "3.0.2"
 futures-completable = "0.3.6"
-grpc-java = "1.77.0"
+grpc-java = "1.78.0"
 guava = "33.5.0-jre"
 guava-failureaccess = "1.0.1"
 hamcrest-library = "3.0"
@@ -48,7 +48,7 @@ jsch = "0.1.55"
 json-path = "2.2.0"
 # 3.0.0 requires java 17
 json-unit = "2.38.0"
-jsoup = "1.21.2" # JSoup is only used for Gradle script.
+jsoup = "1.22.1" # JSoup is only used for Gradle script.
 jmh-core = "1.37"
 jmh-gradle-plugin = "0.7.3"
 jxr = "0.2.1"
@@ -56,7 +56,7 @@ kubernetes-client = "7.4.0"
 logback15 = "1.5.7"
 micrometer = "1.16.0"
 mina-sshd = "2.16.0"
-mockito = "5.20.0"
+mockito = "5.21.0"
 nimbus-jose-jwt = "10.6"
 nexus-publish-plugin = "2.0.0"
 node-gradle-plugin = "7.1.0"
@@ -65,7 +65,7 @@ owasp = "1.4.0"
 proguard = "7.8.1"
 protobuf = "3.25.8"
 protobuf-gradle-plugin = "0.9.5"
-quartz = "2.5.1"
+quartz = "2.5.2"
 reflections = "0.9.11"
 rocksdb = "10.4.2"
 shadow-gradle-plugin = "8.3.9"
@@ -80,7 +80,7 @@ spring-boot2 = "2.7.18"
 spring-boot3 = "3.5.8"
 spring-boot4 = "4.0.0"
 spring-test-junit5 = "1.5.0"
-testcontainers = "1.21.3"
+testcontainers = "1.21.4"
 thrift09 = { strictly = "0.9.3-1" }
 # Ensure that we use the same ZooKeeper version as what Curator depends on.
 # See: https://github.com/apache/curator/blob/master/pom.xml
