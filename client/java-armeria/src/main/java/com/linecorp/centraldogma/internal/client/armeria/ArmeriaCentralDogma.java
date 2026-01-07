@@ -1086,7 +1086,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                         return entryAsYaml(revision, node, entryPath, viewRaw);
                     default:
                         throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
-                                                        " (expected: " + queryType + ')');
+                                                        " (expected: JSON or YAML for JSON_PATH query')");
                 }
             case IDENTITY_YAML:
                 return entryAsYaml(revision, node, entryPath, viewRaw);
@@ -1101,8 +1101,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                     case DIRECTORY:
                         return unsafeCast(Entry.ofDirectory(revision, entryPath));
                     default:
-                        throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
-                                                        " (expected: " + queryType + ')');
+                        throw new Error(); // Should never reach here.
                 }
         }
         throw new Error(); // Should never reach here.
@@ -1160,9 +1159,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                     throw new IllegalStateException(e);
                 }
             }
-            // Should never reach here as the server already supports YAML entries.
-            throw new IllegalStateException("The server does not provide rawContent for YAML entry: " +
-                                            entryPath);
+            logger.warn("The server does not support raw content. Using Entry#content() instead. path: {}",
+                        entryPath);
         }
         final JsonNode content = getField(node, "content");
         if (content.isTextual()) {

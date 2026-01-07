@@ -189,6 +189,9 @@ public interface Change<T> {
     /**
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
      *
+     * <p>Note that the JSON patch operation normalizes the original data before applying the patch,
+     * so contextual information such as comments cannot be retained when the patch is applied.
+     *
      * @param path the path of the file
      * @param oldJsonText the old content of the file
      * @param newJsonText the new content of the file
@@ -216,6 +219,9 @@ public interface Change<T> {
 
     /**
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
+     *
+     * <p>Note that the JSON patch operation normalizes the original data before applying the patch,
+     * so contextual information such as comments cannot be retained when the patch is applied.
      *
      * @param path the path of the file
      * @param oldJsonNode the old content of the file
