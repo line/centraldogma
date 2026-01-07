@@ -405,12 +405,16 @@ class GitRepository implements Repository {
                 final EntryType entryType = EntryType.guessFromPath(path);
                 if (fetchContent) {
                     final byte[] content = reader.open(treeWalk.getObjectId(0)).getBytes();
+                    final String string = new String(content, UTF_8);
                     switch (entryType) {
                         case JSON:
-                            entry = Entry.ofJson(normRevision, path, new String(content, UTF_8));
+                            entry = Entry.ofJson(normRevision, path, string);
+                            break;
+                        case YAML:
+                            entry = Entry.ofYaml(normRevision, path, string);
                             break;
                         case TEXT:
-                            final String strVal = sanitizeText(new String(content, UTF_8));
+                            final String strVal = sanitizeText(string);
                             entry = Entry.ofText(normRevision, path, strVal);
                             break;
                         default:
@@ -420,6 +424,9 @@ class GitRepository implements Repository {
                     switch (entryType) {
                         case JSON:
                             entry = Entry.ofJson(normRevision, path, "");
+                            break;
+                        case YAML:
+                            entry = Entry.ofYaml(normRevision, path, "");
                             break;
                         case TEXT:
                             entry = Entry.ofText(normRevision, path, "");

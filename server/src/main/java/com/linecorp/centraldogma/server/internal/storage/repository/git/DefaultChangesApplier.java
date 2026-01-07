@@ -16,7 +16,7 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.linecorp.centraldogma.internal.Json5.isJson5;
+import static com.linecorp.centraldogma.internal.Yaml.isYaml;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.sanitizeText;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -48,8 +48,8 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.TextPatchConflictException;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.Json5;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.internal.Yaml;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 
 import difflib.DiffUtils;
@@ -91,12 +91,33 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
                     }
 
                     if (hasChanges) {
-                        applyPathEdit(dirCache,
-                                      new InsertJson(changePath, inserter, newJsonNode, change.rawContent()));
+                        String newJson = rawContent;
+                        if (newJson == null) {
+                            // Use pretty format for readability in the web UI.
+                            newJson = Jackson.writeValueAsPrettyString(newJsonNode);
+                        }
+                        applyPathEdit(dirCache, new InsertText(changePath, inserter, newJson));
                         numEdits++;
                     }
                     break;
                 }
+                case UPSERT_YAML:
+                    final String newYaml = change.rawContent();
+                    // rawContent must not be null for YAML upsert.
+                    assert newYaml != null;
+
+                    final String oldYaml;
+                    if (oldContent != null) {
+                        oldYaml = new String(oldContent, UTF_8);
+                    } else {
+                        oldYaml = null;
+                    }
+
+                    if (!newYaml.equals(oldYaml)) {
+                        applyPathEdit(dirCache, new InsertText(changePath, inserter, newYaml));
+                        numEdits++;
+                    }
+                    break;
                 case UPSERT_TEXT: {
                     final String sanitizedOldText;
                     if (oldContent != null) {
@@ -174,8 +195,15 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
 
                     // Apply only when the contents are really different.
                     if (!newJsonNode.equals(oldJsonNode)) {
-                        // NB: Some JSON5 features, such as comments, will be lost when using JSON Patch.
-                        applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode, null));
+                        final String newContent;
+                        // NB: Some JSON5 or YAML features, such as comments, will be lost
+                        //     when using JSON Patch.
+                        if (isYaml(changePath)) {
+                            newContent = Yaml.writeValueAsString(newJsonNode);
+                        } else {
+                            newContent = Jackson.writeValueAsPrettyString(newJsonNode);
+                        }
+                        applyPathEdit(dirCache, new InsertText(changePath, inserter, newContent));
                         numEdits++;
                     }
                     break;
@@ -229,11 +257,8 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
         if (content == null) {
             return Jackson.nullNode;
         }
-        if (isJson5(path)) {
-            return Json5.readTree(content);
-        } else {
-            return Jackson.readTree(content);
-        }
+
+        return Jackson.readTree(path, content);
     }
 
     @Override

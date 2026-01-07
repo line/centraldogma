@@ -18,6 +18,9 @@ package com.linecorp.centraldogma.internal;
 
 import static com.fasterxml.jackson.databind.node.JsonNodeType.OBJECT;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.linecorp.centraldogma.internal.Json5.isJson;
+import static com.linecorp.centraldogma.internal.Json5.isJson5;
+import static com.linecorp.centraldogma.internal.Json5.isJsonCompatible;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -179,6 +182,32 @@ public final class Jackson {
         return compactMapper.readValue(jp, typeReference);
     }
 
+    public static JsonNode readTree(String path, String data) throws JsonParseException {
+        if (isJson(path)) {
+            return readTree(data);
+        } else if (isJson5(path)) {
+            return Json5.readTree(data);
+        } else if (Yaml.isYaml(path)) {
+            return Yaml.readTree(data);
+        } else {
+            // Fallback to JSON parser.
+            return readTree(data);
+        }
+    }
+
+    public static JsonNode readTree(String path, byte[] data) throws JsonParseException {
+        if (isJson(path)) {
+            return readTree(data);
+        } else if (isJson5(path)) {
+            return Json5.readTree(data);
+        } else if (Yaml.isYaml(path)) {
+            return Yaml.readTree(data);
+        } else {
+            // Fallback to JSON parser.
+            return readTree(data);
+        }
+    }
+
     public static JsonNode readTree(String data) throws JsonParseException {
         try {
             return compactMapper.readTree(data);
@@ -205,6 +234,14 @@ public final class Jackson {
 
     public static String writeValueAsString(Object value) throws JsonProcessingException {
         return compactMapper.writeValueAsString(value);
+    }
+
+    public static String writeValueAsString(String path, Object value) throws JsonProcessingException {
+        if (isJsonCompatible(path)) {
+            return compactMapper.writeValueAsString(value);
+        } else {
+            return Yaml.writeValueAsString(value);
+        }
     }
 
     public static String writeValueAsPrettyString(Object value) throws JsonProcessingException {

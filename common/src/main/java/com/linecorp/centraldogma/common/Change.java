@@ -87,7 +87,7 @@ public interface Change<T> {
      */
     static Change<JsonNode> ofJsonUpsert(String path, String jsonText) {
         requireNonNull(jsonText, "jsonText");
-        return new JsonChange(path, ChangeType.UPSERT_JSON, jsonText);
+        return new StructuredChange(path, ChangeType.UPSERT_JSON, jsonText);
     }
 
     /**
@@ -98,7 +98,18 @@ public interface Change<T> {
      */
     static Change<JsonNode> ofJsonUpsert(String path, JsonNode jsonNode) {
         requireNonNull(jsonNode, "jsonNode");
-        return new JsonChange(path, ChangeType.UPSERT_JSON, jsonNode);
+        return new StructuredChange(path, ChangeType.UPSERT_JSON, jsonNode);
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_YAML}.
+     *
+     * @param path the path of the file
+     * @param yamlText the content of the file
+     */
+    static Change<JsonNode> ofYamlUpsert(String path, String yamlText) {
+        requireNonNull(yamlText, "yamlText");
+        return new StructuredChange(path, ChangeType.UPSERT_YAML, yamlText);
     }
 
     /**
@@ -178,6 +189,9 @@ public interface Change<T> {
     /**
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
      *
+     * <p>Note that the JSON patch operation normalizes the original data before applying the patch,
+     * so contextual information such as comments cannot be retained when the patch is applied.
+     *
      * @param path the path of the file
      * @param oldJsonText the old content of the file
      * @param newJsonText the new content of the file
@@ -192,18 +206,22 @@ public interface Change<T> {
         final JsonNode newJsonNode;
         try {
             oldJsonNode = oldJsonText == null ? Jackson.nullNode
-                                              : Jackson.readTree(oldJsonText);
-            newJsonNode = Jackson.readTree(newJsonText);
+                                              : Jackson.readTree(path, oldJsonText);
+            newJsonNode = Jackson.readTree(path, newJsonText);
         } catch (IOException e) {
             throw new ChangeFormatException("failed to read a value as a JSON tree", e);
         }
 
-        return new JsonChange(path, ChangeType.APPLY_JSON_PATCH,
-                              JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE).toJson());
+        return new StructuredChange(path, ChangeType.APPLY_JSON_PATCH,
+                                    JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE)
+                                             .toJson());
     }
 
     /**
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
+     *
+     * <p>Note that the JSON patch operation normalizes the original data before applying the patch,
+     * so contextual information such as comments cannot be retained when the patch is applied.
      *
      * @param path the path of the file
      * @param oldJsonNode the old content of the file
@@ -216,12 +234,17 @@ public interface Change<T> {
             oldJsonNode = Jackson.nullNode;
         }
 
-        return new JsonChange(path, ChangeType.APPLY_JSON_PATCH,
-                              JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE).toJson());
+        return new StructuredChange(path, ChangeType.APPLY_JSON_PATCH,
+                                    JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE)
+                                             .toJson());
     }
 
     /**
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
+     * The JSON patch operation can be applied to JSON, JSON5, YAML files.
+     *
+     * <p>Note that the JSON patch operation normalizes the original data before applying the patch,
+     * so contextual information such as comments cannot be retained when the patch is applied.
      *
      * @param path the path of the file
      * @param jsonPatch the patch in <a href="https://datatracker.ietf.org/doc/html/rfc6902">JSON patch format</a>
@@ -229,11 +252,15 @@ public interface Change<T> {
     static Change<JsonNode> ofJsonPatch(String path, JsonPatchOperation jsonPatch) {
         requireNonNull(path, "path");
         requireNonNull(jsonPatch, "jsonPatch");
-        return new JsonChange(path, ChangeType.APPLY_JSON_PATCH, jsonPatch.toJsonNode());
+        return new StructuredChange(path, ChangeType.APPLY_JSON_PATCH, jsonPatch.toJsonNode());
     }
 
     /**
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
+     * The JSON patch operation can be applied to JSON, JSON5, YAML files.
+     *
+     * <p>Note that the JSON patch operation normalizes the original data before applying the patch,
+     * so contextual information such as comments cannot be retained when the patch is applied.
      *
      * @param path the path of the file
      * @param jsonPatches the list of patches in <a href="https://datatracker.ietf.org/doc/html/rfc6902">JSON patch format</a>
@@ -245,6 +272,10 @@ public interface Change<T> {
 
     /**
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
+     * The JSON patch operation can be applied to JSON, JSON5, YAML files.
+     *
+     * <p>Note that the JSON patch operation normalizes the original data before applying the patch,
+     * so contextual information such as comments cannot be retained when the patch is applied.
      *
      * @param path the path of the file
      * @param jsonPatches the list of patches in <a href="https://datatracker.ietf.org/doc/html/rfc6902">JSON patch format</a>
@@ -253,12 +284,16 @@ public interface Change<T> {
         requireNonNull(path, "path");
         requireNonNull(jsonPatches, "jsonPatches");
         checkArgument(!Iterables.isEmpty(jsonPatches), "jsonPatches cannot be empty");
-        return new JsonChange(path, ChangeType.APPLY_JSON_PATCH,
-                              JsonPatchOperation.asJsonArray(jsonPatches));
+        return new StructuredChange(path, ChangeType.APPLY_JSON_PATCH,
+                                    JsonPatchOperation.asJsonArray(jsonPatches));
     }
 
     /**
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
+     * The JSON patch operation can be applied to JSON, JSON5, YAML files.
+     *
+     * <p>Note that the JSON patch operation normalizes the original data before applying the patch,
+     * so contextual information such as comments cannot be retained when the patch is applied.
      *
      * @param path the path of the file
      * @param jsonPatchText the patch in <a href="https://datatracker.ietf.org/doc/html/rfc6902">JSON patch format</a>
@@ -280,6 +315,10 @@ public interface Change<T> {
 
     /**
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
+     * The JSON patch operation can be applied to JSON, JSON5, YAML files.
+     *
+     * <p>Note that the JSON patch operation normalizes the original data before applying the patch,
+     * so contextual information such as comments cannot be retained when the patch is applied.
      *
      * @param path the path of the file
      * @param jsonPatchNode the patch in <a href="https://datatracker.ietf.org/doc/html/rfc6902">JSON patch format</a>
@@ -287,7 +326,7 @@ public interface Change<T> {
     static Change<JsonNode> ofJsonPatch(String path, JsonNode jsonPatchNode) {
         requireNonNull(jsonPatchNode, "jsonPatchNode");
 
-        return new JsonChange(path, ChangeType.APPLY_JSON_PATCH, jsonPatchNode);
+        return new StructuredChange(path, ChangeType.APPLY_JSON_PATCH, jsonPatchNode);
     }
 
     /**
