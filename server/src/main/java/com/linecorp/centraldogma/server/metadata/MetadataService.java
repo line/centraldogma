@@ -18,8 +18,6 @@ package com.linecorp.centraldogma.server.metadata;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation.asJsonArray;
-import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectApiManager.listProjectsWithoutInternal;
 import static com.linecorp.centraldogma.server.metadata.RepositoryMetadata.DEFAULT_PROJECT_ROLES;
 import static com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
@@ -38,8 +36,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonPointer;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMap.Builder;
@@ -48,7 +44,6 @@ import com.spotify.futures.CompletableFutures;
 import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.ProjectRole;
@@ -57,8 +52,6 @@ import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryRole;
 import com.linecorp.centraldogma.common.RepositoryStatus;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.common.jsonpatch.JsonPatchOperation;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.metadata.ProjectMetadataTransformer;
 import com.linecorp.centraldogma.server.management.ServerStatus;
@@ -82,11 +75,6 @@ public class MetadataService {
      * A path of token list file.
      */
     public static final String TOKEN_JSON = "/tokens.json";
-
-    /**
-     * A {@link JsonPointer} of project removal information.
-     */
-    private static final JsonPointer PROJECT_REMOVAL = JsonPointer.compile("/removal");
 
     private final ProjectManager projectManager;
     private final RepositorySupport<ProjectMetadata> metadataRepo;
@@ -194,13 +182,21 @@ public class MetadataService {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
 
-        final Change<JsonNode> change = Change.ofJsonPatch(
-                METADATA_JSON,
-                asJsonArray(JsonPatchOperation.testAbsence(PROJECT_REMOVAL),
-                            JsonPatchOperation.add(PROJECT_REMOVAL,
-                                                   Jackson.valueToTree(UserAndTimestamp.of(author)))));
+        final ProjectMetadataTransformer transformer =
+                new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
+                    if (projectMetadata.removal() != null) {
+                        throw new ChangeConflictException("Project is already removed: " + projectName);
+                    }
+                    return new ProjectMetadata(projectMetadata.name(),
+                                               projectMetadata.repos(),
+                                               projectMetadata.members(),
+                                               null,
+                                               projectMetadata.appIds(),
+                                               projectMetadata.creation(),
+                                               UserAndTimestamp.of(author));
+                });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author,
-                                 "Remove the project: " + projectName, change);
+                                 "Remove the project: " + projectName, transformer);
     }
 
     /**
@@ -210,10 +206,21 @@ public class MetadataService {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
 
-        final Change<JsonNode> change =
-                Change.ofJsonPatch(METADATA_JSON, JsonPatchOperation.remove(PROJECT_REMOVAL).toJsonNode());
+        final ProjectMetadataTransformer transformer =
+                new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
+                    if (projectMetadata.removal() == null) {
+                        throw new ChangeConflictException("Project is not removed: " + projectName);
+                    }
+                    return new ProjectMetadata(projectMetadata.name(),
+                                               projectMetadata.repos(),
+                                               projectMetadata.members(),
+                                               null,
+                                               projectMetadata.appIds(),
+                                               projectMetadata.creation(),
+                                               null);
+                });
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author,
-                                 "Restore the project: " + projectName, change);
+                                 "Restore the project: " + projectName, transformer);
     }
 
     /**
@@ -239,14 +246,29 @@ public class MetadataService {
         requireNonNull(projectRole, "projectRole");
 
         final Member newMember = new Member(member, projectRole, UserAndTimestamp.of(author));
-        final JsonPointer path = JsonPointer.compile("/members" + encodeSegment(newMember.id()));
-        final Change<JsonNode> change =
-                Change.ofJsonPatch(METADATA_JSON,
-                                   asJsonArray(JsonPatchOperation.testAbsence(path),
-                                               JsonPatchOperation.add(path, Jackson.valueToTree(newMember))));
         final String commitSummary =
                 "Add a member '" + newMember.id() + "' to the project '" + projectName + '\'';
-        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
+
+        final ProjectMetadataTransformer transformer =
+                new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
+                    if (projectMetadata.members().containsKey(newMember.id())) {
+                        throw new ChangeConflictException("Member already exists: " + newMember.id());
+                    }
+                    final ImmutableMap<String, Member> newMembers =
+                            ImmutableMap.<String, Member>builderWithExpectedSize(
+                                                projectMetadata.members().size() + 1)
+                                        .putAll(projectMetadata.members())
+                                        .put(newMember.id(), newMember)
+                                        .build();
+                    return new ProjectMetadata(projectMetadata.name(),
+                                               projectMetadata.repos(),
+                                               newMembers,
+                                               null,
+                                               projectMetadata.appIds(),
+                                               projectMetadata.creation(),
+                                               projectMetadata.removal());
+                });
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
@@ -272,7 +294,8 @@ public class MetadataService {
                     return new ProjectMetadata(projectMetadata.name(),
                                                newRepos,
                                                newMembers,
-                                               projectMetadata.tokens(),
+                                               null,
+                                               projectMetadata.appIds(),
                                                projectMetadata.creation(),
                                                projectMetadata.removal());
                 });
@@ -289,7 +312,7 @@ public class MetadataService {
             final Map<String, RepositoryRole> users = roles.users();
             if (users.get(memberId) != null) {
                 final ImmutableMap<String, RepositoryRole> newUsers = removeFromMap(users, memberId);
-                final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.tokens());
+                final Roles newRoles = new Roles(roles.projectRoles(), newUsers, null, roles.appIds());
                 reposBuilder.put(entry.getKey(),
                                  new RepositoryMetadata(repositoryMetadata.name(),
                                                         newRoles,
@@ -313,14 +336,35 @@ public class MetadataService {
         requireNonNull(member, "member");
         requireNonNull(projectRole, "projectRole");
 
-        final Change<JsonNode> change = Change.ofJsonPatch(
-                METADATA_JSON,
-                JsonPatchOperation.replace(
-                        JsonPointer.compile("/members" + encodeSegment(member.id()) + "/role"),
-                        Jackson.valueToTree(projectRole)).toJsonNode());
         final String commitSummary = "Updates the role of the member '" + member.id() +
                                      "' as '" + projectRole + "' for the project '" + projectName + '\'';
-        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
+
+        final ProjectMetadataTransformer transformer =
+                new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
+                    final Member existingMember = projectMetadata.members().get(member.id());
+                    if (existingMember == null) {
+                        throw new EntryNotFoundException("Member not found: " + member.id());
+                    }
+                    if (existingMember.role() == projectRole) {
+                        throw new RedundantChangeException("Member already has role: " + projectRole);
+                    }
+                    final Member updatedMember = new Member(existingMember.login(), projectRole,
+                                                            existingMember.creation());
+                    final ImmutableMap<String, Member> newMembers =
+                            ImmutableMap.<String, Member>builderWithExpectedSize(
+                                                projectMetadata.members().size())
+                                        .putAll(projectMetadata.members())
+                                        .put(member.id(), updatedMember)
+                                        .buildKeepingLast();
+                    return new ProjectMetadata(projectMetadata.name(),
+                                               projectMetadata.repos(),
+                                               newMembers,
+                                               null,
+                                               projectMetadata.appIds(),
+                                               projectMetadata.creation(),
+                                               projectMetadata.removal());
+                });
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
@@ -366,25 +410,29 @@ public class MetadataService {
         requireNonNull(repoName, "repoName");
         requireNonNull(repositoryMetadata, "repositoryMetadata");
 
-        final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName));
-        final Change<JsonNode> change =
-                Change.ofJsonPatch(METADATA_JSON,
-                                   asJsonArray(JsonPatchOperation.testAbsence(path),
-                                               JsonPatchOperation.add(
-                                                       path, Jackson.valueToTree(repositoryMetadata))));
         final String commitSummary =
                 "Add a repo '" + repositoryMetadata.id() + "' to the project '" + projectName + '\'';
-        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change)
-                           .handle((revision, cause) -> {
-                               if (cause != null) {
-                                   if (Exceptions.peel(cause) instanceof ChangeConflictException) {
-                                       throw RepositoryExistsException.of(projectName, repoName);
-                                   } else {
-                                       return Exceptions.throwUnsafely(cause);
-                                   }
-                               }
-                               return revision;
-                           });
+
+        final ProjectMetadataTransformer transformer =
+                new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
+                    if (projectMetadata.repos().containsKey(repoName)) {
+                        throw RepositoryExistsException.of(projectName, repoName);
+                    }
+                    final ImmutableMap<String, RepositoryMetadata> newRepos =
+                            ImmutableMap.<String, RepositoryMetadata>builderWithExpectedSize(
+                                                projectMetadata.repos().size() + 1)
+                                        .putAll(projectMetadata.repos())
+                                        .put(repoName, repositoryMetadata)
+                                        .build();
+                    return new ProjectMetadata(projectMetadata.name(),
+                                               newRepos,
+                                               projectMetadata.members(),
+                                               null,
+                                               projectMetadata.appIds(),
+                                               projectMetadata.creation(),
+                                               projectMetadata.removal());
+                });
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
@@ -396,15 +444,22 @@ public class MetadataService {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
 
-        final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) + "/removal");
-        final Change<JsonNode> change =
-                Change.ofJsonPatch(METADATA_JSON,
-                                   asJsonArray(JsonPatchOperation.testAbsence(path),
-                                               JsonPatchOperation.add(path, Jackson.valueToTree(
-                                                       UserAndTimestamp.of(author)))));
         final String commitSummary =
                 "Remove the repo '" + repoName + "' from the project '" + projectName + '\'';
-        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
+
+        final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
+                repoName, (headRevision, repositoryMetadata) -> {
+            if (repositoryMetadata.removal() != null) {
+                throw new ChangeConflictException("Repository is already removed: " +
+                                                  projectName + '/' + repoName);
+            }
+            return new RepositoryMetadata(repositoryMetadata.name(),
+                                          repositoryMetadata.roles(),
+                                          repositoryMetadata.creation(),
+                                          UserAndTimestamp.of(author),
+                                          repositoryMetadata.status());
+        });
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
@@ -416,12 +471,26 @@ public class MetadataService {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
 
-        final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName));
-        final Change<JsonNode> change = Change.ofJsonPatch(METADATA_JSON,
-                                                           JsonPatchOperation.remove(path).toJsonNode());
         final String commitSummary =
                 "Purge the repo '" + repoName + "' from the project '" + projectName + '\'';
-        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
+
+        final ProjectMetadataTransformer transformer =
+                new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
+                    if (!projectMetadata.repos().containsKey(repoName)) {
+                        throw new EntryNotFoundException("Repository not found: " +
+                                                         projectName + '/' + repoName);
+                    }
+                    final Map<String, RepositoryMetadata> newRepos =
+                            removeFromMap(projectMetadata.repos(), repoName);
+                    return new ProjectMetadata(projectMetadata.name(),
+                                               newRepos,
+                                               projectMetadata.members(),
+                                               null,
+                                               projectMetadata.appIds(),
+                                               projectMetadata.creation(),
+                                               projectMetadata.removal());
+                });
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
@@ -433,13 +502,21 @@ public class MetadataService {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
 
-        final Change<JsonNode> change =
-                Change.ofJsonPatch(METADATA_JSON,
-                                   JsonPatchOperation.remove(JsonPointer.compile(
-                                           "/repos" + encodeSegment(repoName) + "/removal")).toJsonNode());
         final String commitSummary =
                 "Restore the repo '" + repoName + "' from the project '" + projectName + '\'';
-        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
+
+        final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
+                repoName, (headRevision, repositoryMetadata) -> {
+            if (repositoryMetadata.removal() == null) {
+                throw new ChangeConflictException("Repository is not removed: " + projectName + '/' + repoName);
+            }
+            return new RepositoryMetadata(repositoryMetadata.name(),
+                                          repositoryMetadata.roles(),
+                                          repositoryMetadata.creation(),
+                                          null,
+                                          repositoryMetadata.status());
+        });
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
@@ -462,8 +539,8 @@ public class MetadataService {
                 "Update the project roles of the '" + repoName + "' in the project '" + projectName + '\'';
         final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                 repoName, (headRevision, repositoryMetadata) -> {
-            final Roles newRoles = new Roles(projectRoles, repositoryMetadata.roles().users(),
-                                             repositoryMetadata.roles().tokens());
+            final Roles newRoles = new Roles(projectRoles, repositoryMetadata.roles().users(), null,
+                                             repositoryMetadata.roles().appIds());
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
@@ -494,15 +571,29 @@ public class MetadataService {
         getTokens().get(appId); // Will raise an exception if not found.
         final TokenRegistration registration = new TokenRegistration(appId, role,
                                                                      UserAndTimestamp.of(author));
-        final JsonPointer path = JsonPointer.compile("/tokens" + encodeSegment(registration.id()));
-        final Change<JsonNode> change =
-                Change.ofJsonPatch(METADATA_JSON,
-                                       asJsonArray(JsonPatchOperation.testAbsence(path),
-                                                   JsonPatchOperation.add(path,
-                                                                          Jackson.valueToTree(registration))));
         final String commitSummary = "Add a token '" + registration.id() +
                                      "' to the project '" + projectName + "' with a role '" + role + '\'';
-        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
+
+        final ProjectMetadataTransformer transformer =
+                new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
+                    if (projectMetadata.appIds().containsKey(registration.id())) {
+                        throw new ChangeConflictException("Token already exists: " + registration.id());
+                    }
+                    final ImmutableMap<String, TokenRegistration> newAppIds =
+                            ImmutableMap.<String, TokenRegistration>builderWithExpectedSize(
+                                                projectMetadata.appIds().size() + 1)
+                                        .putAll(projectMetadata.appIds())
+                                        .put(registration.id(), registration)
+                                        .build();
+                    return new ProjectMetadata(projectMetadata.name(),
+                                               projectMetadata.repos(),
+                                               projectMetadata.members(),
+                                               null,
+                                               newAppIds,
+                                               projectMetadata.creation(),
+                                               projectMetadata.removal());
+                });
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
@@ -531,16 +622,16 @@ public class MetadataService {
         final String commitSummary = "Remove the token '" + appId + "' from the project '" + projectName + '\'';
         final ProjectMetadataTransformer transformer =
                 new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
-                    final Map<String, TokenRegistration> tokens = projectMetadata.tokens();
-                    final Map<String, TokenRegistration> newTokens;
-                    if (tokens.get(appId) == null) {
+                    final Map<String, TokenRegistration> appIds = projectMetadata.appIds();
+                    final Map<String, TokenRegistration> newAppIds;
+                    if (appIds.get(appId) == null) {
                         if (!quiet) {
                             throw new TokenNotFoundException(
                                     "failed to find the token " + appId + " in project " + projectName);
                         }
-                        newTokens = tokens;
+                        newAppIds = appIds;
                     } else {
-                        newTokens = tokens.entrySet()
+                        newAppIds = appIds.entrySet()
                                           .stream()
                                           .filter(entry -> !entry.getKey().equals(appId))
                                           .collect(toImmutableMap(Entry::getKey, Entry::getValue));
@@ -551,7 +642,8 @@ public class MetadataService {
                     return new ProjectMetadata(projectMetadata.name(),
                                                newRepos,
                                                projectMetadata.members(),
-                                               newTokens,
+                                               null,
+                                               newAppIds,
                                                projectMetadata.creation(),
                                                projectMetadata.removal());
                 });
@@ -565,9 +657,9 @@ public class MetadataService {
         for (Entry<String, RepositoryMetadata> entry : projectMetadata.repos().entrySet()) {
             final RepositoryMetadata repositoryMetadata = entry.getValue();
             final Roles roles = repositoryMetadata.roles();
-            if (roles.tokens().get(appId) != null) {
-                final Map<String, RepositoryRole> newTokens = removeFromMap(roles.tokens(), appId);
-                final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newTokens);
+            if (roles.appIds().get(appId) != null) {
+                final Map<String, RepositoryRole> newAppIds = removeFromMap(roles.appIds(), appId);
+                final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), null, newAppIds);
                 builder.put(entry.getKey(), new RepositoryMetadata(repositoryMetadata.name(),
                                                                    newRoles,
                                                                    repositoryMetadata.creation(),
@@ -589,16 +681,36 @@ public class MetadataService {
         requireNonNull(projectName, "projectName");
         requireNonNull(token, "token");
         requireNonNull(role, "role");
+
         final TokenRegistration registration = new TokenRegistration(token.appId(), role,
                                                                      UserAndTimestamp.of(author));
-        final JsonPointer path = JsonPointer.compile("/tokens" + encodeSegment(registration.id()));
-        final Change<JsonNode> change =
-                Change.ofJsonPatch(METADATA_JSON,
-                                   JsonPatchOperation.replace(
-                                           path, Jackson.valueToTree(registration)).toJsonNode());
         final String commitSummary = "Update the role of a token '" + token.appId() +
                                      "' as '" + role + "' for the project '" + projectName + '\'';
-        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
+
+        final ProjectMetadataTransformer transformer =
+                new ProjectMetadataTransformer((headRevision, projectMetadata) -> {
+                    final TokenRegistration existingToken = projectMetadata.appIds().get(token.appId());
+                    if (existingToken == null) {
+                        throw new EntryNotFoundException("Token not found: " + token.appId());
+                    }
+                    if (existingToken.role() == role) {
+                        throw new RedundantChangeException("Token already has role: " + role);
+                    }
+                    final ImmutableMap<String, TokenRegistration> newAppIds =
+                            ImmutableMap.<String, TokenRegistration>builderWithExpectedSize(
+                                                projectMetadata.appIds().size())
+                                        .putAll(projectMetadata.appIds())
+                                        .put(token.appId(), registration)
+                                        .buildKeepingLast();
+                    return new ProjectMetadata(projectMetadata.name(),
+                                               projectMetadata.repos(),
+                                               projectMetadata.members(),
+                                               null,
+                                               newAppIds,
+                                               projectMetadata.creation(),
+                                               projectMetadata.removal());
+                });
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
 
     /**
@@ -630,7 +742,7 @@ public class MetadataService {
 
                 final Map<String, RepositoryRole> users = roles.users();
                 final ImmutableMap<String, RepositoryRole> newUsers = addToMap(users, member.id(), role);
-                final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.tokens());
+                final Roles newRoles = new Roles(roles.projectRoles(), newUsers, null, roles.appIds());
                 return new RepositoryMetadata(repositoryMetadata.name(),
                                               newRoles,
                                               repositoryMetadata.creation(),
@@ -661,7 +773,7 @@ public class MetadataService {
             }
 
             final Map<String, RepositoryRole> newUsers = removeFromMap(roles.users(), memberId);
-            final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.tokens());
+            final Roles newRoles = new Roles(roles.projectRoles(), newUsers, null, roles.appIds());
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
@@ -703,7 +815,7 @@ public class MetadataService {
             }
 
             final Map<String, RepositoryRole> newUsers = updateMap(roles.users(), memberId, role);
-            final Roles newRoles = new Roles(roles.projectRoles(), newUsers, roles.tokens());
+            final Roles newRoles = new Roles(roles.projectRoles(), newUsers, null, roles.appIds());
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
@@ -736,14 +848,14 @@ public class MetadataService {
             final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                     repoName, (headRevision, repositoryMetadata) -> {
                 final Roles roles = repositoryMetadata.roles();
-                if (roles.tokens().get(appId) != null) {
+                if (roles.appIds().get(appId) != null) {
                     throw new ChangeConflictException(
                             "the token " + appId + " is already added to '" +
                             projectName + '/' + repoName + '\'');
                 }
 
-                final Map<String, RepositoryRole> newTokens = addToMap(roles.tokens(), appId, role);
-                final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newTokens);
+                final Map<String, RepositoryRole> newAppIds = addToMap(roles.appIds(), appId, role);
+                final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), null, newAppIds);
                 return new RepositoryMetadata(repositoryMetadata.name(),
                                               newRoles,
                                               repositoryMetadata.creation(),
@@ -768,14 +880,14 @@ public class MetadataService {
         final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                 repoName, (headRevision, repositoryMetadata) -> {
             final Roles roles = repositoryMetadata.roles();
-            if (roles.tokens().get(appId) == null) {
+            if (roles.appIds().get(appId) == null) {
                 throw new ChangeConflictException(
                         "the token " + appId + " doesn't exist at '" +
                         projectName + '/' + repoName + '\'');
             }
 
-            final Map<String, RepositoryRole> newTokens = removeFromMap(roles.tokens(), appId);
-            final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newTokens);
+            final Map<String, RepositoryRole> newAppIds = removeFromMap(roles.appIds(), appId);
+            final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), null, newAppIds);
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
@@ -803,7 +915,7 @@ public class MetadataService {
         final RepositoryMetadataTransformer transformer = new RepositoryMetadataTransformer(
                 repoName, (headRevision, repositoryMetadata) -> {
             final Roles roles = repositoryMetadata.roles();
-            final RepositoryRole oldRepositoryRole = roles.tokens().get(appId);
+            final RepositoryRole oldRepositoryRole = roles.appIds().get(appId);
             if (oldRepositoryRole == null) {
                 throw new TokenNotFoundException(
                         "the token " + appId + " doesn't exist at '" +
@@ -817,8 +929,8 @@ public class MetadataService {
                         "' isn't changed.");
             }
 
-            final Map<String, RepositoryRole> newTokens = updateMap(roles.tokens(), appId, role);
-            final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), newTokens);
+            final Map<String, RepositoryRole> newAppIds = updateMap(roles.appIds(), appId, role);
+            final Roles newRoles = new Roles(roles.projectRoles(), roles.users(), null, newAppIds);
             return new RepositoryMetadata(repositoryMetadata.name(),
                                           newRoles,
                                           repositoryMetadata.creation(),
@@ -864,9 +976,9 @@ public class MetadataService {
             final RepositoryMetadata repositoryMetadata = metadata.repo(repoName);
             final Roles roles = repositoryMetadata.roles();
             final String appId = token.appId();
-            final RepositoryRole tokenRepositoryRole = roles.tokens().get(appId);
+            final RepositoryRole tokenRepositoryRole = roles.appIds().get(appId);
 
-            final TokenRegistration projectTokenRegistration = metadata.tokens().get(appId);
+            final TokenRegistration projectTokenRegistration = metadata.appIds().get(appId);
             final ProjectRole projectRole;
             if (projectTokenRegistration != null) {
                 projectRole = projectTokenRegistration.role();
@@ -943,7 +1055,7 @@ public class MetadataService {
         }
         return getProject(projectName).thenApply(project -> {
             if (user instanceof UserWithToken) {
-                final TokenRegistration registration = project.tokens().getOrDefault(
+                final TokenRegistration registration = project.appIds().getOrDefault(
                         ((UserWithToken) user).token().id(), null);
                 return registration != null ? registration.role() : ProjectRole.GUEST;
             } else {
@@ -1006,19 +1118,32 @@ public class MetadataService {
         final boolean allowGuestAccess = isSystemAdmin;
         final Token newToken = new Token(appId, secret, isSystemAdmin, allowGuestAccess,
                                          UserAndTimestamp.of(author));
-        final JsonPointer appIdPath = JsonPointer.compile("/appIds" + encodeSegment(newToken.id()));
-        final String newTokenSecret = newToken.secret();
-        assert newTokenSecret != null;
-        final JsonPointer secretPath = JsonPointer.compile("/secrets" + encodeSegment(newTokenSecret));
-        final Change<JsonNode> change =
-                Change.ofJsonPatch(TOKEN_JSON,
-                                   asJsonArray(JsonPatchOperation.testAbsence(appIdPath),
-                                               JsonPatchOperation.testAbsence(secretPath),
-                                               JsonPatchOperation.add(appIdPath, Jackson.valueToTree(newToken)),
-                                               JsonPatchOperation.add(secretPath,
-                                                                      Jackson.valueToTree(newToken.id()))));
+
+        final TokensTransformer transformer = new TokensTransformer((headRevision, tokens) -> {
+            if (tokens.appIds().containsKey(newToken.id())) {
+                throw new ChangeConflictException("Token already exists: " + newToken.id());
+            }
+            final String newTokenSecret = newToken.secret();
+            assert newTokenSecret != null;
+            if (tokens.secrets().containsKey(newTokenSecret)) {
+                throw new ChangeConflictException("Secret already exists");
+            }
+
+            final ImmutableMap<String, AppIdentity> newAppIds =
+                    ImmutableMap.<String, AppIdentity>builderWithExpectedSize(tokens.appIds().size() + 1)
+                                .putAll(tokens.appIds())
+                                .put(newToken.id(), newToken)
+                                .build();
+            final ImmutableMap<String, String> newSecrets =
+                    ImmutableMap.<String, String>builderWithExpectedSize(tokens.secrets().size() + 1)
+                                .putAll(tokens.secrets())
+                                .put(newTokenSecret, newToken.id())
+                                .build();
+            return new Tokens(newAppIds, newSecrets, tokens.certificateIds());
+        });
+
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
-                              "Add a token: " + newToken.id(), change);
+                              "Add a token: " + newToken.id(), transformer);
     }
 
     /**
@@ -1039,10 +1164,11 @@ public class MetadataService {
 
             final String secret = token.secret();
             assert secret != null;
-            final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(),
+            final Token newToken = new Token(token.appId(), secret,
                                              token.isSystemAdmin(), token.allowGuestAccess(),
                                              token.creation(), token.deactivation(), userAndTimestamp);
-            return new Tokens(updateMap(tokens.appIds(), appId, newToken), tokens.secrets());
+            return new Tokens(updateMap(tokens.appIds(), appId, newToken), tokens.secrets(),
+                              tokens.certificateIds());
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -1063,7 +1189,7 @@ public class MetadataService {
             // Fetch the metadata to get the latest information.
             final ProjectMetadata projectMetadata = fetchMetadata(project.name()).join();
             final boolean containsTargetTokenInTheProject =
-                    projectMetadata.tokens().values()
+                    projectMetadata.appIds().values()
                                    .stream()
                                    .anyMatch(token -> token.appId().equals(appId));
 
@@ -1076,11 +1202,11 @@ public class MetadataService {
 
         final TokensTransformer transformer = new TokensTransformer((headRevision, tokens) -> {
             final Token token = tokens.get(appId);
-            final Map<String, Token> newAppIds = removeFromMap(tokens.appIds(), appId);
+            final Map<String, AppIdentity> newAppIds = removeFromMap(tokens.appIds(), appId);
             final String secret = token.secret();
             assert secret != null;
             final Map<String, String> newSecrets = removeFromMap(tokens.secrets(), secret);
-            return new Tokens(newAppIds, newSecrets);
+            return new Tokens(newAppIds, newSecrets, tokens.certificateIds());
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer)
                         .join();
@@ -1106,7 +1232,7 @@ public class MetadataService {
                     addToMap(tokens.secrets(), secret, appId); // Note that the key is secret not appId.
             final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(),
                                              token.allowGuestAccess(), token.creation());
-            return new Tokens(updateMap(tokens.appIds(), appId, newToken), newSecrets);
+            return new Tokens(updateMap(tokens.appIds(), appId, newToken), newSecrets, tokens.certificateIds());
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -1128,13 +1254,13 @@ public class MetadataService {
             }
             final String secret = token.secret();
             assert secret != null;
-            final Token newToken = new Token(token.appId(), secret, token.isSystemAdmin(),
+            final Token newToken = new Token(token.appId(), secret,
                                              token.isSystemAdmin(), token.allowGuestAccess(), token.creation(),
                                              userAndTimestamp, null);
-            final Map<String, Token> newAppIds = updateMap(tokens.appIds(), appId, newToken);
+            final Map<String, AppIdentity> newAppIds = updateMap(tokens.appIds(), appId, newToken);
             final Map<String, String> newSecrets =
                     removeFromMap(tokens.secrets(), secret); // Note that the key is secret not appId.
-            return new Tokens(newAppIds, newSecrets);
+            return new Tokens(newAppIds, newSecrets, tokens.certificateIds());
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -1156,7 +1282,8 @@ public class MetadataService {
             }
 
             final Token newToken = token.withSystemAdmin(toBeSystemAdmin);
-            return new Tokens(updateMap(tokens.appIds(), appId, newToken), tokens.secrets());
+            return new Tokens(updateMap(tokens.appIds(), appId, newToken), tokens.secrets(),
+                              tokens.certificateIds());
         });
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, commitSummary, transformer);
     }
@@ -1197,7 +1324,7 @@ public class MetadataService {
         requireNonNull(project, "project");
         requireNonNull(appId, "appId");
 
-        if (!project.tokens().containsKey(appId)) {
+        if (!project.appIds().containsKey(appId)) {
             throw new TokenNotFoundException(
                     appId + " is not a token of the project '" + project.name() + '\'');
         }
@@ -1264,7 +1391,8 @@ public class MetadataService {
                 return new ProjectMetadata(projectMetadata.name(),
                                            builder.build(),
                                            projectMetadata.members(),
-                                           projectMetadata.tokens(),
+                                           null,
+                                           projectMetadata.appIds(),
                                            projectMetadata.creation(),
                                            projectMetadata.removal());
             });

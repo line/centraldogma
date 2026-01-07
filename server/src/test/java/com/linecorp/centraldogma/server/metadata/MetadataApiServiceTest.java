@@ -218,7 +218,7 @@ class MetadataApiServiceTest {
         assertThat(systemAdminClient.execute(request).status()).isSameAs(HttpStatus.OK);
 
         ProjectMetadata projectMetadata = projectMetadata();
-        assertThat(projectMetadata.repo(REPOSITORY_NAME).roles().tokens().get(APP_ID))
+        assertThat(projectMetadata.repo(REPOSITORY_NAME).roles().appIds().get(APP_ID))
                 .isSameAs(RepositoryRole.READ);
 
         // Remove the member
@@ -228,7 +228,7 @@ class MetadataApiServiceTest {
         assertThat(systemAdminClient.execute(request).status())
                 .isSameAs(HttpStatus.NO_CONTENT);
         projectMetadata = projectMetadata();
-        assertThat(projectMetadata.repo(REPOSITORY_NAME).roles().tokens().get(APP_ID)).isNull();
+        assertThat(projectMetadata.repo(REPOSITORY_NAME).roles().appIds().get(APP_ID)).isNull();
     }
 
     @Test
