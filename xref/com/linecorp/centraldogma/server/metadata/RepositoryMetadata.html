@@ -111,7 +111,7 @@
 <a class="jxr_linenumber" name="L103" href="#L103">103</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L104" href="#L104">104</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../../com/linecorp/centraldogma/server/metadata/RepositoryMetadata.html">RepositoryMetadata</a>(String name, <a href="../../../../../com/linecorp/centraldogma/server/metadata/UserAndTimestamp.html">UserAndTimestamp</a> creation, <a href="../../../../../com/linecorp/centraldogma/server/metadata/ProjectRoles.html">ProjectRoles</a> projectRoles) {
 <a class="jxr_linenumber" name="L105" href="#L105">105</a>         <strong class="jxr_keyword">this</strong>(name, <strong class="jxr_keyword">new</strong> <a href="../../../../../com/linecorp/centraldogma/server/metadata/Roles.html">Roles</a>(requireNonNull(projectRoles, <span class="jxr_string">"projectRoles"</span>),
-<a class="jxr_linenumber" name="L106" href="#L106">106</a>                              ImmutableMap.of(), ImmutableMap.of()),
+<a class="jxr_linenumber" name="L106" href="#L106">106</a>                              ImmutableMap.of(), <strong class="jxr_keyword">null</strong>, ImmutableMap.of()),
 <a class="jxr_linenumber" name="L107" href="#L107">107</a>              creation, <em class="jxr_comment">/* removal */</em> <strong class="jxr_keyword">null</strong>, RepositoryStatus.ACTIVE);
 <a class="jxr_linenumber" name="L108" href="#L108">108</a>     }
 <a class="jxr_linenumber" name="L109" href="#L109">109</a> 
@@ -226,6 +226,6 @@
 <a class="jxr_linenumber" name="L218" href="#L218">218</a> }
 </pre>
 <hr/>
-<div id="footer">&copy; Copyright 2017&ndash;2025 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>
+<div id="footer">&copy; Copyright 2017&ndash;2026 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>
 </body>
 </html>

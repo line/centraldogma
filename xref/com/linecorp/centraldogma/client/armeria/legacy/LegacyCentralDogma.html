@@ -230,432 +230,437 @@
 <a class="jxr_linenumber" name="L222" href="#L222">222</a> 
 <a class="jxr_linenumber" name="L223" href="#L223">223</a>     @Override
 <a class="jxr_linenumber" name="L224" href="#L224">224</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; CompletableFuture&lt;Entry&lt;T&gt;&gt; getFile(String projectName, String repositoryName,
-<a class="jxr_linenumber" name="L225" href="#L225">225</a>                                                    <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, Query&lt;T&gt; query) {
+<a class="jxr_linenumber" name="L225" href="#L225">225</a>                                                    <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, Query&lt;T&gt; query, <strong class="jxr_keyword">boolean</strong> viewRaw) {
 <a class="jxr_linenumber" name="L226" href="#L226">226</a>         requireNonNull(query, <span class="jxr_string">"query"</span>);
 <a class="jxr_linenumber" name="L227" href="#L227">227</a>         <strong class="jxr_keyword">return</strong> maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -&gt; {
 <a class="jxr_linenumber" name="L228" href="#L228">228</a>             <strong class="jxr_keyword">final</strong> CompletableFuture&lt;GetFileResult&gt; future = run(callback -&gt; {
-<a class="jxr_linenumber" name="L229" href="#L229">229</a>                 client.getFile(projectName, repositoryName,
-<a class="jxr_linenumber" name="L230" href="#L230">230</a>                                RevisionConverter.TO_DATA.convert(normRev),
-<a class="jxr_linenumber" name="L231" href="#L231">231</a>                                QueryConverter.TO_DATA.convert(query), callback);
-<a class="jxr_linenumber" name="L232" href="#L232">232</a>             });
-<a class="jxr_linenumber" name="L233" href="#L233">233</a>             <strong class="jxr_keyword">return</strong> future.thenApply(r -&gt; {
-<a class="jxr_linenumber" name="L234" href="#L234">234</a>                 <strong class="jxr_keyword">if</strong> (r == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L235" href="#L235">235</a>                     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L236" href="#L236">236</a>                 }
-<a class="jxr_linenumber" name="L237" href="#L237">237</a> 
-<a class="jxr_linenumber" name="L238" href="#L238">238</a>                 <strong class="jxr_keyword">return</strong> toEntry(query, normRev, query.type(), r.getContent(), r.getType());
-<a class="jxr_linenumber" name="L239" href="#L239">239</a>             });
-<a class="jxr_linenumber" name="L240" href="#L240">240</a>         });
-<a class="jxr_linenumber" name="L241" href="#L241">241</a>     }
-<a class="jxr_linenumber" name="L242" href="#L242">242</a> 
-<a class="jxr_linenumber" name="L243" href="#L243">243</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; Entry&lt;T&gt; toEntry(Query&lt;T&gt; query, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> normRev, <a href="../../../../../../com/linecorp/centraldogma/common/QueryType.html">QueryType</a> queryType, String content,
-<a class="jxr_linenumber" name="L244" href="#L244">244</a>                                         com.linecorp.centraldogma.internal.thrift.EntryType receivedEntryType) {
-<a class="jxr_linenumber" name="L245" href="#L245">245</a>         <strong class="jxr_keyword">switch</strong> (queryType) {
-<a class="jxr_linenumber" name="L246" href="#L246">246</a>             <strong class="jxr_keyword">case</strong> IDENTITY_TEXT:
-<a class="jxr_linenumber" name="L247" href="#L247">247</a>                 <strong class="jxr_keyword">return</strong> entryAsText(query, normRev, content);
-<a class="jxr_linenumber" name="L248" href="#L248">248</a>             <strong class="jxr_keyword">case</strong> IDENTITY_JSON:
-<a class="jxr_linenumber" name="L249" href="#L249">249</a>             <strong class="jxr_keyword">case</strong> JSON_PATH:
-<a class="jxr_linenumber" name="L250" href="#L250">250</a>                 <strong class="jxr_keyword">if</strong> (receivedEntryType != com.linecorp.centraldogma.internal.thrift.EntryType.JSON) {
-<a class="jxr_linenumber" name="L251" href="#L251">251</a>                     <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/CentralDogmaException.html">CentralDogmaException</a>(<span class="jxr_string">"invalid entry type. entry type: "</span> + receivedEntryType +
-<a class="jxr_linenumber" name="L252" href="#L252">252</a>                                                     <span class="jxr_string">" (expected: "</span> + queryType + ')');
-<a class="jxr_linenumber" name="L253" href="#L253">253</a>                 }
-<a class="jxr_linenumber" name="L254" href="#L254">254</a>                 <strong class="jxr_keyword">return</strong> entryAsJson(query, normRev, content);
-<a class="jxr_linenumber" name="L255" href="#L255">255</a>             <strong class="jxr_keyword">case</strong> IDENTITY:
-<a class="jxr_linenumber" name="L256" href="#L256">256</a>                 <strong class="jxr_keyword">switch</strong> (receivedEntryType) {
-<a class="jxr_linenumber" name="L257" href="#L257">257</a>                     <strong class="jxr_keyword">case</strong> JSON:
-<a class="jxr_linenumber" name="L258" href="#L258">258</a>                         <strong class="jxr_keyword">return</strong> entryAsJson(query, normRev, content);
-<a class="jxr_linenumber" name="L259" href="#L259">259</a>                     <strong class="jxr_keyword">case</strong> TEXT:
-<a class="jxr_linenumber" name="L260" href="#L260">260</a>                         <strong class="jxr_keyword">return</strong> entryAsText(query, normRev, content);
-<a class="jxr_linenumber" name="L261" href="#L261">261</a>                     <strong class="jxr_keyword">case</strong> DIRECTORY:
-<a class="jxr_linenumber" name="L262" href="#L262">262</a>                         <strong class="jxr_keyword">return</strong> unsafeCast(Entry.ofDirectory(normRev, query.path()));
-<a class="jxr_linenumber" name="L263" href="#L263">263</a>                 }
-<a class="jxr_linenumber" name="L264" href="#L264">264</a>         }
-<a class="jxr_linenumber" name="L265" href="#L265">265</a>         <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> Error(); <em class="jxr_comment">// Should never reach here.</em>
-<a class="jxr_linenumber" name="L266" href="#L266">266</a>     }
-<a class="jxr_linenumber" name="L267" href="#L267">267</a> 
-<a class="jxr_linenumber" name="L268" href="#L268">268</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; Entry&lt;T&gt; entryAsJson(Query&lt;T&gt; query, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> normRev, String content) {
-<a class="jxr_linenumber" name="L269" href="#L269">269</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L270" href="#L270">270</a>             <strong class="jxr_keyword">return</strong> unsafeCast(Entry.ofJson(normRev, query.path(), Jackson.readTree(content)));
-<a class="jxr_linenumber" name="L271" href="#L271">271</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
-<a class="jxr_linenumber" name="L272" href="#L272">272</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/CentralDogmaException.html">CentralDogmaException</a>(<span class="jxr_string">"failed to parse the query result: "</span> + query, e);
-<a class="jxr_linenumber" name="L273" href="#L273">273</a>         }
-<a class="jxr_linenumber" name="L274" href="#L274">274</a>     }
-<a class="jxr_linenumber" name="L275" href="#L275">275</a> 
-<a class="jxr_linenumber" name="L276" href="#L276">276</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; Entry&lt;T&gt; entryAsText(Query&lt;T&gt; query, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> normRev, String content) {
-<a class="jxr_linenumber" name="L277" href="#L277">277</a>         <strong class="jxr_keyword">return</strong> unsafeCast(Entry.ofText(normRev, query.path(), content));
-<a class="jxr_linenumber" name="L278" href="#L278">278</a>     }
-<a class="jxr_linenumber" name="L279" href="#L279">279</a> 
-<a class="jxr_linenumber" name="L280" href="#L280">280</a>     @Override
-<a class="jxr_linenumber" name="L281" href="#L281">281</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Map&lt;String, Entry&lt;?&gt;&gt;&gt; getFiles(String projectName, String repositoryName,
-<a class="jxr_linenumber" name="L282" href="#L282">282</a>                                                              <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, <a href="../../../../../../com/linecorp/centraldogma/common/PathPattern.html">PathPattern</a> pathPattern) {
-<a class="jxr_linenumber" name="L283" href="#L283">283</a>         requireNonNull(pathPattern, <span class="jxr_string">"pathPattern"</span>);
-<a class="jxr_linenumber" name="L284" href="#L284">284</a>         <strong class="jxr_keyword">return</strong> maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -&gt; {
-<a class="jxr_linenumber" name="L285" href="#L285">285</a>             <strong class="jxr_keyword">final</strong> CompletableFuture&lt;List&lt;com.linecorp.centraldogma.internal.thrift.Entry&gt;&gt; future =
-<a class="jxr_linenumber" name="L286" href="#L286">286</a>                     run(callback -&gt; {
-<a class="jxr_linenumber" name="L287" href="#L287">287</a>                         client.getFiles(projectName, repositoryName,
-<a class="jxr_linenumber" name="L288" href="#L288">288</a>                                         RevisionConverter.TO_DATA.convert(normRev),
-<a class="jxr_linenumber" name="L289" href="#L289">289</a>                                         pathPattern.patternString(), callback);
-<a class="jxr_linenumber" name="L290" href="#L290">290</a>                     });
-<a class="jxr_linenumber" name="L291" href="#L291">291</a>             <strong class="jxr_keyword">return</strong> future.thenApply(list -&gt; convertToMap(list, e -&gt; EntryConverter.convert(normRev, e),
-<a class="jxr_linenumber" name="L292" href="#L292">292</a>                                                          Entry::path, Function.identity()));
-<a class="jxr_linenumber" name="L293" href="#L293">293</a>         });
-<a class="jxr_linenumber" name="L294" href="#L294">294</a>     }
-<a class="jxr_linenumber" name="L295" href="#L295">295</a> 
-<a class="jxr_linenumber" name="L296" href="#L296">296</a>     @Override
-<a class="jxr_linenumber" name="L297" href="#L297">297</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; CompletableFuture&lt;MergedEntry&lt;T&gt;&gt; mergeFiles(String projectName, String repositoryName,
-<a class="jxr_linenumber" name="L298" href="#L298">298</a>                                                             <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, MergeQuery&lt;T&gt; mergeQuery) {
-<a class="jxr_linenumber" name="L299" href="#L299">299</a>         validateProjectAndRepositoryName(projectName, repositoryName);
-<a class="jxr_linenumber" name="L300" href="#L300">300</a>         requireNonNull(revision, <span class="jxr_string">"revision"</span>);
-<a class="jxr_linenumber" name="L301" href="#L301">301</a>         requireNonNull(mergeQuery, <span class="jxr_string">"mergeQuery"</span>);
-<a class="jxr_linenumber" name="L302" href="#L302">302</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;com.linecorp.centraldogma.internal.thrift.MergedEntry&gt; future =
-<a class="jxr_linenumber" name="L303" href="#L303">303</a>                 run(callback -&gt; {
-<a class="jxr_linenumber" name="L304" href="#L304">304</a>                     client.mergeFiles(projectName, repositoryName,
-<a class="jxr_linenumber" name="L305" href="#L305">305</a>                                       RevisionConverter.TO_DATA.convert(revision),
-<a class="jxr_linenumber" name="L306" href="#L306">306</a>                                       MergeQueryConverter.TO_DATA.convert(mergeQuery),
-<a class="jxr_linenumber" name="L307" href="#L307">307</a>                                       callback);
-<a class="jxr_linenumber" name="L308" href="#L308">308</a>                 });
-<a class="jxr_linenumber" name="L309" href="#L309">309</a>         <strong class="jxr_keyword">return</strong> future.thenApply(entry -&gt; {
-<a class="jxr_linenumber" name="L310" href="#L310">310</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/common/EntryType.html">EntryType</a> entryType = EntryConverter.convertEntryType(entry.getType());
-<a class="jxr_linenumber" name="L311" href="#L311">311</a>             assert entryType != <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L312" href="#L312">312</a>             <strong class="jxr_keyword">switch</strong> (entryType) {
-<a class="jxr_linenumber" name="L313" href="#L313">313</a>                 <strong class="jxr_keyword">case</strong> JSON:
-<a class="jxr_linenumber" name="L314" href="#L314">314</a>                     <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L315" href="#L315">315</a>                         @SuppressWarnings(<span class="jxr_string">"unchecked"</span>)
-<a class="jxr_linenumber" name="L316" href="#L316">316</a>                         <strong class="jxr_keyword">final</strong> MergedEntry&lt;T&gt; converted = (MergedEntry&lt;T&gt;) MergedEntry.of(
-<a class="jxr_linenumber" name="L317" href="#L317">317</a>                                 RevisionConverter.TO_MODEL.convert(entry.revision),
-<a class="jxr_linenumber" name="L318" href="#L318">318</a>                                 entryType, Jackson.readTree(entry.content), entry.paths);
-<a class="jxr_linenumber" name="L319" href="#L319">319</a>                         <strong class="jxr_keyword">return</strong> converted;
-<a class="jxr_linenumber" name="L320" href="#L320">320</a>                     } <strong class="jxr_keyword">catch</strong> (IOException e) {
-<a class="jxr_linenumber" name="L321" href="#L321">321</a>                         <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/CentralDogmaException.html">CentralDogmaException</a>(
-<a class="jxr_linenumber" name="L322" href="#L322">322</a>                                 <span class="jxr_string">"failed to parse the content: "</span> + entry.content, e);
-<a class="jxr_linenumber" name="L323" href="#L323">323</a>                     }
-<a class="jxr_linenumber" name="L324" href="#L324">324</a>                 <strong class="jxr_keyword">default</strong>:
-<a class="jxr_linenumber" name="L325" href="#L325">325</a>                     <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> Error(<span class="jxr_string">"unsupported entry type: "</span> + entryType);
-<a class="jxr_linenumber" name="L326" href="#L326">326</a>             }
-<a class="jxr_linenumber" name="L327" href="#L327">327</a>         });
-<a class="jxr_linenumber" name="L328" href="#L328">328</a>     }
-<a class="jxr_linenumber" name="L329" href="#L329">329</a> 
-<a class="jxr_linenumber" name="L330" href="#L330">330</a>     @Override
-<a class="jxr_linenumber" name="L331" href="#L331">331</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;List&lt;Commit&gt;&gt; getHistory(String projectName,
-<a class="jxr_linenumber" name="L332" href="#L332">332</a>                                                       String repositoryName,
-<a class="jxr_linenumber" name="L333" href="#L333">333</a>                                                       <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> from,
-<a class="jxr_linenumber" name="L334" href="#L334">334</a>                                                       <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> to,
-<a class="jxr_linenumber" name="L335" href="#L335">335</a>                                                       <a href="../../../../../../com/linecorp/centraldogma/common/PathPattern.html">PathPattern</a> pathPattern,
-<a class="jxr_linenumber" name="L336" href="#L336">336</a>                                                       <strong class="jxr_keyword">int</strong> maxCommits) {
-<a class="jxr_linenumber" name="L337" href="#L337">337</a>         checkArgument(maxCommits == 0, <span class="jxr_string">"maxCommits is not supported in LegacyCentralDogma."</span>);
-<a class="jxr_linenumber" name="L338" href="#L338">338</a>         validateProjectAndRepositoryName(projectName, repositoryName);
-<a class="jxr_linenumber" name="L339" href="#L339">339</a>         requireNonNull(from, <span class="jxr_string">"from"</span>);
-<a class="jxr_linenumber" name="L340" href="#L340">340</a>         requireNonNull(to, <span class="jxr_string">"to"</span>);
-<a class="jxr_linenumber" name="L341" href="#L341">341</a>         requireNonNull(pathPattern, <span class="jxr_string">"pathPattern"</span>);
-<a class="jxr_linenumber" name="L342" href="#L342">342</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;List&lt;com.linecorp.centraldogma.internal.thrift.Commit&gt;&gt; future =
-<a class="jxr_linenumber" name="L343" href="#L343">343</a>                 run(callback -&gt; client.getHistory(projectName, repositoryName,
-<a class="jxr_linenumber" name="L344" href="#L344">344</a>                                                   RevisionConverter.TO_DATA.convert(from),
-<a class="jxr_linenumber" name="L345" href="#L345">345</a>                                                   RevisionConverter.TO_DATA.convert(to),
-<a class="jxr_linenumber" name="L346" href="#L346">346</a>                                                   pathPattern.patternString(), callback));
-<a class="jxr_linenumber" name="L347" href="#L347">347</a>         <strong class="jxr_keyword">return</strong> future.thenApply(list -&gt; convertToList(list, CommitConverter.TO_MODEL::convert));
-<a class="jxr_linenumber" name="L348" href="#L348">348</a>     }
-<a class="jxr_linenumber" name="L349" href="#L349">349</a> 
-<a class="jxr_linenumber" name="L350" href="#L350">350</a>     @Override
-<a class="jxr_linenumber" name="L351" href="#L351">351</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; CompletableFuture&lt;Change&lt;T&gt;&gt; getDiff(String projectName, String repositoryName,
-<a class="jxr_linenumber" name="L352" href="#L352">352</a>                                                     <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> from, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> to, Query&lt;T&gt; query) {
-<a class="jxr_linenumber" name="L353" href="#L353">353</a>         validateProjectAndRepositoryName(projectName, repositoryName);
-<a class="jxr_linenumber" name="L354" href="#L354">354</a>         requireNonNull(from, <span class="jxr_string">"from"</span>);
-<a class="jxr_linenumber" name="L355" href="#L355">355</a>         requireNonNull(to, <span class="jxr_string">"to"</span>);
-<a class="jxr_linenumber" name="L356" href="#L356">356</a>         requireNonNull(query, <span class="jxr_string">"query"</span>);
-<a class="jxr_linenumber" name="L357" href="#L357">357</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;DiffFileResult&gt; future = run(callback -&gt; {
-<a class="jxr_linenumber" name="L358" href="#L358">358</a>             client.diffFile(projectName, repositoryName,
-<a class="jxr_linenumber" name="L359" href="#L359">359</a>                             RevisionConverter.TO_DATA.convert(from),
-<a class="jxr_linenumber" name="L360" href="#L360">360</a>                             RevisionConverter.TO_DATA.convert(to),
-<a class="jxr_linenumber" name="L361" href="#L361">361</a>                             QueryConverter.TO_DATA.convert(query), callback);
-<a class="jxr_linenumber" name="L362" href="#L362">362</a>         });
-<a class="jxr_linenumber" name="L363" href="#L363">363</a>         <strong class="jxr_keyword">return</strong> future.thenApply(r -&gt; {
-<a class="jxr_linenumber" name="L364" href="#L364">364</a>             <strong class="jxr_keyword">if</strong> (r == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L365" href="#L365">365</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L366" href="#L366">366</a>             }
-<a class="jxr_linenumber" name="L367" href="#L367">367</a> 
-<a class="jxr_linenumber" name="L368" href="#L368">368</a>             <strong class="jxr_keyword">final</strong> Change&lt;T&gt; converted;
-<a class="jxr_linenumber" name="L369" href="#L369">369</a>             <strong class="jxr_keyword">switch</strong> (r.getType()) {
-<a class="jxr_linenumber" name="L370" href="#L370">370</a>                 <strong class="jxr_keyword">case</strong> UPSERT_JSON:
-<a class="jxr_linenumber" name="L371" href="#L371">371</a>                     converted = unsafeCast(Change.ofJsonUpsert(query.path(), r.getContent()));
-<a class="jxr_linenumber" name="L372" href="#L372">372</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L373" href="#L373">373</a>                 <strong class="jxr_keyword">case</strong> UPSERT_TEXT:
-<a class="jxr_linenumber" name="L374" href="#L374">374</a>                     converted = unsafeCast(Change.ofTextUpsert(query.path(), r.getContent()));
+<a class="jxr_linenumber" name="L229" href="#L229">229</a>                 <em class="jxr_comment">// viewRaw is not supported in LegacyCentralDogma.</em>
+<a class="jxr_linenumber" name="L230" href="#L230">230</a>                 client.getFile(projectName, repositoryName,
+<a class="jxr_linenumber" name="L231" href="#L231">231</a>                                RevisionConverter.TO_DATA.convert(normRev),
+<a class="jxr_linenumber" name="L232" href="#L232">232</a>                                QueryConverter.TO_DATA.convert(query), callback);
+<a class="jxr_linenumber" name="L233" href="#L233">233</a>             });
+<a class="jxr_linenumber" name="L234" href="#L234">234</a>             <strong class="jxr_keyword">return</strong> future.thenApply(r -&gt; {
+<a class="jxr_linenumber" name="L235" href="#L235">235</a>                 <strong class="jxr_keyword">if</strong> (r == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L236" href="#L236">236</a>                     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L237" href="#L237">237</a>                 }
+<a class="jxr_linenumber" name="L238" href="#L238">238</a> 
+<a class="jxr_linenumber" name="L239" href="#L239">239</a>                 <strong class="jxr_keyword">return</strong> toEntry(query, normRev, query.type(), r.getContent(), r.getType());
+<a class="jxr_linenumber" name="L240" href="#L240">240</a>             });
+<a class="jxr_linenumber" name="L241" href="#L241">241</a>         });
+<a class="jxr_linenumber" name="L242" href="#L242">242</a>     }
+<a class="jxr_linenumber" name="L243" href="#L243">243</a> 
+<a class="jxr_linenumber" name="L244" href="#L244">244</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; Entry&lt;T&gt; toEntry(Query&lt;T&gt; query, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> normRev, <a href="../../../../../../com/linecorp/centraldogma/common/QueryType.html">QueryType</a> queryType, String content,
+<a class="jxr_linenumber" name="L245" href="#L245">245</a>                                         com.linecorp.centraldogma.internal.thrift.EntryType receivedEntryType) {
+<a class="jxr_linenumber" name="L246" href="#L246">246</a>         <strong class="jxr_keyword">switch</strong> (queryType) {
+<a class="jxr_linenumber" name="L247" href="#L247">247</a>             <strong class="jxr_keyword">case</strong> IDENTITY_TEXT:
+<a class="jxr_linenumber" name="L248" href="#L248">248</a>                 <strong class="jxr_keyword">return</strong> entryAsText(query, normRev, content);
+<a class="jxr_linenumber" name="L249" href="#L249">249</a>             <strong class="jxr_keyword">case</strong> IDENTITY_JSON:
+<a class="jxr_linenumber" name="L250" href="#L250">250</a>             <strong class="jxr_keyword">case</strong> JSON_PATH:
+<a class="jxr_linenumber" name="L251" href="#L251">251</a>                 <strong class="jxr_keyword">if</strong> (receivedEntryType != com.linecorp.centraldogma.internal.thrift.EntryType.JSON) {
+<a class="jxr_linenumber" name="L252" href="#L252">252</a>                     <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/CentralDogmaException.html">CentralDogmaException</a>(<span class="jxr_string">"invalid entry type. entry type: "</span> + receivedEntryType +
+<a class="jxr_linenumber" name="L253" href="#L253">253</a>                                                     <span class="jxr_string">" (expected: "</span> + queryType + ')');
+<a class="jxr_linenumber" name="L254" href="#L254">254</a>                 }
+<a class="jxr_linenumber" name="L255" href="#L255">255</a>                 <strong class="jxr_keyword">return</strong> entryAsJson(query, normRev, content);
+<a class="jxr_linenumber" name="L256" href="#L256">256</a>             <strong class="jxr_keyword">case</strong> IDENTITY:
+<a class="jxr_linenumber" name="L257" href="#L257">257</a>                 <strong class="jxr_keyword">switch</strong> (receivedEntryType) {
+<a class="jxr_linenumber" name="L258" href="#L258">258</a>                     <strong class="jxr_keyword">case</strong> JSON:
+<a class="jxr_linenumber" name="L259" href="#L259">259</a>                         <strong class="jxr_keyword">return</strong> entryAsJson(query, normRev, content);
+<a class="jxr_linenumber" name="L260" href="#L260">260</a>                     <strong class="jxr_keyword">case</strong> TEXT:
+<a class="jxr_linenumber" name="L261" href="#L261">261</a>                         <strong class="jxr_keyword">return</strong> entryAsText(query, normRev, content);
+<a class="jxr_linenumber" name="L262" href="#L262">262</a>                     <strong class="jxr_keyword">case</strong> DIRECTORY:
+<a class="jxr_linenumber" name="L263" href="#L263">263</a>                         <strong class="jxr_keyword">return</strong> unsafeCast(Entry.ofDirectory(normRev, query.path()));
+<a class="jxr_linenumber" name="L264" href="#L264">264</a>                 }
+<a class="jxr_linenumber" name="L265" href="#L265">265</a>         }
+<a class="jxr_linenumber" name="L266" href="#L266">266</a>         <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> Error(); <em class="jxr_comment">// Should never reach here.</em>
+<a class="jxr_linenumber" name="L267" href="#L267">267</a>     }
+<a class="jxr_linenumber" name="L268" href="#L268">268</a> 
+<a class="jxr_linenumber" name="L269" href="#L269">269</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; Entry&lt;T&gt; entryAsJson(Query&lt;T&gt; query, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> normRev, String content) {
+<a class="jxr_linenumber" name="L270" href="#L270">270</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L271" href="#L271">271</a>             <strong class="jxr_keyword">return</strong> unsafeCast(Entry.ofJson(normRev, query.path(), Jackson.readTree(content)));
+<a class="jxr_linenumber" name="L272" href="#L272">272</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
+<a class="jxr_linenumber" name="L273" href="#L273">273</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/CentralDogmaException.html">CentralDogmaException</a>(<span class="jxr_string">"failed to parse the query result: "</span> + query, e);
+<a class="jxr_linenumber" name="L274" href="#L274">274</a>         }
+<a class="jxr_linenumber" name="L275" href="#L275">275</a>     }
+<a class="jxr_linenumber" name="L276" href="#L276">276</a> 
+<a class="jxr_linenumber" name="L277" href="#L277">277</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; Entry&lt;T&gt; entryAsText(Query&lt;T&gt; query, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> normRev, String content) {
+<a class="jxr_linenumber" name="L278" href="#L278">278</a>         <strong class="jxr_keyword">return</strong> unsafeCast(Entry.ofText(normRev, query.path(), content));
+<a class="jxr_linenumber" name="L279" href="#L279">279</a>     }
+<a class="jxr_linenumber" name="L280" href="#L280">280</a> 
+<a class="jxr_linenumber" name="L281" href="#L281">281</a>     @Override
+<a class="jxr_linenumber" name="L282" href="#L282">282</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Map&lt;String, Entry&lt;?&gt;&gt;&gt; getFiles(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L283" href="#L283">283</a>                                                              <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, <a href="../../../../../../com/linecorp/centraldogma/common/PathPattern.html">PathPattern</a> pathPattern,
+<a class="jxr_linenumber" name="L284" href="#L284">284</a>                                                              <strong class="jxr_keyword">boolean</strong> viewRaw) {
+<a class="jxr_linenumber" name="L285" href="#L285">285</a>         requireNonNull(pathPattern, <span class="jxr_string">"pathPattern"</span>);
+<a class="jxr_linenumber" name="L286" href="#L286">286</a>         <strong class="jxr_keyword">return</strong> maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -&gt; {
+<a class="jxr_linenumber" name="L287" href="#L287">287</a>             <strong class="jxr_keyword">final</strong> CompletableFuture&lt;List&lt;com.linecorp.centraldogma.internal.thrift.Entry&gt;&gt; future =
+<a class="jxr_linenumber" name="L288" href="#L288">288</a>                     run(callback -&gt; {
+<a class="jxr_linenumber" name="L289" href="#L289">289</a>                         <em class="jxr_comment">// viewRaw is not supported in LegacyCentralDogma.</em>
+<a class="jxr_linenumber" name="L290" href="#L290">290</a>                         client.getFiles(projectName, repositoryName,
+<a class="jxr_linenumber" name="L291" href="#L291">291</a>                                         RevisionConverter.TO_DATA.convert(normRev),
+<a class="jxr_linenumber" name="L292" href="#L292">292</a>                                         pathPattern.patternString(), callback);
+<a class="jxr_linenumber" name="L293" href="#L293">293</a>                     });
+<a class="jxr_linenumber" name="L294" href="#L294">294</a>             <strong class="jxr_keyword">return</strong> future.thenApply(list -&gt; convertToMap(list, e -&gt; EntryConverter.convert(normRev, e),
+<a class="jxr_linenumber" name="L295" href="#L295">295</a>                                                          Entry::path, Function.identity()));
+<a class="jxr_linenumber" name="L296" href="#L296">296</a>         });
+<a class="jxr_linenumber" name="L297" href="#L297">297</a>     }
+<a class="jxr_linenumber" name="L298" href="#L298">298</a> 
+<a class="jxr_linenumber" name="L299" href="#L299">299</a>     @Override
+<a class="jxr_linenumber" name="L300" href="#L300">300</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; CompletableFuture&lt;MergedEntry&lt;T&gt;&gt; mergeFiles(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L301" href="#L301">301</a>                                                             <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, MergeQuery&lt;T&gt; mergeQuery) {
+<a class="jxr_linenumber" name="L302" href="#L302">302</a>         validateProjectAndRepositoryName(projectName, repositoryName);
+<a class="jxr_linenumber" name="L303" href="#L303">303</a>         requireNonNull(revision, <span class="jxr_string">"revision"</span>);
+<a class="jxr_linenumber" name="L304" href="#L304">304</a>         requireNonNull(mergeQuery, <span class="jxr_string">"mergeQuery"</span>);
+<a class="jxr_linenumber" name="L305" href="#L305">305</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;com.linecorp.centraldogma.internal.thrift.MergedEntry&gt; future =
+<a class="jxr_linenumber" name="L306" href="#L306">306</a>                 run(callback -&gt; {
+<a class="jxr_linenumber" name="L307" href="#L307">307</a>                     client.mergeFiles(projectName, repositoryName,
+<a class="jxr_linenumber" name="L308" href="#L308">308</a>                                       RevisionConverter.TO_DATA.convert(revision),
+<a class="jxr_linenumber" name="L309" href="#L309">309</a>                                       MergeQueryConverter.TO_DATA.convert(mergeQuery),
+<a class="jxr_linenumber" name="L310" href="#L310">310</a>                                       callback);
+<a class="jxr_linenumber" name="L311" href="#L311">311</a>                 });
+<a class="jxr_linenumber" name="L312" href="#L312">312</a>         <strong class="jxr_keyword">return</strong> future.thenApply(entry -&gt; {
+<a class="jxr_linenumber" name="L313" href="#L313">313</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/common/EntryType.html">EntryType</a> entryType = EntryConverter.convertEntryType(entry.getType());
+<a class="jxr_linenumber" name="L314" href="#L314">314</a>             assert entryType != <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L315" href="#L315">315</a>             <strong class="jxr_keyword">switch</strong> (entryType) {
+<a class="jxr_linenumber" name="L316" href="#L316">316</a>                 <strong class="jxr_keyword">case</strong> JSON:
+<a class="jxr_linenumber" name="L317" href="#L317">317</a>                     <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L318" href="#L318">318</a>                         @SuppressWarnings(<span class="jxr_string">"unchecked"</span>)
+<a class="jxr_linenumber" name="L319" href="#L319">319</a>                         <strong class="jxr_keyword">final</strong> MergedEntry&lt;T&gt; converted = (MergedEntry&lt;T&gt;) MergedEntry.of(
+<a class="jxr_linenumber" name="L320" href="#L320">320</a>                                 RevisionConverter.TO_MODEL.convert(entry.revision),
+<a class="jxr_linenumber" name="L321" href="#L321">321</a>                                 entryType, Jackson.readTree(entry.content), entry.paths);
+<a class="jxr_linenumber" name="L322" href="#L322">322</a>                         <strong class="jxr_keyword">return</strong> converted;
+<a class="jxr_linenumber" name="L323" href="#L323">323</a>                     } <strong class="jxr_keyword">catch</strong> (IOException e) {
+<a class="jxr_linenumber" name="L324" href="#L324">324</a>                         <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/CentralDogmaException.html">CentralDogmaException</a>(
+<a class="jxr_linenumber" name="L325" href="#L325">325</a>                                 <span class="jxr_string">"failed to parse the content: "</span> + entry.content, e);
+<a class="jxr_linenumber" name="L326" href="#L326">326</a>                     }
+<a class="jxr_linenumber" name="L327" href="#L327">327</a>                 <strong class="jxr_keyword">default</strong>:
+<a class="jxr_linenumber" name="L328" href="#L328">328</a>                     <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> Error(<span class="jxr_string">"unsupported entry type: "</span> + entryType);
+<a class="jxr_linenumber" name="L329" href="#L329">329</a>             }
+<a class="jxr_linenumber" name="L330" href="#L330">330</a>         });
+<a class="jxr_linenumber" name="L331" href="#L331">331</a>     }
+<a class="jxr_linenumber" name="L332" href="#L332">332</a> 
+<a class="jxr_linenumber" name="L333" href="#L333">333</a>     @Override
+<a class="jxr_linenumber" name="L334" href="#L334">334</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;List&lt;Commit&gt;&gt; getHistory(String projectName,
+<a class="jxr_linenumber" name="L335" href="#L335">335</a>                                                       String repositoryName,
+<a class="jxr_linenumber" name="L336" href="#L336">336</a>                                                       <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> from,
+<a class="jxr_linenumber" name="L337" href="#L337">337</a>                                                       <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> to,
+<a class="jxr_linenumber" name="L338" href="#L338">338</a>                                                       <a href="../../../../../../com/linecorp/centraldogma/common/PathPattern.html">PathPattern</a> pathPattern,
+<a class="jxr_linenumber" name="L339" href="#L339">339</a>                                                       <strong class="jxr_keyword">int</strong> maxCommits) {
+<a class="jxr_linenumber" name="L340" href="#L340">340</a>         checkArgument(maxCommits == 0, <span class="jxr_string">"maxCommits is not supported in LegacyCentralDogma."</span>);
+<a class="jxr_linenumber" name="L341" href="#L341">341</a>         validateProjectAndRepositoryName(projectName, repositoryName);
+<a class="jxr_linenumber" name="L342" href="#L342">342</a>         requireNonNull(from, <span class="jxr_string">"from"</span>);
+<a class="jxr_linenumber" name="L343" href="#L343">343</a>         requireNonNull(to, <span class="jxr_string">"to"</span>);
+<a class="jxr_linenumber" name="L344" href="#L344">344</a>         requireNonNull(pathPattern, <span class="jxr_string">"pathPattern"</span>);
+<a class="jxr_linenumber" name="L345" href="#L345">345</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;List&lt;com.linecorp.centraldogma.internal.thrift.Commit&gt;&gt; future =
+<a class="jxr_linenumber" name="L346" href="#L346">346</a>                 run(callback -&gt; client.getHistory(projectName, repositoryName,
+<a class="jxr_linenumber" name="L347" href="#L347">347</a>                                                   RevisionConverter.TO_DATA.convert(from),
+<a class="jxr_linenumber" name="L348" href="#L348">348</a>                                                   RevisionConverter.TO_DATA.convert(to),
+<a class="jxr_linenumber" name="L349" href="#L349">349</a>                                                   pathPattern.patternString(), callback));
+<a class="jxr_linenumber" name="L350" href="#L350">350</a>         <strong class="jxr_keyword">return</strong> future.thenApply(list -&gt; convertToList(list, CommitConverter.TO_MODEL::convert));
+<a class="jxr_linenumber" name="L351" href="#L351">351</a>     }
+<a class="jxr_linenumber" name="L352" href="#L352">352</a> 
+<a class="jxr_linenumber" name="L353" href="#L353">353</a>     @Override
+<a class="jxr_linenumber" name="L354" href="#L354">354</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; CompletableFuture&lt;Change&lt;T&gt;&gt; getDiff(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L355" href="#L355">355</a>                                                     <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> from, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> to, Query&lt;T&gt; query) {
+<a class="jxr_linenumber" name="L356" href="#L356">356</a>         validateProjectAndRepositoryName(projectName, repositoryName);
+<a class="jxr_linenumber" name="L357" href="#L357">357</a>         requireNonNull(from, <span class="jxr_string">"from"</span>);
+<a class="jxr_linenumber" name="L358" href="#L358">358</a>         requireNonNull(to, <span class="jxr_string">"to"</span>);
+<a class="jxr_linenumber" name="L359" href="#L359">359</a>         requireNonNull(query, <span class="jxr_string">"query"</span>);
+<a class="jxr_linenumber" name="L360" href="#L360">360</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;DiffFileResult&gt; future = run(callback -&gt; {
+<a class="jxr_linenumber" name="L361" href="#L361">361</a>             client.diffFile(projectName, repositoryName,
+<a class="jxr_linenumber" name="L362" href="#L362">362</a>                             RevisionConverter.TO_DATA.convert(from),
+<a class="jxr_linenumber" name="L363" href="#L363">363</a>                             RevisionConverter.TO_DATA.convert(to),
+<a class="jxr_linenumber" name="L364" href="#L364">364</a>                             QueryConverter.TO_DATA.convert(query), callback);
+<a class="jxr_linenumber" name="L365" href="#L365">365</a>         });
+<a class="jxr_linenumber" name="L366" href="#L366">366</a>         <strong class="jxr_keyword">return</strong> future.thenApply(r -&gt; {
+<a class="jxr_linenumber" name="L367" href="#L367">367</a>             <strong class="jxr_keyword">if</strong> (r == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L368" href="#L368">368</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L369" href="#L369">369</a>             }
+<a class="jxr_linenumber" name="L370" href="#L370">370</a> 
+<a class="jxr_linenumber" name="L371" href="#L371">371</a>             <strong class="jxr_keyword">final</strong> Change&lt;T&gt; converted;
+<a class="jxr_linenumber" name="L372" href="#L372">372</a>             <strong class="jxr_keyword">switch</strong> (r.getType()) {
+<a class="jxr_linenumber" name="L373" href="#L373">373</a>                 <strong class="jxr_keyword">case</strong> UPSERT_JSON:
+<a class="jxr_linenumber" name="L374" href="#L374">374</a>                     converted = unsafeCast(Change.ofJsonUpsert(query.path(), r.getContent()));
 <a class="jxr_linenumber" name="L375" href="#L375">375</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L376" href="#L376">376</a>                 <strong class="jxr_keyword">case</strong> REMOVE:
-<a class="jxr_linenumber" name="L377" href="#L377">377</a>                     converted = unsafeCast(Change.ofRemoval(query.path()));
+<a class="jxr_linenumber" name="L376" href="#L376">376</a>                 <strong class="jxr_keyword">case</strong> UPSERT_TEXT:
+<a class="jxr_linenumber" name="L377" href="#L377">377</a>                     converted = unsafeCast(Change.ofTextUpsert(query.path(), r.getContent()));
 <a class="jxr_linenumber" name="L378" href="#L378">378</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L379" href="#L379">379</a>                 <strong class="jxr_keyword">case</strong> RENAME:
-<a class="jxr_linenumber" name="L380" href="#L380">380</a>                     converted = unsafeCast(Change.ofRename(query.path(), r.getContent()));
+<a class="jxr_linenumber" name="L379" href="#L379">379</a>                 <strong class="jxr_keyword">case</strong> REMOVE:
+<a class="jxr_linenumber" name="L380" href="#L380">380</a>                     converted = unsafeCast(Change.ofRemoval(query.path()));
 <a class="jxr_linenumber" name="L381" href="#L381">381</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L382" href="#L382">382</a>                 <strong class="jxr_keyword">case</strong> APPLY_JSON_PATCH:
-<a class="jxr_linenumber" name="L383" href="#L383">383</a>                     converted = unsafeCast(Change.ofJsonPatch(query.path(), r.getContent()));
+<a class="jxr_linenumber" name="L382" href="#L382">382</a>                 <strong class="jxr_keyword">case</strong> RENAME:
+<a class="jxr_linenumber" name="L383" href="#L383">383</a>                     converted = unsafeCast(Change.ofRename(query.path(), r.getContent()));
 <a class="jxr_linenumber" name="L384" href="#L384">384</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L385" href="#L385">385</a>                 <strong class="jxr_keyword">case</strong> APPLY_TEXT_PATCH:
-<a class="jxr_linenumber" name="L386" href="#L386">386</a>                     converted = unsafeCast(Change.ofTextPatch(query.path(), r.getContent()));
+<a class="jxr_linenumber" name="L385" href="#L385">385</a>                 <strong class="jxr_keyword">case</strong> APPLY_JSON_PATCH:
+<a class="jxr_linenumber" name="L386" href="#L386">386</a>                     converted = unsafeCast(Change.ofJsonPatch(query.path(), r.getContent()));
 <a class="jxr_linenumber" name="L387" href="#L387">387</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L388" href="#L388">388</a>                 <strong class="jxr_keyword">default</strong>:
-<a class="jxr_linenumber" name="L389" href="#L389">389</a>                     <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> Error(<span class="jxr_string">"unknown change type: "</span> + r.getType());
-<a class="jxr_linenumber" name="L390" href="#L390">390</a>             }
-<a class="jxr_linenumber" name="L391" href="#L391">391</a> 
-<a class="jxr_linenumber" name="L392" href="#L392">392</a>             <strong class="jxr_keyword">return</strong> converted;
-<a class="jxr_linenumber" name="L393" href="#L393">393</a>         });
-<a class="jxr_linenumber" name="L394" href="#L394">394</a>     }
-<a class="jxr_linenumber" name="L395" href="#L395">395</a> 
-<a class="jxr_linenumber" name="L396" href="#L396">396</a>     @Override
-<a class="jxr_linenumber" name="L397" href="#L397">397</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;List&lt;Change&lt;?&gt;&gt;&gt; getDiff(String projectName, String repositoryName,
-<a class="jxr_linenumber" name="L398" href="#L398">398</a>                                                       <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> from, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> to, <a href="../../../../../../com/linecorp/centraldogma/common/PathPattern.html">PathPattern</a> pathPattern) {
-<a class="jxr_linenumber" name="L399" href="#L399">399</a>         validateProjectAndRepositoryName(projectName, repositoryName);
-<a class="jxr_linenumber" name="L400" href="#L400">400</a>         requireNonNull(from, <span class="jxr_string">"from"</span>);
-<a class="jxr_linenumber" name="L401" href="#L401">401</a>         requireNonNull(to, <span class="jxr_string">"to"</span>);
-<a class="jxr_linenumber" name="L402" href="#L402">402</a>         requireNonNull(pathPattern, <span class="jxr_string">"pathPattern"</span>);
-<a class="jxr_linenumber" name="L403" href="#L403">403</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;List&lt;com.linecorp.centraldogma.internal.thrift.Change&gt;&gt; future =
-<a class="jxr_linenumber" name="L404" href="#L404">404</a>                 run(callback -&gt; {
-<a class="jxr_linenumber" name="L405" href="#L405">405</a>                     client.getDiffs(projectName, repositoryName,
-<a class="jxr_linenumber" name="L406" href="#L406">406</a>                                     RevisionConverter.TO_DATA.convert(from),
-<a class="jxr_linenumber" name="L407" href="#L407">407</a>                                     RevisionConverter.TO_DATA.convert(to), pathPattern.patternString(),
-<a class="jxr_linenumber" name="L408" href="#L408">408</a>                                     callback);
-<a class="jxr_linenumber" name="L409" href="#L409">409</a>                 });
-<a class="jxr_linenumber" name="L410" href="#L410">410</a>         <strong class="jxr_keyword">return</strong> future.thenApply(list -&gt; convertToList(list, ChangeConverter.TO_MODEL::convert));
-<a class="jxr_linenumber" name="L411" href="#L411">411</a>     }
-<a class="jxr_linenumber" name="L412" href="#L412">412</a> 
-<a class="jxr_linenumber" name="L413" href="#L413">413</a>     @Override
-<a class="jxr_linenumber" name="L414" href="#L414">414</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;List&lt;Change&lt;?&gt;&gt;&gt; getPreviewDiffs(String projectName, String repositoryName,
-<a class="jxr_linenumber" name="L415" href="#L415">415</a>                                                               <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> baseRevision,
-<a class="jxr_linenumber" name="L416" href="#L416">416</a>                                                               Iterable&lt;? <strong class="jxr_keyword">extends</strong> Change&lt;?&gt;&gt; changes) {
-<a class="jxr_linenumber" name="L417" href="#L417">417</a>         validateProjectAndRepositoryName(projectName, repositoryName);
-<a class="jxr_linenumber" name="L418" href="#L418">418</a>         requireNonNull(baseRevision, <span class="jxr_string">"baseRevision"</span>);
-<a class="jxr_linenumber" name="L419" href="#L419">419</a>         requireNonNull(changes, <span class="jxr_string">"changes"</span>);
-<a class="jxr_linenumber" name="L420" href="#L420">420</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;List&lt;com.linecorp.centraldogma.internal.thrift.Change&gt;&gt; future =
-<a class="jxr_linenumber" name="L421" href="#L421">421</a>                 run(callback -&gt; client.getPreviewDiffs(
-<a class="jxr_linenumber" name="L422" href="#L422">422</a>                         projectName, repositoryName,
-<a class="jxr_linenumber" name="L423" href="#L423">423</a>                         RevisionConverter.TO_DATA.convert(baseRevision),
-<a class="jxr_linenumber" name="L424" href="#L424">424</a>                         convertToList(changes, ChangeConverter.TO_DATA::convert), callback));
-<a class="jxr_linenumber" name="L425" href="#L425">425</a>         <strong class="jxr_keyword">return</strong> future.thenApply(LegacyCentralDogma::convertToChangesModel);
-<a class="jxr_linenumber" name="L426" href="#L426">426</a>     }
-<a class="jxr_linenumber" name="L427" href="#L427">427</a> 
-<a class="jxr_linenumber" name="L428" href="#L428">428</a>     @Override
-<a class="jxr_linenumber" name="L429" href="#L429">429</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;PushResult&gt; push(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> baseRevision,
-<a class="jxr_linenumber" name="L430" href="#L430">430</a>                                               String summary, String detail, <a href="../../../../../../com/linecorp/centraldogma/common/Markup.html">Markup</a> markup,
-<a class="jxr_linenumber" name="L431" href="#L431">431</a>                                               Iterable&lt;? <strong class="jxr_keyword">extends</strong> Change&lt;?&gt;&gt; changes) {
-<a class="jxr_linenumber" name="L432" href="#L432">432</a>         <strong class="jxr_keyword">return</strong> push(projectName, repositoryName, baseRevision,
-<a class="jxr_linenumber" name="L433" href="#L433">433</a>                     Author.UNKNOWN, summary, detail, markup, changes);
-<a class="jxr_linenumber" name="L434" href="#L434">434</a>     }
-<a class="jxr_linenumber" name="L435" href="#L435">435</a> 
-<a class="jxr_linenumber" name="L436" href="#L436">436</a>     @Override
-<a class="jxr_linenumber" name="L437" href="#L437">437</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;PushResult&gt; push(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> baseRevision,
-<a class="jxr_linenumber" name="L438" href="#L438">438</a>                                               <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author, String summary, String detail, <a href="../../../../../../com/linecorp/centraldogma/common/Markup.html">Markup</a> markup,
-<a class="jxr_linenumber" name="L439" href="#L439">439</a>                                               Iterable&lt;? <strong class="jxr_keyword">extends</strong> Change&lt;?&gt;&gt; changes) {
-<a class="jxr_linenumber" name="L440" href="#L440">440</a>         validateProjectAndRepositoryName(projectName, repositoryName);
-<a class="jxr_linenumber" name="L441" href="#L441">441</a>         requireNonNull(baseRevision, <span class="jxr_string">"baseRevision"</span>);
-<a class="jxr_linenumber" name="L442" href="#L442">442</a>         requireNonNull(author, <span class="jxr_string">"author"</span>);
-<a class="jxr_linenumber" name="L443" href="#L443">443</a>         requireNonNull(summary, <span class="jxr_string">"summary"</span>);
-<a class="jxr_linenumber" name="L444" href="#L444">444</a>         requireNonNull(detail, <span class="jxr_string">"detail"</span>);
-<a class="jxr_linenumber" name="L445" href="#L445">445</a>         requireNonNull(markup, <span class="jxr_string">"markup"</span>);
-<a class="jxr_linenumber" name="L446" href="#L446">446</a>         requireNonNull(changes, <span class="jxr_string">"changes"</span>);
-<a class="jxr_linenumber" name="L447" href="#L447">447</a>         checkArgument(!Iterables.isEmpty(changes), <span class="jxr_string">"changes is empty."</span>);
-<a class="jxr_linenumber" name="L448" href="#L448">448</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;com.linecorp.centraldogma.internal.thrift.Commit&gt; future = run(callback -&gt; {
-<a class="jxr_linenumber" name="L449" href="#L449">449</a>             client.push(projectName, repositoryName,
-<a class="jxr_linenumber" name="L450" href="#L450">450</a>                         RevisionConverter.TO_DATA.convert(baseRevision),
-<a class="jxr_linenumber" name="L451" href="#L451">451</a>                         AuthorConverter.TO_DATA.convert(author), summary,
-<a class="jxr_linenumber" name="L452" href="#L452">452</a>                         <strong class="jxr_keyword">new</strong> Comment(detail).setMarkup(MarkupConverter.TO_DATA.convert(markup)),
-<a class="jxr_linenumber" name="L453" href="#L453">453</a>                         convertToList(changes, ChangeConverter.TO_DATA::convert),
-<a class="jxr_linenumber" name="L454" href="#L454">454</a>                         callback);
-<a class="jxr_linenumber" name="L455" href="#L455">455</a>         });
-<a class="jxr_linenumber" name="L456" href="#L456">456</a>         <strong class="jxr_keyword">return</strong> future.thenApply(PushResultConverter.TO_MODEL::convert);
-<a class="jxr_linenumber" name="L457" href="#L457">457</a>     }
-<a class="jxr_linenumber" name="L458" href="#L458">458</a> 
-<a class="jxr_linenumber" name="L459" href="#L459">459</a>     @Override
-<a class="jxr_linenumber" name="L460" href="#L460">460</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Revision&gt; watchRepository(String projectName, String repositoryName,
-<a class="jxr_linenumber" name="L461" href="#L461">461</a>                                                        <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision,
-<a class="jxr_linenumber" name="L462" href="#L462">462</a>                                                        <a href="../../../../../../com/linecorp/centraldogma/common/PathPattern.html">PathPattern</a> pathPattern,
-<a class="jxr_linenumber" name="L463" href="#L463">463</a>                                                        <strong class="jxr_keyword">long</strong> timeoutMillis,
-<a class="jxr_linenumber" name="L464" href="#L464">464</a>                                                        <strong class="jxr_keyword">boolean</strong> errorOnEntryNotFound) {
-<a class="jxr_linenumber" name="L465" href="#L465">465</a>         checkArgument(!errorOnEntryNotFound, <span class="jxr_string">"errorOnEntryNotFound is not supported in LegacyCentralDogma."</span>);
-<a class="jxr_linenumber" name="L466" href="#L466">466</a>         validateProjectAndRepositoryName(projectName, repositoryName);
-<a class="jxr_linenumber" name="L467" href="#L467">467</a>         requireNonNull(lastKnownRevision, <span class="jxr_string">"lastKnownRevision"</span>);
-<a class="jxr_linenumber" name="L468" href="#L468">468</a>         requireNonNull(pathPattern, <span class="jxr_string">"pathPattern"</span>);
-<a class="jxr_linenumber" name="L469" href="#L469">469</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;WatchRepositoryResult&gt; future = run(callback -&gt; {
-<a class="jxr_linenumber" name="L470" href="#L470">470</a>             client.watchRepository(projectName, repositoryName,
-<a class="jxr_linenumber" name="L471" href="#L471">471</a>                                    RevisionConverter.TO_DATA.convert(lastKnownRevision),
-<a class="jxr_linenumber" name="L472" href="#L472">472</a>                                    pathPattern.patternString(), timeoutMillis,
-<a class="jxr_linenumber" name="L473" href="#L473">473</a>                                    callback);
-<a class="jxr_linenumber" name="L474" href="#L474">474</a>         });
-<a class="jxr_linenumber" name="L475" href="#L475">475</a>         <strong class="jxr_keyword">return</strong> future.thenApply(r -&gt; {
-<a class="jxr_linenumber" name="L476" href="#L476">476</a>             <strong class="jxr_keyword">if</strong> (r == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L477" href="#L477">477</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L478" href="#L478">478</a>             }
-<a class="jxr_linenumber" name="L479" href="#L479">479</a> 
-<a class="jxr_linenumber" name="L480" href="#L480">480</a>             <strong class="jxr_keyword">return</strong> RevisionConverter.TO_MODEL.convert(r.getRevision());
-<a class="jxr_linenumber" name="L481" href="#L481">481</a>         });
-<a class="jxr_linenumber" name="L482" href="#L482">482</a>     }
-<a class="jxr_linenumber" name="L483" href="#L483">483</a> 
-<a class="jxr_linenumber" name="L484" href="#L484">484</a>     @Override
-<a class="jxr_linenumber" name="L485" href="#L485">485</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; CompletableFuture&lt;Entry&lt;T&gt;&gt; watchFile(String projectName, String repositoryName,
-<a class="jxr_linenumber" name="L486" href="#L486">486</a>                                                      <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, Query&lt;T&gt; query,
-<a class="jxr_linenumber" name="L487" href="#L487">487</a>                                                      <strong class="jxr_keyword">long</strong> timeoutMillis, <strong class="jxr_keyword">boolean</strong> errorOnEntryNotFound) {
-<a class="jxr_linenumber" name="L488" href="#L488">488</a>         checkArgument(!errorOnEntryNotFound, <span class="jxr_string">"errorOnEntryNotFound is not supported in LegacyCentralDogma."</span>);
-<a class="jxr_linenumber" name="L489" href="#L489">489</a>         validateProjectAndRepositoryName(projectName, repositoryName);
-<a class="jxr_linenumber" name="L490" href="#L490">490</a>         requireNonNull(lastKnownRevision, <span class="jxr_string">"lastKnownRevision"</span>);
-<a class="jxr_linenumber" name="L491" href="#L491">491</a>         requireNonNull(query, <span class="jxr_string">"query"</span>);
-<a class="jxr_linenumber" name="L492" href="#L492">492</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;WatchFileResult&gt; future = run(callback -&gt; {
-<a class="jxr_linenumber" name="L493" href="#L493">493</a>             client.watchFile(projectName, repositoryName,
-<a class="jxr_linenumber" name="L494" href="#L494">494</a>                              RevisionConverter.TO_DATA.convert(lastKnownRevision),
-<a class="jxr_linenumber" name="L495" href="#L495">495</a>                              QueryConverter.TO_DATA.convert(query),
-<a class="jxr_linenumber" name="L496" href="#L496">496</a>                              timeoutMillis, callback);
-<a class="jxr_linenumber" name="L497" href="#L497">497</a>         });
-<a class="jxr_linenumber" name="L498" href="#L498">498</a>         <strong class="jxr_keyword">return</strong> future.thenApply(r -&gt; {
-<a class="jxr_linenumber" name="L499" href="#L499">499</a>             <strong class="jxr_keyword">if</strong> (r == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L500" href="#L500">500</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L501" href="#L501">501</a>             }
-<a class="jxr_linenumber" name="L502" href="#L502">502</a> 
-<a class="jxr_linenumber" name="L503" href="#L503">503</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision = RevisionConverter.TO_MODEL.convert(r.getRevision());
-<a class="jxr_linenumber" name="L504" href="#L504">504</a>             <strong class="jxr_keyword">if</strong> (revision == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L388" href="#L388">388</a>                 <strong class="jxr_keyword">case</strong> APPLY_TEXT_PATCH:
+<a class="jxr_linenumber" name="L389" href="#L389">389</a>                     converted = unsafeCast(Change.ofTextPatch(query.path(), r.getContent()));
+<a class="jxr_linenumber" name="L390" href="#L390">390</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L391" href="#L391">391</a>                 <strong class="jxr_keyword">default</strong>:
+<a class="jxr_linenumber" name="L392" href="#L392">392</a>                     <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> Error(<span class="jxr_string">"unknown change type: "</span> + r.getType());
+<a class="jxr_linenumber" name="L393" href="#L393">393</a>             }
+<a class="jxr_linenumber" name="L394" href="#L394">394</a> 
+<a class="jxr_linenumber" name="L395" href="#L395">395</a>             <strong class="jxr_keyword">return</strong> converted;
+<a class="jxr_linenumber" name="L396" href="#L396">396</a>         });
+<a class="jxr_linenumber" name="L397" href="#L397">397</a>     }
+<a class="jxr_linenumber" name="L398" href="#L398">398</a> 
+<a class="jxr_linenumber" name="L399" href="#L399">399</a>     @Override
+<a class="jxr_linenumber" name="L400" href="#L400">400</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;List&lt;Change&lt;?&gt;&gt;&gt; getDiff(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L401" href="#L401">401</a>                                                       <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> from, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> to, <a href="../../../../../../com/linecorp/centraldogma/common/PathPattern.html">PathPattern</a> pathPattern) {
+<a class="jxr_linenumber" name="L402" href="#L402">402</a>         validateProjectAndRepositoryName(projectName, repositoryName);
+<a class="jxr_linenumber" name="L403" href="#L403">403</a>         requireNonNull(from, <span class="jxr_string">"from"</span>);
+<a class="jxr_linenumber" name="L404" href="#L404">404</a>         requireNonNull(to, <span class="jxr_string">"to"</span>);
+<a class="jxr_linenumber" name="L405" href="#L405">405</a>         requireNonNull(pathPattern, <span class="jxr_string">"pathPattern"</span>);
+<a class="jxr_linenumber" name="L406" href="#L406">406</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;List&lt;com.linecorp.centraldogma.internal.thrift.Change&gt;&gt; future =
+<a class="jxr_linenumber" name="L407" href="#L407">407</a>                 run(callback -&gt; {
+<a class="jxr_linenumber" name="L408" href="#L408">408</a>                     client.getDiffs(projectName, repositoryName,
+<a class="jxr_linenumber" name="L409" href="#L409">409</a>                                     RevisionConverter.TO_DATA.convert(from),
+<a class="jxr_linenumber" name="L410" href="#L410">410</a>                                     RevisionConverter.TO_DATA.convert(to), pathPattern.patternString(),
+<a class="jxr_linenumber" name="L411" href="#L411">411</a>                                     callback);
+<a class="jxr_linenumber" name="L412" href="#L412">412</a>                 });
+<a class="jxr_linenumber" name="L413" href="#L413">413</a>         <strong class="jxr_keyword">return</strong> future.thenApply(list -&gt; convertToList(list, ChangeConverter.TO_MODEL::convert));
+<a class="jxr_linenumber" name="L414" href="#L414">414</a>     }
+<a class="jxr_linenumber" name="L415" href="#L415">415</a> 
+<a class="jxr_linenumber" name="L416" href="#L416">416</a>     @Override
+<a class="jxr_linenumber" name="L417" href="#L417">417</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;List&lt;Change&lt;?&gt;&gt;&gt; getPreviewDiffs(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L418" href="#L418">418</a>                                                               <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> baseRevision,
+<a class="jxr_linenumber" name="L419" href="#L419">419</a>                                                               Iterable&lt;? <strong class="jxr_keyword">extends</strong> Change&lt;?&gt;&gt; changes) {
+<a class="jxr_linenumber" name="L420" href="#L420">420</a>         validateProjectAndRepositoryName(projectName, repositoryName);
+<a class="jxr_linenumber" name="L421" href="#L421">421</a>         requireNonNull(baseRevision, <span class="jxr_string">"baseRevision"</span>);
+<a class="jxr_linenumber" name="L422" href="#L422">422</a>         requireNonNull(changes, <span class="jxr_string">"changes"</span>);
+<a class="jxr_linenumber" name="L423" href="#L423">423</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;List&lt;com.linecorp.centraldogma.internal.thrift.Change&gt;&gt; future =
+<a class="jxr_linenumber" name="L424" href="#L424">424</a>                 run(callback -&gt; client.getPreviewDiffs(
+<a class="jxr_linenumber" name="L425" href="#L425">425</a>                         projectName, repositoryName,
+<a class="jxr_linenumber" name="L426" href="#L426">426</a>                         RevisionConverter.TO_DATA.convert(baseRevision),
+<a class="jxr_linenumber" name="L427" href="#L427">427</a>                         convertToList(changes, ChangeConverter.TO_DATA::convert), callback));
+<a class="jxr_linenumber" name="L428" href="#L428">428</a>         <strong class="jxr_keyword">return</strong> future.thenApply(LegacyCentralDogma::convertToChangesModel);
+<a class="jxr_linenumber" name="L429" href="#L429">429</a>     }
+<a class="jxr_linenumber" name="L430" href="#L430">430</a> 
+<a class="jxr_linenumber" name="L431" href="#L431">431</a>     @Override
+<a class="jxr_linenumber" name="L432" href="#L432">432</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;PushResult&gt; push(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> baseRevision,
+<a class="jxr_linenumber" name="L433" href="#L433">433</a>                                               String summary, String detail, <a href="../../../../../../com/linecorp/centraldogma/common/Markup.html">Markup</a> markup,
+<a class="jxr_linenumber" name="L434" href="#L434">434</a>                                               Iterable&lt;? <strong class="jxr_keyword">extends</strong> Change&lt;?&gt;&gt; changes) {
+<a class="jxr_linenumber" name="L435" href="#L435">435</a>         <strong class="jxr_keyword">return</strong> push(projectName, repositoryName, baseRevision,
+<a class="jxr_linenumber" name="L436" href="#L436">436</a>                     Author.UNKNOWN, summary, detail, markup, changes);
+<a class="jxr_linenumber" name="L437" href="#L437">437</a>     }
+<a class="jxr_linenumber" name="L438" href="#L438">438</a> 
+<a class="jxr_linenumber" name="L439" href="#L439">439</a>     @Override
+<a class="jxr_linenumber" name="L440" href="#L440">440</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;PushResult&gt; push(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> baseRevision,
+<a class="jxr_linenumber" name="L441" href="#L441">441</a>                                               <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author, String summary, String detail, <a href="../../../../../../com/linecorp/centraldogma/common/Markup.html">Markup</a> markup,
+<a class="jxr_linenumber" name="L442" href="#L442">442</a>                                               Iterable&lt;? <strong class="jxr_keyword">extends</strong> Change&lt;?&gt;&gt; changes) {
+<a class="jxr_linenumber" name="L443" href="#L443">443</a>         validateProjectAndRepositoryName(projectName, repositoryName);
+<a class="jxr_linenumber" name="L444" href="#L444">444</a>         requireNonNull(baseRevision, <span class="jxr_string">"baseRevision"</span>);
+<a class="jxr_linenumber" name="L445" href="#L445">445</a>         requireNonNull(author, <span class="jxr_string">"author"</span>);
+<a class="jxr_linenumber" name="L446" href="#L446">446</a>         requireNonNull(summary, <span class="jxr_string">"summary"</span>);
+<a class="jxr_linenumber" name="L447" href="#L447">447</a>         requireNonNull(detail, <span class="jxr_string">"detail"</span>);
+<a class="jxr_linenumber" name="L448" href="#L448">448</a>         requireNonNull(markup, <span class="jxr_string">"markup"</span>);
+<a class="jxr_linenumber" name="L449" href="#L449">449</a>         requireNonNull(changes, <span class="jxr_string">"changes"</span>);
+<a class="jxr_linenumber" name="L450" href="#L450">450</a>         checkArgument(!Iterables.isEmpty(changes), <span class="jxr_string">"changes is empty."</span>);
+<a class="jxr_linenumber" name="L451" href="#L451">451</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;com.linecorp.centraldogma.internal.thrift.Commit&gt; future = run(callback -&gt; {
+<a class="jxr_linenumber" name="L452" href="#L452">452</a>             client.push(projectName, repositoryName,
+<a class="jxr_linenumber" name="L453" href="#L453">453</a>                         RevisionConverter.TO_DATA.convert(baseRevision),
+<a class="jxr_linenumber" name="L454" href="#L454">454</a>                         AuthorConverter.TO_DATA.convert(author), summary,
+<a class="jxr_linenumber" name="L455" href="#L455">455</a>                         <strong class="jxr_keyword">new</strong> Comment(detail).setMarkup(MarkupConverter.TO_DATA.convert(markup)),
+<a class="jxr_linenumber" name="L456" href="#L456">456</a>                         convertToList(changes, ChangeConverter.TO_DATA::convert),
+<a class="jxr_linenumber" name="L457" href="#L457">457</a>                         callback);
+<a class="jxr_linenumber" name="L458" href="#L458">458</a>         });
+<a class="jxr_linenumber" name="L459" href="#L459">459</a>         <strong class="jxr_keyword">return</strong> future.thenApply(PushResultConverter.TO_MODEL::convert);
+<a class="jxr_linenumber" name="L460" href="#L460">460</a>     }
+<a class="jxr_linenumber" name="L461" href="#L461">461</a> 
+<a class="jxr_linenumber" name="L462" href="#L462">462</a>     @Override
+<a class="jxr_linenumber" name="L463" href="#L463">463</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Revision&gt; watchRepository(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L464" href="#L464">464</a>                                                        <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision,
+<a class="jxr_linenumber" name="L465" href="#L465">465</a>                                                        <a href="../../../../../../com/linecorp/centraldogma/common/PathPattern.html">PathPattern</a> pathPattern,
+<a class="jxr_linenumber" name="L466" href="#L466">466</a>                                                        <strong class="jxr_keyword">long</strong> timeoutMillis,
+<a class="jxr_linenumber" name="L467" href="#L467">467</a>                                                        <strong class="jxr_keyword">boolean</strong> errorOnEntryNotFound) {
+<a class="jxr_linenumber" name="L468" href="#L468">468</a>         checkArgument(!errorOnEntryNotFound, <span class="jxr_string">"errorOnEntryNotFound is not supported in LegacyCentralDogma."</span>);
+<a class="jxr_linenumber" name="L469" href="#L469">469</a>         validateProjectAndRepositoryName(projectName, repositoryName);
+<a class="jxr_linenumber" name="L470" href="#L470">470</a>         requireNonNull(lastKnownRevision, <span class="jxr_string">"lastKnownRevision"</span>);
+<a class="jxr_linenumber" name="L471" href="#L471">471</a>         requireNonNull(pathPattern, <span class="jxr_string">"pathPattern"</span>);
+<a class="jxr_linenumber" name="L472" href="#L472">472</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;WatchRepositoryResult&gt; future = run(callback -&gt; {
+<a class="jxr_linenumber" name="L473" href="#L473">473</a>             client.watchRepository(projectName, repositoryName,
+<a class="jxr_linenumber" name="L474" href="#L474">474</a>                                    RevisionConverter.TO_DATA.convert(lastKnownRevision),
+<a class="jxr_linenumber" name="L475" href="#L475">475</a>                                    pathPattern.patternString(), timeoutMillis,
+<a class="jxr_linenumber" name="L476" href="#L476">476</a>                                    callback);
+<a class="jxr_linenumber" name="L477" href="#L477">477</a>         });
+<a class="jxr_linenumber" name="L478" href="#L478">478</a>         <strong class="jxr_keyword">return</strong> future.thenApply(r -&gt; {
+<a class="jxr_linenumber" name="L479" href="#L479">479</a>             <strong class="jxr_keyword">if</strong> (r == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L480" href="#L480">480</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L481" href="#L481">481</a>             }
+<a class="jxr_linenumber" name="L482" href="#L482">482</a> 
+<a class="jxr_linenumber" name="L483" href="#L483">483</a>             <strong class="jxr_keyword">return</strong> RevisionConverter.TO_MODEL.convert(r.getRevision());
+<a class="jxr_linenumber" name="L484" href="#L484">484</a>         });
+<a class="jxr_linenumber" name="L485" href="#L485">485</a>     }
+<a class="jxr_linenumber" name="L486" href="#L486">486</a> 
+<a class="jxr_linenumber" name="L487" href="#L487">487</a>     @Override
+<a class="jxr_linenumber" name="L488" href="#L488">488</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; CompletableFuture&lt;Entry&lt;T&gt;&gt; watchFile(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L489" href="#L489">489</a>                                                      <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, Query&lt;T&gt; query,
+<a class="jxr_linenumber" name="L490" href="#L490">490</a>                                                      <strong class="jxr_keyword">long</strong> timeoutMillis, <strong class="jxr_keyword">boolean</strong> errorOnEntryNotFound,
+<a class="jxr_linenumber" name="L491" href="#L491">491</a>                                                      <strong class="jxr_keyword">boolean</strong> viewRaw) {
+<a class="jxr_linenumber" name="L492" href="#L492">492</a>         checkArgument(!errorOnEntryNotFound, <span class="jxr_string">"errorOnEntryNotFound is not supported in LegacyCentralDogma."</span>);
+<a class="jxr_linenumber" name="L493" href="#L493">493</a>         validateProjectAndRepositoryName(projectName, repositoryName);
+<a class="jxr_linenumber" name="L494" href="#L494">494</a>         requireNonNull(lastKnownRevision, <span class="jxr_string">"lastKnownRevision"</span>);
+<a class="jxr_linenumber" name="L495" href="#L495">495</a>         requireNonNull(query, <span class="jxr_string">"query"</span>);
+<a class="jxr_linenumber" name="L496" href="#L496">496</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;WatchFileResult&gt; future = run(callback -&gt; {
+<a class="jxr_linenumber" name="L497" href="#L497">497</a>             <em class="jxr_comment">// viewRaw is not supported in LegacyCentralDogma.</em>
+<a class="jxr_linenumber" name="L498" href="#L498">498</a>             client.watchFile(projectName, repositoryName,
+<a class="jxr_linenumber" name="L499" href="#L499">499</a>                              RevisionConverter.TO_DATA.convert(lastKnownRevision),
+<a class="jxr_linenumber" name="L500" href="#L500">500</a>                              QueryConverter.TO_DATA.convert(query),
+<a class="jxr_linenumber" name="L501" href="#L501">501</a>                              timeoutMillis, callback);
+<a class="jxr_linenumber" name="L502" href="#L502">502</a>         });
+<a class="jxr_linenumber" name="L503" href="#L503">503</a>         <strong class="jxr_keyword">return</strong> future.thenApply(r -&gt; {
+<a class="jxr_linenumber" name="L504" href="#L504">504</a>             <strong class="jxr_keyword">if</strong> (r == <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L505" href="#L505">505</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="L506" href="#L506">506</a>             }
 <a class="jxr_linenumber" name="L507" href="#L507">507</a> 
-<a class="jxr_linenumber" name="L508" href="#L508">508</a>             <strong class="jxr_keyword">return</strong> toEntry(query, revision, query.type(), r.getContent(), r.getType());
-<a class="jxr_linenumber" name="L509" href="#L509">509</a>         });
-<a class="jxr_linenumber" name="L510" href="#L510">510</a>     }
-<a class="jxr_linenumber" name="L511" href="#L511">511</a> 
-<a class="jxr_linenumber" name="L512" href="#L512">512</a>     @Override
-<a class="jxr_linenumber" name="L513" href="#L513">513</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; whenEndpointReady() {
-<a class="jxr_linenumber" name="L514" href="#L514">514</a>         <strong class="jxr_keyword">return</strong> endpointGroup.whenReady().thenRun(() -&gt; {
-<a class="jxr_linenumber" name="L515" href="#L515">515</a>         });
-<a class="jxr_linenumber" name="L516" href="#L516">516</a>     }
-<a class="jxr_linenumber" name="L517" href="#L517">517</a> 
-<a class="jxr_linenumber" name="L518" href="#L518">518</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> validateProjectName(String projectName) {
-<a class="jxr_linenumber" name="L519" href="#L519">519</a>         Util.validateProjectName(projectName, <span class="jxr_string">"projectName"</span>, false);
-<a class="jxr_linenumber" name="L520" href="#L520">520</a>     }
-<a class="jxr_linenumber" name="L521" href="#L521">521</a> 
-<a class="jxr_linenumber" name="L522" href="#L522">522</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> validateProjectAndRepositoryName(String projectName, String repositoryName) {
-<a class="jxr_linenumber" name="L523" href="#L523">523</a>         validateProjectName(projectName);
-<a class="jxr_linenumber" name="L524" href="#L524">524</a>         validateRepositoryName(repositoryName, <span class="jxr_string">"repositoryName"</span>);
+<a class="jxr_linenumber" name="L508" href="#L508">508</a>             <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision = RevisionConverter.TO_MODEL.convert(r.getRevision());
+<a class="jxr_linenumber" name="L509" href="#L509">509</a>             <strong class="jxr_keyword">if</strong> (revision == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L510" href="#L510">510</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L511" href="#L511">511</a>             }
+<a class="jxr_linenumber" name="L512" href="#L512">512</a> 
+<a class="jxr_linenumber" name="L513" href="#L513">513</a>             <strong class="jxr_keyword">return</strong> toEntry(query, revision, query.type(), r.getContent(), r.getType());
+<a class="jxr_linenumber" name="L514" href="#L514">514</a>         });
+<a class="jxr_linenumber" name="L515" href="#L515">515</a>     }
+<a class="jxr_linenumber" name="L516" href="#L516">516</a> 
+<a class="jxr_linenumber" name="L517" href="#L517">517</a>     @Override
+<a class="jxr_linenumber" name="L518" href="#L518">518</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; whenEndpointReady() {
+<a class="jxr_linenumber" name="L519" href="#L519">519</a>         <strong class="jxr_keyword">return</strong> endpointGroup.whenReady().thenRun(() -&gt; {
+<a class="jxr_linenumber" name="L520" href="#L520">520</a>         });
+<a class="jxr_linenumber" name="L521" href="#L521">521</a>     }
+<a class="jxr_linenumber" name="L522" href="#L522">522</a> 
+<a class="jxr_linenumber" name="L523" href="#L523">523</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> validateProjectName(String projectName) {
+<a class="jxr_linenumber" name="L524" href="#L524">524</a>         Util.validateProjectName(projectName, <span class="jxr_string">"projectName"</span>, false);
 <a class="jxr_linenumber" name="L525" href="#L525">525</a>     }
 <a class="jxr_linenumber" name="L526" href="#L526">526</a> 
-<a class="jxr_linenumber" name="L527" href="#L527">527</a>     @Nullable
-<a class="jxr_linenumber" name="L528" href="#L528">528</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T, U&gt; List&lt;T&gt; convertToList(@Nullable Iterable&lt;U&gt; c, Function&lt;U, T&gt; mapper) {
-<a class="jxr_linenumber" name="L529" href="#L529">529</a>         <strong class="jxr_keyword">return</strong> convertToCollection(c, mapper, toImmutableList());
+<a class="jxr_linenumber" name="L527" href="#L527">527</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> validateProjectAndRepositoryName(String projectName, String repositoryName) {
+<a class="jxr_linenumber" name="L528" href="#L528">528</a>         validateProjectName(projectName);
+<a class="jxr_linenumber" name="L529" href="#L529">529</a>         validateRepositoryName(repositoryName, <span class="jxr_string">"repositoryName"</span>);
 <a class="jxr_linenumber" name="L530" href="#L530">530</a>     }
 <a class="jxr_linenumber" name="L531" href="#L531">531</a> 
 <a class="jxr_linenumber" name="L532" href="#L532">532</a>     @Nullable
-<a class="jxr_linenumber" name="L533" href="#L533">533</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T, U&gt; Set&lt;T&gt; convertToSet(@Nullable Iterable&lt;U&gt; c, Function&lt;U, T&gt; mapper) {
-<a class="jxr_linenumber" name="L534" href="#L534">534</a>         <strong class="jxr_keyword">return</strong> convertToCollection(c, mapper, toImmutableSet());
+<a class="jxr_linenumber" name="L533" href="#L533">533</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T, U&gt; List&lt;T&gt; convertToList(@Nullable Iterable&lt;U&gt; c, Function&lt;U, T&gt; mapper) {
+<a class="jxr_linenumber" name="L534" href="#L534">534</a>         <strong class="jxr_keyword">return</strong> convertToCollection(c, mapper, toImmutableList());
 <a class="jxr_linenumber" name="L535" href="#L535">535</a>     }
 <a class="jxr_linenumber" name="L536" href="#L536">536</a> 
 <a class="jxr_linenumber" name="L537" href="#L537">537</a>     @Nullable
-<a class="jxr_linenumber" name="L538" href="#L538">538</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T, U, V <strong class="jxr_keyword">extends</strong> Collection&lt;T&gt;&gt; V convertToCollection(
-<a class="jxr_linenumber" name="L539" href="#L539">539</a>             @Nullable Iterable&lt;U&gt; c, Function&lt;U, T&gt; mapper, Collector&lt;T, ?, V&gt; collector) {
-<a class="jxr_linenumber" name="L540" href="#L540">540</a>         <strong class="jxr_keyword">if</strong> (c == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L541" href="#L541">541</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L542" href="#L542">542</a>         }
-<a class="jxr_linenumber" name="L543" href="#L543">543</a> 
-<a class="jxr_linenumber" name="L544" href="#L544">544</a>         <strong class="jxr_keyword">final</strong> Stream&lt;U&gt; stream;
-<a class="jxr_linenumber" name="L545" href="#L545">545</a>         <strong class="jxr_keyword">if</strong> (c instanceof Collection) {
-<a class="jxr_linenumber" name="L546" href="#L546">546</a>             stream = ((Collection&lt;U&gt;) c).stream();
-<a class="jxr_linenumber" name="L547" href="#L547">547</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L548" href="#L548">548</a>             stream = StreamSupport.stream(c.spliterator(), false);
-<a class="jxr_linenumber" name="L549" href="#L549">549</a>         }
-<a class="jxr_linenumber" name="L550" href="#L550">550</a> 
-<a class="jxr_linenumber" name="L551" href="#L551">551</a>         <strong class="jxr_keyword">return</strong> stream.map(mapper).collect(collector);
-<a class="jxr_linenumber" name="L552" href="#L552">552</a>     }
-<a class="jxr_linenumber" name="L553" href="#L553">553</a> 
-<a class="jxr_linenumber" name="L554" href="#L554">554</a>     @Nullable
-<a class="jxr_linenumber" name="L555" href="#L555">555</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T, U, V, W&gt; Map&lt;T, U&gt; convertToMap(
-<a class="jxr_linenumber" name="L556" href="#L556">556</a>             @Nullable Collection&lt;V&gt; c, Function&lt;V, W&gt; entryMapper,
-<a class="jxr_linenumber" name="L557" href="#L557">557</a>             Function&lt;W, T&gt; keyMapper, Function&lt;W, U&gt; valueMapper) {
-<a class="jxr_linenumber" name="L558" href="#L558">558</a>         <strong class="jxr_keyword">if</strong> (c == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L559" href="#L559">559</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L560" href="#L560">560</a>         }
-<a class="jxr_linenumber" name="L561" href="#L561">561</a>         <strong class="jxr_keyword">return</strong> c.stream().map(entryMapper).collect(toImmutableMap(keyMapper, valueMapper));
-<a class="jxr_linenumber" name="L562" href="#L562">562</a>     }
-<a class="jxr_linenumber" name="L563" href="#L563">563</a> 
-<a class="jxr_linenumber" name="L564" href="#L564">564</a>     @Nullable
-<a class="jxr_linenumber" name="L565" href="#L565">565</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> List&lt;Change&lt;?&gt;&gt; convertToChangesModel(
-<a class="jxr_linenumber" name="L566" href="#L566">566</a>             List&lt;com.linecorp.centraldogma.internal.thrift.Change&gt; changes) {
-<a class="jxr_linenumber" name="L567" href="#L567">567</a>         <strong class="jxr_keyword">return</strong> convertToList(changes, ChangeConverter.TO_MODEL::convert);
-<a class="jxr_linenumber" name="L568" href="#L568">568</a>     }
-<a class="jxr_linenumber" name="L569" href="#L569">569</a> 
-<a class="jxr_linenumber" name="L570" href="#L570">570</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; CompletableFuture&lt;T&gt; run(ThriftCall&lt;T&gt; call) {
-<a class="jxr_linenumber" name="L571" href="#L571">571</a>         <strong class="jxr_keyword">final</strong> ThriftFuture&lt;T&gt; future = <strong class="jxr_keyword">new</strong> ThriftFuture&lt;&gt;();
-<a class="jxr_linenumber" name="L572" href="#L572">572</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L573" href="#L573">573</a>             call.apply(future);
-<a class="jxr_linenumber" name="L574" href="#L574">574</a>             <strong class="jxr_keyword">return</strong> future.exceptionally(cause -&gt; Exceptions.throwUnsafely(convertCause(cause)));
-<a class="jxr_linenumber" name="L575" href="#L575">575</a>         } <strong class="jxr_keyword">catch</strong> (Exception e) {
-<a class="jxr_linenumber" name="L576" href="#L576">576</a>             <strong class="jxr_keyword">return</strong> CompletableFutures.exceptionallyCompletedFuture(convertCause(e));
-<a class="jxr_linenumber" name="L577" href="#L577">577</a>         }
-<a class="jxr_linenumber" name="L578" href="#L578">578</a>     }
-<a class="jxr_linenumber" name="L579" href="#L579">579</a> 
-<a class="jxr_linenumber" name="L580" href="#L580">580</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> Throwable convertCause(Throwable cause) {
-<a class="jxr_linenumber" name="L581" href="#L581">581</a>         <strong class="jxr_keyword">final</strong> Throwable peeledCause = Exceptions.peel(cause);
-<a class="jxr_linenumber" name="L582" href="#L582">582</a>         <strong class="jxr_keyword">final</strong> Throwable convertedCause;
-<a class="jxr_linenumber" name="L583" href="#L583">583</a> 
-<a class="jxr_linenumber" name="L584" href="#L584">584</a>         <strong class="jxr_keyword">if</strong> (peeledCause instanceof com.linecorp.centraldogma.internal.thrift.CentralDogmaException) {
-<a class="jxr_linenumber" name="L585" href="#L585">585</a>             <strong class="jxr_keyword">final</strong> String message = peeledCause.getMessage();
-<a class="jxr_linenumber" name="L586" href="#L586">586</a>             <strong class="jxr_keyword">switch</strong> (((com.linecorp.centraldogma.internal.thrift.CentralDogmaException) peeledCause)
-<a class="jxr_linenumber" name="L587" href="#L587">587</a>                     .getErrorCode()) {
-<a class="jxr_linenumber" name="L588" href="#L588">588</a>                 <strong class="jxr_keyword">case</strong> UNIMPLEMENTED:
-<a class="jxr_linenumber" name="L589" href="#L589">589</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/CentralDogmaException.html">CentralDogmaException</a>(<span class="jxr_string">"unimplemented"</span>, false);
-<a class="jxr_linenumber" name="L590" href="#L590">590</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L591" href="#L591">591</a>                 <strong class="jxr_keyword">case</strong> INTERNAL_SERVER_ERROR:
-<a class="jxr_linenumber" name="L592" href="#L592">592</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/CentralDogmaException.html">CentralDogmaException</a>(<span class="jxr_string">"internal server error"</span>, false);
-<a class="jxr_linenumber" name="L593" href="#L593">593</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L594" href="#L594">594</a>                 <strong class="jxr_keyword">case</strong> BAD_REQUEST:
-<a class="jxr_linenumber" name="L595" href="#L595">595</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/CentralDogmaException.html">CentralDogmaException</a>(<span class="jxr_string">"bad request"</span>, false);
-<a class="jxr_linenumber" name="L596" href="#L596">596</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L597" href="#L597">597</a>                 <strong class="jxr_keyword">case</strong> PROJECT_NOT_FOUND:
-<a class="jxr_linenumber" name="L598" href="#L598">598</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/ProjectNotFoundException.html">ProjectNotFoundException</a>(message, false);
-<a class="jxr_linenumber" name="L599" href="#L599">599</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L600" href="#L600">600</a>                 <strong class="jxr_keyword">case</strong> PROJECT_EXISTS:
-<a class="jxr_linenumber" name="L601" href="#L601">601</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/ProjectExistsException.html">ProjectExistsException</a>(message, false);
-<a class="jxr_linenumber" name="L602" href="#L602">602</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L603" href="#L603">603</a>                 <strong class="jxr_keyword">case</strong> REPOSITORY_NOT_FOUND:
-<a class="jxr_linenumber" name="L604" href="#L604">604</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/RepositoryNotFoundException.html">RepositoryNotFoundException</a>(message, false);
-<a class="jxr_linenumber" name="L605" href="#L605">605</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L606" href="#L606">606</a>                 <strong class="jxr_keyword">case</strong> REPOSITORY_EXISTS:
-<a class="jxr_linenumber" name="L607" href="#L607">607</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/RepositoryExistsException.html">RepositoryExistsException</a>(message, false);
-<a class="jxr_linenumber" name="L608" href="#L608">608</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L609" href="#L609">609</a>                 <strong class="jxr_keyword">case</strong> REVISION_NOT_FOUND:
-<a class="jxr_linenumber" name="L610" href="#L610">610</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/RevisionNotFoundException.html">RevisionNotFoundException</a>(message, false);
-<a class="jxr_linenumber" name="L611" href="#L611">611</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L612" href="#L612">612</a>                 <strong class="jxr_keyword">case</strong> REVISION_EXISTS:
-<a class="jxr_linenumber" name="L613" href="#L613">613</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/ChangeConflictException.html">ChangeConflictException</a>(message, false);
-<a class="jxr_linenumber" name="L614" href="#L614">614</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L615" href="#L615">615</a>                 <strong class="jxr_keyword">case</strong> ENTRY_NOT_FOUND:
-<a class="jxr_linenumber" name="L616" href="#L616">616</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/EntryNotFoundException.html">EntryNotFoundException</a>(message, false);
-<a class="jxr_linenumber" name="L617" href="#L617">617</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L618" href="#L618">618</a>                 <strong class="jxr_keyword">case</strong> REDUNDANT_CHANGE:
-<a class="jxr_linenumber" name="L619" href="#L619">619</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/RedundantChangeException.html">RedundantChangeException</a>(message, false);
-<a class="jxr_linenumber" name="L620" href="#L620">620</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L621" href="#L621">621</a>                 <strong class="jxr_keyword">case</strong> CHANGE_CONFLICT:
-<a class="jxr_linenumber" name="L622" href="#L622">622</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/ChangeConflictException.html">ChangeConflictException</a>(message, false);
-<a class="jxr_linenumber" name="L623" href="#L623">623</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L624" href="#L624">624</a>                 <strong class="jxr_keyword">case</strong> QUERY_FAILURE:
-<a class="jxr_linenumber" name="L625" href="#L625">625</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/QueryExecutionException.html">QueryExecutionException</a>(message, false);
-<a class="jxr_linenumber" name="L626" href="#L626">626</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L627" href="#L627">627</a>                 <strong class="jxr_keyword">case</strong> SHUTTING_DOWN:
-<a class="jxr_linenumber" name="L628" href="#L628">628</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/ShuttingDownException.html">ShuttingDownException</a>(message, false);
-<a class="jxr_linenumber" name="L629" href="#L629">629</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L630" href="#L630">630</a>                 <strong class="jxr_keyword">default</strong>:
-<a class="jxr_linenumber" name="L631" href="#L631">631</a>                     <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> Error();
-<a class="jxr_linenumber" name="L632" href="#L632">632</a>             }
-<a class="jxr_linenumber" name="L633" href="#L633">633</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L634" href="#L634">634</a>             convertedCause = peeledCause;
-<a class="jxr_linenumber" name="L635" href="#L635">635</a>         }
-<a class="jxr_linenumber" name="L636" href="#L636">636</a>         <strong class="jxr_keyword">return</strong> convertedCause;
-<a class="jxr_linenumber" name="L637" href="#L637">637</a>     }
-<a class="jxr_linenumber" name="L638" href="#L638">638</a> 
-<a class="jxr_linenumber" name="L639" href="#L639">639</a>     @Override
-<a class="jxr_linenumber" name="L640" href="#L640">640</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> close() {
-<a class="jxr_linenumber" name="L641" href="#L641">641</a>         endpointGroup.close();
+<a class="jxr_linenumber" name="L538" href="#L538">538</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T, U&gt; Set&lt;T&gt; convertToSet(@Nullable Iterable&lt;U&gt; c, Function&lt;U, T&gt; mapper) {
+<a class="jxr_linenumber" name="L539" href="#L539">539</a>         <strong class="jxr_keyword">return</strong> convertToCollection(c, mapper, toImmutableSet());
+<a class="jxr_linenumber" name="L540" href="#L540">540</a>     }
+<a class="jxr_linenumber" name="L541" href="#L541">541</a> 
+<a class="jxr_linenumber" name="L542" href="#L542">542</a>     @Nullable
+<a class="jxr_linenumber" name="L543" href="#L543">543</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T, U, V <strong class="jxr_keyword">extends</strong> Collection&lt;T&gt;&gt; V convertToCollection(
+<a class="jxr_linenumber" name="L544" href="#L544">544</a>             @Nullable Iterable&lt;U&gt; c, Function&lt;U, T&gt; mapper, Collector&lt;T, ?, V&gt; collector) {
+<a class="jxr_linenumber" name="L545" href="#L545">545</a>         <strong class="jxr_keyword">if</strong> (c == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L546" href="#L546">546</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L547" href="#L547">547</a>         }
+<a class="jxr_linenumber" name="L548" href="#L548">548</a> 
+<a class="jxr_linenumber" name="L549" href="#L549">549</a>         <strong class="jxr_keyword">final</strong> Stream&lt;U&gt; stream;
+<a class="jxr_linenumber" name="L550" href="#L550">550</a>         <strong class="jxr_keyword">if</strong> (c instanceof Collection) {
+<a class="jxr_linenumber" name="L551" href="#L551">551</a>             stream = ((Collection&lt;U&gt;) c).stream();
+<a class="jxr_linenumber" name="L552" href="#L552">552</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L553" href="#L553">553</a>             stream = StreamSupport.stream(c.spliterator(), false);
+<a class="jxr_linenumber" name="L554" href="#L554">554</a>         }
+<a class="jxr_linenumber" name="L555" href="#L555">555</a> 
+<a class="jxr_linenumber" name="L556" href="#L556">556</a>         <strong class="jxr_keyword">return</strong> stream.map(mapper).collect(collector);
+<a class="jxr_linenumber" name="L557" href="#L557">557</a>     }
+<a class="jxr_linenumber" name="L558" href="#L558">558</a> 
+<a class="jxr_linenumber" name="L559" href="#L559">559</a>     @Nullable
+<a class="jxr_linenumber" name="L560" href="#L560">560</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T, U, V, W&gt; Map&lt;T, U&gt; convertToMap(
+<a class="jxr_linenumber" name="L561" href="#L561">561</a>             @Nullable Collection&lt;V&gt; c, Function&lt;V, W&gt; entryMapper,
+<a class="jxr_linenumber" name="L562" href="#L562">562</a>             Function&lt;W, T&gt; keyMapper, Function&lt;W, U&gt; valueMapper) {
+<a class="jxr_linenumber" name="L563" href="#L563">563</a>         <strong class="jxr_keyword">if</strong> (c == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L564" href="#L564">564</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L565" href="#L565">565</a>         }
+<a class="jxr_linenumber" name="L566" href="#L566">566</a>         <strong class="jxr_keyword">return</strong> c.stream().map(entryMapper).collect(toImmutableMap(keyMapper, valueMapper));
+<a class="jxr_linenumber" name="L567" href="#L567">567</a>     }
+<a class="jxr_linenumber" name="L568" href="#L568">568</a> 
+<a class="jxr_linenumber" name="L569" href="#L569">569</a>     @Nullable
+<a class="jxr_linenumber" name="L570" href="#L570">570</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> List&lt;Change&lt;?&gt;&gt; convertToChangesModel(
+<a class="jxr_linenumber" name="L571" href="#L571">571</a>             List&lt;com.linecorp.centraldogma.internal.thrift.Change&gt; changes) {
+<a class="jxr_linenumber" name="L572" href="#L572">572</a>         <strong class="jxr_keyword">return</strong> convertToList(changes, ChangeConverter.TO_MODEL::convert);
+<a class="jxr_linenumber" name="L573" href="#L573">573</a>     }
+<a class="jxr_linenumber" name="L574" href="#L574">574</a> 
+<a class="jxr_linenumber" name="L575" href="#L575">575</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> &lt;T&gt; CompletableFuture&lt;T&gt; run(ThriftCall&lt;T&gt; call) {
+<a class="jxr_linenumber" name="L576" href="#L576">576</a>         <strong class="jxr_keyword">final</strong> ThriftFuture&lt;T&gt; future = <strong class="jxr_keyword">new</strong> ThriftFuture&lt;&gt;();
+<a class="jxr_linenumber" name="L577" href="#L577">577</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L578" href="#L578">578</a>             call.apply(future);
+<a class="jxr_linenumber" name="L579" href="#L579">579</a>             <strong class="jxr_keyword">return</strong> future.exceptionally(cause -&gt; Exceptions.throwUnsafely(convertCause(cause)));
+<a class="jxr_linenumber" name="L580" href="#L580">580</a>         } <strong class="jxr_keyword">catch</strong> (Exception e) {
+<a class="jxr_linenumber" name="L581" href="#L581">581</a>             <strong class="jxr_keyword">return</strong> CompletableFutures.exceptionallyCompletedFuture(convertCause(e));
+<a class="jxr_linenumber" name="L582" href="#L582">582</a>         }
+<a class="jxr_linenumber" name="L583" href="#L583">583</a>     }
+<a class="jxr_linenumber" name="L584" href="#L584">584</a> 
+<a class="jxr_linenumber" name="L585" href="#L585">585</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> Throwable convertCause(Throwable cause) {
+<a class="jxr_linenumber" name="L586" href="#L586">586</a>         <strong class="jxr_keyword">final</strong> Throwable peeledCause = Exceptions.peel(cause);
+<a class="jxr_linenumber" name="L587" href="#L587">587</a>         <strong class="jxr_keyword">final</strong> Throwable convertedCause;
+<a class="jxr_linenumber" name="L588" href="#L588">588</a> 
+<a class="jxr_linenumber" name="L589" href="#L589">589</a>         <strong class="jxr_keyword">if</strong> (peeledCause instanceof com.linecorp.centraldogma.internal.thrift.CentralDogmaException) {
+<a class="jxr_linenumber" name="L590" href="#L590">590</a>             <strong class="jxr_keyword">final</strong> String message = peeledCause.getMessage();
+<a class="jxr_linenumber" name="L591" href="#L591">591</a>             <strong class="jxr_keyword">switch</strong> (((com.linecorp.centraldogma.internal.thrift.CentralDogmaException) peeledCause)
+<a class="jxr_linenumber" name="L592" href="#L592">592</a>                     .getErrorCode()) {
+<a class="jxr_linenumber" name="L593" href="#L593">593</a>                 <strong class="jxr_keyword">case</strong> UNIMPLEMENTED:
+<a class="jxr_linenumber" name="L594" href="#L594">594</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/CentralDogmaException.html">CentralDogmaException</a>(<span class="jxr_string">"unimplemented"</span>, false);
+<a class="jxr_linenumber" name="L595" href="#L595">595</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L596" href="#L596">596</a>                 <strong class="jxr_keyword">case</strong> INTERNAL_SERVER_ERROR:
+<a class="jxr_linenumber" name="L597" href="#L597">597</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/CentralDogmaException.html">CentralDogmaException</a>(<span class="jxr_string">"internal server error"</span>, false);
+<a class="jxr_linenumber" name="L598" href="#L598">598</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L599" href="#L599">599</a>                 <strong class="jxr_keyword">case</strong> BAD_REQUEST:
+<a class="jxr_linenumber" name="L600" href="#L600">600</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/CentralDogmaException.html">CentralDogmaException</a>(<span class="jxr_string">"bad request"</span>, false);
+<a class="jxr_linenumber" name="L601" href="#L601">601</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L602" href="#L602">602</a>                 <strong class="jxr_keyword">case</strong> PROJECT_NOT_FOUND:
+<a class="jxr_linenumber" name="L603" href="#L603">603</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/ProjectNotFoundException.html">ProjectNotFoundException</a>(message, false);
+<a class="jxr_linenumber" name="L604" href="#L604">604</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L605" href="#L605">605</a>                 <strong class="jxr_keyword">case</strong> PROJECT_EXISTS:
+<a class="jxr_linenumber" name="L606" href="#L606">606</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/ProjectExistsException.html">ProjectExistsException</a>(message, false);
+<a class="jxr_linenumber" name="L607" href="#L607">607</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L608" href="#L608">608</a>                 <strong class="jxr_keyword">case</strong> REPOSITORY_NOT_FOUND:
+<a class="jxr_linenumber" name="L609" href="#L609">609</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/RepositoryNotFoundException.html">RepositoryNotFoundException</a>(message, false);
+<a class="jxr_linenumber" name="L610" href="#L610">610</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L611" href="#L611">611</a>                 <strong class="jxr_keyword">case</strong> REPOSITORY_EXISTS:
+<a class="jxr_linenumber" name="L612" href="#L612">612</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/RepositoryExistsException.html">RepositoryExistsException</a>(message, false);
+<a class="jxr_linenumber" name="L613" href="#L613">613</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L614" href="#L614">614</a>                 <strong class="jxr_keyword">case</strong> REVISION_NOT_FOUND:
+<a class="jxr_linenumber" name="L615" href="#L615">615</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/RevisionNotFoundException.html">RevisionNotFoundException</a>(message, false);
+<a class="jxr_linenumber" name="L616" href="#L616">616</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L617" href="#L617">617</a>                 <strong class="jxr_keyword">case</strong> REVISION_EXISTS:
+<a class="jxr_linenumber" name="L618" href="#L618">618</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/ChangeConflictException.html">ChangeConflictException</a>(message, false);
+<a class="jxr_linenumber" name="L619" href="#L619">619</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L620" href="#L620">620</a>                 <strong class="jxr_keyword">case</strong> ENTRY_NOT_FOUND:
+<a class="jxr_linenumber" name="L621" href="#L621">621</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/EntryNotFoundException.html">EntryNotFoundException</a>(message, false);
+<a class="jxr_linenumber" name="L622" href="#L622">622</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L623" href="#L623">623</a>                 <strong class="jxr_keyword">case</strong> REDUNDANT_CHANGE:
+<a class="jxr_linenumber" name="L624" href="#L624">624</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/RedundantChangeException.html">RedundantChangeException</a>(message, false);
+<a class="jxr_linenumber" name="L625" href="#L625">625</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L626" href="#L626">626</a>                 <strong class="jxr_keyword">case</strong> CHANGE_CONFLICT:
+<a class="jxr_linenumber" name="L627" href="#L627">627</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/ChangeConflictException.html">ChangeConflictException</a>(message, false);
+<a class="jxr_linenumber" name="L628" href="#L628">628</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L629" href="#L629">629</a>                 <strong class="jxr_keyword">case</strong> QUERY_FAILURE:
+<a class="jxr_linenumber" name="L630" href="#L630">630</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/QueryExecutionException.html">QueryExecutionException</a>(message, false);
+<a class="jxr_linenumber" name="L631" href="#L631">631</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L632" href="#L632">632</a>                 <strong class="jxr_keyword">case</strong> SHUTTING_DOWN:
+<a class="jxr_linenumber" name="L633" href="#L633">633</a>                     convertedCause = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/common/ShuttingDownException.html">ShuttingDownException</a>(message, false);
+<a class="jxr_linenumber" name="L634" href="#L634">634</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L635" href="#L635">635</a>                 <strong class="jxr_keyword">default</strong>:
+<a class="jxr_linenumber" name="L636" href="#L636">636</a>                     <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> Error();
+<a class="jxr_linenumber" name="L637" href="#L637">637</a>             }
+<a class="jxr_linenumber" name="L638" href="#L638">638</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L639" href="#L639">639</a>             convertedCause = peeledCause;
+<a class="jxr_linenumber" name="L640" href="#L640">640</a>         }
+<a class="jxr_linenumber" name="L641" href="#L641">641</a>         <strong class="jxr_keyword">return</strong> convertedCause;
 <a class="jxr_linenumber" name="L642" href="#L642">642</a>     }
 <a class="jxr_linenumber" name="L643" href="#L643">643</a> 
-<a class="jxr_linenumber" name="L644" href="#L644">644</a>     @FunctionalInterface
-<a class="jxr_linenumber" name="L645" href="#L645">645</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">interface</strong> ThriftCall&lt;T&gt; {
-<a class="jxr_linenumber" name="L646" href="#L646">646</a>         <strong class="jxr_keyword">void</strong> apply(ThriftFuture&lt;T&gt; callback) <strong class="jxr_keyword">throws</strong> TException;
+<a class="jxr_linenumber" name="L644" href="#L644">644</a>     @Override
+<a class="jxr_linenumber" name="L645" href="#L645">645</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> close() {
+<a class="jxr_linenumber" name="L646" href="#L646">646</a>         endpointGroup.close();
 <a class="jxr_linenumber" name="L647" href="#L647">647</a>     }
-<a class="jxr_linenumber" name="L648" href="#L648">648</a> }
+<a class="jxr_linenumber" name="L648" href="#L648">648</a> 
+<a class="jxr_linenumber" name="L649" href="#L649">649</a>     @FunctionalInterface
+<a class="jxr_linenumber" name="L650" href="#L650">650</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">interface</strong> ThriftCall&lt;T&gt; {
+<a class="jxr_linenumber" name="L651" href="#L651">651</a>         <strong class="jxr_keyword">void</strong> apply(ThriftFuture&lt;T&gt; callback) <strong class="jxr_keyword">throws</strong> TException;
+<a class="jxr_linenumber" name="L652" href="#L652">652</a>     }
+<a class="jxr_linenumber" name="L653" href="#L653">653</a> }
 </pre>
 <hr/>
-<div id="footer">&copy; Copyright 2017&ndash;2025 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>
+<div id="footer">&copy; Copyright 2017&ndash;2026 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>
 </body>
 </html>

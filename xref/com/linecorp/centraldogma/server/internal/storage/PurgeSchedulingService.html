@@ -51,8 +51,8 @@
 <a class="jxr_linenumber" name="L43" href="#L43">43</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.common.Author;
 <a class="jxr_linenumber" name="L44" href="#L44">44</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.Command;
 <a class="jxr_linenumber" name="L45" href="#L45">45</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.command.CommandExecutor;
-<a class="jxr_linenumber" name="L46" href="#L46">46</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.MetadataService;
-<a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.Token;
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.AppIdentity;
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.MetadataService;
 <a class="jxr_linenumber" name="L48" href="#L48">48</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.metadata.Tokens;
 <a class="jxr_linenumber" name="L49" href="#L49">49</a>  <strong class="jxr_keyword">import</strong> com.linecorp.centraldogma.server.storage.project.ProjectManager;
 <a class="jxr_linenumber" name="L50" href="#L50">50</a>  
@@ -161,8 +161,8 @@
 <a class="jxr_linenumber" name="L153" href="#L153">153</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/metadata/Tokens.html">Tokens</a> tokens = metadataService.getTokens();
 <a class="jxr_linenumber" name="L154" href="#L154">154</a>         <strong class="jxr_keyword">final</strong> List&lt;String&gt; purging = tokens.appIds().values()
 <a class="jxr_linenumber" name="L155" href="#L155">155</a>                                            .stream()
-<a class="jxr_linenumber" name="L156" href="#L156">156</a>                                            .filter(Token::isDeleted)
-<a class="jxr_linenumber" name="L157" href="#L157">157</a>                                            .map(Token::appId)
+<a class="jxr_linenumber" name="L156" href="#L156">156</a>                                            .filter(AppIdentity::isDeleted)
+<a class="jxr_linenumber" name="L157" href="#L157">157</a>                                            .map(AppIdentity::appId)
 <a class="jxr_linenumber" name="L158" href="#L158">158</a>                                            .collect(toImmutableList());
 <a class="jxr_linenumber" name="L159" href="#L159">159</a> 
 <a class="jxr_linenumber" name="L160" href="#L160">160</a>         <strong class="jxr_keyword">if</strong> (!purging.isEmpty()) {
@@ -222,6 +222,6 @@
 <a class="jxr_linenumber" name="L214" href="#L214">214</a> }
 </pre>
 <hr/>
-<div id="footer">&copy; Copyright 2017&ndash;2025 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>
+<div id="footer">&copy; Copyright 2017&ndash;2026 <a href="https://engineering.linecorp.com/en/">LINE Corporation</a>. All rights reserved.</div>
 </body>
 </html>
