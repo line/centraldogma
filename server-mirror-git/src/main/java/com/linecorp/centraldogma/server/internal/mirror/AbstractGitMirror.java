@@ -643,7 +643,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
                 assert newData != null;
                 // Upsert only when the contents are really different.
                 if (!newData.equals(oldData)) {
-                    final String newContent = newData + '\n';
+                    final String newContent = sanitizeText(newData);
                     applyPathEdit(dirCache, new InsertText(pathString, inserter, newContent));
                     return newContent.length();
                 }

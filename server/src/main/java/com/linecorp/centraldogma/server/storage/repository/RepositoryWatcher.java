@@ -64,7 +64,7 @@ final class RepositoryWatcher<T> {
             dogmaRepo = null;
             this.lastKnownVariableRev = null;
         } else {
-            String pathPattern = query.path() + ",/**/.variable.*";
+            String pathPattern = query.path() + ",/**/.variables.*";
             if (variableFile != null) {
                 pathPattern += ',' + variableFile;
             }
@@ -142,12 +142,26 @@ final class RepositoryWatcher<T> {
         final CompletableFuture<RevisionPair> future = new CompletableFuture<>();
         final CompletableFuture<Revision> repoFuture = repo.watch(lastKnownRev, pathPattern,
                                                                   errorOnEntryNotFound);
-        repoFuture.thenAccept(newRev -> future.complete(new RevisionPair(newRev, lastKnownVarRev)));
+        repoFuture.handle((newRev, cause) -> {
+            if (cause != null) {
+                future.completeExceptionally(cause);
+            } else {
+                future.complete(new RevisionPair(newRev, lastKnownVarRev));
+            }
+            return null;
+        });
 
         final CompletableFuture<Revision> dogmaFuture;
         if (lastKnownVarRev != null) {
             dogmaFuture = dogmaRepo.watch(lastKnownVarRev, "/**/variables/**/*.json");
-            dogmaFuture.thenAccept(newVarRev -> future.complete(new RevisionPair(lastKnownRev, newVarRev)));
+            dogmaFuture.handle((newVarRev, cause) -> {
+                if (cause != null) {
+                    future.completeExceptionally(cause);
+                } else {
+                    future.complete(new RevisionPair(lastKnownRev, newVarRev));
+                }
+                return null;
+            });
         } else {
             dogmaFuture = null;
         }

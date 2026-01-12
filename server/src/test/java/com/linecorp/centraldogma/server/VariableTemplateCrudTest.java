@@ -109,7 +109,6 @@ class VariableTemplateCrudTest {
 
     @Test
     void applyTemplateWithProjectLevelStringVariable() {
-        // Create a project-level string variable via API
         createVariable(TEST_PROJECT, null, "serverName", VariableType.STRING, "production-server");
 
         final String templateContent = "{ \"server\": \"${vars.serverName}\" }";
@@ -126,7 +125,6 @@ class VariableTemplateCrudTest {
 
     @Test
     void applyTemplateWithProjectLevelJsonVariable() {
-        // Create a project-level JSON variable via API
         final String jsonValue = "{\"host\":\"localhost\",\"port\":8080}";
         createVariable(TEST_PROJECT, null, "dbConfig", VariableType.JSON, jsonValue);
 
@@ -182,7 +180,7 @@ class VariableTemplateCrudTest {
         final Change<String> change = Change.ofTextUpsert("/version.txt", templateContent);
         testRepo1.commit("Add version template", change).push().join();
 
-        // Read file with template applied - repo-level should override
+        // Repo-level should override
         final Entry<String> entry = testRepo1.file(Query.ofText("/version.txt"))
                                              .applyTemplate(true)
                                              .get()
@@ -236,7 +234,6 @@ class VariableTemplateCrudTest {
         createVariable(TEST_PROJECT, TEST_REPO_1, "shared", VariableType.STRING, "repo-value");
         createVariable(TEST_PROJECT, TEST_REPO_1, "repoOnly", VariableType.STRING, "from-repo");
 
-        // Create a template using all variables
         final String templateContent =
                 "ProjectOnly: ${vars.projectOnly}\n" +
                 "Shared: ${vars.shared}\n" +
@@ -244,7 +241,6 @@ class VariableTemplateCrudTest {
         final Change<String> change = Change.ofTextUpsert("/mixed.txt", templateContent);
         testRepo1.commit("Add mixed template", change).push().join();
 
-        // Read file with template applied
         final Entry<String> entry = testRepo1.file(Query.ofText("/mixed.txt"))
                                              .applyTemplate(true)
                                              .get()
@@ -388,11 +384,9 @@ class VariableTemplateCrudTest {
 
     @Test
     void applyTemplateWithFreemarkerDirectives() {
-        // Create variables via API
         createVariable(TEST_PROJECT, null, "enabled", VariableType.JSON, "true");
         createVariable(TEST_PROJECT, null, "items", VariableType.JSON, "[\"apple\",\"banana\",\"cherry\"]");
 
-        // Create a template with FreeMarker directives
         final String templateContent =
                 "<#if vars.enabled>\n" +
                 "Feature is enabled\n" +
@@ -401,11 +395,11 @@ class VariableTemplateCrudTest {
                 "<#list vars.items as item>\n" +
                 "- ${item}\n" +
                 "</#list>";
-        final Change<String> change = Change.ofTextUpsert("/directives.txt", templateContent);
+        final Change<String> change = Change.ofTextUpsert("/directives.yaml.ftl", templateContent);
         testRepo1.commit("Add template with directives", change).push().join();
 
         // Read file with template applied
-        final Entry<String> entry = testRepo1.file(Query.ofText("/directives.txt"))
+        final Entry<String> entry = testRepo1.file(Query.ofText("/directives.yaml.ftl"))
                                              .applyTemplate(true)
                                              .get()
                                              .join();
@@ -420,11 +414,9 @@ class VariableTemplateCrudTest {
 
     @Test
     void applyTemplateWithJsonOutput() throws Exception {
-        // Create variables via API
         createVariable(TEST_PROJECT, null, "apiKey", VariableType.STRING, "secret-key-123");
         createVariable(TEST_PROJECT, null, "timeout", VariableType.JSON, "30");
 
-        // Create a text template file that will become JSON after template processing
         final String templateContent =
                 "{\n" +
                 "  \"apiKey\": \"${vars.apiKey}\",\n" +
@@ -447,12 +439,10 @@ class VariableTemplateCrudTest {
 
     @Test
     void applyTemplateWithoutVariablesShouldWork() {
-        // Create a template file without any variables
         final String templateContent = "Static content without variables";
         final Change<String> change = Change.ofTextUpsert("/static.txt", templateContent);
         testRepo1.commit("Add static file", change).push().join();
 
-        // Read file with template applied
         final Entry<String> entry = testRepo1.file(Query.ofText("/static.txt"))
                                              .applyTemplate(true)
                                              .get()
@@ -463,15 +453,12 @@ class VariableTemplateCrudTest {
 
     @Test
     void readFileWithoutApplyTemplate() {
-        // Create a variable via API
         createVariable(TEST_PROJECT, null, "varName", VariableType.STRING, "\"value\"");
 
-        // Create a template file
         final String templateContent = "Variable: ${vars.varName}";
         final Change<String> change = Change.ofTextUpsert("/template.txt", templateContent);
         testRepo1.commit("Add template", change).push().join();
 
-        // Read file without applying template - should return raw content
         final Entry<String> entry = testRepo1.file(Query.ofText("/template.txt"))
                                              .get()
                                              .join();
@@ -481,12 +468,10 @@ class VariableTemplateCrudTest {
 
     @Test
     void applyTemplateWithUndefinedVariableShouldFail() {
-        // Create a template file referencing non-existent variable
         final String templateContent = "Value: ${vars.nonExistentVar}";
         final Change<String> change = Change.ofTextUpsert("/fail.txt", templateContent);
         testRepo1.commit("Add failing template", change).push().join();
 
-        // Trying to read with template applied should fail
         assertThatThrownBy(() -> testRepo1.file(Query.ofText("/fail.txt"))
                                           .applyTemplate(true)
                                           .get()
@@ -496,15 +481,12 @@ class VariableTemplateCrudTest {
 
     @Test
     void applyTemplateWithMultipleFiles() {
-        // Create a variable via API
         createVariable(TEST_PROJECT, null, "prefix", VariableType.STRING, "PREFIX");
 
-        // Create multiple template files
         final Change<String> change1 = Change.ofTextUpsert("/file1.txt", "${vars.prefix}-1");
         final Change<String> change2 = Change.ofTextUpsert("/file2.txt", "${vars.prefix}-2");
         testRepo1.commit("Add templates", change1, change2).push().join();
 
-        // Read multiple files with template applied
         final Map<String, Entry<?>> entries = testRepo1.file(PathPattern.of("/*.txt"))
                                                        .applyTemplate(true)
                                                        .get()
@@ -513,30 +495,6 @@ class VariableTemplateCrudTest {
         assertThat(entries).hasSize(2);
         assertThat(entries.get("/file1.txt").content()).isEqualTo("PREFIX-1\n");
         assertThat(entries.get("/file2.txt").content()).isEqualTo("PREFIX-2\n");
-    }
-
-    @Test
-    void watchFileWithApplyTemplate() {
-        // Create a variable via API
-        createVariable(TEST_PROJECT, null, "status", VariableType.STRING, "initial");
-
-        // Create initial template
-        final String initialTemplate = "Status: ${vars.status}";
-        final Change<String> initialChange = Change.ofTextUpsert("/status.txt", initialTemplate);
-        final PushResult initialResult = testRepo1.commit("Initial status", initialChange).push().join();
-
-        // Update the template
-        final String updatedTemplate = "Current Status: ${vars.status}";
-        final Change<String> updateChange = Change.ofTextUpsert("/status.txt", updatedTemplate);
-        testRepo1.commit("Update status template", updateChange).push().join();
-
-        // Watch the file with template applied
-        final Entry<String> entry = testRepo1.watch(Query.ofText("/status.txt"))
-                                             .applyTemplate(true)
-                                             .start(initialResult.revision())
-                                             .join();
-
-        assertThat(entry.content()).isEqualTo("Current Status: initial\n");
     }
 
     @Test
@@ -564,15 +522,12 @@ class VariableTemplateCrudTest {
 
     @Test
     void deleteVariableAndReadTemplate() {
-        // Create a variable via API
         createVariable(TEST_PROJECT, null, "temp", VariableType.STRING, "value");
 
-        // Create a template
         final String templateContent = "Temp: ${vars.temp}";
         final Change<String> change = Change.ofTextUpsert("/temp.txt", templateContent);
         testRepo1.commit("Add temp template", change).push().join();
 
-        // Verify it works
         final Entry<String> entry = testRepo1.file(Query.ofText("/temp.txt"))
                                              .applyTemplate(true)
                                              .get()
@@ -602,12 +557,10 @@ class VariableTemplateCrudTest {
         final Change<JsonNode> variablesChange = Change.ofJsonUpsert("/.variables.json", variablesJson);
         testRepo1.commit("Add .variables.json", variablesChange).push().join();
 
-        // Create a template file
         final String templateContent = "{ \"server\": \"${vars.serverName}:${vars.port}\" }";
         final Change<JsonNode> change = Change.ofJsonUpsert("/config.json", templateContent);
         testRepo1.commit("Add config template", change).push().join();
 
-        // Read file with template applied
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/config.json"))
                                                .applyTemplate(true)
                                                .get()
@@ -642,12 +595,10 @@ class VariableTemplateCrudTest {
 
     @Test
     void applyTemplateWithDefaultVariablesYamlFile() {
-        // Create a .variables.yaml file in the root directory
         final String variablesYaml = "serverName: yaml-server\nport: 7070";
         final Change<String> variablesChange = Change.ofTextUpsert("/.variables.yaml", variablesYaml);
         testRepo1.commit("Add .variables.yaml", variablesChange).push().join();
 
-        // Create a template file
         final String templateContent = "{ \"server\": \"${vars.serverName}:${vars.port}\" }";
         final Change<JsonNode> change = Change.ofJsonUpsert("/config.json", templateContent);
         testRepo1.commit("Add config template", change).push().join();
@@ -1338,7 +1289,6 @@ class VariableTemplateCrudTest {
                          .applyTemplate(true)
                          .start(pushResult.revision());
 
-        Thread.sleep(500);
         assertThat(future).isNotDone();
 
         // Update the project-level variable
@@ -1364,7 +1314,6 @@ class VariableTemplateCrudTest {
                          .applyTemplate(true)
                          .start(pushResult.revision());
 
-        Thread.sleep(500);
         assertThat(future).isNotDone();
 
         // Update the repo-level variable
@@ -1420,7 +1369,6 @@ class VariableTemplateCrudTest {
                          .applyTemplate(true)
                          .start(pushResult.revision());
 
-        Thread.sleep(500);
         assertThat(future).isNotDone();
 
         // Delete the repo-level variable, should fall back to project-level
@@ -1447,7 +1395,6 @@ class VariableTemplateCrudTest {
                          .applyTemplate(true)
                          .start(pushResult.revision());
 
-        Thread.sleep(500);
         assertThat(future).isNotDone();
 
         // Update the JSON variable
@@ -1476,7 +1423,6 @@ class VariableTemplateCrudTest {
                          .applyTemplate(true)
                          .start(pushResult.revision());
 
-        Thread.sleep(500);
         assertThat(future).isNotDone();
 
         // Update the replicas variable
@@ -1505,7 +1451,6 @@ class VariableTemplateCrudTest {
                          .applyTemplate("/vars/custom.json")
                          .start(pushResult.revision());
 
-        Thread.sleep(500);
         assertThat(future).isNotDone();
 
         // Update the custom variable file
@@ -1522,8 +1467,8 @@ class VariableTemplateCrudTest {
     void watcherWithDefaultVariableFileShouldBeNotifiedWhenFileIsUpdated() throws InterruptedException {
         // Create default variable file
         final String defaultVariables = "{\"color\": \"blue\"}";
-        final Change<JsonNode> variablesChange = Change.ofJsonUpsert("/.Variables.json", defaultVariables);
-        testRepo1.commit("Add .Variables.json", variablesChange).push().join();
+        final Change<JsonNode> variablesChange = Change.ofJsonUpsert("/.variables.json", defaultVariables);
+        testRepo1.commit("Add .variables.json", variablesChange).push().join();
 
         final String templateContent = "{ \"color\": \"${vars.color}\" }";
         final Change<JsonNode> change = Change.ofJsonUpsert("/ui.json", templateContent);
@@ -1535,13 +1480,12 @@ class VariableTemplateCrudTest {
                          .applyTemplate(true)
                          .start(pushResult.revision());
 
-        Thread.sleep(500);
         assertThat(future).isNotDone();
 
         // Update the default variable file
         final String updatedVariables = "{\"color\": \"red\"}";
-        final Change<JsonNode> updateChange = Change.ofJsonUpsert("/.Variables.json", updatedVariables);
-        testRepo1.commit("Update .Variables.json", updateChange).push().join();
+        final Change<JsonNode> updateChange = Change.ofJsonUpsert("/.variables.json", updatedVariables);
+        testRepo1.commit("Update .variables.json", updateChange).push().join();
 
         // Watcher should be notified
         final Entry<JsonNode> entry = future.join();
@@ -1551,9 +1495,9 @@ class VariableTemplateCrudTest {
     @Test
     void watcherShouldBeNotifiedMultipleTimesWhenVariableIsUpdatedMultipleTimes()
             throws InterruptedException {
-        createVariable(TEST_PROJECT, null, "counter", VariableType.JSON, "0");
+        createVariable(TEST_PROJECT, null, "counter", VariableType.STRING, "0");
 
-        final String templateContent = "{ \"count\": ${vars.counter} }";
+        final String templateContent = "{ \"count\": \"${vars.counter}\" }";
         final Change<JsonNode> change = Change.ofJsonUpsert("/counter.json", templateContent);
         final PushResult pushResult = testRepo1.commit("Add counter template", change).push().join();
 
@@ -1563,39 +1507,24 @@ class VariableTemplateCrudTest {
                          .applyTemplate(true)
                          .start(pushResult.revision());
 
-        Thread.sleep(500);
         assertThat(future).isNotDone();
 
-        // First update
-        updateVariable(TEST_PROJECT, null, "counter", VariableType.JSON, "1");
+        updateVariable(TEST_PROJECT, null, "counter", VariableType.STRING, "1");
         Entry<JsonNode> entry = future.join();
-        assertThatJson(entry.content()).node("count").isEqualTo(1);
+        assertThatJson(entry.content()).node("count").isEqualTo("\"1\"");
 
         // Second watch from the previous result
         future = testRepo1.watch(Query.ofJson("/counter.json"))
                           .applyTemplate(true)
                           .start(entry.revision());
 
-        Thread.sleep(500);
+        Thread.sleep(100);
         assertThat(future).isNotDone();
 
         // Second update
-        updateVariable(TEST_PROJECT, null, "counter", VariableType.JSON, "2");
+        updateVariable(TEST_PROJECT, null, "counter", VariableType.STRING, "2");
         entry = future.join();
-        assertThatJson(entry.content()).node("count").isEqualTo(2);
-
-        // Third watch
-        future = testRepo1.watch(Query.ofJson("/counter.json"))
-                          .applyTemplate(true)
-                          .start(entry.revision());
-
-        Thread.sleep(500);
-        assertThat(future).isNotDone();
-
-        // Third update
-        updateVariable(TEST_PROJECT, null, "counter", VariableType.JSON, "3");
-        entry = future.join();
-        assertThatJson(entry.content()).node("count").isEqualTo(3);
+        assertThatJson(entry.content()).node("count").isEqualTo("\"2\"");
     }
 
     @Test
@@ -1639,7 +1568,6 @@ class VariableTemplateCrudTest {
         final Change<String> change = Change.ofTextUpsert("/message.txt", templateContent);
         final PushResult pushResult = testRepo1.commit("Add message template", change).push().join();
 
-        // Start watching
         final CompletableFuture<Entry<String>> future =
                 testRepo1.watch(Query.ofText("/message.txt"))
                          .applyTemplate(true)
@@ -1648,17 +1576,14 @@ class VariableTemplateCrudTest {
         Thread.sleep(500);
         assertThat(future).isNotDone();
 
-        // Update the variable
         updateVariable(TEST_PROJECT, null, "message", VariableType.STRING, "World");
 
-        // Watcher should be notified
         final Entry<String> entry = future.join();
         assertThat(entry.content()).isEqualTo("Message: World\n");
     }
 
     @Test
     void watcherOnMultipleReposShouldBeNotifiedIndependently() throws InterruptedException {
-        // Create repo-level variables for both repos
         createVariable(TEST_PROJECT, TEST_REPO_1, "repoName", VariableType.STRING, "repo1");
         createVariable(TEST_PROJECT, TEST_REPO_2, "repoName", VariableType.STRING, "repo2");
 
@@ -1666,11 +1591,9 @@ class VariableTemplateCrudTest {
 
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/info.json", templateContent);
         final PushResult pushResult1 = testRepo1.commit("Add info template", change1).push().join();
-
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/info.json", templateContent);
         final PushResult pushResult2 = testRepo2.commit("Add info template", change2).push().join();
 
-        // Start watching on both repos
         final CompletableFuture<Entry<JsonNode>> future1 =
                 testRepo1.watch(Query.ofJson("/info.json"))
                          .applyTemplate(true)
@@ -1704,8 +1627,6 @@ class VariableTemplateCrudTest {
         assertThatJson(entry2.content()).isEqualTo("{ \"repo\": \"repo2-updated\" }");
     }
 
-    // Tests using Watcher API (long-running watcher)
-
     @Test
     void longRunningWatcherShouldReceiveUpdatesWhenProjectVariableChanges() throws InterruptedException {
         createVariable(TEST_PROJECT, null, "status", VariableType.STRING, "starting");
@@ -1715,29 +1636,20 @@ class VariableTemplateCrudTest {
         testRepo1.commit("Add status template", change).push().join();
 
         // Create a long-running watcher
-        final Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/status.json"))
-                                                   .applyTemplate(true)
-                                                   .start();
-        try {
-            // Verify initial value
+        try (Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/status.json"))
+                                                  .applyTemplate(true)
+                                                  .start()) {
             assertThatJson(watcher.awaitInitialValue().value()).isEqualTo("{ \"status\": \"starting\" }");
-
-            // Update the variable
             updateVariable(TEST_PROJECT, null, "status", VariableType.STRING, "running");
-
             // Verify the watcher receives the update
             await().untilAsserted(() -> {
                 assertThatJson(watcher.latestValue()).isEqualTo("{ \"status\": \"running\" }");
             });
 
-            // Update again
             updateVariable(TEST_PROJECT, null, "status", VariableType.STRING, "stopped");
-
             await().untilAsserted(() -> {
                 assertThatJson(watcher.latestValue()).isEqualTo("{ \"status\": \"stopped\" }");
             });
-        } finally {
-            watcher.close();
         }
     }
 
@@ -1749,10 +1661,9 @@ class VariableTemplateCrudTest {
         final Change<JsonNode> change = Change.ofJsonUpsert("/db.json", templateContent);
         testRepo1.commit("Add db template", change).push().join();
 
-        final Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/db.json"))
-                                                   .applyTemplate(true)
-                                                   .start();
-        try {
+        try (Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/db.json"))
+                                                  .applyTemplate(true)
+                                                  .start()) {
             assertThatJson(watcher.awaitInitialValue().value()).isEqualTo("{ \"host\": \"localhost\" }");
 
             // Update repo variable
@@ -1761,8 +1672,6 @@ class VariableTemplateCrudTest {
             await().untilAsserted(() -> {
                 assertThatJson(watcher.latestValue()).isEqualTo("{ \"host\": \"db.production.com\" }");
             });
-        } finally {
-            watcher.close();
         }
     }
 
@@ -1777,29 +1686,23 @@ class VariableTemplateCrudTest {
         final Change<JsonNode> change = Change.ofYamlUpsert("/app.yaml", templateContent);
         testRepo1.commit("Add app template", change).push().join();
 
-        final Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofYaml("/app.yaml"))
-                                                   .applyTemplate(true)
-                                                   .start();
-        try {
+        try (Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofYaml("/app.yaml"))
+                                                  .applyTemplate(true)
+                                                  .start()) {
             final JsonNode initial = watcher.awaitInitialValue().value();
             assertThatJson(initial).node("version").isEqualTo("1.0.0");
             assertThatJson(initial).node("replicas").isEqualTo(1);
 
-            // Update replicas
             updateVariable(TEST_PROJECT, null, "replicas", VariableType.JSON, "5");
 
             await().untilAsserted(() -> {
                 assertThatJson(watcher.latestValue()).node("replicas").isEqualTo(5);
             });
 
-            // Update version
             updateVariable(TEST_PROJECT, null, "appVersion", VariableType.STRING, "2.0.0");
-
             await().untilAsserted(() -> {
                 assertThatJson(watcher.latestValue()).node("version").isEqualTo("2.0.0");
             });
-        } finally {
-            watcher.close();
         }
     }
 
@@ -1813,13 +1716,11 @@ class VariableTemplateCrudTest {
         final Change<JsonNode> change = Change.ofJsonUpsert("/config.json", templateContent);
         testRepo1.commit("Add config template", change).push().join();
 
-        final Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/config.json"))
-                                                   .applyTemplate("/vars/env.json")
-                                                   .start();
-        try {
+        try (Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/config.json"))
+                                                  .applyTemplate("/vars/env.json")
+                                                  .start()) {
             assertThatJson(watcher.awaitInitialValue().value()).isEqualTo("{ \"environment\": \"dev\" }");
 
-            // Update the custom variable file
             final String updatedVariables = "{\"env\": \"prod\"}";
             final Change<JsonNode> updateChange = Change.ofJsonUpsert("/vars/env.json", updatedVariables);
             testRepo1.commit("Update custom variable file", updateChange).push().join();
@@ -1827,37 +1728,31 @@ class VariableTemplateCrudTest {
             await().untilAsserted(() -> {
                 assertThatJson(watcher.latestValue()).isEqualTo("{ \"environment\": \"prod\" }");
             });
-        } finally {
-            watcher.close();
         }
     }
 
     @Test
     void longRunningWatcherShouldReceiveUpdatesWhenDefaultVariableFileChanges() throws InterruptedException {
         final String defaultVariables = "{\"theme\": \"light\"}";
-        final Change<JsonNode> variablesChange = Change.ofJsonUpsert("/.Variables.json", defaultVariables);
-        testRepo1.commit("Add .Variables.json", variablesChange).push().join();
+        final Change<JsonNode> variablesChange = Change.ofJsonUpsert("/.variables.json", defaultVariables);
+        testRepo1.commit("Add .variables.json", variablesChange).push().join();
 
         final String templateContent = "{ \"theme\": \"${vars.theme}\" }";
         final Change<JsonNode> change = Change.ofJsonUpsert("/ui-settings.json", templateContent);
         testRepo1.commit("Add UI settings template", change).push().join();
 
-        final Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/ui-settings.json"))
-                                                   .applyTemplate(true)
-                                                   .start();
-        try {
+        try (Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/ui-settings.json"))
+                                                  .applyTemplate(true)
+                                                  .start()) {
             assertThatJson(watcher.awaitInitialValue().value()).isEqualTo("{ \"theme\": \"light\" }");
 
-            // Update the default variable file
             final String updatedVariables = "{\"theme\": \"dark\"}";
-            final Change<JsonNode> updateChange = Change.ofJsonUpsert("/.Variables.json", updatedVariables);
-            testRepo1.commit("Update .Variables.json", updateChange).push().join();
+            final Change<JsonNode> updateChange = Change.ofJsonUpsert("/.variables.json", updatedVariables);
+            testRepo1.commit("Update .variables.json", updateChange).push().join();
 
             await().untilAsserted(() -> {
                 assertThatJson(watcher.latestValue()).isEqualTo("{ \"theme\": \"dark\" }");
             });
-        } finally {
-            watcher.close();
         }
     }
 

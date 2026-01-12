@@ -32,6 +32,7 @@ class UtilTest {
         assertFilePathValidationSuccess("/foo/bar.txt");
         assertFilePathValidationSuccess("/foo.bar/baz.json");
         assertFilePathValidationSuccess("/foo-bar/baz-json");
+        assertFilePathValidationSuccess("/.foo");
 
         // No relative path
         assertFilePathValidationFailure("foo");
@@ -47,7 +48,6 @@ class UtilTest {
         // No leading or trailing dots
         assertFilePathValidationFailure("/.");
         assertFilePathValidationFailure("/..");
-        assertFilePathValidationFailure("/.foo");
         assertFilePathValidationFailure("/foo.");
         assertFilePathValidationFailure("/.foo.");
 
@@ -106,6 +106,7 @@ class UtilTest {
         assertDirPathValidationSuccess("/foo/bar/");
         assertDirPathValidationSuccess("/foo.bar/");
         assertDirPathValidationSuccess("/foo-bar/");
+        assertDirPathValidationSuccess("/.foo/");
 
         // No relative path
         assertDirPathValidationFailure("foo");
@@ -117,7 +118,6 @@ class UtilTest {
         // No leading or trailing dots
         assertDirPathValidationFailure("/./");
         assertDirPathValidationFailure("/../");
-        assertDirPathValidationFailure("/.foo/");
         assertDirPathValidationFailure("/foo./");
         assertDirPathValidationFailure("/.foo./");
 
