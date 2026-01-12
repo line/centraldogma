@@ -63,8 +63,10 @@ public final class CrudContext {
             return false;
         }
         final CrudContext that = (CrudContext) o;
-        return projectName.equals(that.projectName) && repoName.equals(that.repoName) &&
-               targetPath.equals(that.targetPath) && revision.equals(revision);
+        return projectName.equals(that.projectName) &&
+               repoName.equals(that.repoName) &&
+               targetPath.equals(that.targetPath) &&
+               revision.equals(that.revision);
     }
 
     @Override
