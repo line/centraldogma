@@ -317,6 +317,10 @@ abstract class AbstractGitMirror extends AbstractMirror {
                 if (!path.startsWith(remotePath())) {
                     continue;
                 }
+                if (path.endsWith("/.gitmodules")) {
+                    // Submodules are not supported.
+                    continue;
+                }
 
                 final String localPath = localPath() + path.substring(remotePath().length());
 

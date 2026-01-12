@@ -224,9 +224,9 @@ class GitRepositoryTest {
             if (entryType == EntryType.TEXT) {
                 // Text must be sanitized so that the last line ends with \n.
                 assertThat(entries).containsEntry(path, Entry.of(headRev, path, EntryType.TEXT,
-                                                                 c.content() + "\n"));
+                                                                 c.content() + "\n", null));
             } else {
-                assertThat(entries).containsEntry(path, Entry.of(headRev, path, entryType, c.content()));
+                assertThat(entries).containsEntry(path, Entry.of(headRev, path, entryType, c.content(), null));
             }
         }
     }

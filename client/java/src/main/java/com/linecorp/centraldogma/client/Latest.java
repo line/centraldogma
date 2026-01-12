@@ -35,13 +35,23 @@ public final class Latest<U> {
 
     private final Revision revision;
     @Nullable
+    private final Revision variableRevision;
+    @Nullable
     private final U value;
 
     /**
      * Creates a new instance with the specified {@link Revision} and value.
      */
     public Latest(Revision revision, @Nullable U value) {
+        this(revision, null, value);
+    }
+
+    /**
+     * Creates a new instance with the specified {@link Revision}s and value.
+     */
+    public Latest(Revision revision, @Nullable Revision variableRevision, @Nullable U value) {
         this.revision = requireNonNull(revision, "revision");
+        this.variableRevision = variableRevision;
         this.value = value;
     }
 
@@ -50,6 +60,17 @@ public final class Latest<U> {
      */
     public Revision revision() {
         return revision;
+    }
+
+    /**
+     * Returns the revision of the variables that were used to render the template and generate this
+     * {@code value}.
+     *
+     * <p>{@code null} if this {@code value} was not created by applying variables to a template.
+     */
+    @Nullable
+    public Revision variableRevision() {
+        return variableRevision;
     }
 
     /**
@@ -69,18 +90,21 @@ public final class Latest<U> {
             return false;
         }
         final Latest<?> that = (Latest<?>) o;
-        return revision.equals(that.revision) && Objects.equals(value, that.value);
+        return revision.equals(that.revision) &&
+               Objects.equals(variableRevision, that.variableRevision) &&
+               Objects.equals(value, that.value);
     }
 
     @Override
     public int hashCode() {
-        return revision.hashCode() * 31 + Objects.hashCode(value);
+        return Objects.hash(revision, variableRevision, value);
     }
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
+        return MoreObjects.toStringHelper(this).omitNullValues()
                           .add("revision", revision)
+                          .add("variableRevision", variableRevision)
                           .add("value", value)
                           .toString();
     }

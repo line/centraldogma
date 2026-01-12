@@ -83,41 +83,45 @@ final class DtoConverter {
         if (withContent && entry.hasContent()) {
             if (viewRaw) {
                 // Raw content is not null if content is present.
-                return newEntryDto(repository, revision, entry.path(), entry.type(), null, entry.rawContent());
+                return newEntryDto(repository, revision, entry.path(), entry.type(), null, entry.rawContent(),
+                                   entry.variableRevision());
             }
             if (entry.type() == EntryType.YAML) {
                 if (entry.rawContent() == null) {
                     // JSON_PATH is used to read the part of YAML files, which is a new feature.
-                    return newEntryDto(repository, revision, entry.path(), entry.type(), entry.content(), null);
+                    return newEntryDto(repository, revision, entry.path(), entry.type(), entry.content(), null,
+                                       entry.variableRevision());
                 } else {
                     // Use EntryType.TEXT for backward compatibility. Old clients may not recognize
                     // EntryType.YAML.
                     // TODO(ikhoon): Use entry.content() instead of entry.rawContent() once we drop the support
                     //               for old clients.
                     return newEntryDto(repository, revision, entry.path(), EntryType.TEXT, entry.rawContent(),
-                                       null);
+                                       null, entry.variableRevision());
                 }
             }
-            return newEntryDto(repository, revision, entry.path(), entry.type(), entry.content(), null);
+            return newEntryDto(repository, revision, entry.path(), entry.type(), entry.content(), null,
+                               entry.variableRevision());
         }
         return newEntryDto(repository, revision, entry.path(), entry.type());
     }
 
     private static <T> EntryDto<T> newEntryDto(Repository repository, Revision revision,
                                                String path, EntryType type) {
-        return newEntryDto(repository, revision, path, type, null, null);
+        return newEntryDto(repository, revision, path, type, null, null, null);
     }
 
     private static <T> EntryDto<T> newEntryDto(Repository repository, Revision revision, String path,
                                                EntryType type, @Nullable T content,
-                                               @Nullable String rawContent) {
+                                               @Nullable String rawContent,
+                                               @Nullable Revision variableRevision) {
         requireNonNull(repository, "repository");
         return new EntryDto<>(requireNonNull(revision, "revision"),
                               requireNonNull(path, "path"),
                               requireNonNull(type, "type"),
                               repository.parent().name(),
                               repository.name(),
-                              content, rawContent);
+                              content, rawContent, variableRevision);
     }
 
     public static PushResultDto newPushResultDto(Revision revision, long commitTimeMillis) {

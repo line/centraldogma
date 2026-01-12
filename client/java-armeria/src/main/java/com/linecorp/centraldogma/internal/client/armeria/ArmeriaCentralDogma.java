@@ -28,8 +28,6 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS
 import static com.spotify.futures.CompletableFutures.exceptionallyCompletedFuture;
 import static java.util.Objects.requireNonNull;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -71,6 +69,8 @@ import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.HttpStatusClass;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.QueryParams;
+import com.linecorp.armeria.common.QueryParamsBuilder;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.RequestHeadersBuilder;
 import com.linecorp.armeria.common.stream.ClosedStreamException;
@@ -94,6 +94,7 @@ import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.LockAcquireTimeoutException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
+import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.common.PathPattern;
@@ -112,6 +113,7 @@ import com.linecorp.centraldogma.common.RequestTooLargeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
+import com.linecorp.centraldogma.common.TemplateProcessingException;
 import com.linecorp.centraldogma.common.TextPatchConflictException;
 import com.linecorp.centraldogma.common.jsonpatch.JsonPatchConflictException;
 import com.linecorp.centraldogma.internal.HistoryConstants;
@@ -155,6 +157,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                         .put(TextPatchConflictException.class.getName(), TextPatchConflictException::new)
                         .put(ApiRequestTimeoutException.class.getName(), ApiRequestTimeoutException::new)
                         .put(LockAcquireTimeoutException.class.getName(), LockAcquireTimeoutException::new)
+                        .put(TemplateProcessingException.class.getName(), TemplateProcessingException::new)
                         .build();
 
     private final WebClient client;
@@ -468,7 +471,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     @Override
     public <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName, Revision revision,
-                                                   Query<T> query, boolean viewRaw) {
+                                                   Query<T> query, boolean viewRaw, boolean applyTemplate,
+                                                   @Nullable String variableFile) {
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(revision, "revision");
         requireNonNull(query, "query");
@@ -476,14 +480,24 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             // TODO(trustin) No need to normalize a revision once server response contains it.
             return maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
                 final StringBuilder path = pathBuilder(projectName, repositoryName);
-                path.append("/contents").append(query.path());
-                path.append("?revision=").append(normRev.text());
+                path.append("/contents").append(query.path()).append('?');
+                final QueryParamsBuilder paramsBuilder =
+                        QueryParams.builder()
+                                   .add("revision", normRev.text());
                 if (viewRaw) {
-                    path.append("&viewRaw=true");
+                    paramsBuilder.add("viewRaw", "true");
                 }
-                appendJsonPaths(path, query.type(), query.expressions());
+                if (applyTemplate) {
+                    paramsBuilder.add("applyTemplate", "true");
+                    if (variableFile != null) {
+                        paramsBuilder.add("variableFile", variableFile);
+                    }
+                }
+                appendJsonPaths(paramsBuilder, query.type(), query.expressions());
+                final QueryParams queryParams = paramsBuilder.build();
+                final String requestPath = queryParams.appendQueryString(path).toString();
 
-                return client.execute(headers(HttpMethod.GET, path.toString()))
+                return client.execute(headers(HttpMethod.GET, requestPath))
                              .aggregate()
                              .thenApply(res -> getFile(normRev, res, query, viewRaw));
             });
@@ -505,7 +519,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
                                                              Revision revision, PathPattern pathPattern,
-                                                             boolean viewRaw) {
+                                                             boolean viewRaw, boolean applyTemplate,
+                                                             @Nullable String variableFile) {
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(revision, "revision");
         requireNonNull(pathPattern, "pathPattern");
@@ -515,13 +530,24 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 final StringBuilder path = pathBuilder(projectName, repositoryName);
                 path.append("/contents")
                     .append(pathPattern.encoded())
-                    .append("?revision=")
-                    .append(normRev.major());
-                if (viewRaw) {
-                    path.append("&viewRaw=true");
-                }
+                    .append('?');
 
-                return client.execute(headers(HttpMethod.GET, path.toString()))
+                final QueryParamsBuilder paramsBuilder =
+                        QueryParams.builder()
+                                   .add("revision", normRev.text());
+                if (viewRaw) {
+                    paramsBuilder.add("viewRaw", "true");
+                }
+                if (applyTemplate) {
+                    paramsBuilder.add("applyTemplate", "true");
+                    if (variableFile != null) {
+                        paramsBuilder.add("variableFile", variableFile);
+                    }
+                }
+                final QueryParams queryParams = paramsBuilder.build();
+                final String requestPath = queryParams.appendQueryString(path).toString();
+
+                return client.execute(headers(HttpMethod.GET, requestPath))
                              .aggregate()
                              .thenApply(res -> getFiles(normRev, res, viewRaw));
             });
@@ -562,13 +588,17 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         requireNonNull(revision, "revision");
         requireNonNull(mergeQuery, "mergeQuery");
         try {
-            final StringBuilder path = pathBuilder(projectName, repositoryName);
-            path.append("/merge?revision=").append(revision.major());
-            mergeQuery.mergeSources().forEach(
-                    src -> path.append(src.isOptional() ? "&optional_path=" : "&path=")
-                               .append(encodeParam(src.path())));
-            appendJsonPaths(path, mergeQuery.type(), mergeQuery.expressions());
-            return client.execute(headers(HttpMethod.GET, path.toString()))
+            final StringBuilder path = pathBuilder(projectName, repositoryName).append("/merge?");
+            final QueryParamsBuilder paramsBuilder = QueryParams.builder();
+            paramsBuilder.addInt("revision", revision.major());
+            for (MergeSource src : mergeQuery.mergeSources()) {
+                paramsBuilder.add(src.isOptional() ? "optional_path" : "path", src.path());
+            }
+            appendJsonPaths(paramsBuilder, mergeQuery.type(), mergeQuery.expressions());
+            final QueryParams queryParams = paramsBuilder.build();
+            final String requestPath = queryParams.appendQueryString(path).toString();
+
+            return client.execute(headers(HttpMethod.GET, requestPath))
                          .aggregate()
                          .thenApply(ArmeriaCentralDogma::mergeFiles);
         } catch (Exception e) {
@@ -638,13 +668,18 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         try {
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/commits/").append(from.text());
-            path.append("?to=").append(to.text());
-            path.append("&path=").append(pathPattern.encoded());
+            path.append('?');
+            final QueryParamsBuilder paramsBuilder =
+                    QueryParams.builder()
+                               .add("to", to.text())
+                               .add("path", pathPattern.encoded());
             if (maxCommits > 0) {
-                path.append("&maxCommits=").append(maxCommits);
+                paramsBuilder.addInt("maxCommits", maxCommits);
             }
+            final QueryParams queryParams = paramsBuilder.build();
+            final String requestPath = queryParams.appendQueryString(path).toString();
 
-            return client.execute(headers(HttpMethod.GET, path.toString()))
+            return client.execute(headers(HttpMethod.GET, requestPath))
                          .aggregate()
                          .thenApply(ArmeriaCentralDogma::getHistory);
         } catch (Exception e) {
@@ -681,13 +716,17 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         requireNonNull(query, "query");
         try {
             final StringBuilder path = pathBuilder(projectName, repositoryName);
-            path.append("/compare");
-            path.append("?path=").append(encodeParam(query.path()));
-            path.append("&from=").append(from.text());
-            path.append("&to=").append(to.text());
-            appendJsonPaths(path, query.type(), query.expressions());
+            path.append("/compare?");
+            final QueryParamsBuilder paramsBuilder =
+                    QueryParams.builder();
+            paramsBuilder.add("path", query.path())
+                         .add("from", from.text())
+                         .add("to", to.text());
+            appendJsonPaths(paramsBuilder, query.type(), query.expressions());
+            final QueryParams queryParams = paramsBuilder.build();
+            final String requestPath = queryParams.appendQueryString(path).toString();
 
-            return client.execute(headers(HttpMethod.GET, path.toString()))
+            return client.execute(headers(HttpMethod.GET, requestPath))
                          .aggregate()
                          .thenApply(ArmeriaCentralDogma::getDiff);
         } catch (Exception e) {
@@ -715,12 +754,15 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         requireNonNull(pathPattern, "pathPattern");
         try {
             final StringBuilder path = pathBuilder(projectName, repositoryName);
-            path.append("/compare");
-            path.append("?pathPattern=").append(pathPattern.encoded());
-            path.append("&from=").append(from.text());
-            path.append("&to=").append(to.text());
+            path.append("/compare?");
+            final QueryParams queryParams = QueryParams.builder()
+                                                       .add("pathPattern", pathPattern.encoded())
+                                                       .add("from", from.text())
+                                                       .add("to", to.text())
+                                                       .build();
+            final String requestPath = queryParams.appendQueryString(path).toString();
 
-            return client.execute(headers(HttpMethod.GET, path.toString()))
+            return client.execute(headers(HttpMethod.GET, requestPath))
                          .aggregate()
                          .thenApply(res -> {
                              if (res.status().code() == 200) {
@@ -868,7 +910,9 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     public <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                                      Revision lastKnownRevision, Query<T> query,
                                                      long timeoutMillis, boolean errorOnEntryNotFound,
-                                                     boolean viewRaw) {
+                                                     boolean viewRaw, boolean applyTemplate,
+                                                     @Nullable String variableFile,
+                                                     @Nullable Revision variableRevision) {
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(query, "query");
@@ -882,20 +926,35 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/contents").append(query.path());
+            final QueryParamsBuilder paramsBuilder = QueryParams.builder();
             if (query.type() == QueryType.JSON_PATH) {
-                path.append('?');
-                query.expressions().forEach(expr -> path.append("jsonpath=").append(encodeParam(expr))
-                                                        .append('&'));
-
-                // Remove the trailing '?' or '&'.
-                path.setLength(path.length() - 1);
+                for (String expr : query.expressions()) {
+                    paramsBuilder.add("jsonpath", expr);
+                }
             }
             if (viewRaw) {
                 // The query type can't be JSON_PATH here as checked above.
-                path.append("?viewRaw=true");
+                paramsBuilder.add("viewRaw", "true");
+            }
+            if (applyTemplate) {
+                paramsBuilder.add("applyTemplate", "true");
+                if (variableFile != null) {
+                    paramsBuilder.add("variableFile", variableFile);
+                }
+                if (variableRevision != null) {
+                    paramsBuilder.add("variableRevision", variableRevision.text());
+                }
+            }
+            final QueryParams queryParams = paramsBuilder.build();
+            final String requestPath;
+            if (!queryParams.isEmpty()) {
+                path.append('?');
+                requestPath = queryParams.appendQueryString(path).toString();
+            } else {
+                requestPath = path.toString();
             }
 
-            return watch(lastKnownRevision, timeoutMillis, path.toString(), query.type(),
+            return watch(lastKnownRevision, timeoutMillis, requestPath, query.type(),
                          (res, queryType) -> watchFile(res, queryType, viewRaw), errorOnEntryNotFound);
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
@@ -994,18 +1053,12 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
         return pathBuilder(projectName).append(REPOS).append('/').append(repositoryName);
     }
 
-    private static void appendJsonPaths(StringBuilder path, QueryType queryType, Iterable<String> expressions) {
+    private static void appendJsonPaths(QueryParamsBuilder paramsBuilder, QueryType queryType,
+                                        Iterable<String> expressions) {
         if (queryType == QueryType.JSON_PATH) {
-            expressions.forEach(expr -> path.append("&jsonpath=").append(encodeParam(expr)));
-        }
-    }
-
-    @SuppressWarnings("CharsetObjectCanBeUsed") // We target Java 8.
-    private static String encodeParam(String param) {
-        try {
-            return URLEncoder.encode(param, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new Error(); // Never reaches here.
+            for (String expr : expressions) {
+                paramsBuilder.add("jsonpath", expr);
+            }
         }
     }
 
@@ -1062,6 +1115,17 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private static <T> Entry<T> toEntry(Revision revision, JsonNode node, QueryType queryType,
                                         boolean viewRaw) {
+        final Entry<T> entry = toEntry0(revision, node, queryType, viewRaw);
+        final JsonNode variableRevision = node.get("variableRevision");
+        if (variableRevision != null && variableRevision.isInt()) {
+            return entry.withVariableRevision(new Revision(variableRevision.asInt()));
+        } else {
+            return entry;
+        }
+    }
+
+    private static <T> Entry<T> toEntry0(Revision revision, JsonNode node, QueryType queryType,
+                                         boolean viewRaw) {
         final String entryPath = getField(node, "path").asText();
         final String entryTypeString = getField(node, "type").asText();
 

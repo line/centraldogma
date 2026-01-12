@@ -128,22 +128,22 @@ class EntryTest {
     @Test
     void of() {
         // Null checks
-        assertThatThrownBy(() -> Entry.of(null, "/1.txt", EntryType.TEXT, "1"))
+        assertThatThrownBy(() -> Entry.of(null, "/1.txt", EntryType.TEXT, "1", null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> Entry.of(new Revision(1), null, EntryType.TEXT, "1"))
+        assertThatThrownBy(() -> Entry.of(new Revision(1), null, EntryType.TEXT, "1", null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> Entry.of(new Revision(1), "/1.txt", null, "1"))
+        assertThatThrownBy(() -> Entry.of(new Revision(1), "/1.txt", null, "1", null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> Entry.of(new Revision(1), "/1.txt", EntryType.TEXT, null))
+        assertThatThrownBy(() -> Entry.of(new Revision(1), "/1.txt", EntryType.TEXT, null, null))
                 .isInstanceOf(NullPointerException.class);
 
         // Type check
-        assertThatThrownBy(() -> Entry.of(new Revision(1), "/1.txt", EntryType.TEXT, new Object()))
+        assertThatThrownBy(() -> Entry.of(new Revision(1), "/1.txt", EntryType.TEXT, new Object(), null))
                 .isInstanceOf(ClassCastException.class);
 
         // Directory
-        Entry.of(new Revision(1), "/a", EntryType.DIRECTORY, null);
-        assertThatThrownBy(() -> Entry.of(new Revision(1), "/a", EntryType.DIRECTORY, "foo"))
+        Entry.of(new Revision(1), "/a", EntryType.DIRECTORY, null, null);
+        assertThatThrownBy(() -> Entry.of(new Revision(1), "/a", EntryType.DIRECTORY, "foo", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("expected: null");
     }
@@ -159,5 +159,14 @@ class EntryTest {
     @Test
     void testToString() {
         assertThat(Entry.ofText(new Revision(1), "/a.txt", "a").toString()).isNotEmpty();
+    }
+
+    @Test
+    void testVariableVersion() {
+        final Entry<String> entry = Entry.ofText(new Revision(10), "/a.txt", "a");
+        assertThat(entry.variableRevision()).isNull();
+        final Entry<String> entryWithVarRev = entry.withVariableRevision(new Revision(20));
+        assertThat(entryWithVarRev.revision()).isEqualTo(new Revision(10));
+        assertThat(entryWithVarRev.variableRevision()).isEqualTo(new Revision(20));
     }
 }

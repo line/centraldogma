@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.server.storage.repository;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
@@ -31,12 +33,17 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+
+import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.spotify.futures.CompletableFutures;
 
+import com.linecorp.armeria.common.util.UnmodifiableFuture;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
@@ -142,7 +149,6 @@ public interface Repository {
      * Retrieves an {@link Entry} at the specified {@code path}.
      *
      * @throws EntryNotFoundException if there's no entry at the specified {@code path}
-     *
      * @see #getOrNull(Revision, String)
      */
     default CompletableFuture<Entry<?>> get(Revision revision, String path) {
@@ -160,10 +166,29 @@ public interface Repository {
      *
      * @throws EntryNotFoundException if there's no entry at the path specified in the {@link Query}
      *
-     * @see #getOrNull(Revision, Query)
+     * @see #getOrNull(Revision, Query, EntryTransformer)
      */
     default <T> CompletableFuture<Entry<T>> get(Revision revision, Query<T> query) {
-        return getOrNull(revision, query).thenApply(res -> {
+        return getOrNull(revision, query, EntryTransformer.identity()).thenApply(res -> {
+            if (res == null) {
+                throw new EntryNotFoundException(revision, query.path());
+            }
+
+            return res;
+        });
+    }
+
+    /**
+     * Performs the specified {@link Query} and mapper.
+     * Note that the {@link EntryTransformer} is applied first and then {@link Query} is applied to the result
+     * of the {@link EntryTransformer}.
+     *
+     * @throws EntryNotFoundException if there's no entry at the path specified in the {@link Query}
+     * @see #getOrNull(Revision, Query, EntryTransformer)
+     */
+    default <T> CompletableFuture<Entry<T>> get(Revision revision, Query<T> query,
+                                                EntryTransformer<T> transformer) {
+        return getOrNull(revision, query, transformer).thenApply(res -> {
             if (res == null) {
                 throw new EntryNotFoundException(revision, query.path());
             }
@@ -195,25 +220,44 @@ public interface Repository {
      * @see #get(Revision, Query)
      */
     default <T> CompletableFuture<Entry<T>> getOrNull(Revision revision, Query<T> query) {
+        return getOrNull(revision, query, EntryTransformer.identity());
+    }
+
+    /**
+     * Performs the specified {@link Query}. Note that the {@link EntryTransformer} is applied first and then
+     * {@link Query} is applied to the result of the {@link EntryTransformer}.
+     *
+     * @return the {@link Entry} on a successful query.
+     *         The specified {@code other} on a failure due to missing entry.
+     *
+     * @see #get(Revision, Query)
+     */
+    default <T> CompletableFuture<Entry<T>> getOrNull(Revision revision, Query<T> query,
+                                                      EntryTransformer<T> transformer) {
         requireNonNull(query, "query");
         requireNonNull(revision, "revision");
+        requireNonNull(transformer, "transformer");
 
-        return getOrNull(revision, query.path()).thenApply(result -> {
-            if (result == null) {
-                return null;
-            }
-
-            @SuppressWarnings("unchecked")
-            final Entry<T> entry = (Entry<T>) result;
-
-            try {
-                return applyQuery(entry, query);
-            } catch (CentralDogmaException e) {
-                throw e;
-            } catch (Exception e) {
-                throw new QueryExecutionException(e);
-            }
-        });
+        return getOrNull(revision, query.path())
+                .thenCompose(entry -> {
+                    if (entry == null) {
+                        return UnmodifiableFuture.completedFuture(null);
+                    }
+                    //noinspection unchecked
+                    return transformer.transform((Entry<T>) entry);
+                })
+                .thenApply(entry -> {
+                    if (entry == null) {
+                        return null;
+                    }
+                    try {
+                        return applyQuery(entry, query);
+                    } catch (CentralDogmaException e) {
+                        throw e;
+                    } catch (Exception e) {
+                        throw new QueryExecutionException(e);
+                    }
+                });
     }
 
     /**
@@ -232,6 +276,29 @@ public interface Repository {
      */
     CompletableFuture<Map<String, Entry<?>>> find(Revision revision, String pathPattern,
                                                   Map<FindOption<?>, ?> options);
+
+    /**
+     * Finds the {@link Entry}s that match the specified {@code pathPattern}.
+     *
+     * @return a {@link Map} whose value is the matching {@link Entry} and key is its path
+     */
+    default CompletableFuture<Map<String, Entry<?>>> find(Revision revision, String pathPattern,
+                                                          Map<FindOption<?>, ?> options,
+                                                          EntryTransformer<Object> transformer) {
+        requireNonNull(transformer, "transformer");
+        return find(revision, pathPattern, options).thenCompose(entriesMap -> {
+            final List<CompletableFuture<Map.Entry<String, Entry<Object>>>> futures =
+                    entriesMap.entrySet().stream().map(e -> {
+                        return transformer.transform(unsafeCast(e.getValue())).thenApply(entry -> {
+                            return Maps.immutableEntry(e.getKey(), entry);
+                        });
+                    }).collect(toImmutableList());
+
+            return CompletableFutures.allAsList(futures).thenApply(entries -> {
+                return entries.stream().collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+            });
+        });
+    }
 
     /**
      * Query a file at two different revisions and return the diff of the two query results.
@@ -424,8 +491,8 @@ public interface Repository {
      *
      * @param from the starting revision (inclusive)
      * @param to the end revision (inclusive)
-     *
      * @param pathPattern the path pattern
+     *
      * @return {@link Commit}
      *
      * @throws StorageException when any internal error occurs.
@@ -440,8 +507,8 @@ public interface Repository {
      * @param from the starting revision (inclusive)
      * @param to the end revision (inclusive)
      * @param maxCommits the maximum number of {@link Commit}s to return
-     *
      * @param pathPattern the path pattern
+     *
      * @return {@link Commit}
      *
      * @throws StorageException when any internal error occurs.
@@ -513,16 +580,19 @@ public interface Repository {
      * specified last known revision.
      */
     default <T> CompletableFuture<Entry<T>> watch(Revision lastKnownRevision, Query<T> query) {
-        return watch(lastKnownRevision, query, false);
+        return watch(lastKnownRevision, query, false, null, null, null);
     }
 
     /**
      * Awaits and retrieves the change in the query result of the specified file asynchronously since the
      * specified last known revision.
      */
-    default <T> CompletableFuture<Entry<T>> watch(Revision lastKnownRevision, Query<T> query,
-                                                  boolean errorOnEntryNotFound) {
-        return RepositoryUtil.watch(this, lastKnownRevision, query, errorOnEntryNotFound);
+    default <T> CompletableFuture<Entry<T>> watch(
+            Revision lastKnownRevision, Query<T> query, boolean errorOnEntryNotFound,
+            @Nullable String variableFile, @Nullable Revision variableRevision,
+            @Nullable Function<Revision, EntryTransformer<T>> transformerFactory) {
+        return new RepositoryWatcher<>(this, lastKnownRevision, query, errorOnEntryNotFound, variableFile,
+                                       variableRevision, transformerFactory).watch();
     }
 
     /**

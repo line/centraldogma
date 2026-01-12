@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.server.storage.repository;
 
-import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static com.linecorp.centraldogma.common.QueryType.IDENTITY;
 import static com.linecorp.centraldogma.common.QueryType.IDENTITY_JSON;
 import static com.linecorp.centraldogma.common.QueryType.IDENTITY_TEXT;
@@ -26,12 +25,8 @@ import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-
-import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -59,9 +54,6 @@ import com.linecorp.centraldogma.internal.Jackson;
  * Utility methods that are useful when implementing a {@link Repository} implementation.
  */
 final class RepositoryUtil {
-
-    private static final CancellationException CANCELLATION_EXCEPTION =
-            Exceptions.clearTrace(new CancellationException("parent complete"));
 
     static CompletableFuture<MergedEntry<?>> mergeEntries(
             List<CompletableFuture<Entry<?>>> entryFutures, Revision revision,
@@ -143,54 +135,12 @@ final class RepositoryUtil {
             queryType == IDENTITY_YAML) {
             return entry;
         } else if (queryType == JSON_PATH) {
-            return Entry.of(entry.revision(), query.path(), entryType, query.apply(entry.content()));
+            return Entry.of(entry.revision(), query.path(), entryType, query.apply(entry.content()),
+                            entry.variableRevision());
         } else {
             throw new QueryExecutionException("Unsupported entry type: " + entryType +
                                               " (query: " + query + ')');
         }
-    }
-
-    static <T> CompletableFuture<Entry<T>> watch(Repository repo, Revision lastKnownRev, Query<T> query,
-                                                 boolean errorOnEntryNotFound) {
-        requireNonNull(repo, "repo");
-        requireNonNull(lastKnownRev, "lastKnownRev");
-        requireNonNull(query, "query");
-
-        final Query<Object> castQuery = unsafeCast(query);
-        final CompletableFuture<Entry<Object>> parentFuture = new CompletableFuture<>();
-        repo.getOrNull(lastKnownRev, castQuery)
-            .thenAccept(oldResult -> watch(repo, castQuery, lastKnownRev, oldResult,
-                                           parentFuture, errorOnEntryNotFound))
-            .exceptionally(voidFunction(parentFuture::completeExceptionally));
-
-        return unsafeCast(parentFuture);
-    }
-
-    private static void watch(Repository repo, Query<Object> query,
-                              Revision lastKnownRev, @Nullable Entry<Object> oldResult,
-                              CompletableFuture<Entry<Object>> parentFuture, boolean errorOnEntryNotFound) {
-
-        final CompletableFuture<Revision> future = repo.watch(lastKnownRev, query.path(), errorOnEntryNotFound);
-        parentFuture.whenComplete((res, cause) -> future.completeExceptionally(CANCELLATION_EXCEPTION));
-
-        future.thenCompose(newRev -> repo.getOrNull(newRev, query).thenAccept(newResult -> {
-            if (errorOnEntryNotFound && newResult == null) {
-                // The entry is removed.
-                parentFuture.completeExceptionally(new EntryNotFoundException(newRev, query.path()));
-                return;
-            }
-
-            if (newResult == null ||
-                oldResult != null && Objects.equals(oldResult.content(), newResult.content())) {
-                // Entry does not exist or did not change; watch again for more changes.
-                if (!parentFuture.isDone()) {
-                    // ... only when the parent future has not been cancelled.
-                    watch(repo, query, newRev, oldResult, parentFuture, errorOnEntryNotFound);
-                }
-            } else {
-                parentFuture.complete(newResult);
-            }
-        })).exceptionally(voidFunction(parentFuture::completeExceptionally));
     }
 
     private RepositoryUtil() {}

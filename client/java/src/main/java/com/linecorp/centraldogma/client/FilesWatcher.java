@@ -61,7 +61,8 @@ final class FilesWatcher<T> extends AbstractWatcher<T> {
     }
 
     @Override
-    CompletableFuture<Latest<T>> doWatch(Revision lastKnownRevision) {
+    CompletableFuture<Latest<T>> doWatch(Revision lastKnownRevision, @Nullable Revision variableRevision) {
+        // variableRevision is not used for FilesWatcher
         final CompletableFuture<Revision> future = centralDogma.watchRepository(
                 projectName, repositoryName, lastKnownRevision,
                 pathPattern, timeoutMillis, errorOnEntryNotFound);

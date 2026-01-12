@@ -292,7 +292,8 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
 
         final Latest<T> latest = this.latest;
         final Revision lastKnownRevision = latest != null ? latest.revision() : Revision.INIT;
-        final CompletableFuture<Latest<T>> f = doWatch(lastKnownRevision);
+        final Revision variableRevision = latest != null ? latest.variableRevision() : null;
+        final CompletableFuture<Latest<T>> f = doWatch(lastKnownRevision, variableRevision);
 
         currentWatchFuture = f;
         f.thenAccept(newLatest -> {
@@ -360,7 +361,8 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
          });
     }
 
-    abstract CompletableFuture<Latest<T>> doWatch(Revision lastKnownRevision);
+    abstract CompletableFuture<Latest<T>> doWatch(Revision lastKnownRevision,
+                                                  @Nullable Revision variableRevision);
 
     private void notifyListeners(Latest<T> latest) {
         if (isStopped()) {

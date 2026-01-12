@@ -40,12 +40,16 @@ final class FileWatcher<T> extends AbstractWatcher<T> {
     private final Function<Object, ? extends T> mapper;
     @Nullable
     private final Executor mapperExecutor;
+    private final boolean applyTemplate;
+    @Nullable
+    private final String variableFile;
 
     FileWatcher(CentralDogma centralDogma, ScheduledExecutorService watchScheduler, String projectName,
                 String repositoryName, Query<T> query, long timeoutMillis, boolean errorOnEntryNotFound,
                 @Nullable Function<Object, ? extends T> mapper, Executor mapperExecutor,
                 long delayOnSuccessMillis, long initialDelayMillis, long maxDelayMillis, double multiplier,
-                double jitterRate, @Nullable MeterRegistry meterRegistry) {
+                double jitterRate, @Nullable MeterRegistry meterRegistry, boolean applyTemplate,
+                @Nullable String variableFile) {
         super(watchScheduler, projectName, repositoryName, query.path(), errorOnEntryNotFound,
               delayOnSuccessMillis, initialDelayMillis, maxDelayMillis, multiplier, jitterRate, meterRegistry);
         this.centralDogma = centralDogma;
@@ -56,26 +60,30 @@ final class FileWatcher<T> extends AbstractWatcher<T> {
         this.errorOnEntryNotFound = errorOnEntryNotFound;
         this.mapper = mapper;
         this.mapperExecutor = mapperExecutor;
+        this.applyTemplate = applyTemplate;
+        this.variableFile = variableFile;
     }
 
     @Override
-    CompletableFuture<Latest<T>> doWatch(Revision lastKnownRevision) {
+    CompletableFuture<Latest<T>> doWatch(Revision lastKnownRevision, @Nullable Revision variableRevision) {
         final CompletableFuture<Entry<T>> future = centralDogma.watchFile(projectName, repositoryName,
                                                                           lastKnownRevision, query,
-                                                                          timeoutMillis, errorOnEntryNotFound);
+                                                                          timeoutMillis, errorOnEntryNotFound,
+                                                                          false, applyTemplate, variableFile,
+                                                                          variableRevision);
         if (mapper == null) {
             return future.thenApply(entry -> {
                 if (entry == null) {
                     return null;
                 }
-                return new Latest<>(entry.revision(), entry.content());
+                return new Latest<>(entry.revision(), entry.variableRevision(), entry.content());
             });
         }
         return future.thenApplyAsync(entry -> {
             if (entry == null) {
                 return null;
             }
-            return new Latest<>(entry.revision(), mapper.apply(entry.content()));
+            return new Latest<>(entry.revision(), entry.variableRevision(), mapper.apply(entry.content()));
         }, mapperExecutor);
     }
 }
