@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.api.variable;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.Objects;
 
 import javax.annotation.Nullable;
@@ -30,25 +32,26 @@ import com.google.common.base.MoreObjects;
 public final class Variable {
 
     private final String id;
+    private final VariableType type;
     @Nullable
     private String name;
-    private final VariableType type;
     private final String value;
 
     public Variable(String id, VariableType type, String value) {
-        this.id = id;
-        this.type = type;
-        this.value = value;
+        this.id = requireNonNull(id, "id");
+        this.type = requireNonNull(type, "type");
+        this.value = requireNonNull(value, "value");
     }
 
     @JsonCreator
-    public Variable(@JsonProperty("id") String id, @JsonProperty("type") VariableType type,
-             @JsonProperty("name") @Nullable String name,
-             @JsonProperty("value") String value) {
-        this.id = id;
+    public Variable(@JsonProperty("id") String id,
+                    @JsonProperty("type") VariableType type,
+                    @JsonProperty("name") @Nullable String name,
+                    @JsonProperty("value") String value) {
+        this.id = requireNonNull(id, "id");
+        this.type = requireNonNull(type, "type");
         this.name = name;
-        this.type = type;
-        this.value = value;
+        this.value = requireNonNull(value, "value");
     }
 
     @JsonProperty("id")

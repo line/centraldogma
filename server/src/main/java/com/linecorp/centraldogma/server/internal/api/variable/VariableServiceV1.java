@@ -17,7 +17,7 @@
 package com.linecorp.centraldogma.server.internal.api.variable;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.curator.shaded.com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -158,7 +158,7 @@ public final class VariableServiceV1 extends AbstractService {
     /**
      * GET /projects/{projectName}/variables/{id}
      *
-     * <p>Returns the credential for the ID in the project.
+     * <p>Returns the variable for the ID in the project.
      */
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Get("/projects/{projectName}/repos/{repoName}/variables/{id}")
@@ -177,7 +177,7 @@ public final class VariableServiceV1 extends AbstractService {
     /**
      * POST /projects/{projectName}/variables
      *
-     * <p>Creates a new credential.
+     * <p>Creates a new variable.
      */
     @ConsumesJson
     @StatusCode(201)
@@ -196,7 +196,7 @@ public final class VariableServiceV1 extends AbstractService {
     /**
      * PUT /projects/{projectName}/variables/{id}
      *
-     * <p>Update the existing credential.
+     * <p>Update the existing variable.
      */
     @ConsumesJson
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
@@ -215,7 +215,7 @@ public final class VariableServiceV1 extends AbstractService {
     /**
      * DELETE /projects/{projectName}/repos/{repoName}/variables/{id}
      *
-     * <p>Delete the existing credential.
+     * <p>Delete the existing variable.
      */
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Delete("/projects/{projectName}/repos/{repoName}/variables/{id}")
