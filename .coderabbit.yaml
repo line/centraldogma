@@ -3,5 +3,5 @@ reviews:
   high_level_summary: false
   auto_review:
     enabled: true
-    drafts: false
+    drafts: true
     ignore_title_keywords: ["WIP"]
