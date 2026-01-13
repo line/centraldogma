@@ -73,9 +73,11 @@ import com.linecorp.centraldogma.common.MirrorException;
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.internal.JGitUtil;
+import com.linecorp.centraldogma.server.internal.mirror.MirrorState;
 import com.linecorp.centraldogma.server.mirror.MirroringServicePluginConfig;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
@@ -175,7 +177,7 @@ class GitMirrorIntegrationTest {
         assertThat(rev1).isEqualTo(rev0.forward(1));
 
         //// Make sure /mirror_state.json exists (and nothing else.)
-        final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState(rev1, "/");
+        final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState(rev1, "/", "/");
         assertThat(client.getFiles(projName, REPO_FOO, rev1, PathPattern.all()).join().values())
                 .containsExactly(expectedInitialMirrorState);
 
@@ -221,7 +223,7 @@ class GitMirrorIntegrationTest {
         assertThat(rev3).isEqualTo(rev2.forward(1));
 
         //// Make sure the two files are all there.
-        final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev3, "/");
+        final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev3, "/", "/");
         final Map<String, Entry<?>> files = client.getFiles(projName, REPO_FOO, rev3, PathPattern.all(), true)
                                                   .join();
         assertThat(files.values())
@@ -257,7 +259,7 @@ class GitMirrorIntegrationTest {
         assertThat(rev4).isEqualTo(rev3.forward(1));
 
         //// Make sure the rewritten content is mirrored.
-        final Entry<JsonNode> expectedThirdMirrorState = expectedMirrorState(rev4, "/");
+        final Entry<JsonNode> expectedThirdMirrorState = expectedMirrorState(rev4, "/", "/");
         assertThat(client.getFiles(projName, REPO_FOO, rev4, PathPattern.all()).join().values())
                 .containsExactlyInAnyOrder(expectedThirdMirrorState,
                                            Entry.ofText(rev4, "/final_fantasy_xv.txt", "29-Nov-2016\n"));
@@ -266,13 +268,13 @@ class GitMirrorIntegrationTest {
     @Test
     void remoteToLocal_gitignore() throws Exception {
         pushMirrorSettings(null, "/first#master", "\"/exclude_if_root.txt\\nexclude_dir\"");
-        checkGitignore();
+        checkGitignore("/first/#master");
     }
 
     @Test
     void remoteToLocal_gitignore_with_array() throws Exception {
         pushMirrorSettings(null, "/first#master", "[\"/exclude_if_root.txt\", \"exclude_dir\"]");
-        checkGitignore();
+        checkGitignore("/first/#master");
     }
 
     @Test
@@ -295,7 +297,8 @@ class GitMirrorIntegrationTest {
         assertThat(rev1).isEqualTo(rev0.forward(1));
 
         //// Make sure /target/mirror_state.json exists (and nothing else.)
-        final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState(rev1, "/target/");
+        final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState(rev1, "/target/",
+                                                                               "/source/main/");
         final Collection<Entry<?>> values = client.getFiles(projName, REPO_FOO, rev1,
                                                             PathPattern.of("/target/**")).join().values();
         assertThat(values)
@@ -314,7 +317,8 @@ class GitMirrorIntegrationTest {
         assertThat(rev2).isEqualTo(rev1.forward(1));
 
         //// Make sure 'target/first/light.txt' is mirrored.
-        final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev2, "/target/");
+        final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev2, "/target/",
+                                                                              "/source/main/");
         assertThat(client.getFiles(projName, REPO_FOO, rev2, PathPattern.of("/target/**")).join().values())
                 .containsExactlyInAnyOrder(expectedSecondMirrorState,
                                            Entry.ofDirectory(rev2, "/target/first"),
@@ -369,7 +373,7 @@ class GitMirrorIntegrationTest {
         mirroringService.mirror().join();
 
         final Revision headRev = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
-        final Entry<JsonNode> expectedMirrorState = expectedMirrorState(headRev, "/");
+        final Entry<JsonNode> expectedMirrorState = expectedMirrorState(headRev, "/", "/");
         final Entry<String> expectedAlphabets = Entry.ofText(
                 headRev,
                 "/alphabets.txt",
@@ -409,7 +413,7 @@ class GitMirrorIntegrationTest {
         // Check the files under a submodule do not match nor trigger an 'unknown object' error.
         mirroringService.mirror().join();
         final Revision headRev = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
-        final Entry<JsonNode> expectedMirrorState = expectedMirrorState(headRev, "/");
+        final Entry<JsonNode> expectedMirrorState = expectedMirrorState(headRev, "/", "/");
         assertThat(client.getFiles(projName, REPO_FOO, Revision.HEAD, PathPattern.all()).join().values())
                 .containsExactly(expectedMirrorState);
     }
@@ -504,6 +508,104 @@ class GitMirrorIntegrationTest {
                 .hasMessageContaining("invalid localRepo: " + localRepo);
     }
 
+    @Test
+    void remoteToLocal_localPathChange_triggersMirror() throws Exception {
+        pushMirrorSettings("/target1", null, null);
+
+        addToGitIndex("foo.txt", "content1");
+        git.commit().setMessage("Add foo.txt").call();
+
+        mirroringService.mirror().join();
+        final Revision rev1 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+
+        // Verify the file is mirrored to /target1
+        assertThat(client.getFiles(projName, REPO_FOO, rev1, PathPattern.of("/target1/**")).join().values())
+                .contains(Entry.ofText(rev1, "/target1/foo.txt", "content1\n"));
+
+        // Mirror again without any changes - should not create a new commit
+        mirroringService.mirror().join();
+        final Revision rev2 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        assertThat(rev2).isEqualTo(rev1);
+
+        pushMirrorSettings("/target2", null, null);
+        // Mirror again - should run because local path changed
+        mirroringService.mirror().join();
+        final Revision rev3 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        assertThat(rev3).isNotEqualTo(rev2);
+        assertThat(client.getFiles(projName, REPO_FOO, rev3, PathPattern.of("/target2/**")).join().values())
+                .contains(Entry.ofText(rev3, "/target2/foo.txt", "content1\n"));
+    }
+
+    @Test
+    void remoteToLocal_remotePathChange_triggersMirror() throws Exception {
+        addToGitIndex("path1/foo.txt", "content1");
+        addToGitIndex("path2/bar.txt", "content2");
+        git.commit().setMessage("Add files to both paths").call();
+
+        pushMirrorSettings(null, "/path1#master", null);
+
+        mirroringService.mirror().join();
+        final Revision rev1 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+
+        // Verify only path1 content is mirrored
+        final Map<String, Entry<?>> files1 = client.getFiles(projName, REPO_FOO, rev1, PathPattern.all())
+                                                   .join();
+        assertThat(files1.values()).contains(Entry.ofText(rev1, "/foo.txt", "content1\n"));
+        assertThat(files1.containsKey("/bar.txt")).isFalse();
+
+        // Mirror again without any changes - should not create a new commit
+        mirroringService.mirror().join();
+        final Revision rev2 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        assertThat(rev2).isEqualTo(rev1);
+
+        pushMirrorSettings(null, "/path2#master", null);
+        // Mirror again - should run because remote path changed
+        mirroringService.mirror().join();
+        final Revision rev3 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        assertThat(rev3).isNotEqualTo(rev2);
+
+        final Map<String, Entry<?>> files3 = client.getFiles(projName, REPO_FOO, rev3, PathPattern.all())
+                                                   .join();
+        assertThat(files3.values()).contains(Entry.ofText(rev3, "/bar.txt", "content2\n"));
+        assertThat(files3.containsKey("/foo.txt")).isFalse();
+    }
+
+    @Test
+    void remoteToLocal_localChangesOverwrittenByRemote() throws Exception {
+        pushMirrorSettings(null, null, null);
+
+        addToGitIndex("foo.txt", "remote-content");
+        git.commit().setMessage("Add foo.txt").call();
+
+        mirroringService.mirror().join();
+        final Revision rev1 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+
+        assertThat(client.getFiles(projName, REPO_FOO, rev1, PathPattern.all()).join().values())
+                .contains(Entry.ofText(rev1, "/foo.txt", "remote-content\n"));
+
+        client.forRepo(projName, REPO_FOO)
+              .commit("Modify foo.txt locally",
+                      Change.ofTextUpsert("/foo.txt", "local-modification"))
+              .push().join();
+
+        final Revision rev2 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        assertThat(rev2).isNotEqualTo(rev1);
+
+        // Verify local modification exists
+        assertThat(client.getFile(projName, REPO_FOO, rev2, "/foo.txt").join().contentAsText())
+                .isEqualTo("local-modification\n");
+
+        mirroringService.mirror().join();
+        final Revision rev3 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        assertThat(rev3).isNotEqualTo(rev2);
+        assertThat(client.getFile(projName, REPO_FOO, rev3, "/foo.txt").join().contentAsText())
+                .isEqualTo("remote-content\n");
+
+        mirroringService.mirror().join();
+        final Revision rev4 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        assertThat(rev4).isEqualTo(rev3);
+    }
+
     private void pushMirrorSettings(@Nullable String localPath, @Nullable String remotePath,
                                     @Nullable String gitignore) {
         pushMirrorSettings(REPO_FOO, localPath, remotePath, gitignore);
@@ -549,13 +651,19 @@ class GitMirrorIntegrationTest {
               .push().join();
     }
 
-    private Entry<JsonNode> expectedMirrorState(Revision revision, String localPath) throws IOException {
+    private Entry<JsonNode> expectedMirrorState(Revision revision, String localPath, String remotePath)
+            throws IOException {
         final String sha1 = git.getRepository()
                                .exactRef(Constants.R_HEADS + Constants.MASTER)
                                .getObjectId().getName();
 
-        return Entry.ofJson(revision, localPath + "mirror_state.json",
-                            "{ \"sourceRevision\": \"" + sha1 + "\" }");
+        if (!remotePath.contains("#")) {
+            remotePath += "#";
+        }
+        final MirrorState mirrorState = new MirrorState(sha1, sha1, gitUri + remotePath,
+                                                        revision.backward(1).text(), localPath);
+
+        return Entry.ofJson(revision, localPath + "mirror_state.json", Jackson.valueToTree(mirrorState));
     }
 
     private void addToGitIndex(String path, String content) throws IOException, GitAPIException {
@@ -570,7 +678,7 @@ class GitMirrorIntegrationTest {
         git.add().addFilepattern(path).call();
     }
 
-    private void checkGitignore() throws IOException, GitAPIException {
+    private void checkGitignore(String remotePath) throws IOException, GitAPIException {
         final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
 
         // Mirror an empty git repository, which will;
@@ -583,7 +691,7 @@ class GitMirrorIntegrationTest {
         assertThat(rev1).isEqualTo(rev0.forward(1));
 
         //// Make sure /mirror_state.json exists (and nothing else.)
-        final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState(rev1, "/");
+        final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState(rev1, "/", remotePath);
         assertThat(client.getFiles(projName, REPO_FOO, rev1, "/**").join().values())
                 .containsExactly(expectedInitialMirrorState);
 
@@ -615,7 +723,7 @@ class GitMirrorIntegrationTest {
         assertThat(rev3).isEqualTo(rev2.forward(1));
 
         //// Make sure the file that match gitignore are not mirrored.
-        final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev3, "/");
+        final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev3, "/", remotePath);
         assertThat(client.getFiles(projName, REPO_FOO, rev3, "/**").join().values())
                 .containsExactlyInAnyOrder(expectedSecondMirrorState,
                                            Entry.ofText(rev3, "/light.txt", "26-Aug-2014\n"),
@@ -634,7 +742,7 @@ class GitMirrorIntegrationTest {
 
         //// Make sure the file that there's no change in mirrored file list
         assertThat(client.getFiles(projName, REPO_FOO, rev4, "/**").join().values())
-                .containsExactlyInAnyOrder(expectedMirrorState(rev4, "/"),
+                .containsExactlyInAnyOrder(expectedMirrorState(rev4, "/", remotePath),
                                            Entry.ofText(rev4, "/light.txt", "26-Aug-2014\n"),
                                            Entry.ofDirectory(rev4, "/subdir"),
                                            Entry.ofText(rev4, "/subdir/exclude_if_root.txt", "26-Aug-2014\n"));

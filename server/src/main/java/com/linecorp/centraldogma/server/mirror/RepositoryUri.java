@@ -1,7 +1,7 @@
 /*
- * Copyright 2023 LINE Corporation
+ * Copyright 2026 LY Corporation
  *
- * LINE Corporation licenses this file to you under the Apache License,
+ * LY Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.storage.repository;
+package com.linecorp.centraldogma.server.mirror;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.server.mirror.MirrorUtil.normalizePath;
@@ -26,8 +26,9 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.google.common.base.MoreObjects;
-
+/**
+ * A parsed representation of a repository URI used for mirroring.
+ */
 public final class RepositoryUri {
 
     /**
@@ -100,14 +101,23 @@ public final class RepositoryUri {
         this.branch = branch;
     }
 
+    /**
+     * Returns the URI of the repository.
+     */
     public URI uri() {
         return uri;
     }
 
+    /**
+     * Returns the path in the repository.
+     */
     public String path() {
         return path;
     }
 
+    /**
+     * Returns the branch name in the repository.
+     */
     public String branch() {
         return branch;
     }
@@ -134,10 +144,6 @@ public final class RepositoryUri {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
-                          .add("uri", uri)
-                          .add("path", path)
-                          .add("branch", branch)
-                          .toString();
+        return uri + path + '#' + branch;
     }
 }

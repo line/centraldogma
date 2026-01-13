@@ -38,6 +38,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.Streams;
 
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.mirror.RepositoryUri;
 
 // ignoreUnknown = true for backward compatibility since `type` field is removed.
 @JsonIgnoreProperties(ignoreUnknown = true)
