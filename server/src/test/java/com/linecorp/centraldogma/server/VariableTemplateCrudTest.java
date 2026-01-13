@@ -63,7 +63,7 @@ class VariableTemplateCrudTest {
     private static final String TEST_REPO_2 = "testRepo2";
 
     @RegisterExtension
-    final CentralDogmaExtension dogma = new CentralDogmaExtension() {
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
             builder.authProviderFactory(new TestAuthProviderFactory());
@@ -82,18 +82,6 @@ class VariableTemplateCrudTest {
                 cb.decorator(LoggingClient.newDecorator());
             });
         }
-
-        @Override
-        protected void scaffold(CentralDogma client) {
-            client.createProject(TEST_PROJECT).join();
-            client.createRepository(TEST_PROJECT, TEST_REPO_1).join();
-            client.createRepository(TEST_PROJECT, TEST_REPO_2).join();
-        }
-
-        @Override
-        protected boolean runForEachTest() {
-            return true;
-        }
     };
 
     private CentralDogmaRepository testRepo1;
@@ -102,8 +90,17 @@ class VariableTemplateCrudTest {
 
     @BeforeEach
     void beforeEach() {
-        testRepo1 = dogma.client().forRepo(TEST_PROJECT, TEST_REPO_1);
-        testRepo2 = dogma.client().forRepo(TEST_PROJECT, TEST_REPO_2);
+        final CentralDogma client = dogma.client();
+        try {
+            client.removeProject(TEST_PROJECT).join();
+            client.purgeProject(TEST_PROJECT).join();
+        } catch (Exception e) {
+            // Ignore
+        }
+
+        client.createProject(TEST_PROJECT).join();
+        testRepo1 = client.createRepository(TEST_PROJECT, TEST_REPO_1).join();
+        testRepo2 = client.createRepository(TEST_PROJECT, TEST_REPO_2).join();
         httpClient = dogma.blockingHttpClient();
     }
 
@@ -1811,7 +1808,6 @@ class VariableTemplateCrudTest {
                                                           .put(path)
                                                           .contentJson(variable)
                                                           .execute();
-        System.out.println("# update variable response: " + response.contentUtf8());
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
     }
 
