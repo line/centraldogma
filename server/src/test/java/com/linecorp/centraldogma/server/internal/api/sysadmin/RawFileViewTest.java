@@ -67,7 +67,7 @@ class RawFileViewTest {
                              .viewRaw(true)
                              .get().join();
         // The raw content should be equal to the original JSON text.
-        assertThat(entry.rawContent()).isEqualTo(jsonText);
+        assertThat(entry.rawContent()).isEqualTo(jsonText + '\n');
         assertThat(entry.content()).isNotNull();
         assertThatJson(entry.content()).isEqualTo("{\"b\": 2,\"a\": 1}");
 
@@ -101,12 +101,12 @@ class RawFileViewTest {
 
         assertThat(entriesWithRaw).hasSize(2);
         final Entry<?> entry1WithRaw = entriesWithRaw.get("/file1.json");
-        assertThat(entry1WithRaw.rawContent()).isEqualTo(jsonText1);
+        assertThat(entry1WithRaw.rawContent()).isEqualTo(jsonText1 + '\n');
         assertThat(entry1WithRaw.content()).isNotNull();
         assertThatJson(entry1WithRaw.content()).isEqualTo("{\"key1\":\"value1\",\"key2\":\"value2\"}");
 
         final Entry<?> entry2WithRaw = entriesWithRaw.get("/file2.json");
-        assertThat(entry2WithRaw.rawContent()).isEqualTo(jsonText2);
+        assertThat(entry2WithRaw.rawContent()).isEqualTo(jsonText2 + '\n');
         assertThat(entry2WithRaw.content()).isNotNull();
         assertThatJson(entry2WithRaw.content()).isEqualTo("{\"foo\":\"bar\"}");
 
@@ -146,7 +146,7 @@ class RawFileViewTest {
                                                  .start(initialResult.revision())
                                                  .join();
 
-        assertThat(entryWithRaw.rawContent()).isEqualTo(updatedJsonText);
+        assertThat(entryWithRaw.rawContent()).isEqualTo(updatedJsonText + '\n');
         assertThat(entryWithRaw.content()).isNotNull();
         assertThatJson(entryWithRaw.content()).isEqualTo("{\"version\":2}");
 
@@ -237,7 +237,7 @@ class RawFileViewTest {
                                               .get()
                                               .join();
         assertThat(jsonEntry).isNotNull();
-        assertThat(jsonEntry.rawContent()).isEqualTo(jsonText);
+        assertThat(jsonEntry.rawContent()).isEqualTo(jsonText + '\n');
 
         // TEXT query should work with viewRaw
         final Entry<String> textEntry = repo.file(Query.ofText("/test.json"))
@@ -245,6 +245,6 @@ class RawFileViewTest {
                                             .get()
                                             .join();
         assertThat(textEntry).isNotNull();
-        assertThat(textEntry.rawContent()).isEqualTo(jsonText);
+        assertThat(textEntry.rawContent()).isEqualTo(jsonText + '\n');
     }
 }
