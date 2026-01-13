@@ -156,9 +156,9 @@ public final class VariableServiceV1 extends AbstractService {
     }
 
     /**
-     * GET /projects/{projectName}/variables/{id}
+     * GET /projects/{projectName}/repos/{repoName}/variables/{id}
      *
-     * <p>Returns the variable for the ID in the project.
+     * <p>Returns the variable for the ID in the repository.
      */
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Get("/projects/{projectName}/repos/{repoName}/variables/{id}")
@@ -175,9 +175,9 @@ public final class VariableServiceV1 extends AbstractService {
     }
 
     /**
-     * POST /projects/{projectName}/variables
+     * POST /projects/{projectName}/repos/{repoName}/variables
      *
-     * <p>Creates a new variable.
+     * <p>Creates a new variable in the repository.
      */
     @ConsumesJson
     @StatusCode(201)
@@ -194,9 +194,9 @@ public final class VariableServiceV1 extends AbstractService {
     }
 
     /**
-     * PUT /projects/{projectName}/variables/{id}
+     * PUT /projects/{projectName}/repos/{repoName}/variables/{id}
      *
-     * <p>Update the existing variable.
+     * <p>Update the existing variable in the repository.
      */
     @ConsumesJson
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
