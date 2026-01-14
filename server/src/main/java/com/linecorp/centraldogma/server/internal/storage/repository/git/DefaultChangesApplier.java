@@ -98,6 +98,7 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
                             newJson = Jackson.writeValueAsPrettyString(newJsonNode);
                             newJson = sanitizeText(newJson);
                         }
+                        newJson = sanitizeText(newJson);
                         applyPathEdit(dirCache, new InsertText(changePath, inserter, newJson));
                         numEdits++;
                     }
@@ -117,6 +118,7 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
                     }
 
                     if (!newYaml.equals(oldYaml)) {
+                        newYaml = sanitizeText(newYaml);
                         applyPathEdit(dirCache, new InsertText(changePath, inserter, newYaml));
                         numEdits++;
                     }

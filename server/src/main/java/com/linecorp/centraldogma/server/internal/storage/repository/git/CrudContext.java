@@ -35,9 +35,9 @@ public final class CrudContext {
     public CrudContext(String projectName, String repoName, String targetPath, Revision revision) {
         this.projectName = requireNonNull(projectName, "projectName");
         this.repoName = requireNonNull(repoName, "repoName");
+        this.targetPath = requireNonNull(targetPath, "targetPath");
         checkArgument(targetPath.startsWith("/"), "targetPath: %s (expected: starts with '/')", targetPath);
         checkArgument(targetPath.endsWith("/"), "targetPath: %s (expected: ends with '/')", targetPath);
-        this.targetPath = requireNonNull(targetPath, "targetPath");
         this.revision = requireNonNull(revision, "revision");
     }
 

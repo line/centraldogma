@@ -46,7 +46,7 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.CrudContext;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.CrudOperation;
-import com.linecorp.centraldogma.server.internal.storage.repository.git.GitCrudOperation;
+import com.linecorp.centraldogma.server.internal.storage.repository.git.DefaultCrudOperation;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.HasRevision;
@@ -60,7 +60,7 @@ public final class VariableServiceV1 extends AbstractService {
 
     public VariableServiceV1(ProjectManager pm, CommandExecutor executor) {
         super(executor);
-        repository = new GitCrudOperation<>(Variable.class, executor, pm);
+        repository = new DefaultCrudOperation<>(Variable.class, executor, pm);
     }
 
     /**
@@ -156,9 +156,9 @@ public final class VariableServiceV1 extends AbstractService {
     }
 
     /**
-     * GET /projects/{projectName}/variables/{id}
+     * GET /projects/{projectName}/repos/{repoName}/variables/{id}
      *
-     * <p>Returns the variable for the ID in the project.
+     * <p>Returns the variable for the ID in the repository.
      */
     @RequiresRepositoryRole(RepositoryRole.ADMIN)
     @Get("/projects/{projectName}/repos/{repoName}/variables/{id}")
@@ -168,16 +168,17 @@ public final class VariableServiceV1 extends AbstractService {
         return repository.find(crudContext(projectName, repoName), id).thenApply(variable -> {
             if (variable == null) {
                 throw new EntryNotFoundException(
-                        "Variable not found: " + id + " (project: " + projectName + ')');
+                        "Variable not found: " + id + " (project: " + projectName +
+                        ", repository: " + repoName + ')');
             }
             return variable.object();
         });
     }
 
     /**
-     * POST /projects/{projectName}/variables
+     * POST /projects/{projectName}/repos/{repoName}/variables
      *
-     * <p>Creates a new variable.
+     * <p>Creates a new variable in the repository.
      */
     @ConsumesJson
     @StatusCode(201)
@@ -194,9 +195,9 @@ public final class VariableServiceV1 extends AbstractService {
     }
 
     /**
-     * PUT /projects/{projectName}/variables/{id}
+     * PUT /projects/{projectName}/repos/{repoName}/variables/{id}
      *
-     * <p>Update the existing variable.
+     * <p>Update the existing variable in the repository.
      */
     @ConsumesJson
     @RequiresRepositoryRole(RepositoryRole.ADMIN)

@@ -20,6 +20,8 @@ import static java.util.Objects.requireNonNull;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
@@ -35,13 +37,13 @@ import com.linecorp.centraldogma.server.storage.repository.HasWeight;
 public final class Roles implements HasWeight {
 
     static final Roles EMPTY = new Roles(ProjectRoles.of(null, null),
-                                         ImmutableMap.of(), ImmutableMap.of());
+                                         ImmutableMap.of(), null, ImmutableMap.of());
 
     private final ProjectRoles projectRoles;
 
     private final Map<String, RepositoryRole> users;
 
-    private final Map<String, RepositoryRole> tokens;
+    private final Map<String, RepositoryRole> appIds;
 
     /**
      * Creates a new instance.
@@ -49,10 +51,19 @@ public final class Roles implements HasWeight {
     @JsonCreator
     public Roles(@JsonProperty("projects") ProjectRoles projectRoles,
                  @JsonProperty("users") Map<String, RepositoryRole> users,
-                 @JsonProperty("tokens") Map<String, RepositoryRole> tokens) {
+                 @JsonProperty("tokens") @Nullable Map<String, RepositoryRole> tokens,
+                 @JsonProperty("appIds") @Nullable Map<String, RepositoryRole> appIds) {
         this.projectRoles = requireNonNull(projectRoles, "projectRoles");
         this.users = requireNonNull(users, "users");
-        this.tokens = requireNonNull(tokens, "tokens");
+        if (tokens == null && appIds == null) {
+            throw new IllegalArgumentException("Both tokens and appIds are null");
+        }
+
+        if (appIds != null) {
+            this.appIds = ImmutableMap.copyOf(appIds);
+        } else {
+            this.appIds = ImmutableMap.copyOf(tokens);
+        }
     }
 
     /**
@@ -72,11 +83,11 @@ public final class Roles implements HasWeight {
     }
 
     /**
-     * Returns the {@link RepositoryRole}s of tokens.
+     * Returns the {@link RepositoryRole}s of app IDs.
      */
-    @JsonProperty("tokens")
-    public Map<String, RepositoryRole> tokens() {
-        return tokens;
+    @JsonProperty("appIds")
+    public Map<String, RepositoryRole> appIds() {
+        return appIds;
     }
 
     @Override
@@ -90,7 +101,7 @@ public final class Roles implements HasWeight {
             weight += entry.getKey().length();
             weight += entry.getValue().name().length();
         }
-        for (Entry<String, RepositoryRole> entry : tokens.entrySet()) {
+        for (Entry<String, RepositoryRole> entry : appIds.entrySet()) {
             weight += entry.getKey().length();
             weight += entry.getValue().name().length();
         }
@@ -108,12 +119,12 @@ public final class Roles implements HasWeight {
         final Roles other = (Roles) o;
         return projectRoles.equals(other.projectRoles) &&
                users.equals(other.users) &&
-               tokens.equals(other.tokens);
+               appIds.equals(other.appIds);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(projectRoles, users, tokens);
+        return Objects.hashCode(projectRoles, users, appIds);
     }
 
     @Override
@@ -121,7 +132,7 @@ public final class Roles implements HasWeight {
         return MoreObjects.toStringHelper(this)
                           .add("projectRoles", projectRoles)
                           .add("users", users)
-                          .add("tokens", tokens)
+                          .add("appIds", appIds)
                           .toString();
     }
 }

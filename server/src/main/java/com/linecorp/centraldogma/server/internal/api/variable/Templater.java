@@ -49,7 +49,7 @@ import com.linecorp.centraldogma.common.TemplateProcessingException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.CrudOperation;
-import com.linecorp.centraldogma.server.internal.storage.repository.git.GitCrudOperation;
+import com.linecorp.centraldogma.server.internal.storage.repository.git.DefaultCrudOperation;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.HasRevision;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -68,7 +68,7 @@ public final class Templater {
     private final LoadingCache<Entry<?>, Template> cache;
 
     public Templater(CommandExecutor executor, ProjectManager pm) {
-        crudRepo = new GitCrudOperation<>(Variable.class, executor, pm);
+        crudRepo = new DefaultCrudOperation<>(Variable.class, executor, pm);
         final Configuration cfg = new Configuration(Configuration.VERSION_2_3_32);
         cfg.setDefaultEncoding("UTF-8");
         cfg.setLogTemplateExceptions(false);
