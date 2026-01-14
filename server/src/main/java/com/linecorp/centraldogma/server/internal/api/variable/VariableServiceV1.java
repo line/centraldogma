@@ -240,7 +240,7 @@ public final class VariableServiceV1 extends AbstractService {
     private static void validateVariable(Variable variable) {
         if (variable.type() == VariableType.JSON) {
             try {
-                Jackson.readTree(variable.vale());
+                Jackson.readTree(variable.value());
             } catch (JsonParseException e) {
                 throw new IllegalArgumentException("Invalid JSON value for variable: " + variable.id(), e);
             }
