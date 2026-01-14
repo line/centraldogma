@@ -38,7 +38,7 @@ public final class GitCrudRepository<T> implements CrudRepository<T> {
 
     public GitCrudRepository(Class<T> entityType, CommandExecutor executor, ProjectManager projectManager,
                              String projectName, String repoName, String targetPath) {
-        crudOperation = new GitCrudOperation<>(entityType, executor, projectManager);
+        crudOperation = new DefaultCrudOperation<>(entityType, executor, projectManager);
         ctx = new CrudContext(projectName, repoName, targetPath, Revision.HEAD);
     }
 

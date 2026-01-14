@@ -46,7 +46,7 @@ import com.linecorp.centraldogma.server.internal.api.auth.RequiresProjectRole;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRepositoryRole;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.CrudContext;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.CrudOperation;
-import com.linecorp.centraldogma.server.internal.storage.repository.git.GitCrudOperation;
+import com.linecorp.centraldogma.server.internal.storage.repository.git.DefaultCrudOperation;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.HasRevision;
@@ -60,7 +60,7 @@ public final class VariableServiceV1 extends AbstractService {
 
     public VariableServiceV1(ProjectManager pm, CommandExecutor executor) {
         super(executor);
-        repository = new GitCrudOperation<>(Variable.class, executor, pm);
+        repository = new DefaultCrudOperation<>(Variable.class, executor, pm);
     }
 
     /**
@@ -168,7 +168,8 @@ public final class VariableServiceV1 extends AbstractService {
         return repository.find(crudContext(projectName, repoName), id).thenApply(variable -> {
             if (variable == null) {
                 throw new EntryNotFoundException(
-                        "Variable not found: " + id + " (project: " + projectName + ')');
+                        "Variable not found: " + id + " (project: " + projectName +
+                        ", repository: " + repoName + ')');
             }
             return variable.object();
         });

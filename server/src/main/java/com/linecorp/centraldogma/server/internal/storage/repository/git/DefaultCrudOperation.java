@@ -46,7 +46,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 /**
  * A {@link CrudRepository} implementation which stores JSON objects in a Git repository.
  */
-public final class GitCrudOperation<T> implements CrudOperation<T> {
+public final class DefaultCrudOperation<T> implements CrudOperation<T> {
 
     // For write operations
     private final CommandExecutor executor;
@@ -54,7 +54,7 @@ public final class GitCrudOperation<T> implements CrudOperation<T> {
     private final ProjectManager projectManager;
     private final Class<T> entityType;
 
-    public GitCrudOperation(Class<T> entityType, CommandExecutor executor, ProjectManager projectManager) {
+    public DefaultCrudOperation(Class<T> entityType, CommandExecutor executor, ProjectManager projectManager) {
         this.executor = executor;
         this.projectManager = projectManager;
         this.entityType = entityType;
