@@ -307,10 +307,10 @@ public class ContentServiceV1 extends AbstractService {
         return future;
     }
 
-    private <T> CompletableFuture<?> watchFile(ServiceRequestContext ctx,
-                                               Repository repository, Revision lastKnownRevision,
-                                               Query<T> query, long timeOutMillis, boolean errorOnEntryNotFound,
-                                               boolean viewRaw, TemplateParams templateParams) {
+    private CompletableFuture<?> watchFile(ServiceRequestContext ctx,
+                                           Repository repository, Revision lastKnownRevision,
+                                           Query<?> query, long timeOutMillis, boolean errorOnEntryNotFound,
+                                           boolean viewRaw, TemplateParams templateParams) {
         final CompletableFuture<? extends Entry<?>> future = watchService.watchFile(
                 repository, lastKnownRevision, query, timeOutMillis, errorOnEntryNotFound, templateParams,
                 newVarRev -> newTemplater(repository, templateParams.withVariableRevision(newVarRev)));
@@ -330,10 +330,8 @@ public class ContentServiceV1 extends AbstractService {
         if (!templateParams.applyTemplate()) {
             return EntryTransformer.identity();
         } else {
-            return entry -> {
-                return templater.render(repository, entry,
-                                        templateParams.variableFile(), templateParams.variableRevision());
-            };
+            return entry -> templater.render(repository, entry,
+                                             templateParams.variableFile(), templateParams.variableRevision());
         }
     }
 

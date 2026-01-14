@@ -64,6 +64,7 @@ public final class Templater {
     private static final List<String> VARIABLE_FILES =
             ImmutableList.of("/.variables.json", "/.variables.json5", "/.variables.yaml", "/.variables.yml");
     private static final String VARIABLE_FILES_PATTERN = Joiner.on(",").join(VARIABLE_FILES);
+
     private final CrudOperation<Variable> crudRepo;
     private final LoadingCache<Entry<?>, Template> cache;
 
@@ -180,9 +181,8 @@ public final class Templater {
                         "The variable file must contain a JSON object: " + entry.path());
             }
             final ObjectNode node = (ObjectNode) jsonNode;
-            @SuppressWarnings("unchecked")
-            final Map<String, Object> vars = Jackson.treeToValue(node, Map.class);
-            return vars;
+            //noinspection unchecked
+            return Jackson.treeToValue(node, Map.class);
         } catch (JsonProcessingException e) {
             throw new TemplateProcessingException(
                     "Failed to parse the variable file: " + entry.path() + ".\n" + e.getMessage(), e);

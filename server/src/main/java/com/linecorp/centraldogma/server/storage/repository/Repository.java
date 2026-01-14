@@ -286,7 +286,12 @@ public interface Repository {
                                                           Map<FindOption<?>, ?> options,
                                                           EntryTransformer<Object> transformer) {
         requireNonNull(transformer, "transformer");
-        return find(revision, pathPattern, options).thenCompose(entriesMap -> {
+        final CompletableFuture<Map<String, Entry<?>>> future = find(revision, pathPattern, options);
+        if (transformer == EntryTransformer.identity()) {
+            return future;
+        }
+
+        return future.thenCompose(entriesMap -> {
             final List<CompletableFuture<Map.Entry<String, Entry<Object>>>> futures =
                     entriesMap.entrySet().stream().map(e -> {
                         return transformer.transform(unsafeCast(e.getValue())).thenApply(entry -> {
