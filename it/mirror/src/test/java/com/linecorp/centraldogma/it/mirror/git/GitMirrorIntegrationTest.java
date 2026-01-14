@@ -187,7 +187,6 @@ class GitMirrorIntegrationTest {
         assertThat(rev2).isEqualTo(rev1);
 
         // Now, add some files to the git repository and mirror.
-        //// This file should not be mirrored because it does not conform to CD's file naming rule.
         addToGitIndex(".gitkeep", "");
         addToGitIndex("first/light.txt", "26-Aug-2014");
         addToGitIndex("second/son.json", "{\"release_date\": \"21-Mar-2014\"}");
@@ -226,6 +225,7 @@ class GitMirrorIntegrationTest {
                                                   .join();
         assertThat(files.values())
                 .containsExactlyInAnyOrder(expectedSecondMirrorState,
+                                           Entry.ofText(rev3, "/.gitkeep", ""),
                                            Entry.ofDirectory(rev3, "/first"),
                                            Entry.ofText(rev3, "/first/light.txt", "26-Aug-2014\n"),
                                            Entry.ofDirectory(rev3, "/second"),
@@ -237,11 +237,11 @@ class GitMirrorIntegrationTest {
                                            Entry.ofYaml(rev3, "/fourth/config.yaml", yaml));
         // Make sure that JSON5 content is preserved as-is.
         final Entry<?> json5Config = files.get("/third/config.json5");
-        assertThat(json5Config.rawContent()).isEqualTo(json5);
+        assertThat(json5Config.rawContent()).isEqualTo(json5 + '\n');
         assertThatJson(json5Config.contentAsJson())
                 .isEqualTo("{\"key\": \"value\"}");
         final Entry<?> yamlConfig = files.get("/fourth/config.yaml");
-        assertThat(yamlConfig.rawContent()).isEqualTo(yaml);
+        assertThat(yamlConfig.rawContent()).isEqualTo(yaml + '\n');
         assertThatJson(yamlConfig.contentAsJson())
                 .isEqualTo("{\"YAML\": true}");
 

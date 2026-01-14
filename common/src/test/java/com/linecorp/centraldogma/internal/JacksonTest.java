@@ -18,12 +18,15 @@ package com.linecorp.centraldogma.internal;
 
 import static com.linecorp.centraldogma.internal.Jackson.readTree;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.common.QueryExecutionException;
@@ -155,5 +158,32 @@ class JacksonTest {
         assertThatThrownBy(() -> Jackson.mergeTree(baseJson, nullJson, numberJson))
                 .isExactlyInstanceOf(QueryExecutionException.class)
                 .hasMessageContaining("/a/b/ type: NUMBER (expected: STRING)");
+    }
+
+    @Test
+    void coercionTest() throws Exception {
+        //language=JSON
+        final String json = '{' +
+                            "  \"aa\":\"123\"," +
+                            "  \"bb\":\"true\"," +
+                            "  \"cc\":\"hello\"" +
+                            '}';
+        final Foo foo = Jackson.readValue(json, Foo.class);
+        assertThat(foo.aa).isEqualTo(123);
+        assertThat(foo.bb).isEqualTo(true);
+        assertThat(foo.cc).isEqualTo("hello");
+    }
+
+    static final class Foo {
+        final int aa;
+        final boolean bb;
+        final String cc;
+
+        @JsonCreator
+        private Foo(@JsonProperty("aa") int aa, @JsonProperty("bb") boolean bb, @JsonProperty("cc") String cc) {
+            this.aa = aa;
+            this.bb = bb;
+            this.cc = cc;
+        }
     }
 }
