@@ -264,7 +264,8 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
                     @Override
                     public String toString() {
                         return "getFile(" + projectName + ", " + repositoryName + ", " +
-                               revision + ", " + query + ", " + viewRaw + ", " + variableFile + ')';
+                               revision + ", " + query + ", " + viewRaw + ", " + applyTemplate + ", " +
+                               variableFile + ')';
                     }
                 });
     }

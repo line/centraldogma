@@ -145,6 +145,10 @@ public final class Templater {
 
         // If a specific variable file is provided, use it instead of the default ones.
         return repo.getOrNull(revision, variableFile).thenApply(entry0 -> {
+            if (entry0 == null) {
+                return ImmutableMap.of();
+            }
+
             if (entry0.type().type() != JsonNode.class) {
                 throw new TemplateProcessingException(
                         "The variable file must be a JSON or YAML type: " + variableFile);

@@ -33,8 +33,8 @@ import com.linecorp.centraldogma.server.internal.api.TemplateParams;
 public final class TemplateParamsConverter implements RequestConverterFunction {
 
     /**
-     * Converts the specified {@code request} to a {@link Query} when the request has a valid file path.
-     * {@code null} otherwise.
+     * Extracts the template parameters from the request query parameters and converts them to
+     * {@link TemplateParams}.
      */
     @Override
     public TemplateParams convertRequest(

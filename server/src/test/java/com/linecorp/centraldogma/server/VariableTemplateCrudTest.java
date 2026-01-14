@@ -156,7 +156,7 @@ class VariableTemplateCrudTest {
                                                .get()
                                                .join();
 
-        assertThatJson(entry.content()).isEqualTo(" { \"environment\": \"staging\"}");
+        assertThatJson(entry.content()).isEqualTo("{ \"environment\": \"staging\" }");
 
         testRepo2.commit("Add env template in repo2", change).push().join();
         assertThatThrownBy(() -> {
@@ -1794,7 +1794,7 @@ class VariableTemplateCrudTest {
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED);
     }
 
-    private void updateVariable(String projectName, String repoName, String id,
+    private void updateVariable(String projectName, @Nullable String repoName, String id,
                                 VariableType type, String value) {
         final Variable variable = new Variable(id, type, null, value);
         final String path;
@@ -1819,8 +1819,9 @@ class VariableTemplateCrudTest {
             path = "/api/v1/projects/" + projectName + "/repos/" + repoName + "/variables/" + id;
         }
 
-        httpClient.prepare()
-                  .delete(path)
-                  .execute();
+        final AggregatedHttpResponse response = httpClient.prepare()
+                                                          .delete(path)
+                                                          .execute();
+        assertThat(response.status()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 }
