@@ -715,13 +715,111 @@ class VariableTemplateCrudTest {
         final Change<JsonNode> change = Change.ofJsonUpsert("/subdir/config.json", templateContent);
         testRepo1.commit("Add config template", change).push().join();
 
-        // Subdirectory variables should be used
+        // Subdirectory variables should be used for overridden keys
         final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/subdir/config.json"))
                                                .applyTemplate(true)
                                                .get()
                                                .join();
 
         assertThatJson(entry.content()).isEqualTo("{\"location\": \"subdir\"}");
+    }
+
+    @Test
+    void variableFilesFromRootAndSubdirectoryAreMerged() {
+        // Root has 'rootVar' and 'shared', subdirectory has 'subdirVar' and 'shared'
+        final String rootVariables = "{\"rootVar\": \"from-root\", \"shared\": \"root-value\"}";
+        final Change<JsonNode> rootChange = Change.ofJsonUpsert("/.variables.json", rootVariables);
+
+        final String subdirVariables = "{\"subdirVar\": \"from-subdir\", \"shared\": \"subdir-value\"}";
+        final Change<JsonNode> subdirChange = Change.ofJsonUpsert("/subdir/.variables.json", subdirVariables);
+
+        testRepo1.commit("Add variable files", rootChange, subdirChange).push().join();
+
+        // Template uses variables from both root and subdirectory
+        final String templateContent = '{' +
+                                       "  \"root\": \"${vars.rootVar}\"," +
+                                       "  \"subdir\": \"${vars.subdirVar}\"," +
+                                       "  \"shared\": \"${vars.shared}\"" +
+                                       '}';
+        final Change<JsonNode> change = Change.ofJsonUpsert("/subdir/config.json", templateContent);
+        testRepo1.commit("Add config template", change).push().join();
+
+        // All variables should be available, with subdirectory taking precedence for 'shared'
+        final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/subdir/config.json"))
+                                               .applyTemplate(true)
+                                               .get()
+                                               .join();
+
+        assertThatJson(entry.content()).isEqualTo('{' +
+                                                  "  \"root\": \"from-root\"," +
+                                                  "  \"subdir\": \"from-subdir\"," +
+                                                  "  \"shared\": \"subdir-value\"" +
+                                                  '}');
+    }
+
+    @Test
+    void entryPathVariablesOverrideRootVariables() {
+        // Root and entry path files have same variables, entry path should win
+        final String rootVariables = "{\"env\": \"root-env\", \"region\": \"root-region\"}";
+        final Change<JsonNode> rootChange = Change.ofJsonUpsert("/.variables.json", rootVariables);
+
+        final String entryPathVariables = "{\"env\": \"entrypath-env\", \"region\": \"entrypath-region\"}";
+        final Change<JsonNode> entryPathChange = Change.ofJsonUpsert("/subdir/.variables.json",
+                                                                     entryPathVariables);
+
+        testRepo1.commit("Add variable files", rootChange, entryPathChange).push().join();
+
+        final String templateContent = "{ \"env\": \"${vars.env}\", \"region\": \"${vars.region}\" }";
+        final Change<JsonNode> change = Change.ofJsonUpsert("/subdir/config.json", templateContent);
+        testRepo1.commit("Add config template", change).push().join();
+
+        // Entry path variables should override root variables
+        final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/subdir/config.json"))
+                                               .applyTemplate(true)
+                                               .get()
+                                               .join();
+
+        assertThatJson(entry.content()).isEqualTo(
+                "{\"env\": \"entrypath-env\", \"region\": \"entrypath-region\"}");
+    }
+
+    @Test
+    void clientVariablesOverrideEntryPathVariables() {
+        // Entry path and client files have same variables, client should win
+        final String entryPathVariables =
+                "{\"env\": \"entrypath-env\", \"region\": \"entrypath-region\", \"path\": \"entry-level\"}";
+        final Change<JsonNode> entryPathChange = Change.ofJsonUpsert("/subdir/.variables.json",
+                                                                     entryPathVariables);
+
+        final String clientVariables =
+                "{\"env\": \"client-env\", \"region\": \"client-region\", \"clientFile\": true}";
+        final Change<JsonNode> clientChange = Change.ofJsonUpsert("/vars/client.json", clientVariables);
+
+        testRepo1.commit("Add variable files", entryPathChange, clientChange).push().join();
+
+        final String templateContent =
+                '{' +
+                "  \"env\": \"${vars.env}\", " +
+                "  \"region\": \"${vars.region}\" , " +
+                "  \"path\": \"${vars.path}\", " +
+                "  \"client-file\": \"${vars.clientFile}\" " +
+                '}';
+        final Change<JsonNode> change = Change.ofJsonUpsert("/subdir/config.json", templateContent);
+        testRepo1.commit("Add config template", change).push().join();
+
+        // Client variables should override entry path variables
+        final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/subdir/config.json"))
+                                               .applyTemplate("/vars/client.json")
+                                               .get()
+                                               .join();
+
+        assertThatJson(entry.content()).isEqualTo(
+                '{' +
+                "  \"env\": \"client-env\", " +
+                "  \"region\": \"client-region\"," +
+                "  \"path\": \"entry-level\", " +
+                "  \"client-file\": \"true\" " +
+                '}');
     }
 
     @Test
@@ -809,6 +907,58 @@ class VariableTemplateCrudTest {
                                                   "  \"project\": \"from-project\"," +
                                                   "  \"repo\": \"from-repo\"," +
                                                   "  \"file\": \"from-file\"" +
+                                                  '}');
+    }
+
+    @Test
+    void allVariableSourcesMergedWithPrecedence() {
+        // Set up all five variable sources with unique variables and one shared variable 'priority'
+        // Priority order (lowest to highest): project < repo < root file < entry path file < client file
+        createVariable(TEST_PROJECT, null, "projectVar", VariableType.STRING, "from-project");
+        createVariable(TEST_PROJECT, null, "priority", VariableType.STRING, "project-priority");
+
+        createVariable(TEST_PROJECT, TEST_REPO_1, "repoVar", VariableType.STRING, "from-repo");
+        createVariable(TEST_PROJECT, TEST_REPO_1, "priority", VariableType.STRING, "repo-priority");
+
+        final String rootVariables =
+                "{\"rootFileVar\": \"from-root-file\", \"priority\": \"root-file-priority\"}";
+        final Change<JsonNode> rootChange = Change.ofJsonUpsert("/.variables.json", rootVariables);
+
+        final String entryPathVariables =
+                "{\"entryPathVar\": \"from-entry-path\", \"priority\": \"entry-path-priority\"}";
+        final Change<JsonNode> entryPathChange = Change.ofJsonUpsert("/subdir/.variables.json",
+                                                                     entryPathVariables);
+
+        final String clientVariables = "{\"clientVar\": \"from-client\", \"priority\": \"client-priority\"}";
+        final Change<JsonNode> clientChange = Change.ofJsonUpsert("/vars/client.json", clientVariables);
+
+        testRepo1.commit("Add variable files", rootChange, entryPathChange, clientChange).push().join();
+
+        // Template uses variables from all sources
+        final String templateContent = '{' +
+                                       "  \"project\": \"${vars.projectVar}\"," +
+                                       "  \"repo\": \"${vars.repoVar}\"," +
+                                       "  \"rootFile\": \"${vars.rootFileVar}\"," +
+                                       "  \"entryPath\": \"${vars.entryPathVar}\"," +
+                                       "  \"client\": \"${vars.clientVar}\"," +
+                                       "  \"priority\": \"${vars.priority}\"" +
+                                       '}';
+        final Change<JsonNode> change = Change.ofJsonUpsert("/subdir/config.json", templateContent);
+        testRepo1.commit("Add config template", change).push().join();
+
+        // All variables should be available, with client file taking precedence for 'priority'
+        final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/subdir/config.json"))
+                                               .applyTemplate("/vars/client.json")
+                                               .get()
+                                               .join();
+
+        assertThatJson(entry.content()).isEqualTo('{' +
+                                                  "  \"project\": \"from-project\"," +
+                                                  "  \"repo\": \"from-repo\"," +
+                                                  "  \"rootFile\": \"from-root-file\"," +
+                                                  "  \"entryPath\": \"from-entry-path\"," +
+                                                  "  \"client\": \"from-client\"," +
+                                                  "  \"priority\": \"client-priority\"" +
                                                   '}');
     }
 
@@ -910,8 +1060,39 @@ class VariableTemplateCrudTest {
                                                .get()
                                                .join();
 
-        // Custom variable file should be used
+        // Custom variable file should override the default for overlapping keys
         assertThatJson(entry.content()).isEqualTo("{\"env\": \"custom\"}");
+    }
+
+    @Test
+    void applyTemplateWithCustomVariableFileMergesWithDefaultVariableFile() {
+        // Default has 'defaultVar' and 'shared', custom has 'customVar' and 'shared'
+        final String defaultVariables = "{\"defaultVar\": \"from-default\", \"shared\": \"default-value\"}";
+        final Change<JsonNode> defaultChange = Change.ofJsonUpsert("/.variables.json", defaultVariables);
+        final String customVariables = "{\"customVar\": \"from-custom\", \"shared\": \"custom-value\"}";
+        final Change<JsonNode> customChange = Change.ofJsonUpsert("/vars/custom.json", customVariables);
+        testRepo1.commit("Add variable files", defaultChange, customChange).push().join();
+
+        // Template uses variables from both default and custom files
+        final String templateContent = '{' +
+                                       "  \"default\": \"${vars.defaultVar}\"," +
+                                       "  \"custom\": \"${vars.customVar}\"," +
+                                       "  \"shared\": \"${vars.shared}\"" +
+                                       '}';
+        final Change<JsonNode> change = Change.ofJsonUpsert("/config.json", templateContent);
+        testRepo1.commit("Add config template", change).push().join();
+
+        final Entry<JsonNode> entry = testRepo1.file(Query.ofJson("/config.json"))
+                                               .applyTemplate("/vars/custom.json")
+                                               .get()
+                                               .join();
+
+        // All variables should be available, with custom taking precedence for 'shared'
+        assertThatJson(entry.content()).isEqualTo('{' +
+                                                  "  \"default\": \"from-default\"," +
+                                                  "  \"custom\": \"from-custom\"," +
+                                                  "  \"shared\": \"custom-value\"" +
+                                                  '}');
     }
 
     @Test

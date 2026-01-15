@@ -65,6 +65,9 @@ public final class Templater {
             ImmutableList.of("/.variables.json", "/.variables.json5", "/.variables.yaml", "/.variables.yml");
     private static final String VARIABLE_FILES_PATTERN = Joiner.on(",").join(VARIABLE_FILES);
 
+    private static final UnmodifiableFuture<Map<String, Object>> EMPTY_MAP_FUTURE =
+            UnmodifiableFuture.completedFuture(ImmutableMap.of());
+
     private final CrudOperation<Variable> crudRepo;
     private final LoadingCache<Entry<?>, Template> cache;
 
@@ -110,9 +113,54 @@ public final class Templater {
         // TODO(ikhoon): Optimize by caching the rendering result for the same set of variables and template.
         return mergeVariables(crudRepo.findAll(crudContext(projectName, variableRevision)),
                               crudRepo.findAll(crudContext(projectName, repo.name(), variableRevision)),
-                              findVariableFile(repo, entry, variableFile))
+                              findRepoVariableFile(repo, entry),
+                              findEntryPathVariableFile(repo, entry),
+                              findClientVariableFile(repo, entry, variableFile))
                 .thenApply(variables -> process(entry, variables))
                 .toCompletableFuture();
+    }
+
+    private static CompletableFuture<Map<String, Object>> findRepoVariableFile(Repository repo,
+                                                                               Entry<?> entry) {
+        return findVariableFile(repo, entry.revision(), VARIABLE_FILES_PATTERN);
+    }
+
+    private static CompletableFuture<Map<String, Object>> findEntryPathVariableFile(Repository repo,
+                                                                                    Entry<?> entry) {
+        final String entryPath = entry.path();
+        final Revision revision = entry.revision();
+        final int lastSlash = entryPath.lastIndexOf('/');
+        final String directory = entryPath.substring(0, lastSlash);
+        final String filePattern = VARIABLE_FILES.stream()
+                                                 .map(file -> directory + file)
+                                                 .collect(Collectors.joining(","));
+        // Try to find variable files in the same directory as the template.
+        return findVariableFile(repo, revision, filePattern);
+    }
+
+    private static CompletableFuture<Map<String, Object>> findVariableFile(
+            Repository repo, Revision revision, String pathPattern) {
+        return repo.find(revision, pathPattern).thenApply(entries -> {
+            final Entry<?> chosen = chooseVariableFile(entries);
+            if (chosen == null) {
+                return ImmutableMap.of();
+            }
+            return parseVariableFile(chosen);
+        });
+    }
+
+    private static CompletableFuture<Map<String, Object>> findClientVariableFile(
+            Repository repo, Entry<?> entry, @Nullable String variableFile) {
+        if (Strings.isNullOrEmpty(variableFile)) {
+            return EMPTY_MAP_FUTURE;
+        }
+        return repo.get(entry.revision(), variableFile).thenApply(entry0 -> {
+            if (entry0.type().type() != JsonNode.class) {
+                throw new TemplateProcessingException(
+                        "The variable file must be a JSON or YAML type: " + variableFile);
+            }
+            return parseVariableFile(entry0);
+        });
     }
 
     private static CompletableFuture<Map<String, Object>> findVariableFile(
@@ -233,13 +281,16 @@ public final class Templater {
     private static CompletionStage<Map<String, Object>> mergeVariables(
             CompletableFuture<List<HasRevision<Variable>>> projFuture,
             CompletableFuture<List<HasRevision<Variable>>> repoFuture,
-            CompletableFuture<Map<String, Object>> fileFuture) {
+            CompletableFuture<Map<String, Object>> repoFileFuture,
+            CompletableFuture<Map<String, Object>> entryPathFuture,
+            CompletableFuture<Map<String, Object>> clientFileFuture) {
         return CompletableFutures.combine(
-                projFuture, repoFuture, fileFuture,
-                (projVars, repoVars, fileVars) -> {
+                projFuture, repoFuture, repoFileFuture, entryPathFuture, clientFileFuture,
+                (projVars, repoVars, repoFileVars, entryPathVars, clientFileVars) -> {
                     final ImmutableMap.Builder<String, Object> builder =
                             ImmutableMap.builderWithExpectedSize(
-                                    projVars.size() + repoVars.size() + fileVars.size());
+                                    projVars.size() + repoVars.size() + repoFileVars.size() +
+                                    entryPathVars.size() + clientFileVars.size());
 
                     int revision = Integer.MAX_VALUE;
                     for (HasRevision<Variable> it : projVars) {
@@ -253,8 +304,10 @@ public final class Templater {
                         // Repo-level variables override project-level ones.
                         builder.put(variable.id(), parseValue(variable));
                     }
-                    // File-level variables has the highest precedence.
-                    builder.putAll(fileVars);
+                    // The higher precedence variables override the lower precedence ones.
+                    builder.putAll(repoFileVars);
+                    builder.putAll(entryPathVars);
+                    builder.putAll(clientFileVars);
 
                     final Map<String, Object> variables = builder.buildKeepingLast();
                     // Prefix variables map with "vars" key.
