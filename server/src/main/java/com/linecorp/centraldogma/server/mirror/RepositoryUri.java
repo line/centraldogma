@@ -86,7 +86,13 @@ public final class RepositoryUri {
             throw new Error(e);
         }
 
-        final String remoteBranch = remoteUri.getFragment();
+        final String remoteBranch;
+        if ("dogma".equals(suffix)) {
+            // Central Dogma has no notion of branch.
+            remoteBranch = "";
+        } else {
+            remoteBranch = remoteUri.getFragment();
+        }
 
         return new RepositoryUri(URI.create(newRemoteUri), remotePath, firstNonNull(remoteBranch, ""));
     }

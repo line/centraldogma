@@ -542,7 +542,7 @@ class LocalToRemoteGitMirrorTest {
         MirrorState mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("2");
         assertThat(mirrorState.remoteRevision()).isEqualTo(commitId0.name());
-        assertThat(mirrorState.remotePath()).endsWith(".git//#");
+        assertThat(mirrorState.remotePath()).isEqualTo(gitUri + "/#");
         assertThat(mirrorState.localRevision()).isEqualTo("2");
         assertThat(mirrorState.localPath()).isEqualTo("/source1/");
 
@@ -633,7 +633,7 @@ class LocalToRemoteGitMirrorTest {
         assertThat(mirrorState.sourceRevision()).isEqualTo("2");
         assertThat(mirrorState.localRevision()).isEqualTo("2");
         assertThat(mirrorState.localPath()).isEqualTo("/");
-        assertThat(mirrorState.remotePath()).endsWith(".git//#");
+        assertThat(mirrorState.remotePath()).isEqualTo(gitUri + "/#");
         assertThat(mirrorState.remoteRevision()).isEqualTo(commitId0.name());
 
         // Verify the file is mirrored
@@ -662,7 +662,7 @@ class LocalToRemoteGitMirrorTest {
         assertThat(mirrorState.sourceRevision()).isEqualTo("2");
         assertThat(mirrorState.localRevision()).isEqualTo("2");
         assertThat(mirrorState.localPath()).isEqualTo("/");
-        assertThat(mirrorState.remotePath()).endsWith(".git//#");
+        assertThat(mirrorState.remotePath()).isEqualTo(gitUri + "/#");
         assertThat(mirrorState.remoteRevision()).isEqualTo(commitId2.name());
         assertThat(new String(getFileContent(commitId3, "/foo.json")))
                 .isEqualTo("{\"a\":\"b\"}\n");
