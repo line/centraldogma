@@ -35,9 +35,9 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.internal.credential.AccessTokenCredential;
 import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
-import com.linecorp.centraldogma.server.mirror.RepositoryUri;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.RepositoryUri;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class DefaultGitMirror extends AbstractGitMirror {
@@ -47,7 +47,7 @@ final class DefaultGitMirror extends AbstractGitMirror {
     DefaultGitMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                      Credential credential, Repository localRepo, String localPath, RepositoryUri remoteUri,
                      @Nullable String gitignore, @Nullable String zone) {
-        super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri , gitignore, zone);
+        super(id, enabled, schedule, direction, credential, localRepo, localPath, remoteUri, gitignore, zone);
     }
 
     @Override

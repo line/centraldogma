@@ -25,10 +25,10 @@ import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
 
-import com.linecorp.centraldogma.server.mirror.RepositoryUri;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorContext;
 import com.linecorp.centraldogma.server.mirror.MirrorProvider;
+import com.linecorp.centraldogma.server.mirror.RepositoryUri;
 
 public final class GitMirrorProvider implements MirrorProvider {
 
