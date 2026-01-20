@@ -142,17 +142,17 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param content the content of the {@link Entry}
      * @param type the type of the {@link Entry}
      * @param <T> the content type. {@link JsonNode} if JSON. {@link String} if text.
-     * @param variableRevision the revision of the variables that were used to render the template and generate
+     * @param templateRevision the revision of the variables that were used to render the template and generate
      *                         this {@link Entry}
      */
     public static <T> Entry<T> of(Revision revision, String path, EntryType type, @Nullable T content,
-                                  @Nullable Revision variableRevision) {
-        return new Entry<>(revision, path, type, content, null, variableRevision);
+                                  @Nullable Revision templateRevision) {
+        return new Entry<>(revision, path, type, content, null, templateRevision);
     }
 
     private final Revision revision;
     @Nullable
-    private final Revision variableRevision;
+    private final Revision templateRevision;
     private final String path;
     @Nullable
     private final T content;
@@ -174,7 +174,7 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param rawContent the raw content string, which is used for viewing the original JSON text
      */
     private Entry(Revision revision, String path, EntryType type, @Nullable T content,
-                  @Nullable String rawContent, @Nullable Revision variableRevision) {
+                  @Nullable String rawContent, @Nullable Revision templateRevision) {
         requireNonNull(revision, "revision");
         checkArgument(!revision.isRelative(), "revision: %s (expected: absolute revision)", revision);
         this.revision = revision;
@@ -193,7 +193,7 @@ public final class Entry<T> implements ContentHolder<T> {
             this.content = castContent;
             this.rawContent = rawContent;
         }
-        this.variableRevision = variableRevision;
+        this.templateRevision = templateRevision;
     }
 
     /**
@@ -204,24 +204,27 @@ public final class Entry<T> implements ContentHolder<T> {
     }
 
     /**
-     * Returns the revision of the variables that were used to render the template and generate this
+     * Returns the revision of the template variables that were used to render the template and generate this
      * {@link Entry}.
      *
-     * <p>{@code null} if this {@link Entry} was not created by applying variables to a template.
+     * <p>{@code null} if this {@link Entry} was not generated from a template using project or repository level
+     * variables.
      */
     @Nullable
-    public Revision variableRevision() {
-        return variableRevision;
+    public Revision templateRevision() {
+        return templateRevision;
     }
 
     /**
-     * Sets the revision of the variables that were used to render the template and generate this {@link Entry}.
+     * Sets the revision of the template variables that were used to render the template and generate this
+     * {@link Entry}.
      *
-     * <p>This value is set only when the {@link Entry} is created by applying variables to a template.
+     * <p>This value is set only when the {@link Entry} was generated from a template using project or
+     * repository level variables.
      */
-    public Entry<T> withVariableRevision(Revision variableRevision) {
-        requireNonNull(variableRevision, "variableRevision");
-        return new Entry<>(revision, path, type, content, rawContent, variableRevision);
+    public Entry<T> withTemplateRevision(Revision templateRevision) {
+        requireNonNull(templateRevision, "templateRevision");
+        return new Entry<>(revision, path, type, content, rawContent, templateRevision);
     }
 
     /**
@@ -303,7 +306,7 @@ public final class Entry<T> implements ContentHolder<T> {
 
     @Override
     public int hashCode() {
-        return Objects.hash(revision, path, content, type, variableRevision);
+        return Objects.hash(revision, path, content, type, templateRevision);
     }
 
     @Override
@@ -321,7 +324,7 @@ public final class Entry<T> implements ContentHolder<T> {
         return type == that.type &&
                revision.equals(that.revision) &&
                path.equals(that.path) &&
-               Objects.equals(variableRevision, that.variableRevision) &&
+               Objects.equals(templateRevision, that.templateRevision) &&
                Objects.equals(content, that.content);
     }
 
@@ -329,7 +332,7 @@ public final class Entry<T> implements ContentHolder<T> {
     public String toString() {
         return MoreObjects.toStringHelper(this).omitNullValues()
                           .add("revision", revision)
-                          .add("variableRevision", variableRevision)
+                          .add("templateRevision", templateRevision)
                           .add("path", path)
                           .add("type", type)
                           .add("content", hasContent() ? contentAsText() : null)

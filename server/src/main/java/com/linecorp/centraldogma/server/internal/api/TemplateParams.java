@@ -33,11 +33,11 @@ public final class TemplateParams {
     }
 
     public static TemplateParams of(boolean applyTemplate, @Nullable String variableFile,
-                                    @Nullable Revision variableRevision) {
+                                    @Nullable Revision templateRevision) {
         if (!applyTemplate) {
             return disabled();
         } else {
-            return new TemplateParams(true, variableFile, variableRevision);
+            return new TemplateParams(true, variableFile, templateRevision);
         }
     }
 
@@ -45,13 +45,13 @@ public final class TemplateParams {
     @Nullable
     private final String variableFile;
     @Nullable
-    private final Revision variableRevision;
+    private final Revision templateRevision;
 
     private TemplateParams(boolean applyTemplate, @Nullable String variableFile,
-                           @Nullable Revision variableRevision) {
+                           @Nullable Revision templateRevision) {
         this.applyTemplate = applyTemplate;
         this.variableFile = variableFile;
-        this.variableRevision = variableRevision;
+        this.templateRevision = templateRevision;
     }
 
     public boolean applyTemplate() {
@@ -64,15 +64,15 @@ public final class TemplateParams {
     }
 
     @Nullable
-    public Revision variableRevision() {
-        return variableRevision;
+    public Revision templateRevision() {
+        return templateRevision;
     }
 
-    public TemplateParams withVariableRevision(Revision variableRevision) {
-        if (Objects.equals(variableRevision, this.variableRevision)) {
+    public TemplateParams withTemplateRevision(Revision templateRevision) {
+        if (Objects.equals(templateRevision, this.templateRevision)) {
             return this;
         }
-        return new TemplateParams(applyTemplate, variableFile, variableRevision);
+        return new TemplateParams(applyTemplate, variableFile, templateRevision);
     }
 
     @Override
@@ -83,12 +83,12 @@ public final class TemplateParams {
         final TemplateParams that = (TemplateParams) o;
         return applyTemplate == that.applyTemplate &&
                Objects.equals(variableFile, that.variableFile) &&
-               Objects.equals(variableRevision, that.variableRevision);
+               Objects.equals(templateRevision, that.templateRevision);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(applyTemplate, variableFile, variableRevision);
+        return Objects.hash(applyTemplate, variableFile, templateRevision);
     }
 
     @Override
@@ -97,7 +97,7 @@ public final class TemplateParams {
                           .omitNullValues()
                           .add("applyTemplate", applyTemplate)
                           .add("variableFile", variableFile)
-                          .add("variableRevision", variableRevision)
+                          .add("templateRevision", templateRevision)
                           .toString();
     }
 }

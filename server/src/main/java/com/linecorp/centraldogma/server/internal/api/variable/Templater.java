@@ -101,18 +101,18 @@ public final class Templater {
 
     public <T> CompletableFuture<Entry<T>> render(Repository repo, Entry<T> entry,
                                                   @Nullable String variableFile,
-                                                  @Nullable Revision variableRevision) {
+                                                  @Nullable Revision templateRevision) {
         if (!entry.hasContent()) {
             return UnmodifiableFuture.completedFuture(entry);
         }
-        if (variableRevision == null) {
-            variableRevision = Revision.HEAD;
+        if (templateRevision == null) {
+            templateRevision = repo.normalizeNow(Revision.HEAD);
         }
 
         final String projectName = repo.parent().name();
         // TODO(ikhoon): Optimize by caching the rendering result for the same set of variables and template.
-        return mergeVariables(crudRepo.findAll(crudContext(projectName, variableRevision)),
-                              crudRepo.findAll(crudContext(projectName, repo.name(), variableRevision)),
+        return mergeVariables(crudRepo.findAll(crudContext(projectName, templateRevision)),
+                              crudRepo.findAll(crudContext(projectName, repo.name(), templateRevision)),
                               findRepoVariableFile(repo, entry),
                               findEntryPathVariableFile(repo, entry),
                               findClientVariableFile(repo, entry, variableFile))
@@ -155,44 +155,6 @@ public final class Templater {
             return EMPTY_MAP_FUTURE;
         }
         return repo.get(entry.revision(), variableFile).thenApply(entry0 -> {
-            if (entry0.type().type() != JsonNode.class) {
-                throw new TemplateProcessingException(
-                        "The variable file must be a JSON or YAML type: " + variableFile);
-            }
-            return parseVariableFile(entry0);
-        });
-    }
-
-    private static CompletableFuture<Map<String, Object>> findVariableFile(
-            Repository repo, Entry<?> entry, @Nullable String variableFile) {
-        final String entryPath = entry.path();
-        final Revision revision = entry.revision();
-
-        if (Strings.isNullOrEmpty(variableFile)) {
-            // If no specific variable file is provided, look for the default ones.
-            final int lastSlash = entryPath.lastIndexOf('/');
-            final String directory = entryPath.substring(0, lastSlash);
-            final String filePattern = VARIABLE_FILES.stream()
-                                                     .map(file -> directory + file)
-                                                     .collect(Collectors.joining(","));
-            // First, try to find variable files in the same directory as the template.
-            return repo.find(revision, filePattern).thenCompose(entries -> {
-                if (!entries.isEmpty()) {
-                    return UnmodifiableFuture.completedFuture(entries);
-                }
-                // If not found, try to find variable files in the root directory.
-                return repo.find(revision, VARIABLE_FILES_PATTERN);
-            }).thenApply(entries -> {
-                final Entry<?> chosen = chooseVariableFile(entries);
-                if (chosen == null) {
-                    return ImmutableMap.of();
-                }
-                return parseVariableFile(chosen);
-            });
-        }
-
-        // If a specific variable file is provided, use it instead of the default ones.
-        return repo.get(revision, variableFile).thenApply(entry0 -> {
             if (entry0.type().type() != JsonNode.class) {
                 throw new TemplateProcessingException(
                         "The variable file must be a JSON or YAML type: " + variableFile);
@@ -246,7 +208,7 @@ public final class Templater {
             //noinspection unchecked
             Entry<T> newEntry = (Entry<T>) newEntryWithContent(entry, out.toString());
             if (revision != Integer.MAX_VALUE) {
-                newEntry = newEntry.withVariableRevision(new Revision(revision));
+                newEntry = newEntry.withTemplateRevision(new Revision(revision));
             }
             return newEntry;
         } catch (Exception e) {
@@ -256,25 +218,21 @@ public final class Templater {
     }
 
     private static <T> Entry<?> newEntryWithContent(Entry<?> entry, String content) {
-        switch (entry.type()) {
-            case TEXT:
-                return Entry.ofText(entry.revision(), entry.path(), content);
-            case JSON:
-                try {
+        try {
+            switch (entry.type()) {
+                case TEXT:
+                    return Entry.ofText(entry.revision(), entry.path(), content);
+                case JSON:
                     return Entry.ofJson(entry.revision(), entry.path(), content);
-                } catch (JsonProcessingException e) {
-                    throw new IllegalStateException(e);
-                }
-            case YAML:
-                try {
+                case YAML:
                     return Entry.ofYaml(entry.revision(), entry.path(), content);
-                } catch (JsonParseException e) {
-                    throw new IllegalStateException(e);
-                }
-            case DIRECTORY:
-            default:
-                // Should not reach here.
-                throw new Error();
+                case DIRECTORY:
+                default:
+                    // Should not reach here.
+                    throw new Error();
+            }
+        } catch (JsonParseException e) {
+            throw new IllegalStateException(e);
         }
     }
 
@@ -315,7 +273,7 @@ public final class Templater {
                     // TODO(ikhoon): Support secret variables that will be prefixed with "secrets" key.
                     final Map<String, Object> vars = new HashMap<>();
                     vars.put("vars", variables);
-                    // Revision is needed to set variableRevision in the rendered entry.
+                    // Revision is needed to set templateRevision in the rendered entry.
                     vars.put("revision", revision);
                     return vars;
                 });

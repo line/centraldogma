@@ -50,10 +50,10 @@ final class RepositoryWatcher<T> {
     @Nullable
     private final Repository dogmaRepo;
     @Nullable
-    private final Revision lastKnownVariableRev;
+    private final Revision lastKnownTemplateRev;
 
     RepositoryWatcher(Repository repo, Revision lastKnownRev, Query<T> query, boolean errorOnEntryNotFound,
-                      @Nullable String variableFile, @Nullable Revision lastKnownVariableRev,
+                      @Nullable String variableFile, @Nullable Revision lastKnownTemplateRev,
                       @Nullable Function<Revision, EntryTransformer<T>> transformerFactory) {
         this.repo = repo;
         this.lastKnownRev = lastKnownRev;
@@ -62,7 +62,7 @@ final class RepositoryWatcher<T> {
         if (transformerFactory == null) {
             pathPattern = query.path();
             dogmaRepo = null;
-            this.lastKnownVariableRev = null;
+            this.lastKnownTemplateRev = null;
         } else {
             String pathPattern = query.path() + ",/**/.variables.*";
             if (variableFile != null) {
@@ -70,20 +70,20 @@ final class RepositoryWatcher<T> {
             }
             this.pathPattern = pathPattern;
             dogmaRepo = repo.parent().repos().get(Project.REPO_DOGMA);
-            this.lastKnownVariableRev = lastKnownVariableRev;
+            this.lastKnownTemplateRev = lastKnownTemplateRev;
         }
         this.errorOnEntryNotFound = errorOnEntryNotFound;
     }
 
     CompletableFuture<Entry<T>> watch() {
-        Revision variableRevision = lastKnownVariableRev;
-        if (variableRevision == null) {
+        Revision templateRevision = lastKnownTemplateRev;
+        if (templateRevision == null) {
             // For the first watch, read the latest variable revision.
-            variableRevision = Revision.HEAD;
+            templateRevision = Revision.HEAD;
         }
         final EntryTransformer<T> transformer;
         if (transformerFactory != null) {
-            transformer = transformerFactory.apply(variableRevision);
+            transformer = transformerFactory.apply(templateRevision);
         } else {
             transformer = EntryTransformer.identity();
         }
@@ -93,7 +93,7 @@ final class RepositoryWatcher<T> {
                     watchResult.completeExceptionally(cause);
                 } else {
                     final Revision oldVariableRev =
-                            oldResult != null ? oldResult.variableRevision() : lastKnownVariableRev;
+                            oldResult != null ? oldResult.templateRevision() : lastKnownTemplateRev;
                     watch(lastKnownRev, oldResult, oldVariableRev);
                 }
                 return null;
@@ -102,15 +102,15 @@ final class RepositoryWatcher<T> {
     }
 
     private void watch(Revision lastKnownRev, @Nullable Entry<T> oldResult,
-                       @Nullable Revision lastKnownVarRev) {
-        watchRepos(lastKnownRev, lastKnownVarRev).thenCompose(pair -> {
+                       @Nullable Revision lastKnownTemplateRev) {
+        watchRepos(lastKnownRev, lastKnownTemplateRev).thenCompose(pair -> {
             final EntryTransformer<T> transformer;
             if (transformerFactory != null) {
-                Revision variableRevision = pair.varRev;
-                if (variableRevision == null) {
-                    variableRevision = Revision.HEAD;
+                Revision templateRevision = pair.tempRev;
+                if (templateRevision == null) {
+                    templateRevision = Revision.HEAD;
                 }
-                transformer = transformerFactory.apply(variableRevision);
+                transformer = transformerFactory.apply(templateRevision);
             } else {
                 transformer = EntryTransformer.identity();
             }
@@ -128,7 +128,7 @@ final class RepositoryWatcher<T> {
                     // Entry does not exist or did not change; watch again for more changes.
                     if (!watchResult.isDone()) {
                         // ... only when the parent future has not been cancelled.
-                        watch(pair.repoRev, oldResult, pair.varRev);
+                        watch(pair.repoRev, oldResult, pair.tempRev);
                     }
                 } else {
                     watchResult.complete(newResult);
@@ -138,7 +138,7 @@ final class RepositoryWatcher<T> {
     }
 
     private CompletableFuture<RevisionPair> watchRepos(Revision lastKnownRev,
-                                                       @Nullable Revision lastKnownVarRev) {
+                                                       @Nullable Revision lastKnownTempRev) {
         final CompletableFuture<RevisionPair> future = new CompletableFuture<>();
         final CompletableFuture<Revision> repoFuture = repo.watch(lastKnownRev, pathPattern,
                                                                   errorOnEntryNotFound);
@@ -146,19 +146,19 @@ final class RepositoryWatcher<T> {
             if (cause != null) {
                 future.completeExceptionally(cause);
             } else {
-                future.complete(new RevisionPair(newRev, lastKnownVarRev));
+                future.complete(new RevisionPair(newRev, lastKnownTempRev));
             }
             return null;
         });
 
         final CompletableFuture<Revision> dogmaFuture;
-        if (lastKnownVarRev != null) {
-            dogmaFuture = dogmaRepo.watch(lastKnownVarRev, "/**/variables/**/*.json");
-            dogmaFuture.handle((newVarRev, cause) -> {
+        if (lastKnownTempRev != null) {
+            dogmaFuture = dogmaRepo.watch(lastKnownTempRev, "/**/variables/**/*.json");
+            dogmaFuture.handle((newTempRev, cause) -> {
                 if (cause != null) {
                     future.completeExceptionally(cause);
                 } else {
-                    future.complete(new RevisionPair(lastKnownRev, newVarRev));
+                    future.complete(new RevisionPair(lastKnownRev, newTempRev));
                 }
                 return null;
             });
@@ -176,14 +176,14 @@ final class RepositoryWatcher<T> {
         return future;
     }
 
-    private static class RevisionPair {
+    private static final class RevisionPair {
         final Revision repoRev;
         @Nullable
-        final Revision varRev;
+        final Revision tempRev;
 
-        RevisionPair(Revision repoRev, @Nullable Revision varRev) {
+        RevisionPair(Revision repoRev, @Nullable Revision tempRev) {
             this.repoRev = repoRev;
-            this.varRev = varRev;
+            this.tempRev = tempRev;
         }
     }
 }

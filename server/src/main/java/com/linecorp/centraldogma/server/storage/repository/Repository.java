@@ -594,10 +594,10 @@ public interface Repository {
      */
     default <T> CompletableFuture<Entry<T>> watch(
             Revision lastKnownRevision, Query<T> query, boolean errorOnEntryNotFound,
-            @Nullable String variableFile, @Nullable Revision variableRevision,
+            @Nullable String variableFile, @Nullable Revision templateRevision,
             @Nullable Function<Revision, EntryTransformer<T>> transformerFactory) {
         return new RepositoryWatcher<>(this, lastKnownRevision, query, errorOnEntryNotFound, variableFile,
-                                       variableRevision, transformerFactory).watch();
+                                       templateRevision, transformerFactory).watch();
     }
 
     /**

@@ -136,7 +136,7 @@ final class RepositoryUtil {
             return entry;
         } else if (queryType == JSON_PATH) {
             return Entry.of(entry.revision(), query.path(), entryType, query.apply(entry.content()),
-                            entry.variableRevision());
+                            entry.templateRevision());
         } else {
             throw new QueryExecutionException("Unsupported entry type: " + entryType +
                                               " (query: " + query + ')');

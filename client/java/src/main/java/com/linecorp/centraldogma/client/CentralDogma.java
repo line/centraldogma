@@ -825,7 +825,7 @@ public interface CentralDogma extends AutoCloseable {
                                               long timeoutMillis, boolean errorOnEntryNotFound,
                                               boolean viewRaw, boolean applyTemplate,
                                               @Nullable String variableFile,
-                                              @Nullable Revision variableRevision);
+                                              @Nullable Revision templateRevision);
 
     /**
      * Returns a {@link Watcher} which notifies its listeners when the result of the

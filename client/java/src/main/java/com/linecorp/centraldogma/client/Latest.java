@@ -35,7 +35,7 @@ public final class Latest<U> {
 
     private final Revision revision;
     @Nullable
-    private final Revision variableRevision;
+    private final Revision templateRevision;
     @Nullable
     private final U value;
 
@@ -49,9 +49,9 @@ public final class Latest<U> {
     /**
      * Creates a new instance with the specified {@link Revision}s and value.
      */
-    public Latest(Revision revision, @Nullable Revision variableRevision, @Nullable U value) {
+    public Latest(Revision revision, @Nullable Revision templateRevision, @Nullable U value) {
         this.revision = requireNonNull(revision, "revision");
-        this.variableRevision = variableRevision;
+        this.templateRevision = templateRevision;
         this.value = value;
     }
 
@@ -63,14 +63,15 @@ public final class Latest<U> {
     }
 
     /**
-     * Returns the revision of the variables that were used to render the template and generate this
+     * Returns the revision of the template variables that were used to render the template and generate this
      * {@code value}.
      *
-     * <p>{@code null} if this {@code value} was not created by applying variables to a template.
+     * <p>{@code null} if this {@code value} was not generated from a template using project or repository level
+     * variables.
      */
     @Nullable
-    public Revision variableRevision() {
-        return variableRevision;
+    public Revision templateRevision() {
+        return templateRevision;
     }
 
     /**
@@ -91,20 +92,20 @@ public final class Latest<U> {
         }
         final Latest<?> that = (Latest<?>) o;
         return revision.equals(that.revision) &&
-               Objects.equals(variableRevision, that.variableRevision) &&
+               Objects.equals(templateRevision, that.templateRevision) &&
                Objects.equals(value, that.value);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(revision, variableRevision, value);
+        return Objects.hash(revision, templateRevision, value);
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).omitNullValues()
                           .add("revision", revision)
-                          .add("variableRevision", variableRevision)
+                          .add("templateRevision", templateRevision)
                           .add("value", value)
                           .toString();
     }

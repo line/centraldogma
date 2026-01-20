@@ -218,10 +218,10 @@ public class RepositoryWrapper implements Repository {
     @Override
     public <T> CompletableFuture<Entry<T>> watch(
             Revision lastKnownRevision, Query<T> query, boolean errorOnEntryNotFound,
-            @Nullable String variableFile, @Nullable Revision variableRevision,
+            @Nullable String variableFile, @Nullable Revision templateRevision,
             @Nullable Function<Revision, EntryTransformer<T>> transformerFactory) {
         return unwrap().watch(lastKnownRevision, query, errorOnEntryNotFound,
-                              variableFile, variableRevision, transformerFactory);
+                              variableFile, templateRevision, transformerFactory);
     }
 
     @Override

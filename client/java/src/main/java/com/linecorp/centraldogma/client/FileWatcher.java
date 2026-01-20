@@ -65,25 +65,25 @@ final class FileWatcher<T> extends AbstractWatcher<T> {
     }
 
     @Override
-    CompletableFuture<Latest<T>> doWatch(Revision lastKnownRevision, @Nullable Revision variableRevision) {
+    CompletableFuture<Latest<T>> doWatch(Revision lastKnownRevision, @Nullable Revision templateRevision) {
         final CompletableFuture<Entry<T>> future = centralDogma.watchFile(projectName, repositoryName,
                                                                           lastKnownRevision, query,
                                                                           timeoutMillis, errorOnEntryNotFound,
                                                                           false, applyTemplate, variableFile,
-                                                                          variableRevision);
+                                                                          templateRevision);
         if (mapper == null) {
             return future.thenApply(entry -> {
                 if (entry == null) {
                     return null;
                 }
-                return new Latest<>(entry.revision(), entry.variableRevision(), entry.content());
+                return new Latest<>(entry.revision(), entry.templateRevision(), entry.content());
             });
         }
         return future.thenApplyAsync(entry -> {
             if (entry == null) {
                 return null;
             }
-            return new Latest<>(entry.revision(), entry.variableRevision(), mapper.apply(entry.content()));
+            return new Latest<>(entry.revision(), entry.templateRevision(), mapper.apply(entry.content()));
         }, mapperExecutor);
     }
 }

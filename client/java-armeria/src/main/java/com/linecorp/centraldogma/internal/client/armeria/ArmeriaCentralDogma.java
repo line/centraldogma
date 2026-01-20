@@ -912,7 +912,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                                                      long timeoutMillis, boolean errorOnEntryNotFound,
                                                      boolean viewRaw, boolean applyTemplate,
                                                      @Nullable String variableFile,
-                                                     @Nullable Revision variableRevision) {
+                                                     @Nullable Revision templateRevision) {
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(query, "query");
@@ -941,8 +941,8 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 if (variableFile != null) {
                     paramsBuilder.add("variableFile", variableFile);
                 }
-                if (variableRevision != null) {
-                    paramsBuilder.add("variableRevision", variableRevision.text());
+                if (templateRevision != null) {
+                    paramsBuilder.add("templateRevision", templateRevision.text());
                 }
             }
             final QueryParams queryParams = paramsBuilder.build();
@@ -1116,9 +1116,9 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
     private static <T> Entry<T> toEntry(Revision revision, JsonNode node, QueryType queryType,
                                         boolean viewRaw) {
         final Entry<T> entry = toEntry0(revision, node, queryType, viewRaw);
-        final JsonNode variableRevision = node.get("variableRevision");
-        if (variableRevision != null && variableRevision.isInt()) {
-            return entry.withVariableRevision(new Revision(variableRevision.asInt()));
+        final JsonNode templateRevision = node.get("templateRevision");
+        if (templateRevision != null && templateRevision.isInt()) {
+            return entry.withTemplateRevision(new Revision(templateRevision.asInt()));
         } else {
             return entry;
         }

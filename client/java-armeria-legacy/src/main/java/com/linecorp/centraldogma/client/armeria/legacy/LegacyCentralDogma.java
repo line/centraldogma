@@ -492,7 +492,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                                                      long timeoutMillis, boolean errorOnEntryNotFound,
                                                      boolean viewRaw, boolean applyTemplate,
                                                      @Nullable String variableFile,
-                                                     @Nullable Revision variableRevision) {
+                                                     @Nullable Revision templateRevision) {
         checkArgument(!errorOnEntryNotFound, "errorOnEntryNotFound is not supported in LegacyCentralDogma.");
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(lastKnownRevision, "lastKnownRevision");

@@ -164,9 +164,9 @@ class EntryTest {
     @Test
     void testVariableVersion() {
         final Entry<String> entry = Entry.ofText(new Revision(10), "/a.txt", "a");
-        assertThat(entry.variableRevision()).isNull();
-        final Entry<String> entryWithVarRev = entry.withVariableRevision(new Revision(20));
+        assertThat(entry.templateRevision()).isNull();
+        final Entry<String> entryWithVarRev = entry.withTemplateRevision(new Revision(20));
         assertThat(entryWithVarRev.revision()).isEqualTo(new Revision(10));
-        assertThat(entryWithVarRev.variableRevision()).isEqualTo(new Revision(20));
+        assertThat(entryWithVarRev.templateRevision()).isEqualTo(new Revision(20));
     }
 }

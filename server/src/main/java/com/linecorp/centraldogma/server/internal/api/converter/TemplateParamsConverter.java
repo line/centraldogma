@@ -42,9 +42,9 @@ public final class TemplateParamsConverter implements RequestConverterFunction {
             @Nullable ParameterizedType expectedParameterizedResultType) throws Exception {
         final boolean applyTemplate = Boolean.parseBoolean(ctx.queryParam("applyTemplate"));
         final String variableFile = ctx.queryParam("variableFile");
-        final String variableRevStr = ctx.queryParam("variableRevision");
-        final Revision variableRevision = variableRevStr != null ? new Revision(variableRevStr) : null;
+        final String templateRevStr = ctx.queryParam("templateRevision");
+        final Revision templateRevision = templateRevStr != null ? new Revision(templateRevStr) : null;
 
-        return TemplateParams.of(applyTemplate, variableFile, variableRevision);
+        return TemplateParams.of(applyTemplate, variableFile, templateRevision);
     }
 }

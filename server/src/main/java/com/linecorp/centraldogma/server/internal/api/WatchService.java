@@ -128,7 +128,7 @@ public final class WatchService {
         final CompletableFuture<Entry<T>> result = repo.watch(lastKnownRevision, query,
                                                               errorOnEntryNotFound,
                                                               templateParams.variableFile(),
-                                                              templateParams.variableRevision(),
+                                                              templateParams.templateRevision(),
                                                               transformerFactory);
         if (result.isDone()) {
             return result;
