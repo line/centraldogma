@@ -92,9 +92,9 @@ final class RepositoryWatcher<T> {
                 if (cause != null) {
                     watchResult.completeExceptionally(cause);
                 } else {
-                    final Revision oldVariableRev =
+                    final Revision oldTempRev =
                             oldResult != null ? oldResult.templateRevision() : lastKnownTemplateRev;
-                    watch(lastKnownRev, oldResult, oldVariableRev);
+                    watch(lastKnownRev, oldResult, oldTempRev);
                 }
                 return null;
             });
@@ -105,21 +105,23 @@ final class RepositoryWatcher<T> {
                        @Nullable Revision lastKnownTemplateRev) {
         watchRepos(lastKnownRev, lastKnownTemplateRev).thenCompose(pair -> {
             final EntryTransformer<T> transformer;
+            final Revision templateRevision;
             if (transformerFactory != null) {
-                Revision templateRevision = pair.tempRev;
-                if (templateRevision == null) {
-                    templateRevision = Revision.HEAD;
-                }
+                templateRevision = pair.tempRev == null ? dogmaRepo.normalizeNow(Revision.HEAD)
+                                                        : pair.tempRev;
                 transformer = transformerFactory.apply(templateRevision);
             } else {
+                templateRevision = null;
                 transformer = EntryTransformer.identity();
             }
 
-            return repo.getOrNull(pair.repoRev, query, transformer).thenAccept(newResult -> {
+            final Revision repoRevision = pair.repoRev == null ? repo.normalizeNow(Revision.HEAD)
+                                                                     : pair.repoRev;
+            return repo.getOrNull(repoRevision, query, transformer).thenAccept(newResult -> {
                 if (errorOnEntryNotFound && newResult == null) {
                     // The entry is removed.
                     watchResult.completeExceptionally(
-                            new EntryNotFoundException(pair.repoRev, query.path()));
+                            new EntryNotFoundException(repoRevision, query.path()));
                     return;
                 }
 
@@ -128,7 +130,7 @@ final class RepositoryWatcher<T> {
                     // Entry does not exist or did not change; watch again for more changes.
                     if (!watchResult.isDone()) {
                         // ... only when the parent future has not been cancelled.
-                        watch(pair.repoRev, oldResult, pair.tempRev);
+                        watch(repoRevision, oldResult, templateRevision);
                     }
                 } else {
                     watchResult.complete(newResult);
@@ -140,13 +142,14 @@ final class RepositoryWatcher<T> {
     private CompletableFuture<RevisionPair> watchRepos(Revision lastKnownRev,
                                                        @Nullable Revision lastKnownTempRev) {
         final CompletableFuture<RevisionPair> future = new CompletableFuture<>();
+
         final CompletableFuture<Revision> repoFuture = repo.watch(lastKnownRev, pathPattern,
                                                                   errorOnEntryNotFound);
         repoFuture.handle((newRev, cause) -> {
             if (cause != null) {
                 future.completeExceptionally(cause);
             } else {
-                future.complete(new RevisionPair(newRev, lastKnownTempRev));
+                future.complete(new RevisionPair(newRev, null));
             }
             return null;
         });
@@ -158,7 +161,7 @@ final class RepositoryWatcher<T> {
                 if (cause != null) {
                     future.completeExceptionally(cause);
                 } else {
-                    future.complete(new RevisionPair(lastKnownRev, newTempRev));
+                    future.complete(new RevisionPair(null, newTempRev));
                 }
                 return null;
             });
@@ -177,11 +180,12 @@ final class RepositoryWatcher<T> {
     }
 
     private static final class RevisionPair {
+        @Nullable
         final Revision repoRev;
         @Nullable
         final Revision tempRev;
 
-        RevisionPair(Revision repoRev, @Nullable Revision tempRev) {
+        RevisionPair(@Nullable Revision repoRev, @Nullable Revision tempRev) {
             this.repoRev = repoRev;
             this.tempRev = tempRev;
         }

@@ -1507,21 +1507,22 @@ class VariableTemplateCrudTest {
         final Change<JsonNode> change = Change.ofJsonUpsert("/config.json", "{ \"config\": \"fixed\" }");
         testRepo1.commit("Add config", change).push().join();
 
-        final Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/config.json"))
+        try(Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/config.json"))
                                                    .applyTemplate(true)
-                                                   .start();
+                                                   .start()) {
 
-        assertThatJson(watcher.awaitInitialValue().value()).isEqualTo(" { \"config\": \"fixed\" } ");
+            assertThatJson(watcher.awaitInitialValue().value()).isEqualTo(" { \"config\": \"fixed\" } ");
 
-        createVariable(TEST_PROJECT, null, "newConfig", VariableType.STRING, "dynamic-value");
+            createVariable(TEST_PROJECT, null, "newConfig", VariableType.STRING, "dynamic-value");
 
-        final Change<JsonNode> change1 = Change.ofJsonUpsert("/config.json",
-                                                             "{ \"config\": \"${vars.newConfig}\" }");
-        testRepo1.commit("Add config template", change1).push().join();
+            final Change<JsonNode> change1 = Change.ofJsonUpsert("/config.json",
+                                                                 "{ \"config\": \"${vars.newConfig}\" }");
+            testRepo1.commit("Add config template", change1).push().join();
 
-        await().untilAsserted(() -> {
-            assertThatJson(watcher.latestValue()).isEqualTo("{ \"config\": \"dynamic-value\" }");
-        });
+            await().untilAsserted(() -> {
+                assertThatJson(watcher.latestValue()).isEqualTo("{ \"config\": \"dynamic-value\" }");
+            });
+        }
     }
 
     @Test

@@ -50,6 +50,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.CrudOperation;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.DefaultCrudOperation;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.HasRevision;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -105,18 +106,23 @@ public final class Templater {
         if (!entry.hasContent()) {
             return UnmodifiableFuture.completedFuture(entry);
         }
+        final Project project = repo.parent();
+        final Repository dogmaRepo = project.repos().get(Project.REPO_DOGMA);
+        final Revision normTemplateRevision;
         if (templateRevision == null) {
-            templateRevision = repo.normalizeNow(Revision.HEAD);
+            normTemplateRevision = dogmaRepo.normalizeNow(Revision.HEAD);
+        } else {
+            normTemplateRevision = dogmaRepo.normalizeNow(templateRevision);
         }
 
-        final String projectName = repo.parent().name();
+        final String projectName = project.name();
         // TODO(ikhoon): Optimize by caching the rendering result for the same set of variables and template.
-        return mergeVariables(crudRepo.findAll(crudContext(projectName, templateRevision)),
-                              crudRepo.findAll(crudContext(projectName, repo.name(), templateRevision)),
+        return mergeVariables(crudRepo.findAll(crudContext(projectName, normTemplateRevision)),
+                              crudRepo.findAll(crudContext(projectName, repo.name(), normTemplateRevision)),
                               findRepoVariableFile(repo, entry),
                               findEntryPathVariableFile(repo, entry),
                               findClientVariableFile(repo, entry, variableFile))
-                .thenApply(variables -> process(entry, variables))
+                .thenApply(variables -> process(entry, variables, normTemplateRevision))
                 .toCompletableFuture();
     }
 
@@ -199,18 +205,14 @@ public final class Templater {
         }
     }
 
-    private <T> Entry<T> process(Entry<T> entry, Map<String, Object> variables) {
+    private <T> Entry<T> process(Entry<T> entry, Map<String, Object> variables, Revision templateRevision) {
         final StringWriter out = new StringWriter();
         final Template template = cache.get(entry);
-        final int revision = (int) variables.remove("revision");
         try {
             template.process(variables, out);
             //noinspection unchecked
-            Entry<T> newEntry = (Entry<T>) newEntryWithContent(entry, out.toString());
-            if (revision != Integer.MAX_VALUE) {
-                newEntry = newEntry.withTemplateRevision(new Revision(revision));
-            }
-            return newEntry;
+            final Entry<T> newEntry = (Entry<T>) newEntryWithContent(entry, out.toString());
+            return newEntry.withTemplateRevision(templateRevision);
         } catch (Exception e) {
             throw new TemplateProcessingException(
                     "Failed to process the template for " + entry.path() + ".\n" + e.getMessage(), e);
@@ -250,15 +252,12 @@ public final class Templater {
                                     projVars.size() + repoVars.size() + repoFileVars.size() +
                                     entryPathVars.size() + clientFileVars.size());
 
-                    int revision = Integer.MAX_VALUE;
                     for (HasRevision<Variable> it : projVars) {
                         final Variable variable = it.object();
-                        revision = Math.min(it.revision().major(), revision);
                         builder.put(variable.id(), parseValue(variable));
                     }
                     for (HasRevision<Variable> it : repoVars) {
                         final Variable variable = it.object();
-                        revision = Math.min(it.revision().major(), revision);
                         // Repo-level variables override project-level ones.
                         builder.put(variable.id(), parseValue(variable));
                     }
@@ -273,8 +272,6 @@ public final class Templater {
                     // TODO(ikhoon): Support secret variables that will be prefixed with "secrets" key.
                     final Map<String, Object> vars = new HashMap<>();
                     vars.put("vars", variables);
-                    // Revision is needed to set templateRevision in the rendered entry.
-                    vars.put("revision", revision);
                     return vars;
                 });
     }

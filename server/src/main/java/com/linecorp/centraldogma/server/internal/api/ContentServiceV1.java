@@ -313,7 +313,7 @@ public class ContentServiceV1 extends AbstractService {
                                            boolean viewRaw, TemplateParams templateParams) {
         final CompletableFuture<? extends Entry<?>> future = watchService.watchFile(
                 repository, lastKnownRevision, query, timeOutMillis, errorOnEntryNotFound, templateParams,
-                newVarRev -> newTemplater(repository, templateParams.withTemplateRevision(newVarRev)));
+                newTempRev -> newTemplater(repository, templateParams.withTemplateRevision(newTempRev)));
 
         if (!future.isDone()) {
             ctx.log().whenComplete().thenRun(() -> future.cancel(false));
