@@ -672,7 +672,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             final QueryParamsBuilder paramsBuilder =
                     QueryParams.builder()
                                .add("to", to.text())
-                               .add("path", pathPattern.encoded());
+                               .add("path", pathPattern.patternString());
             if (maxCommits > 0) {
                 paramsBuilder.addInt("maxCommits", maxCommits);
             }
@@ -756,7 +756,7 @@ public final class ArmeriaCentralDogma extends AbstractCentralDogma {
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/compare?");
             final QueryParams queryParams = QueryParams.builder()
-                                                       .add("pathPattern", pathPattern.encoded())
+                                                       .add("pathPattern", pathPattern.patternString())
                                                        .add("from", from.text())
                                                        .add("to", to.text())
                                                        .build();

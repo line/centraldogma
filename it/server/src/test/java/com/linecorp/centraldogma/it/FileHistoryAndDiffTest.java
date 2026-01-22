@@ -72,6 +72,13 @@ class FileHistoryAndDiffTest {
                         .join();
         summaries = extractSummaryAsInt(commits);
         assertThat(summaries).containsExactly(9, 7, 5, 3, 1);
+
+        commits = client.forRepo(dogma.project(), dogma.repo1())
+                        .history(PathPattern.of("/odd_json_file.json", "/even_json_file.json"))
+                        .get(Revision.HEAD, Revision.INIT)
+                        .join();
+        summaries = extractSummaryAsInt(commits);
+        assertThat(summaries).containsExactly(9, 8, 7, 6, 5, 4, 3, 2, 1);
     }
 
     private static ImmutableList<Integer> extractSummaryAsInt(List<Commit> commits) {
