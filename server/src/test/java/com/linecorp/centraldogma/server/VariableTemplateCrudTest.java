@@ -1507,9 +1507,9 @@ class VariableTemplateCrudTest {
         final Change<JsonNode> change = Change.ofJsonUpsert("/config.json", "{ \"config\": \"fixed\" }");
         testRepo1.commit("Add config", change).push().join();
 
-        try(Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/config.json"))
-                                                   .applyTemplate(true)
-                                                   .start()) {
+        try (Watcher<JsonNode> watcher = testRepo1.watcher(Query.ofJson("/config.json"))
+                                                  .applyTemplate(true)
+                                                  .start()) {
 
             assertThatJson(watcher.awaitInitialValue().value()).isEqualTo(" { \"config\": \"fixed\" } ");
 
