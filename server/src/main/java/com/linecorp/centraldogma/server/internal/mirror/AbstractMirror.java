@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.mirror;
 
 import static com.linecorp.centraldogma.server.mirror.MirrorUtil.normalizePath;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -34,6 +35,7 @@ import com.cronutils.model.time.ExecutionTime;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
+import com.google.common.hash.Hashing;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.MirrorException;
@@ -68,6 +70,9 @@ public abstract class AbstractMirror implements Mirror {
     @Nullable
     private final ExecutionTime executionTime;
     private final long jitterMillis;
+
+    @Nullable
+    private String hashString;
 
     protected AbstractMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                              Credential credential, Repository localRepo, String localPath,
@@ -209,6 +214,14 @@ public abstract class AbstractMirror implements Mirror {
                                                  Instant triggeredTime) {
         return new MirrorResult(id, localRepo.parent().name(), localRepo.name(), mirrorStatus, description,
                                 triggeredTime, Instant.now(), zone);
+    }
+
+
+    String hashString() {
+        if (hashString != null) {
+            return hashString;
+        }
+        return hashString = Hashing.sha256().hashString(toString(), UTF_8).toString();
     }
 
     @Override
