@@ -78,7 +78,7 @@ class FileHistoryAndDiffTest {
                         .get(Revision.HEAD, Revision.INIT)
                         .join();
         summaries = extractSummaryAsInt(commits);
-        assertThat(summaries).containsExactly(9, 8, 7, 6, 5, 4, 3, 2, 1);
+        assertThat(summaries).containsExactly(9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
     }
 
     private static ImmutableList<Integer> extractSummaryAsInt(List<Commit> commits) {
