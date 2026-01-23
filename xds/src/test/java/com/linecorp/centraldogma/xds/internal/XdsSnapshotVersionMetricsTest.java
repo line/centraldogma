@@ -30,20 +30,28 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.armeria.client.WebClient;
+import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 class XdsSnapshotVersionMetricsTest {
 
+    private static final MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
     @RegisterExtension
-    static final CentralDogmaExtension dogma = new CentralDogmaExtension();
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
+        @Override
+        protected void configure(CentralDogmaBuilder builder) {
+            builder.meterRegistry(meterRegistry);
+        }
+    };
 
     @Test
     void snapshotVersionMetrics() throws Exception {
-        final MeterRegistry meterRegistry = dogma.dogma().meterRegistry().orElseThrow();
         final WebClient webClient = dogma.httpClient();
 
         // Initial empty version metrics should be registered with "empty_resources" version
@@ -95,23 +103,22 @@ class XdsSnapshotVersionMetricsTest {
         });
 
         // Verify gauge value is always 1 (info gauge pattern)
-        final Collection<Gauge> clusterGauges = meterRegistry.find("xds.control.plane.snapshot.version")
-                                                             .tag("resource_type", "cluster")
-                                                             .gauges();
-        assertThat(clusterGauges).hasSize(1);
-        assertThat(clusterGauges.iterator().next().value()).isEqualTo(1.0);
+        final Gauge clusterGauge = meterRegistry.find("xds.control.plane.snapshot.version")
+                                                 .tag("resource", "cluster")
+                                                 .gauge();
+        assertThat(clusterGauge.value()).isEqualTo(1.0);
     }
 
     private static void assertVersionGaugeExists(MeterRegistry meterRegistry, String resourceType) {
         final Collection<Gauge> gauges = meterRegistry.find("xds.control.plane.snapshot.version")
-                                                      .tag("resource_type", resourceType)
+                                                      .tag("resource", resourceType)
                                                       .gauges();
         assertThat(gauges).hasSize(1);
     }
 
     private static String getVersionFromGauge(MeterRegistry meterRegistry, String resourceType) {
         final Collection<Gauge> gauges = meterRegistry.find("xds.control.plane.snapshot.version")
-                                                      .tag("resource_type", resourceType)
+                                                      .tag("resource", resourceType)
                                                       .gauges();
         assertThat(gauges).hasSize(1);
         return gauges.iterator().next().getId().getTag("version");

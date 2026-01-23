@@ -246,7 +246,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                 meterRegistry.remove(clustersVersionGauge);
             }
             clustersVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 1)
-                                        .tags(Tags.of("resource_type", "cluster", "version", clustersVersion))
+                                        .tags(Tags.of("resource", "cluster", "version", clustersVersion))
                                         .register(meterRegistry);
         }
 
@@ -258,7 +258,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                 meterRegistry.remove(endpointsVersionGauge);
             }
             endpointsVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 1)
-                                         .tags(Tags.of("resource_type", "endpoint",
+                                         .tags(Tags.of("resource", "endpoint",
                                                        "version", endpointsVersion))
                                          .register(meterRegistry);
         }
@@ -271,7 +271,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                 meterRegistry.remove(listenersVersionGauge);
             }
             listenersVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 1)
-                                         .tags(Tags.of("resource_type", "listener",
+                                         .tags(Tags.of("resource", "listener",
                                                        "version", listenersVersion))
                                          .register(meterRegistry);
         }
@@ -284,11 +284,11 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                 meterRegistry.remove(routesVersionGauge);
             }
             routesVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 1)
-                                      .tags(Tags.of("resource_type", "route", "version", routesVersion))
+                                      .tags(Tags.of("resource", "route", "version", routesVersion))
                                       .register(meterRegistry);
         }
 
-        final String secretsVersion = snapshot.secretsVersion();
+        final String secretsVersion = snapshot.secrets().version();
         if (secretsVersionGauge == null ||
             !secretsVersion.equals(secretsVersionGauge.getId().getTag("version"))) {
             if (secretsVersionGauge != null) {
@@ -296,7 +296,7 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
                 meterRegistry.remove(secretsVersionGauge);
             }
             secretsVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 1)
-                                       .tags(Tags.of("resource_type", "secret", "version", secretsVersion))
+                                       .tags(Tags.of("resource", "secret", "version", secretsVersion))
                                        .register(meterRegistry);
         }
     }

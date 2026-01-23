@@ -75,34 +75,6 @@ final class CentralDogmaSnapshot extends Snapshot {
         return secrets;
     }
 
-    String clustersVersion() {
-        return version(clusters);
-    }
-
-    String endpointsVersion() {
-        return version(endpoints);
-    }
-
-    String listenersVersion() {
-        return version(listeners);
-    }
-
-    String routesVersion() {
-        return version(routes);
-    }
-
-    String secretsVersion() {
-        return version(secrets);
-    }
-
-    private static String version(SnapshotResources<?> resources) {
-        if (resources instanceof CentralDogmaSnapshotResources) {
-            return ((CentralDogmaSnapshotResources<?>) resources).allResourceVersion();
-        }
-        // For empty resources created via SnapshotResources.create()
-        return resources.version();
-    }
-
     @Override
     public Map<String, VersionedResource<?>> versionedResources(ResourceType resourceType) {
         // Have to override this method because of the type inference.
