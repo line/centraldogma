@@ -56,7 +56,9 @@ import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
 import io.grpc.MethodDescriptor;
 import io.grpc.MethodDescriptor.Marshaller;
 import io.grpc.MethodDescriptor.PrototypeMarshaller;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -76,19 +78,34 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
 
     private static final String DEFAULT_GROUP = "default_group";
 
+    private static final String VERSION_METRIC_NAME = "xds.control.plane.snapshot.version";
+
     // TODO(minwoox): Implement better cache implementation that updates only changed resources
     //                instead of this snapshot based implementation.
     private final SimpleCache<String> cache = new SimpleCache<>(node -> DEFAULT_GROUP);
 
     private final ScheduledExecutorService controlPlaneExecutor;
+    private final MeterRegistry meterRegistry;
     // Accessed only from controlPlaneExecutor.
     private final CentralDogmaXdsResources centralDogmaXdsResources = new CentralDogmaXdsResources();
     @Nullable
     private volatile XdsEndpointService xdsEndpointService;
     private volatile boolean stop;
 
+    @Nullable
+    private Gauge clustersVersionGauge;
+    @Nullable
+    private Gauge endpointsVersionGauge;
+    @Nullable
+    private Gauge listenersVersionGauge;
+    @Nullable
+    private Gauge routesVersionGauge;
+    @Nullable
+    private Gauge secretsVersionGauge;
+
     ControlPlaneService(Project xdsProject, MeterRegistry meterRegistry) {
         super(xdsProject, "xds.control.plane.service.", meterRegistry);
+        this.meterRegistry = meterRegistry;
         controlPlaneExecutor = ExecutorServiceMetrics.monitor(
                 meterRegistry,
                 Executors.newSingleThreadScheduledExecutor(
@@ -98,7 +115,9 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
 
     void start(PluginInitContext pluginInitContext) {
         init();
-        cache.setSnapshot(DEFAULT_GROUP, centralDogmaXdsResources.snapshot());
+        final CentralDogmaSnapshot snapshot = centralDogmaXdsResources.snapshot();
+        cache.setSnapshot(DEFAULT_GROUP, snapshot);
+        updateVersionMetrics(snapshot);
         final CommandExecutor commandExecutor = pluginInitContext.commandExecutor();
         final V3DiscoveryServer server = new V3DiscoveryServer(new LoggingDiscoveryServerCallbacks(), cache);
         final GrpcService grpcService = GrpcService.builder()
@@ -213,7 +232,73 @@ public final class ControlPlaneService extends XdsResourceWatchingService {
 
     @Override
     protected void onDiffHandled() {
-        cache.setSnapshot(DEFAULT_GROUP, centralDogmaXdsResources.snapshot());
+        final CentralDogmaSnapshot snapshot = centralDogmaXdsResources.snapshot();
+        cache.setSnapshot(DEFAULT_GROUP, snapshot);
+        updateVersionMetrics(snapshot);
+    }
+
+    private void updateVersionMetrics(CentralDogmaSnapshot snapshot) {
+        final String clustersVersion = snapshot.clusters().version();
+        if (clustersVersionGauge == null ||
+            !clustersVersion.equals(clustersVersionGauge.getId().getTag("version"))) {
+            if (clustersVersionGauge != null) {
+                clustersVersionGauge.close();
+                meterRegistry.remove(clustersVersionGauge);
+            }
+            clustersVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 1)
+                                        .tags(Tags.of("resource_type", "cluster", "version", clustersVersion))
+                                        .register(meterRegistry);
+        }
+
+        final String endpointsVersion = snapshot.endpoints().version();
+        if (endpointsVersionGauge == null ||
+            !endpointsVersion.equals(endpointsVersionGauge.getId().getTag("version"))) {
+            if (endpointsVersionGauge != null) {
+                endpointsVersionGauge.close();
+                meterRegistry.remove(endpointsVersionGauge);
+            }
+            endpointsVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 1)
+                                         .tags(Tags.of("resource_type", "endpoint",
+                                                       "version", endpointsVersion))
+                                         .register(meterRegistry);
+        }
+
+        final String listenersVersion = snapshot.listeners().version();
+        if (listenersVersionGauge == null ||
+            !listenersVersion.equals(listenersVersionGauge.getId().getTag("version"))) {
+            if (listenersVersionGauge != null) {
+                listenersVersionGauge.close();
+                meterRegistry.remove(listenersVersionGauge);
+            }
+            listenersVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 1)
+                                         .tags(Tags.of("resource_type", "listener",
+                                                       "version", listenersVersion))
+                                         .register(meterRegistry);
+        }
+
+        final String routesVersion = snapshot.routes().version();
+        if (routesVersionGauge == null ||
+            !routesVersion.equals(routesVersionGauge.getId().getTag("version"))) {
+            if (routesVersionGauge != null) {
+                routesVersionGauge.close();
+                meterRegistry.remove(routesVersionGauge);
+            }
+            routesVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 1)
+                                      .tags(Tags.of("resource_type", "route", "version", routesVersion))
+                                      .register(meterRegistry);
+        }
+
+        final String secretsVersion = snapshot.secretsVersion();
+        if (secretsVersionGauge == null ||
+            !secretsVersion.equals(secretsVersionGauge.getId().getTag("version"))) {
+            if (secretsVersionGauge != null) {
+                secretsVersionGauge.close();
+                meterRegistry.remove(secretsVersionGauge);
+            }
+            secretsVersionGauge = Gauge.builder(VERSION_METRIC_NAME, () -> 1)
+                                       .tags(Tags.of("resource_type", "secret", "version", secretsVersion))
+                                       .register(meterRegistry);
+        }
     }
 
     @Override
