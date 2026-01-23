@@ -221,7 +221,8 @@ class GitMirrorIntegrationTest {
 
         //// Make sure the two files are all there.
         final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev3, "/");
-        final Map<String, Entry<?>> files = client.getFiles(projName, REPO_FOO, rev3, PathPattern.all(), true)
+        final Map<String, Entry<?>> files = client.getFiles(projName, REPO_FOO, rev3, PathPattern.all(), true,
+                                                            false, null)
                                                   .join();
         assertThat(files.values())
                 .containsExactlyInAnyOrder(expectedSecondMirrorState,

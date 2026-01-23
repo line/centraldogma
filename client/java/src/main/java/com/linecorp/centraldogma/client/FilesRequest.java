@@ -79,6 +79,7 @@ public final class FilesRequest extends AbstractFileRequest<FilesRequest> {
         requireNonNull(revision, "revision");
         return centralDogmaRepo.centralDogma().getFiles(centralDogmaRepo.projectName(),
                                                         centralDogmaRepo.repositoryName(),
-                                                        revision, pathPattern, viewRaw());
+                                                        revision, pathPattern, viewRaw(),
+                                                        applyTemplate(), variableFile());
     }
 }

@@ -76,11 +76,12 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
 
             switch (change.type()) {
                 case UPSERT_JSON: {
-                    final String rawContent = change.rawContent();
+                    String rawContent = change.rawContent();
                     final JsonNode newJsonNode = firstNonNull((JsonNode) change.content(),
                                                               JsonNodeFactory.instance.nullNode());
                     final boolean hasChanges;
                     if (rawContent != null) {
+                        rawContent = sanitizeText(rawContent);
                         // If rawContent is provided, compare the raw JSON text.
                         final String oldRawContent = oldContent != null ? new String(oldContent, UTF_8) : null;
                         hasChanges = !rawContent.equals(oldRawContent);
@@ -95,6 +96,7 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
                         if (newJson == null) {
                             // Use pretty format for readability in the web UI.
                             newJson = Jackson.writeValueAsPrettyString(newJsonNode);
+                            newJson = sanitizeText(newJson);
                         }
                         newJson = sanitizeText(newJson);
                         applyPathEdit(dirCache, new InsertText(changePath, inserter, newJson));
@@ -106,6 +108,7 @@ final class DefaultChangesApplier extends AbstractChangesApplier {
                     String newYaml = change.rawContent();
                     // rawContent must not be null for YAML upsert.
                     assert newYaml != null;
+                    newYaml = sanitizeText(newYaml);
 
                     final String oldYaml;
                     if (oldContent != null) {

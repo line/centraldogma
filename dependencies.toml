@@ -22,6 +22,7 @@ download = "5.6.0"
 dropwizard-metrics = "4.2.37"
 eddsa = "0.3.0"
 findbugs = "3.0.2"
+freemarker = "2.3.34"
 futures-completable = "0.3.6"
 grpc-java = "1.78.0"
 guava = "33.5.0-jre"
@@ -176,6 +177,10 @@ version.ref = "eddsa"
 [libraries.findbugs]
 module = "com.google.code.findbugs:jsr305"
 version.ref = "findbugs"
+
+[libraries.freemarker]
+module = "org.freemarker:freemarker"
+version.ref = "freemarker"
 
 [libraries.futures-completable]
 module = "com.spotify:completable-futures"

@@ -319,3 +319,8 @@ This product depends on Owasp Encoder, distributed by OWASP Foundation:
 
   * License: licenses/LICENSE.owasp.bsd.txt (BSD License)
   * Homepage: https://github.com/OWASP/owasp-java-encoder
+
+This product depends on FreeMarker, distributed by Apache Software Foundation:
+
+  * License: licenses/LICENSE.freemarker.al20.txt (Apache License v2.0)
+  * Homepage: https://freemarker.apache.org/

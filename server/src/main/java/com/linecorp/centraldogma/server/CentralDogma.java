@@ -995,7 +995,7 @@ public class CentralDogma implements AutoCloseable {
                                    return serviceName;
                                }
                            })
-                           .build(new ContentServiceV1(executor, watchService, meterRegistry));
+                           .build(new ContentServiceV1(executor, pm, watchService, meterRegistry));
 
         if (authProvider != null) {
             sb.service("/security_enabled", new AbstractHttpService() {

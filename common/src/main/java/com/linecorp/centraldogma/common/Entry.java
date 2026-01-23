@@ -50,7 +50,7 @@ public final class Entry<T> implements ContentHolder<T> {
         if (!path.endsWith("/")) {
             path += "/";
         }
-        return new Entry<>(revision, path, EntryType.DIRECTORY, null, null);
+        return new Entry<>(revision, path, EntryType.DIRECTORY, null, null, null);
     }
 
     /**
@@ -61,7 +61,7 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param content the content of the JSON file
      */
     public static Entry<JsonNode> ofJson(Revision revision, String path, JsonNode content) {
-        return new Entry<>(revision, path, EntryType.JSON, content, null);
+        return new Entry<>(revision, path, EntryType.JSON, content, null, null);
     }
 
     /**
@@ -81,30 +81,33 @@ public final class Entry<T> implements ContentHolder<T> {
         } else {
             jsonNode = Jackson.readTree(content);
         }
-        return new Entry<>(revision, path, EntryType.JSON, jsonNode, content);
+        return new Entry<>(revision, path, EntryType.JSON, jsonNode, content, null);
     }
 
     /**
      * Returns a newly-created {@link Entry} of a YAML file with the given content.
+     *
      * @param revision the revision of the YAML file
      * @param path the path of the YAML file
      * @param content the content of the YAML file
      */
     public static Entry<JsonNode> ofYaml(Revision revision, String path, JsonNode content) {
-        return new Entry<>(revision, path, EntryType.YAML, content, null);
+        return new Entry<>(revision, path, EntryType.YAML, content, null, null);
     }
 
     /**
      * Returns a newly-created {@link Entry} of a YAML file.
+     *
      * @param revision the revision of the YAML file
      * @param path the path of the YAML file
      * @param content the content of the YAML file
+     *
      * @throws JsonParseException if the {@code content} is not a valid YAML
      */
     public static Entry<JsonNode> ofYaml(Revision revision, String path, String content)
             throws JsonParseException {
         final JsonNode jsonNode = Yaml.readTree(content);
-        return new Entry<>(revision, path, EntryType.YAML, jsonNode, content);
+        return new Entry<>(revision, path, EntryType.YAML, jsonNode, content, null);
     }
 
     /**
@@ -115,7 +118,7 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param content the content of the text file
      */
     public static Entry<String> ofText(Revision revision, String path, String content) {
-        return new Entry<>(revision, path, EntryType.TEXT, content, content);
+        return new Entry<>(revision, path, EntryType.TEXT, content, content, null);
     }
 
     /**
@@ -128,10 +131,28 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param <T> the content type. {@link JsonNode} if JSON. {@link String} if text.
      */
     public static <T> Entry<T> of(Revision revision, String path, EntryType type, @Nullable T content) {
-        return new Entry<>(revision, path, type, content, null);
+        return of(revision, path, type, content, null);
+    }
+
+    /**
+     * Returns a newly-created {@link Entry}.
+     *
+     * @param revision the revision of the {@link Entry}
+     * @param path the path of the {@link Entry}
+     * @param content the content of the {@link Entry}
+     * @param type the type of the {@link Entry}
+     * @param <T> the content type. {@link JsonNode} if JSON. {@link String} if text.
+     * @param templateRevision the revision of the variables that were used to render the template and generate
+     *                         this {@link Entry}
+     */
+    public static <T> Entry<T> of(Revision revision, String path, EntryType type, @Nullable T content,
+                                  @Nullable Revision templateRevision) {
+        return new Entry<>(revision, path, type, content, null, templateRevision);
     }
 
     private final Revision revision;
+    @Nullable
+    private final Revision templateRevision;
     private final String path;
     @Nullable
     private final T content;
@@ -153,7 +174,7 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param rawContent the raw content string, which is used for viewing the original JSON text
      */
     private Entry(Revision revision, String path, EntryType type, @Nullable T content,
-                  @Nullable String rawContent) {
+                  @Nullable String rawContent, @Nullable Revision templateRevision) {
         requireNonNull(revision, "revision");
         checkArgument(!revision.isRelative(), "revision: %s (expected: absolute revision)", revision);
         this.revision = revision;
@@ -172,6 +193,7 @@ public final class Entry<T> implements ContentHolder<T> {
             this.content = castContent;
             this.rawContent = rawContent;
         }
+        this.templateRevision = templateRevision;
     }
 
     /**
@@ -179,6 +201,30 @@ public final class Entry<T> implements ContentHolder<T> {
      */
     public Revision revision() {
         return revision;
+    }
+
+    /**
+     * Returns the revision of the template variables that were used to render the template and generate this
+     * {@link Entry}.
+     *
+     * <p>{@code null} if this {@link Entry} was not generated from a template using project or repository level
+     * variables.
+     */
+    @Nullable
+    public Revision templateRevision() {
+        return templateRevision;
+    }
+
+    /**
+     * Sets the revision of the template variables that were used to render the template and generate this
+     * {@link Entry}.
+     *
+     * <p>This value is set only when the {@link Entry} was generated from a template using project or
+     * repository level variables.
+     */
+    public Entry<T> withTemplateRevision(Revision templateRevision) {
+        requireNonNull(templateRevision, "templateRevision");
+        return new Entry<>(revision, path, type, content, rawContent, templateRevision);
     }
 
     /**
@@ -260,7 +306,7 @@ public final class Entry<T> implements ContentHolder<T> {
 
     @Override
     public int hashCode() {
-        return Objects.hash(revision, path, content, type);
+        return Objects.hash(revision, path, content, type, templateRevision);
     }
 
     @Override
@@ -275,14 +321,18 @@ public final class Entry<T> implements ContentHolder<T> {
         @SuppressWarnings("unchecked")
         final Entry<T> that = (Entry<T>) o;
 
-        return type == that.type && revision.equals(that.revision) && path.equals(that.path) &&
+        return type == that.type &&
+               revision.equals(that.revision) &&
+               path.equals(that.path) &&
+               Objects.equals(templateRevision, that.templateRevision) &&
                Objects.equals(content, that.content);
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).omitNullValues()
-                          .add("revision", revision.text())
+                          .add("revision", revision)
+                          .add("templateRevision", templateRevision)
                           .add("path", path)
                           .add("type", type)
                           .add("content", hasContent() ? contentAsText() : null)
