@@ -20,7 +20,6 @@ import static com.linecorp.centraldogma.server.internal.credential.SshKeyCredent
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
@@ -63,6 +62,7 @@ import com.linecorp.centraldogma.server.internal.credential.PasswordCredential;
 import com.linecorp.centraldogma.server.internal.credential.SshKeyCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.RepositoryUri;
 import com.linecorp.centraldogma.server.mirror.git.SshMirrorException;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -84,17 +84,16 @@ final class SshGitMirror extends AbstractGitMirror {
 
     SshGitMirror(String id, boolean enabled, @Nullable Cron schedule, MirrorDirection direction,
                  Credential credential, Repository localRepo, String localPath,
-                 URI remoteRepoUri, String remotePath, String remoteBranch,
-                 @Nullable String gitignore, @Nullable String zone) {
+                 RepositoryUri remoteUri, @Nullable String gitignore, @Nullable String zone) {
         super(id, enabled, schedule, direction, credential, localRepo, localPath,
-              remoteRepoUri, remotePath, remoteBranch, gitignore, zone);
+              remoteUri, gitignore, zone);
     }
 
     @Override
     protected MirrorResult mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes,
                                                Instant triggeredTime)
             throws Exception {
-        final URIish remoteUri = remoteUri();
+        final URIish remoteUri = sshRemoteUri();
         try (SshClient sshClient = createSshClient();
              ClientSession session = createSession(sshClient, remoteUri)) {
             final DefaultGitSshdSessionFactory sessionFactory =
@@ -109,7 +108,7 @@ final class SshGitMirror extends AbstractGitMirror {
     protected MirrorResult mirrorRemoteToLocal(File workDir, CommandExecutor executor,
                                                int maxNumFiles, long maxNumBytes, Instant triggeredTime)
             throws Exception {
-        final URIish remoteUri = remoteUri();
+        final URIish remoteUri = sshRemoteUri();
         try (SshClient sshClient = createSshClient();
              ClientSession session = createSession(sshClient, remoteUri)) {
             final DefaultGitSshdSessionFactory sessionFactory =
@@ -120,7 +119,7 @@ final class SshGitMirror extends AbstractGitMirror {
         }
     }
 
-    private URIish remoteUri() throws URISyntaxException {
+    private URIish sshRemoteUri() throws URISyntaxException {
         // Requires the username to be included in the URI.
         final String username;
         if (credential() instanceof PasswordCredential) {
@@ -183,7 +182,7 @@ final class SshGitMirror extends AbstractGitMirror {
             }
             String message = "Failed to create a session for '" + uri + "'.";
             if (t.getMessage() != null) {
-                 message += " (reason: " + t.getMessage() + ')';
+                message += " (reason: " + t.getMessage() + ')';
             }
             throw new SshMirrorException(message, t);
         }

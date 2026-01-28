@@ -19,7 +19,6 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
-import java.net.URI;
 import java.time.Instant;
 
 import javax.annotation.Nullable;
@@ -30,6 +29,7 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.credential.Credential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.mirror.MirrorResult;
+import com.linecorp.centraldogma.server.mirror.RepositoryUri;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public final class CentralDogmaMirror extends AbstractMirror {
@@ -39,11 +39,10 @@ public final class CentralDogmaMirror extends AbstractMirror {
 
     public CentralDogmaMirror(String id, boolean enabled, Cron schedule, MirrorDirection direction,
                               Credential credential, Repository localRepo, String localPath,
-                              URI remoteRepoUri, String remoteProject, String remoteRepo, String remotePath,
+                              RepositoryUri remoteUri, String remoteProject, String remoteRepo,
                               @Nullable String gitignore, @Nullable String zone) {
-        // Central Dogma has no notion of 'branch', so we just pass an empty string as a placeholder.
         super(id, enabled, schedule, direction, credential, localRepo, localPath,
-              remoteRepoUri, remotePath, "", gitignore, zone);
+              remoteUri, gitignore, zone);
 
         this.remoteProject = requireNonNull(remoteProject, "remoteProject");
         this.remoteRepo = requireNonNull(remoteRepo, "remoteRepo");
