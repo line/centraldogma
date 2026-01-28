@@ -230,7 +230,7 @@ class GitMirrorIntegrationTest {
         final Map<String, Entry<?>> files = client.getFiles(projName, REPO_FOO, rev3, PathPattern.all(), true,
                                                             false, null)
                                                   .join();
-        assertThat(files).hasSize(9); // 4 dirs + 4 files + mirror_state.json
+        assertThat(files).hasSize(10); // 4 dirs + 4 files + mirror_state.json + .gitkeep
         assertThatJson(files.get("/mirror_state.json").contentAsJson())
                 .whenIgnoringPaths("configHash")
                 .isEqualTo(expectedSecondMirrorState.contentAsJson());
@@ -702,11 +702,6 @@ class GitMirrorIntegrationTest {
         pushMirrorSettings(mirrorId, REPO_FOO, localPath, remotePath, gitignore);
     }
 
-    private void pushMirrorSettingsWithLocalRepo(String localRepo, @Nullable String localPath,
-                                                 @Nullable String remotePath, @Nullable String gitignore) {
-        pushMirrorSettings("foo", localRepo, localPath, remotePath, gitignore);
-    }
-
     private void pushMirrorSettings(String mirrorId, String localRepo, @Nullable String localPath,
                                     @Nullable String remotePath, @Nullable String gitignore) {
         final String localPath0 = localPath == null ? "/" : localPath;
@@ -745,6 +740,11 @@ class GitMirrorIntegrationTest {
                                           "  \"gitignore\": " + firstNonNull(gitignore, "\"\"") +
                                           '}'))
               .push().join();
+    }
+
+    private void pushMirrorSettingsWithLocalRepo(String localRepo, @Nullable String localPath,
+                                                 @Nullable String remotePath, @Nullable String gitignore) {
+        pushMirrorSettings("foo", localRepo, localPath, remotePath, gitignore);
     }
 
     private Entry<JsonNode> expectedMirrorState(Revision revision, String localPath, String remotePath)

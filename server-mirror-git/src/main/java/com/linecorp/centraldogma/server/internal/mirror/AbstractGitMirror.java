@@ -302,7 +302,7 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
             try (ObjectInserter inserter = gitRepository.newObjectInserter()) {
                 final boolean hasChanges = addModifiedEntryToCache(localHead, dirCache, reader, inserter,
-                                                          treeWalk, maxNumFiles, maxNumBytes);
+                                                                   treeWalk, maxNumFiles, maxNumBytes);
                 if (mirrorDecision == MirrorDecision.COMPARE_AND_RUN && !hasChanges) {
                     description = String.format(
                             "The remote repository '%s' already at %s. Local repository: '%s/%s'",
@@ -736,6 +736,10 @@ abstract class AbstractGitMirror extends AbstractMirror {
 
             // Skip the entry whose path does not conform to CD's path rule.
             if (!Util.isValidFilePath(localFilePath)) {
+                continue;
+            }
+            if (localFilePath.endsWith(MIRROR_STATE_FILE_NAME)) {
+                // Skip the mirror state file as it only exists in the remote repository.
                 continue;
             }
 

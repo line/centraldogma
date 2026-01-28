@@ -216,7 +216,6 @@ public abstract class AbstractMirror implements Mirror {
                                 triggeredTime, Instant.now(), zone);
     }
 
-
     String hashString() {
         if (hashString != null) {
             return hashString;

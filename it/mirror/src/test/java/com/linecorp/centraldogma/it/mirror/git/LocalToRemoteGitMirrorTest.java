@@ -20,6 +20,7 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialFile;
 import static com.linecorp.centraldogma.internal.CredentialUtil.credentialName;
 import static com.linecorp.centraldogma.it.mirror.git.GitMirrorIntegrationTest.addToGitIndex;
+import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.eclipse.jgit.lib.Constants.R_HEADS;
@@ -413,10 +414,10 @@ class LocalToRemoteGitMirrorTest {
 
         // Verify only target1 is updated
         content1 = getFileContent(commitId3, "/target1/file1.json");
-        assertThat(Jackson.writeValueAsString(Jackson.readTree(content1))).isEqualTo("{\"key\":\"updated-value1\"}");
+        assertThatJson(new String(content1)).isEqualTo("{\"key\":\"updated-value1\"}");
         // target2 should remain unchanged
         content2 = getFileContent(commitId3, "/target2/file2.json");
-        assertThat(Jackson.writeValueAsString(Jackson.readTree(content2))).isEqualTo("{\"key\":\"value2\"}");
+        assertThatJson(new String(content2)).isEqualTo("{\"key\":\"value2\"}");
 
         // Update file in source2
         client.forRepo(projName, REPO_FOO)
@@ -430,7 +431,20 @@ class LocalToRemoteGitMirrorTest {
 
         // Verify target2 is now updated as well
         content2 = getFileContent(commitId4, "/target2/file2.json");
-        assertThat(Jackson.writeValueAsString(Jackson.readTree(content2))).isEqualTo("{\"key\":\"updated-value2\"}");
+        assertThatJson(new String(content2)).isEqualTo("{\"key\":\"updated-value2\"}");
+
+        addToGitIndex(git, gitWorkTree, "target1/file1.json", "{\"key\":\"updated-value3\"}");
+        final ObjectId commitId5 = git.commit().setMessage("Change file1.json").call().toObjectId();
+        content1 = getFileContent(commitId5, "/target1/file1.json");
+        assertThatJson(new String(content1)).isEqualTo("{\"key\":\"updated-value3\"}");
+
+        mirroringService.mirror().join();
+        final ObjectId commitId6 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        assertThat(commitId6).isNotEqualTo(commitId5);
+        content2 = getFileContent(commitId6, "/target1/file1.json");
+        assertThatJson(new String(content2)).isEqualTo("{\"key\":\"updated-value1\"}");
+        content2 = getFileContent(commitId6, "/target2/file2.json");
+        assertThatJson(new String(content2)).isEqualTo("{\"key\":\"updated-value2\"}");
     }
 
     @CsvSource({ "meta", "dogma" })
