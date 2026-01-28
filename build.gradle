@@ -31,6 +31,8 @@ ext {
         ':client:java-spring-boot2-starter': "${rootProject.name}-client-spring-boot2-starter",
         ':client:java-spring-boot3-autoconfigure': "${rootProject.name}-client-spring-boot3-autoconfigure",
         ':client:java-spring-boot3-starter': "${rootProject.name}-client-spring-boot3-starter",
+        ':client:java-spring-boot4-autoconfigure': "${rootProject.name}-client-spring-boot4-autoconfigure",
+        ':client:java-spring-boot4-starter': "${rootProject.name}-client-spring-boot4-starter",
         // Set the correct artifactId of 'testing-common'.
         ':testing:testing-common': "${rootProject.name}-testing-common"
     ]
