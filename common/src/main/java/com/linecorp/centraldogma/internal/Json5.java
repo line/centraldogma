@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -98,6 +99,10 @@ public final class Json5 {
 
     public static JsonNode readTree(byte[] data) throws JsonParseException {
         return readTree(new String(data, StandardCharsets.UTF_8));
+    }
+
+    public static <T> T readValue(String data, Class<T> valueType) throws JsonProcessingException {
+        return mapper.readValue(data, valueType);
     }
 
     private Json5() {}

@@ -248,7 +248,7 @@ public class CredentialServiceV1 extends AbstractService {
     }
 
     /**
-     * PUT /projects/{projectName}/credentials/{id}
+     * PUT /projects/{projectName}/repos/{repoName}/credentials/{id}
      *
      * <p>Update the existing credential.
      */
@@ -274,7 +274,7 @@ public class CredentialServiceV1 extends AbstractService {
     }
 
     /**
-     * DELETE /projects/{projectName}/credentials/{id}
+     * DELETE /projects/{projectName}/repos/{repoName}/credentials/{id}
      *
      * <p>Delete the existing credential.
      */

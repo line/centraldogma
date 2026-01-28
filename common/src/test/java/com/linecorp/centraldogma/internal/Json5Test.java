@@ -25,6 +25,8 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import com.linecorp.centraldogma.internal.JacksonTest.Foo;
+
 class Json5Test {
 
     // Supported JSON5 Features
@@ -295,5 +297,19 @@ class Json5Test {
         assertThat(Json5.isJsonCompatible("/path/to/file.txt")).isFalse();
         assertThat(Json5.isJsonCompatible("config.yaml")).isFalse();
         assertThat(Json5.isJsonCompatible("file.json.bak")).isFalse();
+    }
+
+    @Test
+    void coercionTest() throws Exception {
+        //language=JSON5
+        final String json = '{' +
+                            "  aa:\"123\"," +
+                            "  bb:\"true\"," +
+                            "  cc:\"hello\"," +
+                            '}';
+        final Foo foo = Json5.readValue(json, Foo.class);
+        assertThat(foo.aa).isEqualTo(123);
+        assertThat(foo.bb).isEqualTo(true);
+        assertThat(foo.cc).isEqualTo("hello");
     }
 }

@@ -420,6 +420,10 @@ abstract class AbstractGitMirror extends AbstractMirror {
                 if (!path.startsWith(remotePath())) {
                     continue;
                 }
+                if (path.endsWith("/.gitmodules")) {
+                    // Submodules are not supported.
+                    continue;
+                }
 
                 final String localPath = localPath() + path.substring(remotePath().length());
 
@@ -792,14 +796,13 @@ abstract class AbstractGitMirror extends AbstractMirror {
         switch (EntryType.guessFromPath(pathString)) {
             case JSON:
             case YAML:
-                final String oldData = oldContent != null ? new String(oldContent, UTF_8) : null;
-                final String newData = entry.rawContent();
+                final String oldData = oldContent != null ? sanitizeText(new String(oldContent, UTF_8)) : null;
+                final String newData = sanitizeText(entry.rawContent());
                 assert newData != null;
                 // Upsert only when the contents are really different.
                 if (!newData.equals(oldData)) {
-                    final String newContent = newData + '\n';
-                    applyPathEdit(dirCache, new InsertText(pathString, inserter, newContent));
-                    return newContent.length();
+                    applyPathEdit(dirCache, new InsertText(pathString, inserter, newData));
+                    return newData.length();
                 }
                 break;
             case TEXT:

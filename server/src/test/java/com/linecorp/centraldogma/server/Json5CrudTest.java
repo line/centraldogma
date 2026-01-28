@@ -88,7 +88,7 @@ class Json5CrudTest {
                                                                .get()
                                                                .join();
 
-        assertThat(rawEntry.rawContent()).isEqualTo(json5Text);
+        assertThat(rawEntry.rawContent()).isEqualTo(json5Text + '\n');
         assertThat(rawEntry.content()).isNotNull();
 
         assertThatJson(rawEntry.content()).node("name").isEqualTo("John Doe");
@@ -192,7 +192,7 @@ class Json5CrudTest {
                                             .join();
 
         assertThat(textEntry.content()).isNotNull();
-        assertThat(textEntry.rawContent()).isEqualTo(json5Text);
+        assertThat(textEntry.rawContent()).isEqualTo(json5Text + '\n');
         assertThatJson(textEntry.contentAsJson()).isEqualTo("{\"key\":\"value\",\"number\":123}");
     }
 
@@ -283,12 +283,12 @@ class Json5CrudTest {
         assertThat(entriesWithRaw).hasSize(2);
 
         final Entry<?> entry1 = entriesWithRaw.get("/configs/config1.json5");
-        assertThat(entry1.rawContent()).isEqualTo(json5Text1);
+        assertThat(entry1.rawContent()).isEqualTo(json5Text1 + '\n');
         assertThatJson(entry1.content()).node("name").isEqualTo("config1");
         assertThatJson(entry1.content()).node("value").isEqualTo(100);
 
         final Entry<?> entry2 = entriesWithRaw.get("/configs/config2.json5");
-        assertThat(entry2.rawContent()).isEqualTo(json5Text2);
+        assertThat(entry2.rawContent()).isEqualTo(json5Text2 + '\n');
         assertThatJson(entry2.content()).node("name").isEqualTo("config2");
         assertThatJson(entry2.content()).node("value").isEqualTo(200);
     }
@@ -345,7 +345,7 @@ class Json5CrudTest {
                                                  .start(initialResult.revision())
                                                  .join();
 
-        assertThat(entryWithRaw.rawContent()).isEqualTo(updatedJson5Text);
+        assertThat(entryWithRaw.rawContent()).isEqualTo(updatedJson5Text + '\n');
         assertThatJson(entryWithRaw.content()).node("version").isEqualTo(2);
         assertThatJson(entryWithRaw.content()).node("status").isEqualTo("updated");
         assertThatJson(entryWithRaw.content()).node("timestamp").isEqualTo("2025-01-15");

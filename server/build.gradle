@@ -30,6 +30,8 @@ dependencies {
     // DiffUtils
     implementation libs.diffutils
 
+    implementation libs.freemarker
+
     // jCommander. optionalImplementation must be also added to the :dist dependencies.
     optionalImplementation libs.jcommander
 

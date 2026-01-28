@@ -193,7 +193,6 @@ class GitMirrorIntegrationTest {
         assertThat(rev2).isEqualTo(rev1);
 
         // Now, add some files to the git repository and mirror.
-        //// This file should not be mirrored because it does not conform to CD's file naming rule.
         addToGitIndex(".gitkeep", "");
         addToGitIndex("first/light.txt", "26-Aug-2014");
         addToGitIndex("second/son.json", "{\"release_date\": \"21-Mar-2014\"}");
@@ -228,14 +227,16 @@ class GitMirrorIntegrationTest {
 
         //// Make sure the two files are all there.
         final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev3, "/", "/");
-        final Map<String, Entry<?>> files = client.getFiles(projName, REPO_FOO, rev3, PathPattern.all(), true)
+        final Map<String, Entry<?>> files = client.getFiles(projName, REPO_FOO, rev3, PathPattern.all(), true,
+                                                            false, null)
                                                   .join();
         assertThat(files).hasSize(9); // 4 dirs + 4 files + mirror_state.json
         assertThatJson(files.get("/mirror_state.json").contentAsJson())
                 .whenIgnoringPaths("configHash")
                 .isEqualTo(expectedSecondMirrorState.contentAsJson());
         assertThat(files.values())
-                .contains(Entry.ofDirectory(rev3, "/first"),
+                .contains(Entry.ofText(rev3, "/.gitkeep", ""),
+                          Entry.ofDirectory(rev3, "/first"),
                           Entry.ofText(rev3, "/first/light.txt", "26-Aug-2014\n"),
                           Entry.ofDirectory(rev3, "/second"),
                           Entry.ofJson(rev3, "/second/son.json",
@@ -246,11 +247,11 @@ class GitMirrorIntegrationTest {
                           Entry.ofYaml(rev3, "/fourth/config.yaml", yaml));
         // Make sure that JSON5 content is preserved as-is.
         final Entry<?> json5Config = files.get("/third/config.json5");
-        assertThat(json5Config.rawContent()).isEqualTo(json5);
+        assertThat(json5Config.rawContent()).isEqualTo(json5 + '\n');
         assertThatJson(json5Config.contentAsJson())
                 .isEqualTo("{\"key\": \"value\"}");
         final Entry<?> yamlConfig = files.get("/fourth/config.yaml");
-        assertThat(yamlConfig.rawContent()).isEqualTo(yaml);
+        assertThat(yamlConfig.rawContent()).isEqualTo(yaml + '\n');
         assertThatJson(yamlConfig.contentAsJson())
                 .isEqualTo("{\"YAML\": true}");
 

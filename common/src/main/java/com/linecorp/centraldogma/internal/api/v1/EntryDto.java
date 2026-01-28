@@ -35,6 +35,8 @@ import com.linecorp.centraldogma.common.Revision;
 public class EntryDto<T> {
 
     private final Revision revision;
+    @Nullable
+    private final Revision templateRevision;
 
     private final String path;
 
@@ -55,18 +57,26 @@ public class EntryDto<T> {
     private final String url;
 
     public EntryDto(Revision revision, String path, EntryType type,
-                    String projectName, String repoName, @Nullable T content, @Nullable String rawContent) {
+                    String projectName, String repoName, @Nullable T content, @Nullable String rawContent,
+                    @Nullable Revision templateRevision) {
         this.revision = requireNonNull(revision, "revision");
         this.path = requireNonNull(path, "path");
         this.type = requireNonNull(type, "type");
         this.content = content;
         this.rawContent = rawContent;
+        this.templateRevision = templateRevision;
         url = PROJECTS_PREFIX + '/' + projectName + REPOS + '/' + repoName + CONTENTS + path;
     }
 
     @JsonProperty
     public Revision revision() {
         return revision;
+    }
+
+    @Nullable
+    @JsonProperty
+    public Revision templateRevision() {
+        return templateRevision;
     }
 
     @JsonProperty
@@ -102,6 +112,7 @@ public class EntryDto<T> {
     public String toString() {
         return MoreObjects.toStringHelper(this).omitNullValues()
                           .add("revision", revision)
+                          .add("templateRevision", templateRevision)
                           .add("path", path)
                           .add("type", type)
                           .add("content", content).toString();
